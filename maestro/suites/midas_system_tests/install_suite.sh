@@ -118,6 +118,14 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
     mkdir -p $(dirname ${MIDAS_TESTS_SUITE})
 fi
 
+echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-${toplevel}/compiledir}/midas_abs" > abs.dot
+echo "MIDAS_version=\$(cd ${toplevel}; ./midas.version.sh)" >> abs.dot
+if [ -n "${MIDAS_ABS}" ]; then
+    . ./abs.dot
+    mkdir -p ${ABS_DIR}
+    cp ${MIDAS_ABS}/midas-*-${MIDAS_version}.Abs ${ABS_DIR}
+fi
+
 [ -L ~/.suites/${MIDAS_TESTS_SUITE} ] && rm ~/.suites/${MIDAS_TESTS_SUITE}
 ln -s $PWD ~/.suites/${MIDAS_TESTS_SUITE}
 
@@ -141,21 +149,12 @@ fi
 export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 
-echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-${toplevel}/compiledir}/midas_abs" > abs.dot
-echo "MIDAS_version=\$(cd ${toplevel}; ./midas.version.sh)" >> abs.dot
-
 ## Ajouter la creation pour chaque usager de repertoires de reference pour les tests
 ##    test_results
 
 export SEQ_EXP_HOME=~/.suites/${MIDAS_TESTS_SUITE}
 if tty -s && [ "${MIDAS_INSTALL_SUITE_START_FLOW:-yes}" = yes ]; then
     xflow &
-fi
-
-if [ -n "${MIDAS_ABS}" ]; then
-    . ./abs.dot
-    mkdir -p ${ABS_DIR}
-    cp ${MIDAS_ABS}/midas-*-${MIDAS_version}.Abs ${ABS_DIR}
 fi
 
 if [ "${MIDAS_SUITE_RUN}" = run ]; then
