@@ -45,7 +45,7 @@ program midas_var
   use obsOperators_mod
   use statetocolumn_mod
   use multi_ir_bgck_mod
-  use biasCorrection_mod
+  use biasCorrectionSat_mod
   use increment_mod
   use residual_mod
   use stateToColumn_mod
@@ -128,7 +128,7 @@ program midas_var
   !
   !- Read variational bias correction namelist (default is to not use it)
   !
-  call bias_readConfig()
+  call bcs_readConfig()
 
   ! 2. Decide on configuration of job
 
@@ -188,11 +188,11 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    call bias_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+    call bcs_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
 
-    call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
+    call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
 
-    call bias_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO") ! Apply bias correction to O-F
+    call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO") ! Apply bias correction to O-F
 
     ! Do the IR background check
 
@@ -265,7 +265,7 @@ program midas_var
     call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVector_incr)
 
     ! Compute satellite bias correction increment and write to file
-    call bias_writebias(controlVector_incr)
+    call bcs_writebias(controlVector_incr)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
@@ -305,7 +305,7 @@ program midas_var
     deallocate(controlVector_incr)
 
     ! Deallocate memory related to variational bias correction
-    call bias_finalize()
+    call bcs_finalize()
 
     ! Now write out the observation data files
     if(min_niter.gt.0) then

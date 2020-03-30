@@ -13,5 +13,5 @@ SRC_FILES="$SRC_FILES burpread_mod.f90 ensemblestatevector_mod.f90 globalspectra
 SRC_FILES="$SRC_FILES burpfiles_mod.f90 cmafiles_mod.f90 gridVariableTransforms_mod.f90 obstimeinterp_mod.f90 slantprofilelatlon_mod.f90 sqlitefiles_mod.f90 windrotation_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 obsfiles_mod.f90 rmatrix_mod.f90 statetocolumn_mod.f90"
 SRC_FILES="$SRC_FILES controlvector_mod.f90 costfunction_mod.f90 localizationfunction_mod.f90 obserrors_mod.f90 obsOperatorsChem_mod.f90 tovs_lin_mod.f90"
-SRC_FILES="$SRC_FILES biascorrection_mod.f90 kdtree2_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90 randomnumber_mod.f90"
+SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 kdtree2_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90 randomnumber_mod.f90"
 SRC_FILES="$SRC_FILES ensembleobservations_mod.f90 innovation_mod.f90"

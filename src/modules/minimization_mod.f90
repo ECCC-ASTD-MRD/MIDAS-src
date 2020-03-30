@@ -48,7 +48,7 @@ module minimization_mod
   use innovation_mod
   use quasinewton_mod
   use utilities_mod
-  use biasCorrection_mod
+  use biasCorrectionSat_mod
   implicit none
   save
   private
@@ -1035,7 +1035,7 @@ CONTAINS
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
 
-       call bias_calcbias_tl(da_v,OBS_OMA,obsSpaceData,columng)
+       call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData,columng)
 
        call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
 
@@ -1075,7 +1075,7 @@ CONTAINS
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0
-       call bias_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData)
+       call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData)
        call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
        call gsv_deallocate(statevector)
 
