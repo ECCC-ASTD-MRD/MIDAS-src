@@ -2,11 +2,14 @@
    nEns                  = 40
 /
   &NAMENSPOSTPROC
-   alphaRTPS             = 0.80D0
-   alphaRandomPert       = 0.10D0
-   imposeSaturationLimit = .true.
-   imposeRttovHuLimits   = .true.
-   useOptionTableRecenter = .true.
+   writeSubSample           = .true.
+   writeSubSampleUnPert     = .true.
+   alphaRTPS                = 0.80D0
+   alphaRandomPert          = 0.10D0
+   alphaRandomPertSubSample = 0.30D0
+   imposeSaturationLimit    = .true.
+   imposeRttovHuLimits      = .true.
+   useOptionTableRecenter   = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
