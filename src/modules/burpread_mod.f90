@@ -1552,6 +1552,7 @@ CONTAINS
 
     INTEGER, ALLOCATABLE   :: LAT(:),LON(:),HHMM(:),DATE(:),GLBFLAG(:)
     REAL   , ALLOCATABLE   :: HLAT(:,:),  HLON(:,:),  HTIME(:,:)
+    INTEGER, ALLOCATABLE   :: PHASE(:,:)
     REAL   , ALLOCATABLE   :: HLAT_SFC(:),HLON_SFC(:),HTIME_SFC(:)
 
     REAL   , ALLOCATABLE   :: RINFO(:,:)
@@ -1571,7 +1572,7 @@ CONTAINS
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
     INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
-    INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR
+    INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR, IND_PHASE
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
     INTEGER                :: vcord_type(10),SUM,vcoord_type
@@ -2064,6 +2065,12 @@ CONTAINS
             if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
             IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
+            IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
+
+            if( TRIM(FAMILYTYPE2) == 'AI' .and. IND_PHASE > 0) then
+              allocate( phase(nvale,nte) )
+              phase(:,:) = MPC_missingValue_R4
+            end if
 
             if( TRIM(FAMILYTYPE2) == 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
 
@@ -2106,6 +2113,13 @@ CONTAINS
                                            & NVAL_IND = j, &
                                            & NT_IND   = k)
                   END IF
+
+                  if ( allocated(phase) ) then
+                    phase(j,k) = BURP_Get_Tblval(Block_in, &
+                                              & NELE_IND = IND_phase, &
+                                              & NVAL_IND = j, &
+                                              & NT_IND   = k)
+                  end if
 
                   IF (IND_EMIS > 0) THEN
                     EMIS(j,k) =BURP_Get_Rval(Block_in, &
@@ -2498,7 +2512,11 @@ CONTAINS
                      SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
 
                 IF (NDATA > 0) THEN
-                  call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
+                  if (allocated(phase)) then
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
+                  else
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
+                  end if
 !==================================================================================
 !
 ! Ajoute qivals dans les argument de WRITE_QI
@@ -2716,6 +2734,9 @@ CONTAINS
         end if
         if ( allocated(RADMOY) ) then
           DEALLOCATE (RADMOY,CFRAC,radstd)
+        end if
+        if ( allocated(phase) ) then
+          DEALLOCATE (phase)
         end if
 
 
@@ -2989,7 +3010,7 @@ CONTAINS
   END SUBROUTINE  GET_HEADER
 
 
-  SUBROUTINE WRITE_HEADER(obsdat, STNID,LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,FILENUMB)
+  SUBROUTINE WRITE_HEADER(obsdat, STNID,LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,FILENUMB,PHASE_Opt)
 
     implicit none
     type (struct_obs), intent(inout) :: obsdat
@@ -2997,6 +3018,8 @@ CONTAINS
 
     INTEGER     ::    DATE,TIME,CODTYP,STATUS
     INTEGER     ::    FILENUMB
+    INTEGER, optional :: phase_opt
+
     REAL(OBS_REAL) :: ELEV,LAT,LON
 
     INTEGER     ::   NOBS
@@ -3015,6 +3038,9 @@ CONTAINS
     !call obs_headSet_i(obsdat,OBS_IDF,nobs,FILENUMB)
     call obs_headSet_i(obsdat,OBS_OTP,nobs,FILENUMB)
     call obs_set_c(obsdat,'STID',nobs,STNID )
+    if ( present(phase_opt) .and. &
+         obs_columnActive_IH(obsdat,OBS_PHAS) ) &
+         call obs_headSet_i(obsdat,OBS_PHAS,nobs,phase_opt)
 
   END SUBROUTINE  WRITE_HEADER
 
@@ -3222,7 +3248,7 @@ CONTAINS
     ! AIRS
     IF ( INSTRUMENT == 420 ) ID_SAT = 784
 
-!CrIS FSR
+    ! CrIS FSR
     if (codtyp == 202 .and. INSTRUMENT == 620) then
       INSTRUMENT = 2046 
     end if
