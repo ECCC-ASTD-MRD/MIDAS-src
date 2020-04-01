@@ -418,7 +418,7 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       if ( trim(AnlVar(varIndex)) == '' ) exit
       if ( vnl_varKindFromVarname(AnlVar(varIndex)) == 'CH' ) then
-        if ( minValVarKindCH(varIndex) < 1.01*MPC_missingValue_R8 ) then
+        if ( minValVarKindCH(varIndex) < 0.99d0 * MPC_missingValue_R8 ) then
           if ( trim(AnlVar(varIndex)) == 'AF' .or. trim(AnlVar(varIndex)) == 'AC' ) then
             ! Set for particulate matter in micrograms/cm^3
             minValVarKindCH(varIndex) = MPC_MINIMUM_PM_R8

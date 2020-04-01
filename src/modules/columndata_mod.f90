@@ -138,7 +138,7 @@ contains
     do varIndex = 1, vnl_numvarmax
       if ( trim(AnlVar(varIndex)) == '' ) exit
       if ( vnl_varKindFromVarname(AnlVar(varIndex)) == 'CH' ) then
-        if ( minValVarKindCH(varIndex) < 1.01*MPC_missingValue_R8 ) then
+        if ( minValVarKindCH(varIndex) < 0.99d0 * MPC_missingValue_R8 ) then
           if ( trim(AnlVar(varIndex)) == 'AF' .or. trim(AnlVar(varIndex)) == 'AC' ) then
             ! Set for particulate matter in micrograms/cm^3
             minValVarKindCH(varIndex) = MPC_MINIMUM_PM_R8
@@ -373,14 +373,15 @@ contains
   !--------------------------------------------------------------------------
   ! col_getOffsetFromVarno
   !--------------------------------------------------------------------------
-  function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
+  function col_getOffsetFromVarno(column,varnum,varNumberChm_opt,modelName_opt) result(offset)
     implicit none
     type(struct_columnData) :: column
     integer, intent(in)     :: varnum
     integer, intent(in), optional :: varNumberChm_opt
+    character(len=*), intent(in), optional :: modelName_opt
     integer                 :: offset
 
-    offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt)))
+    offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
 
   end function col_getOffsetFromVarno
 
