@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to output unperturbed subspace ensemble (#338 and !322)
  * Add program ensPostProcess for recentering and inflating letkf analysis ensemble (#329 and !314)
  * Add ability to recenter LETKF analysis ensemble on a supplied EnVar analysis (#328 and !313)
  * Addition of the OmP error std dev OBS_OMPE element and its possible use during background check (#246 and !311)

@@ -874,6 +874,7 @@ contains
     type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
     type(struct_ens)          :: ensembleTrlSubSample
     type(struct_ens)          :: ensembleAnlSubSample
+    type(struct_ens)          :: ensembleAnlSubSampleUnPert
     character(len=12)         :: etiketMean='', etiketStd=''
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
@@ -883,6 +884,7 @@ contains
     ! Namelist variables
     integer  :: randomSeed           ! seed used for random perturbation additive inflation
     logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
+    logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for initializing medium-range fcsts
     real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
     real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
@@ -893,7 +895,7 @@ contains
     logical  :: useOptionTableRecenter ! use values in the optiontable file
     character(len=12) :: etiket0
 
-    NAMELIST /NAMENSPOSTPROC/randomSeed, writeSubSample,  &
+    NAMELIST /NAMENSPOSTPROC/randomSeed, writeSubSample, writeSubSampleUnPert,  &
                              alphaRTPS, alphaRandomPert, alphaRandomPertSubSample,  &
                              imposeSaturationLimit, imposeRttovHuLimits,  &
                              weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
@@ -906,6 +908,7 @@ contains
     !- Setting default namelist variable values
     randomSeed            =  -999
     writeSubSample        = .false.
+    writeSubSampleUnPert  = .false.
     alphaRTPS             =  0.0D0
     alphaRandomPert       =  0.0D0
     alphaRandomPertSubSample =  -1.0D0
@@ -1010,8 +1013,8 @@ contains
     !- If SubSample requested, copy sub-sample of analysis and trial members
     if (writeSubSample) then
       ! Copy sub-sampled analysis and trial ensemble members
-      call enkf_selectSubSample(ensembleAnl, ensembleTrl,  &
-                                ensembleAnlSubSample, ensembleTrlSubSample)
+      call enkf_selectSubSample(ensembleAnl, ensembleAnlSubSample,  &
+                                ensembleTrl, ensembleTrlSubSample)
 
       ! Create subdirectory for outputting sub sample increments
       ierr = clib_mkdir_r('subspace')
@@ -1029,6 +1032,16 @@ contains
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
                          allocHeight_opt=.false., allocPressure_opt=.false. )
       call gsv_zero(stateVectorMeanIncSubSample)
+
+    end if
+
+    !- If unperturbed SubSample requested, copy sub-sample of analysis members
+    if (writeSubSampleUnPert) then
+      ! Copy sub-sampled analysis ensemble members
+      call enkf_selectSubSample(ensembleAnl, ensembleAnlSubSampleUnPert)
+
+      ! Create subdirectory for outputting sub sample members without perturbations
+      ierr = clib_mkdir_r('subspace_unpert')
 
     end if
 
@@ -1086,7 +1099,7 @@ contains
       ! Compute analysis mean of sub-sampled ensemble
       call ens_computeMean(ensembleAnlSubSample)
 
-      ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
+      ! Shift members to have same mean as full ensemble
       call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
                         recenteringCoeff_opt=1.0D0)
 
@@ -1097,6 +1110,18 @@ contains
       ! And compute mean increment with respect to mean of full trial ensemble
       call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
       call gsv_add(stateVectorMeanTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
+
+    end if
+
+    !- If SubSample requested, do remaining processing and output of sub-sampled members
+    if (writeSubSampleUnPert) then
+
+      ! Compute analysis mean of sub-sampled ensemble
+      call ens_computeMean(ensembleAnlSubSampleUnPert)
+
+      ! Shift members to have same mean as full ensemble
+      call ens_recenter(ensembleAnlSubSampleUnPert, stateVectorMeanAnl,  &
+                        recenteringCoeff_opt=1.0D0)
 
     end if
 
@@ -1272,6 +1297,18 @@ contains
                                   etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
                                   ensPath='subspace')
       call tmg_stop(104)
+    end if
+
+    !- Output the unperturbed sub-sampled ensemble analyses
+    if (writeSubSampleUnPert) then
+
+      ! Output the sub-sampled analysis ensemble members
+      call tmg_start(104,'LETKF-writeEns')
+      call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', ' ', 'ENS_ANL', 'A',  &
+                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                             containsFullField_opt=.true.)
+      call tmg_stop(104)
+
     end if
 
     call tmg_stop(4)
@@ -2239,18 +2276,18 @@ contains
   !-----------------------------------------------------------------
   ! enkf_selectSubSample
   !-----------------------------------------------------------------
-  subroutine enkf_selectSubSample(ensembleAnl, ensembleTrl,  &
-                                  ensembleAnlSubSample, ensembleTrlSubSample)
+  subroutine enkf_selectSubSample(ensembleAnl, ensembleAnlSubSample,  &
+                                  ensembleTrl_opt, ensembleTrlSubSample_opt)
     ! :Purpose: Create sub-sampled ensembles of analyses and trials based on
     !           the contents of the ascii files 'sampletable' which lists
     !           the member indices for the subsample.
     implicit none
 
     ! Arguments
-    type(struct_ens) :: ensembleAnl
-    type(struct_ens) :: ensembleTrl
-    type(struct_ens) :: ensembleAnlSubSample
-    type(struct_ens) :: ensembleTrlSubSample
+    type(struct_ens)           :: ensembleAnl
+    type(struct_ens)           :: ensembleAnlSubSample
+    type(struct_ens), optional :: ensembleTrl_opt
+    type(struct_ens), optional :: ensembleTrlSubSample_opt
 
     ! Locals
     type(struct_gsv) :: stateVectorMember
@@ -2282,8 +2319,10 @@ contains
 
     call ens_allocate(ensembleAnlSubSample, numSubSample, tim_nstepobsinc,  &
                       ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
-    call ens_allocate(ensembleTrlSubSample, numSubSample, tim_nstepobsinc,  &
-                      ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
+    if (present(ensembleTrlSubSample_opt)) then
+      call ens_allocate(ensembleTrlSubSample_opt, numSubSample, tim_nstepobsinc,  &
+                        ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
+    end if
 
     call gsv_allocate(stateVectorMember, tim_nstepobsinc,  &
                       ens_getHco(ensembleAnl), ens_getVco(ensembleAnl),  &
@@ -2299,11 +2338,13 @@ contains
       call ens_insertMember(ensembleAnlSubSample, stateVectorMember,  &
                             memberIndexesSubSample(memberIndex))
 
-      ! copy trial ensemble member
-      call ens_copyMember(ensembleTrl, stateVectorMember,  &
-                          memberIndexesFull(memberIndex))
-      call ens_insertMember(ensembleTrlSubSample, stateVectorMember,  &
-                            memberIndexesSubSample(memberIndex))
+      if (present(ensembleTrl_opt) .and. present(ensembleTrlSubSample_opt)) then
+        ! copy trial ensemble member
+        call ens_copyMember(ensembleTrl_opt, stateVectorMember,  &
+                            memberIndexesFull(memberIndex))
+        call ens_insertMember(ensembleTrlSubSample_opt, stateVectorMember,  &
+                              memberIndexesSubSample(memberIndex))
+      end if
     end do
 
     call gsv_deallocate(stateVectorMember)
