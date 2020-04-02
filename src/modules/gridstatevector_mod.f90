@@ -309,13 +309,16 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_getNumLev
   !--------------------------------------------------------------------------
-  function gsv_getNumLev(statevector,varLevel) result(nlev)
+  function gsv_getNumLev(statevector,varLevel,varName_opt) result(nlev)
     implicit none
-    type(struct_gsv), intent(in)  :: statevector
-    character(len=*), intent(in)  :: varLevel
+    ! arguments
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=*), intent(in)           :: varLevel
+    character(len=*), optional, intent(in) :: varName_opt
+    ! locals
     integer                       :: nlev
 
-    nlev = vco_getNumLev(statevector%vco,varLevel)
+    nlev = vco_getNumLev(statevector%vco,varLevel,varName_opt)
 
   end function gsv_getNumLev
 
@@ -371,8 +374,9 @@ module gridStateVector_mod
                        minValVarKindCH, abortOnMpiImbalance
 
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
-    if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
-    if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D=',vnl_varNameList2D
+    if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D   =',vnl_varNameList3D(:)
+    if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D   =',vnl_varNameList2D(:)
+    if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameListOther=',vnl_varNameListOther(:)
 
     ! Read namelist NAMSTATE to find which fields are needed
 
@@ -409,6 +413,14 @@ module gridStateVector_mod
         varExistList(varIndex+vnl_numVarMax3D) = .true.
       else
         varExistList(varIndex+vnl_numVarMax3D) = .false.
+      end if
+    end do
+
+    do varIndex = 1, vnl_numvarmaxOther
+      if (varneed(vnl_varNameListOther(varIndex))) then
+        varExistList(varIndex+vnl_numVarMax3D+vnl_numVarMax2D) = .true.
+      else
+        varExistList(varIndex+vnl_numVarMax3D+vnl_numVarMax2D) = .false.
       end if
     end do
 
@@ -661,7 +673,10 @@ module gridStateVector_mod
       do varIndex2 = 1, size(varNames_opt)
         varIndex = vnl_varListIndex(varNames_opt(varIndex2))
         statevector%varOffset(varIndex)=iloc
-        statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+        statevector%varNumLev(varIndex)=  &
+             gsv_getNumLev( statevector, &
+                            vnl_varLevelFromVarname(vnl_varNameList(varIndex)),  &
+                            vnl_varNameList(varIndex) )
         iloc = iloc + statevector%varNumLev(varIndex)
       end do
 
@@ -670,7 +685,9 @@ module gridStateVector_mod
       do varIndex = 1, vnl_numvarmax3d
         if ( statevector%varExistList(varIndex) ) then
           statevector%varOffset(varIndex)=iloc
-          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+          statevector%varNumLev(varIndex)=  &
+               gsv_getNumLev( statevector,  &
+                              vnl_varLevelFromVarname(vnl_varNameList(varIndex)) )
           iloc = iloc + statevector%varNumLev(varIndex)
         end if
       end do
@@ -680,6 +697,17 @@ module gridStateVector_mod
           statevector%varOffset(varIndex)=iloc
           statevector%varNumLev(varIndex)=1
           iloc = iloc + 1
+        end if
+      end do
+      do varIndex2 = 1, vnl_numvarmaxOther
+        varIndex=varIndex2+vnl_numvarmax3d+vnl_numvarmax2d
+        if ( statevector%varExistList(varIndex) ) then
+          statevector%varOffset(varIndex)=iloc
+          statevector%varNumLev(varIndex)=  &
+               gsv_getNumLev( statevector,  &
+                              vnl_varLevelFromVarname(vnl_varNameList(varIndex)), &
+                              vnl_varNameList(varIndex) )
+          iloc = iloc + statevector%varNumLev(varIndex)
         end if
       end do
 
@@ -3240,6 +3268,8 @@ module gridStateVector_mod
           ip1 = vco_file%ip1_T(levIndex)
         else if (varLevel == 'SF') then
           ip1 = -1
+        else if (varLevel == 'OT') then
+          ip1 = vco_ip1_other(levIndex)
         else
           call utl_abort('gsv_readFile: unknown varLevel')
         end if
@@ -4983,8 +5013,6 @@ module gridStateVector_mod
     ig4    = statevector%hco%ig4
     datyp  = 134
 
-    nlev = max(gsv_getNumLev(statevector,'MM'),gsv_getNumLev(statevector,'TH'))
-
     ! only proc 0 does writing or each proc when data is global 
     ! (assuming only called for proc with global data)
     iDoWriting = (mpi_myid == 0) .or. (.not. statevector%mpi_local)
@@ -5134,6 +5162,8 @@ module gridStateVector_mod
                ip1 = statevector%vco%ip1_T(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
                ip1 = 0
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
+               ip1 = vco_ip1_other(levIndex)
             else
                write(*,*) 'gsv_writeToFile: unknown type of vertical level: ',  &
                           vnl_varLevelFromVarname(vnl_varNameList(varIndex))

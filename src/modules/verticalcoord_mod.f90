@@ -31,6 +31,8 @@ module verticalCoord_mod
 
   ! public derived type
   public :: struct_vco
+  ! public variables
+  public :: vco_ip1_other
   ! public procedures
   public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_ensureCompatibleTops
@@ -53,6 +55,9 @@ module verticalCoord_mod
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
   end type struct_vco
+
+  integer, parameter :: maxNumOtherLevels = 20
+  integer :: vco_ip1_other(maxNumOtherLevels)
 
 contains
   
@@ -109,7 +114,7 @@ contains
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm,fstinl
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
-    integer :: ip1_sfc, ip1_Other
+    integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: isExist_L, ip1_found, sfcFieldFound
     integer :: ni, nj, nk, varListIndex, IP1kind
@@ -310,15 +315,16 @@ contains
       write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
     end if
 
+    do jlev = 1, maxNumOtherLevels
+      pValue = real(jlev)
+      IP1kind = 3
+      call convip_plus(vco_ip1_other(jlev), pValue, IP1kind, +2, IP1string, .false.)
+    end do
     vco%nlev_Other(:) = 0
     do varListIndex = 1, vnl_numvarmaxOther
       nomvar_Other = vnl_varNameListOther(varListIndex)
-      do jlev = 1, 10
-        pValue = real(jlev)
-        ip1_other = 59868832
-        IP1kind = 3
-        call convip_plus(ip1_other, pValue, IP1kind, +2, IP1string, .false.)
-        ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, ip1_other, -1, -1, ' ', nomvar_Other)
+      do jlev = 1, maxNumOtherLevels
+        ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vco_ip1_other(jlev), -1, -1, ' ', nomvar_Other)
         if (ikey > 0) vco%nlev_Other(varListIndex) = vco%nlev_Other(varListIndex) + 1
       end do
       if (vco%nlev_Other(varListIndex) == 0) then
