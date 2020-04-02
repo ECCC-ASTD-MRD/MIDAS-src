@@ -119,10 +119,10 @@ MODULE biasCorrectionSat_mod
   logical  :: allModeCsr    ! flag to select "ALL" mode for CSR (GOES, SEVIRI, MVIRI, ABI, etc..)
   logical  :: allModeHyperIr! flag to select "ALL" mode for hyperSpectral Infrared (AIRS, IASI, CrIS)
   
-  namelist /nambias/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
-  namelist /nambias/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
-  namelist /nambias/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
-  namelist /nambias/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
+  namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
+  namelist /nambiassat/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
+  namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
+  namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
 
 CONTAINS
  
@@ -131,7 +131,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   subroutine bcs_readConfig()
     !
-    ! :Purpose: Read nambias namelist section
+    ! :Purpose: Read nambiassat namelist section
     !
     implicit none
     !Locals:
@@ -160,13 +160,14 @@ CONTAINS
     allModeHyperIr=.false.
 
     !
-    ! read in the namelist NAMBIAS
+    ! read in the namelist NAMBIASSAT
+
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambias,iostat=ierr)
+    read(nulnam,nml=nambiassat,iostat=ierr)
     if ( ierr /= 0 .and. mpi_myid == 0 )  &
          write(*,*) 'bcs_readConfig: WARNING: Error reading namelist, assume it will not be used!'
-    if ( mpi_myid == 0 ) write(*,nml=nambias)
+    if ( mpi_myid == 0 ) write(*,nml=nambiassat)
     ierr = fclos(nulnam)
     bias_mimicSatbcor = mimicSatbcor
     doRegression = (trim(biasMode) == "reg" )
@@ -228,7 +229,7 @@ CONTAINS
         if ( nfov == -1) then
           write(*,*) "bcs_setup: Problem with instrName ",instrNamecoeff
           write(*,'(15(A10,1x))')  cinst(:)
-          call utl_abort('bcs_setup: check nambias namelist')
+          call utl_abort('bcs_setup: check nambiassat namelist')
         end if
 
         inquire(file=trim(bcifFile),exist = bcifExists)

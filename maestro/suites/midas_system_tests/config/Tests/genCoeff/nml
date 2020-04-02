@@ -1,4 +1,4 @@
- &NAMBIAS
+ &NAMBIASSAT
     biasActive=.TRUE.,
     BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
     biasmode="reg",
