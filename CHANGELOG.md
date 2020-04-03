@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Using `oavar_scripts` to version `2.2.6` which includes the following changes since version `2.2.4`:
+       * On a generalise les scripts pour tourner les programmes du LETKF.
+         * Ces changements sont compatibles arriere.
+       * `oavar.mpirun`: set `TBB_MALLOC_USE_HUGE_PAGES=1` on `sles-15-*`
+       * `oavar.var_mpi`: On corrige le mode `fasttmp=no` pour éviter que les
+         fichiers complets se retrouvent dans le meme répertoire que les
+         fichiers splittés.
+       * `oavar.launch`: Ajout d'une cle `-analinc_mask`
  * Update to `rpn/utils/19.5.1` and `cmda/utils/19.5-3` (#339 and !321)
  * Unify the `bgckMW` program for AMSUA and ATMS QC (#308 and !315)
  * Improve memory usage in `stateToColumn_mod` (#306 and !310)
