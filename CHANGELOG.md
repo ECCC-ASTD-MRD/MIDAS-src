@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.5.1]
+
+### Added
+
  * Add ability to output unperturbed subspace ensemble (#338 and !322)
  * Add program ensPostProcess for recentering and inflating letkf analysis ensemble (#329 and !314)
  * Add ability to recenter LETKF analysis ensemble on a supplied EnVar analysis (#328 and !313)
@@ -47,10 +65,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fix global mode for `calcStats` program, which was not working, and make it mpi (#307 and !308)
  * Bug fix for the `genCoeff` program: radiosonde weighting was not working properly (#323 and !304)
  * Fix recently introduced bug in adjoint of HU vertical interp for radiance computation (#314 and !299)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.5.0]
 
@@ -430,7 +444,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...HEAD
+[3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
 [3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...v_3.5.0
 [3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
 [3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
