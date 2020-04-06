@@ -2188,6 +2188,8 @@ CONTAINS
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+      else
+        call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
       call tmg_stop(66)
 
@@ -2223,8 +2225,10 @@ CONTAINS
         topLevOffset = 1
       else if (vnl_varLevelFromVarname(varName) == 'MM') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
-      else
+      else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else
+        call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2320,8 +2324,10 @@ CONTAINS
         topLevOffset = 1
       else if (vnl_varLevelFromVarname(varName) == 'MM') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
-      else
+      else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else
+        call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2432,6 +2438,8 @@ CONTAINS
             ensAmplitude_oneLev (1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
+          else
+            call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
           end if
           if (omp_get_thread_num() == 0) call tmg_stop(68)
 

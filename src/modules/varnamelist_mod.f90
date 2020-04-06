@@ -22,6 +22,7 @@ module varNameList_mod
   !           and procedures for accessing this information
   !
   use bufr_mod
+  use mpi_mod
   use utilities_mod
   use MathPhysConstants_mod
   
@@ -479,7 +480,42 @@ module varNameList_mod
       character(len=*), intent(in)   :: varName
       character(len=2)               :: varLevel
 
+      !Locals:
+      integer                :: nulnam, ierr
+      integer, external      :: fnom, fclos
+      character(len=4), save :: forceSfcOnly(vnl_numVarMax)
+      logical, save          :: firstTime = .true.
+
+      NAMELIST /namvnl/forceSfcOnly
+
+      if (firstTime) then
+        firstTime = .false.
+        ! default values (not a valid variable name)
+        forceSfcOnly(:) = 'XXXX'
+        
+        if (utl_isNamelistPresent('namvnl','./flnml')) then
+          nulnam = 0
+          ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+          read (nulnam, nml = NAMVNL, iostat = ierr)
+          if ( ierr /= 0 ) call utl_abort('vnl_varLevelFromVarname: Error reading namelist')
+          if ( mpi_myid == 0 ) write(*,nml=namvnl)
+          ierr = fclos(nulnam)
+        else
+          write(*,*)
+          write(*,*) 'vnl_varLevelFromVarname: namvnl is missing in the namelist. The default value will be taken.'
+        end if
+      end if
+
       varLevel = varLevelList(vnl_varListIndex(varName))
+      if (any(forceSfcOnly(:) == varName)) then
+        if (varLevel == 'TH') then
+          varLevel = 'ST'
+        else if (varLevel == 'MM') then
+          varLevel = 'SM'
+        else
+          call utl_abort('vnl_varLevelFromVarname: something is wrong')
+        end if
+      end if
 
     end function vnl_varLevelFromVarname
 

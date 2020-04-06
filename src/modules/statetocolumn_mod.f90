@@ -593,6 +593,8 @@ contains
             else if ( varLevel == 'SF' ) then
               latColumn(headerUsedIndex,kIndex) = real(lat_r4,8)
               lonColumn(headerUsedIndex,kIndex) = real(lon_r4,8)
+            else
+              call utl_abort('s2c_setupInterpInfo: unknown value of varLevel')
             end if
 
           end do

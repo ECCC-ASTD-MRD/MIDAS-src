@@ -451,7 +451,7 @@ contains
 
     ! arguments:
     type(struct_vco), pointer              :: vco         ! Vertical coordinate object
-    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF' or 'OT'
+    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SM', 'ST' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
     ! locals:
     integer :: nlev, varListIndex
@@ -460,7 +460,7 @@ contains
       nlev = vco%nlev_M
     else if (varLevel == 'TH') then
       nlev = vco%nlev_T
-    else if (varLevel == 'SF') then
+    else if (varLevel == 'SF' .or. varLevel == 'ST' .or. varLevel == 'SM') then
       nlev = 1
     else if (varLevel == 'OT') then
       if (.not. present(varName_opt)) then

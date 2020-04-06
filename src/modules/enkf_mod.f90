@@ -139,6 +139,8 @@ contains
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
+    character(len=2)     :: varLevel
+
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
@@ -767,7 +769,8 @@ contains
           ! Compute the ensemble mean increment and analysis
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
-            if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
+            varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+            if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
               levIndex2 = nLev_M
             else
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
@@ -793,7 +796,8 @@ contains
           ! Compute the ensemble member analyses
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
-            if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
+            varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+            if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
               levIndex2 = nLev_M
             else
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
