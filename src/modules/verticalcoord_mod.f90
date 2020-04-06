@@ -327,12 +327,14 @@ contains
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vco_ip1_other(jlev), -1, -1, ' ', nomvar_Other)
         if (ikey > 0) vco%nlev_Other(varListIndex) = vco%nlev_Other(varListIndex) + 1
       end do
-      if (vco%nlev_Other(varListIndex) == 0) then
-        write(*,*) 
-        write(*,*) 'vco_setupfromfile: Found no levels in template file for OTHER type variable ', nomvar_Other
-      else
-        write(*,*) 'vco_setupfromfile: Found ', vco%nlev_Other(varListIndex),  &
-                   ' levels in template file for OTHER type variable ', nomvar_Other
+      if (mpi_myid == 0 .and. .not. beSilent) then
+        if (vco%nlev_Other(varListIndex) == 0) then
+          write(*,*) 
+          write(*,*) 'vco_setupfromfile: Found no levels in template file for OTHER type variable ', nomvar_Other
+        else
+          write(*,*) 'vco_setupfromfile: Found ', vco%nlev_Other(varListIndex),  &
+               ' levels in template file for OTHER type variable ', nomvar_Other
+        end if
       end if
     end do
 
