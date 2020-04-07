@@ -185,7 +185,7 @@ contains
     ! Force nlist to be in the same sequence as NVNUMB for invariance in
     ! matrix-vector product done in matvec.
     itotelem = 0
-    do elem2 = 1, filt_nelems
+    do elem2 = 1, nelems
        elem=obs_get_obs_index_for_bufr_element(nlist(elem2))
        if (elem /= -1) then
           itotelem = itotelem + 1
