@@ -209,8 +209,12 @@ CONTAINS
       call utl_abort('bmatrixHI: unknown vertical coordinate type!')
     endif
 
-    if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
-               gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+    if (.not. (gsv_varExist(varName='TT') .and.  &
+               gsv_varExist(varName='UU') .and.  &
+               gsv_varExist(varName='VV') .and.  &
+               (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
+               gsv_varExist(varName='P0') .and.  &
+               gsv_varExist(varName='TG')) ) then
        call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
 
@@ -2276,9 +2280,11 @@ CONTAINS
 
     call copyToStatevector(statevector,gd_out)
 
-    call gvt_transform( statevector,  &                         ! INOUT
-                        'LQtoHU_tlm', &                         ! IN
-                        stateVectorRef_opt=stateVectorRef_opt ) ! IN
+    if (gsv_varExist(statevector,'HU')) then
+      call gvt_transform( statevector,  &                         ! INOUT
+                          'LQtoHU_tlm', &                         ! IN
+                          stateVectorRef_opt=stateVectorRef_opt ) ! IN
+    end if
 
     deallocate(gd_out)
 
@@ -2310,10 +2316,11 @@ CONTAINS
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
-    call gvt_transform( statevector, &                          ! INOUT
-                        'LQtoHU_ad', &                          ! IN
-                        stateVectorRef_opt=stateVectorRef_opt ) ! IN
-
+    if (gsv_varExist(statevector,'HU')) then
+      call gvt_transform( statevector, &                          ! INOUT
+                          'LQtoHU_ad', &                          ! IN
+                          stateVectorRef_opt=stateVectorRef_opt ) ! IN
+    end if
 
     call copyFromStatevector(statevector,gd_in)
 
@@ -2345,7 +2352,7 @@ CONTAINS
           ilev1 = nspositDI
         elseif(vnl_varNameList(jvar) == 'TT  ') then
           ilev1 = nspositTT
-        elseif(vnl_varNameList(jvar) == 'HU  ') then
+        elseif(vnl_varNameList(jvar) == 'HU  ' .or. vnl_varNameList(jvar) == 'LQ  ') then
           ilev1 = nspositQ
         elseif(vnl_varNameList(jvar) == 'P0  ') then
           ilev1 = nspositPS
@@ -2357,7 +2364,6 @@ CONTAINS
           cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-!!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlev = ilev1, ilev2
           jlev2 = jlev-ilev1+1
           do jlat = myLatBeg, myLatEnd
@@ -2366,7 +2372,6 @@ CONTAINS
             enddo
           enddo
         enddo
-!!!$OMP END PARALLEL DO
       endif
     enddo
 
@@ -2397,11 +2402,9 @@ CONTAINS
           ilev1 = nspositTG
         else
           ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
-!          call utl_abort('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
           cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-!!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlev = ilev1, ilev2
           jlev2 = jlev-ilev1+1
           do jlat = myLatBeg, myLatEnd
@@ -2410,7 +2413,6 @@ CONTAINS
             enddo
           enddo
         enddo
-!!!$OMP END PARALLEL DO
       endif
     enddo
 
