@@ -15,5 +15,8 @@
   reportNumMax = 500
   locationNumMax = 150
   channelNumMax = 22
-
+/
+ &NAMDIMO
+   NMXOBS=75000,
+   NDATAMX=4000000,
 /

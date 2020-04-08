@@ -22,6 +22,7 @@ module bgckmicrowave_mod
   use burp_module
   use MathPhysConstants_mod
   use utilities_mod
+  use obsSpaceData_mod 
 
   implicit none
   save
@@ -36,14 +37,8 @@ module bgckmicrowave_mod
   public :: mwbg_qcStats
   public :: mwbg_readGeophysicFieldsAndInterpolate
   public :: mwbg_findSatelliteIndex
-  public :: mwbg_allocate1DCharacterArray
-  public :: mwbg_allocate1DIntegerArray
-  public :: mwbg_allocate2DIntegerArray
-  public :: mwbg_allocate3DIntegerArray
-  public :: mwbg_allocate1DLogicalArray
-  public :: mwbg_allocate2DLogicalArray
-  public :: mwbg_allocate1DRealArray
-  public :: mwbg_allocate2DRealArray
+  public :: mwbg_copyObsToObsSpace
+  public :: mwbg_readObsFromObsSpace
 
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
@@ -173,6 +168,7 @@ contains
     !          - 50 Ghz = AMSU-A 3 = channel #30
     !          - 53 Ghz = AMSU-A 5 = channel #32
     !          - 89 Ghz = AMSU-A15 = channel #42
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)         ! observations channels
     real,        intent(in)               :: ptbo(KNO,KNT)          ! radiances
@@ -256,6 +252,7 @@ contains
     !:Purpose:               10) test 10: RTTOV reject check (single)
     !                        Rejected datum flag has bit #9 on.
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -306,6 +303,7 @@ contains
     !                        Channel 6 is rejected for topography >  250m.
     !                        Channel 7 is rejected for topography > 2000m.
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -367,6 +365,7 @@ contains
     !                                  1, sea,
     !                                  2, coast.
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -414,6 +413,7 @@ contains
     !                                 0, sea-ice,
     !                                 1, snow on land.
 
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -461,6 +461,7 @@ contains
 
     !:Purpose:                          4) test 4: Field of view number check (full)
     !                                      Field of view acceptable range is [1,mwbg_maxScanAngleAMSU]  for AMSU footprints.
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -505,6 +506,7 @@ contains
 
     !:Purpose:                   5) test 5: Satellite zenith angle check (full)
     !                               Satellite zenith angle acceptable range is [0.,60.].
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -556,6 +558,7 @@ contains
     !                                        Acceptable difference between "Satellite zenith angle"  and
     !                                       "approximate angle computed from field of view number" is 1.8 degrees.
 
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -619,6 +622,7 @@ contains
     !                                - Other conditions are unacceptable.
 
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -670,6 +674,7 @@ contains
     !:Purpose:                  9) test 9: Uncorrected Tb check (single)
     !                              Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
 
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -720,6 +725,7 @@ contains
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
     !                                               Change this test from full to single. jh nov 2000.
 
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -777,6 +783,7 @@ contains
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
     !                                 For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
 
+    implicit none
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -845,6 +852,7 @@ contains
     !:Purpose:                  13) test 13: Grody scattering index check (partial)
     !                               For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -908,6 +916,7 @@ contains
     !                                  N.B.: a reject by any of the 3 surface channels produces the 
     !                                  rejection of AMSUA-A channels 1-5 and 15.
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -999,6 +1008,7 @@ contains
     !                                    (but IUTILST=0 always for these unassimilated channels).
 
 
+    implicit none
     ! Arguments
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
@@ -1075,235 +1085,11 @@ contains
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
   !--------------------------------------------------------------------------
-  !  mwbg_allocate1DCharacterArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate1DCharacterArray(arrayToAllocate, firstDim)
-    !:Purpose: Allocate an array on 1 dimension
-    ! Arguments
-    character(len=9), intent(out), allocatable :: arrayToAllocate(:)
-    integer, intent(in)                 :: firstDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DCharacterArray')
-    end if 
-  end subroutine mwbg_allocate1DCharacterArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate1DIntegerArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate1DIntegerArray(arrayToAllocate, firstDim)
-    !:Purpose: Allocate an array on 1 dimension
-    ! Arguments
-    integer, intent(inout), allocatable :: arrayToAllocate(:)
-    integer, intent(in)                 :: firstDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DIntegerArray')
-    end if 
-  end subroutine mwbg_allocate1DIntegerArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate1DLogicalArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate1DLogicalArray(arrayToAllocate, firstDim)
-    !:Purpose: Allocate an array on 1 dimension
-    ! Arguments
-    logical, intent(inout), allocatable :: arrayToAllocate(:)
-    integer, intent(in)                 :: firstDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DLogicalArray ')
-    end if 
-  end subroutine mwbg_allocate1DLogicalArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate2DLogicalArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate2DLogicalArray(arrayToAllocate, firstDim, secondDim)
-    !:Purpose: Allocate an array on 2 dimension
-    ! Arguments
-    logical, intent(inout), allocatable :: arrayToAllocate(:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DLogicalArray ')
-    end if 
-
-  end subroutine mwbg_allocate2DLogicalArray
-
-  !--------------------------------------------------------------------------
-  !  allocate3DLogicalArray
-  !--------------------------------------------------------------------------
-  subroutine allocate3DLogicalArray(arrayToAllocate, firstDim, secondDim, thirdDim)
-    !:Purpose: Allocate an array on 3 dimension
-    ! Arguments
-    logical, intent(inout), allocatable :: arrayToAllocate(:,:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    integer, intent(in)                 :: thirdDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim, thirdDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate3DLogicalArray ')
-    end if 
-
-  end subroutine allocate3DLogicalArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate2DIntegerArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate2DIntegerArray(arrayToAllocate, firstDim, secondDim)
-    !:Purpose: Allocate an array on 2 dimension
-    ! Arguments
-    integer, intent(inout), allocatable :: arrayToAllocate(:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DIntegerArray ')
-    end if 
-
-  end subroutine mwbg_allocate2DIntegerArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate3DIntegerArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate3DIntegerArray(arrayToAllocate, firstDim, secondDim, thirdDim)
-    !:Purpose: Allocate an array on 3 dimension
-    ! Arguments
-    integer, intent(inout), allocatable :: arrayToAllocate(:,:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    integer, intent(in)                 :: thirdDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim, thirdDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate3DIntegerArray ')
-    end if 
-
-  end subroutine mwbg_allocate3DIntegerArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate1DRealArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate1DRealArray(arrayToAllocate, firstDim)
-    !:Purpose: Allocate an Real array on 1 dimension
-    ! Arguments
-    real,    intent(inout), allocatable :: arrayToAllocate(:)
-    integer, intent(in)                 :: firstDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DRealArray ')
-    end if 
-  end subroutine mwbg_allocate1DRealArray
-
-  !--------------------------------------------------------------------------
-  !  mwbg_allocate2DRealArray
-  !--------------------------------------------------------------------------
-  subroutine mwbg_allocate2DRealArray(arrayToAllocate, firstDim, secondDim)
-    !:Purpose: Allocate an Real array on 2 dimension
-    ! Arguments
-    real,    intent(inout), allocatable :: arrayToAllocate(:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DRealArray ')
-    end if 
-
-  end subroutine mwbg_allocate2DRealArray
-
-  !--------------------------------------------------------------------------
-  !  allocate3DRealArray
-  !--------------------------------------------------------------------------
-  subroutine allocate3DRealArray(arrayToAllocate, firstDim, secondDim, thirdDim)
-    !:Purpose: Allocate an array on 3 dimension
-    ! Arguments
-    real,    intent(inout), allocatable :: arrayToAllocate(:,:,:)
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    integer, intent(in)                 :: thirdDim
-    
-    !locals
-    integer                             :: allocStatus
-
-    ! Allocation
-    allocStatus = 0
-    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
-    allocate(arrayToAllocate(firstDim, secondDim, thirdDim), stat = allocStatus)
-    if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate3DRealArray ')
-    end if 
-
-  end subroutine allocate3DRealArray
-
-  !--------------------------------------------------------------------------
   !  copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Real Array into 2D real array given dim1 and dim2 
+    implicit none
     ! Arguments
     integer, intent(in)                 :: firstDim
     integer, intent(in)                 :: secondDim
@@ -1331,6 +1117,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Integer Array into 2D Integer array given dim1 and dim2 
+    implicit none
     ! Arguments
     integer, intent(in)                 :: firstDim
     integer, intent(in)                 :: secondDim
@@ -1523,13 +1310,13 @@ contains
                     250., 260., 260., 270., 280., 290., 330./  
 
     ! Allocation
-    call mwbg_allocate1DRealArray(clw_avg, KNT)
-    call mwbg_allocate1DRealArray(clw,     KNT)
-    call mwbg_allocate1DRealArray(scatw,   KNT)
+    call utl_reAllocate(clw_avg, KNT)
+    call utl_reAllocate(clw,     KNT)
+    call utl_reAllocate(scatw,   KNT)
 
-    call mwbg_allocate1DIntegerArray(kchkprf, KNT)
-    call mwbg_allocate1DIntegerArray(ident, KNT)
-    call mwbg_allocate2DIntegerArray(icheck, KNO, KNT)
+    call utl_reAllocate(kchkprf, KNT)
+    call utl_reAllocate(ident, KNT)
+    call utl_reAllocate(icheck, KNO, KNT)
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
@@ -3547,8 +3334,8 @@ contains
     call copy1Dimto2DimIntegerArray(ICANOMP, KNO, KNT, KCANOMP)
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     ! allocations
-    call mwbg_allocate1DIntegerArray(kchkprf, KNT)
-    call mwbg_allocate2DIntegerArray(icheck, KNO, KNT)
+    call utl_reAllocate(kchkprf, KNT)
+    call utl_reAllocate(icheck, KNO, KNT)
     !  Initialisations
     ICHECK(:,:) = 0
     B7CHCK(:,:) = 0
@@ -4274,7 +4061,6 @@ contains
     !
     character(len=90),    intent(in)     :: burpFileNameIn
     integer,              intent(in)     :: reportIndex    ! report index
-    !type(BURP_RPT),       intent(in)     :: rpt           ! report
     character(*),         intent(in)     :: InstName       ! Instrument Name
     integer, allocatable, intent(out)    :: ISAT(:)        ! satellite identifier
     real   , allocatable, intent(out)    :: zenith(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
@@ -4380,7 +4166,7 @@ contains
       return 
     else 
       resumeReport = .False.
-      STNID = idStn0 
+      STNID = trim(idStn0) 
     end if
     
     !  Get OMP data from the DATA block     BTYP =  9322 or 9226 or 9258 or 9274 and bfma = 14
@@ -4633,15 +4419,15 @@ contains
     integer :: idum1,idum2,idum3
 
     ! Allocate space for arrays holding values on mesh grid pts.
-    call mwbg_allocate1DRealArray(latmesh, mxlat*mxlon)
-    call mwbg_allocate1DRealArray(lonmesh, mxlat*mxlon)
-    call mwbg_allocate1DRealArray(mgintob, mxlat*mxlon)
-    call mwbg_allocate1DRealArray(lgintob, mxlat*mxlon)
-    call mwbg_allocate2DRealArray(zlatbox, mxlat*mxlon, npts)
-    call mwbg_allocate2DRealArray(zlonbox, mxlat*mxlon, npts)
-    call mwbg_allocate1DIntegerArray(zlq, npts)
-    call mwbg_allocate1DIntegerArray(ztt, npts)
-    call mwbg_allocate1DLogicalArray(waterobs, npts)
+    call utl_reAllocate(latmesh, mxlat*mxlon)
+    call utl_reAllocate(lonmesh, mxlat*mxlon)
+    call utl_reAllocate(mgintob, mxlat*mxlon)
+    call utl_reAllocate(lgintob, mxlat*mxlon)
+    call utl_reAllocate(zlatbox, mxlat*mxlon, npts)
+    call utl_reAllocate(zlonbox, mxlat*mxlon, npts)
+    call utl_reAllocate(zlq, npts)
+    call utl_reAllocate(ztt, npts)
+    call utl_reAllocate(waterobs, npts)
     zlq(:) = ilq(1:npts)  ! land/sea qualifier
     ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
     
@@ -4655,7 +4441,7 @@ contains
       call utl_abort('bgckMicrowave_mod:  mwbg_landIceMaskAtms The MG field is MISSING')
     end if
 
-    call mwbg_allocate1DRealArray(mg, ni*nj)
+    call utl_reAllocate(mg, ni*nj)
 
     ier = fstlir(mg,iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MG')
 
@@ -4680,7 +4466,7 @@ contains
       llg=.true.
     end if
 
-    call mwbg_allocate1DRealArray(lg, nilg*njlg)
+    call utl_reAllocate(lg, nilg*njlg)
 
     if ( llg ) then
       ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
@@ -4730,8 +4516,8 @@ contains
     gdid   = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
     gdidlg = ezqkdef(nilg,njlg,grtyplg,ig1lg,ig2lg,ig3lg,ig4lg,iungeo)
     
-    call mwbg_allocate1DRealArray(mgintrp, npts)
-    call mwbg_allocate1DRealArray(lgintrp, npts)
+    call utl_reAllocate(mgintrp, npts)
+    call utl_reAllocate(lgintrp, npts)
 
     mgintrp(:) = 0.0
     lgintrp(:) = 0.0
@@ -4784,7 +4570,7 @@ contains
     ! Locals
     integer :: ii, indx1, indx2
 
-    call mwbg_allocate1DLogicalArray(grossrej, npts)
+    call utl_reAllocate(grossrej, npts)
     
     grossrej(1:npts) = .true.
     indx1 = 1
@@ -4852,7 +4638,7 @@ contains
     logical :: fail, fail1, fail2
 
     reportHasMissingTb = .false.
-    call mwbg_allocate2dLogicalArray(lqc, nt, nval)
+    call utl_reAllocate(lqc, nt, nval)
     lqc(:,:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
@@ -5142,10 +4928,10 @@ contains
 
 
     ! Allocation
-    call mwbg_allocate1DRealArray(clw,ni)
-    call mwbg_allocate1DRealArray(si_ecmwf,ni)
-    call mwbg_allocate1DRealArray(si_bg,ni)
-    call mwbg_allocate1DRealArray(SeaIce,ni)
+    call utl_reAllocate(clw,ni)
+    call utl_reAllocate(si_ecmwf,ni)
+    call utl_reAllocate(si_bg,ni)
+    call utl_reAllocate(SeaIce,ni)
     ! extract required channels:
     !  23 Ghz = AMSU-A 1 = ATMS channel 1 
     !  31 Ghz = AMSU-A 2 = ATMS channel 2
@@ -5327,15 +5113,15 @@ contains
     real                                       ::  ztb183(5)
 
 
-    call mwbg_allocate1DLogicalArray(cloudobs, nt)
-    call mwbg_allocate1DLogicalArray(iwvreject, nt)
-    call mwbg_allocate1DIntegerArray(ident, nt)
-    call mwbg_allocate1DLogicalArray(precipobs, nt)
-    call mwbg_allocate1DRealArray(riwv, nt)
-    call mwbg_allocate1DRealArray(ztb_amsub3, nt)
-    call mwbg_allocate1DRealArray(bcor_amsub3, nt)
-    call mwbg_allocate1DRealArray(ztb_amsub5, nt)
-    call mwbg_allocate1DRealArray(bcor_amsub5, nt)
+    call utl_reAllocate(cloudobs, nt)
+    call utl_reAllocate(iwvreject, nt)
+    call utl_reAllocate(ident, nt)
+    call utl_reAllocate(precipobs, nt)
+    call utl_reAllocate(riwv, nt)
+    call utl_reAllocate(ztb_amsub3, nt)
+    call utl_reAllocate(bcor_amsub3, nt)
+    call utl_reAllocate(ztb_amsub5, nt)
+    call utl_reAllocate(bcor_amsub5, nt)
 
     ! To begin, assume that all obs are good.
     ident(:) = 0
@@ -5475,7 +5261,7 @@ contains
 
 
     ! Allocation
-    call mwbg_allocate2DLogicalArray(lflagchn,nt, nval)
+    call utl_reAllocate(lflagchn,nt, nval)
 
     lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
     do kk = 1, nt
@@ -5606,5 +5392,207 @@ contains
     end if
 
   end function calcStateDepObsErr_r4
+
+  !--------------------------------------------------------------------------
+  !  mwbg_copyObsToObsSpace
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel, satIdentifier, satZenithAngle, landQualifierIndice, &
+                                    terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
+                                    obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
+                                    ompChannels, obsFlags, obsSpaceData)
+    
+    !:Purpose:        copy headers and bodies from the burp Arrays into an obsSpaceData object
+
+    implicit None
+
+    !Arguments
+    character(len=9), intent(in)    :: InstName                  ! Instrument Name
+    integer,          intent(in)    :: reportNumObs              ! number of locations    (btyp=5120,etc.)
+    integer,          intent(in)    :: reportNumChannel          ! number of channels
+    integer,          intent(in)    :: satIdentifier(:)          ! satellite identifier
+    real   ,          intent(in)    :: satZenithAngle(:)         ! satellite zenith angle (btyp=3072,ele=7024) 
+    integer,          intent(in)    :: landQualifierIndice(:)    ! land/sea qualifier     (btyp=3072,ele=8012)
+    integer,          intent(in)    :: terrainTypeIndice(:)      ! terrain-type (ice)     (btyp=3072,ele=13039)
+    real   ,          intent(in)    :: obsLatitude(:)            ! latitude values (btyp=5120,ele=5002)
+    real   ,          intent(in)    :: obsLongitude(:)           ! longitude values (btyp=5120,ele=6002)
+    integer,          intent(in)    :: satScanPosition(:)        ! scan position (fov)    (btyp=3072,ele=5043)
+    integer,          intent(in)    :: obsQcFlag1(:,:)           ! flag values for btyp=3072 block ele 033078, 033079, 033080
+    integer,          intent(in)    :: satOrbit(:)               ! orbit number
+    integer,          intent(in)    :: obsGlobalMarker(:)        ! global Marqueur Data
+    character(*),     intent(in)    :: burpFileSatId             ! Platform Name
+    real   ,          intent(in)    :: obsTb(:)                  ! brightness temperature (btyp=9248/9264,ele=12163) 
+    real   ,          intent(in)    :: obsTbBiasCorr(:)          ! bias correction 
+    real   ,          intent(in)    :: ompTb(:)                  ! OMP values
+    integer,          intent(in)    :: obsQcFlag2(:)             ! flag values for btyp=9248 block ele 033081      
+    integer,          intent(in)    :: obsChannels(:)            ! channel numbers btyp=9248 block ele 5042 (= 1-22)
+    integer,          intent(in)    :: ompChannels(:)            ! omp channel numbers btyp= block ele  (= 1-22)
+    integer,          intent(in)    :: obsFlags(:)               ! data flags
+    type(struct_obs), intent(inout) :: obsSpaceData              ! obspaceData Object
+
+    ! Locals
+    integer,          save          :: numHeaderWritten = 0 
+    integer,          save          :: numBodyWritten = 0
+    integer                         :: headerIndex
+    integer                         :: bodyIndex
+    integer                         :: reportLocation 
+    integer                         :: headerCompt 
+    integer                         :: bodyCompt
+    
+    headerCompt = 1 
+    bodyCompt   = 1
+
+    HEADER: do headerIndex = numHeaderWritten + 1, numHeaderWritten + reportNumObs
+      if (headerIndex == 1 ) call obs_headSet_i( obsSpaceData, OBS_RLN,  headerIndex, 1)
+      call obs_headSet_i( obsSpaceData, OBS_NLV,  headerIndex, reportNumChannel                  )
+      if ( headerIndex > 1 ) then
+        reportLocation = obs_headElem_i(obsSpacedata, OBS_RLN, headerIndex - 1 ) +  &
+                         obs_headElem_i(obsSpacedata, OBS_NLV, headerIndex - 1 )
+        call obs_headSet_i(obsSpacedata, OBS_RLN, headerIndex, reportLocation )
+      end if 
+      call obs_setFamily( obsSpaceData, 'TO',     headerIndex                                    )
+      call obs_headSet_i( obsSpaceData, OBS_SAT,  headerIndex, satIdentifier(headerCompt)        )
+      call obs_headSet_r( obsSpaceData, OBS_SZA,  headerIndex, satZenithAngle(headerCompt)       )
+      call obs_headSet_i( obsSpaceData, OBS_OFL,  headerIndex, landQualifierIndice(headerCompt)  )
+      call obs_headSet_i( obsSpaceData, OBS_STYP, headerIndex, terrainTypeIndice(headerCompt)    )
+      call obs_headSet_r( obsSpaceData, OBS_LAT,  headerIndex, obsLatitude(headerCompt)          )
+      call obs_headSet_r( obsSpaceData, OBS_LON,  headerIndex, obsLongitude(headerCompt)         )
+      call obs_headSet_i( obsSpaceData, OBS_FOV,  headerIndex, satScanPosition(headerCompt)      )
+      call obs_headSet_i( obsSpaceData, OBS_ST1,  headerIndex, obsGlobalMarker(headerCompt)      )
+      call obs_headSet_i( obsSpaceData, OBS_ORBI, headerIndex, satOrbit(headerCompt)             )
+      call     obs_set_c( obsSpaceData, 'STID' ,  headerIndex, trim(burpFileSatId)               )
+      if (instName == 'ATMS') then
+        call obs_headSet_i( obsSpaceData, OBS_AQF1, headerIndex, obsQcFlag1(headerCompt,1)       )
+        call obs_headSet_i( obsSpaceData, OBS_AQF2, headerIndex, obsQcFlag1(headerCompt,2)       )
+        call obs_headSet_i( obsSpaceData, OBS_AQF3, headerIndex, obsQcFlag1(headerCompt,3)       )
+      end if
+      BODY: do bodyIndex = numBodyWritten + 1, numBodyWritten + reportNumChannel
+        call obs_bodySet_r(obsSpaceData, OBS_VAR,    bodyIndex, obsTb(bodyCompt)                 )
+        call obs_bodySet_r(obsSpaceData, OBS_OMP,    bodyIndex, ompTb(bodyCompt)                 )
+        call obs_bodySet_r(obsSpaceData, OBS_BCOR,   bodyIndex, obsTbBiasCorr(bodyCompt)         )
+        call obs_bodySet_i(obsSpaceData, OBS_FLG,    bodyIndex, obsFlags(bodyCompt)              )
+        call obs_bodySet_i(obsSpaceData, OBS_CHN,    bodyIndex, obsChannels(bodyCompt)           )
+        call obs_bodySet_i(obsSpaceData, OMP_CHN,    bodyIndex, ompChannels(bodyCompt)           )
+        call obs_bodySet_i(obsSpaceData, OBS_QCF2,   bodyIndex, obsQcFlag2(bodyCompt)            )
+        bodyCompt = bodyCompt + 1
+      end do BODY
+      numBodyWritten = numBodyWritten + reportNumChannel
+      headerCompt = headerCompt + 1
+    end do HEADER
+    numHeaderWritten = numHeaderWritten + reportNumObs
+
+  end subroutine mwbg_copyObsToObsSpace 
+
+  !--------------------------------------------------------------------------
+  !  mwbg_readObsFromObsSpace
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_readObsFromObsSpace(instName, obsNumOfReport, satIdentifier, satZenithAngle, landQualifierIndice, &
+                                    terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
+                                    obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
+                                    ompChannels, obsFlags, reportNumObs, reportNumChannel, obsSpaceData)
+    
+    !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
+
+    implicit None
+
+    !Arguments
+    character(len=9),     intent(in)     :: InstName               ! Instrument Name
+    integer,              intent(in)     :: obsNumOfReport         ! number of locations    (btyp=5120,etc.)
+    integer, allocatable, intent(out)    :: satIdentifier(:)       ! satellite identifier
+    real   , allocatable, intent(out)    :: satZenithAngle(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
+    integer, allocatable, intent(out)    :: landQualifierIndice(:) ! land/sea qualifier     (btyp=3072,ele=8012)
+    integer, allocatable, intent(out)    :: terrainTypeIndice(:)   ! terrain-type (ice)     (btyp=3072,ele=13039)
+    real   , allocatable, intent(out)    :: obsLatitude(:)         ! latitude values (btyp=5120,ele=5002)
+    real   , allocatable, intent(out)    :: obsLongitude(:)        ! longitude values (btyp=5120,ele=6002)
+    integer, allocatable, intent(out)    :: satScanPosition(:)     ! scan position (fov)    (btyp=3072,ele=5043)
+    integer, allocatable, intent(out)    :: obsQcFlag1(:,:)        ! flag values for btyp=3072 block ele 033078, 033079, 033080
+    integer, allocatable, intent(out)    :: satOrbit(:)            ! orbit number
+    integer, allocatable, intent(out)    :: obsGlobalMarker(:)     ! global Marqueur Data
+    character(*),         intent(out)    :: burpFileSatId          ! Platform Name
+    real   , allocatable, intent(out)    :: obsTb(:)               ! brightness temperature (btyp=9248/9264,ele=12163) 
+    real   , allocatable, intent(out)    :: obsTbBiasCorr(:)       ! bias correction 
+    real   , allocatable, intent(out)    :: ompTb(:)               ! OMP values
+    integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
+    integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
+    integer, allocatable, intent(out)    :: ompChannels(:)         ! omp channel numbers btyp= block ele  (= 1-22)
+    integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
+    integer,              intent(out)    :: reportNumObs          ! number of locations    (btyp=5120,etc.)
+    integer,              intent(out)    :: reportNumChannel       ! number of locations    (btyp=5120,etc.)
+
+    type(struct_obs),     intent(in)     :: obsSpaceData           ! obspaceData Object
+
+    ! Locals
+    integer,          save               :: numHeaderRead = 0
+    integer,          save               :: numBodyRead = 0
+    integer                              :: headerIndex
+    integer                              :: bodyIndex
+    integer                              :: obsNumCurrentLoc
+    integer                              :: bodyIndexbeg
+    integer                              :: headerCompt 
+    integer                              :: bodyCompt   
+
+    headerCompt = 1 
+    bodyCompt = 1 
+    reportNumObs = obsNumOfReport
+    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
+      ! ====================================
+      ! Allocate Header elements
+      call utl_reAllocate(satIdentifier, obsNumOfReport)
+      call utl_reAllocate(satZenithAngle, obsNumOfReport)
+      call utl_reAllocate(landQualifierIndice, obsNumOfReport)
+      call utl_reAllocate(terrainTypeIndice, obsNumOfReport)
+      call utl_reAllocate(obsLatitude, obsNumOfReport)
+      call utl_reAllocate(obsLongitude, obsNumOfReport)
+      call utl_reAllocate(satScanPosition, obsNumOfReport)
+      call utl_reAllocate(obsGlobalMarker, obsNumOfReport)
+      call utl_reAllocate(satOrbit, obsNumOfReport)
+      call utl_reAllocate(obsQcFlag1, obsNumOfReport,3)
+      ! ====================================
+        
+      if (headerIndex == numHeaderRead+1) &
+      burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
+      satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
+      satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
+      landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_OFL , headerIndex) 
+      terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
+      obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
+      obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
+      satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
+      obsGlobalMarker(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex ) 
+      satOrbit(headerCompt)              = obs_headElem_i( obsSpaceData, OBS_ORBI, headerIndex) 
+      if (instName == 'ATMS') then  
+        obsQcFlag1(headerCompt,1)        = obs_headElem_i( obsSpaceData, OBS_AQF1, headerIndex) 
+        obsQcFlag1(headerCompt,2)        = obs_headElem_i( obsSpaceData, OBS_AQF2, headerIndex) 
+        obsQcFlag1(headerCompt,3)        = obs_headElem_i( obsSpaceData, OBS_AQF3, headerIndex) 
+      end if
+
+      bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+      obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+      reportNumChannel = obsNumCurrentLoc
+      ! Allocate Body elements
+      call utl_reAllocate(obsTb, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(ompTb, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(obsTbBiasCorr, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(obsFlags, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(obsChannels, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(ompChannels, obsNumOfReport*obsNumCurrentLoc)
+      call utl_reAllocate(obsQcFlag2, obsNumOfReport*obsNumCurrentLoc)
+   
+      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+         obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+         ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+         obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex)
+         obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+         obsChannels(bodyCompt)    = obs_bodyElem_i( obsSpaceData,  OBS_CHN, bodyIndex )
+         ompChannels(bodyCompt)    = obs_bodyElem_i( obsSpaceData,  OMP_CHN, bodyIndex )
+         obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
+         bodyCompt = bodyCompt + 1
+      end do BODY
+      headerCompt = headerCompt + 1
+      numBodyRead = numBodyRead + obsNumCurrentLoc 
+    end do HEADER
+    numHeaderRead = numHeaderRead + obsNumOfReport
+  end subroutine mwbg_readObsFromObsSpace 
 
 end module bgckmicrowave_mod

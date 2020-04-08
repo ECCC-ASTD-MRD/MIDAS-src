@@ -16,3 +16,7 @@
   locationNumMax = 500
   channelNumMax = 15
 /
+ &NAMDIMO
+   NMXOBS=650000,
+   NDATAMX=9000000,
+/

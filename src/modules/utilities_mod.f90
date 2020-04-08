@@ -73,6 +73,17 @@ module utilities_mod
   end interface utl_ezuvint
 
   interface utl_reAllocate
+    module procedure utl_reAllocate_char_1d
+    module procedure utl_reAllocate_char_2d
+    module procedure utl_reAllocate_char_3d
+    module procedure utl_reAllocate_log_1d
+    module procedure utl_reAllocate_log_2d
+    module procedure utl_reAllocate_log_3d
+    module procedure utl_reAllocate_int_1d
+    module procedure utl_reAllocate_int_2d
+    module procedure utl_reAllocate_int_3d
+    module procedure utl_reAllocate_r4_1d
+    module procedure utl_reAllocate_r4_2d
     module procedure utl_reAllocate_r4_3d
     module procedure utl_reAllocate_r8_3d
     module procedure utl_reAllocate_r4_4d
@@ -1929,6 +1940,200 @@ contains
 
   end function utl_varNamePresentInFile
 
+  subroutine utl_reAllocate_char_1d(array,dim1)
+    implicit none
+    character(len=128), allocatable :: array(:)
+    integer :: dim1
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1))
+
+  end subroutine utl_reAllocate_char_1d
+
+  subroutine utl_reAllocate_char_2d(array,dim1,dim2)
+    implicit none
+    character(len=128), allocatable :: array(:,:)
+    integer :: dim1, dim2
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2))
+
+  end subroutine utl_reAllocate_char_2d
+
+  subroutine utl_reAllocate_char_3d(array,dim1,dim2,dim3)
+    implicit none
+    character(len=128), allocatable :: array(:,:,:)
+    integer :: dim1, dim2, dim3
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3))
+
+  end subroutine utl_reAllocate_char_3d
+
+  subroutine utl_reAllocate_log_1d(array,dim1)
+    implicit none
+    logical, allocatable :: array(:)
+    integer :: dim1
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1))
+    array(:) = .true.
+
+  end subroutine utl_reAllocate_log_1d
+
+  subroutine utl_reAllocate_log_2d(array,dim1,dim2)
+    implicit none
+    logical, allocatable :: array(:,:)
+    integer :: dim1, dim2
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2))
+    array(:,:) = .true.
+
+  end subroutine utl_reAllocate_log_2d
+
+  subroutine utl_reAllocate_log_3d(array,dim1,dim2,dim3)
+    implicit none
+    logical, allocatable :: array(:,:,:)
+    integer :: dim1, dim2, dim3
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3))
+    array(:,:,:) = .true.
+
+  end subroutine utl_reAllocate_log_3d
+
+  subroutine utl_reAllocate_int_1d(array,dim1)
+    implicit none
+    integer, allocatable :: array(:)
+    integer :: dim1
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1))
+    array(:) = 0d0
+
+  end subroutine utl_reAllocate_int_1d
+
+  subroutine utl_reAllocate_int_2d(array,dim1,dim2)
+    implicit none
+    integer, allocatable :: array(:,:)
+    integer :: dim1, dim2
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2))
+    array(:,:) = 0d0
+
+  end subroutine utl_reAllocate_int_2d
+
+  subroutine utl_reAllocate_int_3d(array,dim1,dim2,dim3)
+    implicit none
+    integer, allocatable :: array(:,:,:)
+    integer :: dim1, dim2, dim3
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3))
+    array(:,:,:) = 0d0
+
+  end subroutine utl_reAllocate_int_3d
+
+  subroutine utl_reAllocate_r4_1d(array,dim1)
+    implicit none
+    real(4), allocatable :: array(:)
+    integer :: dim1
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1))
+    array(:) = 0.0d0
+
+  end subroutine utl_reAllocate_r4_1d
+
+  subroutine utl_reAllocate_r4_2d(array,dim1,dim2)
+    implicit none
+    real(4), allocatable :: array(:,:)
+    integer :: dim1, dim2
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2))
+    array(:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r4_2d
 
   subroutine utl_reAllocate_r4_3d(array,dim1,dim2,dim3)
     implicit none
