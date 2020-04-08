@@ -481,7 +481,7 @@ contains
     real(8), pointer :: column_ptr_in(:), column_ptr_out(:)
     real(8), pointer :: pres1Dptr_in(:)  , pres1Dptr_out(:)
     real(8), pointer :: pres3Dptr_in(:,:,:), pres3Dptr_out(:,:,:)
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
     real(8)          :: zwb, zwt
     integer          :: jlevo, jlevi, columnIndex, status
     logical          :: vInterp, useColumnPressure

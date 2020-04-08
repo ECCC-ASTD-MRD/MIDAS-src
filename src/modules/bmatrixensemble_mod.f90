@@ -2274,7 +2274,7 @@ CONTAINS
     real(4), pointer :: ensMemberAll_r4(:,:,:,:)
     integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
     character(len=4) :: varName
-    character(len=2) :: varLevel, varLevelAlfa
+    character(len=4) :: varLevel, varLevelAlfa
     integer          :: stepBeg, stepEnd, stepIndex2, numStepAmplitude
     logical          :: useFSOFcst
 

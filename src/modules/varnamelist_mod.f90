@@ -58,7 +58,7 @@ module varNameList_mod
                                  'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
                                  'N2OL'/)
 
-  character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
+  character(len=4), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
                                  'TH',  'TH',  'TH',  'TH',  'TH',                               &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
@@ -82,7 +82,7 @@ module varNameList_mod
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
                                  'DN  ','FB  ','FI  ','MSKC','LZS ','WT  '/)
 
-  character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
+  character(len=4), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
@@ -97,7 +97,7 @@ module varNameList_mod
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
                                  'I0  ','I1  ','I7  ','I9  ','SD  '/)
 
-  character(len=2), parameter :: varLevelListOther(vnl_numvarmaxOther) = (/    &
+  character(len=4), parameter :: varLevelListOther(vnl_numvarmaxOther) = (/    &
                                  'OT',  'OT',  'OT',  'OT',  'OT'  /)
 
   character(len=2), parameter :: varKindListOther(vnl_numvarmaxOther) = (/     &
@@ -107,7 +107,7 @@ module varNameList_mod
 
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) =  &
        (/ vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther /)
-  character(len=2), parameter :: varLevelList   (vnl_numvarmax) =  &
+  character(len=4), parameter :: varLevelList   (vnl_numvarmax) =  &
        (/ varLevelList3D   , varLevelList2D   , varLevelListOther    /)
   character(len=2), parameter :: varKindList    (vnl_numvarmax) =  &
        (/ varKindList3D    , varKindList2D    , varKindListOther     /)
@@ -478,13 +478,15 @@ module varNameList_mod
 
       !Arguments:
       character(len=*), intent(in)   :: varName
-      character(len=2)               :: varLevel
+      character(len=4)               :: varLevel
 
       !Locals:
       integer                :: nulnam, ierr
       integer, external      :: fnom, fclos
-      character(len=4), save :: forceSfcOnly(vnl_numVarMax)
       logical, save          :: firstTime = .true.
+
+      ! Namelist variables
+      character(len=4), save :: forceSfcOnly(vnl_numVarMax) ! List of 3D variable names only allocated at the surface
 
       NAMELIST /namvnl/forceSfcOnly
 
@@ -509,9 +511,9 @@ module varNameList_mod
       varLevel = varLevelList(vnl_varListIndex(varName))
       if (any(forceSfcOnly(:) == varName)) then
         if (varLevel == 'TH') then
-          varLevel = 'ST'
+          varLevel = 'SFTH'
         else if (varLevel == 'MM') then
-          varLevel = 'SM'
+          varLevel = 'SFMM'
         else
           call utl_abort('vnl_varLevelFromVarname: something is wrong')
         end if
@@ -532,7 +534,7 @@ module varNameList_mod
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=*), intent(in), optional :: modelName_opt
-      character(len=2)              :: varLevel
+      character(len=4)              :: varLevel
 
       !Local:
       character(len=4)              :: varName

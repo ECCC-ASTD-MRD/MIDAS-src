@@ -120,7 +120,7 @@ contains
     integer :: ni, nj, nk, varListIndex, IP1kind
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
-    real :: pValue
+    real :: otherVertCoordValue
 
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
@@ -224,7 +224,7 @@ contains
 
     ! Print out vertical structure 
     if (mpi_myid == 0 .and. .not. beSilent) then
-      call flush(6)
+      call flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
       if ( stat /= VGD_OK )then
         call utl_abort('vco_setupFromFile: ERROR with vgd_print')
@@ -316,9 +316,9 @@ contains
     end if
 
     do jlev = 1, maxNumOtherLevels
-      pValue = real(jlev)
+      otherVertCoordValue = real(jlev)
       IP1kind = 3
-      call convip_plus(vco_ip1_other(jlev), pValue, IP1kind, +2, IP1string, .false.)
+      call convip_plus(vco_ip1_other(jlev), otherVertCoordValue, IP1kind, +2, IP1string, .false.)
     end do
     vco%nlev_Other(:) = 0
     do varListIndex = 1, vnl_numvarmaxOther
@@ -453,7 +453,7 @@ contains
 
     ! arguments:
     type(struct_vco), pointer              :: vco         ! Vertical coordinate object
-    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SM', 'ST' or 'OT'
+    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
     ! locals:
     integer :: nlev, varListIndex
@@ -462,7 +462,7 @@ contains
       nlev = vco%nlev_M
     else if (varLevel == 'TH') then
       nlev = vco%nlev_T
-    else if (varLevel == 'SF' .or. varLevel == 'ST' .or. varLevel == 'SM') then
+    else if (varLevel == 'SF' .or. varLevel == 'SFTH' .or. varLevel == 'SFMM') then
       nlev = 1
     else if (varLevel == 'OT') then
       if (.not. present(varName_opt)) then

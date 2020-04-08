@@ -2041,7 +2041,7 @@ module gridStateVector_mod
     real(8)          :: scaleFactor(:)
     ! locals
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2,levIndex
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated')
@@ -2059,7 +2059,7 @@ module gridStateVector_mod
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,levIndex,varLevel)
       do kIndex = k1, k2
         varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, kIndex))
-        if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
+        if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
           ! use lowest momentum level for surface variables
           levIndex = gsv_getNumLev(statevector_inout, 'MM')
         else
@@ -2081,7 +2081,7 @@ module gridStateVector_mod
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,levIndex,varLevel)
       do kIndex = k1, k2
         varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, kIndex))
-        if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
+        if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
           ! use lowest momentum level for surface variables
           levIndex = gsv_getNumLev(statevector_inout, 'MM')
         else
@@ -3101,7 +3101,7 @@ module gridStateVector_mod
     real(4), allocatable :: gd2d_var_r4(:,:)
 
     character(len=4)  :: varName, varNameToRead
-    character(len=2)  :: varLevel
+    character(len=4)  :: varLevel
 
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
@@ -3271,9 +3271,9 @@ module gridStateVector_mod
           ip1 = vco_file%ip1_T(levIndex)
         else if (varLevel == 'SF') then
           ip1 = -1
-        else if (varLevel == 'ST') then
+        else if (varLevel == 'SFTH') then
           ip1 = vco_file%ip1_T_2m
-        else if (varLevel == 'SM') then
+        else if (varLevel == 'SFMM') then
           ip1 = vco_file%ip1_M_10m
         else if (varLevel == 'OT') then
           ip1 = vco_ip1_other(levIndex)
@@ -5169,9 +5169,9 @@ module gridStateVector_mod
                ip1 = statevector%vco%ip1_T(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
                ip1 = 0
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'ST') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFTH') then
                ip1 = statevector%vco%ip1_T_2m
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SM') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFMM') then
                ip1 = statevector%vco%ip1_M_10m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
                ip1 = vco_ip1_other(levIndex)

@@ -1660,7 +1660,7 @@ contains
     character(len=4) :: varNames(inbrvar)
     real(8), allocatable :: rgsig_filter(:,:)
     real(8) :: globalmean
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
 
     ! standard file variables
     integer :: ni_file,nj_file,nk_file  

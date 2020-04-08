@@ -1662,9 +1662,9 @@ contains
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
     real(8) :: SP_WGH,TO_WGH,TO_DSP,E_VHGT,E_DRIFT,E_HEIGHT
-    character(4) :: varName
-    character(2) :: varLevel
-    character(9) :: cstnid
+    character(len=4) :: varName
+    character(len=4) :: varLevel
+    character(len=9) :: cstnid
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.

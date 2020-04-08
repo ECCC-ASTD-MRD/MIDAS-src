@@ -139,7 +139,7 @@ contains
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
-    character(len=2)     :: varLevel
+    character(len=4)     :: varLevel
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
@@ -770,7 +770,7 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
+            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
               levIndex2 = nLev_M
             else
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
@@ -797,7 +797,7 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SM' .or. varLevel == 'ST') then
+            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
               levIndex2 = nLev_M
             else
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
@@ -2473,7 +2473,7 @@ contains
     type(struct_vco), pointer     :: vco
     type(struct_hco), pointer     :: hco
     character(len=4), allocatable :: nomvar_v(:)
-    character(len=2)              :: varLevel
+    character(len=4)              :: varLevel
     real(8), allocatable          :: weight(:,:), scaleFactor(:)
     real(4), allocatable          :: hyb_v(:)
     integer :: ierr, lonIndex, latIndex, lonIndexP1, latIndexP1, nulFile
