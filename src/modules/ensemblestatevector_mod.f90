@@ -1947,7 +1947,7 @@ CONTAINS
 
       ! define scaling factor as a function of vertical level and variable type
       varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, jk))
-      if ( trim(varLevel) == 'SF') then
+      if ( trim(varLevel) == 'SF' .or. trim(varLevel) == 'SFMM' .or. trim(varLevel) == 'SFTH' ) then
         ! use lowest momentum level for surface variables
         levIndex = ens_getNumLev(ens, 'MM')
       else if ( (trim(varLevel) == 'MM') .and. (ens%statevector_work%vco%Vcode == 5002) ) then

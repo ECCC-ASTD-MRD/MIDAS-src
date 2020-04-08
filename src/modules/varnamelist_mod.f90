@@ -22,6 +22,7 @@ module varNameList_mod
   !           and procedures for accessing this information
   !
   use bufr_mod
+  use mpi_mod
   use utilities_mod
   use MathPhysConstants_mod
   
@@ -30,20 +31,23 @@ module varNameList_mod
   private
 
   ! public variables (parameters)
-  public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmax
-  public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameList
+  public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmaxOther, vnl_numvarmax
+  public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther, vnl_varNameList
 
   ! public procedures
-  public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
+  public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
+  public :: vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
 
-  ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
+  ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 44,  VNLnumvarmax2D = 33
+  integer, parameter          :: VNLnumvarmax3D = 44,  VNLnumvarmax2D = 33,  VNLnumvarmaxOther = 5
 
-  integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
+  integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
+  integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
+  integer, parameter          :: vnl_numvarmaxOther = VNLnumvarmaxOther
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -54,7 +58,7 @@ module varNameList_mod
                                  'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
                                  'N2OL'/)
 
-  character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
+  character(len=4), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
                                  'TH',  'TH',  'TH',  'TH',  'TH',                               &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
@@ -78,23 +82,35 @@ module varNameList_mod
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
                                  'DN  ','FB  ','FI  ','MSKC','LZS ','WT  '/)
 
-  character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
+  character(len=4), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF', 'SF'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
                                  'MT',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
-                                 'MT',  'MT',  'MT',  'MT',  'HY','MT'/)
+                                 'MT',  'MT',  'MT',  'MT',  'HY',  'MT'/)
 
-  integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D
+  character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
+                                 'I0  ','I1  ','I7  ','I9  ','SD  '/)
 
-  character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
-  character(len=2), parameter :: varLevelList   (vnl_numvarmax) = (/ varLevelList3D   , varLevelList2D    /)
-  character(len=2), parameter :: varKindList    (vnl_numvarmax) = (/ varKindList3D    , varKindList2D     /)
+  character(len=4), parameter :: varLevelListOther(vnl_numvarmaxOther) = (/    &
+                                 'OT',  'OT',  'OT',  'OT',  'OT'  /)
+
+  character(len=2), parameter :: varKindListOther(vnl_numvarmaxOther) = (/     &
+                                 'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
+
+  integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
+
+  character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) =  &
+       (/ vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther /)
+  character(len=4), parameter :: varLevelList   (vnl_numvarmax) =  &
+       (/ varLevelList3D   , varLevelList2D   , varLevelListOther    /)
+  character(len=2), parameter :: varKindList    (vnl_numvarmax) =  &
+       (/ varKindList3D    , varKindList2D    , varKindListOther     /)
 
   contains
 
@@ -159,6 +175,37 @@ module varNameList_mod
       endif
 
     end function vnl_varListIndex2d
+
+   !--------------------------------------------------------------------------
+   ! vnl_varListIndexOther
+   !--------------------------------------------------------------------------
+    function vnl_varListIndexOther(varName) result(listIndex)
+      !
+      ! :Purpose: To get the "Other" list index from the variable name
+      !
+
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: varName
+      integer                      :: listIndex
+
+      !Local:
+      integer                      :: jvar
+
+      listIndex=-1
+      do jvar = 1, vnl_numvarmaxOther
+        if( varName == vnl_varNameListOther(jvar) ) then 
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex <= 0) then
+        call utl_abort('vnl_varListIndexOther: Unknown variable name! ' // varName)
+      endif
+
+    end function vnl_varListIndexOther
 
    !--------------------------------------------------------------------------
    ! vnl_varListIndex
@@ -307,13 +354,18 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
       !
-      ! :Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
-      !           Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
-      !           So one must provide the name directly associated to a single BUFR code.
-      !           As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
+      ! :Purpose: Identifies varNumber from varName for use in assimilating
+      !           obs in the CH family.   
+      !           Here, for weather variables, there is a 1-1 association between
+      !           a variable name and an observation unit.
+      !           So one must provide the name directly associated to a single
+      !           BUFR code.
+      !           As such, weather variable varNames may not necessarily be a
+      !           member of the vnl_varNameList for this routine only.
       !   
-      !           For constituents, the varNumber refers only to the field/variable and not units. As consequence,
-      !           there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
+      !           For constituents, the varNumber refers only to the field/
+      !           variable and not units. As consequence, there is a unique
+      !           pairing of varNumbers with the varNames from vnl_VarNameList.
       !
 
       implicit none
@@ -326,8 +378,9 @@ module varNameList_mod
       varNumber=0
       select case (varName)
       
-      ! Weather variables. Must provide name directly associated to a single BUFR code.
-      ! As such, the varName may not necessarily be a member of the vnl_varNameList for this routine only.
+      ! Weather variables. Must provide name directly associated to a single
+      ! BUFR code. As such, the varName may not necessarily be a member of the
+      ! vnl_varNameList for this routine only.
 
       case('UU')
         varNumber=BUFR_NEUU
@@ -425,9 +478,46 @@ module varNameList_mod
 
       !Arguments:
       character(len=*), intent(in)   :: varName
-      character(len=2)               :: varLevel
+      character(len=4)               :: varLevel
+
+      !Locals:
+      integer                :: nulnam, ierr
+      integer, external      :: fnom, fclos
+      logical, save          :: firstTime = .true.
+
+      ! Namelist variables
+      character(len=4), save :: forceSfcOnly(vnl_numVarMax) ! List of 3D variable names only allocated at the surface
+
+      NAMELIST /namvnl/forceSfcOnly
+
+      if (firstTime) then
+        firstTime = .false.
+        ! default values (not a valid variable name)
+        forceSfcOnly(:) = 'XXXX'
+        
+        if (utl_isNamelistPresent('namvnl','./flnml')) then
+          nulnam = 0
+          ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+          read (nulnam, nml = NAMVNL, iostat = ierr)
+          if ( ierr /= 0 ) call utl_abort('vnl_varLevelFromVarname: Error reading namelist')
+          if ( mpi_myid == 0 ) write(*,nml=namvnl)
+          ierr = fclos(nulnam)
+        else
+          write(*,*)
+          write(*,*) 'vnl_varLevelFromVarname: namvnl is missing in the namelist. The default value will be taken.'
+        end if
+      end if
 
       varLevel = varLevelList(vnl_varListIndex(varName))
+      if (any(forceSfcOnly(:) == varName)) then
+        if (varLevel == 'TH') then
+          varLevel = 'SFTH'
+        else if (varLevel == 'MM') then
+          varLevel = 'SFMM'
+        else
+          call utl_abort('vnl_varLevelFromVarname: something is wrong')
+        end if
+      end if
 
     end function vnl_varLevelFromVarname
 
@@ -444,7 +534,7 @@ module varNameList_mod
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=*), intent(in), optional :: modelName_opt
-      character(len=2)              :: varLevel
+      character(len=4)              :: varLevel
 
       !Local:
       character(len=4)              :: varName

@@ -2188,6 +2188,8 @@ CONTAINS
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+      else
+        call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
       call tmg_stop(66)
 
@@ -2223,8 +2225,10 @@ CONTAINS
         topLevOffset = 1
       else if (vnl_varLevelFromVarname(varName) == 'MM') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
-      else
+      else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else
+        call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2269,8 +2273,9 @@ CONTAINS
     real(8), allocatable :: increment_in2(:,:,:)
     real(4), pointer :: ensMemberAll_r4(:,:,:,:)
     integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
-    character(len=4)     :: varName
-    integer     ::  stepBeg, stepEnd, stepIndex2, numStepAmplitude
+    character(len=4) :: varName
+    character(len=4) :: varLevel, varLevelAlfa
+    integer          :: stepBeg, stepEnd, stepIndex2, numStepAmplitude
     logical          :: useFSOFcst
 
     if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
@@ -2314,14 +2319,18 @@ CONTAINS
 
       lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
       varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
+      varLevel     = vnl_varLevelFromVarname(varName)
+      varLevelAlfa = vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1))
 
       ! compute increment level from amplitude/member level
-      if (vnl_varLevelFromVarname(varName) == 'SF') then
+      if (varLevel == 'SF') then
         topLevOffset = 1
-      else if (vnl_varLevelFromVarname(varName) == 'MM') then
+      else if (varLevel == 'MM') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
-      else
+      else if (varLevel == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else
+        call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2367,15 +2376,15 @@ CONTAINS
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
           if (omp_get_thread_num() == 0) call tmg_start(68,'ADDMEMAD_PREPAMP')
-          if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
-               vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
+          if ( varLevel /= 'SF' .and. &
+               varLevel == varLevelAlfa ) then
             ! The non-surface variable varName is on the same levels than the amplitude field
 
             ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
             ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
-          else if (vnl_varLevelFromVarname(varName) == 'TH') then
+          else if (varLevel == 'TH') then
             ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
 
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
@@ -2421,7 +2430,7 @@ CONTAINS
               call utl_abort('ben_addEnsMemberAd: incompatible vcode')
             end if
 
-          else if (vnl_varLevelFromVarname(varName) == 'SF') then
+          else if (varLevel == 'SF') then
             ! Surface variable cases
 
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
@@ -2432,6 +2441,8 @@ CONTAINS
             ensAmplitude_oneLev (1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
+          else
+            call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
           end if
           if (omp_get_thread_num() == 0) call tmg_stop(68)
 

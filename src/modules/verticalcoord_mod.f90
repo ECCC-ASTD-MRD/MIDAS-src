@@ -24,12 +24,15 @@ module verticalCoord_mod
   use mpi_mod
   use MathPhysConstants_mod
   use Vgrid_Descriptors
+  use varNameList_mod
   use utilities_mod
   implicit none
   private
 
   ! public derived type
   public :: struct_vco
+  ! public variables
+  public :: vco_ip1_other
   ! public procedures
   public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_ensureCompatibleTops
@@ -43,6 +46,7 @@ module verticalCoord_mod
      integer :: Vcode = -1
      integer :: nlev_T = 0
      integer :: nlev_M = 0
+     integer :: nlev_Other(vnl_numvarmaxOther) = 0
      integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
      integer :: ip1_T_2m  ! ip1 value for the 2m thermodynamic level
      integer :: ip1_M_10m ! ip1 value for the 10m momentum level
@@ -51,6 +55,9 @@ module verticalCoord_mod
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
   end type struct_vco
+
+  integer, parameter :: maxNumOtherLevels = 20
+  integer :: vco_ip1_other(maxNumOtherLevels)
 
 contains
   
@@ -110,8 +117,10 @@ contains
     integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: isExist_L, ip1_found, sfcFieldFound
-    integer :: ni,nj,nk
-    character(len=4) :: nomvar_T, nomvar_M
+    integer :: ni, nj, nk, varListIndex, IP1kind
+    character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
+    character(len=10) :: IP1string
+    real :: otherVertCoordValue
 
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
@@ -215,6 +224,7 @@ contains
 
     ! Print out vertical structure 
     if (mpi_myid == 0 .and. .not. beSilent) then
+      call flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
       if ( stat /= VGD_OK )then
         call utl_abort('vco_setupFromFile: ERROR with vgd_print')
@@ -304,6 +314,29 @@ contains
       write(*,*) 
       write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
     end if
+
+    do jlev = 1, maxNumOtherLevels
+      otherVertCoordValue = real(jlev)
+      IP1kind = 3
+      call convip_plus(vco_ip1_other(jlev), otherVertCoordValue, IP1kind, +2, IP1string, .false.)
+    end do
+    vco%nlev_Other(:) = 0
+    do varListIndex = 1, vnl_numvarmaxOther
+      nomvar_Other = vnl_varNameListOther(varListIndex)
+      do jlev = 1, maxNumOtherLevels
+        ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vco_ip1_other(jlev), -1, -1, ' ', nomvar_Other)
+        if (ikey > 0) vco%nlev_Other(varListIndex) = vco%nlev_Other(varListIndex) + 1
+      end do
+      if (mpi_myid == 0 .and. .not. beSilent) then
+        if (vco%nlev_Other(varListIndex) == 0) then
+          write(*,*) 
+          write(*,*) 'vco_setupfromfile: Found no levels in template file for OTHER type variable ', nomvar_Other
+        else
+          write(*,*) 'vco_setupfromfile: Found ', vco%nlev_Other(varListIndex),  &
+               ' levels in template file for OTHER type variable ', nomvar_Other
+        end if
+      end if
+    end do
 
     if (vco%nlev_M == 0 .and. vco%nlev_T == 0) then
       call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
@@ -412,23 +445,31 @@ contains
   end subroutine vco_deallocate
 
 
-  function vco_getNumLev(vco,varLevel) result(nlev)
+  function vco_getNumLev(vco,varLevel,varName_opt) result(nlev)
     ! 
-    ! :Purpose: get number of vrtical levels
+    ! :Purpose: get number of vertical levels
     ! 
     implicit none
 
-    type(struct_vco), pointer    :: vco      ! Vertical coordinate object
-    character(len=*), intent(in) :: varLevel ! 'TH', 'MM' or 'SF'
-
-    integer                      :: nlev
+    ! arguments:
+    type(struct_vco), pointer              :: vco         ! Vertical coordinate object
+    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH' or 'OT'
+    character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
+    ! locals:
+    integer :: nlev, varListIndex
 
     if (varLevel == 'MM') then
       nlev = vco%nlev_M
-    elseif (varLevel == 'TH') then
+    else if (varLevel == 'TH') then
       nlev = vco%nlev_T
-    elseif (varLevel == 'SF') then
+    else if (varLevel == 'SF' .or. varLevel == 'SFTH' .or. varLevel == 'SFMM') then
       nlev = 1
+    else if (varLevel == 'OT') then
+      if (.not. present(varName_opt)) then
+        call utl_abort('vco_getNumLev: varName must be specified for varLevel=OT')
+      end if
+      varListIndex = vnl_varListIndexOther(varName_opt)
+      nlev = vco%nlev_Other(varListIndex)
     else
       call utl_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
     end if

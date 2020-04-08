@@ -1639,7 +1639,7 @@ contains
     real(8), allocatable :: obs_col(:)
     real(8), pointer :: col(:),model_col(:)
     integer :: nlev_bkgrnd,nlev_inc,imodlev
-    character(len=2), parameter :: varLevel = 'TH'
+    character(len=4), parameter :: varLevel = 'TH'
     
     type(struct_chm_obsoperators) :: obsoper
 
@@ -1998,7 +1998,7 @@ contains
     integer :: jl,nmodlev_uv
     real(8), pointer :: col_height_ptr(:)
     real(8), allocatable :: uu(:),vv(:)
-    character(len=2), parameter :: varLevel = 'TH'
+    character(len=4), parameter :: varLevel = 'TH'
     real(8) :: checkID
 
     obsoper%nmodlev = nmodlev

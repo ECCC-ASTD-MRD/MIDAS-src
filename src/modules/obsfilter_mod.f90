@@ -434,7 +434,7 @@ contains
     integer :: countAcc(numElem),countRej(numElem)
     integer, parameter :: numFamily = 3
     character(len=2) :: list_family(numFamily)
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
 
     !
     ! reset dzmax for gb gps ztd to value in namelist file

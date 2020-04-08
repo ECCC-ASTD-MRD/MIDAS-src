@@ -949,7 +949,7 @@ module obsSpaceErrorStdDev_mod
       INTEGER INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-      character(len=2) :: varLevel
+      character(len=4) :: varLevel
 
       ! loop over all header indices of the CDFAM family
       call obs_set_current_header_list(lobsSpaceData,CDFAM)
@@ -1043,7 +1043,7 @@ module obsSpaceErrorStdDev_mod
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
       real(8) :: azimuth, fge_uu, fge_vv, fge_fam
-      character(len=2) :: varLevel
+      character(len=4) :: varLevel
 
       ! loop over all header indices of the CDFAM family
       call obs_set_current_header_list(lobsSpaceData,CDFAM)
@@ -1149,7 +1149,7 @@ module obsSpaceErrorStdDev_mod
       INTEGER INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-      character(len=2) :: varLevel
+      character(len=4) :: varLevel
 
       ! loop over all body rows
       BODY: do index_body=1,obs_numbody(lobsSpaceData)
@@ -1214,7 +1214,8 @@ module obsSpaceErrorStdDev_mod
     ! Locals
     integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp
     real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh
-    character(len=2) :: cfam, varLevel
+    character(len=2) :: cfam
+    character(len=4) :: varLevel
     logical          :: ok
 
     ! loop over all body rows
@@ -1646,7 +1647,7 @@ module obsSpaceErrorStdDev_mod
       LOGICAL  ASSIM, OK, LSTAG
       CHARACTER*9  STN_JAC
       
-      CHARACTER(len=2) :: varLevel
+      CHARACTER(len=4) :: varLevel
       
       TYPE(GPS_PROFILEZD)    :: PRF, PRFP
       TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP

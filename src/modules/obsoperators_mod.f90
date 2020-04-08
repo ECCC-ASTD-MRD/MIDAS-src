@@ -71,7 +71,7 @@ contains
     INTEGER :: levIndex,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,bufrCode
-    CHARACTER(len=2) :: varLevel
+    CHARACTER(len=4) :: varLevel
     integer :: bodyIndex
 
     if (.not.beSilent) write(*,*) "Entering subroutine OOP_VOBSLYRS"
@@ -284,7 +284,7 @@ contains
     real(8) :: zlev,zpt,zpb,zomp,ztvg
     real(8) :: columnVarB,columnVarT,lat
     character(len=4) :: varName
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
     real(8), allocatable :: geopotential(:)
     real(8) :: heightSfc(1), geopotentialSfc(1)
@@ -419,7 +419,7 @@ contains
     real(8) :: zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: columnVarB,columnVarT
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
     real(8) :: value   ! temporary holder
     real(8) :: azimuth ! HLOS wind direction CW from true north
     real(8) :: tempRef ! reference temperature used to calculate HLOS wind
@@ -623,7 +623,7 @@ contains
     real(8) :: zlev,zhhh,zgamaz,delTdelZ,heighthr
     real(8) :: columnVarB
     real(8) :: UUb, VVb, squareSum, speedB 
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
 
     ! namelist variables
     logical :: adjustTemperature
@@ -1907,7 +1907,8 @@ contains
       REAL*8 delPT,delPB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT
       INTEGER, PARAMETER :: numFamily=3
-      CHARACTER(len=2) :: list_family(numFamily),varLevel
+      CHARACTER(len=2) :: list_family(numFamily)
+      character(len=4) :: varLevel
 
       list_family(1) = 'UA'
       list_family(2) = 'AI'
@@ -1996,7 +1997,8 @@ contains
       REAL*8 delP
       REAL*8 dUU, dVV, UUb, VVb, squareSum, speedB, deltaSp
       INTEGER, PARAMETER :: numFamily=5
-      CHARACTER(len=2) :: list_family(numFamily),varLevel
+      CHARACTER(len=2) :: list_family(numFamily)
+      character(len=4) :: varLevel
       !C
       !C     Temperature lapse rate for extrapolation of height below model surface
       !C
@@ -2373,7 +2375,8 @@ contains
       real(8) :: azimuth ! HLOS wind direction CW from true north
       real(8) :: columnVarB,columnVarT,columngVarB,columngVarT
       integer, parameter :: NUMFAMILY=2
-      character(len=2) :: listFamily(NUMFAMILY),varLevel
+      character(len=2) :: listFamily(NUMFAMILY)
+      character(len=4) :: varLevel
 
       listFamily(1) = 'PR'
       listFamily(2) = 'AL'
@@ -2666,7 +2669,8 @@ contains
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),p_column(:)
       REAL*8 :: delPT,delPB
       INTEGER, PARAMETER :: numFamily=3
-      CHARACTER(len=2) :: list_family(numFamily),varLevel
+      CHARACTER(len=2) :: list_family(numFamily)
+      character(len=4) :: varLevel
       !
       list_family(1) = 'UA'
       list_family(2) = 'AI'
@@ -2768,7 +2772,8 @@ contains
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:),p_column(:), du_column(:), dv_column(:)
       REAL*8 :: dPdPsfc
       INTEGER, PARAMETER :: numFamily=5
-      CHARACTER(len=2) :: list_family(numFamily),varLevel
+      CHARACTER(len=2) :: list_family(numFamily)
+      character(len=4) :: varLevel
 
       !- Temperature lapse rate for extrapolation of height below model surface
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/RG)
@@ -3164,7 +3169,8 @@ contains
       INTEGER :: bodyIndex, familyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
       real(8), pointer :: height_column(:),all_column(:),uu_column(:),vv_column(:)
       integer, parameter :: NUMFAMILY=2
-      character(len=2) :: listFamily(NUMFAMILY),varLevel
+      character(len=2) :: listFamily(NUMFAMILY)
+      character(len=4) :: varLevel
 
       !C
       !C     Process all data within the domain of the model

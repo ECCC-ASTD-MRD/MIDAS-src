@@ -536,7 +536,7 @@ contains
           call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation_R8 )
           geoidUndulation = geoidUndulation_R8
           call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv_R8 )
-          earthLocRadCurv_R8 = earthLocRadCurv
+          earthLocRadCurv = earthLocRadCurv_R8
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
 

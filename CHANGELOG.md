@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add handling of variables needed for land surface analysis, so far only for `ensManip` (#206 and !324)
 
 ### Changed
 

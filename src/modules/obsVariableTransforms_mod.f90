@@ -415,6 +415,8 @@ contains
     ! Locals:
     integer :: transformIndex
 
+    if (obs_numHeader(obsSpaceData) == 0) return
+
     if (.not. initialized) then
       call utl_abort('ovt_transformObsValues: this module has not been setup')
     end if
@@ -453,6 +455,8 @@ contains
 
     ! Local:
     integer :: transformIndex
+
+    if (obs_numHeader(obsSpaceData) == 0) return
 
     if (.not. initialized) then
       call utl_abort('ovt_transformResiduals: this module has not been setup')
