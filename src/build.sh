@@ -1,21 +1,17 @@
 #! /bin/sh
 
-##  sourcing usre configuration
+##  sourcing user configuration
 source ./config.dot.sh
-
-##  sourcing compilation configuration and SSM packages
-source ${DOT_CONFIG}
 
 ##  sourcing utilitary functions
 source ./func.dot.sh
-
 
 ##=========================================================
 ##  Dependency analysis on frontend
 echo "###########################"
 echo "... Preparing dependencies"
 echo "    > listing_depend"
-make depend DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE} > listing_depend 2>&1
+make depend DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_depend 2>&1
 
 ##  copying dependencies to BACKEND directory (hack)
 copy_depend ${BACKEND}
@@ -29,9 +25,9 @@ set -ex
 cd ${here}
 source ${DOT_CONFIG} ; \
 make all -j ${NCORES} \
-    DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE}
+    DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
 make install  -j ${NCORES} \
-    DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE}
+    DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
 EOF
 
 echo "#####################################"
@@ -49,9 +45,9 @@ if ${DIRECT_FRONTEND_COMPILE}
 then
     ## compile directly on head node
     make all -j ${NCORES} \
-        DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
+        DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
     make install -j ${NCORES} \
-        DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE} > listing_ppp 2>&1
+        DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1
 else
     ## use ord_soumet
     JOBID_FRONTEND=$(ord_soumet .compile_job -jn ${JOBNAME} -mach ${FRONTEND} \
@@ -66,7 +62,7 @@ wait ${PID_BACKEND}
 
 if ${CLEAN}
 then
-    make cleanabs DIR_BLD_ROOT=${DIR_BUILD} VERBOSE=${VERBOSE}
+    make cleanabs DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
     rm -rf .compile_job
 fi
 
@@ -75,7 +71,7 @@ echo "######################################"
 echo "#"
 echo "#  MIDAS COMPILATION COMPLETED"
 echo "#"
-echo "#  > ${DIR_BUILD}"
+echo "#  > ${DIR_BLD_ROOT}"
 echo "#"
 echo "######################################"
 

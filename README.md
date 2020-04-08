@@ -113,7 +113,7 @@ cd src/programs
 ```
 
 # Testing the new compilation using `make`
-All the information and instructions can be found in the [src](./src) directory, by clicking on that folder in gitlab and browsing down the files, you will see `./src/README.md` content appended there.
+All the information and instructions can be found in the [src](./src) directory, by clicking on that folder in gitlab and browsing down the files, you will see [`src/README.md`](./src/README.md) content appended there.
 
 # MIDAS test suite
 

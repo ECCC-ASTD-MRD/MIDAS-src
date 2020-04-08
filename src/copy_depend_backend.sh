@@ -1,5 +1,5 @@
 #! /bin/sh
-##  sourcing usre configuration
+##  sourcing user configuration
 source ./config.dot.sh
 
 ##  sourcing compilation configuration and SSM packages
