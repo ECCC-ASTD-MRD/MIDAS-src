@@ -15,4 +15,4 @@ SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 localizationfunction_mod.f90 obsfiles_
 SRC_FILES="$SRC_FILES controlvector_mod.f90 costfunction_mod.f90 localizationspectral_mod.f90 obserrors_mod.f90 obsOperatorsChem_mod.f90 tovs_lin_mod.f90"
 SRC_FILES="$SRC_FILES advection_mod.f90 biascorrectionSat_mod.f90 gridBinning_mod.f90 localization_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90 randomnumber_mod.f90 spectralfilter_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixensemble_mod.f90 bmatrixhi_mod.f90 innovation_mod.f90"
-SRC_FILES="$SRC_FILES obsSpaceErrorStdDev_mod.f90 ominusf_mod.f90"
+SRC_FILES="$SRC_FILES biascorrectionConv_mod.f90 obsSpaceErrorStdDev_mod.f90 ominusf_mod.f90"
