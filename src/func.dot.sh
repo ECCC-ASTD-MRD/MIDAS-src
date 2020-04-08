@@ -29,9 +29,9 @@ function copy_depend {
         2>/dev/null | grep EC_ARCH | cut -d= -f2)
     for __prec in real4 real8
     do
-        __target_dir=${DIR_BUILD}/${__arch}/${__prec}
-        [ -d ${__target_dir} ] || mkdir -p ${DIR_BUILD}/${__arch}/${__prec}
-        cp -p ${DIR_BUILD}/${EC_ARCH}/${__prec}/dep.${__prec}.* ${__target_dir}
-        cp -p ${DIR_BUILD}/${EC_ARCH}/${__prec}/*.f90 ${__target_dir}
+        __target_dir=${DIR_BLD_ROOT}/${__arch}/${__prec}
+        [ -d ${__target_dir} ] || mkdir -p ${DIR_BLD_ROOT}/${__arch}/${__prec}
+        cp -p ${DIR_BLD_ROOT}/${EC_ARCH}/${__prec}/dep.${__prec}.* ${__target_dir}
+        cp -p ${DIR_BLD_ROOT}/${EC_ARCH}/${__prec}/*.f90 ${__target_dir}
     done
 }
