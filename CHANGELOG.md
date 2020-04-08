@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to generate random perturbations with `LQ` humidity variable in `randomPert` program (#313 and !325 )
  * Add handling of variables needed for land surface analysis, so far only for `ensManip` (#206 and !324)
 
 ### Changed
