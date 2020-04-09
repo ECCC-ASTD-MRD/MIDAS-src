@@ -23,6 +23,12 @@ program midas_bgckMW
   use utilities_mod
   use mpi_mod
   use obsSpaceData_mod
+  use obsFilter_mod
+  use tovs_nl_mod
+  use gridStateVector_mod
+  use timeCoord_mod
+  use columnData_mod
+  use biasCorrection_mod
 
   implicit none
   
@@ -199,22 +205,22 @@ program midas_bgckMW
   REPORTS: do 
     reportIndex = reportIndex + 1
     !###############################################################################
-    ! STEP 0 ) Read TOV Observations in big arrays
+    ! STEP 0 ) Read TOV Observations into obsSpaceData
     !###############################################################################
-    write(*,*) ' ==> mwbg_getData: '
+    write(*,*) ' ==> mwbg_getData: ', reportIndex
     call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle,   &
                       landQualifierIndice, terrainTypeIndice, obsLatitude,          &
-                      obsLongitude, obsTb, obsTbBiasCorr, ompTb, satScanPosition,   &
+                      obsLongitude, obsTb, satScanPosition,   &
                       reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2,       &
-                      obsChannels, ompChannels, obsFlags, satOrbit, obsGlobalMarker,&
+                      obsChannels, obsFlags, satOrbit, obsGlobalMarker,&
                       resumeReport, ifLastReport, instName, burpFileSatId)
-
     if (resumeReport) listeOfResumeReport(reportIndex) = .true.
     if (ifLastReport) lastReportIndex = reportIndex
     if (.not. resumeReport) then
-      if (ALL(ompTb(:) == MPC_missingValue_R4)) then 
+      if (ALL(obsTb(:) == MPC_missingValue_R4)) then 
         n_bad_reps = n_bad_reps + 1  
         listeOfGoodReport(reportIndex) = .false.
+        if (ifLastReport) exit REPORTS
         cycle REPORTS
       end if
       ! fill array with number of location per report
@@ -228,12 +234,17 @@ program midas_bgckMW
                                   terrainTypeIndice, obsLatitude, obsLongitude,     &
                                   satScanPosition, obsQcFlag1, satOrbit,            &
                                   obsGlobalMarker, burpFileSatId, obsTb,            &
-                                  obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,    &
-                                  ompChannels, obsFlags, obsSpaceData)
+                                  obsQcFlag2, obsChannels,    &
+                                  obsFlags, obsSpaceData)
 
     end if
     if (ifLastReport) exit REPORTS
   end do REPORTS
+
+  !
+  ! Compute O-P
+  !
+  call bgckMW_setup()
   
   ! QC LOOP 
   reportIndex = 0
@@ -308,15 +319,15 @@ program midas_bgckMW
                           rejectionCodArray, rejectionCodArray2)
       end if
 
-    !###############################################################################
-    ! STEP 5) Update the burpfile out burpFileNameIn
-    !###############################################################################
-    write(*,*) ' ==> mwbg_updateBurp For : ', instName
-    call mwbg_updateBurp(burpFileNameIn,reportIndex,ETIKRESU,obsTb,cloudLiquidWaterPath,&
-                         atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
-                         globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
-                         obsFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174, &
-                         burpFileNameout)
+      !###############################################################################
+      ! STEP 5) Update the burpfile out burpFileNameIn
+      !###############################################################################
+      write(*,*) ' ==> mwbg_updateBurp For : ', instName
+      call mwbg_updateBurp(burpFileNameIn,reportIndex,ETIKRESU,obsTb,cloudLiquidWaterPath,&
+                           atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
+                           globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
+                           obsFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174, &
+                           burpFileNameout)
     end if
     if (ifLastReport) exit QCLoop
   end do QCLoop
@@ -332,16 +343,85 @@ program midas_bgckMW
                     reportNumChannel, reportNumObs, satelliteId,.TRUE.,rejectionCodArray,&
                     rejectionCodArray2)
 
-  ! deasllocation
+  ! deallocation
   deallocate(obsNumPerReport)
   deallocate(listeOfResumeReport)
   deallocate(listeOfGoodReport)
-  ! deallocate obsSpaceData object
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_BGCKMW' )
   call rpn_comm_finalize(ier)
   istat  = exfin('midas-bgckMW','FIN','NON')
+
+contains
+
+  !--------------------------------------------------------------------------
+  !- bgckMW_setup
+  !--------------------------------------------------------------------------
+  subroutine bgckMW_setup
+    implicit none
+
+    ! Locals:
+    integer :: datestamp
+    integer :: get_max_rss
+
+    write(*,*) ''
+    write(*,*) '-----------------------------------'
+    write(*,*) '-- Starting subroutine bgckMW_setup --'
+    write(*,*) '-----------------------------------'
+
+    !
+    !- Initialize the Temporal grid
+    !
+    call tim_setup
+    !call tim_setDatestamp(datestamp)
+
+    !
+    !- Initialize constants
+    !
+    if(mpi_myid == 0) call mpc_printConstants(6)
+
+    !
+    !- Initialize variables of the model states
+    !
+    call gsv_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    ! Set up the list of elements to be assimilated and flags for rejection
+    !
+    call filt_setup('bgckMW') ! IN
+
+    !
+    ! Basic setup of tovs module
+    !
+    call tvs_setup
+    
+    !
+    ! Filter out data from obsSpaceData
+    !
+    call tmg_start(14,'SUPREP')
+    call filt_suprep(obsSpaceData)
+    call tmg_stop(14)
+
+    !
+    !  Additional filtering for bias correction if requested 
+    !
+    call bias_setup()
+    call bias_filterObs(obsSpaceData)
+
+    !
+    !- Initialization and memory allocation for TOVS processing
+    !
+    call tvs_setupAlloc(obsSpaceData)
+
+    !
+    !- Basic setup of columnData module
+    !
+    call col_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine bgckMW_setup
 
 end program midas_bgckMW

@@ -22,7 +22,8 @@ module bgckmicrowave_mod
   use burp_module
   use MathPhysConstants_mod
   use utilities_mod
-  use obsSpaceData_mod 
+  use obsSpaceData_mod
+  use codePrecision_mod
 
   implicit none
   save
@@ -4048,9 +4049,9 @@ contains
   !   mwbg_getData
   !--------------------------------------------------------------------------
    subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
-                          zlat, zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, &
-                          ntOut, qcflag1, qcflag2, ican, icanomp, IMARQ, IORBIT, &
-                          globMarq, resumeReport, iFlastReport, InstName, STNID)
+                          zlat, zlon, ztb, scanpos, nvalOut, &
+                          ntOut, qcflag1, qcflag2, ican, IMARQ, IORBIT, &
+                          globMarq, resumeReport, ifLastReport, InstName, STNID)
     !:Purpose:   This routine extracts the needed data from the blocks in the report:
     !             rpt              = report
 
@@ -4069,15 +4070,12 @@ contains
     real   , allocatable, intent(out)    :: zlat(:)        ! latitude values (btyp=5120,ele=5002)
     real   , allocatable, intent(out)    :: zlon(:)        ! longitude values (btyp=5120,ele=6002)
     real   , allocatable, intent(out)    :: ztb(:)         ! brightness temperature (btyp=9248/9264,ele=12163) 
-    real   , allocatable, intent(out)    :: biasCorr(:)    ! bias correction 
-    real   , allocatable, intent(out)    :: ZOMP(:)        ! OMP values
     integer, allocatable, intent(out)    :: scanpos(:)     ! scan position (fov)    (btyp=3072,ele=5043)
     integer,              intent(out)    :: nvalOut        ! number of channels     (btyp=9248/9264)
     integer,              intent(out)    :: ntOut          ! number of locations    (btyp=5120,etc.)
     integer, allocatable, intent(out)    :: qcflag1(:,:)   ! flag values for btyp=3072 block ele 033078, 033079, 033080
     integer, allocatable, intent(out)    :: qcflag2(:)     ! flag values for btyp=9248 block ele 033081      
     integer, allocatable, intent(out)    :: ican(:)        ! channel numbers btyp=9248 block ele 5042 (= 1-22)
-    integer, allocatable, intent(out)    :: icanomp(:)     ! omp channel numbers btyp= block ele  (= 1-22)
     integer, allocatable, intent(out)    :: IMARQ(:)       ! data flags
     integer, allocatable, intent(out)    :: IORBIT(:)      ! orbit number
     integer, allocatable, intent(out)    :: globMarq(:)    ! global Marqueur Data
@@ -4131,7 +4129,6 @@ contains
     if (ifFirstCall) then
       write(*,*) 'mwbg_getData First Call : Initialisation'
       ! Set BURP "missing value" for reals
-  ! Set BURP "missing value" for reals
       opt_missing = 'MISSING'
       Call BURP_Set_Options(real_OPTNAME=opt_missing,real_OPTNAME_VALUE=mwbg_realMisg)
 
@@ -4149,35 +4146,37 @@ contains
       write(*,*)
       write(*,*) 'Number of reports containing observations = ', nb_rpts-1
       write(*,*)
-      ifFirstCall = .False.
+      ifFirstCall = .false.
     end if
     if (nb_rpts.lt.1) then
       write(*,*) 'The input BURP file ', burpFileNameIn, ' is empty!'
       call utl_abort('bgckMicrowave_mod: Empty Input File ')
     end if    
     ! last report check
-    ifLastReport = reportIndex == nb_rpts
-    
+    ifLastReport = (reportIndex == nb_rpts)
+
     Call BURP_Get_Report(File_in, REPORT= reportIn, REF= adresses(reportIndex), iostat= error) 
     if (error /= burp_noerr) call burpErrorHistory(file_in, reportIn) 
     Call BURP_Get_Property(reportIn,STNID=idStn0,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
     if ( idStn0(1:2) .eq. ">>" ) then
-      resumeReport = .True.
+      resumeReport = .true.
       return 
     else 
-      resumeReport = .False.
+      resumeReport = .false.
       STNID = trim(idStn0) 
     end if
     
-    !  Get OMP data from the DATA block     BTYP =  9322 or 9226 or 9258 or 9274 and bfma = 14
-    call readBurpReal (reportIndex, reportIn, (/9322,9226,9258,9274/), 14, 12163, error, ZOMP, 'Omp_Data', &
-                   burpLocationNum, burpChannelNum, abortIfMissing = .FALSE.) 
-    
-    if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
+    !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = mwbg_atmsMaxNumChan)
+    call readBurpReal (reportIndex, reportIn, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
+                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
+    if (all(ztb(:) == mpc_missingValue_r4)) then
       return
     end if
-
-    call readBurpInteger (reportIndex, reportIn, (/9322,9226,9258,9274/), 14, eleChannel, error, ICANOMP, 'OMP_Channels', &
+    nvalOut = burpChannelNum    ! set nvalOut (#channels) for MAIN program
+    ntOut = burpLocationNum     ! set ntOut (#locations) for MAIN program
+    call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleChannel, error, ICAN, 'Channel_Numbers', &
+                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get the lat,lon from time/location block    BTYP = 5120  (also get nt)
@@ -4215,18 +4214,6 @@ contains
       qcflag1(:,2) = qcflag1SecondColomn
       qcflag1(:,3) = qcflag1ThirdColomn
     end if
-
-    !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = mwbg_atmsMaxNumChan)
-    call readBurpReal (reportIndex, reportIn, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
-                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    nvalOut = burpChannelNum    ! set nvalOut (#channels) for MAIN program
-    ntOut = burpLocationNum     ! set ntOut (#locations) for MAIN program
-    call readBurpReal (reportIndex, reportIn, (/9248,9264/), 0, 12233, error, biasCorr, 'Bias_Corr_data', &
-                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleChannel, error, ICAN, 'Channel_Numbers', &
-                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
-                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
     call readBurpInteger (reportIndex, reportIn, (/15362,15392,15408/), 0, 212163, error, IMARQ, 'IMARQ', &
@@ -5399,8 +5386,8 @@ contains
 
   subroutine mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel, satIdentifier, satZenithAngle, landQualifierIndice, &
                                     terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
-                                    obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                    ompChannels, obsFlags, obsSpaceData)
+                                    obsGlobalMarker, burpFileSatId, obsTb, obsQcFlag2, obsChannels, &
+                                    obsFlags, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from the burp Arrays into an obsSpaceData object
 
@@ -5422,11 +5409,8 @@ contains
     integer,          intent(in)    :: obsGlobalMarker(:)        ! global Marqueur Data
     character(*),     intent(in)    :: burpFileSatId             ! Platform Name
     real   ,          intent(in)    :: obsTb(:)                  ! brightness temperature (btyp=9248/9264,ele=12163) 
-    real   ,          intent(in)    :: obsTbBiasCorr(:)          ! bias correction 
-    real   ,          intent(in)    :: ompTb(:)                  ! OMP values
     integer,          intent(in)    :: obsQcFlag2(:)             ! flag values for btyp=9248 block ele 033081      
     integer,          intent(in)    :: obsChannels(:)            ! channel numbers btyp=9248 block ele 5042 (= 1-22)
-    integer,          intent(in)    :: ompChannels(:)            ! omp channel numbers btyp= block ele  (= 1-22)
     integer,          intent(in)    :: obsFlags(:)               ! data flags
     type(struct_obs), intent(inout) :: obsSpaceData              ! obspaceData Object
 
@@ -5467,12 +5451,10 @@ contains
         call obs_headSet_i( obsSpaceData, OBS_AQF3, headerIndex, obsQcFlag1(headerCompt,3)       )
       end if
       BODY: do bodyIndex = numBodyWritten + 1, numBodyWritten + reportNumChannel
+        call obs_bodySet_i(obsSpaceData, OBS_VNM,    bodyIndex, 12163                            ) !!!this should come from file!!!
         call obs_bodySet_r(obsSpaceData, OBS_VAR,    bodyIndex, obsTb(bodyCompt)                 )
-        call obs_bodySet_r(obsSpaceData, OBS_OMP,    bodyIndex, ompTb(bodyCompt)                 )
-        call obs_bodySet_r(obsSpaceData, OBS_BCOR,   bodyIndex, obsTbBiasCorr(bodyCompt)         )
         call obs_bodySet_i(obsSpaceData, OBS_FLG,    bodyIndex, obsFlags(bodyCompt)              )
-        call obs_bodySet_i(obsSpaceData, OBS_CHN,    bodyIndex, obsChannels(bodyCompt)           )
-        call obs_bodySet_i(obsSpaceData, OMP_CHN,    bodyIndex, ompChannels(bodyCompt)           )
+        call obs_bodySet_r(obsSpaceData, OBS_PPP,    bodyIndex, real(obsChannels(bodyCompt),OBS_REAL) )
         call obs_bodySet_i(obsSpaceData, OBS_QCF2,   bodyIndex, obsQcFlag2(bodyCompt)            )
         bodyCompt = bodyCompt + 1
       end do BODY
