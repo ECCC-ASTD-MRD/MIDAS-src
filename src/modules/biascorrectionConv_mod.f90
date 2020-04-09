@@ -34,7 +34,7 @@ MODULE biasCorrectionConv_mod
   real     :: corrects_TT(nStationMax,nPhases,nLevels)
   character(len=9) :: aircraft_ID(nStationMax)
 
-  public               :: bcc_readConfig, bcc_readAIBcor
+  public               :: bcc_readConfig, bcc_readAIBcor, bcc_calcBiasAI
   
   integer, external            :: fnom, fclos
   logical :: biasActive
@@ -60,7 +60,7 @@ CONTAINS
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambiasconv,iostat=ierr)
     if ( ierr /= 0 .and. mpi_myid == 0 )  &
-         write(*,*) 'bcs_readConfig: WARNING: Error reading namelist, assume it will not be used!'
+         write(*,*) 'bcc_readConfig: WARNING: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
     ierr = fclos(nulnam)
     
@@ -145,7 +145,7 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    write(*,*) "bcc_calcBias: start"
+    write(*,*) "bcc_calcBiasAI: start"
 
      n_cor_ac = 0
      n_cor_bk = 0
@@ -261,9 +261,9 @@ CONTAINS
           flag = ibset(flag, 6)
         end if
 
-        call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, -1.d0 * corr)
-        call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt          )
-        call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag        )
+        call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
+        call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
+        call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag )
         
       end do BODY
     end do HEADER
