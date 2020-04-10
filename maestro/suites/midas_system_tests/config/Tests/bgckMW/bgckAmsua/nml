@@ -1,7 +1,5 @@
  &NAMBGCK
   instName = 'AMSUA'
-  burpFileNameIn = './obsto_amsua'
-  burpFileNameOut = './obsto_amsua.out'
   mglg_file  = './fstmglg'
   statsFile = './stats_amsua_assim'
   writeModelLsqTT = .true. 
@@ -12,16 +10,16 @@
   writeTbValuesToFile = .false.	
 /
  &NAMMWOBS
-  reportNumMax = 5000
+  reportNumMax = 500
   locationNumMax = 1000
   channelNumMax = 15
 /
  &NAMDIMO
-   NMXOBS=1000000,
-   NDATAMX=20000000,
+   NMXOBS=100000,
+   NDATAMX=2000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25D0
+  DSTEPOBS = 1.00D0
 /
  &NAMFILT
   NELEMS = 3,

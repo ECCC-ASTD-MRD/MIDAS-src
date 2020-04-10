@@ -23,12 +23,14 @@ module fileNames_mod
   use clib_interfaces_mod
   use ramDisk_mod
   use timeCoord_mod
+  use codtyp_mod
   implicit none
   save
   private
 
   ! public procedures
   public :: fln_ensFileName, fln_ensAnlFileName, fln_ensTrlFileName
+  public :: fln_obsFileName
 
 contains
 
@@ -307,5 +309,52 @@ contains
     write(*,*) 'fln_ensTrlFileName: ensFileName = ', trim(ensFileName)
 
   end subroutine fln_ensTrlFileName
+
+
+  function fln_obsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
+    !
+    ! :Purpose: Return the part of the observation file name associated
+    !           with the type of observation it contains.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*)           :: obsFamily
+    character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
+    integer, optional          :: codetype_opt
+    character(len=20) :: fileName
+
+    if ( obsFamily == 'TO' ) then
+      if (.not. present(codetype_opt)) then
+        call utl_abort('fln_obsFileName: codetype_opt must be specified for TO family')
+      end if
+
+      if ( codtyp_get_name( codeType_opt ) == 'radianceclear' ) then
+        fileName  = 'csr'
+      else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
+        fileName = 'to_amsub'
+      else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
+        fileName = 'to_amsua'
+      else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
+        fileName = 'ssmis'
+      else if ( codtyp_get_name( codeType_opt ) == 'crisfsr' ) then
+        fileName = 'cris'
+      else
+        fileName = codtyp_get_name( codeType_opt )
+      end if
+    else
+      if (.not. present(sfFileName_opt)) then
+        call utl_abort('fln_obsFileName: sfFileName_opt must be specified')
+      end if
+      call up2low( obsFamily, fileName )
+      if ( fileName == 'ra' ) fileName = 'radar'
+      if ( fileName == 'sf' ) then
+        ! use either 'sf' or 'sfc' for filename with surface obs
+        fileName = sfFileName_opt
+      end if
+    end if
+
+  end function fln_obsFileName
+
 
 end module fileNames_mod

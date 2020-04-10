@@ -24,15 +24,18 @@ program midas_bgckMW
   use mpi_mod
   use obsSpaceData_mod
   use obsFilter_mod
+  use obsFiles_mod
   use tovs_nl_mod
   use gridStateVector_mod
   use timeCoord_mod
   use columnData_mod
   use biasCorrection_mod
+  use innovation_mod
 
   implicit none
   
   type(struct_obs)              :: obsSpaceData                                       ! ObsSpace Data object
+  type(struct_columnData), target :: trlColumnOnTrlLev
   integer                       :: reportIndex                                        ! report index
   integer                       :: lastReportIndex                                    ! report index
   integer                       :: reportNumObs                                       ! number of obs in current report
@@ -47,6 +50,8 @@ program midas_bgckMW
   real, allocatable             :: modelInterpTerrain(:)                              ! topo in standard file interpolated to obs point
   real, allocatable             :: modelInterpSeaIce(:)                               ! Glace de mer " "
   real, allocatable             :: modelInterpGroundIce(:)                            ! Glace de continent " "
+  integer, allocatable          :: obsDate(:)                                         ! obs. date
+  integer, allocatable          :: obsTime(:)                                         ! obs. time (HHMM)
   real,    allocatable          :: obsLatitude(:)                                     ! obs. point latitudes
   real,    allocatable          :: obsLongitude(:)                                    ! obs. point longitude
   integer, allocatable          :: satIdentifier(:)                                   ! Satellite identifier
@@ -60,7 +65,6 @@ program midas_bgckMW
   integer, allocatable          :: obsQcFlag1(:,:)                                    ! Obs Quality flag 1
   integer, allocatable          :: obsQcFlag2(:)                                      ! Obs Quality flag 2 
   integer, allocatable          :: obsChannels(:)                                     ! obsTb channels
-  integer, allocatable          :: ompChannels(:)                                     ! zomp channel
   integer, allocatable          :: obsFlags(:)                                        ! obs. flag
   integer, allocatable          :: satOrbit(:)                                        ! orbit
   integer, allocatable          :: obsGlobalMarker(:)                                 ! global marker
@@ -94,8 +98,7 @@ program midas_bgckMW
   logical, allocatable          :: listeOfResumeReport(:)
   ! namelist variables
   character(len=9)              :: instName                        ! instrument name
-  character(len=90)             :: burpFileNameIn                  ! burp input file name
-  character(len=90)             :: burpFileNameOut                 ! burp output file name
+  character(len=1060)           :: burpFileNameIn                  ! burp input file name
   character(len=9)              :: ETIKRESU                        ! resume etiket name
   character(len=128)            :: mglg_file                       ! glace de mer file
   character(len=128)            :: statsFile                       ! stats error file
@@ -107,11 +110,12 @@ program midas_bgckMW
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
   logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
+  integer                       :: numFileFound
   integer                       :: reportNumMax                    ! Max number of reports in file
   integer                       :: locationNumMax                  ! Max number of obs per report
   integer                       :: channelNumMax                   ! Max number of channel in report
 
-  namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
+  namelist /nambgck/instName, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile
 
@@ -135,8 +139,6 @@ program midas_bgckMW
  
   ! default nambgck namelist values
   instName              = 'AMSUA'
-  burpFileNameIn        = './obsto_amsua'
-  burpFileNameOut       = './obsto_amsua.out'
   mglg_file             = './fstmglg'
   statsFile             = './stats_amsua_assim'  
   writeModelLsqTT       = .false.
@@ -182,6 +184,11 @@ program midas_bgckMW
   ! Initialize obsSpaceData object
   call obs_class_initialize('ALL')
   call obs_initialize( obsSpaceData, mpi_local=.true. )
+  ! Basic setups
+  call mwbg_setup()
+  burpFileNameIn = obsf_getFileName('TO',numFileFound)
+  if (numFileFound /= 1) call utl_abort('bgckMW: did not fine 1 obs file')
+  write(*,*) 'bgckMW: obs file name =', trim(burpFileNameIn)
 
   ! Initializations of counters (for total reports/locations in the file).
   n_bad_reps = 0
@@ -209,8 +216,8 @@ program midas_bgckMW
     !###############################################################################
     write(*,*) ' ==> mwbg_getData: ', reportIndex
     call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle,   &
-                      landQualifierIndice, terrainTypeIndice, obsLatitude,          &
-                      obsLongitude, obsTb, satScanPosition,   &
+                      landQualifierIndice, terrainTypeIndice, obsDate, obsTime,     &
+                      obsLatitude, obsLongitude, obsTb, satScanPosition,            &
                       reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2,       &
                       obsChannels, obsFlags, satOrbit, obsGlobalMarker,&
                       resumeReport, ifLastReport, instName, burpFileSatId)
@@ -231,7 +238,8 @@ program midas_bgckMW
       write(*,*) ' ==> mwbg_copyObsToObsSpace: '
       call mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel,         &
                                   satIdentifier, satZenithAngle,landQualifierIndice,&
-                                  terrainTypeIndice, obsLatitude, obsLongitude,     &
+                                  terrainTypeIndice, obsDate, obsTime,              &
+                                  obsLatitude, obsLongitude,                        &
                                   satScanPosition, obsQcFlag1, satOrbit,            &
                                   obsGlobalMarker, burpFileSatId, obsTb,            &
                                   obsQcFlag2, obsChannels,    &
@@ -242,11 +250,29 @@ program midas_bgckMW
   end do REPORTS
 
   !
-  ! Compute O-P
+  ! Filter out data from obsSpaceData
   !
-  call bgckMW_setup()
-  
-  ! QC LOOP 
+  call tmg_start(14,'SUPREP')
+  call filt_suprep(obsSpaceData)
+  call tmg_stop(14)
+
+  !
+  !  Additional filtering for bias correction if requested 
+  !
+  call bias_setup()
+  call bias_filterObs(obsSpaceData)
+
+  !
+  !- Initialization and memory allocation for TOVS processing
+  !
+  call tvs_setupAlloc(obsSpaceData)
+
+  ! reading, horizontal interpolation and unit conversions of the 3D trial fields
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+
+  !
+  ! QC LOOP
+  !
   reportIndex = 0
   ifLastReport = .false.
 
@@ -263,7 +289,7 @@ program midas_bgckMW
                                  satScanPosition, obsQcFlag1, satOrbit,             &
                                  obsGlobalMarker, burpFileSatId, obsTb,             &
                                  obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
-                                 ompChannels, obsFlags, reportNumObs,               &
+                                 obsFlags, reportNumObs,               &
                                  reportNumChannel, obsSpaceData)
 
         !###############################################################################
@@ -286,7 +312,7 @@ program midas_bgckMW
         write(*,*) ' ==> mwbg_tovCheck For: ', instName
         if (instName == 'AMSUA') then
           call mwbg_tovCheckAmsua(TOVERRST, IUTILST, satIdentifier, landQualifierIndice,&
-                              satOrbit, obsChannels, ompChannels, obsTb, obsTbBiasCorr, & 
+                              satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
                               ompTb, qcIndicator, reportNumChannel, reportNumObs,       &
                               mwbg_realMisg, satIndexObserrFile, globalQcIndicator,     &
                               satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
@@ -298,8 +324,8 @@ program midas_bgckMW
           call mwbg_tovCheckAtms(TOVERRST, IUTILST,mglg_file, obsLatitude, obsLongitude,&
                               landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                               obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
-                              obsChannels, ompChannels, obsTb, obsTbBiasCorr, ompTb,    &
-                              qcIndicator, reportNumChannel, reportNumChannel,          &
+                              obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
+                              qcIndicator, reportNumChannel,          &
                               reportNumObs, mwbg_realMisg, satIndexObserrFile,          &
                               newInformationFlag, globalQcIndicator, satScanPosition,   &
                               modelInterpTerrain, obsGlobalMarker, obsFlags,            &
@@ -326,8 +352,7 @@ program midas_bgckMW
       call mwbg_updateBurp(burpFileNameIn,reportIndex,ETIKRESU,obsTb,cloudLiquidWaterPath,&
                            atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
                            globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
-                           obsFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174, &
-                           burpFileNameout)
+                           obsFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174)
     end if
     if (ifLastReport) exit QCLoop
   end do QCLoop
@@ -353,75 +378,5 @@ program midas_bgckMW
   call tmg_terminate(mpi_myid, 'TMG_BGCKMW' )
   call rpn_comm_finalize(ier)
   istat  = exfin('midas-bgckMW','FIN','NON')
-
-contains
-
-  !--------------------------------------------------------------------------
-  !- bgckMW_setup
-  !--------------------------------------------------------------------------
-  subroutine bgckMW_setup
-    implicit none
-
-    ! Locals:
-    integer :: datestamp
-    integer :: get_max_rss
-
-    write(*,*) ''
-    write(*,*) '-----------------------------------'
-    write(*,*) '-- Starting subroutine bgckMW_setup --'
-    write(*,*) '-----------------------------------'
-
-    !
-    !- Initialize the Temporal grid
-    !
-    call tim_setup
-    !call tim_setDatestamp(datestamp)
-
-    !
-    !- Initialize constants
-    !
-    if(mpi_myid == 0) call mpc_printConstants(6)
-
-    !
-    !- Initialize variables of the model states
-    !
-    call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    ! Set up the list of elements to be assimilated and flags for rejection
-    !
-    call filt_setup('bgckMW') ! IN
-
-    !
-    ! Basic setup of tovs module
-    !
-    call tvs_setup
-    
-    !
-    ! Filter out data from obsSpaceData
-    !
-    call tmg_start(14,'SUPREP')
-    call filt_suprep(obsSpaceData)
-    call tmg_stop(14)
-
-    !
-    !  Additional filtering for bias correction if requested 
-    !
-    call bias_setup()
-    call bias_filterObs(obsSpaceData)
-
-    !
-    !- Initialization and memory allocation for TOVS processing
-    !
-    call tvs_setupAlloc(obsSpaceData)
-
-    !
-    !- Basic setup of columnData module
-    !
-    call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  end subroutine bgckMW_setup
 
 end program midas_bgckMW

@@ -1561,20 +1561,19 @@ contains
 
     ! locals
     character(len=1060) :: filename
-    logical             :: found
     type(BURP_FILE)  :: fileIn
     type(BURP_BLOCK) :: blkoer
     type(BURP_RPT)   :: report
     character(len=9)      :: stnid
     integer(kind=int_def) :: error, ref_rpt
     integer  :: numLevels, numValues, numReports, obsCount
-    integer  :: levelIndex, reportIndex, obsIndex
+    integer  :: levelIndex, reportIndex, obsIndex, numFound
     integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
     integer  :: vnm, bodyIndexBeg, bodyIndexEnd
     real(8), allocatable :: uu_oer(:), vv_oer(:)
 
-    filename = obsf_getFileName('SW',found)
-    if (found) then
+    filename = obsf_getFileName('SW',numFound)
+    if (numFound > 0) then
       write(*,*) 'oer_readOerFromObsFileForSW: reading OER from the file: ', trim(filename)
     else
       write(*,*) 'oer_readOerFromObsFileForSW: no obsfile with SW family, returning'

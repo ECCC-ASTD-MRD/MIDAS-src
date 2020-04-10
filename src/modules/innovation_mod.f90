@@ -217,6 +217,7 @@ contains
     NAMELIST /NAMINN/timeInterpType_nl
 
     write(*,*) 'inn_setupBackgroundColumns: START'
+    nullify(hco_trl,vco_trl)
 
     timeInterpType_nl='NEAREST'
 

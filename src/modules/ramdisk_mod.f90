@@ -38,7 +38,7 @@ contains
   !--------------------------------------------------------------------------
   ! ram_setup
   !--------------------------------------------------------------------------
-  subroutine ram_setup
+  subroutine ram_setup()
     implicit none
 
     integer :: length_ram_disk_dir, status
@@ -88,7 +88,7 @@ contains
     integer            :: status
 
     if ( .not. initialized ) then
-      call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
+      call ram_setup()
     end if
 
     if ( present(noAbort_opt) ) then
@@ -190,7 +190,7 @@ contains
     logical          :: fileExists
 
     if ( .not. initialized ) then
-      call utl_abort('ram_remove: ramDisk module has not been initialized.')
+      call ram_setup()
     end if
 
     inquire(file=trim(fullWorkingPath),exist=fileExists)

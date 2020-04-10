@@ -19,11 +19,21 @@ module bgckmicrowave_mod
   !
   ! :Purpose: Variables for microwave background check and quality control.
   !
+  use mpi_mod
   use burp_module
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
+  use obsFiles_mod
   use codePrecision_mod
+  use obsFilter_mod
+  use tovs_nl_mod
+  use gridStateVector_mod
+  use timeCoord_mod
+  use columnData_mod
+  use biasCorrection_mod
+  use horizontalCoord_mod
+  use analysisGrid_mod
 
   implicit none
   save
@@ -32,6 +42,7 @@ module bgckmicrowave_mod
   ! Public functions/subroutines
 
   ! common functions/subroutines
+  public :: mwbg_setup
   public :: mwbg_getData
   public :: mwbg_updateBurp 
   public :: mwbg_readStatTovs
@@ -95,6 +106,70 @@ module bgckmicrowave_mod
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
   
 contains
+
+  !--------------------------------------------------------------------------
+  !- mwbg_setup
+  !--------------------------------------------------------------------------
+  subroutine mwbg_setup()
+    implicit none
+
+    ! Locals:
+    type(struct_hco), pointer :: hco_anl
+    integer :: datestamp
+    integer :: get_max_rss
+
+    write(*,*) ''
+    write(*,*) '-----------------------------------'
+    write(*,*) '-- Starting subroutine mwbg_setup --'
+    write(*,*) '-----------------------------------'
+
+    !
+    !- Initialize the observation file names and the temporal grid
+    !
+    call obsf_setup( dateStamp, 'bgckMW' )
+    call tim_setup()
+    call tim_setDatestamp(dateStamp)
+    write(*,*) 'mwbg_setup: dateStamp = ', dateStamp
+
+    !
+    !- Initialize constants
+    !
+    if(mpi_myid == 0) call mpc_printConstants(6)
+
+    !
+    !- Initialize variables of the model states
+    !
+    call gsv_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize analysis grid, same as trial grid (needed by stateToColumn_mod)
+    !
+    nullify(hco_anl)
+    call hco_SetupFromFile(hco_anl, './trlm_01', ' ', 'Analysis' ) ! IN
+    if ( hco_anl % global ) then
+      call agd_SetupFromHCO( hco_anl ) ! IN
+    else
+      call agd_SetupFromHCO( hco_anl, hco_anl ) ! IN
+    end if
+
+    !
+    ! Set up the list of elements to be assimilated and flags for rejection
+    !
+    call filt_setup('bgckMW') ! IN
+
+    !
+    ! Basic setup of tovs module
+    !
+    call tvs_setup
+    
+    !
+    !- Basic setup of columnData module
+    !
+    call col_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine mwbg_setup
 
   !--------------------------------------------------------------------------
   !  ISRCHEQR function
@@ -1144,7 +1219,7 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
+  subroutine mwbg_tovCheckAmsua(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
@@ -1183,7 +1258,6 @@ contains
     integer, intent(in)                    :: KORBIT(:)          ! numero d'orbite
     integer, intent(in)                    :: ICANO(:)       ! canaux des observations
     integer, intent(inout)                 :: ITERRAIN(:)        ! indicateur du type de terrain
-    integer, intent(in)                    :: ICANOMP(:)     ! canaux des residus (o-p)
     integer, intent(in)                    :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)                    :: KNT                  ! nombre de tovs
     integer, intent(in)                    :: KNOSAT               ! numero de satellite (i.e. indice)
@@ -1226,7 +1300,6 @@ contains
     
     integer                                :: KMARQ   (KNO,KNT)
     integer                                :: KCANO   (KNO,KNT)
-    integer                                :: KCANOMP (KNO,KNT)
     real                                   :: PTBO    (KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
@@ -1324,13 +1397,6 @@ contains
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     call copy1Dimto2DimRealArray(ZCOR, KNO, KNT, PTBCOR)
     call copy1Dimto2DimRealArray(ZO, KNO, KNT, PTBO)
-    ! small check
-    do INDX = 1, KNO*KNT
-      if ( ICANO(INDX) /= ICANOMP(INDX) ) then
-        call utl_abort('bgckMicrowave_mod: ERROR IN DIMENSIONS OF TOVS data')
-      end if
-    end do
-    call copy1Dimto2DimIntegerArray(ICANOMP, KNO, KNT, KCANOMP)
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
 
     ! Initialisation, la premiere fois seulement!
@@ -1341,15 +1407,7 @@ contains
     ! fill ident with zeros ONLY for consistency with ATMS
     ident(:) = 0
     ICHECK(:,:) = 0
-     if ( RESETQC ) KMARQ(:,:) = 0
-
-    do JJ=1,KNT
-      do JI=1,KNO
-        if ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) then
-          call utl_abort('bgckMicrowave_mod: INCONSISTENT CHANNEL LISTS FOR TOVS data')
-        end if
-      end do
-    end do
+    if ( RESETQC ) KMARQ(:,:) = 0
 
     !     Grody parameters are   extract required channels:
     call extractParamForGrodyRun (KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, pmisg, &
@@ -1951,9 +2009,9 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_updateBurp
   !--------------------------------------------------------------------------
-  subroutine mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
-                               globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, writeTbValuesToFile, & 
-                               writeModelLsqTT, writeEle25174, burpFileNameout)
+  subroutine mwbg_updateBurp(burpFileName, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
+                             globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, writeTbValuesToFile, & 
+                             writeModelLsqTT, writeEle25174)
     !:Purpose:      Pour AMSUA et ATMS: 
     !               Allumer les bits des marqueurs pour les tovs rejetes.
     !               Mettre a jour l'indicateur terre/mer qui a
@@ -1963,9 +2021,9 @@ contains
     implicit none
     !Arguments:
     !
-    character(len=90),    intent(in)     :: burpFileNameIn     !burp input Obs File
+    character(len=*),     intent(in)     :: burpFileName       !burp Obs File
     integer,              intent(in)     :: ReportIndex        !report eportIndex
-    character(len=9),     intent(in)     :: ETIKRESU           !resume report etiket
+    character(len=*),     intent(in)     :: ETIKRESU           !resume report etiket
     real,                 intent(in)     :: ztb(:)             ! tempertature de brillance
     real,                 intent(in)     :: clw(:)             !cloud liquid water path 
     real,                 intent(in)     :: scatw(:)           !scattering index 
@@ -1982,13 +2040,11 @@ contains
     logical, intent(in)                  :: writeModelLsqTT    ! if replace lsq and terrain typ var by model values
     logical, intent(in)                  :: writeEle25174      ! if copie the new element 25174 in the output burp file
     integer,              intent(in)     :: IMARQ(:)           !modified flag values from mwbg_tovCheck  
-    character(len=90),    intent(inout)  :: burpFileNameout    ! burp output Obs File
 
     !Locals:
     type(BURP_FILE), save                :: File_in
-    type(BURP_FILE), save                :: File_out
-    type(BURP_RPT)                       :: reportIn
-    type(BURP_RPT)                       :: reportOut
+    type(BURP_RPT), save                 :: reportIn
+    type(BURP_RPT), save                 :: reportOut
 
     type(BURP_BLOCK)                     :: blk 
     type(BURP_BLOCK)                     :: blk_copy 
@@ -2028,50 +2084,51 @@ contains
 
     if (ifFirstCall) then
       write(*,*) 'mwbg_updateBurp First Call : Initialisation'
-      ! LOOP OVER ALL REPORTS OF THE INPUT FILE, APPLY PROCESSING, AND write TO OUTPUT FILE.
-      call getBurpReportAdresses (burpFileNameIn, adresses)
+
+      ! get list of addresses for reports
+      call getBurpReportAdresses (burpFileName, adresses)
+
       ! initialisation
-      Call BURP_Init(File_in, F2= File_out, iostat=error)
-      ! ouverture du fichier burp d'entree et de sortie
+      Call BURP_Init(File_in, iostat=error)
       Call BURP_Init(reportIn, R2=reportOut, iostat=error)
-      ! Number of reports and maximum report size from input BURP file
-      Call BURP_New(File_in,  FILENAME = burpFileNameIn,  MODE= FILE_ACC_READ,   iostat= error)
+      Call BURP_New(File_in, FILENAME = burpFileName, MODE= file_acc_append, iostat= error)
+
+      ! number of reports and maximum report size
       Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
       nsize = MRFMXL(iun_burpin)
       ! Add nsize to report size to accomodate modified (larger) data blocks
       nsize = nsize*3
-      Call BURP_New(File_out, FILENAME= burpFileNameOut, MODE= FILE_ACC_CREATE, iostat= error)
+      ! Create new report (reportOut) to contain modified blocks from reportIn
+      Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
+      if (error /= burp_noerr) call burpErrorHistory(file_in, reportOut)
+
       ifFirstCall = .False.
     end if
 
     Call BURP_Get_Report(File_in, REPORT= reportIn, REF= adresses(ReportIndex), iostat= error) 
     if (error /= burp_noerr) call burpErrorHistory(file_in, reportIn) 
     Call BURP_Get_Property(reportIn,STNID=idStn,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
+    Call BURP_Copy_Header(TO= reportOut, FROM= reportIn)
+    Call BURP_INIT_Report_Write(File_in,reportOut,iostat=error)
+    if (error /= burp_noerr) call burpErrorHistory(File_in, reportOut)
 
     if ( idStn(1:2) .eq. ">>" ) then
       resumeReport = .True.
+      call burp_delete_report(File_in, reportIn, iostat=error)
+      if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn)
       ! change the header
-      Call BURP_Set_Property(reportIn,STNID=ETIKRESU)  
-      Call BURP_Write_Report(File_out,reportIn,iostat=error)
-      if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn, File_out, reportOut)
+      Call BURP_Set_Property(reportOut,STNID=ETIKRESU)  
+      Call BURP_Write_Report(File_in,reportOut,iostat=error)
+      if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn)
 
       if (reportIndex == nb_rpts) then
-        Call BURP_Free(File_in, F2 = File_out,iostat=error)
+        Call BURP_Free(File_in,iostat=error)
         Call BURP_Free(reportIn, R2 = reportOut,iostat=error)
       end if
       
       return 
     end if  
-    ! Create new report (reportOut) to contain modified blocks from reportIn
-    Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
-    if (error /= burp_noerr) call burpErrorHistory(file_in, reportIn, file_out, reportOut)
     
-    ! initiliser pour ecriture a File_out
-    Call BURP_INIT_Report_Write(File_out,reportOut,iostat=error)
-    if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn, File_out, reportOut)
-    !  copier le header du rapport 
-    Call BURP_Copy_Header(TO= reportOut, FROM= reportIn)
-
     Call BURP_Init(blk, B2=blk_copy, iostat=error)
 
     ! Read and modify the blocks in rpt and add them to reportOut
@@ -2183,15 +2240,18 @@ contains
       end if
 
     end do BLOCKS
+    call burp_delete_report(File_in, reportIn, iostat=error)
+    if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn)
     ! Write the modified report to the output file
-    Call BURP_Write_Report(File_out,reportOut,iostat=error)
-    if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn, File_out, reportOut)
+    Call BURP_Write_Report(File_in,reportOut,iostat=error)
+    if (error /= burp_noerr) call burpErrorHistory(File_in, reportOut)
 
     if (reportIndex == nb_rpts) then
       write(*,*) "LAST REPORT : Burp Udate is closing File"
-      Call BURP_Free(File_in, F2 = File_out,iostat=error)
+      Call BURP_Free(File_in,iostat=error)
       Call BURP_Free(reportIn, R2 = reportOut,iostat=error)
     end if 
+
   end subroutine mwbg_updateBurp
 
   !--------------------------------------------------------------------------
@@ -3077,8 +3137,8 @@ contains
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, &
-                               zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
-                               ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
+                               zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
+                               ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, IDENT, &
                                KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
                                rejectionCodArray2, STNID, RESETQC)
                                
@@ -3096,7 +3156,6 @@ contains
     real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
     character(len=128), intent(in)   :: mglg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
-    integer, intent(in)              :: KNOMP                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs
     real,    intent(in)              :: zlat(:)
     real,    intent(in)              :: zlon(:)
@@ -3110,14 +3169,13 @@ contains
     integer, intent(in)              :: ISCNPOS(KNT)         ! position sur le "scan"
     integer, intent(in)              :: KORBIT(KNT)          ! numero d'orbite
     integer, intent(in)              :: ICANO(:)       ! canaux des observations
-    integer, intent(in)              :: ICANOMP(:)     ! canaux des residus (o-p)
     integer, intent(in)              :: KNOSAT               ! numero de satellite (i.e. indice)
     real, intent(inout)              :: ztb(:)        ! radiances
     real, intent(in)                 :: biasCorr(:)      ! correction aux radiances
     real, intent(in)                 :: zomp(:)      ! residus (o-p)
     real, intent(in)                 :: MTINTRP(KNT)         ! topographie du modele
     integer, allocatable, intent(out):: IDENT(:)           ! flag to identify all obs pts in report
-   !                                                                 as being over land/ice, cloudy, bad IWV
+    !                                                                 as being over land/ice, cloudy, bad IWV
     real, intent(in)                 :: PMISG                ! missing value
     character *9, intent(in)         :: STNID                ! identificateur du satellite
     logical, intent(in)              :: RESETQC              ! reset du controle de qualite?
@@ -3136,7 +3194,6 @@ contains
     !locals
     real                             :: PTBOMP(KNO,KNT)      ! residus (o-p)     2D
     integer                          :: KCANO(KNO,KNT)       ! canaux des observations 2D
-    integer                          :: KCANOMP(KNO,KNT)     ! canaux des residus (o-p) 2D
     integer                          :: KMARQ(KNO,KNT)       ! marqueurs des radiances 2D
     integer, allocatable             :: lsq(:)
     integer, allocatable             :: trn(:) 
@@ -3332,7 +3389,6 @@ contains
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
     call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
-    call copy1Dimto2DimIntegerArray(ICANOMP, KNO, KNT, KCANOMP)
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     ! allocations
     call utl_reAllocate(kchkprf, KNT)
@@ -3343,22 +3399,6 @@ contains
    
     if ( RESETQC ) KMARQ(:,:) = 0
 
-    !  Verification de l'integrite des donnees, c'est-a-dire que:
-    !         i)  les dimensions des divers blocs de donnees concordent,
-    !         ii) les listes de canaux concordent.
-    if ( KNO .NE. KNOMP     ) then
-      call utl_abort ('bgckMicrowave_mod:  ERROR IN DIMENSIONS OF TOVS DATA')
-    end if
-
-    do JJ=1,KNT
-      do JI=1,KNO
-        if ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) then
-          call utl_abort ('bgckMicrowave_mod: INCONSISTENT CHANNEL LISTS FOR TOVS DATA')
-        end if
-      end do
-    end do
-
-     
     ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
@@ -3495,7 +3535,7 @@ contains
     Call BURP_Init(File_in, iostat=error)
     Call BURP_Init(Rpt_in,  iostat=error)
     ! ouverture du fichier burp d'entree et de sortie
-    Call BURP_New(File_in, FILENAME= burpFileNameIn, MODE= FILE_ACC_READ, iostat= error)
+    Call BURP_New(File_in, FILENAME= burpFileNameIn, MODE= file_acc_append, iostat= error)
     ! Number of reports and maximum report size from input BURP file
     Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
     if (nb_rpts.le.1) then
@@ -3552,12 +3592,18 @@ contains
     ! if no observations STOP
     if ( nobs_tot == 0 ) call burpErrorHistory(File_in, Rpt_in)
 
+    write(*,*) 'before free(rpt_in)'
+    call burp_free(Rpt_in)
+    write(*,*) 'before free(file_in)'
+    call burp_free(File_in)
+    write(*,*) 'after free(file_in)'
+
   end subroutine  getBurpReportAdresses
 
   !--------------------------------------------------------------------------
   !  burpErrorHistory
   !--------------------------------------------------------------------------
-  subroutine burpErrorHistory (burpFile, burpRpt, burpFile_opt, burpRpt_opt)
+  subroutine burpErrorHistory (burpFile, burpRpt)
 
     ! :Purpose: Send and abort signal when there is a fail in reading burp file
     !          The history of all the actions in this attempt is listed
@@ -3567,20 +3613,13 @@ contains
     ! Arguments 
     type(BURP_FILE),           intent(inout)                    :: burpFile  ! observation burp file
     type(BURP_RPT),            intent(inout)                    :: burpRpt   ! observation burp file
-    type(BURP_FILE), optional, intent(inout)                    :: burpFile_opt  ! observation burp file
-    type(BURP_RPT),  optional, intent(inout)                    :: burpRpt_opt   ! observation burp file
 
     write(*,*) BURP_STR_ERROR()
     write(*,*) "history"
     Call BURP_STR_ERROR_HISTORY()
     Call BURP_Free(burpFile)
     Call BURP_Free(burpRpt)
-    if (present(burpFile_opt) .and. present(burpRpt_opt)) then
-      Call BURP_Free(burpFile_opt)
-      Call BURP_Free(burpRpt_opt)
-    end if
-    call utl_abort ('bgckMicrowave_mod: burpErrorHistory')
-    
+    call utl_abort ('bgckMicrowave_mod: burpErrorHistory')    
 
   end subroutine burpErrorHistory
 
@@ -4048,8 +4087,8 @@ contains
   !--------------------------------------------------------------------------
   !   mwbg_getData
   !--------------------------------------------------------------------------
-   subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
-                          zlat, zlon, ztb, scanpos, nvalOut, &
+  subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
+                          obsDate, obsTime, zlat, zlon, ztb, scanpos, nvalOut, &
                           ntOut, qcflag1, qcflag2, ican, IMARQ, IORBIT, &
                           globMarq, resumeReport, ifLastReport, InstName, STNID)
     !:Purpose:   This routine extracts the needed data from the blocks in the report:
@@ -4067,9 +4106,11 @@ contains
     real   , allocatable, intent(out)    :: zenith(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
     integer, allocatable, intent(out)    :: ilq(:)         ! land/sea qualifier     (btyp=3072,ele=8012)
     integer, allocatable, intent(out)    :: itt(:)         ! terrain-type (ice)     (btyp=3072,ele=13039)
+    integer, allocatable, intent(out)    :: obsDate(:)     ! date of the observation
+    integer, allocatable, intent(out)    :: obsTime(:)     ! time (HHMM) of the observation
     real   , allocatable, intent(out)    :: zlat(:)        ! latitude values (btyp=5120,ele=5002)
     real   , allocatable, intent(out)    :: zlon(:)        ! longitude values (btyp=5120,ele=6002)
-    real   , allocatable, intent(out)    :: ztb(:)         ! brightness temperature (btyp=9248/9264,ele=12163) 
+    real   , allocatable, intent(out)    :: ztb(:)         ! brightness temperature (btyp=9248/9264,ele=12163)
     integer, allocatable, intent(out)    :: scanpos(:)     ! scan position (fov)    (btyp=3072,ele=5043)
     integer,              intent(out)    :: nvalOut        ! number of channels     (btyp=9248/9264)
     integer,              intent(out)    :: ntOut          ! number of locations    (btyp=5120,etc.)
@@ -4084,7 +4125,7 @@ contains
     character(*),         intent(out)    :: STNID          ! Platform Name
     ! Locals
     type(BURP_FILE), save                :: File_in
-    type(BURP_RPT)                       :: reportIn
+    type(BURP_RPT), save                 :: reportIn
     integer, allocatable                 :: qcflag1FirstColomn(:)
     integer, allocatable                 :: qcflag1SecondColomn(:)
     integer, allocatable                 :: qcflag1ThirdColomn(:)
@@ -4100,7 +4141,6 @@ contains
     integer                              :: blat 
     integer                              :: blon 
     integer                              :: error 
-    integer                              :: iun_burpin
     integer                              :: nblocs 
     integer                              :: handle 
     character(len=9)                     :: idStn0
@@ -4125,29 +4165,26 @@ contains
 
     end if
 
-
     if (ifFirstCall) then
       write(*,*) 'mwbg_getData First Call : Initialisation'
       ! Set BURP "missing value" for reals
       opt_missing = 'MISSING'
       Call BURP_Set_Options(real_OPTNAME=opt_missing,real_OPTNAME_VALUE=mwbg_realMisg)
 
-      !opt_missing = 'MISSING'
-      !Call BURP_Set_Options(real_OPTNAME=opt_missing,real_OPTNAME_VALUE=MPC_missingValue_R4)
-      ! LOOP OVER ALL REPORTS OF THE INPUT FILE, APPLY PROCESSING, AND write TO OUTPUT FILE.
+      ! get list of addresses in burp file
       call getBurpReportAdresses (burpFileNameIn, adresses)
+
       ! initialisation
       Call BURP_Init(File_in, iostat=error)
-      ! ouverture du fichier burp d'entree et de sortie
       Call BURP_Init(reportIn,  iostat=error)
-      ! Number of reports and maximum report size from input BURP file
-      Call BURP_New(File_in,  FILENAME = burpFileNameIn,  MODE= FILE_ACC_READ,   iostat= error)
-      Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
+      Call BURP_New(File_in,  FILENAME = burpFileNameIn,  MODE= file_acc_append,   iostat= error)
+      Call BURP_Get_Property(File_in, NRPTS=nb_rpts)
       write(*,*)
       write(*,*) 'Number of reports containing observations = ', nb_rpts-1
       write(*,*)
       ifFirstCall = .false.
     end if
+
     if (nb_rpts.lt.1) then
       write(*,*) 'The input BURP file ', burpFileNameIn, ' is empty!'
       call utl_abort('bgckMicrowave_mod: Empty Input File ')
@@ -4179,10 +4216,13 @@ contains
     call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
-    !  Get the lat,lon from time/location block    BTYP = 5120  (also get nt)
+    !  Get the date,time,lat,lon from time/location block    BTYP = 5120  (also get nt)
+    call readBurpInteger(reportIndex, reportIn, (/5120/), 0, 4208, error, obsDate, 'DATE', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, reportIn, (/5120/), 0, 4197, error, obsTime, 'TIME', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call readBurpReal(reportIndex, reportIn, (/5120/), 0, 5002, error, zlat, 'LAT', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-
     call readBurpReal(reportIndex, reportIn, (/5120/), 0, 6002, error, zlon, 'LON', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
@@ -4222,6 +4262,12 @@ contains
     !  Bloc info 3d: bloc 5120.
     call readBurpInteger (reportIndex, reportIn, (/5120/), 0, 55200, error, globMarq, 'Marqueurs_Gobaux', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
+
+    if (reportIndex == nb_rpts) then
+      write(*,*) "mwbg_getData: last report, closing File"
+      Call BURP_Free(File_in,iostat=error)
+      Call BURP_Free(reportIn,iostat=error)
+    end if 
 
   end subroutine mwbg_getData
 
@@ -5384,10 +5430,11 @@ contains
   !  mwbg_copyObsToObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel, satIdentifier, satZenithAngle, landQualifierIndice, &
-                                    terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
-                                    obsGlobalMarker, burpFileSatId, obsTb, obsQcFlag2, obsChannels, &
-                                    obsFlags, obsSpaceData)
+  subroutine mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel, satIdentifier,      &
+                                    satZenithAngle, landQualifierIndice, terrainTypeIndice,       &
+                                    obsDate, obsTime, obsLatitude, obsLongitude, satScanPosition, &
+                                    obsQcFlag1, satOrbit, obsGlobalMarker, burpFileSatId, obsTb,  &
+                                    obsQcFlag2, obsChannels, obsFlags, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from the burp Arrays into an obsSpaceData object
 
@@ -5401,6 +5448,8 @@ contains
     real   ,          intent(in)    :: satZenithAngle(:)         ! satellite zenith angle (btyp=3072,ele=7024) 
     integer,          intent(in)    :: landQualifierIndice(:)    ! land/sea qualifier     (btyp=3072,ele=8012)
     integer,          intent(in)    :: terrainTypeIndice(:)      ! terrain-type (ice)     (btyp=3072,ele=13039)
+    integer,          intent(in)    :: obsDate(:)                ! date
+    integer,          intent(in)    :: obsTime(:)                ! time
     real   ,          intent(in)    :: obsLatitude(:)            ! latitude values (btyp=5120,ele=5002)
     real   ,          intent(in)    :: obsLongitude(:)           ! longitude values (btyp=5120,ele=6002)
     integer,          intent(in)    :: satScanPosition(:)        ! scan position (fov)    (btyp=3072,ele=5043)
@@ -5427,18 +5476,21 @@ contains
     bodyCompt   = 1
 
     HEADER: do headerIndex = numHeaderWritten + 1, numHeaderWritten + reportNumObs
-      if (headerIndex == 1 ) call obs_headSet_i( obsSpaceData, OBS_RLN,  headerIndex, 1)
       call obs_headSet_i( obsSpaceData, OBS_NLV,  headerIndex, reportNumChannel                  )
-      if ( headerIndex > 1 ) then
+      if (headerIndex == 1 ) then
+        reportLocation = 1
+      else
         reportLocation = obs_headElem_i(obsSpacedata, OBS_RLN, headerIndex - 1 ) +  &
                          obs_headElem_i(obsSpacedata, OBS_NLV, headerIndex - 1 )
-        call obs_headSet_i(obsSpacedata, OBS_RLN, headerIndex, reportLocation )
       end if 
+      call obs_headSet_i(obsSpacedata, OBS_RLN, headerIndex, reportLocation )
       call obs_setFamily( obsSpaceData, 'TO',     headerIndex                                    )
       call obs_headSet_i( obsSpaceData, OBS_SAT,  headerIndex, satIdentifier(headerCompt)        )
       call obs_headSet_r( obsSpaceData, OBS_SZA,  headerIndex, satZenithAngle(headerCompt)       )
       call obs_headSet_i( obsSpaceData, OBS_OFL,  headerIndex, landQualifierIndice(headerCompt)  )
       call obs_headSet_i( obsSpaceData, OBS_STYP, headerIndex, terrainTypeIndice(headerCompt)    )
+      call obs_headSet_i( obsSpaceData, OBS_DAT,  headerIndex, obsDate(headerCompt)              )
+      call obs_headSet_i( obsSpaceData, OBS_ETM,  headerIndex, obsTime(headerCompt)              )
       call obs_headSet_r( obsSpaceData, OBS_LAT,  headerIndex, obsLatitude(headerCompt)          )
       call obs_headSet_r( obsSpaceData, OBS_LON,  headerIndex, obsLongitude(headerCompt)         )
       call obs_headSet_i( obsSpaceData, OBS_FOV,  headerIndex, satScanPosition(headerCompt)      )
@@ -5472,7 +5524,7 @@ contains
   subroutine mwbg_readObsFromObsSpace(instName, obsNumOfReport, satIdentifier, satZenithAngle, landQualifierIndice, &
                                     terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
                                     obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                    ompChannels, obsFlags, reportNumObs, reportNumChannel, obsSpaceData)
+                                    obsFlags, reportNumObs, reportNumChannel, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -5497,7 +5549,6 @@ contains
     real   , allocatable, intent(out)    :: ompTb(:)               ! OMP values
     integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
     integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
-    integer, allocatable, intent(out)    :: ompChannels(:)         ! omp channel numbers btyp= block ele  (= 1-22)
     integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
     integer,              intent(out)    :: reportNumObs          ! number of locations    (btyp=5120,etc.)
     integer,              intent(out)    :: reportNumChannel       ! number of locations    (btyp=5120,etc.)
@@ -5558,7 +5609,6 @@ contains
       call utl_reAllocate(obsTbBiasCorr, obsNumOfReport*obsNumCurrentLoc)
       call utl_reAllocate(obsFlags, obsNumOfReport*obsNumCurrentLoc)
       call utl_reAllocate(obsChannels, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(ompChannels, obsNumOfReport*obsNumCurrentLoc)
       call utl_reAllocate(obsQcFlag2, obsNumOfReport*obsNumCurrentLoc)
    
       BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
@@ -5566,8 +5616,7 @@ contains
          ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
          obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex)
          obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-         obsChannels(bodyCompt)    = obs_bodyElem_i( obsSpaceData,  OBS_CHN, bodyIndex )
-         ompChannels(bodyCompt)    = obs_bodyElem_i( obsSpaceData,  OMP_CHN, bodyIndex )
+         obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
          obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
          bodyCompt = bodyCompt + 1
       end do BODY

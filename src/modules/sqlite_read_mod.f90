@@ -32,9 +32,9 @@ use utilities_mod
 use bufr_mod
 use ramDisk_mod
 use tovs_nl_mod
-use codtyp_mod
 use obsVariableTransforms_mod
 use obsFilter_mod
+use fileNames_mod
 
 implicit none   
  
@@ -1101,52 +1101,6 @@ contains
   end subroutine sqlr_cleanSqlite
 
 
-  function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
-    !
-    ! :Purpose: Return the part of the observation file name associated
-    !           with the type of observation it contains.
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*)           :: obsFamily
-    character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
-    integer, optional          :: codetype_opt
-    character(len=20) :: fileName
-
-    if ( obsFamily == 'TO' ) then
-      if (.not. present(codetype_opt)) then
-        call utl_abort('getObsFileName: codetype_opt must be specified for TO family')
-      end if
-
-      if ( codtyp_get_name( codeType_opt ) == 'radianceclear' ) then
-        fileName  = 'csr'
-      else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
-        fileName = 'to_amsub'
-      else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
-        fileName = 'to_amsua'
-      else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
-        fileName = 'ssmis'
-      else if ( codtyp_get_name( codeType_opt ) == 'crisfsr' ) then
-        fileName = 'cris'
-      else
-        fileName = codtyp_get_name( codeType_opt )
-      end if
-    else
-      if (.not. present(sfFileName_opt)) then
-        call utl_abort('getObsFileName: sfFileName_opt must be specified')
-      end if
-      call up2low( obsFamily, fileName )
-      if ( fileName == 'ra' ) fileName = 'radar'
-      if ( fileName == 'sf' ) then
-        ! use either 'sf' or 'sfc' for filename with surface obs
-        fileName = sfFileName_opt
-      end if
-    end if
-
-  end function getObsFileName
-
-
   subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
@@ -1179,7 +1133,7 @@ contains
     tovsFileNameListSize = 0
     tovsFileNameList(:) = 'XXXXX'
     do codeTypeIndex = 1, tovsAllCodeTypeListSize
-      fileName = getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
+      fileName = fln_obsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
       if ( all(tovsFileNameList(:) /= fileName) ) then
         tovsFileNameListSize = tovsFileNameListSize + 1
         tovsFileNameList(tovsFileNameListSize) = fileName
@@ -1202,7 +1156,7 @@ contains
           tovsCodeTypeListSize = 0
           tovsCodeTypeList(:) = MPC_missingValue_INT
           do codeTypeIndex = 1, tovsAllCodeTypeListSize
-            if (fileName == getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
+            if (fileName == fln_obsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
               tovsCodeTypeListSize = tovsCodeTypeListSize + 1
               tovsCodeTypeList(tovsCodeTypeListSize) = tovsAllCodeTypeList(codeTypeIndex)
             end if
@@ -1217,7 +1171,7 @@ contains
 
       else
 
-        fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
+        fileName = fln_obsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
         call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex),  &
                                    onlyAssimObs, fileName) 
 
