@@ -80,6 +80,7 @@ module bufr_mod
  integer, parameter :: BUFR_ICEC        = 20237 ! concentration (%) from ice charts
  integer, parameter :: BUFR_ICEP        = 20222 ! concentration (%) from passive microwave retrievals
  integer, parameter :: BUFR_ICEV        = 21169 ! presence of ice retrieval from Vis/IR
+ integer, parameter :: BUFR_ICES        = 21199 ! backscatter anisotropy from scatterometer
  integer, parameter :: bufr_vis         = 20001 ! horizontal visibility
  integer, parameter :: bufr_logVis      = 50001 ! log(horizontal visibility)
  integer, parameter :: bufr_gust        = 11041
