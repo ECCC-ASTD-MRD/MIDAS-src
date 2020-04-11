@@ -3016,7 +3016,7 @@ contains
   subroutine s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, &
                                       headerIndex, kIndex, stepIndex, procIndex, numGridpt)
     !
-    !:Purpose: Determine the nearest grid points to the observtions location
+    !:Purpose: Determine the nearest grid points to the observations location
     !
     implicit none
 
