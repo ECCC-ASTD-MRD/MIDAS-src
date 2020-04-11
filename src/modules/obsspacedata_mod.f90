@@ -349,21 +349,22 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
    integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
    integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
-   integer, parameter, public :: OBS_PRFL= OBS_FOV+1  ! profile id. number
+   integer, parameter, public :: OBS_PRFL= OBS_FOV+1 ! profile id. number
+   integer, parameter, public :: OBS_TCN = OBS_PRFL+1! track cell number (in ASCAT data)
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_PRFL
+   integer, parameter :: NHDR_INT_END = OBS_TCN
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
    !
    ! INTEGER-HEADER COLUMN NAMES
-   !  
+   !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
-         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL','TCN '/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -501,10 +502,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SZA   = OBS_SUN  +1 ! satellite zenith angle
    integer, parameter, public :: OBS_AZA   = OBS_SZA  +1 ! satellite azimuthal angle
    integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
-   integer, parameter, public :: OBS_CLW   = OBS_SAZ  +1 ! cloud liquid water  retrieval
+   integer, parameter, public :: OBS_CLW   = OBS_SAZ  +1 ! cloud liquid water retrieval
+   integer, parameter, public :: OBS_MWS   = OBS_CLW  +1 ! model wind speed (in ASCAT data)
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_CLW
+   integer, parameter :: NHDR_REAL_END = OBS_MWS
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -530,7 +532,7 @@ module ObsColumnNames_mod
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
-        'CLW '/)
+        'CLW ','MWS '/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1424,7 +1426,7 @@ module ObsSpaceData_mod
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_GQF, OBS_GQL
-   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
+   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL, OBS_TCN
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
@@ -1445,7 +1447,7 @@ module ObsSpaceData_mod
    public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
-   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW
+   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW, OBS_MWS
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_IDD
