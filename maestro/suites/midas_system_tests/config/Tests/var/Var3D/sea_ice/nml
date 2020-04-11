@@ -10,14 +10,15 @@
   ANLVAR(1) = 'GL'
 /
  &NAMDIMO
-   NMXOBS  = 427000
-   NDATAMX = 427000
+   NMXOBS  = 600000
+   NDATAMX = 600000
 /
  &NAMFILT
-  NELEMS = 3
+  NELEMS = 4
   NLIST(1) = 20222
   NLIST(2) = 20237
   NLIST(3) = 21169
+  NLIST(4) = 21199
   NFLAGS = 10
   NLISTFLG(1) = -4
   NLISTFLG(2) = -2
@@ -29,6 +30,15 @@
   NLISTFLG(8) = 10
   NLISTFLG(9) = 11
   NLISTFLG(10) = 13
+  N_PLATFORM_ICE = 8
+  LIST_PLATFORM_ICE(1) = 'DMSP'
+  LIST_PLATFORM_ICE(2) = 'GCOM-W1'
+  LIST_PLATFORM_ICE(3) = 'METOP-1'
+  LIST_PLATFORM_ICE(4) = 'METOP-2'
+  LIST_PLATFORM_ICE(5) = 'CIS_DAILY'
+  LIST_PLATFORM_ICE(6) = 'RS1_IMG'
+  LIST_PLATFORM_ICE(7) = 'CIS_REGIONAL'
+  LIST_PLATFORM_ICE(8) = 'iceclake'
 /
  &NAMBDIFF
   corr_len = 200*10.0
@@ -52,8 +62,8 @@
    SCALEFACTOR = 200*0.0D0
 /
  &NAMSQLgl
-  numberElem=3
-  listElem="20222,20237,21169"
+  numberElem=4
+  listElem="20222,20237,21169,21199"
   sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /
