@@ -923,6 +923,7 @@ contains
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
     !
+    use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
     implicit none
 
     ! arguments
@@ -934,11 +935,15 @@ contains
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer :: bufrCode, headerIndex, bodyIndex
-    real(8) :: obsValue, scaling
+    integer          :: bufrCode, headerIndex, bodyIndex
+    integer          :: idate, imonth
+    integer          :: track_cell_no
+    real(8)          :: obsValue, backValue
+    real(8)          :: conc
     character(len=4) :: varName
+    character(len=8) :: ccyymmdd
 
-    if (.not.beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
+    if (.not. beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -955,20 +960,28 @@ contains
 
       bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
+      headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+      varName = vnl_varNameFromVarNum(bufrCode)
+
       select case (bufrCode)
       case(BUFR_ICEC, BUFR_ICEP)
-        scaling = 100.0d0
+        backValue = 100.0d0*col_getElem( columnhr, 1, headerIndex, varName )
       case(BUFR_ICEV)
-        scaling = 1.0d0
+        backValue = 1.0d0*col_getElem( columnhr, 1, headerIndex, varName )
+      case(BUFR_ICES)
+        idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+        write(ccyymmdd, FMT='(i8.8)') idate
+        read(ccyymmdd(5:6), FMT='(i2)') imonth
+        conc = col_getElem( columnhr, 1, headerIndex, varName)
+        track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
+        backValue = (1.0d0-conc)*ascat_anis_yow(track_cell_no,imonth) + &
+                         conc*ascat_anis_yice(track_cell_no,imonth)
       case default
         cycle BODY
       end select
 
       obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-      headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-      varName = vnl_varNameFromVarNum(bufrCode)
-      call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, &
-                          obsValue - scaling*col_getElem( columnhr, 1, headerIndex, varName ) )
+      call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, obsValue - backValue )
 
       ! contribution to jobs
       jobs = jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
@@ -1138,7 +1151,7 @@ contains
        end if
        zuu(ngpslev) = zuu(nwndlev)
        zvv(ngpslev) = zuu(nwndlev)
-       !     
+       !
        ! GPS profile structure:
        !
        call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,zUU,zVV,prf)
@@ -1152,7 +1165,7 @@ contains
        ! (start at the beginning of the list)
        !
        call obs_set_current_body_list(obsSpaceData, headerIndex)
-       BODY_2: do 
+       BODY_2: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY_2
           IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
@@ -2184,11 +2197,15 @@ contains
       !           from profiled model increments.
       !           It returns Hdx in OBS_WORK
       !
+      use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
       implicit none
 
-      integer :: headerIndex, bodyIndex, bufrCode
-      real(8) :: columnVarB, scaling
+      integer          :: headerIndex, bodyIndex, bufrCode
+      integer          :: idate, imonth
+      integer          :: track_cell_no
+      real(8)          :: columnVarB, scaling
       character(len=4) :: varName
+      character(len=8) :: ccyymmdd
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -2196,6 +2213,8 @@ contains
 
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if (bodyIndex < 0) exit BODY
+
+        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
 
         ! Process all data within the domain of the model
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
@@ -2205,14 +2224,17 @@ contains
           scaling = 100.0d0
         case(BUFR_ICEV)
           scaling = 1.0d0
+        case(BUFR_ICES)
+          idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+          write(ccyymmdd, FMT='(i8.8)') idate
+          read(ccyymmdd(5:6), FMT='(i2)') imonth
+          track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
+          scaling = ascat_anis_yice(track_cell_no,imonth) - ascat_anis_yow(track_cell_no,imonth)
         case default
           cycle BODY
         end select
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated &
-             ) then
-
-          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           varName = vnl_varNameFromVarNum(bufrCode)
           columnVarB = scaling*col_getElem( column, 1, headerIndex, varName_opt = varName )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
@@ -2971,12 +2993,16 @@ contains
       !
       ! :Purpose: Adjoint of the "vertical" interpolation for ICE data
       !
+      use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
       implicit none
 
-      real(8) :: residual, scaling
-      integer :: headerIndex, bodyIndex, bufrCode
+      real(8)          :: residual, scaling
+      integer          :: headerIndex, bodyIndex, bufrCode
+      integer          :: idate, imonth
+      integer          :: track_cell_no
       real(8), pointer :: columnGL(:)
       character(len=4) :: varName
+      character(len=8) :: ccyymmdd
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -2984,6 +3010,8 @@ contains
 
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if (bodyIndex < 0) exit BODY
+
+        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
 
         ! Process all data within the domain of the model
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
@@ -2993,12 +3021,17 @@ contains
           scaling = 100.0d0
         case(BUFR_ICEV)
           scaling = 1.0d0
+        case(BUFR_ICES)
+          idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+          write(ccyymmdd, FMT='(i8.8)') idate
+          read(ccyymmdd(5:6), FMT='(i2)') imonth
+          track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
+          scaling = ascat_anis_yice(track_cell_no,imonth) - ascat_anis_yow(track_cell_no,imonth)
         case default
           cycle BODY
         end select
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
-          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           varName = vnl_varNameFromVarNum(bufrCode)
           columnGL => col_getColumn( column, headerIndex, varName_opt = varName )
