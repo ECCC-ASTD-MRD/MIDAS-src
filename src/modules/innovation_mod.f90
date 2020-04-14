@@ -503,8 +503,20 @@ contains
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSC, 'SC', destObsColumn)
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGP, 'GP', destObsColumn)
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCRA, 'RA', destObsColumn)
+    !
+    !        SEA SURFACE TEMPERATURE
+    !--------------------------------
     call oop_sst_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCTM, 'TM', destObsColumn)
+    !
+    !        SEA ICE CONCENTRATION
+    !--------------------------------
+    call filt_iceConcentration(obsSpaceData, beSilent)
+    call filt_bkscanis(obsSpaceData, beSilent)
+    call oer_SETERRBKSCANIS(columnhr, obsSpaceData, beSilent)
     call oop_ice_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGL, 'GL', destObsColumn)
+    !
+    !        SURFACE HYDROLOGY
+    !--------------------------------
     call oop_hydro_nl(columnhr, obsSpaceData, beSilent, ZJOSFCHY, 'HY', destObsColumn)
 
     ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCRA + ZJOSFCTM + ZJOSFCGL + ZJOSFCHY
@@ -531,8 +543,8 @@ contains
     !-------------------------------
     ZJOGPSRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-       CALL filt_gpsro(columnhr, obsSpaceData, beSilent)
-       CALL oer_SETERRGPSRO(columnhr, obsSpaceData, beSilent)
+       call filt_gpsro(columnhr, obsSpaceData, beSilent)
+       call oer_SETERRGPSRO(columnhr, obsSpaceData, beSilent)
        call oop_gpsro_nl(columnhr, obsSpaceData, beSilent, ZJOGPSRO, destObsColumn)
     end if
     !
