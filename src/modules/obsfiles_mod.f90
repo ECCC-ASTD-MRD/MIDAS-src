@@ -154,10 +154,8 @@ contains
 
         call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
         if ( obsFileType == 'BURP' )   then
-          if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
-            call brpr_addRadianceBiasCorrectionElement(obsf_cfilnam(fileIndex))
-          end if
-          call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+            call brpr_addBiasCorrectionElement(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex))
+            call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 

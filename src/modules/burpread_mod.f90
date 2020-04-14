@@ -40,7 +40,7 @@ private
 
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
-public :: brpr_addRadianceBiasCorrectionElement, brpr_burpClean
+public :: brpr_addBiasCorrectionElement, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -3928,20 +3928,21 @@ CONTAINS
   end subroutine brpr_addCloudParametersandEmissivity
 
   !-----------------------------------------------------------------------
-  ! brpr_addRadianceBiasCorrectionElement
+  ! brpr_addBiasCorrectionElement
   !-----------------------------------------------------------------------
-  subroutine brpr_addRadianceBiasCorrectionElement(inputFileName)
+  subroutine brpr_addBiasCorrectionElement(inputFileName, familyType)
     !
     !:Purpose: to add element for radiance bias correction to data block of DERIALT BURP file
     !
     implicit none
     !Arguments:
     character(len=*), intent(in)  :: inputFileName
+    character(len=*), intent(in)  :: familyType
     !Locals:
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
     type(burp_block)            :: inputBlock
-    integer                     :: btyp10
+    integer                     :: btyp10, btyp10Obs, btyp10Mrq
     integer                     :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable        :: address(:)
     integer                     :: nbele, nvale, nte
@@ -3951,14 +3952,29 @@ CONTAINS
     real                        :: rval
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
-    integer, parameter          :: icodele = 12233
-    integer, parameter          :: icodeleMrq =  200000 + icodele
+    integer                     :: icodele
+    integer                     :: icodeleMrq 
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
     write(*,*) '-----------------------------------------------'
-    write(*,*) '- begin brpr_addRadianceBiasCorrectionElement -'
+    write(*,*) '- begin brpr_addBiasCorrectionElement -'
     write(*,*) '-----------------------------------------------'
+ 
+    select case(familyType)
+    case("TO")
+      icodele = 12233
+      BTYP10obs = 289 !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
+      BTYP10mrq = 481 !MRQ block 481 = 2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
+    case("GP")
+      icodele = 15033
+      BTYP10obs = 1
+      BTYP10mrq = 193
+    case default
+      return
+    end select
+
+    icodeleMrq =  200000 + icodele
 
     ! initialisation
     ! --------------
@@ -3982,7 +3998,7 @@ CONTAINS
   
     if (error /= burp_noerr) then
       write(*,*) "cannot open BURP input file ", inputFileName
-      call utl_abort('brpr_addRadianceBiasCorrectionElement')
+      call utl_abort('brpr_addBiasCorrectionElement')
     end if
 
     ! obtain input burp file number of reports
@@ -4017,7 +4033,9 @@ CONTAINS
     end do
 
     if ( count > 0 .and. isDerialt) then
-      write(*,*) "brpr_addRadianceBiasCorrectionElement: modifying file..."
+      write(*,*) "brpr_addBiasCorrectionElement: modifying file..."
+     
+
 
       ! create a new report
       ! ------------------     
@@ -4059,7 +4077,7 @@ CONTAINS
 
           btyp10 = ishft(btyp,-5)
 
-          if ( btyp10 == 289 .and. bfam == 0 ) then !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
+          if ( btyp10 == BTYP10obs .and. bfam == 0 ) then 
             indele = burp_find_element(inputBlock, element=icodele, iostat=error)
 
             if ( indele <= 0 ) then
@@ -4081,8 +4099,7 @@ CONTAINS
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.true., encode_block=.true., iostat=error)
 
-
-          else if ( btyp10 == 481 .and. bfam == 0 ) then     !  MRQ block ; 481 =  2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
+          else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block
             indele = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
             if ( indele <= 0 ) then
               nbele = nbele + 1
@@ -4124,7 +4141,7 @@ CONTAINS
     call  cleanup()
 
     write(*,*) '---------------------------------------------'
-    write(*,*) '- end brpr_addRadianceBiasCorrectionElement -'
+    write(*,*) '- end brpr_addBiasCorrectionElement -'
     write(*,*) '---------------------------------------------'
 
   contains
@@ -4145,10 +4162,10 @@ CONTAINS
       write(*,*) "history"
       call burp_str_error_history()
       call cleanup()
-      call utl_abort('brpr_addRadianceBiasCorrectionElement')
+      call utl_abort('brpr_addBiasCorrectionElement')
     end subroutine handle_error
     
-  end subroutine brpr_addRadianceBiasCorrectionElement
+  end subroutine brpr_addBiasCorrectionElement
 
   !-----------------------------------------------------------------------
   ! brpr_burpClean
