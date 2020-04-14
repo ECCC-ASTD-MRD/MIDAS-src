@@ -41,8 +41,11 @@ module obsErrors_mod
   private
 
   ! public procedures
-  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_sw
+  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_SETERRBKSCANIS, oer_sw
   public :: oer_setInterchanCorr
+
+  ! public variables (parameters)
+  public :: ascat_anis_yow, ascat_anis_yice
 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -113,6 +116,10 @@ module obsErrors_mod
 
   ! Sea Ice Concentration obs-error standard deviation
   real(8) :: xstd_sic(9)
+  ! tiepoint standard deviation for ASCAT backscatter anisotropy
+  integer, parameter :: ncells = 21
+  real(8) :: ascat_anis_sig_ow(ncells,12), ascat_anis_sig_ice(ncells,12)
+  real    :: ascat_anis_yow(ncells,12), ascat_anis_yice(ncells,12)
 
   ! SST
   real(8) :: xstd_sst(5,2)
@@ -791,6 +798,10 @@ contains
     character(len=128) :: ligne
     character(len=15), parameter :: fileName = 'sea_ice_obs-err'
 
+    ! Variables for the ASCAT backscatter anisotropy
+    integer :: jcell_no, icell_no, imonth
+    real :: tiepoint12, tiepoint13, tiepoint23
+
     ! CHECK THE EXISTENCE OF THE FILE WITH STATISTICS
     inquire( file = fileName, exist = fileExists )
     if ( fileExists ) then
@@ -829,6 +840,27 @@ contains
         write(*, '(A)') ligne
       end do
 
+    end do
+
+    ! Read coefficients for ASCAT backscatter anisotropy
+    do jlev = 1, 5
+      read(nulstat, '(A)') ligne
+      write(*, '(A)') ligne
+    end do
+
+    do imonth = 1, 12
+      do jlev = 1, 3
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+      do jcell_no = 1, ncells
+         read(nulstat, * ) icell_no, tiepoint12, tiepoint13, tiepoint23, &
+                           ascat_anis_yice(jcell_no,imonth), ascat_anis_yow(jcell_no,imonth), &
+                           ascat_anis_sig_ice(jcell_no,imonth), ascat_anis_sig_ow(jcell_no,imonth)
+         write(*,*) icell_no, tiepoint12, tiepoint13, tiepoint23, &
+                           ascat_anis_yice(jcell_no,imonth), ascat_anis_yow(jcell_no,imonth), &
+                           ascat_anis_sig_ice(jcell_no,imonth), ascat_anis_sig_ow(jcell_no,imonth)
+      end do
     end do
 
     write(*, '(A)') ' '
@@ -971,7 +1003,7 @@ contains
 
     write(*,'(10X, "***********************************")')
     write(*,'(10X, "oer_fillObsErrors: starting", /)')
-    write(*,'(10X,"***********************************")')
+    write(*,'(10X, "***********************************")')
 
     header_prev=-1
 
@@ -993,7 +1025,7 @@ contains
       surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
 
       nlev = idatend - idata + 1
-       
+
       BODY: do bodyIndex  = idata, idatend
 
         ityp  = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
@@ -1286,20 +1318,20 @@ contains
 
                 !        Process only retrieved constituent data
                 !        Also, exclude BUFR_SCALE_EXPONENT element as a data value!
-               
+
             if ( codeType == codtyp_get_codtyp('CHEMREMOTE') .or. codeType == codtyp_get_codtyp('CHEMINSITU') ) then
 
               ifirst = headerIndex /= header_prev
               if ( ifirst ) then
 
                 header_prev = headerIndex
-                 
+
                 ! Subtract the number of occurences of code BUFR_SCALE_EXPONENT from number of levels
                 do ji = 0, nlev - 1
                   if ( obs_bodyElem_i( obsSpaceData, OBS_VNM, idata + ji ) == BUFR_SCALE_EXPONENT ) nlev = nlev-1
                 end do
               end if
-              
+
               zlev   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
               ilev = 0
@@ -1309,9 +1341,9 @@ contains
 
               obs_err_stddev = chm_get_obs_err_stddev( cstnid, nlev, ityp, zlat, zlon, idate, itime, zval, zlev, ilev, ifirst )
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, obs_err_stddev )
-              
+
             end if     
-     
+
                 !***********************************************************************
                 !               Sea Surface Temperature
                 !***********************************************************************
@@ -1394,7 +1426,16 @@ contains
             else if (cstnid == 'GCOM-W1') then
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sic( 3 ) )
             else if (cstnid(1:6) == 'METOP-') then
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sic( 4 ) )
+              if (ityp == BUFR_ICEP) then
+                 call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sic( 4 ) )
+              else if (ityp == BUFR_ICES) then
+                 ! This is backscatter anisotropy, obs-error will be set in oer_SETERRBKSCANIS
+                 ! because the need of background ice concentration.
+                 ! For now just put a large positive value
+                 call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1000.0 )
+              else
+                 call utl_abort( myName//': UNKNOWN varno: '// trim(utl_str(ityp)) // 'station id: '//cstnid)
+              end if
             else if (cstnid == 'noaa-19') then
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sic( 5 ) )
             else if (cstnid == 'CIS_DAILY') then
@@ -1468,7 +1509,7 @@ contains
 
         end if ! end of iass == obs_assimilated
 
-      end do BODY 
+      end do BODY
 
     end do HEADER
 
@@ -1691,7 +1732,7 @@ contains
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
       if (bodyIndex < 0) exit BODY
-       
+
       ! Only process pressure level observations flagged to be assimilated
       iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
@@ -2409,6 +2450,65 @@ contains
   END SUBROUTINE OER_SETERRGPSGB
 
   !--------------------------------------------------------------------------
+  ! oer_SETERRBKSCANIS
+  !--------------------------------------------------------------------------
+  subroutine oer_SETERRBKSCANIS( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose: Compute estimated errors for ASCAT backscatter anisotropy observations
+    !
+    implicit none
+
+    type(struct_columnData), intent(in) :: columnhr
+    type(struct_obs)                    :: obsSpaceData
+    logical,                 intent(in) :: beSilent
+
+    ! locals
+    integer :: headerIndex, bodyIndex
+    integer :: idate, imonth, varno
+    integer :: track_cell_no
+
+    real(8) :: conc, obs_err_stddev
+
+    character(len=*), parameter :: myName = 'oer_SETERRBKSCANIS'
+    character(len=8)            :: ccyymmdd
+
+    if (.not. beSilent) write(*,*) 'ENTER '//myName
+
+    !
+    !     Loop over all header indices of the 'GL' family:
+    !
+    call obs_set_current_header_list(obsSpaceData,'GL')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+      idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
+      track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        !
+        !     *  Process only ASCAT backscatter anisotropy observations
+        !
+        varno = obs_bodyElem_i( obsSpaceData, OBS_VNM , bodyIndex )
+        if ( varno == BUFR_ICES ) then
+           write(ccyymmdd, FMT='(i8.8)') idate
+           read(ccyymmdd(5:6), FMT='(i2)') imonth
+           conc = col_getElem(columnhr,1,headerIndex,'GL')
+           obs_err_stddev = SQRT( ((1.0-conc)*ascat_anis_sig_ow(track_cell_no,imonth))**2 + &
+                                       (conc*ascat_anis_sig_ice(track_cell_no,imonth))**2 )
+
+           call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, obs_err_stddev )
+
+        end if
+      end do BODY
+    end do HEADER
+
+    if (.not. beSilent) write(*,*) myName//': done'
+
+  end subroutine oer_SETERRBKSCANIS
+
+  !--------------------------------------------------------------------------
   ! chm_read_obs_err_stddev
   !--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev
@@ -2797,9 +2897,9 @@ contains
        end select
 
     ELSE
-          
+
        ! Adjust error standard deviations read from observation file if requested.
-       
+
        sigma = oss_obsdata_get_element(chm_std%obsStdDev(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat_opt=stat)
 
        select case(stat)
