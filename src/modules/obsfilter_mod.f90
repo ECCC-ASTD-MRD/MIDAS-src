@@ -40,7 +40,7 @@ module obsFilter_mod
   public :: filt_rlimlvhu
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
-  public :: filt_surfaceWind, filt_gpsro
+  public :: filt_surfaceWind, filt_gpsro, filt_bkscanis, filt_iceConcentration
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
 
   integer :: filt_nelems, filt_nflags
@@ -68,6 +68,11 @@ module obsFilter_mod
   integer, parameter :: nTopoFiltFam = 8
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
   logical :: useEnkfTopoFilt
+
+  ! List of satellites (id_stn in SQLite files) used for sea ice concentration
+  integer            :: n_Platform_Ice
+  integer, parameter :: max_Platform_Ice = 10
+  character(len=12)  :: list_Platform_Ice(max_Platform_Ice)
 
   character(len=48) :: filterMode
 
@@ -136,9 +141,10 @@ contains
          'ELEMENT EXCEEDS CLIMATE EXTREME   ', &
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
-    namelist /namfilt/nelems,nlist,nflags,nlistflg,rlimlvhu,discardlandsfcwind, &
+    namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, &
+         n_Platform_Ice, list_Platform_Ice
 
     filterMode = filterMode_in
 
@@ -175,6 +181,9 @@ contains
 
     useEnkfTopoFilt = .false.
 
+    n_Platform_Ice = 0
+    list_Platform_Ice(:) = '1234567890ab'
+
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
@@ -204,20 +213,20 @@ contains
     filt_nlistflg(:) = nlistflg(:)
 
     if(mpi_myid == 0) then
-       write(*,'(1X,"***********************************")')
-       write(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
-       write(*,'(1X,"***********************************")')
-       do elem=1,filt_nelems
-          write(*,'(15X,I5)') filt_nlist(elem)
-       end do
-       write(*,'(1X,"***********************************")')
-       write(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
-       write(*,*)'           BIT :  '
-       do jflag=1,filt_nflags
-          ibit= filt_nlistflg(jflag)
-          write(*,*) ibit,' ',creason(ibit)
-       end do
-       write(*,'(1X,"***********************************")')
+      write(*,'(1X,"***********************************")')
+      write(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
+      write(*,'(1X,"***********************************")')
+      do elem=1,filt_nelems
+        write(*,'(15X,I5)') filt_nlist(elem)
+      end do
+      write(*,'(1X,"***********************************")')
+      write(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
+      write(*,*)'           BIT :  '
+      do jflag=1,filt_nflags
+        ibit= filt_nlistflg(jflag)
+        write(*,*) ibit,' ',creason(ibit)
+      end do
+      write(*,'(1X,"***********************************")')
     end if
 
     !
@@ -225,7 +234,7 @@ contains
     !
     if ( nelems_altDiffMax > 0 ) then
       if ( nelems_altDiffMax > numElem ) then
-        call utl_abort('filt_setup: You have specify too many altDiffMax elements')
+        call utl_abort('filt_setup: You have specified too many altDiffMax elements')
       end if
       do elem = 1, nelems_altDiffMax
         elemIndex = findElemIndex(list_altDiffMax(elem))
@@ -257,6 +266,10 @@ contains
           filtTopoList(obsFamilyIndex) = list_topoFilt(obsFamilyIndex)
         end if
       end do
+    end if
+
+    if ( n_Platform_Ice > max_Platform_Ice ) then
+      call utl_abort('filt_setup: too many elements for list_Platform_Ice')
     end if
 
     initialized = .true.
@@ -1440,6 +1453,145 @@ end subroutine filt_topoAISW
     if (.not.beSilent) write(*,*) 'filt_gpsro: end'
 
   END SUBROUTINE FILT_GPSRO
+
+  !--------------------------------------------------------------------------
+  ! filt_bkscanis
+  !--------------------------------------------------------------------------
+  subroutine filt_bkscanis( obsSpaceData, beSilent )
+    !
+    ! :Purpose: Filter scatterometer backscatter anisotropy observations
+    !           where wind speed is too small
+    !
+    ! :Note: For noncompliant observations:
+    !
+    !                   - Set assimilable flag to 0
+    !                   - Set bit of cma flag 13 ON
+    !
+    implicit none
+
+    ! arguments
+    type(struct_obs), intent(inout) :: obsSpaceData
+    logical,          intent(in)    :: beSilent
+
+    ! locals
+    integer :: bufrCode, headerIndex, bodyIndex
+    real(8) :: mod_wind_spd
+
+    if (.not. obs_famExist(obsSpaceData,'GL')) return
+
+    if (.not. beSilent) then
+      write(*,*)
+      write(*,*) 'filt_bkscanis: begin'
+    end if
+
+    ! loop over all body indices
+    call obs_set_current_body_list( obsSpaceData, 'GL' )
+
+    BODY: do
+
+      bodyIndex = obs_getBodyIndex( obsSpaceData )
+      if ( bodyIndex < 0 ) exit BODY
+
+      bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+      if ( bufrCode == BUFR_ICES ) then
+
+        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+        mod_wind_spd = obs_headElem_r( obsSpaceData, OBS_MWS, headerIndex )
+
+        if ( mod_wind_spd < 4.0 ) then
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),13))
+        end if
+
+      else
+
+        cycle BODY
+
+     end if
+
+    end do BODY
+
+    if (.not. beSilent) write(*,*) 'filt_bkscanis: end'
+
+  end subroutine filt_bkscanis
+
+  !--------------------------------------------------------------------------
+  ! filt_iceConcentration
+  !--------------------------------------------------------------------------
+  subroutine filt_iceConcentration( obsSpaceData, beSilent )
+    !
+    ! :Purpose: Filter out observations from satellites
+    !           not specified in the name list
+    !
+    ! :Note: For noncompliant observations:
+    !
+    !                   - Set assimilable flag to 0
+    !
+    use codtyp_mod
+    implicit none
+
+    ! arguments
+    type(struct_obs), intent(inout) :: obsSpaceData
+    logical,          intent(in)    :: beSilent
+
+    ! locals
+    character(len=12) :: cstnid
+    integer           :: headerIndex, bodyIndex, codeType, iplat
+    logical           :: in_Platform_List
+
+    if (.not. obs_famExist(obsSpaceData,'GL')) return
+
+    if ( n_Platform_Ice < 1 ) return
+
+    if (.not. beSilent) then
+      write(*,*)
+      write(*,*) 'filt_iceConcentration: begin'
+    end if
+
+    ! loop over all header indices of the 'GL' family
+    call obs_set_current_header_list(obsSpaceData, 'GL')
+
+    HEADER: do
+
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
+      codeType = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
+
+      in_Platform_List = .false.
+
+      PLATFORM: do iplat = 1, n_Platform_Ice
+
+        if ( index(cstnid,trim(list_Platform_Ice(iplat))) > 0 .or. &
+             index(codtyp_get_name(codeType),trim(list_Platform_Ice(iplat))) > 0) then
+
+          in_Platform_List = .true.
+          exit PLATFORM
+
+        end if
+
+      end do PLATFORM
+
+      if ( .not. in_Platform_List ) then
+
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY: do 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
+
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+
+        end do BODY
+
+      end if
+
+    end do HEADER
+
+    if (.not. beSilent) write(*,*) 'filt_iceConcentration: end'
+
+  end subroutine filt_iceConcentration
 
   !--------------------------------------------------------------------------
   ! filt_topoChemistry
