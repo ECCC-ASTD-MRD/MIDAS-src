@@ -2414,16 +2414,18 @@ contains
 
       else
 
-        call rttov_parallel_direct(                               &
-             rttov_err_stat,                                      & ! out
-             chanprof,                                            & ! in
-             tvs_opts(sensorId),                                  & ! in
-             tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
-             tvs_coefs(sensorId),                                 & ! in
-             transmission,                                        & ! inout
-             radiancedata_d,                                      & ! inout
-             calcemis=calcemis,                                   & ! in
-             emissivity=emissivity_local,                         & ! inout
+        if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
+        
+        call rttov_parallel_direct(                            &
+             rttov_err_stat,                                   & ! out
+             chanprof,                                         & ! in
+             tvs_opts(sensorId),                               & ! in
+             tvs_profiles(sensorTovsIndexes(1:profileCount)),  & ! in
+             tvs_coefs(sensorId),                              & ! in
+             transmission,                                     & ! inout
+             radiancedata_d,                                   & ! inout
+             calcemis=calcemis,                                & ! in
+             emissivity=emissivity_local,                      & ! inout
              nthreads=nthreads      )   
 
       end if
@@ -4325,7 +4327,7 @@ contains
         if (bodyIndex < 0) exit BODY
         
         ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(obsSpaceData,obs_aSS,bodyIndex) /= obs_assimilated ) cycle BODY                
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY                
 
         bufrChannelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
         bufrChannelNumber = max( 0 , min( bufrChannelNumber , tvs_maxChannelNumber + 1))

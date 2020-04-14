@@ -34,6 +34,7 @@ module bgckmicrowave_mod
   use biasCorrection_mod
   use horizontalCoord_mod
   use analysisGrid_mod
+  use obsUtil_mod
 
   implicit none
   save
@@ -1273,17 +1274,17 @@ contains
     real, intent(in)                       :: PMISG                ! missing value
     character *9, intent(in)               :: STNID                ! identificateur du satellite
     logical, intent(in)                    :: RESETQC              ! reset du controle de qualite?
-    integer,allocatable, intent(out)       :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
+    integer, allocatable, intent(out)      :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
     !                                                                 =0, ok,
     !                                                                 >0, rejet,
-    real,allocatable,  intent(out)         :: clw_avg(:)            ! Averaged (Background + obs)retrieved cloud liquid water, 
+    real, allocatable,  intent(out)        :: clw_avg(:)            ! Averaged (Background + obs)retrieved cloud liquid water, 
     !                                                                 from observation and background
-    real,allocatable, intent(out)          :: scatw(:)              ! scattering index over water
+    real, allocatable, intent(out)         :: scatw(:)              ! scattering index over water
 
-    integer,allocatable, intent(out)       :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
+    integer, allocatable, intent(out)      :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    integer,allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
+    integer, allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                               FOR AMSUA just fill with zeros
 
     integer, intent(inout)                   :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
@@ -1303,7 +1304,7 @@ contains
     real                                   :: PTBO    (KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
-    real,allocatable                       :: clw(:)                ! obs retrieved cloud liquid water
+    real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
     integer                                :: MAXVAL
     integer                                :: JI
     integer                                :: JJ
@@ -2025,15 +2026,15 @@ contains
     integer,              intent(in)     :: ReportIndex        !report eportIndex
     character(len=*),     intent(in)     :: ETIKRESU           !resume report etiket
     real,                 intent(in)     :: ztb(:)             ! tempertature de brillance
-    real,                 intent(in)     :: clw(:)             !cloud liquid water path 
-    real,                 intent(in)     :: scatw(:)           !scattering index 
-    integer,              intent(inout)  :: globMarq(:)        !Marqueurs globaux  
-    integer, intent(in)                  :: ident(:)           !Information flag (ident) values (new BURP element 025174 in header)
+    real, allocatable,    intent(inout)  :: clw(:)             !cloud liquid water path 
+    real, allocatable,    intent(inout)  :: scatw(:)           !scattering index 
+    integer, allocatable, intent(inout)  :: globMarq(:)        !Marqueurs globaux  
+    integer, allocatable, intent(inout)  :: ident(:)           !Information flag (ident) values (new BURP element 025174 in header)
     integer,              intent(in)     :: KTERMER(:)         !indicateur terre/mer 
     integer,              intent(inout)  :: ITERRAIN(:)        !indicateur du type de terrain 
                                                                !niveau de chaque canal  
     logical,              intent(in)     :: RESETQC            !reset the quality control flags before adding the new ones ?
-    integer,              intent(in)     :: KCHKPRF(:)         !indicateur global controle de qualite tovs. Code:
+    integer, allocatable, intent(inout)  :: KCHKPRF(:)         !indicateur global controle de qualite tovs. Code:
                                                                !=0, ok,
                                                                !>0, rejet, 
     logical, intent(in)                  :: writeTbValuesToFile! if replace missing tb by missing value
@@ -4087,10 +4088,10 @@ contains
   !--------------------------------------------------------------------------
   !   mwbg_getData
   !--------------------------------------------------------------------------
-  subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
-                          obsDate, obsTime, zlat, zlon, ztb, scanpos, nvalOut, &
+  subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, azimuth, solarZenith, ilq, itt, &
+                          obsDate, obsTime, zlat, zlon, ztb, scanpos, sensor, nvalOut, &
                           ntOut, qcflag1, qcflag2, ican, IMARQ, IORBIT, &
-                          globMarq, resumeReport, ifLastReport, InstName, STNID)
+                          globMarq, resumeReport, ifLastReport, InstName, STNID, idtyp)
     !:Purpose:   This routine extracts the needed data from the blocks in the report:
     !             rpt              = report
 
@@ -4104,6 +4105,8 @@ contains
     character(*),         intent(in)     :: InstName       ! Instrument Name
     integer, allocatable, intent(out)    :: ISAT(:)        ! satellite identifier
     real   , allocatable, intent(out)    :: zenith(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
+    real   , allocatable, intent(out)    :: azimuth(:)     ! azimuth angle          (btyp=3072,ele=5021) 
+    real   , allocatable, intent(out)    :: solarZenith(:) ! solar zenith angle     (btyp=3072,ele=7025) 
     integer, allocatable, intent(out)    :: ilq(:)         ! land/sea qualifier     (btyp=3072,ele=8012)
     integer, allocatable, intent(out)    :: itt(:)         ! terrain-type (ice)     (btyp=3072,ele=13039)
     integer, allocatable, intent(out)    :: obsDate(:)     ! date of the observation
@@ -4112,6 +4115,7 @@ contains
     real   , allocatable, intent(out)    :: zlon(:)        ! longitude values (btyp=5120,ele=6002)
     real   , allocatable, intent(out)    :: ztb(:)         ! brightness temperature (btyp=9248/9264,ele=12163)
     integer, allocatable, intent(out)    :: scanpos(:)     ! scan position (fov)    (btyp=3072,ele=5043)
+    integer, allocatable, intent(out)    :: sensor(:)      ! sensor                 (btyp=3072,ele=2048)
     integer,              intent(out)    :: nvalOut        ! number of channels     (btyp=9248/9264)
     integer,              intent(out)    :: ntOut          ! number of locations    (btyp=5120,etc.)
     integer, allocatable, intent(out)    :: qcflag1(:,:)   ! flag values for btyp=3072 block ele 033078, 033079, 033080
@@ -4123,6 +4127,7 @@ contains
     logical,              intent(out)    :: resumeReport   ! True if resume Report is read
     logical,              intent(out)    :: ifLastReport   ! True if last Report is read
     character(*),         intent(out)    :: STNID          ! Platform Name
+    integer,              intent(out)    :: idtyp          ! codetype
     ! Locals
     type(BURP_FILE), save                :: File_in
     type(BURP_RPT), save                 :: reportIn
@@ -4136,7 +4141,6 @@ contains
     integer                              :: eleChannel     
     integer                              :: eleDataQcFlag   
     integer                              :: eleQcFlag1(3) 
-    integer                              :: idtyp
     integer                              :: nlocs 
     integer                              :: blat 
     integer                              :: blon 
@@ -4233,23 +4237,29 @@ contains
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call readBurpReal(reportIndex, reportIn, (/3072/), 0, 7024, error, ZENITH, 'Zenith_Angle', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal(reportIndex, reportIn, (/3072/), 0, 5021, error, AZIMUTH, 'Azimuth_Angle', &
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal(reportIndex, reportIn, (/3072/), 0, 7025, error, solarZenith, 'SolarZen_Angle', &
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 8012, error, ILQ, 'LandSea_Qualifier', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 13039, error, ITT, 'Terrain_Type', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 5043, error, SCANPOS, 'Scan_Position', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 2048, error, SENSOR, 'Sensor', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get info elements 33078 33079 33080 if needed
-    if (ALL(eleQcFlag1 /= -1)) then
+    if(allocated(qcflag1)) deallocate(qcflag1)
+    allocate(qcflag1(size(qcflag1FirstColomn),3))
+    if (all(eleQcFlag1(:) /= -1)) then
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(1), error, qcflag1FirstColomn, 'Geoloc_Quality_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(2), error, qcflag1SecondColomn, 'Granule_Level_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(3), error, qcflag1ThirdColomn, 'Scan_Level_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-      if(allocated(qcflag1)) deallocate(qcflag1)
-      allocate(qcflag1(size(qcflag1FirstColomn),3))
       qcflag1(:,1) = qcflag1FirstColomn
       qcflag1(:,2) = qcflag1SecondColomn
       qcflag1(:,3) = qcflag1ThirdColomn
@@ -5431,9 +5441,9 @@ contains
   !--------------------------------------------------------------------------
 
   subroutine mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel, satIdentifier,      &
-                                    satZenithAngle, landQualifierIndice, terrainTypeIndice,       &
-                                    obsDate, obsTime, obsLatitude, obsLongitude, satScanPosition, &
-                                    obsQcFlag1, satOrbit, obsGlobalMarker, burpFileSatId, obsTb,  &
+                                    satZenithAngle, azimuthAngle, solarZenithAngle, landQualifierIndice, terrainTypeIndice,       &
+                                    obsDate, obsTime, idtyp, obsLatitude, obsLongitude, satScanPosition, &
+                                    sensor, obsQcFlag1, satOrbit, obsGlobalMarker, burpFileSatId, obsTb,  &
                                     obsQcFlag2, obsChannels, obsFlags, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from the burp Arrays into an obsSpaceData object
@@ -5445,14 +5455,18 @@ contains
     integer,          intent(in)    :: reportNumObs              ! number of locations    (btyp=5120,etc.)
     integer,          intent(in)    :: reportNumChannel          ! number of channels
     integer,          intent(in)    :: satIdentifier(:)          ! satellite identifier
-    real   ,          intent(in)    :: satZenithAngle(:)         ! satellite zenith angle (btyp=3072,ele=7024) 
-    integer,          intent(in)    :: landQualifierIndice(:)    ! land/sea qualifier     (btyp=3072,ele=8012)
+    real   ,          intent(in)    :: satZenithAngle(:)         ! satellite zenith angle (btyp=3072,ele=7024)
+    real   ,          intent(in)    :: azimuthAngle(:)           ! azimuth angle          (btyp=3072,ele=5021)
+    real   ,          intent(in)    :: solarZenithAngle(:)       ! solar zenith angle     (btyp=3072,ele=7025)
+    integer,          intent(inout) :: landQualifierIndice(:)    ! land/sea qualifier     (btyp=3072,ele=8012)
     integer,          intent(in)    :: terrainTypeIndice(:)      ! terrain-type (ice)     (btyp=3072,ele=13039)
     integer,          intent(in)    :: obsDate(:)                ! date
     integer,          intent(in)    :: obsTime(:)                ! time
-    real   ,          intent(in)    :: obsLatitude(:)            ! latitude values (btyp=5120,ele=5002)
-    real   ,          intent(in)    :: obsLongitude(:)           ! longitude values (btyp=5120,ele=6002)
+    integer,          intent(in)    :: idtyp                     ! codtype
+    real   ,          intent(inout) :: obsLatitude(:)            ! latitude values (btyp=5120,ele=5002)
+    real   ,          intent(inout) :: obsLongitude(:)           ! longitude values (btyp=5120,ele=6002)
     integer,          intent(in)    :: satScanPosition(:)        ! scan position (fov)    (btyp=3072,ele=5043)
+    integer,          intent(in)    :: sensor(:)                 ! sensor                 (btyp=3072,ele=2048)
     integer,          intent(in)    :: obsQcFlag1(:,:)           ! flag values for btyp=3072 block ele 033078, 033079, 033080
     integer,          intent(in)    :: satOrbit(:)               ! orbit number
     integer,          intent(in)    :: obsGlobalMarker(:)        ! global Marqueur Data
@@ -5466,16 +5480,30 @@ contains
     ! Locals
     integer,          save          :: numHeaderWritten = 0 
     integer,          save          :: numBodyWritten = 0
-    integer                         :: headerIndex
+    integer                         :: instrument, id_sat, headerIndex
     integer                         :: bodyIndex
     integer                         :: reportLocation 
     integer                         :: headerCompt 
     integer                         :: bodyCompt
+    logical                         :: verbose = .true.
     
     headerCompt = 1 
     bodyCompt   = 1
 
+    ! Instrument
+    instrument = obsu_cvt_obs_instrum(sensor(1))
+    if (verbose) write(*,*) 'SENSOR, INSTRUMENT, IDTYP = ', sensor(1), instrument, idtyp
+
     HEADER: do headerIndex = numHeaderWritten + 1, numHeaderWritten + reportNumObs
+
+      ! If terrain type sea ice (0), set landQualifier=2
+      if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
+
+      ! Convert lat/lon to radians
+      if ( obsLongitude(headerCompt) < 0. ) obsLongitude(headerCompt) = 360. + obsLongitude(headerCompt)
+      obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_RADIANS_PER_DEGREE_R8
+      obsLatitude(headerCompt)  = obsLatitude(headerCompt)*MPC_RADIANS_PER_DEGREE_R8
+
       call obs_headSet_i( obsSpaceData, OBS_NLV,  headerIndex, reportNumChannel                  )
       if (headerIndex == 1 ) then
         reportLocation = 1
@@ -5485,8 +5513,12 @@ contains
       end if 
       call obs_headSet_i(obsSpacedata, OBS_RLN, headerIndex, reportLocation )
       call obs_setFamily( obsSpaceData, 'TO',     headerIndex                                    )
+      call obs_headSet_i( obsSpaceData, OBS_ITY,  headerIndex, idtyp                             )
+      call obs_headSet_i( obsSpaceData, OBS_INS,  headerIndex, instrument                        )
       call obs_headSet_i( obsSpaceData, OBS_SAT,  headerIndex, satIdentifier(headerCompt)        )
       call obs_headSet_r( obsSpaceData, OBS_SZA,  headerIndex, satZenithAngle(headerCompt)       )
+      call obs_headSet_r( obsSpaceData, OBS_AZA,  headerIndex, azimuthAngle(headerCompt)         )
+      call obs_headSet_r( obsSpaceData, OBS_SUN,  headerIndex, solarZenithAngle(headerCompt)     )
       call obs_headSet_i( obsSpaceData, OBS_OFL,  headerIndex, landQualifierIndice(headerCompt)  )
       call obs_headSet_i( obsSpaceData, OBS_STYP, headerIndex, terrainTypeIndice(headerCompt)    )
       call obs_headSet_i( obsSpaceData, OBS_DAT,  headerIndex, obsDate(headerCompt)              )
@@ -5508,8 +5540,14 @@ contains
         call obs_bodySet_i(obsSpaceData, OBS_FLG,    bodyIndex, obsFlags(bodyCompt)              )
         call obs_bodySet_r(obsSpaceData, OBS_PPP,    bodyIndex, real(obsChannels(bodyCompt),OBS_REAL) )
         call obs_bodySet_i(obsSpaceData, OBS_QCF2,   bodyIndex, obsQcFlag2(bodyCompt)            )
+        call obs_bodySet_r(obsSpaceData, OBS_OER,    bodyIndex, 1.0                              )
         bodyCompt = bodyCompt + 1
       end do BODY
+
+      if (verbose) then
+        write(*,*) 'headerIndex, ity, ins, sat, sza, aza, sun, ofl, dat, etm, lat, lon = ', headerIndex, idtyp, instrument, satIdentifier(headerCompt), satZenithAngle(headerCompt), azimuthAngle(headerCompt), solarZenithAngle(headerCompt), landQualifierIndice(headerCompt), obsDate(headerCompt), obsTime(headerCompt), obsLatitude(headerCompt), obsLongitude(headerCompt)
+      end if
+      
       numBodyWritten = numBodyWritten + reportNumChannel
       headerCompt = headerCompt + 1
     end do HEADER
@@ -5612,16 +5650,21 @@ contains
       call utl_reAllocate(obsQcFlag2, obsNumOfReport*obsNumCurrentLoc)
    
       BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-         obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-         ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-         obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex)
-         obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-         obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
-         obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
-         bodyCompt = bodyCompt + 1
+        obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+        ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+        obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex)
+        obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+        obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
+        obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
+        bodyCompt = bodyCompt + 1
       end do BODY
+
+      ! Convert lat/lon to degrees
+      obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+      obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
+
       headerCompt = headerCompt + 1
-      numBodyRead = numBodyRead + obsNumCurrentLoc 
+      numBodyRead = numBodyRead + obsNumCurrentLoc      
     end do HEADER
     numHeaderRead = numHeaderRead + obsNumOfReport
   end subroutine mwbg_readObsFromObsSpace 

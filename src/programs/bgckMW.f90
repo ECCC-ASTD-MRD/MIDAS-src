@@ -43,6 +43,7 @@ program midas_bgckMW
   integer                       :: nobs_tot                                           ! obs. total number
   integer                       :: n_bad_reps                                         ! bad reports number
   integer                       :: satIndexObserrFile                                 ! satellite index in obserror file
+  integer                       :: idtyp                                              ! codetype
   logical                       :: resumeReport                                       ! logical to newInformationFlagify resume report
   logical                       :: ifLastReport                                       ! logical to newInformationFlagify last report
   character(len=9)              :: burpFileSatId                                      ! station id in burp file
@@ -56,12 +57,15 @@ program midas_bgckMW
   real,    allocatable          :: obsLongitude(:)                                    ! obs. point longitude
   integer, allocatable          :: satIdentifier(:)                                   ! Satellite identifier
   real,    allocatable          :: satZenithAngle(:)                                  ! sat. satZenithAngle angle
+  real,    allocatable          :: azimuthAngle(:)                                    ! azimuth angle
+  real,    allocatable          :: solarZenithAngle(:)                                ! solar zenith angle
   integer, allocatable          :: landQualifierIndice(:)                             ! land qualifyer
   integer, allocatable          :: terrainTypeIndice(:)                               ! terrain type
-  real,    allocatable          :: obsTb(:)                         ! temperature de brillance
-  real,    allocatable          :: ompTb(:)                         ! o-p temperature de "
-  real,    allocatable          :: obsTbBiasCorr(:)                                        ! bias correction fo obsTb
-  integer, allocatable          :: satScanPosition(:)                           ! scan position
+  real,    allocatable          :: obsTb(:)                                           ! temperature de brillance
+  real,    allocatable          :: ompTb(:)                                           ! o-p temperature de "
+  real,    allocatable          :: obsTbBiasCorr(:)                                   ! bias correction fo obsTb
+  integer, allocatable          :: satScanPosition(:)                                 ! scan position
+  integer, allocatable          :: sensor(:)                                          ! sensor
   integer, allocatable          :: obsQcFlag1(:,:)                                    ! Obs Quality flag 1
   integer, allocatable          :: obsQcFlag2(:)                                      ! Obs Quality flag 2 
   integer, allocatable          :: obsChannels(:)                                     ! obsTb channels
@@ -70,10 +74,10 @@ program midas_bgckMW
   integer, allocatable          :: obsGlobalMarker(:)                                 ! global marker
   integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)            ! channel use option for each sat.
   real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)           ! obs. error per channel for each sat
-  integer                       :: rejectionCodArray(mwbg_maxNumTest,&
+  integer                       :: rejectionCodArray(mwbg_maxNumTest, &
                                                      mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
   !                                                                                                   per sat. per channl per test
-  integer                       :: rejectionCodArray2(mwbg_maxNumTest,&
+  integer                       :: rejectionCodArray2(mwbg_maxNumTest, &
                                                       mwbg_maxNumChan,mwbg_maxNumSat) ! number of rejection per 
   !                                                                                                   sat. per channl per test
   !                                                                                                   for ATMS 2nd category of tests
@@ -187,7 +191,7 @@ program midas_bgckMW
   ! Basic setups
   call mwbg_setup()
   burpFileNameIn = obsf_getFileName('TO',numFileFound)
-  if (numFileFound /= 1) call utl_abort('bgckMW: did not fine 1 obs file')
+  if (numFileFound /= 1) call utl_abort('bgckMW: did not find 1 obs file')
   write(*,*) 'bgckMW: obs file name =', trim(burpFileNameIn)
 
   ! Initializations of counters (for total reports/locations in the file).
@@ -215,12 +219,12 @@ program midas_bgckMW
     ! STEP 0 ) Read TOV Observations into obsSpaceData
     !###############################################################################
     write(*,*) ' ==> mwbg_getData: ', reportIndex
-    call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle,   &
+    call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle, azimuthAngle, solarZenithAngle,   &
                       landQualifierIndice, terrainTypeIndice, obsDate, obsTime,     &
-                      obsLatitude, obsLongitude, obsTb, satScanPosition,            &
+                      obsLatitude, obsLongitude, obsTb, satScanPosition, sensor,    &
                       reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2,       &
                       obsChannels, obsFlags, satOrbit, obsGlobalMarker,&
-                      resumeReport, ifLastReport, instName, burpFileSatId)
+                      resumeReport, ifLastReport, instName, burpFileSatId, idtyp)
     if (resumeReport) listeOfResumeReport(reportIndex) = .true.
     if (ifLastReport) lastReportIndex = reportIndex
     if (.not. resumeReport) then
@@ -237,10 +241,10 @@ program midas_bgckMW
       ! Put vectors in ObsSpaceData
       write(*,*) ' ==> mwbg_copyObsToObsSpace: '
       call mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel,         &
-                                  satIdentifier, satZenithAngle,landQualifierIndice,&
-                                  terrainTypeIndice, obsDate, obsTime,              &
+                                  satIdentifier, satZenithAngle, azimuthAngle, solarZenithAngle, landQualifierIndice,&
+                                  terrainTypeIndice, obsDate, obsTime, idtyp,       &
                                   obsLatitude, obsLongitude,                        &
-                                  satScanPosition, obsQcFlag1, satOrbit,            &
+                                  satScanPosition, sensor, obsQcFlag1, satOrbit,    &
                                   obsGlobalMarker, burpFileSatId, obsTb,            &
                                   obsQcFlag2, obsChannels,    &
                                   obsFlags, obsSpaceData)
@@ -253,6 +257,7 @@ program midas_bgckMW
   ! Filter out data from obsSpaceData
   !
   call tmg_start(14,'SUPREP')
+  call obs_setHind(obsSpaceData)
   call filt_suprep(obsSpaceData)
   call tmg_stop(14)
 
@@ -267,8 +272,15 @@ program midas_bgckMW
   !
   call tvs_setupAlloc(obsSpaceData)
 
-  ! reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+  !
+  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+  !
+  call inn_setupBackgroundColumns(trlColumnOnTrlLev, obsSpaceData)
+
+  !
+  ! Compute O-minus-B
+  !
+  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
 
   !
   ! QC LOOP
