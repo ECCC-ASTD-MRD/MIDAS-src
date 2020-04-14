@@ -30,15 +30,19 @@ MODULE biasCorrectionConv_mod
   save
   private
   integer, parameter :: nPhases=3, nLevels=5, nStationMax=100000 
-  integer  :: nb_aircraft_bias
+  integer, parameter :: nStationMaxGP=10000
+  integer  :: nb_aircraft_bias, nb_gps_bias
   real     :: corrects_TT(nStationMax,nPhases,nLevels)
+  real     :: corrects_ZTD(nStationMaxGP)
   character(len=9) :: aircraft_ID(nStationMax)
+  character(len=9) :: gps_stn(nStationMaxGP)
+  character(len=8), parameter :: ai_bcfile = "ai_bcors", gp_bcfile = "gp_bcors"
 
-  public               :: bcc_readConfig, bcc_readAIBcor, bcc_calcBiasAI
+  public               :: bcc_readConfig, bcc_applyAIBcor, bcc_applyGPBcor
   
-  integer, external            :: fnom, fclos
-  logical :: biasActive
-  namelist /nambiasconv/ biasActive
+  integer, external    :: fnom, fclos
+  logical :: aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly
+  namelist /nambiasconv/ aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly
   
 CONTAINS
  
@@ -54,7 +58,10 @@ CONTAINS
     integer  :: ierr,nulnam
   
     ! set default values for namelist variables
-    biasActive = .false.
+    aiBiasActive = .false.
+    gpBiasActive = .false.
+    aiRevOnly = .false.
+    gpRevOnly = .false.
     ! read in the namelist NAMBIASCONV
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -88,8 +95,8 @@ CONTAINS
     real    :: corr_ligne
     character(len=9) :: id_ligne
 
-    if ( .not. biasActive ) return
-
+    if (aiRevOnly) return
+    
     nulcoeff = 0
     ierr = fnom(nulcoeff, file_cor, 'FMT+R/O', 0)
     if ( ierr /= 0 ) then
@@ -126,11 +133,11 @@ CONTAINS
   end subroutine bcc_readAIBcor
 
   !-----------------------------------------------------------------------
-  ! bcc_calcBiasAI
+  ! bcc_applyAIBcor
   !-----------------------------------------------------------------------
-  subroutine bcc_calcBiasAI(obsSpaceData)
+  subroutine bcc_applyAIBcor(obsSpaceData)
     !
-    ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
+    ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with aircraft TT bias correction 
     !
     implicit none
     !Arguments:
@@ -143,12 +150,14 @@ CONTAINS
     real(8)  :: corr, tt, oldCorr, pressure
     character(len=9) :: stnid, tempo1, tempo2
 
-    if ( .not. biasActive ) return
+    if ( .not. aiBiasActive ) return
 
-    write(*,*) "bcc_calcBiasAI: start"
+    write(*,*) "bcc_applyAIBcor: start"
 
-     n_cor_ac = 0
-     n_cor_bk = 0
+    call bcc_readAIBcor(ai_bcfile)
+    
+    n_cor_ac = 0
+    n_cor_bk = 0
 
     call obs_set_current_header_list(obsSpaceData,'AI')
     HEADER: do
@@ -168,6 +177,8 @@ CONTAINS
 
         if ( bufrCode == BUFR_NETT) then
           tt = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+          corr = MPC_missingValue_R8
 
           if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then  
 
@@ -194,7 +205,6 @@ CONTAINS
               corr = 0.0
             end if
 
-            flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
             oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
             ! Remove any previous bias correction
             if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
@@ -203,6 +213,8 @@ CONTAINS
             end if
             codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
+            IF ( .not. aiRevOnly ) THEN
+            
             ! Default bulk corrections read from bcor file (applied if dynamic corrections are not availble for the aircraft)
             if ( codtyp == 128 .or. codtyp == 177 ) then  ! AIREP/ADS
               phaseIndex = 2
@@ -246,35 +258,185 @@ CONTAINS
                 n_cor_bk = n_cor_bk - 1
               end if
             end if
-
-          else ! TT is missing
-
-            corr = 0.d0
-
+            
+            END IF
+            
           end if
 
-        end if
+          ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
+          if ( (.not. gpRevOnly) .and. (tt /= real(MPC_missingValue_R8,OBS_REAL)) ) then
+            tt = tt - corr
+            flag = ibset(flag, 6)
+          end if
 
-        ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
-        if (tt /= real(MPC_missingValue_R8,OBS_REAL) ) then
-          tt = tt - corr
-          flag = ibset(flag, 6)
-        end if
+          call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
+          call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
+          call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag )        
 
-        call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
-        call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
-        call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag )
+        end if
         
       end do BODY
     end do HEADER
     
-    write (*, '(a50, i10)' ) "bcc_calcBiasAI: Number of obs with TT bulk correction  = ", n_cor_bk
-    write (*, '(a50, i10)' ) "bcc_calcBiasAI: Number of obs with TT tail correction  = ", n_cor_ac
+    if ( n_cor_bk+n_cor_ac /= 0 ) then
+       write (*, '(a50, i10)' ) "bcc_applyAIBcor: Number of obs with TT bulk correction  = ", n_cor_bk
+       write (*, '(a50, i10)' ) "bcc_applyAIBcor: Number of obs with TT tail correction  = ", n_cor_ac
+    else
+       write(*,*) "No AI data found"
+    end if
     
-    write(*,*) "bcc_calcBiasAI: end"
+    write(*,*) "bcc_applyAIBcor: end"
     
-  end subroutine bcc_calcBiasAI
+  end subroutine bcc_applyAIBcor
 
+  !-----------------------------------------------------------------------
+  ! bcc_readGPBcor
+  !-----------------------------------------------------------------------
+  subroutine bcc_readGPBcor(file_cor)
+    !
+    ! :Purpose: Read GB-GPS bias corrections (mean O-A by station)
+    !     Missing value = -999.00
+    !
+    implicit none
+    !Arguments:
+    character(len=*), intent(in) :: file_cor
+    !Locals:
+    integer :: ierr, nulcoeff
+    integer :: stationIndex
+    real    :: corr_ligne
+    character(len=9) :: id_ligne
+
+    if (gpRevOnly) return
+    
+    nulcoeff = 0
+    ierr = fnom(nulcoeff, file_cor, 'FMT+R/O', 0)
+    if ( ierr /= 0 ) then
+      call utl_abort('bcc_readGPBcor: unable to open GB-GPS bias correction file ' // file_cor )
+    end if
+    read (nulcoeff, '(i5)', iostat=ierr ) nb_gps_bias
+    if ( ierr /= 0 ) then
+      call utl_abort('bcc_readGPBcor: error 1 while reading GB-GPS bias correction file ' // file_cor )
+    end if
+
+    corrects_ZTD(:) =  MPC_missingValue_R8
+    do stationIndex=1,nb_gps_bias
+       read (nulcoeff, *, iostat=ierr) id_ligne,corr_ligne
+       if ( ierr /= 0 ) then
+          call utl_abort('bcc_readGPBcor: error 2 while reading GB-GPS bias correction file ' // file_cor )
+       end if
+       if (corr_ligne /= -999.00) corrects_ZTD(stationIndex) = -corr_ligne
+       gps_stn(stationIndex) = id_ligne
+    end do
+    ierr = fclos(nulcoeff)
+    
+  end subroutine bcc_readGPBcor
+
+  !-----------------------------------------------------------------------
+  ! bcc_applyGPBcor
+  !-----------------------------------------------------------------------
+  subroutine bcc_applyGPBcor(obsSpaceData)
+    !
+    ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with GB-GPS ZTD bias correction 
+    !
+    implicit none
+    !Arguments:
+    type(struct_obs)  :: obsSpaceData
+    !Locals:
+    integer  :: headerIndex, bodyIndex
+    integer  :: flag, bufrCode
+    integer  :: stationIndex, stationNumber
+    integer  :: n_cor
+    real(8)  :: corr, ztd, oldCorr
+    character(len=9) :: stnid, tempo1, tempo2
+
+    if ( .not. gpBiasActive ) return
+
+    write(*,*) "bcc_applyGPBcor: start"
+
+    call bcc_readGPBcor(gp_bcfile)
+    
+    n_cor = 0
+
+    call obs_set_current_header_list(obsSpaceData,'GP')
+    
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
+      
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+
+      BODY: do
+
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
+
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY 
+
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
+
+        if ( bufrCode == BUFR_NEZD ) then
+          
+          ztd  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          corr = MPC_missingValue_R8
+          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+          
+          if ( ztd /= real(MPC_missingValue_R8,OBS_REAL) ) then  
+            
+            oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
+            ! Remove any previous bias correction
+            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
+              ztd = ztd - oldCorr
+              flag = ibclr(flag, 6)
+            end if
+
+            IF (.not. gpRevOnly ) THEN
+               headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
+               stnid = trim( obs_elem_c(obsSpaceData,'STID',headerIndex) )
+
+               ! on verifie si la station est dans le dictionnaire du fichier de correction de biais
+               !---------------------------------------------------------------------------------
+               stationNumber = 0
+               do stationIndex = 1, nb_gps_bias
+                 tempo1 = trim(gps_stn(stationIndex))
+                 tempo2 = trim(stnid)
+                 if ( tempo2 == tempo1 ) stationNumber = stationIndex
+               end do
+               
+               if (stationNumber /= 0) then 
+                 corr = corrects_ZTD(stationNumber)
+               end if
+               
+               ! Apply the bias correction and set the "bias corrected" bit in ZTD data flag ON
+               if ( corr /= MPC_missingValue_R8 ) then
+                 ztd = ztd + corr
+                 n_cor = n_cor + 1
+                 flag = ibset(flag, 6)
+               else 
+                 corr = 0.0
+               end if
+            END IF
+
+          end if
+
+          call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
+          call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, ztd  )
+          call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag )
+           
+        end if
+        
+      end do BODY
+    end do HEADER
+    
+    if ( n_cor /= 0 ) then
+      write (*, '(a50, i10)' ) "bcc_applyGPBcor: Number of ZTD observations corrected  = ", n_cor
+    else 
+      write(*,*) "No GP data bias corrections made"
+    end if
+    
+    write(*,*) "bcc_applyGPBcor: end"
+    
+  end subroutine bcc_applyGPBcor
+    
 
 end MODULE biasCorrectionConv_mod
 

@@ -50,6 +50,7 @@ program midas_var
   use residual_mod
   use stateToColumn_mod
   use backgroundCheck_mod
+  use biasCorrectionConv_mod
 
   implicit none
 
@@ -143,6 +144,13 @@ program midas_var
 
     call var_setup('ALL') ! obsColumnMode   
 
+    ! Read NAMBIASCONV namelist section (for AI, GP family data bias correction)
+    call bcc_readConfig()
+    
+    ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
+    call bcc_applyAIBcor(obsSpaceData)    
+    call bcc_applyGPBcor(obsSpaceData)
+    
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
