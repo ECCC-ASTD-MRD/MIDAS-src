@@ -38,7 +38,8 @@ module obsOperators_mod
   use varNameList_mod
   use costfunction_mod
   use obsOperatorsChem_mod
-  
+  use obserrors_mod
+
  implicit none
   save
   private
@@ -923,7 +924,6 @@ contains
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
     !
-    use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
     implicit none
 
     ! arguments
@@ -974,8 +974,8 @@ contains
         read(ccyymmdd(5:6), FMT='(i2)') imonth
         conc = col_getElem( columnhr, 1, headerIndex, varName)
         track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-        backValue = (1.0d0-conc)*ascat_anis_yow(track_cell_no,imonth) + &
-                         conc*ascat_anis_yice(track_cell_no,imonth)
+        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(track_cell_no,imonth) + &
+                         conc*oer_ascatAnisIce(track_cell_no,imonth)
       case default
         cycle BODY
       end select
@@ -2197,7 +2197,6 @@ contains
       !           from profiled model increments.
       !           It returns Hdx in OBS_WORK
       !
-      use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
       implicit none
 
       integer          :: headerIndex, bodyIndex, bufrCode
@@ -2229,7 +2228,7 @@ contains
           write(ccyymmdd, FMT='(i8.8)') idate
           read(ccyymmdd(5:6), FMT='(i2)') imonth
           track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-          scaling = ascat_anis_yice(track_cell_no,imonth) - ascat_anis_yow(track_cell_no,imonth)
+          scaling = oer_ascatAnisIce(track_cell_no,imonth) - oer_ascatAnisOpenWater(track_cell_no,imonth)
         case default
           cycle BODY
         end select
@@ -2993,7 +2992,6 @@ contains
       !
       ! :Purpose: Adjoint of the "vertical" interpolation for ICE data
       !
-      use obserrors_mod, only: ascat_anis_yow, ascat_anis_yice
       implicit none
 
       real(8)          :: residual, scaling
@@ -3026,7 +3024,7 @@ contains
           write(ccyymmdd, FMT='(i8.8)') idate
           read(ccyymmdd(5:6), FMT='(i2)') imonth
           track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-          scaling = ascat_anis_yice(track_cell_no,imonth) - ascat_anis_yow(track_cell_no,imonth)
+          scaling = oer_ascatAnisIce(track_cell_no,imonth) - oer_ascatAnisOpenWater(track_cell_no,imonth)
         case default
           cycle BODY
         end select
