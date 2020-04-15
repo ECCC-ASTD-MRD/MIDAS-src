@@ -1,14 +1,13 @@
- &NAMCT0
+  &namEnsPostProc
+   nEns                  = 10
+   readTrlEnsemble       = .true.
+   readAnlEnsemble       = .false.
 /
- &NAMENSMANIP
-   OUTPUT_ENSEMBLE_MEAN = T
-   OUTPUT_ENSEMBLE_STDDEV = T
-   OUTPUT_ENSEMBLE_PERTURBATIONS = F
-   NENS = 10
-   NUMBITS = 32
+  &namEnsPostProcModule
+   numBits     = 32
 /
  &NAMTIME
-  DSTEPOBSINC = 6.0d0
+   DSTEPOBS    = 6.0d0
 /
  &NAMVNL
    forceSfcOnly(1) = 'ES'

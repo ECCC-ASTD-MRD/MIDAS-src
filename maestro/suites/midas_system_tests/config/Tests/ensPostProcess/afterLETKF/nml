@@ -1,7 +1,9 @@
-  &NAMLETKF
+  &namEnsPostProc
    nEns                  = 40
+   readTrlEnsemble       = .true.
+   readAnlEnsemble       = .true.
 /
-  &NAMENSPOSTPROC
+  &namEnsPostProcModule
    writeSubSample           = .true.
    writeSubSampleUnPert     = .true.
    alphaRTPS                = 0.80D0

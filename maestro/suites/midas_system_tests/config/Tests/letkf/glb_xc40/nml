@@ -16,7 +16,7 @@
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
 /
- &NAMENSPOSTPROC
+ &namEnsPostProcModule
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.33D0
    alphaRandomPertSubSample = 0.66D0

@@ -187,11 +187,6 @@
   </FAMILY>
 
   <FAMILY  name="ensManip">
-    <SUBMITS sub_name="mean"/>
-    <FAMILY  name="mean">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
     <SUBMITS sub_name="mean_lam"/>
     <FAMILY  name="mean_lam">
       <SUBMITS sub_name="UnitTest"/>
@@ -264,8 +259,16 @@
   </FAMILY>
 
   <FAMILY  name="ensPostProcess">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="afterLETKF"/>
+    <FAMILY  name="afterLETKF">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="trialMeanRms"/>
+    <FAMILY  name="trialMeanRms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="prepcma">

@@ -15,7 +15,7 @@
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
 /
- &NAMENSPOSTPROC
+ &namEnsPostProcModule
    alphaRTPS             = 0.80D0
    alphaRandomPert       = 0.10D0
    imposeSaturationLimit = .true.

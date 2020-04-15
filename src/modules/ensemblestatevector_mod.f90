@@ -37,7 +37,7 @@ module ensembleStateVector_mod
   private
 
   ! public procedures
-  public :: struct_ens, ens_allocate, ens_deallocate, ens_zero
+  public :: struct_ens, ens_allocated, ens_allocate, ens_deallocate, ens_zero
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
@@ -80,6 +80,22 @@ module ensembleStateVector_mod
 
 CONTAINS
 
+  !--------------------------------------------------------------------------
+  ! ens_allocated
+  !--------------------------------------------------------------------------
+  function ens_allocated(ens) result(allocated)
+    !
+    !:Purpose: Return true if object has been allocated
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ens
+    logical          :: allocated
+
+    allocated = ens%allocated
+  end function ens_allocated
+  
   !--------------------------------------------------------------------------
   ! ens_allocate
   !--------------------------------------------------------------------------
