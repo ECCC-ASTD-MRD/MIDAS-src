@@ -785,7 +785,7 @@ CONTAINS
                  nbele=nbele +2
                end if
 
-            end if
+             end if
 
 !=========================================
             REGRUP_SFC: do k=1,nte
@@ -1276,10 +1276,15 @@ CONTAINS
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
-                      IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
-                      if ( IND_BCOR > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) &
-                           Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_BCOR,NVAL_IND =j,NT_IND = k,RVAL = BCOR) 
-                      
+                      if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+                        IND_BCOR = -1
+                        if ( familyType == 'TO') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
+                        if ( familyType == 'AI') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12204, IOSTAT=error)
+                        if ( familyType == 'GP') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=15033, IOSTAT=error)
+                        if ( IND_BCOR > 0 ) &
+                             Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_BCOR,NVAL_IND =j,NT_IND = k,RVAL = BCOR) 
+                      end if
+
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
 
                       EXIT
@@ -2064,7 +2069,10 @@ CONTAINS
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
             if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
-            IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
+            if ( FAMILYTYPE2 == 'TO' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
+            if ( FAMILYTYPE2 == 'AI' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12204,IOSTAT=error)
+            if ( FAMILYTYPE2 == 'GP' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=15033,IOSTAT=error)
+
             IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
 
             if( TRIM(FAMILYTYPE2) == 'AI' .and. IND_PHASE > 0) then
