@@ -40,9 +40,10 @@ program midas_ensPostProcess
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
-  character(len=256) :: ensFileName
+  character(len=256) :: ensFileName, gridFileName
   integer, allocatable :: dateStampList(:)
   integer :: ierr, nulnam
+  logical :: targetGridFileExists
   integer, external :: get_max_rss, fstopc, fnom, fclos
 
   integer :: nEns             ! ensemble size
@@ -108,16 +109,22 @@ program midas_ensPostProcess
   !- Initialize variables of the model states
   call gsv_setup
 
-  !- Initialize the grid from trial ensemble member 1
+  !- Initialize the grid from targetgrid file or from trial or analysis ensemble member 1
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
-  if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+  inquire(file='targetgrid', exist=targetGridFileExists)
+  if (targetGridFileExists) then
+    gridFileName = 'targetgrid'
+  else if (readTrlEnsemble) then
+    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt=1)
   else
-    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1)
   end if
-  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile(vco_ens, ensFileName)
+  if (mpi_myid == 0) then
+    write(*,*) 'midas-ensPostProcess: file use to define grid = ', trim(gridFileName)
+  end if
+  call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile(vco_ens, gridFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-ensPostProcess: nLev_M /= nLev_T - currently not supported')
   end if
@@ -131,8 +138,14 @@ program midas_ensPostProcess
   end if
 
   !- Read the sfc height from trial ensemble member 1
+  if (readTrlEnsemble) then
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+  else
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+  end if
   call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    hInterpolateDegree_opt = 'LINEAR', &
                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
   call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                         containsFullField_opt=.true., readHeightSfc_opt=.true.)

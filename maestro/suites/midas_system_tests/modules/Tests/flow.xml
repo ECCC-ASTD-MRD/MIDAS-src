@@ -202,11 +202,6 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="recenterLAM"/>
-    <FAMILY  name="recenterLAM">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="addIncrement">
@@ -266,6 +261,11 @@
     </FAMILY>
     <SUBMITS sub_name="trialMeanRms"/>
     <FAMILY  name="trialMeanRms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="recenterREPS"/>
+    <FAMILY  name="recenterREPS">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
