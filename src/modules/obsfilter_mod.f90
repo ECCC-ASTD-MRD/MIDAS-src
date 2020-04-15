@@ -40,7 +40,7 @@ module obsFilter_mod
   public :: filt_rlimlvhu
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
-  public :: filt_surfaceWind, filt_gpsro, filt_bkscanis, filt_iceConcentration
+  public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
 
   integer :: filt_nelems, filt_nflags
@@ -70,9 +70,9 @@ module obsFilter_mod
   logical :: useEnkfTopoFilt
 
   ! List of satellites (id_stn in SQLite files) used for sea ice concentration
-  integer            :: n_Platform_Ice
-  integer, parameter :: max_Platform_Ice = 10
-  character(len=12)  :: list_Platform_Ice(max_Platform_Ice)
+  integer            :: nPlatformIce
+  integer, parameter :: maxPlatformIce = 50
+  character(len=12)  :: listPlatformIce(maxPlatformIce)
 
   character(len=48) :: filterMode
 
@@ -143,8 +143,9 @@ contains
 
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, &
-         n_Platform_Ice, list_Platform_Ice
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
+
+    namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 
     filterMode = filterMode_in
 
@@ -181,14 +182,19 @@ contains
 
     useEnkfTopoFilt = .false.
 
-    n_Platform_Ice = 0
-    list_Platform_Ice(:) = '1234567890ab'
+    nPlatformIce = 0
+    listPlatformIce(:) = '1234567890ab'
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
     if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replaced ltopofilt by list_topoFilt?')
-    if(mpi_myid == 0) write(*,nml=namfilt)
+    read(nulnam,nml=namPlatformIce,iostat=ierr)
+    if(ierr /= 0) write(*,*) 'WARNING: namelist block namPlatformIce not found, use the default values'
+    if(mpi_myid == 0) then
+      write(*,nml=namfilt)
+      write(*,nml=namPlatformIce)
+    end if
     ierr=fclos(nulnam)
 
     ! Force nlist to be in the same sequence as NVNUMB for invariance in
@@ -268,8 +274,8 @@ contains
       end do
     end if
 
-    if ( n_Platform_Ice > max_Platform_Ice ) then
-      call utl_abort('filt_setup: too many elements for list_Platform_Ice')
+    if ( nPlatformIce > maxPlatformIce ) then
+      call utl_abort('filt_setup: too many elements for listPlatformIce')
     end if
 
     initialized = .true.
@@ -1455,9 +1461,9 @@ end subroutine filt_topoAISW
   END SUBROUTINE FILT_GPSRO
 
   !--------------------------------------------------------------------------
-  ! filt_bkscanis
+  !  filt_backScatAnisIce
   !--------------------------------------------------------------------------
-  subroutine filt_bkscanis( obsSpaceData, beSilent )
+  subroutine  filt_backScatAnisIce( obsSpaceData, beSilent )
     !
     ! :Purpose: Filter scatterometer backscatter anisotropy observations
     !           where wind speed is too small
@@ -1481,7 +1487,7 @@ end subroutine filt_topoAISW
 
     if (.not. beSilent) then
       write(*,*)
-      write(*,*) 'filt_bkscanis: begin'
+      write(*,*) ' filt_backScatAnisIce: begin'
     end if
 
     ! loop over all body indices
@@ -1512,9 +1518,9 @@ end subroutine filt_topoAISW
 
     end do BODY
 
-    if (.not. beSilent) write(*,*) 'filt_bkscanis: end'
+    if (.not. beSilent) write(*,*) ' filt_backScatAnisIce: end'
 
-  end subroutine filt_bkscanis
+  end subroutine  filt_backScatAnisIce
 
   !--------------------------------------------------------------------------
   ! filt_iceConcentration
@@ -1542,7 +1548,7 @@ end subroutine filt_topoAISW
 
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
-    if ( n_Platform_Ice < 1 ) return
+    if ( nPlatformIce < 1 ) return
 
     if (.not. beSilent) then
       write(*,*)
@@ -1562,10 +1568,10 @@ end subroutine filt_topoAISW
 
       in_Platform_List = .false.
 
-      PLATFORM: do iplat = 1, n_Platform_Ice
+      PLATFORM: do iplat = 1, nPlatformIce
 
-        if ( index(cstnid,trim(list_Platform_Ice(iplat))) > 0 .or. &
-             index(codtyp_get_name(codeType),trim(list_Platform_Ice(iplat))) > 0) then
+        if ( index(cstnid,trim(listPlatformIce(iplat))) > 0 .or. &
+             index(codtyp_get_name(codeType),trim(listPlatformIce(iplat))) > 0) then
 
           in_Platform_List = .true.
           exit PLATFORM
