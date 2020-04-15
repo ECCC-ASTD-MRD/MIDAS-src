@@ -511,8 +511,8 @@ contains
     !        SEA ICE CONCENTRATION
     !--------------------------------
     call filt_iceConcentration(obsSpaceData, beSilent)
-    call filt_bkscanis(obsSpaceData, beSilent)
-    call oer_SETERRBKSCANIS(columnhr, obsSpaceData, beSilent)
+    call filt_backScatAnisIce(obsSpaceData, beSilent)
+    call oer_setErrBackScatAnisIce(columnhr, obsSpaceData, beSilent)
     call oop_ice_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGL, 'GL', destObsColumn)
     !
     !        SURFACE HYDROLOGY
