@@ -41,11 +41,11 @@ module obsErrors_mod
   private
 
   ! public procedures
-  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_SETERRBKSCANIS, oer_sw
+  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr
 
   ! public variables (parameters)
-  public :: ascat_anis_yow, ascat_anis_yice
+  public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -118,8 +118,8 @@ module obsErrors_mod
   real(8) :: xstd_sic(9)
   ! tiepoint standard deviation for ASCAT backscatter anisotropy
   integer, parameter :: ncells = 21
-  real(8) :: ascat_anis_sig_ow(ncells,12), ascat_anis_sig_ice(ncells,12)
-  real    :: ascat_anis_yow(ncells,12), ascat_anis_yice(ncells,12)
+  real(8) :: ascatAnisSigmaOpenWater(ncells,12), ascatAnisSigmaIce(ncells,12)
+  real    :: oer_ascatAnisOpenWater(ncells,12), oer_ascatAnisIce(ncells,12)
 
   ! SST
   real(8) :: xstd_sst(5,2)
@@ -244,7 +244,7 @@ contains
 
     !- 2.4 Sea ice concentration
     if (obs_famexist(obsSpaceData,'GL')) then
-      call oer_readObsErrorsICE
+      call oer_readObsErrorsIce
     else
       write(*,*) "oer_setObsErrors: No GL observations found."
     end if
@@ -784,9 +784,9 @@ contains
   end subroutine oer_readObsErrorsCONV
 
   !--------------------------------------------------------------------------
-  ! oer_readObsErrorsICE
+  ! oer_readObsErrorsIce
   !--------------------------------------------------------------------------
-  subroutine oer_readObsErrorsICE
+  subroutine oer_readObsErrorsIce
     !
     ! :Purpose: read observation errors for sea ice concentration analysis
     !
@@ -800,7 +800,7 @@ contains
 
     ! Variables for the ASCAT backscatter anisotropy
     integer :: jcell_no, icell_no, imonth
-    real :: tiepoint12, tiepoint13, tiepoint23
+    real :: tiePoint12, tiePoint13, tiePoint23
 
     ! CHECK THE EXISTENCE OF THE FILE WITH STATISTICS
     inquire( file = fileName, exist = fileExists )
@@ -854,12 +854,12 @@ contains
         write(*, '(A)') ligne
       end do
       do jcell_no = 1, ncells
-         read(nulstat, * ) icell_no, tiepoint12, tiepoint13, tiepoint23, &
-                           ascat_anis_yice(jcell_no,imonth), ascat_anis_yow(jcell_no,imonth), &
-                           ascat_anis_sig_ice(jcell_no,imonth), ascat_anis_sig_ow(jcell_no,imonth)
-         write(*,*) icell_no, tiepoint12, tiepoint13, tiepoint23, &
-                           ascat_anis_yice(jcell_no,imonth), ascat_anis_yow(jcell_no,imonth), &
-                           ascat_anis_sig_ice(jcell_no,imonth), ascat_anis_sig_ow(jcell_no,imonth)
+         read(nulstat, * ) icell_no, tiePoint12, tiePoint13, tiePoint23, &
+                           oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
+                           ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
+         write(*,*) icell_no, tiePoint12, tiePoint13, tiePoint23, &
+                           oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
+                           ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
       end do
     end do
 
@@ -868,7 +868,7 @@ contains
     close( unit = nulstat )
     ierr = fclos( nulstat )
 
-  end subroutine oer_readObsErrorsICE
+  end subroutine oer_readObsErrorsIce
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsSST
@@ -1429,7 +1429,7 @@ contains
               if (ityp == BUFR_ICEP) then
                  call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sic( 4 ) )
               else if (ityp == BUFR_ICES) then
-                 ! This is backscatter anisotropy, obs-error will be set in oer_SETERRBKSCANIS
+                 ! This is backscatter anisotropy, obs-error will be set in oer_setErrBackScatAnisIce
                  ! because the need of background ice concentration.
                  ! For now just put a large positive value
                  call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1000.0 )
@@ -2450,9 +2450,9 @@ contains
   END SUBROUTINE OER_SETERRGPSGB
 
   !--------------------------------------------------------------------------
-  ! oer_SETERRBKSCANIS
+  ! oer_setErrBackScatAnisIce
   !--------------------------------------------------------------------------
-  subroutine oer_SETERRBKSCANIS( columnhr, obsSpaceData, beSilent )
+  subroutine oer_setErrBackScatAnisIce( columnhr, obsSpaceData, beSilent )
     !
     ! :Purpose: Compute estimated errors for ASCAT backscatter anisotropy observations
     !
@@ -2467,9 +2467,9 @@ contains
     integer :: idate, imonth, varno
     integer :: track_cell_no
 
-    real(8) :: conc, obs_err_stddev
+    real(8) :: conc, obsErrStdDev
 
-    character(len=*), parameter :: myName = 'oer_SETERRBKSCANIS'
+    character(len=*), parameter :: myName = 'oer_setErrBackScatAnisIce'
     character(len=8)            :: ccyymmdd
 
     if (.not. beSilent) write(*,*) 'ENTER '//myName
@@ -2495,10 +2495,10 @@ contains
            write(ccyymmdd, FMT='(i8.8)') idate
            read(ccyymmdd(5:6), FMT='(i2)') imonth
            conc = col_getElem(columnhr,1,headerIndex,'GL')
-           obs_err_stddev = SQRT( ((1.0-conc)*ascat_anis_sig_ow(track_cell_no,imonth))**2 + &
-                                       (conc*ascat_anis_sig_ice(track_cell_no,imonth))**2 )
+           obsErrStdDev = SQRT( ((1.0-conc)*ascatAnisSigmaOpenWater(track_cell_no,imonth))**2 + &
+                                       (conc*ascatAnisSigmaIce(track_cell_no,imonth))**2 )
 
-           call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, obs_err_stddev )
+           call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, obsErrStdDev )
 
         end if
       end do BODY
@@ -2506,7 +2506,7 @@ contains
 
     if (.not. beSilent) write(*,*) myName//': done'
 
-  end subroutine oer_SETERRBKSCANIS
+  end subroutine oer_setErrBackScatAnisIce
 
   !--------------------------------------------------------------------------
   ! chm_read_obs_err_stddev
