@@ -30,15 +30,17 @@
   NLISTFLG(8) = 10
   NLISTFLG(9) = 11
   NLISTFLG(10) = 13
-  N_PLATFORM_ICE = 8
-  LIST_PLATFORM_ICE(1) = 'DMSP'
-  LIST_PLATFORM_ICE(2) = 'GCOM-W1'
-  LIST_PLATFORM_ICE(3) = 'METOP-1'
-  LIST_PLATFORM_ICE(4) = 'METOP-2'
-  LIST_PLATFORM_ICE(5) = 'CIS_DAILY'
-  LIST_PLATFORM_ICE(6) = 'RS1_IMG'
-  LIST_PLATFORM_ICE(7) = 'CIS_REGIONAL'
-  LIST_PLATFORM_ICE(8) = 'iceclake'
+/
+ &namPlatformIce
+  nPlatformIce = 8
+  listPlatformIce(1) = 'DMSP'
+  listPlatformIce(2) = 'GCOM-W1'
+  listPlatformIce(3) = 'METOP-1'
+  listPlatformIce(4) = 'METOP-2'
+  listPlatformIce(5) = 'CIS_DAILY'
+  listPlatformIce(6) = 'RS1_IMG'
+  listPlatformIce(7) = 'CIS_REGIONAL'
+  listPlatformIce(8) = 'iceclake'
 /
  &NAMBDIFF
   corr_len = 200*10.0
