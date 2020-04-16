@@ -2465,7 +2465,7 @@ contains
     ! locals
     integer :: headerIndex, bodyIndex
     integer :: idate, imonth, varno
-    integer :: track_cell_no
+    integer :: trackCellNum
 
     real(8) :: conc, obsErrStdDev
 
@@ -2482,7 +2482,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
-      track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
+      trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -2495,8 +2495,8 @@ contains
            write(ccyymmdd, FMT='(i8.8)') idate
            read(ccyymmdd(5:6), FMT='(i2)') imonth
            conc = col_getElem(columnhr,1,headerIndex,'GL')
-           obsErrStdDev = SQRT( ((1.0-conc)*ascatAnisSigmaOpenWater(track_cell_no,imonth))**2 + &
-                                       (conc*ascatAnisSigmaIce(track_cell_no,imonth))**2 )
+           obsErrStdDev = SQRT( ((1.0-conc)*ascatAnisSigmaOpenWater(trackCellNum,imonth))**2 + &
+                                       (conc*ascatAnisSigmaIce(trackCellNum,imonth))**2 )
 
            call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, obsErrStdDev )
 
