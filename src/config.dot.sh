@@ -15,7 +15,7 @@ NCORES=8
 VERBOSE=2
 CLEAN=false
 DIRECT_FRONTEND_COMPILE=false
-FRONTEND_PLAT=ubuntu-14.04-amd64-64
+FRONTEND_PLAT=ubuntu-18.04-skylake-64
 
 ###########################################################
 ##  compilation and SSM needed for compilation
@@ -50,3 +50,4 @@ export NCORES
 export VERBOSE
 export CLEAN
 export DIRECT_FRONTEND_COMPILE
+export FRONTEND_PLAT
