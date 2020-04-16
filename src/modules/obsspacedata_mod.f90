@@ -350,11 +350,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
    integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
    integer, parameter, public :: OBS_PRFL= OBS_FOV+1 ! profile id. number
-   integer, parameter, public :: OBS_TCN = OBS_PRFL+1! track cell number (in ASCAT data)
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_TCN
+   integer, parameter :: NHDR_INT_END = OBS_PRFL
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -364,7 +363,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
-         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL','TCN '/)  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1426,7 +1425,7 @@ module ObsSpaceData_mod
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_GQF, OBS_GQL
-   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL, OBS_TCN
+   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
