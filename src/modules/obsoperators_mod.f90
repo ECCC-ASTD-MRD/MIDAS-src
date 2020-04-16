@@ -937,7 +937,7 @@ contains
     ! locals
     integer          :: bufrCode, headerIndex, bodyIndex
     integer          :: idate, imonth
-    integer          :: track_cell_no
+    integer          :: trackCellNum
     real(8)          :: obsValue, backValue
     real(8)          :: conc
     character(len=4) :: varName
@@ -973,9 +973,9 @@ contains
         write(ccyymmdd, FMT='(i8.8)') idate
         read(ccyymmdd(5:6), FMT='(i2)') imonth
         conc = col_getElem( columnhr, 1, headerIndex, varName)
-        track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(track_cell_no,imonth) + &
-                         conc*oer_ascatAnisIce(track_cell_no,imonth)
+        trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
+        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(trackCellNum,imonth) + &
+                         conc*oer_ascatAnisIce(trackCellNum,imonth)
       case default
         cycle BODY
       end select
@@ -2201,7 +2201,7 @@ contains
 
       integer          :: headerIndex, bodyIndex, bufrCode
       integer          :: idate, imonth
-      integer          :: track_cell_no
+      integer          :: trackCellNum
       real(8)          :: columnVarB, scaling
       character(len=4) :: varName
       character(len=8) :: ccyymmdd
@@ -2227,8 +2227,8 @@ contains
           idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
           write(ccyymmdd, FMT='(i8.8)') idate
           read(ccyymmdd(5:6), FMT='(i2)') imonth
-          track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-          scaling = oer_ascatAnisIce(track_cell_no,imonth) - oer_ascatAnisOpenWater(track_cell_no,imonth)
+          trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
+          scaling = oer_ascatAnisIce(trackCellNum,imonth) - oer_ascatAnisOpenWater(trackCellNum,imonth)
         case default
           cycle BODY
         end select
@@ -2997,7 +2997,7 @@ contains
       real(8)          :: residual, scaling
       integer          :: headerIndex, bodyIndex, bufrCode
       integer          :: idate, imonth
-      integer          :: track_cell_no
+      integer          :: trackCellNum
       real(8), pointer :: columnGL(:)
       character(len=4) :: varName
       character(len=8) :: ccyymmdd
@@ -3023,8 +3023,8 @@ contains
           idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
           write(ccyymmdd, FMT='(i8.8)') idate
           read(ccyymmdd(5:6), FMT='(i2)') imonth
-          track_cell_no = obs_headElem_i( obsSpaceData, OBS_TCN, headerIndex )
-          scaling = oer_ascatAnisIce(track_cell_no,imonth) - oer_ascatAnisOpenWater(track_cell_no,imonth)
+          trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
+          scaling = oer_ascatAnisIce(trackCellNum,imonth) - oer_ascatAnisOpenWater(trackCellNum,imonth)
         case default
           cycle BODY
         end select
