@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add ability to assimilate ASCAT data (backscatter anisotropy and open water retrievals) for sea ice concentration analysis (#332 and !merge request number)
+ * Add ability to assimilate ASCAT data (backscatter anisotropy and open water retrievals) for sea ice concentration analysis (#332 and !326)
  * Add ability to apply radiance bias correction and estimate bias correction coefficients in the MIDAS framework (#210 and !279)
  * Add missing functionality to `midas-prepcma` program (#260 and !289)
  * Add stochastic LETKF with cross validation algorithm (#276 and !282)
