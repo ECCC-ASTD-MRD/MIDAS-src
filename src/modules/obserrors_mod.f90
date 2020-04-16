@@ -823,21 +823,21 @@ contains
       call utl_abort('oer_readObsErrorsICE: COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
-    write(*, '(A)') ' '
+    if ( mpi_myid == 0 ) write(*, '(A)') ' '
 
     do jelm = 1, 9
 
       do jlev = 1, 3
         read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
+        if ( mpi_myid == 0 ) write(*, '(A)') ligne
       end do
 
       read(nulstat, * ) xstd_sic(jelm)
-      write(*,*) xstd_sic(jelm)
+      if ( mpi_myid == 0 ) write(*,*) xstd_sic(jelm)
 
       do jlev = 1, 2
         read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
+        if ( mpi_myid == 0 ) write(*, '(A)') ligne
       end do
 
     end do
@@ -845,25 +845,25 @@ contains
     ! Read coefficients for ASCAT backscatter anisotropy
     do jlev = 1, 5
       read(nulstat, '(A)') ligne
-      write(*, '(A)') ligne
+      if ( mpi_myid == 0 ) write(*, '(A)') ligne
     end do
 
     do imonth = 1, 12
       do jlev = 1, 3
         read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
+        if ( mpi_myid == 0 ) write(*, '(A)') ligne
       end do
       do jcell_no = 1, ncells
          read(nulstat, * ) icell_no, tiePoint12, tiePoint13, tiePoint23, &
                            oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
                            ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
-         write(*,*) icell_no, tiePoint12, tiePoint13, tiePoint23, &
+         if ( mpi_myid == 0 ) write(*,*) icell_no, tiePoint12, tiePoint13, tiePoint23, &
                            oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
                            ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
       end do
     end do
 
-    write(*, '(A)') ' '
+    if ( mpi_myid == 0 ) write(*, '(A)') ' '
 
     close( unit = nulstat )
     ierr = fclos( nulstat )
