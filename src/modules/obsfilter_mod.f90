@@ -32,6 +32,7 @@ module obsFilter_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
+  use codtyp_mod
   implicit none
   save
   private
@@ -1481,7 +1482,7 @@ end subroutine filt_topoAISW
 
     ! locals
     integer :: bufrCode, headerIndex, bodyIndex
-    real(8) :: mod_wind_spd
+    real(8) :: modelWindSpeed
 
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
@@ -1503,9 +1504,9 @@ end subroutine filt_topoAISW
       if ( bufrCode == BUFR_ICES ) then
 
         headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-        mod_wind_spd = obs_headElem_r( obsSpaceData, OBS_MWS, headerIndex )
+        modelWindSpeed = obs_headElem_r( obsSpaceData, OBS_MWS, headerIndex )
 
-        if ( mod_wind_spd < 4.0 ) then
+        if ( modelWindSpeed < 4.0 ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),13))
         end if
@@ -1534,7 +1535,6 @@ end subroutine filt_topoAISW
     !
     !                   - Set assimilable flag to 0
     !
-    use codtyp_mod
     implicit none
 
     ! arguments
@@ -1544,7 +1544,7 @@ end subroutine filt_topoAISW
     ! locals
     character(len=12) :: cstnid
     integer           :: headerIndex, bodyIndex, codeType, iplat
-    logical           :: in_Platform_List
+    logical           :: inPlatformList
 
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
@@ -1566,21 +1566,21 @@ end subroutine filt_topoAISW
       cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
       codeType = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
 
-      in_Platform_List = .false.
+      inPlatformList = .false.
 
       PLATFORM: do iplat = 1, nPlatformIce
 
         if ( index(cstnid,trim(listPlatformIce(iplat))) > 0 .or. &
              index(codtyp_get_name(codeType),trim(listPlatformIce(iplat))) > 0) then
 
-          in_Platform_List = .true.
+          inPlatformList = .true.
           exit PLATFORM
 
         end if
 
       end do PLATFORM
 
-      if ( .not. in_Platform_List ) then
+      if ( .not. inPlatformList ) then
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         BODY: do 
