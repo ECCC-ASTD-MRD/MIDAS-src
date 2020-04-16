@@ -70,11 +70,6 @@ module obsFilter_mod
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
   logical :: useEnkfTopoFilt
 
-  ! List of satellites (id_stn in SQLite files) used for sea ice concentration
-  integer            :: nPlatformIce
-  integer, parameter :: maxPlatformIce = 50
-  character(len=12)  :: listPlatformIce(maxPlatformIce)
-
   character(len=48) :: filterMode
 
   logical :: initialized = .false.
@@ -146,8 +141,6 @@ contains
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
          surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
 
-    namelist /namPlatformIce/ nPlatformIce, listPlatformIce
-
     filterMode = filterMode_in
 
     ! set default values for namelist variables
@@ -183,19 +176,11 @@ contains
 
     useEnkfTopoFilt = .false.
 
-    nPlatformIce = 0
-    listPlatformIce(:) = '1234567890ab'
-
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
     if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replaced ltopofilt by list_topoFilt?')
-    read(nulnam,nml=namPlatformIce,iostat=ierr)
-    if(ierr /= 0) write(*,*) 'WARNING: namelist block namPlatformIce not found, use the default values'
-    if(mpi_myid == 0) then
-      write(*,nml=namfilt)
-      write(*,nml=namPlatformIce)
-    end if
+    if(mpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
     ! Force nlist to be in the same sequence as NVNUMB for invariance in
@@ -273,10 +258,6 @@ contains
           filtTopoList(obsFamilyIndex) = list_topoFilt(obsFamilyIndex)
         end if
       end do
-    end if
-
-    if ( nPlatformIce > maxPlatformIce ) then
-      call utl_abort('filt_setup: too many elements for listPlatformIce')
     end if
 
     initialized = .true.
@@ -1543,12 +1524,39 @@ end subroutine filt_topoAISW
 
     ! locals
     character(len=12) :: cstnid
-    integer           :: headerIndex, bodyIndex, codeType, iplat
+    integer           :: nulnam, headerIndex, bodyIndex, codeType, iplat
     logical           :: inPlatformList
+
+    ! List of satellites (id_stn in SQLite files) used for sea ice concentration
+    integer            :: nPlatformIce
+    integer, parameter :: maxPlatformIce = 50
+    character(len=12)  :: listPlatformIce(maxPlatformIce)
+
+    namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
+    ! set default values for namelist variables
+    nPlatformIce = 0
+    listPlatformIce(:) = '1234567890ab'
+
+    if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read (nulnam, nml = namPlatformIce, iostat = ierr)
+      if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
+      if ( mpi_myid == 0 ) write(*,nml=namPlatformIce)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'filt_iceConcentration: namPlatformIce is missing in the namelist. The default values will be taken.'
+    end if
+
     if ( nPlatformIce < 1 ) return
+
+    if ( nPlatformIce > maxPlatformIce ) then
+      call utl_abort('filt_setup: too many elements for listPlatformIce')
+    end if
 
     if (.not. beSilent) then
       write(*,*)
