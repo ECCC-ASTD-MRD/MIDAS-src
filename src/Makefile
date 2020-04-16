@@ -87,7 +87,8 @@
 
 ##-----------------------------------------------
 ## 	default target declaration
-all: 
+.DEFAULT_GOAL := all 
+#.DEFAULT_GOAL := help
 
 
 FILE_CFG := ./config.dot.sh
@@ -128,26 +129,26 @@ endif
 ## 	(independent of environment: available anytime) 
 .PHONY: clean cleanabs cleanobj cleandep
 
-clean:	## clean the build directory 
+clean:	#> delete the build directory 
 	@echo "rm -rf $(DIR_BLD_ROOT)"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 	rm -rf $(DIR_BLD_ROOT) 
 
-cleanabs: cleanobj ## clean all absolutes
+cleanabs: cleanobj #> delete all absolutes
 	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.Abs
 
-cleanobj: cleandep ## clean all objects
+cleanobj: cleandep #> delete all objects
 	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
 
-cleandep:	## clean the dependencies
+cleandep:	#> delete all dependency file
 	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
 
 
 .PHONY: help
-help:	## print this help
-	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+):.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+help:	#> print this help
+	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST) | sort | \
 	cut -d":" -f2- | \
-	awk 'BEGIN {FS = ":[^:]*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' | cut -d":" -f2
+	awk 'BEGIN {FS = ":[^:]*#> "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' | cut -d":" -f2
 
 
 
@@ -174,13 +175,13 @@ ifeq ($(filter clean%,$(MAKECMDGOALS)),)
         $(error EC_ARCH is not set, source $(FILE_CFG))
     endif
 
-	## 	Verify if `makedepf90` is available
-	##
-	##  until makedepf90 is globally installed, this check stays commmented
-	##  because `build.sh` will first make de dependencies on
-	##  the frontend where `makedepf90` is loaded through `conda` 
-	##  but compute node won't have it.
-	## 
+## 	Verify if `makedepf90` is available
+##
+##  until makedepf90 is globally installed, this check stays commmented
+##  because `build.sh` will first make de dependencies on
+##  the frontend where `makedepf90` is loaded through `conda` 
+##  but compute node won't have it.
+## 
 #    ifeq ($(shell which makedepf90),)
 #		##  `makedepf90` not available on backend..
 #		##  dependencies have to be copied there before
@@ -200,22 +201,26 @@ endif
 
 .PHONY: all real4 real8 install4 install8 install depend4 depend8 depend
 
-all: real4 real8 	## compile all programs (default target) 
-real4:	## compile all REAL 4 programs (for EnKF) 
+all: real4 real8 	#> compile all programs 
+real4:	#> compile all REAL 4 programs (for EnKF) 
 	$(MAKE) absolutes --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-real8:	## compile all REAL 8 programs 
+real8:	#> compile all REAL 8 programs 
 	$(MAKE) absolutes --no-print-directory
 
-depend : depend4 depend8	## generate dependency files
-depend4:	## generate dependency files for REAL 4 objects
+##  dependency analysis tool are only available on frontend
+##	the `depend` target generate dependency files for both 
+##	REAL 4 and 8 on both platforms.
+depend : depend4 depend8	#> generate all dependency files
+	$(MAKE) copy_depend_backend --no-print-directory
+depend4:	#> generate dependency files for REAL 4 objects
 	$(MAKE) depend_ --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-depend8:	## generate dependency files for REAL 8 objects
+depend8:	#> generate dependency files for REAL 8 objects
 	$(MAKE) depend_ --no-print-directory
 
-install: install4 install8	## install all programs
-install4:	## install all REAL 4 programs
+install: install4 install8	#> install all programs
+install4:	#> install all REAL 4 programs
 	$(MAKE) install_ --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-install8: 	## install all REAL 8 programs
+install8: 	#> install all REAL 8 programs
 	$(MAKE) install_ --no-print-directory
 
 ##	END of Common block
@@ -318,19 +323,17 @@ $(ABS_INSTALL_PRFX)%$(ABS_INSTALL_SUFX).Abs : $(CURDIR)/%.Abs
 ##	Main ftn90 preprocessing, compilation and linking recipes
 ##
 _D_options=$(filter -D%,$(COMPF))
-%.f90: %.ftn90	## preprocess an ftn90 file
+%.f90: %.ftn90	#> preprocess an ftn90 file
 	@echo 'Preprocessing $(@F) inplace'
 	$(V) r.gppf -lang-f90+ $(GPP_OPTS) $(_D_options) $< \
 	> $@ \
 	2> /dev/null
 
-## compilation of objects
-%.o:	## compile an object 
+%.o:	#> compile an object 
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
 
-## linking of absolutes
-%.Abs: 	## link an absolute 
+%.Abs: 	#>link an absolute 
 	$(FC) $(COMPF) -O $(FOPTMIZ) \
 	$(addprefix -l, $(LIBAPPL) $(LIBSYS) $(LIBRMN)) $^ \
 	-o $@
@@ -369,6 +372,11 @@ endif
 ##	`makedepf90` can be obtained through 
 ##	* conda pakage at [conda-forge](https://anaconda.org/conda-forge/makedepf90)
 ##	* Debian or Ubuntu pakages
+
+.PHONY: copy_depend_backend
+
+## `makedepf90` only available on frontend
+ifeq ($(ORDENV_PLAT),$(FRONTEND_PLAT))
 $(DEP_OBJ): $(SRC_ALL)
 	$(V) echo "Generating object dependencies > $@"	
 	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | sed  's/\([^ ]* :\)/\n\1/g' > $@
@@ -378,10 +386,18 @@ $(DEP_OBJ): $(SRC_ALL)
 ##	generate prerequisites for absolutes using `recursiveDep.py`
 ##
 $(DEP_ABS): $(DEP_OBJ)
-	$(V) echo "Generating executables dependencies > $@"	
+	$(V) echo "Generating executables dependencies > $@"
 	$(V) $(SRC_ROOT)/recursiveDep.py '$(notdir $(ABS))' -d $^ > $@
 
+copy_depend_backend: $(DEP_OBJ) $(DEP_ABS)	#> copy dependency files generated on frontend
+	$(V) source $(SRC_ROOT)/func.dot.sh && copy_depend ${BACKEND} &&\
+	echo "Dependency copied to backend build folder" 
 
+else
+$(DEP_OBJ) $(DEP_ABS) copy_depend_backend:
+	@echo "<!> Dependency analysis only available on frontend"
+	@exit 1
+endif
 
 ##-----------------------------------------------
 ##	Other phony global targets
@@ -392,11 +408,11 @@ absolutes: $(ABS)
 
 objects: $(OBJ)
 
-ssm:	## build SSM package (not available yet)
+ssm:	#> build SSM package (not available yet)
 
-doc:	## build documentation (not available yet)
+doc:	#> build documentation (not available yet)
 
-diagrams:	## build diagrams (not available yet)
+diagrams:	#> build diagrams (not available yet)
 
 .PHONY: printAbs
 printAbs:
@@ -406,7 +422,7 @@ printAbs:
 printObj:
 	@echo $(OBJ)
 
-info:	##	print build configuration
+info:	#>	print build configuration
 	@echo
 	@echo '===| INFO |================================='
 	@echo version: $(VERSION)

@@ -13,9 +13,6 @@ echo "... Preparing dependencies"
 echo "    > listing_depend"
 make depend DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_depend 2>&1
 
-##  copying dependencies to BACKEND directory (hack)
-copy_depend ${BACKEND}
-
 ##=========================================================
 ##  Compilation on backend (in the background)
 here=$(pwd)
