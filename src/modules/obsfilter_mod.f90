@@ -1524,7 +1524,9 @@ end subroutine filt_topoAISW
 
     ! locals
     character(len=12) :: cstnid
-    integer           :: nulnam, headerIndex, bodyIndex, codeType, iplat
+    integer           :: nulnam, ierr
+    integer           :: headerIndex, bodyIndex, codeType, iplat
+    integer           :: fnom, fclos
     logical           :: inPlatformList
 
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
