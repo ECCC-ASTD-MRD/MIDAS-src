@@ -2101,12 +2101,14 @@ contains
           if (LEVELGPSRO==2) then
             if (trim(gpsroError) == 'DYNAMIC') then
               do NH1 = 1, NH
-                SUM0=0.d0
+                SUM0=1.d-30
                 SUM1=0.d0
                 do JH = 1, NH
-                  DDH=H(JH)-H(NH1)
-                  SUM0=SUM0+EXP(-(DDH/DH)**2)
-                  SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                  if ( H(JH) <= HTPMAXER ) then
+                    DDH=H(JH)-H(NH1)
+                    SUM0=SUM0+EXP(-(DDH/DH)**2)
+                    SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                  end if
                 end do
                 ZERR(NH1)=(SUM1/SUM0)**0.5D0
                 if ( NUMGPSSATS  >=  1 ) then

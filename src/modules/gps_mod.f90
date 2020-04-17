@@ -33,7 +33,7 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroError
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS, gpsroError
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
@@ -332,6 +332,7 @@ module gps_mod
 !     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
 !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
+!     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
 !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
 !
@@ -343,10 +344,11 @@ module gps_mod
 !         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
-  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
+  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50), HTPMAXER
   character(len=20) :: gpsroError
 
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroError
+  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
+                      BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroError
 
 
 !modgpsztd_mod
@@ -3006,6 +3008,7 @@ contains
     SURFMIN    = 0.d0
     HSFMIN     = 0.d0
     HTPMAX     = 70000.d0
+    HTPMAXER   = -1.d0
     BGCKBAND   = 0.05d0
     NUMGPSSATS = 0
     gpsroError = 'DYNAMIC'
@@ -3018,7 +3021,9 @@ contains
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, trim(gpsroError)
+    if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
+         HTPMAX,HTPMAXER,BGCKBAND,NUMGPSSATS, trim(gpsroError)
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !
