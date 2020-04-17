@@ -3,7 +3,6 @@
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="thinning"/>
   <SUBMITS sub_name="obsSelection"/>
-  <SUBMITS sub_name="ensManip"/>
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
@@ -181,24 +180,6 @@
   <FAMILY  name="obsSelection">
     <SUBMITS sub_name="select_AL"/>
     <FAMILY  name="select_AL">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
-  <FAMILY  name="ensManip">
-    <SUBMITS sub_name="mean_lam"/>
-    <FAMILY  name="mean_lam">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="recenter"/>
-    <FAMILY  name="recenter">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="recenter2"/>
-    <FAMILY  name="recenter2">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
