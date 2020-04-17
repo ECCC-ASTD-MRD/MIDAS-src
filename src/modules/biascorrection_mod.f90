@@ -102,15 +102,12 @@ MODULE biasCorrection_mod
   character(len=3) :: cglobal(25)
   character(len=7) :: cinst(25)
   integer :: nbscan(25)
-  integer :: bitListHyperIR(10)
-  integer :: bitListGeo(10)
-  integer :: bitListTovs(10)
-  integer :: bitListSsmis(10)
+  character (len=3) :: offline_opt, all_opt_ssmis, all_opt_tovs, all_opt_csr, all_opt_hyperIr
   integer, external            :: fnom, fclos 
   namelist /nambias/ biasActive,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
   namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
   namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats,loutCoeffCov
-  namelist /nambias/ bitListHyperIR, bitListGeo, bitListTovs, bitListSsmis
+  namelist /nambias/ offline_opt, all_opt_ssmis, all_opt_tovs, all_opt_csr, all_opt_hyperIr
 
 CONTAINS
  
@@ -142,10 +139,13 @@ CONTAINS
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
     loutstats = .false.
-    bitListHyperIR(:) = -1
-    bitListGeo(:) = -1
-    bitListTovs(:) = -1
-    bitListSsmis(:) = -1
+    offline_opt='NON'
+    all_opt_ssmis='OUI'
+    all_opt_tovs='OUI'
+    all_opt_csr='OUI'
+    all_opt_hyperIr='NON'
+
+    !
     ! read in the namelist NAMBIAS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -672,10 +672,9 @@ CONTAINS
             call bias_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
             biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
                  bias(iSensor)%chans(chanIndx)%coeff(1) 
-            
             do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
-              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
+              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
             end do
           end if
 
@@ -1361,6 +1360,10 @@ CONTAINS
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) 
         if (zenithAngle < 75. ) predictor(iPredictor) = (1.d0 /cos( zenithAngle * MPC_RADIANS_PER_DEGREE_R8 ) ) - 1.d0
+        !if (headerIndex == 4731) then
+        ! print *,"ZXC", obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex), predictor(iPredictor)
+        ! call flush(6)
+        !end if
       end if
 
     end do
@@ -2027,11 +2030,17 @@ CONTAINS
     integer :: bodyIndex, headerIndex
     integer :: assim,flag,codtyp
     integer :: isatBufr, instBufr, iplatform, isat, inst ,idsat,i,chanIndx
-    logical :: lHyperIr, lGeo,lSsmis
+    logical :: lHyperIr, lGeo, lSsmis, lTovs
+    logical :: condition, condition1, condition2
 
     if (.not. filterObs ) return
 
     if ( mpi_myid == 0 ) write(*,*) 'bias_filterObs: start'
+
+   
+    if (offline_opt /= 'OUI' .and.  offline_opt /= 'NON') then
+      call utl_abort('bias_filterObs: invalid offline_opt option ' // offline_opt )
+    end if
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
@@ -2041,8 +2050,9 @@ CONTAINS
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       lHyperIr = .false.
-      lGeo =  .false.
-      lSsmis = .false.
+      lGeo     = .false.
+      lSsmis   = .false.
+      lTovs    = .false.
 
       select case ( codtyp_get_name(codtyp) )
       case("ssmis")
@@ -2051,6 +2061,8 @@ CONTAINS
         lGeo = .true.
       case("airs","iasi","cris","crisfsr")
         lHyperIr = .true.
+      case default
+        lTovs = .true.
       end select
 
       isatBufr = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex) !BUFR element 1007
@@ -2082,37 +2094,119 @@ CONTAINS
           call bias_getChannelIndex(obsSpaceData, idsat, chanIndx,bodyIndex)
           if (chanIndx > 0) then
             flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
-            if (lHyperIr) then ! HyperSpectral IR case 
-              if ( keepData(flag,bitListHyperIR) ) assim = obs_assimilated
-            else if ( lGeo ) then ! geostationnary imager case
-              if ( keepData(flag,bitListGeo) ) assim = obs_assimilated
-            else if ( lSsmis)  then ! SSMIS case
-              if ( keepData(flag,bitListSsmis) ) assim = obs_assimilated
-            else ! AMSUA, AMSUB, MHS, ATMS "TOVS"
-              if ( keepData(flag,bitListTovs) ) assim = obs_assimilated
+
+            if ( lSsmis ) then   ! SSM/I and SSMIS
+              !   Here "good" means data that are not rejected by first QC program satqc_ssmi(s) (bit 7 ON).
+              !   Bit 11 is ON for data that are unselected by UTIL or for uncorrected data (or both).
+              !   Data rejected by first QC program satqc_ssmi(s) have bit 7 switched ON only (in addition to bit 9) as
+              !   rogue/topo checks are skipped. So if bit 16 (rogue) is ON, bit 7 must be off.
+              if ( offline_opt == 'NON' ) then
+                if ( all_opt_ssmis == 'OUI' ) then
+                  !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
+                  condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'
+                  !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
+                  condition2  = .not. btest(flag,6) .and. btest(flag,16) .and. .not. btest(flag,18) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
+                  condition = condition1 .or. condition2 !query = trim(query1) // ' UNION ALL ' // trim(query) ;
+                else if ( all_opt_ssmis == 'NON' ) then
+                  !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
+                  condition =   .not. btest(flag,9) .and. .not. btest(flag,11)       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
+                else 
+                  call utl_abort('ERROR: Invalid all_opt_ssmis option = ' // all_opt_ssmis)
+                end if
+
+              else   ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
+                condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'  
+                ! all good data that passed all QC    
+                ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
+                condition2  = btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,18) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+                condition = condition1 .or. condition2 !query = trim(query1) // ' UNION ALL ' // trim(query2) // ';'
+              end if
+            else if( lTovs ) then
+              ! AMSU-A, AMSU-B/MHS, ATMS, MWHS-2
+              !  In AMSU case, bit 11 is set for data that are not bias corrected or for unselected channels.
+              !    BUT unlike other instruments, all AMSU data are bias corrected, whether selected or not
+              !    so bit 11 = unselected channel (like bit 8 for AIRS/IASI)
+              !  Bit 9 is set for all other rejections including rogue (9+16) and topography (9+18).
+              !  In addition, bit 7 is set for channels with bad data or data that should not be assimilated.
+              if ( offline_opt == 'NON' ) then
+                if ( all_opt_tovs == 'OUI' ) then
+                  !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
+                  condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'
+                  !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
+                  !             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing
+                  condition2  =  btest(flag,16) .and. .not. btest(flag,6) .and. .not. btest(flag,18) .and. .not. btest(flag,7)!' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
+                  condition = condition1 .or. condition2 !query = trim(query1) // ' UNION ALL ' // trim(query2) // ';'
+                else if ( all_opt_tovs == 'NON' ) then
+                  !  FLAG test: selected data (bit 11 OFF) that have passed QC (bit 9 OFF)
+                  condition  =  .not. btest(flag,9) .and.  .not. btest(flag,11) !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
+                  !query = trim(query) // trim(condition) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string) // ';'
+                else    
+                  call utl_abort('ERROR: Invalid all_opt_tovs option = ' // all_opt_tovs)
+                end if
+              else    ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue check
+                condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'  
+                ! all good data that passed all QC    
+                ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
+                condition2  =  btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,18)  !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+                condition = condition1 .or. condition2 !query = trim(query1) // ' UNION ALL ' // trim(query2) // ';'
+              end if
+            else if( lGeo ) then   !  AIRS, IASI, CSR, CRIS  
+              ! CSR case!    No flag check        =                all data that have passed QC/filtering
+              !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
+              if ( all_opt_csr == 'OUI' .or. offline_opt == 'OUI' ) then
+                condition  = .true. !
+              else        
+                condition  = .not. btest(flag,18) ! ' AND (FLAG & 2048 = 0)' 
+              endif
+            else if (lHyperIr) then ! AIRS, IASI and CRIS
+              !  (FLAG & 2560 = 0)     = bits 9, 11 OFF       --> data that passed QC (rogue and other)
+              !  (FLAG & 11010176 = 0) = bits 7,19,21,23 OFF  --> "good" data (corrected/selected or not)!  (FLAG & 64 = 64)  = bit 6 ON        --> bias corrected data
+              !  (FLAG & 256 = 0)  = bit 8 OFF       --> passed selction (not blacklisted, UTIL=1)
+              !  (FLAG & 2048 = 2048)   = bit 11 ON
+              !  (FLAG & 65536 = 65536) = bit 16 ON  --> rogue check failure
+              !  (FLAG & 524288 = 0)    = bit 19 OFF --> not surface affected [experimental, bit 11 may not be on if data
+              !                                          are to be assimilated]
+              !  (FLAG & 2097152 = 0)   = bit 21 OFF --> not rejected due to model top transmittance
+              !  (FLAG & 8388608 = 0)   = bit 23 OFF --> "clear sky" radiance [experimental, bit 11 may not be on if cloudy
+              !                                          data are assimilated]!  (FLAG & 128 = 0 )      = bit 7 OFF  --> not shortwave channel during day
+              !  (FLAG & 512 = 0 )      = bit 9 OFF  --> non-erroneous data that passed O-P rogue check
+              !! AIRS, IASI:!    bit  8 ON: blacklisted/unselected channel (UTIL=0)
+              !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
+              !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
+              !               not bias corrected (11) (with bit 6 OFF)
+              if ( offline_opt == 'NON' ) then
+                if ( all_opt_hyperIr == 'OUI' ) then        
+                  ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
+                  condition1  = .not. btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,19) .and. .not. btest(flag,21) .and. .not. btest(flag,23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+                  ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
+                  condition2  = .not. btest(flag,6) .and. btest(flag,11) .and.  .not. btest(flag,17) .and. .not. btest(flag,19) .and. .not. btest(flag,21) .and. .not. btest(flag,23) 
+                  !' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+                  condition = condition1 .or. condition2  !query = trim(query1) // ' UNION ALL ' // trim(query2) // ';'
+                else if ( all_opt_hyperIR == 'NON' ) then 
+                  ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
+                  condition =  .not. btest(flag,9) .and. .not. btest(flag,11) .and.  .not. btest(flag,8) .and. .not. btest(flag,23) .and. .not. btest(flag,19) 
+                  !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
+                else
+                  call utl_abort( 'ERROR: Invalid all_opt_hyperIr option = ' // all_opt_hyperIr)
+                end if
+              else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
+                !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
+                ! data that passed all QC 
+                condition1 =  .not. btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,19) .and. .not. btest(flag,21) .and. .not. btest(flag,23) 
+                !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+                ! good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON)
+                condition2 = btest(flag,9) .and. btest(flag,16) .and. .not. btest(flag,7) .and. .not. btest(flag,19) .and. .not. btest(flag,21) .and. .not. btest(flag,23) !' AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+                condition = condition1 .or. condition2 !query = trim(query1) // ' UNION ALL ' // trim(query2) // ';'
+              end if
             end if
+
+            if (condition) assim = obs_Assimilated
+
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
           end if
         end if
       end do BODY
     end do HEADER
-
-  contains
-
-    logical function keepData(flag, bitList)
-      integer, intent(in) :: flag
-      integer, intent(in) :: bitList(:)
-      integer :: i,j
-
-      keepData = .true.
-
-      do i=1,size(  bitList )
-        j = bitList(i)
-        if (j == -1) exit
-        keepData = keepData .and. (.not. btest(flag,j) )
-      end do
-
-    end function keepData
  
   end subroutine bias_filterObs
 
@@ -2123,8 +2217,8 @@ CONTAINS
     !
     ! :Purpose: to apply bias correction from OBS_BCOR to
     !           obsSpaceData column column.
-    !           After the call OBS_VAR contains the corrected
-    !           observation and OBS_BCOR is not modified.
+    !           After the call obsSpaceData body column contains the corrected
+    !           observation or O-F and OBS_BCOR is not modified.
     implicit none
     !Arguments:
     type(struct_obs)                       :: obsSpaceData
@@ -2151,7 +2245,7 @@ CONTAINS
       biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8) then
         Obs =  obs_bodyElem_r(obsSpaceData,column,bodyIndex)
-        if (Obs /= MPC_missingValue_R8) then 
+        if (Obs /= MPC_missingValue_R8) then
           call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,OBS_REAL))
           flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
           flag = ibset(flag, 6)
@@ -2667,7 +2761,7 @@ CONTAINS
 
     if ( trim(nameIn) == 'MSG1' ) then
       nameOut = 'METSAT8'
-    elseif ( trim(nameIn) == 'MSG2' ) then
+    else if ( trim(nameIn) == 'MSG2' ) then
       nameOut = 'METSAT9'
     else if ( trim(nameIn) == 'MSG3' ) then
       nameOut = 'METSAT10'
@@ -2956,7 +3050,7 @@ CONTAINS
     ptypes(:,:,:)   = 'XX'
     
     read(iun,*,IOSTAT=istat)
-    if ( istat < 0 ) THEN
+    if ( istat < 0 ) then
       write(*,*) 'read_coeff: ERROR- File appears empty.'
       return
     end if
@@ -3102,9 +3196,6 @@ CONTAINS
     chanIndx = Index(idsat,ichan)
 
   end subroutine bias_getChannelIndex
-
-
-  
 
 
 end MODULE biascorrection_mod
