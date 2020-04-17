@@ -36,11 +36,14 @@ MODULE biasCorrectionConv_mod
   real     :: corrects_ZTD(nStationMaxGP)
   character(len=9) :: aircraft_ID(nStationMax)
   character(len=9) :: gps_stn(nStationMaxGP)
+  
+  ! Bias correction files (must be in program working directory)
   character(len=8), parameter :: ai_bcfile = "ai_bcors", gp_bcfile = "gp_bcors"
 
   public               :: bcc_readConfig, bcc_applyAIBcor, bcc_applyGPBcor
   
   integer, external    :: fnom, fclos
+  
   logical :: aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly, gpRejBit11
   namelist /nambiasconv/ aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly, gpRejBit11
   
@@ -58,11 +61,11 @@ CONTAINS
     integer  :: ierr,nulnam
   
     ! set default values for namelist variables
-    aiBiasActive = .false.
-    gpBiasActive = .false.
-    aiRevOnly = .false.
-    gpRevOnly = .false.
-    gpRejBit11 = .true.
+    aiBiasActive = .false.  ! bias correct AI data (TT)
+    gpBiasActive = .false.  ! bias correct GP data (ZTD)
+    aiRevOnly    = .false.  ! AI: don't apply new correction but simply reverse any old corrections
+    gpRevOnly    = .false.  ! GP: don't apply new correction but simply reverse any old corrections
+    gpRejBit11   = .true.   ! GP: Set data flag bit 11 (reject for assim) for any uncorrected data
     ! read in the namelist NAMBIASCONV
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -177,12 +180,21 @@ CONTAINS
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
 
         if ( bufrCode == BUFR_NETT) then
-          tt = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+          tt      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          flag    = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+          oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
           corr = MPC_missingValue_R8
-
-          if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then  
-
+          
+          if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then
+          
+            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
+               tt = tt + oldCorr
+               flag = ibclr(flag, 6)
+            end if
+            if (aiRevOnly) corr = 0.0
+             
+            IF ( .not.aiRevOnly ) THEN
+                
             pressure = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
 
             ! Get level index and current (mar 2020) static bulk corrections applied to AI TT data at derivate stage
@@ -204,18 +216,10 @@ CONTAINS
             else 
               levelIndex = 0
               corr = 0.0
-            end if
-
-            oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
-            ! Remove any previous bias correction
-            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
-              tt = tt + oldCorr
-              flag = ibclr(flag, 6)
-            end if
+            end if       
+ 
             codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-            IF ( .not. aiRevOnly ) THEN
-            
             ! Default bulk corrections read from bcor file (applied if dynamic corrections are not availble for the aircraft)
             if ( codtyp == 128 .or. codtyp == 177 ) then  ! AIREP/ADS
               phaseIndex = 2
@@ -260,14 +264,12 @@ CONTAINS
               end if
             end if
             
-            END IF
-            
-          end if
-
-          ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
-          if ( (.not. gpRevOnly) .and. (tt /= real(MPC_missingValue_R8,OBS_REAL)) ) then
+            ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
             tt = tt - corr
             flag = ibset(flag, 6)
+            
+            END IF
+            
           end if
 
           call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
@@ -377,13 +379,14 @@ CONTAINS
 
         if ( bufrCode == BUFR_NEZD ) then
           
-          ztd  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          ztd     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
+          flag    = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+          
           corr = MPC_missingValue_R8
-          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
           
           if ( ztd /= real(MPC_missingValue_R8,OBS_REAL) ) then  
             
-            oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
             ! Remove any previous bias correction
             if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
               ztd = ztd - oldCorr
