@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Program `ensPostProcess` can now be used to just do recentering or computing trial mean and spread (#334 and !327)
+   * **Note:** changes must be made to namelist block names for the `ensPostProcess` and `letkf` programs!
 
 ### Fixed
 
