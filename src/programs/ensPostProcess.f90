@@ -17,7 +17,7 @@
 program midas_ensPostProcess
   ! :Purpose: Post-processing program for the local ensemble transform Kalman filter (LETKF).
   !           Many aspects of this program are controlled throught the namelist
-  !           block namEnsPostProc defined in enkf_postProcess.
+  !           block namEnsPostProc defined in epp_postProcess.
   use mpi_mod
   use fileNames_mod
   use ensembleStateVector_mod
@@ -28,7 +28,7 @@ program midas_ensPostProcess
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
-  use enkf_mod
+  use ensPostProcess_mod
   implicit none
 
   type(struct_ens), pointer :: ensembleTrl
@@ -169,7 +169,7 @@ program midas_ensPostProcess
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')
-  call enkf_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
+  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
   call tmg_stop(8)
 
   !
