@@ -17,7 +17,7 @@
 program midas_ensPostProcess
   ! :Purpose: Post-processing program for the local ensemble transform Kalman filter (LETKF).
   !           Many aspects of this program are controlled throught the namelist
-  !           block namEnsPostProc defined in enkf_postProcess.
+  !           block namEnsPostProc defined in epp_postProcess.
   use mpi_mod
   use fileNames_mod
   use ensembleStateVector_mod
@@ -28,7 +28,7 @@ program midas_ensPostProcess
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
-  use enkf_mod
+  use ensPostProcess_mod
   implicit none
 
   type(struct_ens), pointer :: ensembleTrl
@@ -40,13 +40,16 @@ program midas_ensPostProcess
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
-  character(len=256) :: ensFileName, ensFileBaseName
+  character(len=256) :: ensFileName, gridFileName
   integer, allocatable :: dateStampList(:)
   integer :: ierr, nulnam
+  logical :: targetGridFileExists
   integer, external :: get_max_rss, fstopc, fnom, fclos
 
-  integer :: nEns ! ensemble size
-  NAMELIST /NAMLETKF/nEns
+  integer :: nEns             ! ensemble size
+  logical :: readTrlEnsemble  ! activate reading of trial ensemble
+  logical :: readAnlEnsemble  ! activate reading of analysis ensemble
+  NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -72,18 +75,29 @@ program midas_ensPostProcess
 
   !- Setting default namelist variable values
   nEns = 256
+  readTrlEnsemble = .true.
+  readAnlEnsemble = .true.
+
   !- Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namletkf, iostat=ierr)
+  read(nulnam, nml=namEnsPostProc, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namletkf)
+  if ( mpi_myid == 0 ) write(*,nml=namEnsPostProc)
   ierr = fclos(nulnam)
+
+  if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
+    call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
+  end if
 
   !- 1. Initialize date/time-related info
 
-  ! Setup timeCoord module, set dateStamp with value from trial ensemble member 1
-  call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, ensFileBaseName_opt=ensFileBaseName)
+  ! Setup timeCoord module, set dateStamp with value from trial or analysis ensemble member 1
+  if (readTrlEnsemble) then
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+  else
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+  end if
   call tim_setup(fileNameForDate_opt=ensFileName)
   allocate(dateStampList(tim_nstepobsinc))
   call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
@@ -95,12 +109,22 @@ program midas_ensPostProcess
   !- Initialize variables of the model states
   call gsv_setup
 
-  !- Initialize the grid from trial ensemble member 1
+  !- Initialize the grid from targetgrid file or from trial or analysis ensemble member 1
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
-  call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
-  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile(vco_ens, ensFileName)
+  inquire(file='targetgrid', exist=targetGridFileExists)
+  if (targetGridFileExists) then
+    gridFileName = 'targetgrid'
+  else if (readTrlEnsemble) then
+    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt=1)
+  else
+    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1)
+  end if
+  if (mpi_myid == 0) then
+    write(*,*) 'midas-ensPostProcess: file use to define grid = ', trim(gridFileName)
+  end if
+  call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile(vco_ens, gridFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-ensPostProcess: nLev_M /= nLev_T - currently not supported')
   end if
@@ -114,8 +138,14 @@ program midas_ensPostProcess
   end if
 
   !- Read the sfc height from trial ensemble member 1
+  if (readTrlEnsemble) then
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+  else
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+  end if
   call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    hInterpolateDegree_opt = 'LINEAR', &
                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
   call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                         containsFullField_opt=.true., readHeightSfc_opt=.true.)
@@ -123,19 +153,23 @@ program midas_ensPostProcess
   !- 3. Allocate and read ensembles
 
   !- Allocate ensembles, read the Anl ensemble
-  call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
+  if (readAnlEnsemble) then
+    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
+    call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
+    call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
+  end if
 
   !- Allocate ensembles, read the Trl ensemble
-  call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-  allocate(ensembleTrl)
-  call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
+  if (readTrlEnsemble) then
+    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
+    allocate(ensembleTrl)
+    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
+    call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
+  end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')
-  call enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc)
+  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
   call tmg_stop(8)
 
   !

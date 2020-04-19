@@ -16,8 +16,8 @@
 
 program midas_letkf
   ! :Purpose: Main program for the local ensemble transform Kalman filter (LETKF).
-  !           Note that the actual calculation of the analyses is in the local
-  !           subroutine letkf_computeAnalyses, *contained* in this program.
+  !           Note that the actual calculation of the analyses is in the
+  !           subroutine enkf_LETKFanalyses.
   !           Many aspects of this program are controlled throught the namelist
   !           block NAMLETKF.
   use mpi_mod
@@ -42,6 +42,7 @@ program midas_letkf
   use obsFilter_mod
   use innovation_mod
   use enkf_mod
+  use ensPostProcess_mod
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -441,7 +442,7 @@ program midas_letkf
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
     call tmg_start(8,'LETKF-postProcess')
-    call enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc)
+    call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
     call tmg_stop(8)
   else
     ! just write the raw analysis ensemble to files

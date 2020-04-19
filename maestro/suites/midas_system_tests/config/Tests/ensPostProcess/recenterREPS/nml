@@ -1,0 +1,22 @@
+  &namEnsPostProc
+   nEns                  = 20
+   readTrlEnsemble       = .false.
+   readAnlEnsemble       = .true.
+/
+  &namEnsPostProcModule
+   weightRecenter           = 1.0D0
+   huLimitsBeforeRecenter   = .false.
+   imposeSaturationLimit    = .true.
+   imposeRttovHuLimits      = .true.
+/
+ &NAMTIME
+   DSTEPOBSINC = 6.0d0
+   DSTEPOBS    = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)    ='UU'
+   ANLVAR(2)    ='VV'
+   ANLVAR(3)    ='TT'
+   ANLVAR(4)    ='HU'
+   ANLVAR(5)    ='P0'
+/

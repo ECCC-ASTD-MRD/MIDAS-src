@@ -3,7 +3,6 @@
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="thinning"/>
   <SUBMITS sub_name="obsSelection"/>
-  <SUBMITS sub_name="ensManip"/>
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
@@ -186,34 +185,6 @@
     </FAMILY>
   </FAMILY>
 
-  <FAMILY  name="ensManip">
-    <SUBMITS sub_name="mean"/>
-    <FAMILY  name="mean">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="mean_lam"/>
-    <FAMILY  name="mean_lam">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="recenter"/>
-    <FAMILY  name="recenter">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="recenter2"/>
-    <FAMILY  name="recenter2">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="recenterLAM"/>
-    <FAMILY  name="recenterLAM">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
   <FAMILY  name="addIncrement">
     <SUBMITS sub_name="2D"/>
     <FAMILY  name="2D">
@@ -264,8 +235,21 @@
   </FAMILY>
 
   <FAMILY  name="ensPostProcess">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="afterLETKF"/>
+    <FAMILY  name="afterLETKF">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="trialMeanRms"/>
+    <FAMILY  name="trialMeanRms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="recenterREPS"/>
+    <FAMILY  name="recenterREPS">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="prepcma">
