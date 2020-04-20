@@ -54,21 +54,6 @@
     cinst(14)="AHI"		
     nbscan(14)=1
     cglobal(14)="OUI"
-    bitListHyperIR(1)=7,
-    bitListHyperIR(2)=9,
-    bitListHyperIR(3)=16,
-    bitListHyperIR(4)=19,
-    bitListHyperIR(5)=21,
-    bitListHyperIR(6)=23,
-    bitListGeo(1)=11,
-    bitListTovs(1)=7,
-    bitListTovs(2)=9,
-    bitListTovs(3)=16,
-    bitListTovs(4)=18,
-    bitListSsmis(1)=7,
-    bitListSsmis(2)=9,
-    bitListSsmis(3)=16,
-    bitListSsmis(4)=18,
 /
  &NAMINC
    etiket_rebm ='XXXXXX'
