@@ -1001,7 +1001,8 @@ contains
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
+              OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
