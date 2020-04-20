@@ -2069,13 +2069,14 @@ CONTAINS
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
             if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
-            if ( FAMILYTYPE2 == 'TO' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
-            if ( FAMILYTYPE2 == 'AI' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12204,IOSTAT=error)
-            if ( FAMILYTYPE2 == 'GP' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=15033,IOSTAT=error)
+            IND_BCOR = -1
+            if ( FAMILYTYPE == 'TO' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
+            if ( FAMILYTYPE == 'AI' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12204,IOSTAT=error)
+            if ( FAMILYTYPE == 'GP' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=15033,IOSTAT=error)
 
             IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
 
-            if( TRIM(FAMILYTYPE2) == 'AI' .and. IND_PHASE > 0) then
+            if( TRIM(FAMILYTYPE) == 'AI' .and. IND_PHASE > 0) then
               allocate( phase(nvale,nte) )
               phase(:,:) = MPC_missingValue_R4
             end if
