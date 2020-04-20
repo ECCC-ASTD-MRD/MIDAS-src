@@ -1360,10 +1360,6 @@ CONTAINS
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) 
         if (zenithAngle < 75. ) predictor(iPredictor) = (1.d0 /cos( zenithAngle * MPC_RADIANS_PER_DEGREE_R8 ) ) - 1.d0
-        !if (headerIndex == 4731) then
-        ! print *,"ZXC", obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex), predictor(iPredictor)
-        ! call flush(6)
-        !end if
       end if
 
     end do
