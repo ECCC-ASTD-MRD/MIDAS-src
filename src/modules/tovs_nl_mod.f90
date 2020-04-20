@@ -1965,7 +1965,7 @@ contains
         sensorHeaderIndexes(profileCount) = headerIndex
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        ksurf = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
+        ksurf = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
         tvs_profiles(tovsIndex) % skin % surftype = ksurf
 
         !    extract satellite zenith and azimuth angle, 
@@ -1995,7 +1995,7 @@ contains
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         tvs_profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
 
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
 
         do levelIndex = 1, nlv_T
           tt   (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TT')

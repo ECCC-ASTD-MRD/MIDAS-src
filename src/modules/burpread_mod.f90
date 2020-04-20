@@ -3031,11 +3031,11 @@ CONTAINS
 
     NOBS = obs_numHeader(obsdat)
 
-    call obs_headSet_r(obsdat,OBS_SZA,nobs,QIvalue)
-    call obs_headSet_i(obsdat,OBS_TEC,nobs,MTvalue)
-    call obs_headSet_r(obsdat,OBS_AZA,nobs,LSvalue)
-    call obs_headSet_r(obsdat,OBS_SUN,nobs,GAvalue)
-    call obs_headSet_r(obsdat,OBS_CLF,nobs,HAvalue)
+    call obs_headSet_i(obsdat,OBS_SWQI,nobs,nint(QIvalue))
+    call obs_headSet_i(obsdat,OBS_SWMT,nobs,MTvalue)
+    call obs_headSet_i(obsdat,OBS_SWLS,nobs,nint(LSvalue))
+    call obs_headSet_i(obsdat,OBS_SWGA,nobs,nint(GAvalue))
+    call obs_headSet_i(obsdat,OBS_SWHA,nobs,nint(HAvalue))
 
   END SUBROUTINE  WRITE_QI
 
@@ -3241,7 +3241,7 @@ CONTAINS
       LAND_SEA = 2
     END IF
 
-    if ( obs_columnActive_IH(obsdat,OBS_OFL) ) call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
+    if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,LAND_SEA)
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
