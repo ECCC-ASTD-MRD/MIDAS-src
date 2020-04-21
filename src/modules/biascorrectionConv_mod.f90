@@ -182,7 +182,7 @@ CONTAINS
         if ( bufrCode == BUFR_NETT) then
           tt      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
           flag    = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-          oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
+          oldCorr = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
           corr = MPC_missingValue_R8
           
           if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then
@@ -380,7 +380,7 @@ CONTAINS
         if ( bufrCode == BUFR_NEZD ) then
           
           ztd     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-          oldCorr = obs_bodyElem_i(obsSpaceData, OBS_BCOR, bodyIndex )
+          oldCorr = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
           flag    = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
           
           corr = MPC_missingValue_R8

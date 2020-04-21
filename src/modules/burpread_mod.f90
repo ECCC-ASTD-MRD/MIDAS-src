@@ -130,7 +130,7 @@ CONTAINS
     INTEGER                :: OBS_START,SAVE_OBS,ASSIM
     INTEGER                :: IL_INDEX,IRLN,INLV,LK,VNM
     REAL                   :: PPP,OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR
-    INTEGER                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS
+    INTEGER                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS,ILEMZBCOR,ILEMTBCOR
 
     INTEGER                :: BLOCK_LIST(NBLOC_LIST),bl
 
@@ -154,6 +154,8 @@ CONTAINS
     ILEMU=11003
     ILEMV=11004
     ILEMD=11001
+    ILEMZBCOR=15033 ! bcor element for GP  ZTD observations
+    ILEMTBCOR=12204 ! bcor element for (AI) TT observations
     ELEVFACT=0.
     BNBITSOFF=0
     BNBITSON=0
@@ -856,6 +858,11 @@ CONTAINS
                         else
                           FSO = MPC_missingValue_R4
                         end if
+                        if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+                          BCOR = obs_bodyElem_r(obsdat,OBS_BCOR,LK)
+                        else
+                          BCOR = MPC_missingValue_R4
+                        end if                       
                         FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
                         KOBSN= KOBSN + 1
                         SUM=SUM +1
@@ -874,10 +881,15 @@ CONTAINS
    
                         Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG) 
    
-                        OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
+                        !OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
                         IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
                         Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = OBS ) 
 
+                        if (iele == BUFR_NEZD) then
+                           IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=ILEMZBCOR, IOSTAT=error)
+                           if (IND_ele > 0) Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = BCOR ) 
+                        end if
+                        
                         exit
                       end if
 
@@ -1161,7 +1173,7 @@ CONTAINS
 
                 is_in_list=-1
                 is_in_list=FIND_INDEX(LISTE_ELE,iele)
-                if (is_in_list < 0   .and. iele  /= ILEMU .and. iele /= ILEMV)cycle
+                if (is_in_list < 0   .and. iele  /= ILEMU .and. iele /= ILEMV) cycle
 
                 IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
                 OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
@@ -1208,7 +1220,7 @@ CONTAINS
                         FSO = MPC_missingValue_R4
                       end if
                       if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-                        BCOR=obs_bodyElem_r(obsdat,OBS_BCOR,LK)
+                        BCOR = obs_bodyElem_r(obsdat,OBS_BCOR,LK)
                       else
                         BCOR = MPC_missingValue_R4
                       end if
@@ -1274,11 +1286,15 @@ CONTAINS
                         endif
                       endif
 
-                      IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-
-                      if (iele == 12233 .or. iele == 12204 .or. iele == 15033) then
-                         Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
+                      IND_ele = -1
+                      if (iele == BUFR_NBT3) then
+                         IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
+                      elseif (iele == BUFR_NETT .and. FAMILYTYPE == "AI") then
+                         IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMTBCOR, IOSTAT=error)
                       end if
+                      if (IND_ele > 0) Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
+                      
+                      IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
 
@@ -1540,6 +1556,8 @@ CONTAINS
 
     REAL   , ALLOCATABLE   :: OBSVALUE(:,:,:),OBSVALUE_SFC(:,:,:)
     REAL   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
+    REAL   , ALLOCATABLE   :: BiasCorrection_sfc(:,:,:)
+    REAL   , ALLOCATABLE   :: BCOR_SFC(:)
 
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
@@ -1591,6 +1609,7 @@ CONTAINS
     REAL                   :: RAD_MOY,RAD_STD
     INTEGER                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     INTEGER                :: infot
+    INTEGER                :: ILEMZBCOR, ILEMTBCOR
     
     
     DATA LISTE_INFO  &
@@ -1607,6 +1626,8 @@ CONTAINS
     NELE=0
     BNBITSOFF=0
     BNBITSON=0
+    ILEMZBCOR=15033 ! bcor element for GP  ZTD observations
+    ILEMTBCOR=12204 ! bcor element for (AI) TT observations
     ENFORCE_CLASSIC_SONDES=.false.
     READ_QI_GA_MT_SW=.false.
     UNI_FAMILYTYPE = 'SF'
@@ -1965,13 +1986,16 @@ CONTAINS
             flag_passage3 = 1
 
             ALLOCATE(obsvalue_sfc(NELE_SFC,1,nte))
-            ALLOCATE(  OBSERV_SFC(NELE_SFC,1) )
+            ALLOCATE(BiasCorrection_sfc(NELE_SFC,1,nte))
+            ALLOCATE( OBSERV_SFC(NELE_SFC,1) )
+            ALLOCATE( BCOR_SFC(NELE_SFC) )
 
             ALLOCATE( vcoord_sfc(1))
 
             vcoord_type=0
             vcoord_SFC(:)       = 0
             obsvalue_sfc(:,:,:) = MPC_missingValue_R4
+            BiasCorrection_sfc(:,:,:) = MPC_missingValue_R4
             IND_LAT   = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
             IND_LON   = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
             IND_TIME  = BURP_Find_Element(Block_in, ELEMENT=4015, IOSTAT=error)
@@ -1997,7 +2021,7 @@ CONTAINS
 
             do IL = 1, NELE_SFC
 
-              iele=LISTE_ELE_SFC(IL)
+              iele = LISTE_ELE_SFC(IL)
               IND_ele  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
               if (IND_ele < 0 ) cycle
 
@@ -2007,8 +2031,22 @@ CONTAINS
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
               end do
+              
+              IND_ele = -1
+              if (iele == BUFR_NEZD) then
+                IND_ele  = BURP_Find_Element(Block_in, ELEMENT=ILEMZBCOR, IOSTAT=error)
+              end if
+              if (IND_ele > 0) then
+                do k=1,nte
+                  BiasCorrection_sfc(IL,1,k) = BURP_Get_Rval(Block_in, &
+                                                & NELE_IND = IND_ele, &
+                                                & NVAL_IND = 1, &
+                                                & NT_IND   = k)
+                end do
+              end if
 
             end do
+            
           end if
 
           if ( btyp10 - btyp10flg_uni == 0 .and. bkstp <= 4 ) then
@@ -2066,8 +2104,7 @@ CONTAINS
 
             IND_BCOR = -1
             if ( FAMILYTYPE == 'TO' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
-            if ( FAMILYTYPE == 'AI' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12204,IOSTAT=error)
-            if ( FAMILYTYPE == 'GP' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=15033,IOSTAT=error)
+            if ( FAMILYTYPE == 'AI' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=ILEMTBCOR,IOSTAT=error)
 
             IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
 
@@ -2456,14 +2493,15 @@ CONTAINS
 
           IF  (HIRES ) THEN
 
-            if (allocated(EMIS))     SURF_EMIS(1:NVAL)    =EMIS      (1:NVAL,k)
-            if (allocated(BCOR))     BiasCorrection(1:NVAL) = BCOR (1:NVAL,k)
+            if (allocated(EMIS))     SURF_EMIS(1:NVAL)      = EMIS(1:NVAL,k)
+            if (allocated(BCOR))     BiasCorrection(1:NVAL) = BCOR(1:NVAL,k)
 
             NDATA   =0
             NDATA_SF=0
             IF ( allocated(obsvalue_sfc) ) THEN
-              OBSERV_SFC(1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
-              QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
+              OBSERV_SFC(1:NELE_SFC,1:1) = obsvalue_sfc(1:NELE_SFC,1:1,k)
+              BCOR_SFC(1:NELE_SFC) = BiasCorrection_sfc(1:NELE_SFC,1,k)
+              QCFLAGS_sfc(1:NELE_SFC,1:1) = qcflag_sfc(1:NELE_SFC,1:1,k)
               IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
                 IF ( XLON  < 0. ) XLON  = 360. + XLON
@@ -2478,7 +2516,8 @@ CONTAINS
                 HM_SFC=time2
               END IF
 
-              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_SFC,qcflags_sfc, &
+                                   NELE_SFC,1,LISTE_ELE_SFC, BiasCorrection_opt = BCOR_SFC)
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
@@ -2569,10 +2608,12 @@ CONTAINS
                 HM=time2
               END IF
 
-              OBSERV_SFC (1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
-              QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
+              OBSERV_SFC (1:NELE_SFC,1:1) = obsvalue_sfc(1:NELE_SFC,1:1,k)
+              QCFLAGS_sfc(1:NELE_SFC,1:1) = qcflag_sfc  (1:NELE_SFC,1:1,k)
+              BCOR_SFC(1:NELE_SFC) = BiasCorrection_sfc (1:NELE_SFC,1,k)
 
-              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc, &
+                                   NELE_SFC,1,LISTE_ELE_SFC, BiasCorrection_opt = BCOR_SFC)
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
@@ -2716,14 +2757,14 @@ CONTAINS
 
         !---------SURFACE-----------------------------
         if ( allocated(obsvalue_sfc) ) then
-          DEALLOCATE(obsvalue_sfc,vcoord_sfc,OBSERV_SFC)
+          DEALLOCATE(obsvalue_sfc,vcoord_sfc,OBSERV_SFC,BiasCorrection_sfc,BCOR_SFC)
         end if
 
         if ( allocated(qcflag_sfc) ) then
           DEALLOCATE(  qcflag_sfc, qcflags_SFC)
         end if
-
         !--------SURFACE------------------------------
+        
         if (  allocated(lat) ) then
           DEALLOCATE (lat,lon,date,hhmm,glbflag)
         end if
