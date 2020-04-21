@@ -136,7 +136,7 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowMismatch_opt=.true. )
+      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 

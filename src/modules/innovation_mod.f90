@@ -141,9 +141,7 @@ contains
     !
     ! Filter out data from CMA
     !
-    call tmg_start(14,'SUPREP')
     call filt_suprep(obsSpaceData)
-    call tmg_stop(14)
 
     !
     !  Additional filtering for bias correction if requested 
@@ -196,15 +194,16 @@ contains
   end subroutine inn_setupobs
 
 
-  subroutine inn_setupBackgroundColumns(columnhr,obsSpaceData)
+  subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, stateVectorTrialOut_opt)
     implicit none
 
     ! arguments
-    type(struct_columnData) :: columnhr
-    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData)    :: columnhr
+    type(struct_obs)           :: obsSpaceData
+    type(struct_gsv), optional :: stateVectorTrialOut_opt
 
     ! locals
-    type(struct_gsv)          :: stateVector_trial
+    type(struct_gsv)          :: stateVectorTrial
     type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
@@ -247,16 +246,27 @@ contains
 
     deallocInterpInfo = .true.
 
-    call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
+    call gsv_allocate( stateVectorTrial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       beSilent_opt=.false.)
-    call gsv_zero( stateVector_trial )
-    call gsv_readTrials( stateVector_trial )
-    call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
+                       beSilent_opt=.false. )
+    call gsv_zero( stateVectorTrial )
+    call gsv_readTrials( stateVectorTrial )
+
+    ! if requested, make trials available to calling routine after degrading timesteps
+    if (present(stateVectorTrialOut_opt)) then
+      call gsv_allocate( stateVectorTrialOut_opt, tim_nstepobsinc, hco_trl, vco_trl,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_copy( stateVectorTrial, stateVectorTrialOut_opt,  &
+                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
+    end if
+
+    call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
-    call gsv_deallocate(stateVector_trial)
+    call gsv_deallocate(stateVectorTrial)
 
     if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'

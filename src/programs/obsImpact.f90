@@ -697,9 +697,7 @@ contains
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call tmg_start(89,'MIN_COMM')
       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
-      call tmg_stop(89)
 
       hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(columng_ptr)
@@ -804,18 +802,14 @@ contains
     INTEGER mythread,numthreads,jstart,jend
     INTEGER omp_get_thread_num,omp_get_num_threads
 
-    call tmg_start(71,'QN_PRSCAL')
     DDSC = 0.D0
 
     do j=1,nvadim_mpilocal
       DDSC = DDSC + PX(J)*PY(J)
     end do
 
-    call tmg_start(79,'QN_COMM')
     call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
-    call tmg_stop(79)
 
-    call tmg_stop(71)
     RETURN
 
   END SUBROUTINE PRSCAL

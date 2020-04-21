@@ -3061,8 +3061,6 @@ CONTAINS
 
     klatPtoT = 1
 
-    call tmg_start(53,'BHI_SPA2GD1')
-
     ! maybe not needed:
     sp(:,:,:) = 0.0d0
     sptb(:,:,:) = 0.0d0
@@ -3130,7 +3128,6 @@ CONTAINS
 !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
-    call tmg_stop(53)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
@@ -3159,7 +3156,6 @@ CONTAINS
     call gst_speree(sptb,tb0)
     call tmg_stop(55) 
 
-    call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRmu(jlat,gstID)
@@ -3199,7 +3195,6 @@ CONTAINS
       enddo
     enddo  ! jlat
 !$OMP END PARALLEL DO
-    call tmg_stop(54)
 
     zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
     zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
@@ -3329,7 +3324,6 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
@@ -3369,7 +3363,6 @@ CONTAINS
       enddo
     enddo
 !$OMP END PARALLEL DO 
-    call tmg_stop(54)
 
     call tmg_start(56,'BHI_REESPE') 
     call gst_setID(gstID)
@@ -3377,8 +3370,6 @@ CONTAINS
     call gst_setID(gstID2)
     call gst_reespe(sptb,tb0)
     call tmg_stop(56) 
-
-    call tmg_start(53,'BHI_SPA2GD1')
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
@@ -3438,7 +3429,6 @@ CONTAINS
 !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
-    call tmg_stop(53)
 
   END SUBROUTINE BHI_SPA2GDAD
 

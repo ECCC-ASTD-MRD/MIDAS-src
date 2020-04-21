@@ -452,7 +452,7 @@ contains
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
         call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
       end if
-      call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowMismatch_opt=.true.)
+      call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
       call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       
@@ -875,7 +875,7 @@ contains
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       hExtrapolateDegree_opt='MINIMUM', &
                       varNames_opt=(/'HU','P0'/) )
-    call gsv_copy(stateVectorMeanTrl, stateVectorTrlHU, allowMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanTrl, stateVectorTrlHU, allowVarMismatch_opt=.true.)
     call gsv_allocate(stateVectorVtr, 1, hco_randomPert, vco_randomPert,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &

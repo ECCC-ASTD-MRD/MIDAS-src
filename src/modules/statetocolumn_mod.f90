@@ -568,12 +568,10 @@ contains
           end if !tvs_isIdBurpTovs
 
           ! check if the slanted lat/lon is inside the domain
-          call tmg_start(198,'latlonChecks')
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
                               latLev_M, lonLev_M )             ! IN/OUT 
-          call tmg_stop(198)
 
           ! put the lat/lon from TH/MM levels to kIndex
           do kIndex = allkBeg(1), stateVector%nk
@@ -711,12 +709,10 @@ contains
           lonLev_M(:) = real(lon_r4,8)
 
           ! check if the lat/lon is inside the domain
-          call tmg_start(198,'latlonChecks')
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
                               latLev_M, lonLev_M )             ! IN/OUT 
-          call tmg_stop(198)
 
           latColumn(headerUsedIndex,allkBeg(1)) = latLev_T(1)
           lonColumn(headerUsedIndex,allkBeg(1)) = lonLev_T(1)

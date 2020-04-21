@@ -870,7 +870,7 @@ contains
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
     call gsv_zero(stateVectorMeanTrlPressure)
-    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
     call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
     if (mpi_myid == 0) then
       call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &

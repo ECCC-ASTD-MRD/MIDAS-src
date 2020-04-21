@@ -1293,7 +1293,6 @@ contains
       hu_ad(:,:) = 0.0d0
       pressure_ad(:,:) = 0.0d0
 
-      call tmg_start(75,'intavgad')
       !$omp parallel do private(profileIndex)
       do profileIndex = 1, profileCount
 
@@ -1325,7 +1324,6 @@ contains
 
       end do
       !$omp end parallel do
-      call tmg_stop(75)
  
       ! Fix pour eviter probleme au toit avec GEM 4
       ! (grosse variabilite temperature au dernier niveau thermo due 

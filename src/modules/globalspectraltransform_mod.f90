@@ -1570,9 +1570,7 @@ contains
     allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
 
     ! 1.0 First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
     ! 1.1 Transpose data along npex from N to Levels
     call transpose2d_NtoLev(psp,psp2)
@@ -1608,9 +1606,7 @@ contains
     deallocate(pgd3)
 
     ! 2.4 Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_spgd
 
@@ -1643,9 +1639,7 @@ contains
     allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
 
     ! 1.0 First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
     ! Transpose data along npex from Longitudes to Levels
     call transpose2d_LontoLev(pgd,pgd3)
@@ -1670,9 +1664,7 @@ contains
     deallocate(psp2)
 
     ! 2.4 Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_gdsp
 
@@ -1990,9 +1982,7 @@ contains
     call adjnorm(pgd)
 
     ! First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
     ! Transpose data along npex from Longitudes to Levels
     call transpose2d_LontoLev(pgd,pgd3)
@@ -2017,9 +2007,7 @@ contains
     deallocate(psp2)
 
     ! Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_spgda
 

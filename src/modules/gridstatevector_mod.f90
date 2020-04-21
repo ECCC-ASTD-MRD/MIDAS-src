@@ -1388,30 +1388,53 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_copy
   !--------------------------------------------------------------------------
-  subroutine gsv_copy(statevector_in,statevector_out,stepIndexOut_opt,allowMismatch_opt)
+  subroutine gsv_copy(statevector_in, statevector_out, stepIndexOut_opt, &
+                      allowTimeMismatch_opt, allowVarMismatch_opt)
     implicit none
     ! arguments
     type(struct_gsv)  :: statevector_in, statevector_out
     integer, optional :: stepIndexOut_opt
-    logical, optional :: allowMismatch_opt
+    logical, optional :: allowTimeMismatch_opt
+    logical, optional :: allowVarMismatch_opt
 
     ! locals
     real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
     real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
-    logical :: allowMismatch, mismatch
+    logical :: timeMismatch, allowVarMismatch, varMismatch
     character(len=4), allocatable :: varNameListCommon(:)
     character(len=4) :: varName
     character(len=10) :: gsvCopyType 
     character(len=4), pointer :: varNamesList_in(:), varNamesList_out(:)
 
-    if ( present(allowMismatch_opt) ) then
-      allowMismatch = allowMismatch_opt
+    if ( present(allowVarMismatch_opt) ) then
+      allowVarMismatch = allowVarMismatch_opt
     else
-      allowMismatch = .false.
+      allowVarMismatch = .false.
     end if
-    mismatch = .false.
+    varMismatch = .false.
+
+    timeMismatch = .false.
+    if ( present(allowTimeMismatch_opt) ) then
+      if (allowTimeMismatch_opt) then
+        if (statevector_in%numStep < statevector_out%numStep) then
+          call utl_abort('gsv_copy: numStep_in less than numStep_out, which is not allowed')
+        end if
+        if (statevector_in%numStep /= statevector_out%numStep) then
+          timeMismatch = .true.
+        end if
+      else
+        if (statevector_in%numStep /= statevector_out%numStep) then
+          call utl_abort('gsv_copy: numStep_in not equal to numStep_out')
+        end if
+      end if
+    end if
+
+    if ( present(stepIndexOut_opt) .and. present(allowTimeMismatch_opt) ) then
+      call utl_abort('gsv_copy: Cannot specify both stepIndexOut_opt ' //  &
+                     'and allowTimeMismatch_opt in the same call')
+    end if
 
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_copy: gridStateVector_in not yet allocated')
@@ -1420,7 +1443,7 @@ module gridStateVector_mod
       call utl_abort('gsv_copy: gridStateVector_out not yet allocated')
     end if
 
-    if ( statevector_in%mpi_distribution == 'VarsLevs' ) allowMismatch = .false.
+    if ( statevector_in%mpi_distribution == 'VarsLevs' ) allowVarMismatch = .false.
 
     nullify(varNamesList_in)
     nullify(varNamesList_out)
@@ -1428,42 +1451,40 @@ module gridStateVector_mod
     call gsv_varNamesList(varNamesList_out,statevector_out)
 
     if ( size(varNamesList_in(:)) /= size(varNamesList_out(:)) ) then
-      mismatch = .true.
+      varMismatch = .true.
     else 
       if ( all(varNamesList_in(:) == varNamesList_out(:)) ) then
-        mismatch = .false.
+        varMismatch = .false.
       else
-        mismatch = .true.
+        varMismatch = .true.
       end if 
     end if
     deallocate(varNamesList_out)
     deallocate(varNamesList_in)
 
-    ! if mismatch and allowmismatch -> copy by varName, else copy by kIndex
-    if ( mismatch .and. allowMismatch ) then 
+    ! if varMismatch and allowVarMismatch -> copy by varName, else copy by kIndex
+    if ( varMismatch .and. allowVarMismatch ) then 
       gsvCopyType = 'VarName'
-    else if ( .not. mismatch  ) then
+    else if ( .not. varMismatch  ) then
       gsvCopyType = 'kIndex'
     else 
-      call utl_abort('gsv_copy: mismatch and allowMismatch do not agree! Aborting.')
+      call utl_abort('gsv_copy: varMismatch and allowVarMismatch do not agree! Aborting.')
     end if
 
-    write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', mismatch=', mismatch,', allowMismatch=', allowMismatch
+    write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', timeMismatch=', timeMismatch, &
+               ', varMismatch=', varMismatch,', allowVarMismatch=', allowVarMismatch
 
     ! build list of common variables and see if there is a mismatch
     allocate(varNameListCommon(vnl_numvarmax))
     varNameListCommon(:) = '    '
-    if ( mismatch ) then
+    if ( varMismatch ) then
       numCommonVar = 0
       do varIndex = 1, vnl_numvarmax
-
         varName = vnl_varNameList(varIndex)
-
         if ( gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName) ) then
           numCommonVar = numCommonVar + 1
           varNameListCommon(numCommonVar) = varName 
         end if 
-
       end do
     end if
 
@@ -1494,6 +1515,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop
+              end do stepIn_Loop
             else
               stepIn = stepIndex
             end if
@@ -1520,6 +1546,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop2: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop2
+              end do stepIn_Loop2
             else
               stepIn = stepIndex
             end if
@@ -1545,6 +1576,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop3: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop3
+              end do stepIn_Loop3
             else
               stepIn = stepIndex
             end if
@@ -1571,6 +1607,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop4: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop4
+              end do stepIn_Loop4
             else
               stepIn = stepIndex
             end if
@@ -1595,6 +1636,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop5: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop5
+              end do stepIn_Loop5
             else
               stepIn = stepIndex
             end if
@@ -1621,6 +1667,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop6: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop6
+              end do stepIn_Loop6
             else
               stepIn = stepIndex
             end if
@@ -1646,6 +1697,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop7: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop7
+              end do stepIn_Loop7
             else
               stepIn = stepIndex
             end if
@@ -1672,6 +1728,11 @@ module gridStateVector_mod
           do stepIndex = step1, step2
             if (present(stepIndexOut_opt)) then
               stepIn = 1
+            else if(timeMismatch) then
+              stepIn_Loop8: do stepIn = 1, statevector_in%numStep
+                if (statevector_in%dateStampList(stepIn) ==  &
+                    statevector_out%dateStampList(stepIndex)) exit stepIn_loop8
+              end do stepIn_Loop8
             else
               stepIn = stepIndex
             end if
@@ -2623,7 +2684,7 @@ module gridStateVector_mod
 
     write(*,*) ''
     write(*,*) 'gsv_readFromFile: START'
-    call tmg_start(7,'gsv_readFromFile')
+    call tmg_start(158,'gsv_readFromFile')
 
     if ( present(stepIndex_opt) ) then
       stepIndex = stepIndex_opt
@@ -2741,7 +2802,7 @@ module gridStateVector_mod
                                 readHeightSfc, containsFullField)
     end if
 
-    call tmg_stop(7)
+    call tmg_stop(158)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_readFromFile: END'
 
@@ -4938,7 +4999,7 @@ module gridStateVector_mod
 
     write(*,*) 'gsv_writeToFile: START'
 
-    call tmg_start(5,'gsv_writeToFile')
+    call tmg_start(159,'gsv_writeToFile')
 
     !
     !- 1.  Since this routine can only work with 'Tiles' distribution when mpi_local = .true., 
@@ -5230,12 +5291,10 @@ module gridStateVector_mod
               work2d_r4(:,:) = work2d_r4(:,:) - MPC_K_C_DEGREE_OFFSET_R4
             end if
 
-            call tmg_start(189,'WRITETOFILE_ECR')
             !- Writing to file
             ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
-            call tmg_stop(189)
 
           end if ! iDoWriting
 
@@ -5262,7 +5321,7 @@ module gridStateVector_mod
       call gsv_deallocate(statevector_tiles)
     end if
 
-    call tmg_stop(5)
+    call tmg_stop(159)
     write(*,*) 'gsv_writeToFile: END'
 
   end subroutine gsv_writeToFile
@@ -5535,7 +5594,6 @@ module gridStateVector_mod
         if ( procToRead == mpi_myid ) stepIndexToRead = stepIndex
         if ( mpi_myid == 0 ) write(*,*) 'gsv_readTrials: stepIndex, procToRead = ', stepIndex, procToRead
       end do
-
 
       ! loop over all times for which stateVector is allocated
       if ( stepIndexToRead /= -1 ) then
@@ -5846,12 +5904,10 @@ module gridStateVector_mod
     real(4), allocatable :: gd_send_r4(:), gd_recv_3d_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
-    integer, save        :: callCounter = 0
 
     call rpn_comm_barrier('GRID',ierr)
 
-    callCounter = callCounter + 1
-    call tmg_start(155+callCounter,'gsv_stepToTiles')
+    call tmg_start(156,'gsv_stepToTiles')
 
     if ( statevector_tiles%mpi_distribution /= 'Tiles' ) then
       call utl_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
@@ -5898,14 +5954,10 @@ module gridStateVector_mod
       recvdispls(yourid+1) = recvdispls(yourid) + recvsizes(yourid)
     end do
 
-    write(*,*) 'gsv_transposeStepToTiles: sendsizes = ', sendsizes(:)
-    write(*,*) 'gsv_transposeStepToTiles: recvsizes = ', recvsizes(:)
-
     numStepInput = 0
     do yourid = 0, (mpi_nprocs-1)
       if ( thisProcIsAsender(yourid+1) ) numStepInput = numStepInput + 1
     end do
-    write(*,*) 'gsv_transposeStepToTiles: numStepInput, nk = ', numStepInput, stateVector_tiles%nk
 
     allocate(gd_recv_3d_r4(stateVector_tiles%lonPerPE,stateVector_tiles%latPerPE,numStepInput))
     gd_recv_3d_r4(:,:,:) = 0.0
@@ -5927,20 +5979,21 @@ module gridStateVector_mod
       ! determine if there is data to send for this kIndex
       if ( stateVector_1step_r4%allocated ) then
         field_in_r4 => gsv_getField_r4(stateVector_1step_r4)
-        write(*,*) 'kIndex, maxabs = ', kIndex, maxval(abs(field_in_r4(:, :, kIndex, 1)))
         allZero = (maxval(abs(field_in_r4(:, :, kIndex, 1))) == 0.0D0)
       else
         allZero = .true.
       end if
       call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
       if (allZero_mpiglobal) then
-        write(*,*) 'gsv_transposeStepToTiles: Field equal to zero, skipping kIndex = ', kIndex
+        if (mpi_myid == 0) then
+          write(*,*) 'gsv_transposeStepToTiles: Field equal to zero, skipping kIndex = ', kIndex
+        end if
         cycle kIndex_Loop
       end if
 
       ! prepare the complete 1 timestep for sending on all tasks that have read something
       if ( stateVector_1step_r4%allocated ) then
-        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid,nsize,indexBeg,indexEnd)
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
@@ -5957,11 +6010,11 @@ module gridStateVector_mod
         !$OMP END PARALLEL DO
       end if
 
-      call tmg_start(175+callCounter,'gsv_stepToTiles_alltoallv')
+      call tmg_start(157,'gsv_stepToTiles_alltoallv')
       call mpi_alltoallv(gd_send_r4   , sendsizes, senddispls, mpi_datyp_real4, &
                          gd_recv_3d_r4, recvsizes, recvdispls, mpi_datyp_real4, &
                          mpi_comm_grid, ierr)
-      call tmg_stop(175+callCounter)
+      call tmg_stop(157)
 
       stepIndex = stepIndexBeg - 1
       stepCount = 0
@@ -6046,7 +6099,7 @@ module gridStateVector_mod
     end if ! heightSfcPresent
     write(*,*) 'gsv_transposeStepToTiles: finished'
 
-    call tmg_stop(155+callCounter)
+    call tmg_stop(156)
 
   end subroutine gsv_transposeStepToTiles
 

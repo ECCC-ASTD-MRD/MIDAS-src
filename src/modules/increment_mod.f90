@@ -83,13 +83,17 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeAndWriteAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes_opt)
+  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes_opt, stateVectorTrial_opt)
     implicit none
 
+    ! Arguments:
     type(struct_gsv), intent(in), optional :: statevector_incLowRes_opt
+    type(struct_gsv), intent(in), target, optional :: statevectorTrial_opt
 
+    ! Locals:
     type(struct_gsv) :: statevector_incHighRes
-    type(struct_gsv) :: statevector_trial, statevector_analysis
+    type(struct_gsv), pointer :: statevector_trial
+    type(struct_gsv) :: statevector_analysis
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
     type(struct_gsv) :: statevector_mask
@@ -130,26 +134,6 @@ CONTAINS
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
-    !- Initialize the trial state grid
-    if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: Set hco parameters for trial grid'
-    trialFileName = './trlm_01'
-
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
-    call hco_setupFromFile( hco_trl, trim(trialFileName), ' ', varName_opt=anlVar(1))
-
-    if ( mpi_myid == 0 ) then
-      call vco_setupFromFile( vco_trl, trim(trialFileName) )
-    end if
-    call vco_mpiBcast(vco_trl)
-
-    if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
-      allocHeightSfc = .false.
-    else
-      allocHeightSfc = .true.
-    end if
-
     !- Do we need to read all the vertical levels from the trial fields?
     if (present(statevector_incLowRes_opt)) then
       vco_inc => statevector_incLowRes_opt%vco
@@ -168,37 +152,90 @@ CONTAINS
       call vco_mpiBcast(vco_inc)
     end if
 
-    useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-    if ( useIncLevelsOnly ) then
-      ! Read only the increment levels
-      write(*,*)
-      write(*,*) 'inc_computeAndWriteAnalysis: only the increment levels will be read in the trials'
-      call  vco_deallocate(vco_trl)
-      vco_trl => vco_inc
-    else
-      ! Read them all
-      write(*,*)
-      write(*,*) 'inc_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
-      if (.not. present(statevector_incLowRes_opt)) then
-        call vco_deallocate(vco_inc)
+    if (present(stateVectorTrial_opt)) then
+
+      !- If stateVectorTrial is supplied, then just use it
+
+      hco_trl => gsv_getHco(stateVectorTrial_opt)
+      vco_trl => gsv_getVco(stateVectorTrial_opt)
+      if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
+        allocHeightSfc = .false.
+      else
+        allocHeightSfc = stateVectorTrial_opt%heightSfcPresent
       end if
-    end if
+      
+      !- In some cases we need to just extract a subset of levels from the trials
+      useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
+      if ( useIncLevelsOnly ) then
+        write(*,*) 'inc_computeAndWriteAnalysis: extract only the increment levels from the trials'
+        allocate(statevector_trial)
+        call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
+                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                          allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                          allocHeight_opt=.false., allocPressure_opt=.false.)
+        call gsv_interpolate(stateVectorTrial_opt, statevector_trial)        
+        vco_trl => gsv_getVco(statevector_trial)
+      else
+        write(*,*) 'inc_computeAndWriteAnalysis: use the supplied trials directly'
+        statevector_trial => stateVectorTrial_opt
+      end if
 
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    else
 
-    !
-    !- Read trial files
-    !
-    if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
-    call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
+      !- Initialize the trial state grid
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: Set hco parameters for trial grid'
+      trialFileName = './trlm_01'
 
-    call tmg_start(180,'INC_READTRIALS')
-    call gsv_readTrials(statevector_trial)
-    call tmg_stop(180)
+      nullify(anlVar)
+      call gsv_varNamesList(anlVar)
+      call hco_setupFromFile( hco_trl, trim(trialFileName), ' ', varName_opt=anlVar(1))
+
+      if ( mpi_myid == 0 ) then
+        call vco_setupFromFile( vco_trl, trim(trialFileName) )
+      end if
+      call vco_mpiBcast(vco_trl)
+
+      if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
+        allocHeightSfc = .false.
+      else
+        allocHeightSfc = .true.
+      end if
+
+      useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
+      if ( useIncLevelsOnly ) then
+        ! Read only the increment levels
+        write(*,*)
+        write(*,*) 'inc_computeAndWriteAnalysis: only the increment levels will be read in the trials'
+        call  vco_deallocate(vco_trl)
+        vco_trl => vco_inc
+      else
+        ! Read them all
+        write(*,*)
+        write(*,*) 'inc_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
+        if (.not. present(statevector_incLowRes_opt)) then
+          call vco_deallocate(vco_inc)
+        end if
+      end if
+
+      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+      !
+      !- Read trial files
+      !
+      if(mpi_myid == 0) write(*,*) ''
+      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
+      allocate(statevector_trial)
+      call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
+
+      call tmg_start(180,'INC_READTRIALS')
+      call gsv_readTrials(statevector_trial)
+      call tmg_stop(180)
+
+    end if ! present(stateVectorTrial_opt)
 
     !
     !- Read the analysis mask (in LAM mode only)
@@ -225,8 +262,8 @@ CONTAINS
         if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
 
         ! Extract Psfc inc at low resolution
-        call gsv_allocate(statevector_PsfcLowRes, numStep, statevector_incLowRes_opt%hco, &
-                          statevector_incLowRes_opt%vco,  &
+        call gsv_allocate(statevector_PsfcLowRes, numStep,  &
+                          statevector_incLowRes_opt%hco, vco_trl,  &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                           varNames_opt=(/'P0'/))
         PsfcIncLowRes          => gsv_getField_r8(statevector_PsfcLowRes,'P0')
