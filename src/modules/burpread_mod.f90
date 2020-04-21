@@ -1276,13 +1276,8 @@ CONTAINS
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
-                      if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-                        IND_BCOR = -1
-                        if ( familyType == 'TO') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
-                        if ( familyType == 'AI') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12204, IOSTAT=error)
-                        if ( familyType == 'GP') IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=15033, IOSTAT=error)
-                        if ( IND_BCOR > 0 ) &
-                             Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_BCOR,NVAL_IND =j,NT_IND = k,RVAL = BCOR) 
+                      if (iele == 12233 .or. iele == 12204 .or. iele == 15033) then
+                         Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
                       end if
 
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
