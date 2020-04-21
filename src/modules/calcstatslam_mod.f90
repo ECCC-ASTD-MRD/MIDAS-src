@@ -89,8 +89,8 @@ module calcStatsLam_mod
 
   real(8), pointer  :: pressureProfile_M(:), pressureProfile_T(:)
 
-  real(8) :: vLocalize_wind, vlocalize_mass, vlocalize_humidity ! vertical length scale (in units of ln(Pressure))
-  real(8) :: hlocalize_wind, hlocalize_mass, hlocalize_humidity ! vertical length scale (in km)
+  real(8) :: vLocalize_wind, vlocalize_mass, vlocalize_humidity, vlocalize_other ! vertical length scale (in units of ln(Pressure))
+  real(8) :: hlocalize_wind, hlocalize_mass, hlocalize_humidity, hlocalize_other ! vertical length scale (in km)
 
 contains
   
@@ -125,6 +125,7 @@ contains
                                SetTGtoZero,writeEnsPert,SpectralWeights,              &
                                vLocalize_wind,vlocalize_mass,vlocalize_humidity,      &
                                hLocalize_wind,hlocalize_mass,hlocalize_humidity,      &
+                               hLocalize_other,vlocalize_other,                       &
                                correlatedVariables
 
     write(*,*)
@@ -164,10 +165,12 @@ contains
     vLocalize_wind      = -1.0d0 ! Default value (no vloc)
     vLocalize_mass      = -1.0d0 ! Default value (no vloc)
     vLocalize_humidity  = -1.0d0 ! Default value (no vloc)
+    vLocalize_other     = -1.0d0 ! Default value (no vloc)
     hLocalize_wind      = -1.0d0 ! Default value (no hloc)
     hLocalize_mass      = -1.0d0 ! Default value (no hloc)
     hLocalize_humidity  = -1.0d0 ! Default value (no hloc)
-
+    hLocalize_other     = -1.0d0 ! Default value (no hloc)
+    
     nulnam = 0
 
     ier=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -345,7 +348,8 @@ contains
     !
 
     !- 8.1 Setup horizontal localization
-    if ( hLocalize_wind < 0.d0 .and. hLocalize_mass < 0.d0 .and. hLocalize_humidity < 0.d0 ) then
+    if ( hLocalize_wind     < 0.d0 .and. hLocalize_mass  < 0.d0 .and. &
+         hLocalize_humidity < 0.d0 .and. hLocalize_other < 0.d0) then
       write(*,*) 
       write(*,*) 'csl_setup: NO horizontal correlation localization will be performed'
       horizLoc=.false.
@@ -356,7 +360,8 @@ contains
     end if
 
     !- 8.2 Setup vertical localization
-    if ( vLocalize_wind < 0.d0 .and. vLocalize_mass < 0.d0 .and. vLocalize_humidity < 0.d0 ) then
+    if ( vLocalize_wind     < 0.d0 .and. vLocalize_mass  < 0.d0 .and. &
+         vLocalize_humidity < 0.d0 .and. vLocalize_other < 0.d0 ) then
       write(*,*) 
       write(*,*) 'csl_setup: NO vertical correlation localization will be performed'
       vertLoc=.false.
@@ -1455,7 +1460,7 @@ contains
       else if ( bhi%controlVariable(var)%nomvar(cv_bhi) == 'LQ' ) then
         hLocalize = hLocalize_humidity
       else
-        call utl_abort('applyHorizLoc')
+        hLocalize = hLocalize_other
       end if
 
       do k = bhi%controlVariable(var)%varLevIndexStart, bhi%controlVariable(var)%varLevIndexEnd
@@ -1570,7 +1575,7 @@ contains
         else if ( bhi%controlVariable(var1)%nomvar(cv_bhi) == 'LQ' ) then
           vLocalize1 = vLocalize_humidity
         else
-          call utl_abort('applyVertLoc')
+          vLocalize1 = vLocalize_other
         end if
 
         !-  2.2.2 Select the length scale for control variable 2
@@ -1586,7 +1591,7 @@ contains
         else if ( bhi%controlVariable(var2)%nomvar(cv_bhi) == 'LQ' ) then
           vLocalize2 = vLocalize_humidity
         else
-          call utl_abort('applyVertLoc')
+          vLocalize2 = vLocalize_other
         end if
 
         !- 2.2.3 Length scale to be use for var1-var2 correlation
