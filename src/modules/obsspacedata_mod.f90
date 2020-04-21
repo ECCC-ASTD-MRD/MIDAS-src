@@ -332,8 +332,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_DAT = OBS_TEC+1 ! observation date YYYYMMD
    integer, parameter, public :: OBS_ETM = OBS_DAT+1 ! observation time HHMM
    integer, parameter, public :: OBS_NLV = OBS_ETM+1 ! number of data at this location
-   integer, parameter, public :: OBS_OFL = OBS_NLV+1 ! report status events
-   integer, parameter, public :: OBS_PAS = OBS_OFL+1 ! batch no. in sequential analysis
+   integer, parameter, public :: OBS_PAS = OBS_NLV+1 ! batch no. in sequential analysis
    integer, parameter, public :: OBS_REG = OBS_PAS+1 ! region number in the batch
    integer, parameter, public :: OBS_IP  = OBS_REG+1 ! number of mpi processors
    integer, parameter, public :: OBS_IPF = OBS_IP+1  ! mpi task id for file
@@ -347,7 +346,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
-   integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
+   integer, parameter, public :: OBS_SWQI= OBS_ROQF+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWMT= OBS_SWQI+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWLS= OBS_SWMT+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWGA= OBS_SWLS+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWHA= OBS_SWGA+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_CHM = OBS_SWHA+1! BUFR code (table 08046) of constituent type (for the CH family)
    integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
    integer, parameter, public :: OBS_PRFL= OBS_FOV+1 ! profile id. number
 
@@ -362,8 +366,9 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
-         'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
-         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
+         'SWQI','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -950,7 +955,7 @@ contains
 
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
-              OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
+              OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP, OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_ST1, OBS_IDO, OBS_IDF, &
               OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
 
@@ -994,9 +999,10 @@ contains
 
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
-              OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
+              OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
+              OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1038,7 +1044,7 @@ contains
       elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if( column_index < OBS_GQF .or. column_index > OBS_STYP  &
+            if( column_index < OBS_GQF .or. column_index > OBS_NCO2  &
               ) call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
@@ -1421,11 +1427,13 @@ module ObsSpaceData_mod
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
    !    integer-header column numbers
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
-   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP
+   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_GQF, OBS_GQL
-   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
+   public :: OBS_NCO2,OBS_STYP,OBS_ROQF
+   public :: OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
+   public :: OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
@@ -3181,7 +3189,6 @@ contains
 
       write(kulout,fmt=9201) & 
          obs_headElem_i(obsdat, OBS_NLV, kobs), &
-         obs_headElem_i(obsdat, OBS_OFL, kobs), &
          obs_headElem_i(obsdat, OBS_PAS, kobs), &
          obs_headElem_i(obsdat, OBS_REG, kobs), &
          obs_headElem_i(obsdat, OBS_IP , kobs)
@@ -3195,7 +3202,7 @@ contains
          'stations altitude:',f12.6,1x,/,2x, &
          'block location: ',3(f12.6,1x),/,2x, &
          'azimuth angle:',f12.6)
-9201  format('  number of data:',i6,1x,'report status: ',i6,1x, &
+9201  format('  number of data:',i6,1x, &
          ' pass: ',i6,' region: ',i6,/,2x,'processor: ',i6)
 
       return
@@ -3819,7 +3826,7 @@ contains
          call obs_headSet_i(obsdat, OBS_ETM, obsdat%numHeader, itime)
          obsdat%cstnid(obsdat%numHeader)         = clstnid
          ! PLH       call obs_headSet_i(obsdat, ncmoec, obsdat%numHeader, 999)
-         call obs_headSet_i(obsdat, OBS_OFL, obsdat%numHeader, imask)
+         call obs_headSet_i(obsdat, OBS_STYP,obsdat%numHeader, imask)
          call obs_headSet_r(obsdat, OBS_AZA, obsdat%numHeader, satazim)
          call obs_headSet_r(obsdat, OBS_SUN, obsdat%numHeader, sunza)
          call obs_headSet_r(obsdat, OBS_SZA, obsdat%numHeader, satzen)
@@ -4743,7 +4750,6 @@ contains
          ,obs_elem_c(obsdat,'STID',index_hd)      &
          ,obs_headElem_r(obsdat,OBS_ALT,index_hd) &
          ,obs_headElem_i(obsdat,OBS_NLV,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_OFL,index_hd) &
          ,obs_headElem_i(obsdat,OBS_ST1,index_hd)
 
 9200  format(6x,'Position within realBodies:',i6,1x,'OBS. NUMBER:',i6,1x &
@@ -4757,7 +4763,7 @@ contains
          ,'STATION''S ALTITUDE:',g13.6,1x &
          ,'NUMBER OF DATA:',i6,1x &
          ,/,6x &
-         ,'REPORT STATUS:',i6,5x,'REPORT STATUS 2:',i10,1x &
+         ,'REPORT STATUS 2:',i10,1x &
          ,/,6x &
          )
 
@@ -6614,13 +6620,12 @@ contains
          obs_headElem_i(obsdat, OBS_OTP, kobs), &
          idburp,ilat,ilon,ialt,                &
          obs_headElem_i(obsdat, OBS_NLV, kobs), &
-         obs_headElem_i(obsdat, OBS_OFL, kobs), &
          obs_headElem_i(obsdat, OBS_PAS, kobs), &
          obs_headElem_i(obsdat, OBS_REG, kobs), &
          obs_headElem_i(obsdat, OBS_IP , kobs)
 
 9200  format(2x,i9,',',a9,',',i10,',',i8,',',i6,',',i6, &
-         ',',i12,',',i6,4(',',i8),5(',',i6))
+         ',',i12,',',i6,4(',',i8),4(',',i6))
 
       return
 

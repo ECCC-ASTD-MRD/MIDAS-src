@@ -1022,7 +1022,7 @@ contains
       idate    = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
       itime    = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
-      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
 
       nlev = idatend - idata + 1
 
@@ -1698,7 +1698,7 @@ contains
     type(struct_obs) :: obsSpaceData
 
     integer :: headerIndex,bodyIndex,ilyr,jlev
-    integer :: iass,ixtr,ivco,ivnm,iqiv,imet,ilsv,igav,ihav,itrn,IOTP,J_SAT
+    integer :: iass,ixtr,ivco,ivnm,iqiv,imet,ilsv,igav,ihav,itrn,J_SAT
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -1745,12 +1745,11 @@ contains
       zoer = obs_bodyElem_r (obsSpaceData,OBS_OER,bodyIndex)
       headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
-      IOTP = obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
-      iqiv = nint( obs_headElem_r (obsSpaceData,OBS_SZA,headerIndex) )
-      imet = obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
-      ilsv = nint( obs_headElem_r (obsSpaceData,OBS_AZA,headerIndex) )
-      igav = nint( obs_headElem_r (obsSpaceData,OBS_SUN,headerIndex) )
-      ihav = nint( obs_headElem_r (obsSpaceData,OBS_CLF,headerIndex) )
+      iqiv = obs_headElem_i (obsSpaceData,OBS_SWQI,headerIndex)
+      imet = obs_headElem_i (obsSpaceData,OBS_SWMT,headerIndex)
+      ilsv = obs_headElem_i (obsSpaceData,OBS_SWLS,headerIndex)
+      igav = obs_headElem_i (obsSpaceData,OBS_SWGA,headerIndex)
+      ihav = obs_headElem_i (obsSpaceData,OBS_SWHA,headerIndex)
       zlat = obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
       zlon = obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
       cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)

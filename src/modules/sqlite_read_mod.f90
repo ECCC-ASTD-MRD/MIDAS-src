@@ -122,7 +122,7 @@ contains
     if ( trim(familyType) == 'TO' ) then
 
       call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat      )
-      call obs_headSet_i( obsdat, OBS_OFL , headerIndex, landSea     )
+      call obs_headSet_i( obsdat, OBS_STYP, headerIndex, landSea     )
       call obs_headSet_i( obsdat, OBS_INS , headerIndex, instrument  )
       call obs_headSet_r( obsdat, OBS_SZA , headerIndex, zenith      )
       call obs_headSet_r( obsdat, OBS_SUN , headerIndex, solarZenith )

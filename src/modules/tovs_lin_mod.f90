@@ -418,7 +418,7 @@ contains
           end if
         end if
 
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
 
         if ( runObsOperatorWithClw_tl .and. surfTypeIsWater(profileCount) ) then
           delCLW => col_getColumn(column,headerIndex,'LWCR')
@@ -1012,7 +1012,7 @@ contains
           end if
         end if
 
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
 
         if ( runObsOperatorWithClw_ad .and. surfTypeIsWater(profileCount) ) then
           CLWb => col_getColumn(columng,headerIndex,'LWCR')

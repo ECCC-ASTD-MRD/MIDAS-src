@@ -114,7 +114,7 @@ program midas_prepcma
   call obsf_setup(dateStamp, 'prepcma' )
 
   !- Allocate obsSpaceData
-  call obs_class_initialize('ENKF')
+  call obs_class_initialize('ENKFMIDAS')
   call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
 
   !- Read observations

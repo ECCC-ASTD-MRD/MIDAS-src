@@ -1541,8 +1541,8 @@ CONTAINS
     REAL   , ALLOCATABLE   :: OBSVALUE(:,:,:),OBSVALUE_SFC(:,:,:)
     REAL   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
 
-    INTEGER, ALLOCATABLE   ::  MTVAL(:)
-    REAL(OBS_REAL) , ALLOCATABLE  :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
+    INTEGER, ALLOCATABLE   :: MTVAL(:)
+    INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
     REAL(OBS_REAL) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
@@ -2142,20 +2142,20 @@ CONTAINS
             ALLOCATE(lsval(nte))
             ALLOCATE(haval(nte))
             ALLOCATE(gaval(nte))
-            QI1VAL(:) = 0.
-            QI2VAL(:) = 0.
-            QIVAL (:) = 0.
+            QI1VAL(:) = 0
+            QI2VAL(:) = 0
+            QIVAL (:) = 0
             MTVAL (:) = 0
-            LSVAL (:) = 0.
-            HAVAL (:) = 0.
-            GAVAL (:) = 0.
+            LSVAL (:) = 0
+            HAVAL (:) = 0
+            GAVAL (:) = 0
 
             if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) then
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33007, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                QI1VAL(k)= BURP_Get_Rval(Block_in, &
+                QI1VAL(k)= BURP_Get_Tblval(Block_in, &
                                            NELE_IND = IND_SW, &
                                            NVAL_IND = 1, &
                                            NT_IND   = k, &
@@ -2165,11 +2165,11 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33194, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                QI2VAL(k)= BURP_Get_Rval(Block_in, &
-                                         NELE_IND = IND_SW, &
-                                         NVAL_IND = 1, &
-                                         NT_IND   = k, &
-                                         IOSTAT   = error)
+                QI2VAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
               do k = 1, nte
@@ -2190,7 +2190,7 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=8012, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                LSVAL(k)= BURP_Get_Rval(Block_in, &
+                LSVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
                                           NVAL_IND = 1, &
                                           NT_IND   = k, &
@@ -2200,7 +2200,7 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=13039, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                GAVAL(k)= BURP_Get_Rval(Block_in, &
+                GAVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
                                           NVAL_IND = 1, &
                                           NT_IND   = k, &
@@ -2210,11 +2210,11 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2163, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                HAVAL(k)= BURP_Get_Rval(Block_in, &
-                                        NELE_IND = IND_SW, &
-                                        NVAL_IND = 1, &
-                                        NT_IND   = k, &
-                                        IOSTAT   = error)
+                HAVAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
             !====================================================================
@@ -3025,17 +3025,16 @@ CONTAINS
 
     implicit none
     type (struct_obs), intent(inout) :: obsdat
-    INTEGER     ::  MTvalue
-    Real(kind=OBS_REAL) :: HAvalue, GAvalue, QIvalue, LSvalue
+    INTEGER     ::  MTvalue, HAvalue, GAvalue, QIvalue, LSvalue
     INTEGER     ::  NOBS
 
     NOBS = obs_numHeader(obsdat)
 
-    call obs_headSet_r(obsdat,OBS_SZA,nobs,QIvalue)
-    call obs_headSet_i(obsdat,OBS_TEC,nobs,MTvalue)
-    call obs_headSet_r(obsdat,OBS_AZA,nobs,LSvalue)
-    call obs_headSet_r(obsdat,OBS_SUN,nobs,GAvalue)
-    call obs_headSet_r(obsdat,OBS_CLF,nobs,HAvalue)
+    call obs_headSet_i(obsdat,OBS_SWQI,nobs,QIvalue)
+    call obs_headSet_i(obsdat,OBS_SWMT,nobs,MTvalue)
+    call obs_headSet_i(obsdat,OBS_SWLS,nobs,LSvalue)
+    call obs_headSet_i(obsdat,OBS_SWGA,nobs,GAvalue)
+    call obs_headSet_i(obsdat,OBS_SWHA,nobs,HAvalue)
 
   END SUBROUTINE  WRITE_QI
 
@@ -3241,7 +3240,7 @@ CONTAINS
       LAND_SEA = 2
     END IF
 
-    if ( obs_columnActive_IH(obsdat,OBS_OFL) ) call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
+    if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,LAND_SEA)
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
