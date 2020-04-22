@@ -259,11 +259,12 @@ CONTAINS
               if ( phase == 3 ) phaseIndex = 1 ! level
               if ( phase == 5 ) phaseIndex = 2 ! ascent
               if ( phase == 6 ) phaseIndex = 3 ! descent
-
-              if (levelIndex /= 0 .and. phaseIndex /= 0 .and. corrects_TT(stationNumber,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) then
-                corr = corrects_TT(stationNumber,phaseIndex,levelIndex)
-                n_cor_ac = n_cor_ac + 1
-                n_cor_bk = n_cor_bk - 1
+              if (levelIndex /= 0 .and. phaseIndex /= 0) then
+                if ( corrects_TT(stationNumber,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) then
+                   corr = corrects_TT(stationNumber,phaseIndex,levelIndex)
+                   n_cor_ac = n_cor_ac + 1
+                   n_cor_bk = n_cor_bk - 1
+                end if
               end if
             end if
             

@@ -1603,7 +1603,7 @@ CONTAINS
     INTEGER                :: bit_alt,btyp_offset,btyp_offset_uni
     character(len = 5)     :: BURP_TYP
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
-    LOGICAL                :: HIRES,HIRES_SFC,HIPCS
+    LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent
     INTEGER                :: NDATA,NDATA_SF
     INTEGER                :: IER,date2,time2,time_sonde,NEWDATE
     REAL                   :: RAD_MOY,RAD_STD
@@ -1951,6 +1951,8 @@ CONTAINS
         HIRES=.FALSE.
         HIPCS=.FALSE.
         HIRES_SFC=.FALSE.
+        phasePresent = .false.
+
         BLOCKS1: do
 
           ref_blk = BURP_Find_Block(Rpt_in, &
@@ -2108,9 +2110,10 @@ CONTAINS
 
             IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
 
-            if( TRIM(FAMILYTYPE) == 'AI' .and. IND_PHASE > 0) then
+            if( FAMILYTYPE == 'AI' .and. IND_PHASE > 0) then
               allocate( phase(nvale,nte) )
               phase(:,:) = MPC_missingValue_R4
+              phasePresent = .true.
             end if
 
             if( TRIM(FAMILYTYPE2) == 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
@@ -2155,7 +2158,7 @@ CONTAINS
                                            & NT_IND   = k)
                   END IF
 
-                  if ( allocated(phase) ) then
+                  if ( phasePresent ) then
                     phase(j,k) = BURP_Get_Tblval(Block_in, &
                                               & NELE_IND = IND_phase, &
                                               & NVAL_IND = j, &
@@ -2555,7 +2558,7 @@ CONTAINS
                      SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
 
                 IF (NDATA > 0) THEN
-                  if (allocated(phase)) then
+                  if ( phasePresent ) then
                     call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
                   else
                     call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
@@ -2639,7 +2642,12 @@ CONTAINS
               IF (NDATA > 0) THEN
 
                 IF (NDATA_SF == 0) THEN
-                  call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
+                  if ( phasePresent ) then
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
+                  else
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
+                  end if
+                 
 !==================================================================================
 !
 ! Ajoute qivals dans les argument de WRITE_QI
@@ -3084,8 +3092,9 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_OTP,nobs,FILENUMB)
     call obs_set_c(obsdat,'STID',nobs,STNID )
     if ( present(phase_opt) .and. &
-         obs_columnActive_IH(obsdat,OBS_PHAS) ) &
-         call obs_headSet_i(obsdat,OBS_PHAS,nobs,phase_opt)
+         obs_columnActive_IH(obsdat,OBS_PHAS) ) then
+      call obs_headSet_i(obsdat,OBS_PHAS,nobs,phase_opt)
+    end if
 
   END SUBROUTINE  WRITE_HEADER
 
