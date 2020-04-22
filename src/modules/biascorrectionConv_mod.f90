@@ -32,10 +32,9 @@ MODULE biasCorrectionConv_mod
   integer, parameter :: nPhases=3, nLevels=5, nStationMax=100000 
   integer, parameter :: nStationMaxGP=10000
   integer  :: nb_aircraft_bias, nb_gps_bias
-  real     :: corrects_TT(nStationMax,nPhases,nLevels)
-  real     :: corrects_ZTD(nStationMaxGP)
-  character(len=9) :: aircraft_ID(nStationMax)
-  character(len=9) :: gps_stn(nStationMaxGP)
+  real, allocatable  :: corrects_TT(:,:,:)
+  real, allocatable  :: corrects_ZTD(:)
+  character(len=9), allocatable :: aircraft_ID(:), gps_stn(:)
   
   ! Bias correction files (must be in program working directory)
   character(len=8), parameter :: ai_bcfile = "ai_bcors", gp_bcfile = "gp_bcors"
@@ -93,6 +92,7 @@ CONTAINS
     implicit none
     !Arguments:
     character(len=*), intent(in) :: file_cor
+
     !Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex, phaseIndex, levelIndex
@@ -110,6 +110,9 @@ CONTAINS
     if ( ierr /= 0 ) then
       call utl_abort('bcc_readAIBcor: error 1 while reading airplanes bias correction file ' // file_cor )
     end if
+    
+    allocate( corrects_TT(nStationMax,nPhases,nLevels) )
+    allocate( aircraft_ID(nStationMax) )
 
     corrects_TT(:,:,:) =  MPC_missingValue_R8
    
@@ -158,7 +161,7 @@ CONTAINS
 
     write(*,*) "bcc_applyAIBcor: start"
 
-    call bcc_readAIBcor(ai_bcfile)
+    if ( .not.aiRevOnly ) call bcc_readAIBcor(ai_bcfile)
     
     n_cor_ac = 0
     n_cor_bk = 0
@@ -288,6 +291,9 @@ CONTAINS
        write(*,*) "No AI data found"
     end if
     
+    if (allocated(corrects_TT)) deallocate(corrects_TT)
+    if (allocated(aircraft_ID)) deallocate(aircraft_ID)
+    
     write(*,*) "bcc_applyAIBcor: end"
     
   end subroutine bcc_applyAIBcor
@@ -321,7 +327,11 @@ CONTAINS
       call utl_abort('bcc_readGPBcor: error 1 while reading GB-GPS bias correction file ' // file_cor )
     end if
 
+    allocate( corrects_ZTD(nStationMaxGP) )
+    allocate( gps_stn(nStationMaxGP)  )
+    
     corrects_ZTD(:) =  MPC_missingValue_R8
+    
     do stationIndex=1,nb_gps_bias
        read (nulcoeff, *, iostat=ierr) id_ligne,corr_ligne
        if ( ierr /= 0 ) then
@@ -356,7 +366,7 @@ CONTAINS
 
     write(*,*) "bcc_applyGPBcor: start"
 
-    call bcc_readGPBcor(gp_bcfile)
+    if (.not.gpRevOnly) call bcc_readGPBcor(gp_bcfile)
     
     n_cor = 0
 
@@ -438,6 +448,9 @@ CONTAINS
     else 
       write(*,*) "No GP data bias corrections made"
     end if
+    
+    if (allocated(corrects_ZTD)) deallocate( corrects_ZTD )
+    if (allocated(gps_stn))      deallocate( gps_stn  )
     
     write(*,*) "bcc_applyGPBcor: end"
     
