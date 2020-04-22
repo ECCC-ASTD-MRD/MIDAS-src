@@ -18,10 +18,9 @@
     biasmode="varbc",
     removeBiasCorrection=.false.
     refreshBiasCorrection=.false.
-    lmimicsatbcor=.true.
+    mimicsatbcor=.true.
     scanBiasCorLength=-1.d0
-    doRegression=.false.
-    lweightedEstimate=.false.,
+    weightedEstimate=.false.,
     cinst(1)="AMSUA"
     nbscan(1)=30
     cglobal(1)="DEF"

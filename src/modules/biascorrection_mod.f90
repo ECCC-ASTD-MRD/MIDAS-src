@@ -81,6 +81,8 @@ MODULE biasCorrection_mod
   type(struct_gsv)      :: statevector_mask
   type(struct_columnData) :: column_mask
   logical               :: initialized = .false.
+  logical               :: bias_mimicSatbcor
+  logical               :: doRegression
   integer, parameter    :: NumPredictors = 6
   integer, parameter    :: maxfov = 120
 
@@ -91,23 +93,36 @@ MODULE biasCorrection_mod
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
-  character(len=5)      :: biasMode
-  logical  :: biasActive, loutstats
-  logical  :: doRegression
-  logical  :: lMimicSatbcor, lweightedEstimate, filterObs
-  logical  :: bias_mimicSatbcor
-  real(8)  :: bg_stddev(NumPredictors),predScalingFactor(NumPredictors),predOffset(NumPredictors)
-  real(8)  :: scanBiasCorLength 
-  logical  :: removeBiasCorrection, refreshBiasCorrection, centerPredictors,loutCoeffCov
-  character(len=3) :: cglobal(25)
-  character(len=7) :: cinst(25)
-  integer :: nbscan(25)
-  logical :: offline_opt, all_opt_ssmis, all_opt_tovs, all_opt_csr, all_opt_hyperIr
-  integer, external            :: fnom, fclos 
-  namelist /nambias/ biasActive,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
-  namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
-  namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats,loutCoeffCov
-  namelist /nambias/ offline_opt, all_opt_ssmis, all_opt_tovs, all_opt_csr, all_opt_hyperIr
+  integer, external     :: fnom, fclos 
+
+  ! Namelist variables
+  character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
+  logical  :: biasActive        ! logical variable to activate the module
+  logical  :: outstats          ! flag to activate output of residual statistics in "reg" mode 
+  logical  :: mimicSatbcor      ! in "reg" mode compute regression coefficients the same way as the original satbcor program
+  logical  :: weightedestimate  ! flag to activate radiosonde weighting for bias correction computation in "reg" mode
+  logical  :: filterObs         ! flag to activate additional observation filtering in "reg" mode. If it is .false. only observations selected for assimilation will be used in the linear regression
+  logical  :: removeBiasCorrection  ! flag to activate removal of an already present bias correction
+  logical  :: refreshBiasCorrection !flag to replace an existing bias correction with a new one
+  logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
+  logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
+  real(8)  :: scanBiasCorLength     ! if positive and .not. mimicSatBcor use error correlation between scan positions with the given correlation length
+  real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
+  character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
+  character(len=3) :: cglobal(25) ! a "global" parameter and
+  integer          :: nbscan(25)  ! the number of scan positions are necessary
+  ! To understand the meaning of the following parameters controling filtering,
+  ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
+  logical  :: offlineMode   ! flag to select offline mode for bias correction computation
+  logical  :: allModeSsmis  ! flag to select "ALL" mode for SSMIS
+  logical  :: allModeTovs   ! flag to select "ALL" mode for TOVS (AMSU-A, AMSU-B, MHS, ATMS, MWHS-2)
+  logical  :: allModeCsr    ! flag to select "ALL" mode for CSR (GOES, SEVIRI, MVIRI, ABI, etc..)
+  logical  :: allModeHyperIr! flag to select "ALL" mode for hyperSpectral Infrared (AIRS, IASI, CrIS)
+  
+  namelist /nambias/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
+  namelist /nambias/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
+  namelist /nambias/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
+  namelist /nambias/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
 
 CONTAINS
  
@@ -130,20 +145,19 @@ CONTAINS
     filterObs = .false.
     refreshBiasCorrection = .false.
     centerPredictors = .false.
-    doRegression = .false.
-    lMimicSatbcor = .true.
+    mimicSatbcor = .true.
     scanBiasCorLength = -1.d0
-    lweightedEstimate = .false.
-    loutCoeffCov = .false.
+    weightedEstimate = .false.
+    outCoeffCov = .false.
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
-    loutstats = .false.
-    offline_opt=.false.
-    all_opt_ssmis=.true.
-    all_opt_tovs=.true.
-    all_opt_csr=.true.
-    all_opt_hyperIr=.false.
+    outstats = .false.
+    offlineMode=.false.
+    allModeSsmis=.true.
+    allModeTovs=.true.
+    allModeCsr=.true.
+    allModeHyperIr=.false.
 
     !
     ! read in the namelist NAMBIAS
@@ -154,7 +168,8 @@ CONTAINS
          write(*,*) 'bias_readConfig: WARNING: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambias)
     ierr = fclos(nulnam)
-    bias_mimicSatbcor = lMimicSatbcor
+    bias_mimicSatbcor = mimicSatbcor
+    doRegression = (trim(biasMode) == "reg" )
 
  end subroutine bias_readConfig
 
@@ -717,7 +732,7 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    if (.not. loutstats) return
+    if (.not. outstats) return
 
     write(*,*) "bias_computeResidualsStatistics: start"
 
@@ -1615,7 +1630,7 @@ CONTAINS
       if (bias(iSensor)%numScan > 0) then
         do iChannel = 1, bias(iSensor)%numChannels
           do iPredictor = 2, bias(iSensor)%chans(iChannel)%numActivePredictors
-            if (lMimicSatbcor) then
+            if (mimicSatbcor) then
               bias(iSensor)%chans(iChannel)%coeffIncr(1) = bias(iSensor)%chans(iChannel)%coeffIncr(1) - &
                    bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor) *  bias(iSensor)%chans(iChannel)%coeff_offset(iPredictor)
             else
@@ -1941,7 +1956,7 @@ CONTAINS
 
         close(iuncoef) 
 
-        if (loutCoeffCov) then
+        if (outCoeffCov) then
           iuncoef = 0
           filename ='./anlcoeffsCov_'// trim(instrName)  
           call utl_open_asciifile(filename,iuncoef)
@@ -2091,8 +2106,8 @@ CONTAINS
               !   Bit 11 is ON for data that are unselected by UTIL or for uncorrected data (or both).
               !   Data rejected by first QC program satqc_ssmi(s) have bit 7 switched ON only (in addition to bit 9) as
               !   rogue/topo checks are skipped. So if bit 16 (rogue) is ON, bit 7 must be off.
-              if ( .not. offline_opt ) then
-                if ( all_opt_ssmis ) then
+              if ( .not. offlineMode ) then
+                if ( allModeSsmis ) then
                   !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
                   condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'
                   !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
@@ -2116,8 +2131,8 @@ CONTAINS
               !    so bit 11 = unselected channel (like bit 8 for AIRS/IASI)
               !  Bit 9 is set for all other rejections including rogue (9+16) and topography (9+18).
               !  In addition, bit 7 is set for channels with bad data or data that should not be assimilated.
-              if ( .not. offline_opt ) then
-                if ( all_opt_tovs ) then
+              if ( .not. offlineMode ) then
+                if ( allModeTovs ) then
                   !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
                   condition1  = .not. btest(flag,9) !' AND (FLAG & 512 = 0)'
                   !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
@@ -2138,7 +2153,7 @@ CONTAINS
             else if( lGeo ) then   !  AIRS, IASI, CSR, CRIS  
               ! CSR case!    No flag check        =                all data that have passed QC/filtering
               !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
-              if ( all_opt_csr .or. offline_opt ) then
+              if ( allModeCsr .or. offlineMode ) then
                 condition  = .true. !
               else        
                 condition  = .not. btest(flag,18) ! ' AND (FLAG & 2048 = 0)' 
@@ -2159,8 +2174,8 @@ CONTAINS
               !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
               !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
               !               not bias corrected (11) (with bit 6 OFF)
-              if ( .not. offline_opt ) then
-                if ( all_opt_hyperIr ) then        
+              if ( .not. offlineMode ) then
+                if ( allModeHyperIr ) then        
                   ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
                   condition1  = .not. btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,19) .and. .not. btest(flag,21) .and. .not. btest(flag,23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
                   ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
@@ -2292,7 +2307,7 @@ CONTAINS
     if ( present(lmodify_obserror_opt) ) lmodify_obserror = lmodify_obserror_opt
 
 
-    if (lweightedEstimate) then
+    if (weightedEstimate) then
       call hco_SetupFromFile(hco_mask, './raob_masque.std', 'WEIGHT', GridName_opt='RadiosondeWeight',varName_opt='WT' )
       call vco_SetupFromFile(vco_mask, './raob_masque.std')   ! IN
 
@@ -2389,7 +2404,7 @@ CONTAINS
       nscan = bias(sensorIndex)% numscan
       npredMax = maxval( bias(sensorIndex)%chans(:)%numActivePredictors )
 
-      if ( lMimicSatbcor ) then
+      if ( mimicSatbcor ) then
         ndimmax = npredMax
         allocate( OmFBias(nchans,nscan) )
         OmFBias(:,:) = 0.d0
@@ -2442,7 +2457,7 @@ CONTAINS
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY1 
           call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
           if (chanindx > 0) then
-            if  (lMimicSatBcor) then
+            if  (mimicSatBcor) then
               OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
               OmFBias(chanIndx,iScan) = OmFBias(chanIndx,iScan) + OmF
             end if
@@ -2451,11 +2466,11 @@ CONTAINS
         end do BODY1
       end do HEADER1
 
-      if ( lMimicSatbcor ) allocate( omfBiasMpiGlobal(nchans,nscan) )
+      if ( mimicSatbcor ) allocate( omfBiasMpiGlobal(nchans,nscan) )
 
       allocate( omfCountMpiGlobal(nchans,nscan) )
 
-      if ( lMimicSatbcor ) then
+      if ( mimicSatbcor ) then
         call rpn_comm_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
         if (ierr /=0) then
           Write(errorMessage,*) "bias_do_regression: MPI communication error 1",  ierr 
@@ -2468,7 +2483,7 @@ CONTAINS
         Write(errorMessage,*) "bias_do_regression: MPI communication error 2",  ierr 
         call utl_abort(errorMessage)
       end if
-      if ( lMimicSatbcor)  then
+      if ( mimicSatbcor)  then
         if (mpi_myId == 0) then
           where( omfCountMpiGlobal == 0 ) omfBiasMpiGlobal = 0.d0
           where( omfCountMpiGlobal > 0 ) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
@@ -2519,11 +2534,11 @@ CONTAINS
             call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
             OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
 
-            if (lMimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
+            if (mimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
             
             LineVec(:,:) = 0.d0
 
-            if (lMimicSatbcor) then
+            if (mimicSatbcor) then
               idim = 0
               predstart = 1
               lambda = 1.d0
@@ -2575,14 +2590,14 @@ CONTAINS
         if (mpi_myId == 0) then
           ntot = sum(omfCountMpiGlobal(iChannel,:) )
           bias(sensorIndex)%chans(iChannel)%coeff_nobs = ntot
-          if (ntot > 0 .and. .not. lMimicSatbcor ) then
+          if (ntot > 0 .and. .not. mimicSatbcor ) then
             norm = 1.d0 / ( ntot ) 
             matrixMpiGlobal(iChannel,:,:) =  matrixMpiGlobal(iChannel,:,:) * norm
             vectorMpiGlobal(iChannel,:) = vectorMpiGlobal(iChannel,:) * norm
           end if
 
           nPred =  bias(sensorIndex)%chans(iChannel)%numActivePredictors
-          if ( lMimicSatbcor ) then
+          if ( mimicSatbcor ) then
             ndim = npred
           else
             ndim = npred + nscan -1 
@@ -2611,13 +2626,13 @@ CONTAINS
           call utl_abort(errorMessage)
         end if
 
-        if (loutCoeffCov) then
+        if (outCoeffCov) then
           allocate ( bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim) ) 
           call rpn_comm_bcast(pIMatrix(1:ndim,1:ndim), ndim*ndim, "MPI_DOUBLE_PRECISION", 0, "GRID", ierr )
           bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
-        if ( lMimicSatbcor ) then
+        if ( mimicSatbcor ) then
           bias(sensorIndex)%chans(iChannel)%coeff(:) =  LineVec(1,1:npred)
         else
           bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1,1:nscan)

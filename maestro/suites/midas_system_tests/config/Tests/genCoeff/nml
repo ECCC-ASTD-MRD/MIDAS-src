@@ -4,13 +4,12 @@
     biasmode="reg",
     removeBiasCorrection=.true.
     refreshBiasCorrection=.false.
-    lmimicsatbcor=.true.
+    mimicsatbcor=.true.
     scanBiasCorLength=-1.d0
-    doRegression=.true.
     centerPredictors=.false.,
-    lweightedEstimate=.false.,
-    loutstats=.true.,
-    loutcoeffcov=.true.,
+    weightedEstimate=.false.,
+    outstats=.true.,
+    outcoeffcov=.true.,
     filterObs = .true.,
     cinst(1)="AMSUA"
     nbscan(1)=30
