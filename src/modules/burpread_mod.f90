@@ -2110,6 +2110,7 @@ CONTAINS
 
             IND_PHASE = BURP_Find_Element(Block_in, ELEMENT=8004, IOSTAT=error)
 
+            phasePresent = .false.
             if( FAMILYTYPE == 'AI' .and. IND_PHASE > 0) then
               allocate( phase(nvale,nte) )
               phase(:,:) = MPC_missingValue_R4
@@ -2643,7 +2644,7 @@ CONTAINS
 
                 IF (NDATA_SF == 0) THEN
                   if ( phasePresent ) then
-                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB,phase(1,k))
                   else
                     call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                   end if
