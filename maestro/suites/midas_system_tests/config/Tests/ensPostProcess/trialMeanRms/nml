@@ -7,7 +7,8 @@
    numBits     = 32
 /
  &NAMTIME
-   DSTEPOBS    = 6.0d0
+   DSTEPOBS    = 1.0D0
+   DSTEPOBSINC = 1.0D0
 /
  &NAMVNL
    forceSfcOnly(1) = 'ES'

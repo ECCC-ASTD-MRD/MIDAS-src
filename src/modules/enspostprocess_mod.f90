@@ -342,7 +342,8 @@ contains
       end if
 
       !- Recompute the analysis spread stddev after inflation and humidity limits
-      call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+      call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, &
+                         dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          hInterpolateDegree_opt = hInterpolationDegree, &
                          dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
@@ -419,9 +420,11 @@ contains
       call epp_getRmsEtiket(etiketMean, etiketStd, 'F', etiket0, nEns)
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
-      call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
-                           typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
+                             typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+      end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
       call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
@@ -457,9 +460,11 @@ contains
       call epp_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
-      call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
-                           typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+      end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
       call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
@@ -473,9 +478,11 @@ contains
         call epp_getRmsEtiket(etiketMean, etiketStd, 'P', etiket0, nEns)
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertmean'
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
-                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
+                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+        end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
         call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
