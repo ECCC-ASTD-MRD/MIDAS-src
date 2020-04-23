@@ -1022,7 +1022,7 @@ contains
     real(8) :: zlon, lon
     real(8) :: zazm, azm
     integer :: isat, iclf, jj
-    real(8) :: rad, geo, wfgps
+    real(8) :: rad, geo
     real(8), allocatable :: zpp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
@@ -1036,7 +1036,7 @@ contains
     logical  assim, firstheader, ldsc
     integer :: nh, nh1
     type(gps_profile)           :: prf
-    real(8)      , allocatable :: h   (:),azmv(:)
+    real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
     integer :: Vcode
 
@@ -1060,10 +1060,6 @@ contains
     allocate( h    (gpsro_maxprfsize) )
     allocate( azmv (gpsro_maxprfsize) )
     allocate( rstv (gpsro_maxprfsize) )
-    !if (levelgpsro == 1) then
-    !  allocate( rstvp(gpsro_maxprfsize) )
-    !  allocate( rstvm(gpsro_maxprfsize) )
-    !end if
 
     jobs = 0.0d0
 
@@ -1108,10 +1104,6 @@ contains
        geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
        azm  = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
        zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
-       wfgps=0.d0
-       do jj=1,numgpssats
-          if (isat == igpssat(jj)) wfgps=wgps(jj)
-       end do
        !
        ! Profile at the observation location:
        !
@@ -1178,12 +1170,7 @@ contains
        ! Apply the observation operator:
        !
        if (levelgpsro == 1) then
-          call gps_bndopv1(h      , azmv, nh, prf, rstv)
-          !call gps_bndopv1(h+wfgps, azmv, nh, prf, rstvp)
-          !call gps_bndopv1(h-wfgps, azmv, nh, prf, rstvm)
-          !do nh1 = 1, nh
-          !  rstv(nh1)=(rstvp(nh1)+rstv(nh1)+rstvm(nh1))/3.d0
-          !end do
+          call gps_bndopv1(h, azmv, nh, prf, rstv)
        else
           call gps_refopv (h,       nh, prf, rstv)
        end if
@@ -1248,10 +1235,6 @@ contains
        firstheader = .false.
     end do HEADER
 
-    !if (levelgpsro == 1) then
-    !  deallocate( rstvm )
-    !  deallocate( rstvp )
-    !end if
     deallocate( rstv )
     deallocate( azmv )
     deallocate( h    )
@@ -3542,7 +3525,7 @@ contains
     real(8) :: zlon, lon
     real(8) :: zazm, azm
     integer :: isat
-    real(8) :: rad, geo, wfgps, zp0
+    real(8) :: rad, geo, zp0
     REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
     real(8) :: zmt
     integer :: IDATYP
@@ -3619,10 +3602,6 @@ contains
           geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
           azm = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
           zmt  = col_getHeight(columng,0,headerIndex,'SF')
-          wfgps= 0.d0
-          do jj = 1,numgpssats
-            if (isat == igpssat(jj)) wfgps = wgps(jj)
-          enddo
           lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
           lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
           zazm = azm / MPC_DEGREES_PER_RADIAN_R8

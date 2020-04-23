@@ -557,7 +557,7 @@ module backgroundCheck_mod
                   IF (LEVELGPSRO.EQ.1) THEN
                      ZREF = 0.025d0*exp(-HNH1/6500.d0)
                   ELSE
-                     IF (NUMGPSSATS .GE. 1) THEN
+                     IF (.NOT.gpsroBNorm) THEN
                        ZREF = 300.d0*exp(-HNH1/6500.d0)
                      ELSE
                        ZREF = ZMHX
@@ -566,7 +566,7 @@ module backgroundCheck_mod
                            
                   ! OMF Tested criteria:
 
-                  IF (NUMGPSSATS .GE. 1) THEN
+                  IF (.NOT.gpsroBNorm) THEN
                     IF (DABS(ZOMF)/ZREF.GT.BGCKBAND .OR. DABS(ZOMF)/ZOER.GT.3.d0) THEN
                       call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
                       call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
