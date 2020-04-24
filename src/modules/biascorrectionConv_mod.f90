@@ -304,7 +304,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   subroutine bcc_readGPBcor(file_cor)
     !
-    ! :Purpose: Read GB-GPS bias corrections (mean O-A by station)
+    ! :Purpose: Read GB-GPS bias corrections (mean ZTD O-A [mm] by station)
     !     Missing value = -999.00
     !
     implicit none
@@ -338,7 +338,7 @@ CONTAINS
        if ( ierr /= 0 ) then
           call utl_abort('bcc_readGPBcor: error 2 while reading GB-GPS bias correction file ' // file_cor )
        end if
-       if (corr_ligne /= -999.00) corrects_ZTD(stationIndex) = -corr_ligne
+       if (corr_ligne /= -999.00) corrects_ZTD(stationIndex) = -corr_ligne/1000.  ! mm to m
        gps_stn(stationIndex) = id_ligne
     end do
     ierr = fclos(nulcoeff)
