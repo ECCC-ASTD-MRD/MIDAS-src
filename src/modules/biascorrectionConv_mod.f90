@@ -43,8 +43,8 @@ MODULE biasCorrectionConv_mod
   
   integer, external    :: fnom, fclos
   
-  logical :: aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly, gpRejBit11
-  namelist /nambiasconv/ aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly, gpRejBit11
+  logical :: aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly
+  namelist /nambiasconv/ aiBiasActive, gpBiasActive, aiRevOnly, gpRevOnly
   
 CONTAINS
  
@@ -64,7 +64,6 @@ CONTAINS
     gpBiasActive = .false.  ! bias correct GP data (ZTD)
     aiRevOnly    = .false.  ! AI: don't apply new correction but simply reverse any old corrections
     gpRevOnly    = .false.  ! GP: don't apply new correction but simply reverse any old corrections
-    gpRejBit11   = .true.   ! GP: Set data flag bit 11 (reject for assim) for any uncorrected data
     ! read in the namelist NAMBIASCONV
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -435,8 +434,6 @@ CONTAINS
 
           call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
           call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, ztd  )
-          ! Flag uncorrected data for rejection
-          if (.not. btest(flag, 6) .and. gpRejBit11) flag = ibset(flag, 11)
           call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag )
            
         end if
