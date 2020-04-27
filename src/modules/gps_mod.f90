@@ -33,7 +33,7 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
   public :: gpsroError, gpsroBNorm
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
@@ -345,13 +345,13 @@ module gps_mod
 !         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
 !         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
-  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
+  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(0:1023,4), HTPMAXER
   character(len=20) :: gpsroError
   LOGICAL :: gpsroBNorm
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                      BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroError, gpsroBNorm
+                      BGCKBAND,WGPS, gpsroError, gpsroBNorm
 
 
 !modgpsztd_mod
@@ -3013,13 +3013,11 @@ contains
     HTPMAX     = 70000.d0
     HTPMAXER   = -1.d0
     BGCKBAND   = 0.05d0
-    NUMGPSSATS = 0
     gpsroError = 'DYNAMIC'
     gpsroBNorm = .True.
 !
 !   Force a pre-NML default of zero for the effective data weight of all GPSRO satellites
 !
-    IGPSSAT = 0
     WGPS = 0.d0
 !
 !   Override with NML values:
@@ -3033,10 +3031,7 @@ contains
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
     if(mpi_myid.eq.0) then
        write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
-         HTPMAX,HTPMAXER,BGCKBAND,NUMGPSSATS, trim(gpsroError), gpsroBNorm
-       do J = 1, NUMGPSSATS
-          write(*,*)'IGPSSAT',J,IGPSSAT(J)
-       enddo
+         HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
        do J = 0, 1023
           if (WGPS(J,1) > 0.d0) write(*,*)'WGPS',J,WGPS(J,1),WGPS(J,2),WGPS(J,3),WGPS(J,4)
        enddo
