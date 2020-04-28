@@ -2968,7 +2968,11 @@ CONTAINS
           end if
         end if
         if ( L_BCOR )  then
-          BCOR  =  BiasCorrection_opt(j)
+          if (trim(FAMTYP) == trim('GP') )  then
+             BCOR  =  BiasCorrection_opt(il)
+          else
+             BCOR  =  BiasCorrection_opt(j)
+          end if
         end if
         IFLAG = INT(qCflag(il,j))
 

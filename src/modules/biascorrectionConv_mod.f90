@@ -428,6 +428,8 @@ CONTAINS
                else 
                  corr = 0.0
                end if
+            ELSE 
+               corr = 0.0
             END IF
 
           end if
