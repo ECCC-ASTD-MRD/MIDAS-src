@@ -1923,7 +1923,7 @@ contains
     REAL*8 DH,DDH
     integer JL, isat, JH, NGPSLEV, NWNDLEV
     REAL*8 zMT, Rad, Geo, zP0
-    REAL*8 HNH1, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
+    REAL*8 HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
     !
     LOGICAL  ASSIM, L1, L2, L3
 
@@ -2191,7 +2191,7 @@ contains
               H1 = H(NH1)
               if (LEVELGPSRO == 1) then
                  H1 = H1 - Rad
-                 F2 = 0.5d0*(erf((x-22000.d0)/5000.d0)+1.d0)
+                 F2 = 0.5d0*(erf((H1-22000.d0)/5000.d0)+1.d0)
               else
                  F2 = exp(0.5d0*H1/6500.d0)
               endif
