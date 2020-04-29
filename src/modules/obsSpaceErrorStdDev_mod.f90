@@ -403,7 +403,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'UU'
       write(*,*) clnomvar 
-      field_ptr => gsv_getField3D_r8(statevector,'UU')       
+      call gsv_getField(statevector,field_ptr,'UU')       
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -430,7 +430,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'VV'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'VV')
+      call gsv_getField(statevector,field_ptr,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -453,7 +453,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'ES'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'HU')
+      call gsv_getField(statevector,field_ptr,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -476,7 +476,7 @@ module obsSpaceErrorStdDev_mod
       ! height is put into TT slot in gridStateVector
       clnomvar = 'GZ'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'TT')
+      call gsv_getField(statevector,field_ptr,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -528,7 +528,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'TT'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'TT')
+      call gsv_getField(statevector,field_ptr,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -567,7 +567,7 @@ module obsSpaceErrorStdDev_mod
          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
          call utl_abort('ose_compute_hbht_static')
       end if
-      field_ptr => gsv_getField3D_r8(statevector,'P0')
+      call gsv_getField(statevector,field_ptr,'P0')
       do jlev = 1, ink
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -578,7 +578,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'UU'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'UU')
+      call gsv_getField(statevector,field_ptr,'UU')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -600,7 +600,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'VV'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'VV')
+      call gsv_getField(statevector,field_ptr,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -622,7 +622,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'TT'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'TT')
+      call gsv_getField(statevector,field_ptr,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -644,7 +644,7 @@ module obsSpaceErrorStdDev_mod
 
       clnomvar = 'ES'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'HU')
+      call gsv_getField(statevector,field_ptr,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -667,7 +667,7 @@ module obsSpaceErrorStdDev_mod
       clnomvar = 'LVIS'
       if (gsv_varExist(statevector,clnomvar)) then
         write(*,*) clnomvar
-        field_ptr => gsv_getField3D_r8(statevector,clnomvar)
+        call gsv_getField(statevector,field_ptr,clnomvar)
         do jlev = 1, nlev_T
           ip1 = vco_anl%ip1_T(jlev)
           ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -702,7 +702,7 @@ module obsSpaceErrorStdDev_mod
           write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
           call utl_abort('ose_compute_hbht_static')
         end if
-        field_ptr => gsv_getField3D_r8(statevector,clnomvar)
+        call gsv_getField(statevector,field_ptr,clnomvar)
         do jlev = 1, ink
           do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -724,7 +724,7 @@ module obsSpaceErrorStdDev_mod
       
       clnomvar = 'LQ'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D_r8(statevector,'HU')
+      call gsv_getField(statevector,field_ptr,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)

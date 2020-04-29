@@ -671,7 +671,7 @@ CONTAINS
     end select
 
     if (ens%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
+      call gsv_getField(ens%statevector_work,ptr4d_r8)
       do stepIndex = 1, numStep
         do jk = k1, k2
           if (dataType == 'member') then
@@ -684,7 +684,7 @@ CONTAINS
         end do
       end do
     else if (ens%dataKind == 4) then
-      ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
+      call gsv_getField(ens%statevector_work,ptr4d_r4)
       do stepIndex = 1, numStep
         do jk = k1, k2
           if (dataType == 'member') then
@@ -747,7 +747,7 @@ CONTAINS
     end select
 
     if (ens%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
+      call gsv_getField(ens%statevector_work,ptr4d_r8)
       do stepIndex = 1, numStep
         do jk = k1, k2
           if (dataType == 'member') then
@@ -760,7 +760,7 @@ CONTAINS
         end do
       end do
     else if (ens%dataKind == 4) then
-      ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
+      call gsv_getField(ens%statevector_work,ptr4d_r4)
       do stepIndex = 1, numStep
         do jk = k1, k2
           if (dataType == 'member') then
@@ -895,14 +895,14 @@ CONTAINS
     end if
 
     if (statevector%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(statevector)
+      call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
         end do
       end do
     else
-      ptr4d_r4 => gsv_getField_r4(statevector)
+      call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
@@ -947,14 +947,14 @@ CONTAINS
     end if
 
     if (statevector%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(statevector)
+      call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
         end do
       end do
     else
-      ptr4d_r4 => gsv_getField_r4(statevector)
+      call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
@@ -998,14 +998,14 @@ CONTAINS
     end if
 
     if (statevector%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(statevector)
+      call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
         end do
       end do
     else
-      ptr4d_r4 => gsv_getField_r4(statevector)
+      call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
         do jk = k1, k2
           ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:),4)
@@ -1068,7 +1068,7 @@ CONTAINS
       k2 = ens%statevector_work%mykEnd
 
       if (ens%dataKind == 8) then
-        ptr4d_r8 => gsv_getField_r8(statevector)
+        call gsv_getField(statevector,ptr4d_r8)
         do stepIndex = 1, numStep
           do jk = k1, k2
             ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
@@ -1076,14 +1076,14 @@ CONTAINS
         end do
       else if (ens%dataKind == 4) then
         if (gsv_getDataKind(statevector) == 8) then
-          ptr4d_r8 => gsv_getField_r8(statevector)
+          call gsv_getField(statevector,ptr4d_r8)
           do stepIndex = 1, numStep
             do jk = k1, k2
               ptr4d_r8(:,:,jk,stepIndex) = real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:),8)
             end do
           end do
         else
-          ptr4d_r4 => gsv_getField_r4(statevector)
+          call gsv_getField(statevector,ptr4d_r4)
           do stepIndex = 1, numStep
             do jk = k1, k2
               ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
@@ -1099,7 +1099,7 @@ CONTAINS
         if (.not. ens_varExist(ens,varName)) cycle
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
         if (ens%dataKind == 8) then
-          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+          call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
           do stepIndex = 1, numStep
             do gsvLevIndex = 1, nLev
               ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1108,7 +1108,7 @@ CONTAINS
           end do
         else if (ens%dataKind == 4) then
           if (gsv_getDataKind(statevector) == 8) then
-            ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+            call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1116,7 +1116,7 @@ CONTAINS
               end do
             end do
           else
-            ptr4d_r4 => gsv_getField_r4(statevector,varName_opt=varName)
+            call gsv_getField(statevector,ptr4d_r4,varName_opt=varName)
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1182,7 +1182,7 @@ CONTAINS
       k2 = ens%statevector_work%mykEnd
 
       if (ens%dataKind == 8) then
-        ptr4d_r8 => gsv_getField_r8(statevector)
+        call gsv_getField(statevector,ptr4d_r8)
         do stepIndex = 1, numStep
           do jk = k1, k2
             ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
@@ -1190,14 +1190,14 @@ CONTAINS
         end do
       else if (ens%dataKind == 4) then
         if (gsv_getDataKind(statevector) == 8) then
-          ptr4d_r8 => gsv_getField_r8(statevector)
+          call gsv_getField(statevector,ptr4d_r8)
           do stepIndex = 1, numStep
             do jk = k1, k2
               ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,jk,stepIndex),4)
             end do
           end do
         else
-          ptr4d_r4 => gsv_getField_r4(statevector)
+          call gsv_getField(statevector,ptr4d_r4)
           do stepIndex = 1, numStep
             do jk = k1, k2
               ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
@@ -1212,7 +1212,7 @@ CONTAINS
         varName = varNamesInGsv(varIndex)
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
         if (ens%dataKind == 8) then
-          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+          call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
           do stepIndex = 1, numStep
             do gsvLevIndex = 1, nLev
               ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1221,7 +1221,7 @@ CONTAINS
           end do
         else if (ens%dataKind == 4) then
           if (gsv_getDataKind(statevector) == 8) then
-            ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+            call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1229,7 +1229,7 @@ CONTAINS
               end do
             end do
           else
-            ptr4d_r4 => gsv_getField_r4(statevector,varName_opt=varName)
+            call gsv_getField(statevector,ptr4d_r4,varName_opt=varName)
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
@@ -1942,18 +1942,18 @@ CONTAINS
 
     nullify(ptr4d_r4, ptr4d_r8)
     if (gsv_getDataKind(recenteringMean) == 8) then
-      ptr4d_r8 => gsv_getField_r8(recenteringMean)
+      call gsv_getField(recenteringMean,ptr4d_r8)
     else
-      ptr4d_r4 => gsv_getField_r4(recenteringMean)
+      call gsv_getField(recenteringMean,ptr4d_r4)
     end if
     if(present(alternativeEnsembleMean_opt)) then
-      alternativeEnsembleMean_r8 => gsv_getField_r8(alternativeEnsembleMean_opt)
+      call gsv_getField(alternativeEnsembleMean_opt,alternativeEnsembleMean_r8)
     else
       nullify(alternativeEnsembleMean_r8)
     end if
 
     if (present(ensembleControlMember_opt)) then
-      ptr4d_ensembleControlmember_r8 => gsv_getField_r8(ensembleControlMember_opt)
+      call gsv_getField(ensembleControlMember_opt,ptr4d_ensembleControlmember_r8)
     else
       nullify(ptr4d_ensembleControlmember_r8)
     end if
@@ -2271,7 +2271,7 @@ CONTAINS
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+            call gsv_getField(statevector_member_r4,ptr3d_r4)
             call agd_mach_r4(ptr3d_r4,    & ! INOUT
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
@@ -2289,7 +2289,7 @@ CONTAINS
             jk2 = min(nk,jk+numLevelsToSend-1)
             numLevelsToSend2 = jk2 - jk + 1
 
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+            call gsv_getField(statevector_member_r4,ptr3d_r4)
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)
@@ -2507,7 +2507,7 @@ CONTAINS
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
 
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+            call gsv_getField(statevector_member_r4,ptr3d_r4)
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)

@@ -20,6 +20,7 @@ module minimization_mod
   ! :Purpose: Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
+  use codePrecision_mod
   use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -578,18 +579,22 @@ CONTAINS
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=INCR_REAL, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=INCR_REAL, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=INCR_REAL, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=INCR_REAL, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
@@ -800,8 +805,9 @@ CONTAINS
 
     ! Locals:
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
+    real(INCR_REAL), pointer :: field(:,:,:,:)
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
-    real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
+    real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:)
     real(8), pointer :: cv_pert_bchm_mpilocal(:)
     real(8), allocatable :: scaleFactorBhi(:),scaleFactorBchm(:,:)
     logical, save :: firstTime = .true.
@@ -892,7 +898,7 @@ CONTAINS
       icount=0
       do jvar=1,vnl_numvarmax 
         if(gsv_varExist(statevector_randpert,vnl_varNameList(jvar))) then
-           field => gsv_getField_r8(statevector_randpert,vnl_varNameList(jvar))
+           call gsv_getField(statevector_randpert,field,vnl_varNameList(jvar))
            nlev=gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList(jvar))) 
            if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
              write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList(jvar)
@@ -941,7 +947,7 @@ CONTAINS
             (trim(vnl_varNameList3D(jvar)) == 'UU' .or.  &
              trim(vnl_varNameList3D(jvar)) == 'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
-        field => gsv_getField_r8(statevector_randpert,vnl_varNameList3D(jvar))
+        call gsv_getField(statevector_randpert,field,vnl_varNameList3D(jvar))
         do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
           field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)*pertScaleFactor_UV(jlev)
@@ -1019,7 +1025,7 @@ CONTAINS
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local_opt=.true.)
+                         dataKind_opt=INCR_REAL, mpi_local_opt=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

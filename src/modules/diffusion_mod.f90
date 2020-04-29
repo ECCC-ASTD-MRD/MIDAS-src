@@ -257,7 +257,7 @@ contains
       call gsv_zero( statevector )
       call gsv_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', unitConversion_opt = .false. )
 
-      field3D_r4_ptr   => gsv_getField3D_r4( statevector, bdiff_varNameList( variableIndex ) )
+      call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
       Lcorr(:,:) = dble( field3D_r4_ptr( :, :, 1 ) )       
       write(*,*) myName//': correlation length scale 2D field for variable ', bdiff_varNameList( variableIndex ),' min/max: ', &
                  minval( Lcorr(:,:) ), maxval( Lcorr(:,:) )

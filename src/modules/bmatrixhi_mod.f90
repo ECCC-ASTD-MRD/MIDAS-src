@@ -2341,11 +2341,16 @@ CONTAINS
     type(struct_gsv) :: statevector
     real(8) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
+        if (gsv_getDataKind(statevector) == 8) then
+          call gsv_getField(statevector,field_r8,vnl_varNameList(jvar))
+        else
+          call gsv_getField(statevector,field_r4,vnl_varNameList(jvar))
+        end if
         if(vnl_varNameList(jvar) == 'UU  ') then
           ilev1 = nspositVO
         elseif(vnl_varNameList(jvar) == 'VV  ') then
@@ -2364,14 +2369,25 @@ CONTAINS
           cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-        do jlev = ilev1, ilev2
-          jlev2 = jlev-ilev1+1
-          do jlat = myLatBeg, myLatEnd
-            do jlon = myLonBeg, myLonEnd
-              field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+        if (gsv_getDataKind(statevector) == 8) then
+          do jlev = ilev1, ilev2
+            jlev2 = jlev-ilev1+1
+            do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                field_r8(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+              enddo
             enddo
           enddo
-        enddo
+        else
+          do jlev = ilev1, ilev2
+            jlev2 = jlev-ilev1+1
+            do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                field_r4(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+              enddo
+            enddo
+          enddo
+        end if
       endif
     enddo
 
@@ -2383,11 +2399,16 @@ CONTAINS
     type(struct_gsv) :: statevector
     real(8)          :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
+        if (gsv_getDataKind(statevector) == 8) then
+          call gsv_getField(statevector,field_r8,vnl_varNameList(jvar))
+        else
+          call gsv_getField(statevector,field_r4,vnl_varNameList(jvar))
+        end if
         if(vnl_varNameList(jvar) == 'UU  ') then
           ilev1 = nspositVO
         elseif(vnl_varNameList(jvar) == 'VV  ') then
@@ -2405,14 +2426,25 @@ CONTAINS
           cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-        do jlev = ilev1, ilev2
-          jlev2 = jlev-ilev1+1
-          do jlat = myLatBeg, myLatEnd
-            do jlon = myLonBeg, myLonEnd
-              gd(jlon,jlat,jlev) = field(jlon,jlat,jlev2)
+        if (gsv_getDataKind(statevector) == 8) then
+          do jlev = ilev1, ilev2
+            jlev2 = jlev-ilev1+1
+            do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                gd(jlon,jlat,jlev) = field_r8(jlon,jlat,jlev2)
+              enddo
             enddo
           enddo
-        enddo
+        else
+          do jlev = ilev1, ilev2
+            jlev2 = jlev-ilev1+1
+            do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                gd(jlon,jlat,jlev) = field_r4(jlon,jlat,jlev2)
+              enddo
+            enddo
+          enddo
+        end if
       endif
     enddo
 

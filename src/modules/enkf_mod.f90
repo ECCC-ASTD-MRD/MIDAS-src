@@ -750,9 +750,9 @@ contains
       !
       ! Apply the weights to compute the ensemble mean and members
       !
-      meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
-      meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
-      meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
+      call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
+      call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
+      call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -882,7 +882,7 @@ contains
     call gsv_deallocate(stateVectorMeanTrlPressure)
     allocate(logPres_M_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
     if (mpi_myid == 0) then
-      logPres_M_ptr_r4 => gsv_getField3d_r4(stateVectorMeanTrlPressure_1step,'P_M')
+      call gsv_getField(stateVectorMeanTrlPressure_1step,logPres_M_ptr_r4,'P_M')
       logPres_M_r4(:,:,:) = log(logPres_M_ptr_r4(:,:,:))
     end if
     nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M

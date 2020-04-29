@@ -19,6 +19,7 @@ program midas_var
   ! :Purpose: Main program for variational minimization or background check 
   !           (depending on the mode selected in the namelist).
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -108,6 +109,10 @@ program midas_var
   if(ierr.ne.0) call utl_abort('midas-var: Error reading namelist')
   write(*,nml=namct0)
   ierr=fclos(nulnam)
+
+  write(*,*)
+  write(*,*) 'Real Kind used for computing the increment =', INCR_REAL
+  write(*,*)
 
   write(*,*)
   select case(nconf)
@@ -280,7 +285,7 @@ program midas_var
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-         allocHeight_opt=.false., allocPressure_opt=.false.)
+         dataKind_opt=INCR_REAL, allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment
     call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)

@@ -17,13 +17,14 @@
 module codePrecision_mod
   ! MODULE codePrecision_mod (prefix='pre' category='8. Global constants and interfaces')
   !
-  !:Purpose: A higher-level module to specify the precision, mostly for floating
+  !:Purpose: A module to specify the precision, mostly for floating
   !          point variables
   !
   implicit none
   save
   public
 
+  ! Precision for columns in obsSpaceData
 #if !defined(CODEPRECISION_OBS_REAL_SINGLE) && !defined(CODEPRECISION_OBS_REAL_DOUBLE)
 #define CODEPRECISION_OBS_REAL_DOUBLE
 #endif
@@ -36,6 +37,19 @@ module codePrecision_mod
 #ifdef CODEPRECISION_OBS_REAL_SINGLE
   integer, parameter :: OBS_REAL = selected_real_kind(6)
   character(len=20)  :: MPI_OBS_REAL="mpi_real"
+#endif
+
+  ! Precision for calculation of analysis increment in variational analysis
+#if !defined(CODEPRECISION_INCR_REAL_SINGLE) && !defined(CODEPRECISION_INCR_REAL_DOUBLE)
+#define CODEPRECISION_INCR_REAL_DOUBLE
+#endif
+
+#ifdef CODEPRECISION_INCR_REAL_DOUBLE
+  integer, parameter :: INCR_REAL = selected_real_kind(15)
+#endif
+
+#ifdef CODEPRECISION_INCR_REAL_SINGLE
+  integer, parameter :: INCR_REAL = selected_real_kind(6)
 #endif
 
 end module codePrecision_mod

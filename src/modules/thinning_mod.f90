@@ -25,7 +25,6 @@ module thinning_mod
   !
   !           So far, only aladin wind data are treated.
   !
-  use codePrecision_mod
   use bufr_mod
   use obsSpaceData_mod
   use utilities_mod
@@ -98,7 +97,6 @@ contains
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
     integer :: newProfileId
-    real(OBS_REAL) :: level
 
     countKeepN=0
 

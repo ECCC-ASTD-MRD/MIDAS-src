@@ -1153,7 +1153,7 @@ module CalcStatsGlb_mod
                        varNames_opt=nomVarToWrite(1:numVarToWrite) )
     do varIndex = 1, numVarToWrite
       nLevEns = gsv_getNumLevFromVarName(stateVector,nomVarToWrite(varIndex))
-      field => gsv_getField3d_r8(stateVector,nomVarToWrite(varIndex))
+      call gsv_getField(stateVector,field,nomVarToWrite(varIndex))
       if ( any(nomVarToWrite(varIndex) == nomvar(:,cvSpace)) ) then
         field(:,:,:) = stddev3d(:, :,      (varLevOffset(varIndex)+1):(varLevOffset(varIndex)+nLevEns) )
       else if(present(stddevZonAvgUnbal_opt) .and. present(stddev3dUnbal_opt)) then
@@ -1289,7 +1289,7 @@ module CalcStatsGlb_mod
                        varNames_opt=nomVarToWrite(1:nvar) )
     do varIndex = 1, nvar
       nLevEns = gsv_getNumLevFromVarName(stateVector,nomVarToWrite(varIndex))
-      field => gsv_getField3d_r8(stateVector,nomVarToWrite(varIndex))
+      call gsv_getField(stateVector,field,nomVarToWrite(varIndex))
       field(:,:,:) = stddev3dBal(:, :, (varLevOffsetBal(varIndex)+1):(varLevOffsetBal(varIndex)+nLevEns) )
     end do
     call gsv_writeToFile(stateVector, './stddev_balanced.fst', etiket_in='STDDEV3D', ip3_opt=ip3, &
@@ -1952,7 +1952,7 @@ module CalcStatsGlb_mod
       write(*,*) 'readEnsemble: copying over member ', ensIndex
       call ens_copyMember(ensPerts, stateVector, ensIndex)
 
-      field_r4 => gsv_getField3D_r4(stateVector,'UU')
+      call gsv_getField(stateVector,field_r4,'UU')
       do levIndex = 1, nLevEns_M
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -1961,7 +1961,7 @@ module CalcStatsGlb_mod
         end do
       end do
 
-      field_r4 => gsv_getField3D_r4(stateVector,'VV')
+      call gsv_getField(stateVector,field_r4,'VV')
       do levIndex = 1, nLevEns_M
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -1970,7 +1970,7 @@ module CalcStatsGlb_mod
         end do
       end do
 
-      field_r4 => gsv_getField3D_r4(stateVector,'TT')
+      call gsv_getField(stateVector,field_r4,'TT')
       do levIndex = 1, nLevEns_T
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -1979,7 +1979,7 @@ module CalcStatsGlb_mod
         end do
       end do
     
-      field_r4 => gsv_getField3D_r4(stateVector,'LQ')
+      call gsv_getField(stateVector,field_r4,'LQ')
       do levIndex=1,nLevEns_T
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -1988,7 +1988,7 @@ module CalcStatsGlb_mod
         end do
       end do
 
-      field_r4 => gsv_getField3D_r4(stateVector,'P0')
+      call gsv_getField(stateVector,'P0')
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           ensPerturbations(lonIndex,latIndex,1+varLevOffset(5),ensIndex)= field_r4(lonIndex,latIndex,1)

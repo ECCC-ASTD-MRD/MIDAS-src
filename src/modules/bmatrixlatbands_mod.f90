@@ -1891,7 +1891,7 @@ contains
 
     do jvar = 1, vnl_numvarmax 
       if ( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
-        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
+        call gsv_getField(statevector,field,vnl_varNameList(jvar))
         if ( vnl_varNameList(jvar) == 'UU  ' ) then
           ilev1 = nspositVO
         else if ( vnl_varNameList(jvar) == 'VV  ' ) then
@@ -1933,7 +1933,7 @@ contains
 
     do jvar = 1, vnl_numvarmax 
       if ( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
-        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
+        call gsv_getField(statevector,field,vnl_varNameList(jvar))
         if ( vnl_varNameList(jvar) == 'UU  ' ) then
           ilev1 = nspositVO
         else if ( vnl_varNameList(jvar) == 'VV  ' ) then

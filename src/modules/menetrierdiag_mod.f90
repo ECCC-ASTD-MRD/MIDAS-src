@@ -240,7 +240,7 @@ contains
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
                       mpi_distribution_opt='VarsLevs', dataKind_opt=8 )
     call gsv_transposeTilesToVarsLevs(statevector_ensStdDev_tiles, statevector_ensStdDev)
-    ensStdDev => gsv_getField3D_r8(statevector_ensStdDev)
+    call gsv_getField(statevector_ensStdDev,ensStdDev)
 
     call gsv_deallocate(statevector_ensStdDev_tiles)
 
@@ -340,7 +340,7 @@ contains
       !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
       !  because ensemble member is the last loop index below)
       do ens = 1, nens
-        ptr3d_r4 => gsv_getField3D_r4(statevector_oneMember(ens))
+        call gsv_getField(statevector_oneMember(ens),ptr3d_r4)
         do j = 1, nj
           do i = 1, ni
             ensPert_local(ens,i,j) = ptr3d_r4(i,j,k)
@@ -748,7 +748,7 @@ contains
     !- 1.  Setup
     !
     call ens_copyEnsStdDev(ensPerts, statevector_ensStdDev)
-    ensStdDev => gsv_getField3D_r8(statevector_ensStdDev)
+    call gsv_getField(statevector_ensStdDev,ensStdDev)
 
     numFunctions = 3
 

@@ -2450,23 +2450,34 @@ module BmatrixChem_mod
     
     !Locals
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, VarIndex, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
 
     do VarIndex = 1,numvar3d+numvar2d
-      field => gsv_getField3D_r8(statevector,bchm_varNameList(VarIndex))
       ilev1 = nsposit(VarIndex)
-      ilev2 = nsposit(VarIndex+1)-1 
-        
-!!!$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,levelIndex2,lonIndex)
-      do levelIndex = ilev1, ilev2
-        levelIndex2 = levelIndex-ilev1+1
-        do latIndex = myLatBeg, myLatEnd
-          do lonIndex = myLonBeg, myLonEnd
-            field(lonIndex,latIndex,levelIndex2) = gd(lonIndex,latIndex,levelIndex)
+      ilev2 = nsposit(VarIndex+1)-1
+      if (gsv_getDataKind(statevector) == 4) then
+        call gsv_getField(statevector,field_r4,bchm_varNameList(VarIndex))
+        do levelIndex = ilev1, ilev2
+          levelIndex2 = levelIndex-ilev1+1
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              field_r4(lonIndex,latIndex,levelIndex2) = gd(lonIndex,latIndex,levelIndex)
+            enddo
           enddo
         enddo
-      enddo
-!!!$OMP END PARALLEL DO
+      else
+        call gsv_getField(statevector,field_r8,bchm_varNameList(VarIndex))
+        do levelIndex = ilev1, ilev2
+          levelIndex2 = levelIndex-ilev1+1
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              field_r8(lonIndex,latIndex,levelIndex2) = gd(lonIndex,latIndex,levelIndex)
+            enddo
+          enddo
+        enddo
+      end if
+
     enddo
   end subroutine bchm_copyToStatevector
 
@@ -2482,25 +2493,35 @@ module BmatrixChem_mod
     
     !Locals
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, VarIndex, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
 
     do VarIndex = 1,numvar3d+numvar2d
-      field => gsv_getField3D_r8(statevector,bchm_varNameList(VarIndex))
-
       ilev1 = nsposit(VarIndex)
       ilev2 = nsposit(VarIndex+1)-1 
 
-!!!$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,levelIndex2,lonIndex)
-      do levelIndex = ilev1, ilev2
-        levelIndex2 = levelIndex-ilev1+1
-        do latIndex = myLatBeg, myLatEnd
-          do lonIndex = myLonBeg, myLonEnd
-            gd(lonIndex,latIndex,levelIndex) = field(lonIndex,latIndex,levelIndex2)
+      if (gsv_getDataKind(statevector) == 4) then
+        call gsv_getField(statevector,field_r4,bchm_varNameList(VarIndex))
+        do levelIndex = ilev1, ilev2
+          levelIndex2 = levelIndex-ilev1+1
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              gd(lonIndex,latIndex,levelIndex) = field_r4(lonIndex,latIndex,levelIndex2)
+            enddo
           enddo
         enddo
-      enddo
-!!!$OMP END PARALLEL DO
-     enddo
+      else
+        call gsv_getField(statevector,field_r8,bchm_varNameList(VarIndex))
+        do levelIndex = ilev1, ilev2
+          levelIndex2 = levelIndex-ilev1+1
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              gd(lonIndex,latIndex,levelIndex) = field_r8(lonIndex,latIndex,levelIndex2)
+            enddo
+          enddo
+        enddo
+      end if
+    enddo
 
   end subroutine bchm_copyFromStatevector
 

@@ -822,7 +822,7 @@ CONTAINS
       else if (trim(bEns(instanceIndex)%varianceSmoothing) == 'footprintLandSeaTopo') then
         call gbi_setup(gbi_landSeaTopo, 'landSeaTopo', bEns(instanceIndex)%statevector_ensStdDev, &
                        mpi_distribution_opt='None', writeBinsToFile_opt=bEns(instanceIndex)%ensDiagnostic)
-        bin2d => gsv_getField3D_r4(gbi_landSeaTopo%statevector_bin2d)
+        call gsv_getField(gbi_landSeaTopo%statevector_bin2d,bin2d)
         HeightSfc => gsv_getHeightSfc(gbi_landSeaTopo%statevector_bin2d)
         call gsv_smoothHorizontal(bEns(instanceIndex)%statevector_ensStdDev,                                       & ! INOUT
                                   bEns(instanceIndex)%footprintRadius, binInteger_opt=bin2d, binReal_opt=HeightSfc,& ! IN
@@ -947,16 +947,16 @@ CONTAINS
           call utl_abort('ben_setupOneInstance')
         end select
 
-        call adv_setup( bEns(instanceIndex)%adv_ensPerts,                                                   & ! OUT
-                        directionEnsPerts, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                            & ! IN
-                        bEns(instanceIndex)%numStepAdvectAssimWindow, bEns(instanceIndex)%dateStampListAdvectedFields,          & ! IN
-                        bEns(instanceIndex)%numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M, & ! IN
+        call adv_setup( bEns(instanceIndex)%adv_ensPerts,                                                              & ! OUT
+                        directionEnsPerts, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                   & ! IN
+                        bEns(instanceIndex)%numStepAdvectAssimWindow, bEns(instanceIndex)%dateStampListAdvectedFields, & ! IN
+                        bEns(instanceIndex)%numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M,            & ! IN
                         'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D )   ! IN
 
-        call adv_setup( bEns(instanceIndex)%adv_analInc,                                                    & ! OUT
-                        directionAnlInc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                              & ! IN
-                        bEns(instanceIndex)%numStepAdvectAssimWindow, bEns(instanceIndex)%dateStampListAdvectedFields,          & ! IN
-                        bEns(instanceIndex)%numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M, & ! IN
+        call adv_setup( bEns(instanceIndex)%adv_analInc,                                                               & ! OUT
+                        directionAnlInc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                     & ! IN
+                        bEns(instanceIndex)%numStepAdvectAssimWindow, bEns(instanceIndex)%dateStampListAdvectedFields, & ! IN
+                        bEns(instanceIndex)%numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M,            & ! IN
                         'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D )   ! IN
 
       case default
@@ -1272,9 +1272,9 @@ CONTAINS
       lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
 
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-        ptr4d_r8 => gsv_getField_r8(statevector, 'HU')
+        call gsv_getField(statevector, ptr4d_r8, 'HU')
       else
-        ptr4d_r8 => gsv_getField_r8(statevector, varName)
+        call gsv_getField(statevector, ptr4d_r8, varName)
       end if
       ensOneLev_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
 
@@ -1407,9 +1407,9 @@ CONTAINS
       lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
 
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-        ptr4d_out => gsv_getField_r8(statevector, 'HU')
+        call gsv_getField(statevector, ptr4d_out, 'HU')
       else
-        ptr4d_out => gsv_getField_r8(statevector, varName)
+        call gsv_getField(statevector, ptr4d_out, varName)
       end if
       ensOneLev_mean => ens_getOneLevMean_r8(bEns(instanceIndex)%ensPerts(1), 1, levIndex)
 
@@ -2075,7 +2075,8 @@ CONTAINS
     real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable, target :: ensAmplitude_MT(:,:,:,:)
     real(8), pointer     :: ensAmplitude_MT_ptr(:,:,:,:)
-    real(8), pointer     :: increment_out(:,:,:,:)
+    real(4), pointer     :: increment_out_r4(:,:,:,:)
+    real(8), pointer     :: increment_out_r8(:,:,:,:)
     real(8), allocatable :: increment_out2(:,:,:)
     real(4), pointer     :: ensMemberAll_r4(:,:,:,:)
     integer     :: lev, lev2, levIndex, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
@@ -2233,14 +2234,26 @@ CONTAINS
       lev2 = lev - 1 + topLevOffset
 
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-        increment_out => gsv_getField_r8(statevector_out, 'HU')
+        if (gsv_getDataKind(statevector_out) == 4) then
+          call gsv_getField(statevector_out, increment_out_r4, 'HU')
+        else
+          call gsv_getField(statevector_out, increment_out_r8, 'HU')
+        end if
       else
-        increment_out => gsv_getField_r8(statevector_out, varName)
+        if (gsv_getDataKind(statevector_out) == 4) then
+          call gsv_getField(statevector_out, increment_out_r4, varName)
+        else
+          call gsv_getField(statevector_out, increment_out_r8, varName)
+        end if
       end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
-        increment_out(:,:,lev2,stepIndex2) = increment_out(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
+        if (gsv_getDataKind(statevector_out) == 4) then
+          increment_out_r4(:,:,lev2,stepIndex2) = increment_out_r4(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
+        else
+          increment_out_r8(:,:,lev2,stepIndex2) = increment_out_r8(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
+        end if
       end do
       !$OMP END PARALLEL DO
 
@@ -2269,7 +2282,8 @@ CONTAINS
     real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
     real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable :: ensAmplitude_MT(:,:)
-    real(8), pointer :: increment_in(:,:,:,:)
+    real(4), pointer     :: increment_in_r4(:,:,:,:)
+    real(8), pointer     :: increment_in_r8(:,:,:,:)
     real(8), allocatable :: increment_in2(:,:,:)
     real(4), pointer :: ensMemberAll_r4(:,:,:,:)
     integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
@@ -2291,7 +2305,7 @@ CONTAINS
     if (useFSOFcst .and. bEns(instanceIndex)%fsoLeadTime > 0.0d0) then
       stepBeg = bEns(instanceIndex)%numStep
       stepEnd = stepBeg
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
+      if (mpi_myid == 0) write(*,*) 'ben_addEnsMemberAd: using forecast ensemble stored at timestep ',stepEnd
     else
       stepBeg = 1
       stepEnd = bEns(instanceIndex)%numStepAssimWindow
@@ -2336,14 +2350,26 @@ CONTAINS
 
       call tmg_start(65,'ADDMEMAD_SHUFFLE')
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-        increment_in => gsv_getField_r8(statevector_in, 'HU')
+        if (gsv_getDataKind(statevector_in) == 4) then
+          call gsv_getField(statevector_in, increment_in_r4, 'HU')
+        else
+          call gsv_getField(statevector_in, increment_in_r8, 'HU')
+        end if
       else
-        increment_in => gsv_getField_r8(statevector_in, varName)
+        if (gsv_getDataKind(statevector_in) == 4) then
+          call gsv_getField(statevector_in, increment_in_r4, varName)
+        else
+          call gsv_getField(statevector_in, increment_in_r8, varName)
+        end if
       end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = stepBeg, stepEnd
         stepIndex2 = stepIndex - stepBeg + 1
-        increment_in2(stepIndex2,:,:) = increment_in(:,:,lev2,stepIndex2)
+        if (gsv_getDataKind(statevector_in) == 4) then
+          increment_in2(stepIndex2,:,:) = increment_in_r4(:,:,lev2,stepIndex2)
+        else
+          increment_in2(stepIndex2,:,:) = increment_in_r8(:,:,lev2,stepIndex2)
+        end if
       end do
       !$OMP END PARALLEL DO
       call tmg_stop(65)
