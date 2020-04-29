@@ -3,7 +3,6 @@
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="thinning"/>
   <SUBMITS sub_name="obsSelection"/>
-  <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
   <SUBMITS sub_name="letkf"/>
@@ -180,19 +179,6 @@
   <FAMILY  name="obsSelection">
     <SUBMITS sub_name="select_AL"/>
     <FAMILY  name="select_AL">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
-  <FAMILY  name="addIncrement">
-    <SUBMITS sub_name="2D"/>
-    <FAMILY  name="2D">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="3D"/>
-    <FAMILY  name="3D">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
