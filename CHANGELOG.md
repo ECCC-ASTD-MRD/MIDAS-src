@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove the programs `addIncrement` and `seaIce` because they are no longer needed (#345 and !334)
 
 ## [3.5.1]
 
