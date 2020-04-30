@@ -346,7 +346,8 @@ module gps_mod
 !         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE
-  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(0:1023,4), HTPMAXER
+  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, HTPMAXER
+  REAL*4  WGPS(0:1023,4)
   character(len=20) :: gpsroError
   LOGICAL :: gpsroBNorm
 
@@ -3023,8 +3024,8 @@ contains
 !   hardware and provider postprocessing.
 !   The default assumes no correlation. 
 !
-    WGPS = 0.d0
-    WGPS(:,1) = 1.d0
+    WGPS = 0.
+    WGPS(:,1) = 1.
 !
 !   Override with NML values:
 !     
@@ -3039,7 +3040,7 @@ contains
       write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
            HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
       do SatID = 0, 1023
-        if (WGPS(SatID,2) /= 0.d0) then
+        if (WGPS(SatID,2) /= 0.) then
           write(*,*)'WGPS', SatID, WGPS(SatID, 1:4)
         endif
       enddo
