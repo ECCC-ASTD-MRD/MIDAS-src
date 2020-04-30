@@ -36,10 +36,14 @@ MODULE biasCorrectionConv_mod
   real, allocatable  :: corrects_ZTD(:)
   character(len=9), allocatable :: aircraft_ID(:), gps_stn(:)
   
+  logical :: bcc_aiBiasActive, bcc_gpBiasActive
+  
   ! Bias correction files (must be in program working directory)
   character(len=8), parameter :: ai_bcfile = "ai_bcors", gp_bcfile = "gp_bcors"
 
   public               :: bcc_readConfig, bcc_applyAIBcor, bcc_applyGPBcor
+  
+  public               :: bcc_aiBiasActive, bcc_gpBiasActive
   
   integer, external    :: fnom, fclos
   
@@ -72,6 +76,10 @@ CONTAINS
          write(*,*) 'bcc_readConfig: WARNING: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
     ierr = fclos(nulnam)
+    
+    bcc_aiBiasActive = aiBiasActive
+    bcc_gpBiasActive = gpBiasActive
+    
     
   end subroutine bcc_readConfig
 
