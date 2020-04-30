@@ -3002,7 +3002,7 @@ contains
     implicit none
 
     ! Locals:
-    integer nulnam,ierr,fnom,fclos,j
+    integer nulnam,ierr,fnom,fclos,SatID
 !
 !   Define default values:
 !
@@ -3016,9 +3016,15 @@ contains
     gpsroError = 'DYNAMIC'
     gpsroBNorm = .True.
 !
-!   Force a pre-NML default of zero for the effective data weight of all GPSRO satellites
+!   Force a pre-NML default for the effective data weight of all
+!   GPSRO satellites. This array has rows 0-1023 (following BUFR element
+!   SATID), and 4 cols. The 4 parameters for each SATID are used to
+!   represent data correlation, a combined property of the satellite
+!   hardware and provider postprocessing.
+!   The default assumes no correlation. 
 !
     WGPS = 0.d0
+    WGPS(:,1) = 1.d0
 !
 !   Override with NML values:
 !     
@@ -3026,15 +3032,17 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
+    !if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
     if(mpi_myid.eq.0) then
-       write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
-         HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
-       do J = 0, 1023
-          if (WGPS(J,1) > 0.d0) write(*,*)'WGPS',J,WGPS(J,1),WGPS(J,2),WGPS(J,3),WGPS(J,4)
-       enddo
+      write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
+           HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
+      do SatID = 0, 1023
+        if (WGPS(SatID,2) /= 0.d0) then
+          write(*,*)'WGPS', SatID, WGPS(SatID, 1:4)
+        endif
+      enddo
     endif
   end subroutine gps_setupro
 
