@@ -239,6 +239,11 @@ contains
     call col_setVco(columnhr,vco_trl)
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
+    ! copy latitude from obsSpaceData
+    if ( obs_numHeader(obsSpaceData) > 0 ) then
+      call obs_extractObsRealHeaderColumn(columnhr%lat(:), obsSpaceData, OBS_LAT)
+    end if
+
     if (vco_trl%Vcode == 0) then
       allocHeightSfc = .false.
     else
@@ -314,6 +319,11 @@ contains
     write(*,*) 'inn_setupBackgroundColumnsAnl: START'
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+
+    ! copy latitude
+    if ( col_getNumCol(columng) > 0 ) then
+      columng%lat(:) = columnhr%lat(:)
+    end if
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D

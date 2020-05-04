@@ -1988,7 +1988,7 @@ module CalcStatsGlb_mod
         end do
       end do
 
-      call gsv_getField(stateVector,'P0')
+      call gsv_getField(stateVector,field_r4,'P0')
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           ensPerturbations(lonIndex,latIndex,1+varLevOffset(5),ensIndex)= field_r4(lonIndex,latIndex,1)

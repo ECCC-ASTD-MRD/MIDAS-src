@@ -284,7 +284,7 @@ contains
       if (writeSubSample) then
         ! Copy sub-sampled analysis and trial ensemble members
         call epp_selectSubSample(ensembleAnl, ensembleAnlSubSample,  &
-                                  ensembleTrl, ensembleTrlSubSample)
+                                 ensembleTrl, ensembleTrlSubSample)
 
         ! Create subdirectory for outputting sub sample increments
         ierr = clib_mkdir_r('subspace')
