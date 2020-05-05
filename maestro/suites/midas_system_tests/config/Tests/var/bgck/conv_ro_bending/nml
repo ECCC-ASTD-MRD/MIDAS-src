@@ -65,6 +65,7 @@
   HSFMIN   = 1000.D0,
   HTPMAX   = 70000.D0,
   BGCKBAND = 0.05D0,
+  gpsroError = 'STATIC_2018',
 /
  &NAMGPSGB
    DZMIN      = 2.0D0,

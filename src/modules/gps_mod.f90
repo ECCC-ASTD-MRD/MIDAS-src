@@ -33,7 +33,8 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS, gpsroError
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
+  public :: gpsroError, gpsroBNorm
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
@@ -335,6 +336,7 @@ module gps_mod
 !     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
 !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
+!     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
 !
 !     J.M. Aparicio, Apr 2008
 !
@@ -343,12 +345,14 @@ module gps_mod
 !         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
 !         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
-  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
-  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50), HTPMAXER
+  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE
+  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, HTPMAXER
+  REAL*4  WGPS(0:1023,4)
   character(len=20) :: gpsroError
+  LOGICAL :: gpsroBNorm
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                      BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroError
+                      BGCKBAND,WGPS, gpsroError, gpsroBNorm
 
 
 !modgpsztd_mod
@@ -2999,7 +3003,7 @@ contains
     implicit none
 
     ! Locals:
-    integer nulnam,ierr,fnom,fclos,j
+    integer nulnam,ierr,fnom,fclos,SatID
 !
 !   Define default values:
 !
@@ -3010,8 +3014,18 @@ contains
     HTPMAX     = 70000.d0
     HTPMAXER   = -1.d0
     BGCKBAND   = 0.05d0
-    NUMGPSSATS = 0
     gpsroError = 'DYNAMIC'
+    gpsroBNorm = .True.
+!
+!   Force a pre-NML default for the effective data weight of all
+!   GPSRO satellites. This array has rows 0-1023 (following BUFR element
+!   SATID), and 4 cols. The 4 parameters for each SATID are used to
+!   represent data correlation, a combined property of the satellite
+!   hardware and provider postprocessing.
+!   The default assumes no correlation. 
+!
+    WGPS = 0.
+    WGPS(:,1) = 1.
 !
 !   Override with NML values:
 !     
@@ -3019,19 +3033,18 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
+    !if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
-         HTPMAX,HTPMAXER,BGCKBAND,NUMGPSSATS, trim(gpsroError)
-!
-!   Force a min/max values for the effective Fresnel widths per satellite:
-!
-    DO J=1,NUMGPSSATS
-       IF (WGPS(J).LT. 100.d0) WGPS(J)= 100.d0
-       IF (WGPS(J).GT.1500.d0) WGPS(J)=1500.d0
-    ENDDO
-
+    if(mpi_myid.eq.0) then
+      write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
+           HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
+      do SatID = 0, 1023
+        if (WGPS(SatID,2) /= 0.) then
+          write(*,*)'WGPS', SatID, WGPS(SatID, 1:4)
+        endif
+      enddo
+    endif
   end subroutine gps_setupro
 
   integer function gps_iprofile_from_index(index)

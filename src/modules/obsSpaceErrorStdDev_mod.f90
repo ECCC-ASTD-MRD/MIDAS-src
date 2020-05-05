@@ -1333,7 +1333,7 @@ module obsSpaceErrorStdDev_mod
       REAL*8 zLon, Lon
       REAL*8 zAzm !, Azm
       INTEGER ISAT
-      REAL*8 Rad, Geo, WFGPS
+      REAL*8 Rad, Geo
       REAL*8, allocatable :: zPP(:)
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
@@ -1382,10 +1382,6 @@ module obsSpaceErrorStdDev_mod
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
          allocate( RSTV (GPSRO_MAXPRFSIZE) )
-!         IF (LEVELGPSRO.EQ.1) THEN
-!            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
-!            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
-!         ENDIF
       endif
 
       vco_anl => col_getVco(lcolumng)
@@ -1436,10 +1432,6 @@ module obsSpaceErrorStdDev_mod
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
                   zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
                   zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')
-                  WFGPS= 0.d0
-                  DO JJ=1,NUMGPSSATS
-                     IF (ISAT.EQ.IGPSSAT(JJ)) WFGPS=WGPS(JJ)
-                  ENDDO
                   Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
@@ -1493,12 +1485,7 @@ module obsSpaceErrorStdDev_mod
                   ! Apply the observation operator:
 
                   IF (LEVELGPSRO.EQ.1) THEN
-                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
-!                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
-!                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
-!                     do nh1 = 1, nh
-!                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
-!                     enddo
+                     CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
                   ELSE
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   ENDIF
@@ -1554,10 +1541,6 @@ module obsSpaceErrorStdDev_mod
       ENDDO HEADER
 
       IF (LFIRST) THEN
-!         IF (LEVELGPSRO.EQ.1) THEN
-!            deallocate( RSTVM )
-!            deallocate( RSTVP )
-!         ENDIF
          deallocate( RSTV )
          deallocate( AZMV )
          deallocate( H    )

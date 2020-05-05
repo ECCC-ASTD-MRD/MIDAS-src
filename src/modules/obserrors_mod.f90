@@ -1923,7 +1923,7 @@ contains
     REAL*8 DH,DDH
     integer JL, isat, JH, NGPSLEV, NWNDLEV
     REAL*8 zMT, Rad, Geo, zP0
-    REAL*8 HNH1, SUM0, SUM1, ZMIN
+    REAL*8 HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
     !
     LOGICAL  ASSIM, L1, L2, L3
 
@@ -2079,7 +2079,7 @@ contains
                 !
                 !     *           Normalized offset:
                 !
-            IF ( NUMGPSSATS  >=  1 ) then
+            IF ( .NOT.gpsroBNorm ) then
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZREF(NH1)
             ELSE
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZMHX(NH1)
@@ -2110,9 +2110,6 @@ contains
                   end if
                 end do
                 ZERR(NH1)=(SUM1/SUM0)**0.5D0
-                if ( NUMGPSSATS  >=  1 ) then
-                  if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
-                end if
                 if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
             else if (trim(gpsroError) == 'STATIC_2018') then
@@ -2145,18 +2142,39 @@ contains
               call utl_abort('oer_setErrGPSro: Invalid value for gpsroError')
             endif
           else
-            do NH1 = 1, NH
-              ZERR(NH1)=0.05d0
-              HNH1=H(NH1)-Rad
-              L1=( HNH1 <= 10000.d0 )
-              L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
-              L3=( HNH1 > 30000.d0 )
-              IF ( L1 ) ZERR(NH1)=0.02d0+0.08d0*(10000.d0-HNH1)/10000.d0
-              IF ( L2 ) ZERR(NH1)=0.02d0
-              IF ( L3 ) ZERR(NH1)=0.02d0+0.13d0*(HNH1-30000.d0)/30000.d0
-              IF (isat==3 .or. isat==4 .or. isat==5) ZERR(NH1) = 2*ZERR(NH1)
-              IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-            end do
+            if (trim(gpsroError) == 'DYNAMIC') then
+              ZMIN = 0.01D0
+              do NH1 = 1, NH
+                HNH1=H(NH1)-Rad
+                SUM0=1.d-30
+                SUM1=0.d0
+                DH = 1000.d0 + 0.1d0 * HNH1
+                do JH = 1, NH
+                  HJH=H(JH)-Rad
+                  if ( HJH <= HTPMAXER ) then
+                    DDH=HJH-HNH1
+                    SUM0=SUM0+EXP(-(DDH/DH)**2+(DDH/DH))
+                    SUM1=SUM1+EXP(-(DDH/DH)**2+(DDH/DH))*ZOFF(JH)**2
+                  end if
+                end do
+                ZERR(NH1)=(SUM1/SUM0)**0.5D0
+                if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+                if ( H(NH1) < PRF%ast(ngpslev)%Var ) ZERR(NH1)=0.08
+              end do
+            else if (trim(gpsroError) == 'STATIC_2018') then
+              do NH1 = 1, NH
+                ZERR(NH1)=0.05d0
+                HNH1=H(NH1)-Rad
+                L1=( HNH1 <= 10000.d0 )
+                L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
+                L3=( HNH1 > 30000.d0 )
+                IF ( L1 ) ZERR(NH1)=0.02d0+0.08d0*(10000.d0-HNH1)/10000.d0
+                IF ( L2 ) ZERR(NH1)=0.02d0
+                IF ( L3 ) ZERR(NH1)=0.02d0+0.13d0*(HNH1-30000.d0)/30000.d0
+                IF (isat==3 .or. isat==4 .or. isat==5) ZERR(NH1) = 2*ZERR(NH1)
+                IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+              end do
+            end if
           end if
 
           NH1 = 0
@@ -2170,13 +2188,25 @@ contains
             if ( bodyIndex < 0) exit BODY_4
             IF ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
               NH1 = NH1 + 1
+              H1 = H(NH1)
+              if (LEVELGPSRO == 1) then
+                 H1 = H1 - Rad
+                 F2 = 0.5d0*(erf((H1-22000.d0)/5000.d0)+1.d0)
+              else
+                 F2 = exp(0.5d0*H1/6500.d0)
+              endif
+              F3 = exp(-((H1- 6500.d0)/6500.d0)**2)
+              F4 = exp(-((H1-14500.d0)/6500.d0)**2)
+              WFGPS = WGPS(ISAT,1) + WGPS(ISAT,2) * F2 + WGPS(ISAT,3) * F3 + WGPS(ISAT,4) * F4
+              IF (WFGPS < 1.D0) WFGPS = 1.D0
+              WFGPS = sqrt(WFGPS)
               !
                    !     *              Observation error    S
                    !
-              if ( NUMGPSSATS  >=  1 ) then
-                call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1) * ZREF(NH1))
+              if ( .NOT.gpsroBNorm ) then
+                call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1)*ZREF(NH1)*WFGPS)
               else
-                call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1) * ZMHX(NH1))
+                call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1)*ZMHX(NH1)*WFGPS)
               end if
             end if
           end do BODY_4

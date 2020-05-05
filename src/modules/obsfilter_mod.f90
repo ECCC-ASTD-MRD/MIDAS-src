@@ -1300,7 +1300,7 @@ end subroutine filt_topoAISW
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
     INTEGER :: JL, ISAT, ICLF, iProfile, I
     REAL(8) :: ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
-    REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF
+    REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT
     !
     if (.not.beSilent) then
@@ -1333,14 +1333,8 @@ end subroutine filt_topoAISW
           !
           !     *     Check if the satellite is within the accepted set:
           !
-          IF ( NUMGPSSATS >= 1 ) THEN
-             LSAT = .FALSE.
-             DO I=1,NUMGPSSATS
-                LSAT=( LSAT .OR. (ISAT == IGPSSAT(I)) )
-             END DO
-          ELSE
-             LSAT = .TRUE.
-          END IF
+          ZSAT = ABS(WGPS(ISAT,1))+ABS(WGPS(ISAT,2))+ABS(WGPS(ISAT,3))+ABS(WGPS(ISAT,4))
+          LSAT = ( ZSAT .GT. 0.d0)
           !
           ZMT = col_getHeight(lcolumnhr,0,index_header,'SF')
           !
@@ -1349,14 +1343,6 @@ end subroutine filt_topoAISW
           JL = 1
           HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
           HSF = ZMT+SURFMIN
-          !
-          !     *     Discard low data for METOP/GRAS:
-          !
-          IF ( NUMGPSSATS >= 1 ) THEN
-             IF ( ISAT == 3 .OR. ISAT == 4 .OR. ISAT == 5 ) THEN
-                IF (HSF < 10000.d0) HSF=10000.d0
-             END IF
-          END IF
           !
           !     *     Min/max altitudes:
           !
