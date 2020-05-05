@@ -5774,10 +5774,6 @@ module gridStateVector_mod
     ! prepare for alltoallv
     nsize = stateVector_VarsLevs%ni * stateVector_VarsLevs%nj
 
-    do procIndex = 1, mpi_nprocs
-      senddispls(procIndex) = (procIndex-1)*nsize
-    end do
-
     ! only send the data from tasks with data, same amount to all
     sendsizes(:) = 0
     if ( stateVector_1step_r4%allocated ) then
@@ -6356,8 +6352,6 @@ module gridStateVector_mod
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
     integer :: kIndex, procIndex, stepIndex, numStep
-    logical :: thisProcIsAreceiver(mpi_nprocs)
-    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)

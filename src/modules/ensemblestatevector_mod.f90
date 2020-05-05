@@ -2045,19 +2045,22 @@ CONTAINS
     integer :: batchnum, nsize, status, ierr
     integer :: yourid, youridx, youridy
     integer :: readFilePE(1000)
+    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
-    integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jk, jk2, jk3
+    integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numLevelsToSend2
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, procIndex, kIndexBeg, kIndexEnd, kCount
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4), pointer :: anlVar(:)
+    logical :: thisProcIsAsender(mpi_nprocs)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
     logical :: containsFullField
     character(len=4), pointer :: varNames(:)
+    integer, parameter :: numLevelsToSend = 10
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2073,18 +2076,11 @@ CONTAINS
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
     nj          = ens%statevector_work%nj
-    nk          = ens%statevector_work%nk
+    numK        = ens%statevector_work%nk
     numStep     = ens%statevector_work%numStep
     dateStampList => ens%statevector_work%dateStampList
 
     ens%ensPathName = trim(ensPathName)
-
-    ! Memory allocation
-    numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
-    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
-    gd_send_r4(:,:,:,:) = 0.0
-    gd_recv_r4(:,:,:,:) = 0.0
 
     do memberIndex = 1, ens%numMembers
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
@@ -2201,29 +2197,28 @@ CONTAINS
     do stepIndex = 1, numStep
       write(*,*) ' '
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
-
-      ! allocate the needed statevector objects
-      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                        datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                        varNames_opt = varNames, dataKind_opt = 4,  &
-                        hInterpolateDegree_opt = ens%hInterpolateDegree)
-      if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
-        call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
-                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames, dataKind_opt = 4,  &
-                          hInterpolateDegree_opt = ens%hInterpolateDegree)
-      end if
-      if (verticalInterpNeeded) then
-        call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames, dataKind_opt = 4, &
-                          hInterpolateDegree_opt = ens%hInterpolateDegree)
-      end if
       
       do memberIndex = 1, ens%numMembers
 
         if (mpi_myid == readFilePE(memberIndex)) then
 
+          ! allocate the needed statevector objects
+          call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                            varNames_opt = varNames, dataKind_opt = 4,  &
+                            hInterpolateDegree_opt = ens%hInterpolateDegree)
+          if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
+            call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+                              datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                              varNames_opt = varNames, dataKind_opt = 4,  &
+                              hInterpolateDegree_opt = ens%hInterpolateDegree)
+          end if
+          if (verticalInterpNeeded) then
+            call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+                              datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                              varNames_opt = varNames, dataKind_opt = 4, &
+                              hInterpolateDegree_opt = ens%hInterpolateDegree)
+          end if
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Read the file
@@ -2285,60 +2280,113 @@ CONTAINS
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
-          do jk = 1, nk, numLevelsToSend
-            jk2 = min(nk,jk+numLevelsToSend-1)
-            numLevelsToSend2 = jk2 - jk + 1
+          ! determine which tasks have something to send and let everyone know
+          do procIndex = 1, mpi_nprocs
+            thisProcIsAsender(procIndex) = .false.
+            if ( mpi_myid == (procIndex-1) .and. stateVector_member_r4%allocated ) then
+              thisProcIsAsender(procIndex) = .true.
+            end if
+            call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
+                                'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+          end do
 
-            call gsv_getField(statevector_member_r4,ptr3d_r4)
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mpi_npey-1)
-              do youridx = 0, (mpi_npex-1)
-                yourid = youridx + youridy*mpi_npex
-                gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                           1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
-                           ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                           ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
-              end do
-            end do
-            !$OMP END PARALLEL DO
+          do kIndexBeg = 1, numK, numLevelsToSend
+            kIndexEnd = min(numK,kIndexBeg+numLevelsToSend-1)
+            numLevelsToSend2 = kIndexEnd - kIndexBeg + 1
 
+            ! prepare for alltoallv
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
-            if (mpi_nprocs.gt.1) then
-              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
-                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+
+            ! only send the data from tasks with data, same amount to all
+            sendsizes(:) = 0
+            if ( stateVector_member_r4%allocated ) then
+              do procIndex = 1, mpi_nprocs
+                sendsizes(procIndex) = nsize
+              end do
+            end if
+            senddispls(1) = 0
+            do procIndex = 2, mpi_nprocs
+              senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+            end do
+
+            ! all tasks recv only from those with data
+            recvsizes(:) = 0
+            do procIndex = 1, mpi_nprocs
+              if ( thisProcIsAsender(procIndex) ) then
+                recvsizes(procIndex) = nsize
+              end if
+            end do
+            recvdispls(1) = 0
+            do procIndex = 2, mpi_nprocs
+              recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+            end do
+
+            if (statevector_member_r4%allocated) then
+              allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,mpi_nprocs))
+              gd_send_r4(:,:,:,:) = 0.0
+              call gsv_getField(statevector_member_r4,ptr3d_r4)
+              !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+              do youridy = 0, (mpi_npey-1)
+                do youridx = 0, (mpi_npex-1)
+                  yourid = youridx + youridy*mpi_npex
+                  gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                             1:ens%statevector_work%allLatPerPE(youridy+1), :, yourid+1) =  &
+                       ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
+                                ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), kIndexBeg:kIndexEnd)
+                end do
+              end do
+              !$OMP END PARALLEL DO
             else
-              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
+              allocate(gd_send_r4(1,1,1,1))
+              gd_send_r4(:,:,:,:) = 0.0
+            end if
+            allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,max(mpi_nprocs,ens%numMembers)))
+            gd_recv_r4(:,:,:,:) = 0.0
+
+            if (mpi_nprocs.gt.1) then
+              call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4, &
+                                 gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, &
+                                 mpi_comm_grid, ierr)
+            else
+              gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
             end if
 
             call tmg_start(110,'ENS_TO_ONELEV')
-            !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
-            do jk3 = 1, numLevelsToSend2
+            !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
+            do kCount = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
-                ens%allLev_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
-                     gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, jk3, yourid+1)
+                ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
+                     gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, kCount, yourid+1)
               end do
             end do
             !$OMP END PARALLEL DO
             call tmg_stop(110)
 
-          end do ! jk
+            deallocate(gd_send_r4)
+            deallocate(gd_recv_r4)
+
+          end do ! kIndexBeg
           call tmg_stop(13)
+
+          ! deallocate the needed statevector objects
+          if (statevector_member_r4%allocated) then
+            call gsv_deallocate(statevector_member_r4)
+          end if
+          if (statevector_file_r4%allocated) then
+            call gsv_deallocate(statevector_file_r4)
+          end if
+          if (statevector_hint_r4%allocated) then
+            call gsv_deallocate(statevector_hint_r4)
+          end if
 
         end if ! MPI communication
 
-
       end do ! memberIndex
 
-      ! deallocate the needed statevector objects
-      call gsv_deallocate(statevector_member_r4)
-      if (horizontalInterpNeeded .or. verticalInterpNeeded) call gsv_deallocate(statevector_file_r4)
-      if (verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
 
     end do ! time
 
-    deallocate(gd_send_r4)
-    deallocate(gd_recv_r4)
     deallocate(datestamplist)
     call hco_deallocate(hco_file)
     if ( .not. present(vco_file_opt) ) then
@@ -2386,8 +2434,8 @@ CONTAINS
     integer :: batchnum, nsize, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
-    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
+    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, numK, numStep, numlevelstosend, numlevelstosend2
+    integer :: memberIndex, memberIndex2, stepIndex, kIndexBeg, kIndexEnd, kCount, ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
@@ -2425,7 +2473,7 @@ CONTAINS
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
     nj          = ens%statevector_work%nj
-    nk          = ens%statevector_work%nk
+    numK        = ens%statevector_work%nk
     numStep     = ens%statevector_work%numStep
 
     ens%ensPathName = trim(ensPathName)
@@ -2475,25 +2523,25 @@ CONTAINS
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex + mpi_nprocs - 1)/dble(mpi_nprocs))
 
-          do jk = 1, nk, numLevelsToSend
-            jk2 = min(nk,jk+numLevelsToSend-1)
-            numLevelsToSend2 = jk2 - jk + 1
+          do kIndexBeg = 1, numK, numLevelsToSend
+            kIndexEnd = min(numK,kIndexBeg+numLevelsToSend-1)
+            numLevelsToSend2 = kIndexEnd - kIndexBeg + 1
 
             if ( ens%dataKind == 8 ) then
-              !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
-              do jk3 = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
+              do kCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = real(ens%allLev_r8(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = real(ens%allLev_r8(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
               !$OMP END PARALLEL DO
             else
-              !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
-              do jk3 = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
+              do kCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = ens%allLev_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2513,7 +2561,7 @@ CONTAINS
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
                 ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2) = &
+                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), kIndexBeg:kIndexEnd) = &
                          gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
                          1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
 
@@ -2521,7 +2569,7 @@ CONTAINS
             end do
             !$OMP END PARALLEL DO
 
-          end do ! jk
+          end do ! kIndexBeg
           call tmg_stop(13)
 
         end if ! MPI communication
