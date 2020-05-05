@@ -161,15 +161,20 @@ CONTAINS
 
     !
     ! read in the namelist NAMBIASSAT
+    if ( utl_isNamelistPresent('nambiassat','./flnml') ) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nambiassat,iostat=ierr)
+      if ( ierr /= 0 .and. mpi_myid == 0 )  &
+           write(*,*) 'bcs_readConfig: WARNING: Error reading namelist, assume it will not be used!'
+      if ( mpi_myid == 0 ) write(*,nml=nambiassat)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'bcs_readconfig: nambiassat is missing in the namelist. The default value will be taken.'
+    end if
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambiassat,iostat=ierr)
-    if ( ierr /= 0 .and. mpi_myid == 0 )  &
-         write(*,*) 'bcs_readConfig: WARNING: Error reading namelist, assume it will not be used!'
-    if ( mpi_myid == 0 ) write(*,nml=nambiassat)
-    ierr = fclos(nulnam)
-    bias_mimicSatbcor = mimicSatbcor
+    bcs_mimicSatbcor = mimicSatbcor
     doRegression = (trim(biasMode) == "reg" )
 
   end subroutine bcs_readConfig
