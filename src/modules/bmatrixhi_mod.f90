@@ -2512,7 +2512,7 @@ CONTAINS
 
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
@@ -2568,7 +2568,7 @@ CONTAINS
           enddo
  
        end do ! jproc
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -2660,7 +2660,7 @@ CONTAINS
 
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
@@ -2716,7 +2716,7 @@ CONTAINS
           enddo
  
        end do ! jproc
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -2818,7 +2818,7 @@ CONTAINS
     if(mpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+      !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
       do jproc = 0, (mpi_nprocs-1)
         jdim_mpilocal = 0
 
@@ -2861,7 +2861,7 @@ CONTAINS
           enddo
         enddo
       enddo ! jproc
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     endif ! myid == 0 
 
@@ -2947,7 +2947,7 @@ CONTAINS
     if(mpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+      !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
       do jproc = 0, (mpi_nprocs-1)
         jdim_mpilocal = 0
 
@@ -2990,7 +2990,7 @@ CONTAINS
           enddo
         enddo
       enddo ! jproc
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     endif ! myid == 0 
 
@@ -3100,7 +3100,7 @@ CONTAINS
     sq2 = sqrt(2.0d0)
     allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
-!$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
+    !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -3157,11 +3157,11 @@ CONTAINS
       endif
 
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
 
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3169,9 +3169,9 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nlev_T_even
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3179,7 +3179,7 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(55,'BHI_SPEREE') 
     call gst_setID(gstID)
@@ -3188,7 +3188,7 @@ CONTAINS
     call gst_speree(sptb,tb0)
     call tmg_stop(55) 
 
-!$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
+    !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRmu(jlat,gstID)
       do jlon = myLonBeg, myLonEnd
@@ -3226,11 +3226,11 @@ CONTAINS
         gd(jlon,jlat,nspositPS) = gd(jlon,jlat,nspositPS)+zpsb(jlon,jlat)
       enddo
     enddo  ! jlat
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
     zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
+    !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlev = nlev_bdl, nlev_M
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3238,7 +3238,7 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     sp(:,:,:) = 0.0d0
 
@@ -3249,7 +3249,7 @@ CONTAINS
 
     dla2   = ra*ra
     dl1sa2 = 1.d0/dla2
-!$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
+    !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M
       do jla_mpilocal = 1, nla_mpilocal
         ila_mpiglobal = ilaList_mpiglobal(jla_mpilocal)
@@ -3259,9 +3259,9 @@ CONTAINS
         sp(jla_mpilocal,2,nspositDI+jlev-1) = sp(jla_mpilocal,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(ila_mpiglobal,gstID)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3269,14 +3269,14 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
     call gst_setID(gstID)
     call gst_spgd(sp,gd,nlev_M)
     call tmg_stop(57)
 
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3284,7 +3284,7 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   END SUBROUTINE BHI_SPA2GD
 
@@ -3310,7 +3310,7 @@ CONTAINS
 
     klatPtoT = 1
 
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3318,7 +3318,7 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
     call gst_setID(gstID)
@@ -3327,7 +3327,7 @@ CONTAINS
 
     dla2   = ra*ra
     dl1sa2 = 1.d0/dla2
-!$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
+    !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M
       do jla_mpilocal = 1, nla_mpilocal
         ila_mpiglobal = ilaList_mpiglobal(jla_mpilocal)
@@ -3337,7 +3337,7 @@ CONTAINS
         sp(jla_mpilocal,2,nspositDI+jlev-1) = sp(jla_mpilocal,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(ila_mpiglobal,gstID)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(55,'BHI_SPEREE') 
     call gst_setID(gstID)
@@ -3346,7 +3346,7 @@ CONTAINS
 
     zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
     zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
+    !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlev = nlev_bdl, nlev_M
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
@@ -3354,9 +3354,9 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
+    !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
       tb0(:,jlat,:) = 0.0d0
@@ -3394,7 +3394,7 @@ CONTAINS
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO 
+    !$OMP END PARALLEL DO 
 
     call tmg_start(56,'BHI_REESPE') 
     call gst_setID(gstID)
@@ -3407,7 +3407,7 @@ CONTAINS
     sq2 = sqrt(2.0d0)
     allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
-!$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
+    !$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -3458,7 +3458,7 @@ CONTAINS
       endif
 
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
 

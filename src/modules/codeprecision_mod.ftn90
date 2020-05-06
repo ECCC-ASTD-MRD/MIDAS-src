@@ -20,6 +20,7 @@ module codePrecision_mod
   !:Purpose: A module to specify the precision, mostly for floating
   !          point variables
   !
+  use mpi
   implicit none
   save
   public
@@ -31,12 +32,12 @@ module codePrecision_mod
 
 #ifdef CODEPRECISION_OBS_REAL_DOUBLE
   integer, parameter :: OBS_REAL = selected_real_kind(15)
-  character(len=20)  :: MPI_OBS_REAL="mpi_double_precision"
+  character(len=20)  :: MPI_OBS_REAL="mpi_real8"
 #endif
 
 #ifdef CODEPRECISION_OBS_REAL_SINGLE
   integer, parameter :: OBS_REAL = selected_real_kind(6)
-  character(len=20)  :: MPI_OBS_REAL="mpi_real"
+  character(len=20)  :: MPI_OBS_REAL="mpi_real4"
 #endif
 
   ! Precision for calculation of analysis increment in variational analysis
@@ -50,6 +51,23 @@ module codePrecision_mod
 
 #ifdef CODEPRECISION_INCR_REAL_SINGLE
   integer, parameter :: INCR_REAL = selected_real_kind(6)
+#endif
+
+  ! Precision for calculation of analysis increment in variational analysis
+#if !defined(CODEPRECISION_SPECTRANS_REAL_SINGLE) && !defined(CODEPRECISION_SPECTRANS_REAL_DOUBLE)
+#define CODEPRECISION_SPECTRANS_REAL_DOUBLE
+#endif
+
+#ifdef CODEPRECISION_SPECTRANS_REAL_DOUBLE
+  integer, parameter :: SPECTRANS_REAL = selected_real_kind(15)
+  integer, parameter :: MPITYPE_SPECTRANS_REAL = MPI_REAL8
+  character(len=20)  :: MPI_SPECTRANS_REAL="mpi_real8"
+#endif
+
+#ifdef CODEPRECISION_SPECTRANS_REAL_SINGLE
+  integer, parameter :: SPECTRANS_REAL = selected_real_kind(6)
+  integer, parameter :: MPITYPE_SPECTRANS_REAL = MPI_REAL4
+  character(len=20)  :: MPI_SPECTRANS_REAL="mpi_real4"
 #endif
 
 end module codePrecision_mod

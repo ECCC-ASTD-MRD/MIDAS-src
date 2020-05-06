@@ -5,11 +5,12 @@
 echo
 echo "... compile_setup.sh script"
 
-# Set the precision for computing the increment in variational analyses
-#export COMPILE_MIDAS_INCR_REAL="-DCODEPRECISION_INCR_REAL_SINGLE"
-if [ -n "${COMPILE_MIDAS_INCR_REAL}" ];then
+# User-specified compilation options
+#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
+#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
+if [ -n "${COMPILE_MIDAS_COMPF_GLOBAL}" ];then
      echo "..."
-     echo "... Selected precision for computing increments = ${COMPILE_MIDAS_INCR_REAL}"
+     echo "... Additional user-specified compilation options = ${COMPILE_MIDAS_COMPF_GLOBAL}"
      echo "..."
 fi
 
@@ -140,7 +141,7 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
 fi
 
-COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_INCR_REAL}"
+COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
     OPTF="-mkl ${OPTF}"
