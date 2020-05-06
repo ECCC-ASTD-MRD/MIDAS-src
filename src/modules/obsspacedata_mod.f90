@@ -366,8 +366,9 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
-         'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
-         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ', &
+         'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
+         'SWQI','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS' /)
 
    !

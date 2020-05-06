@@ -81,7 +81,7 @@ MODULE biasCorrectionSat_mod
   type(struct_gsv)      :: statevector_mask
   type(struct_columnData) :: column_mask
   logical               :: initialized = .false.
-  logical               :: bias_mimicSatbcor
+  logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 6
   integer, parameter    :: maxfov = 120
