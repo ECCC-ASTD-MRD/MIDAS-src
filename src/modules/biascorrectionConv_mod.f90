@@ -30,7 +30,8 @@ MODULE biasCorrectionConv_mod
   save
   private
   public               :: bcc_readConfig, bcc_applyAIBcor, bcc_applyGPBcor
-  public               :: bcc_aiBiasActive, bcc_gpBiasActive
+  public               :: bcc_biasActive
+
   integer, parameter :: nPhases=3, nLevels=5, nAircraftMax=100000 
   integer, parameter :: nStationMaxGP=10000
   integer, parameter :: phaseLevel   = 3
@@ -475,7 +476,22 @@ CONTAINS
     write(*,*) "bcc_applyGPBcor: end"
     
   end subroutine bcc_applyGPBcor
-    
+
+
+  !-----------------------------------------------------------------------
+  ! bcc_biasActive
+  !-----------------------------------------------------------------------
+  logical function bcc_biasActive(obsFam)
+    !
+    ! :Purpose: returns if bias correction is active for the given conventional observation family
+    !
+    implicit none
+    character(len=*),intent(in) :: obsFam
+
+    bcc_biasActive = ( bcc_gpBiasActive .and. trim(obsFam) == 'GP')
+
+  end function bcc_biasActive
+
 
 end MODULE biasCorrectionConv_mod
 

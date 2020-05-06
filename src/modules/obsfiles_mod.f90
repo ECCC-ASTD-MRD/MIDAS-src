@@ -159,7 +159,7 @@ contains
         call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
         if ( obsFileType == 'BURP' )   then
             ! Add extra bias correction element to GP and TO files
-            if ( (bcc_gpBiasActive .and. obsf_cfamtyp(fileIndex) == 'GP') .or. (obsf_cfamtyp(fileIndex) == 'TO') ) &
+            if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
                call brpr_addBiasCorrectionElement(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex))
             call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
