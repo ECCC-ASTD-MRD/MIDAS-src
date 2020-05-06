@@ -247,14 +247,14 @@ CONTAINS
 
               ! Default bulk corrections read from bcor file (applied if dynamic corrections are not availble for the aircraft)
               select case(  trim( codtyp_get_name(codtyp) ) )
-              case('airep','ads')
-                 phaseIndex = phaseAscentIndex
-               case('amdar','acars')
-                 phaseIndex = phaseDescentIndex
-               case default
-                 write(*,*) 'bcc_applyAIBcor: codtyp=', codtyp
-                 call utl_abort('bcc_applyAIBcor: unknown codtyp') 
-              end select
+                case('airep','ads')
+                  phaseIndex = phaseAscentIndex
+                case('amdar','acars')
+                  phaseIndex = phaseDescentIndex
+                case default
+                  write(*,*) 'bcc_applyAIBcor: codtyp=', codtyp
+                  call utl_abort('bcc_applyAIBcor: unknown codtyp') 
+                end select
 
               if ( levelIndex /= 0 ) then
                 if ( ttCorrections(1,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) corr = ttCorrections(1,phaseIndex,levelIndex)
