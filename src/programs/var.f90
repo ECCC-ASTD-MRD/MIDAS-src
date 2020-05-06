@@ -143,9 +143,6 @@ program midas_var
     obsMpiStrategy = 'LIKESPLITFILES'
 
     call var_setup('ALL') ! obsColumnMode   
-
-    ! Read NAMBIASCONV namelist section (for AI, GP family data bias correction)
-    call bcc_readConfig()
     
     ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
     call bcc_applyAIBcor(obsSpaceData)    

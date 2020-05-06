@@ -130,10 +130,8 @@ module oMinusF_mod
       !- 1.10 Setup and read observations
       call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
 
-      ! Read NAMBIASCONV namelist section (for AI, GP family data bias correction)
       ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
       ! (Only reverse existing corrections when namelist logicals aiRevOnly, gpRevOnly are TRUE)
-      call bcc_readConfig()
       call bcc_applyAIBcor(obsSpaceData)    
       call bcc_applyGPBcor(obsSpaceData)      
       
