@@ -165,8 +165,7 @@ CONTAINS
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nambiassat,iostat=ierr)
-      if ( ierr /= 0 .and. mpi_myid == 0 )  &
-           write(*,*) 'bcs_readConfig: WARNING: Error reading namelist, assume it will not be used!'
+      if ( ierr /= 0 ) call utl_abort('bcs_readConfig: Error reading namelist section nambiassat')
       if ( mpi_myid == 0 ) write(*,nml=nambiassat)
       ierr = fclos(nulnam)
     else

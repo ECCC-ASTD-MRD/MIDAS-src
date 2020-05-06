@@ -25,6 +25,7 @@ MODULE biasCorrectionConv_mod
   use mpi_mod
   use codePrecision_mod
   use bufr_mod
+  use codtyp_mod
 
   implicit none
   save
@@ -83,8 +84,7 @@ CONTAINS
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nambiasconv,iostat=ierr)
-      if ( ierr /= 0 .and. mpi_myid == 0 )  &
-           write(*,*) 'bcc_readConfig: WARNING: Error reading namelist, assume it will not be used!'
+      if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section nambiasconv')
       if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
       ierr = fclos(nulnam)
     else
@@ -213,8 +213,8 @@ CONTAINS
           if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then
           
             if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
-               tt = tt + oldCorr
-               flag = ibclr(flag, 6)
+              tt = tt + oldCorr
+              flag = ibclr(flag, 6)
             end if
             if ( aiRevOnly ) corr = 0.0
              
@@ -246,11 +246,16 @@ CONTAINS
               codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
               ! Default bulk corrections read from bcor file (applied if dynamic corrections are not availble for the aircraft)
-              if ( codtyp == 128 .or. codtyp == 177 ) then  ! AIREP/ADS
-                phaseIndex = phaseAscentIndex
-              else  ! AMDAR/BUFR
-                phaseIndex = phaseDescentIndex
-              end if
+              select case(  trim( codtyp_get_name(codtyp) ) )
+              case('airep','ads')
+                 phaseIndex = phaseAscentIndex
+               case('amdar','acars')
+                 phaseIndex = phaseDescentIndex
+               case default
+                 write(*,*) 'bcc_applyAIBcor: codtyp=', codtyp
+                 call utl_abort('bcc_applyAIBcor: unknown codtyp') 
+              end select
+
               if ( levelIndex /= 0 ) then
                 if ( ttCorrections(1,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) corr = ttCorrections(1,phaseIndex,levelIndex)
                 countBulkCorrections = countBulkCorrections + 1
