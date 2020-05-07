@@ -9,7 +9,7 @@
 * change to results (contents of output files)? **YES/NO**
 * changes respect the coding standards (follow link below to "Coding standards Top 10")? **YES/NO**
 
-https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
+    * https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
 
 ### Description of changes:
 
