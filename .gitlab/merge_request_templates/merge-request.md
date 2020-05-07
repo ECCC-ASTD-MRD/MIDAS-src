@@ -7,7 +7,7 @@
 * changes to namelist variables? (addition/removal/modification) **YES/NO**
 * changes to input and output files? (new file/filename change/removal of file) **YES/NO**
 * change to results (contents of output files)? **YES/NO**
-* did you consult the "Coding standards Top 10" (see link below)? **YES/NO**
+* changes respect the coding standards (follow link below to "Coding standards Top 10")? **YES/NO**
 
 https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
 
@@ -25,9 +25,6 @@ https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
 <!--   * Namelist variables -->
 <!--   * input/output files -->
 <!--   * results            -->
-
-<!--if changes are not relevant for CHANGELOG.md, please be clear on why it is not-->
-<!--if changes are relevant for CHANGELOG.md, please add yours the 'Unreleased' section.-->
 
 **Don't forget to add a description of your changes in the
   'Unreleased' section of `CHANGELOG.md`.**
