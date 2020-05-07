@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to bias correct AI and GP observations in Midas (#305 and !335)
  * Introduction of vertical correlation ansatz functions, with coefficients (one set per satid) in GPSRO namelist (#296 and !332)
  * New namelist variable HTPMAXER in NAMGPSRO namelist section (#343 and !328)
  * Add ability to assimilate ASCAT data (backscatter anisotropy and open water retrievals) for sea ice concentration analysis (#332 and !326)
