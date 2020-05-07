@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-MODULE biasCorrection_mod
-  ! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
+MODULE biasCorrectionSat_mod
+  ! MODULE biasCorrectionSat_mod (prefix="bcs" category='1. High-level functionality')
   !
   ! :Purpose: Performs the variational bias correction for satellite radiance
   !           data
@@ -44,11 +44,11 @@ MODULE biasCorrection_mod
   save
   private
 
-  public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize
-  public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection, bias_readConfig
-  public               :: bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
-  public               :: bias_removeOutliers, bias_applyBiasCorrection
-  public               :: bias_mimicSatbcor
+  public               :: bcs_setup,bcs_calcBias_tl,bcs_calcBias_ad, bcs_writeBias, bcs_finalize
+  public               :: bcs_removeBiasCorrection, bcs_refreshBiasCorrection, bcs_readConfig
+  public               :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias
+  public               :: bcs_removeOutliers, bcs_applyBiasCorrection
+  public               :: bcs_mimicSatbcor
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -81,7 +81,7 @@ MODULE biasCorrection_mod
   type(struct_gsv)      :: statevector_mask
   type(struct_columnData) :: column_mask
   logical               :: initialized = .false.
-  logical               :: bias_mimicSatbcor
+  logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 6
   integer, parameter    :: maxfov = 120
@@ -119,19 +119,19 @@ MODULE biasCorrection_mod
   logical  :: allModeCsr    ! flag to select "ALL" mode for CSR (GOES, SEVIRI, MVIRI, ABI, etc..)
   logical  :: allModeHyperIr! flag to select "ALL" mode for hyperSpectral Infrared (AIRS, IASI, CrIS)
   
-  namelist /nambias/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
-  namelist /nambias/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
-  namelist /nambias/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
-  namelist /nambias/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
+  namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
+  namelist /nambiassat/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
+  namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
+  namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
 
 CONTAINS
  
   !-----------------------------------------------------------------------
-  ! bias_readConfig
+  ! bcs_readConfig
   !-----------------------------------------------------------------------
-  subroutine bias_readConfig()
+  subroutine bcs_readConfig()
     !
-    ! :Purpose: Read nambias namelist section
+    ! :Purpose: Read nambiassat namelist section
     !
     implicit none
     !Locals:
@@ -160,24 +160,29 @@ CONTAINS
     allModeHyperIr=.false.
 
     !
-    ! read in the namelist NAMBIAS
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambias,iostat=ierr)
-    if ( ierr /= 0 .and. mpi_myid == 0 )  &
-         write(*,*) 'bias_readConfig: WARNING: Error reading namelist, assume it will not be used!'
-    if ( mpi_myid == 0 ) write(*,nml=nambias)
-    ierr = fclos(nulnam)
-    bias_mimicSatbcor = mimicSatbcor
+    ! read in the namelist NAMBIASSAT
+    if ( utl_isNamelistPresent('nambiassat','./flnml') ) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nambiassat,iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('bcs_readConfig: Error reading namelist section nambiassat')
+      if ( mpi_myid == 0 ) write(*,nml=nambiassat)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'bcs_readconfig: nambiassat is missing in the namelist. The default value will be taken.'
+    end if
+
+    bcs_mimicSatbcor = mimicSatbcor
     doRegression = (trim(biasMode) == "reg" )
 
- end subroutine bias_readConfig
+  end subroutine bcs_readConfig
 
 
   !-----------------------------------------------------------------------
-  ! bias_setup
+  ! bcs_setup
   !-----------------------------------------------------------------------
-  subroutine bias_setup()
+  subroutine bcs_setup()
     implicit none
 
     integer  :: cvdim
@@ -209,7 +214,7 @@ CONTAINS
 
       do iSensor = 1, tvs_nSensors
 
-        write(*,*) "bias_setup: iSensor = ",iSensor
+        write(*,*) "bcs_setup: iSensor = ",iSensor
        
         instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
@@ -226,9 +231,9 @@ CONTAINS
           end if
         end do
         if ( nfov == -1) then
-          write(*,*) "bias_setup: Problem with instrName ",instrNamecoeff
+          write(*,*) "bcs_setup: Problem with instrName ",instrNamecoeff
           write(*,'(15(A10,1x))')  cinst(:)
-          call utl_abort('bias_setup: check nambias namelist')
+          call utl_abort('bcs_setup: check nambiassat namelist')
         end if
 
         inquire(file=trim(bcifFile),exist = bcifExists)
@@ -239,7 +244,7 @@ CONTAINS
                canBCIF, bcmodeBCIF, bctypeBCIF, npredBCIF, predBCIF, global, exitcode)
 
           if (exitcode /= 0) then
-            call utl_abort("bias_setup: Problem in read_bcif while reading " // trim(bcifFile) )
+            call utl_abort("bcs_setup: Problem in read_bcif while reading " // trim(bcifFile) )
           end if
 
           bias(iSensor)%numChannels = ncanBcif
@@ -281,14 +286,14 @@ CONTAINS
               case('SV')
                 kpred = 6
               case default
-                write(errorMessage,*) "bias_setup: Unknown predictor ", predBCIF(ichan+1,ipred), ichan, ipred
+                write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1,ipred), ichan, ipred
                 call utl_abort(errorMessage)
               end select
               bias(iSensor)%chans(ichan)% predictorIndex(jPred) = kpred
             end do
           end do
         else
-          call utl_abort( "bias_setup: Error : " // trim(bcifFile) // " not present !" )
+          call utl_abort( "bcs_setup: Error : " // trim(bcifFile) // " not present !" )
         end if
 
         bias(iSensor) % numscan = nfov 
@@ -350,14 +355,14 @@ CONTAINS
       call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
 
-    call  bias_readCoeffs() ! Read coefficient files in the case of bias correction application (biasMode=="apply")
+    call  bcs_readCoeffs() ! Read coefficient files in the case of bias correction application (biasMode=="apply")
 
-  end subroutine bias_setup
+  end subroutine bcs_setup
 
   !-----------------------------------------------------------------------
-  ! bias_readCoeffs
+  ! bcs_readCoeffs
   !-----------------------------------------------------------------------
-  subroutine bias_readCoeffs()
+  subroutine bcs_readCoeffs()
     !
     ! :Purpose: Fill the bias structure with read static and dynamic bias correction coefficient files
     !
@@ -403,7 +408,7 @@ CONTAINS
       
       do iSensor = 1, tvs_nSensors
 
-        write(*,*) "bias_readCoeffs: iSensor = ",iSensor
+        write(*,*) "bcs_readCoeffs: iSensor = ",iSensor
        
         instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
@@ -422,8 +427,8 @@ CONTAINS
 
         call read_coeff(satsStatic, chansStatic, fovbiasStatic, coeffStatic, nsatStatic, nchanStatic, nfovStatic, &
              npredStatic, cinstrumStatic, staticCoeffFile, ptypesStatic,ndataStatic)
-        write(*,*) "bias_readCoeffs: cinstrumDynamic= ", cinstrumDynamic
-        write(*,*) "bias_readCoeffs: cinstrumStatic= ", cinstrumStatic
+        write(*,*) "bcs_readCoeffs: cinstrumDynamic= ", cinstrumDynamic
+        write(*,*) "bcs_readCoeffs: cinstrumStatic= ", cinstrumStatic
 
         satIndexDynamic = -1
         do iSat = 1, nsatDynamic
@@ -490,7 +495,7 @@ CONTAINS
           end select
           
           if (.not. corrected) then
-            Write(*,*) "bias_readCoeffs: Warning: channel ",  bias(iSensor) % chans(jChannel) % channelNum, " of ", &
+            Write(*,*) "bcs_readCoeffs: Warning: channel ",  bias(iSensor) % chans(jChannel) % channelNum, " of ", &
                  trim( instrName )," ",trim( satNamecoeff )," not corrected!"
           end if
 
@@ -500,13 +505,13 @@ CONTAINS
         
     end if
 
-  end subroutine bias_readCoeffs
+  end subroutine bcs_readCoeffs
 
 
   !-----------------------------------------------------------------------
-  ! bias_computePredictorBiases
+  ! bcs_computePredictorBiases
   !-----------------------------------------------------------------------
-  subroutine bias_computePredictorBiases(obsSpaceData)
+  subroutine bcs_computePredictorBiases(obsSpaceData)
     !
     ! :Purpose: to compute predictor average
     !
@@ -525,7 +530,7 @@ CONTAINS
     integer, allocatable ::  temp_nobs2(:,:)
 
     if (centerPredictors) then
-      write(*,*) "bias_computePredictorBiases: start"
+      write(*,*) "bcs_computePredictorBiases: start"
       npred = 0
       do iSensor=1, tvs_nSensors
         npred = max(npred,maxval(bias(iSensor)%chans(:)%numActivePredictors))
@@ -561,9 +566,9 @@ CONTAINS
 
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
 
-          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
           if (chanindx > 0) then
-            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            call bcs_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
             do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               temp_offset2(iSensor,chanIndx,iPredictor) =  temp_offset2(iSensor,chanIndx,iPredictor) + predictor(jPred)
@@ -581,7 +586,7 @@ CONTAINS
         nsize=size( temp_offset )
         call rpn_comm_allreduce(temp_offset2(iSensor,:,:),temp_offset(:,:),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
         if ( ierr /= 0) then
-          call utl_abort("bias_computePredictorBiases: Erreur de communication MPI 1")
+          call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 1")
         end if
        
         do i=1, bias(iSensor)%numChannels
@@ -594,7 +599,7 @@ CONTAINS
         nsize=size( temp_nobs )
         call rpn_comm_allreduce(temp_nobs2(iSensor,:),temp_nobs,nsize,"mpi_integer","mpi_sum","GRID",ierr)
         if ( ierr /= 0) then
-          call utl_abort("bias_computePredictorBiases: Erreur de communication MPI 2")
+          call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 2")
         end if
 
        
@@ -615,16 +620,16 @@ CONTAINS
       deallocate( temp_offset2 )
       deallocate( temp_nobs2 )
 
-      write(*,*) "bias_computePredictorBiases: end"
+      write(*,*) "bcs_computePredictorBiases: end"
     end if
    
 
-  end subroutine bias_computePredictorBiases
+  end subroutine bcs_computePredictorBiases
 
   !-----------------------------------------------------------------------
-  ! bias_calcBias
+  ! bcs_calcBias
   !-----------------------------------------------------------------------
-  subroutine bias_calcBias(obsSpaceData,columnhr)
+  subroutine bcs_calcBias(obsSpaceData,columnhr)
     !
     ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
     !
@@ -641,10 +646,10 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    write(*,*) "bias_calcBias: start"
+    write(*,*) "bcs_calcBias: start"
 
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bias_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_getTrialPredictors(obsSpaceData,columnhr)
     end if
 
     iobs = 0
@@ -680,11 +685,11 @@ CONTAINS
 
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+        call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
         if (chanindx > 0) then
           biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bias_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
             biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
                  bias(iSensor)%chans(chanIndx)%coeff(1) 
             do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
@@ -701,15 +706,15 @@ CONTAINS
       end do BODY
     end do HEADER
 
-    write(*,*) "bias_calcBias: end"
+    write(*,*) "bcs_calcBias: end"
 
-  end subroutine bias_calcBias
+  end subroutine bcs_calcBias
 
 
   !---------------------------------------
-  ! bias_computeResidualsStatistics
+  ! bcs_computeResidualsStatistics
   !----------------------------------------
-  subroutine bias_computeResidualsStatistics(obsSpaceData,prefix)
+  subroutine bcs_computeResidualsStatistics(obsSpaceData,prefix)
     !
     ! :Purpose: to compute residuals mean and standard deviation by intrument, channel and scan position
     !
@@ -734,14 +739,14 @@ CONTAINS
 
     if (.not. outstats) return
 
-    write(*,*) "bias_computeResidualsStatistics: start"
+    write(*,*) "bcs_computeResidualsStatistics: start"
 
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-      write(*,*) "bias_computeResidualsStatistics: sensorIndex ",  sensorIndex
+      write(*,*) "bcs_computeResidualsStatistics: sensorIndex ",  sensorIndex
 
       nchans = bias(sensorIndex)%numChannels
       nscan   = bias(sensorIndex)% numscan
@@ -775,7 +780,7 @@ CONTAINS
           if ( bodyIndex < 0 ) exit BODY
           
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY 
-          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
           if (chanindx > 0) then
             OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
             bcor =  obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
@@ -794,19 +799,19 @@ CONTAINS
 
       call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /= 0) then
-        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 1",  ierr 
+        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 1",  ierr 
         call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0 ) then
-        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 2",  ierr 
+        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 2",  ierr 
         call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0 ) then
-        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 3",  ierr 
+        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3",  ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -845,14 +850,14 @@ CONTAINS
  
     end do SENSORS
 
-    write(*,*) "bias_computeResidualsStatistics: end"
+    write(*,*) "bcs_computeResidualsStatistics: end"
     
-  end subroutine bias_computeResidualsStatistics
+  end subroutine bcs_computeResidualsStatistics
 
   !---------------------------------------
-  !  bias_removeOutliers
+  !  bcs_removeOutliers
   !---------------------------------------- 
-  subroutine  bias_removeOutliers(obsSpaceData)
+  subroutine  bcs_removeOutliers(obsSpaceData)
     !
     ! :Purpose: to remove outliers (too large OmF) from linear regression
     !
@@ -875,13 +880,13 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    write(*,*) "bias_removeOutliers: start"
+    write(*,*) "bcs_removeOutliers: start"
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-      write(*,*) "bias_removeOutliers: sensorIndex ",  sensorIndex
+      write(*,*) "bcs_removeOutliers: sensorIndex ",  sensorIndex
 
       nchans = bias(sensorIndex)%numChannels
       nfiles = tim_nstepobs
@@ -915,7 +920,7 @@ CONTAINS
           
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
                .not. btest( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),6) ) then 
-            call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+            call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
             if (chanindx > 0) then
               OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
               if ( OmF /= MPC_missingValue_R8) then
@@ -934,19 +939,19 @@ CONTAINS
 
       call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0 ) then
-        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 1",  ierr 
+        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 1",  ierr 
         call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0 ) then
-        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 2",  ierr 
+        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 2",  ierr 
         call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0 ) then
-        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 3",  ierr 
+        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3",  ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -959,12 +964,12 @@ CONTAINS
 
       call rpn_comm_bcast(countMpiGlobal,nchans*nfiles,"mpi_integer",0,"GRID",ierr)
       if (ierr /=0) then
-        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 4",  ierr 
+        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 4",  ierr 
         call utl_abort(errorMessage)
       end if
       call rpn_comm_bcast(stdMpiGlobal,nchans*nfiles,"mpi_double_precision",0,"GRID",ierr)
       if (ierr /=0) then
-        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 5",  ierr 
+        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 5",  ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -996,7 +1001,7 @@ CONTAINS
             if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
                  .not. btest( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),6) ) then 
 
-              call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+              call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
 
               if (chanindx > 0) then
              
@@ -1014,7 +1019,7 @@ CONTAINS
 
         do chanIndx =1, nchans
           if ( sum( tcount(chanIndx,:)) > 0) then
-            Write(*,'(A,1x,i2,1x,i4,1x,i6,1x,30e14.6)') "bias_removeOutliers:", sensorindex, chanIndx, sum( tcount(chanIndx,:)), stdMpiGlobal(chanIndx,:)
+            Write(*,'(A,1x,i2,1x,i4,1x,i6,1x,30e14.6)') "bcs_removeOutliers:", sensorindex, chanIndx, sum( tcount(chanIndx,:)), stdMpiGlobal(chanIndx,:)
           end if
         end do
 
@@ -1030,16 +1035,16 @@ CONTAINS
 
     end do SENSORS
 
-    write(*,*) "bias_removeOutliers: end"
+    write(*,*) "bcs_removeOutliers: end"
 
-  end subroutine bias_removeOutliers
+  end subroutine bcs_removeOutliers
 
 
 
   !---------------------------------------
-  ! bias_calcBias_tl
+  ! bcs_calcBias_tl
   !---------------------------------------- 
-  subroutine bias_calcBias_tl(cv_in,obsColumnIndex,obsSpaceData,columnhr)
+  subroutine bcs_calcBias_tl(cv_in,obsColumnIndex,obsSpaceData,columnhr)
     !
     ! :Purpose: tl of bias computation (for varBC)
     !
@@ -1061,18 +1066,18 @@ CONTAINS
     if ( .not. biasActive ) return
 
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bias_getTrialPredictors(obsSpaceData,columnhr)
-      call bias_computePredictorBiases(obsSpaceData)
-      call bias_getRadiosondeWeight(obsSpaceData, lmodify_obserror_opt=.true.)
+      call bcs_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_computePredictorBiases(obsSpaceData)
+      call bcs_getRadiosondeWeight(obsSpaceData, lmodify_obserror_opt=.true.)
     end if
 
     nullify(cv_bias)
     if ( mpi_myid == 0) then
       if ( cvm_subVectorExists('BIAS') ) then
         cv_Bias => cvm_getSubVector(cv_in,'BIAS')
-        write(*,*) 'bias_calcBias_tl: maxval(cv_bias)=',maxval(cv_bias(:))
+        write(*,*) 'bcs_calcBias_tl: maxval(cv_bias)=',maxval(cv_bias(:))
       else
-        write(*,*) 'bias_calcBias_tl: control vector does not include bias coefficients'
+        write(*,*) 'bcs_calcBias_tl: control vector does not include bias coefficients'
         return
       end if
    else
@@ -1080,7 +1085,7 @@ CONTAINS
    end if
 
     ! get bias coefficients
-    call bias_cvToCoeff(cv_bias)
+    call bcs_cvToCoeff(cv_bias)
 
     ! apply bias increment to specified obs column
     iobs = 0
@@ -1109,12 +1114,12 @@ CONTAINS
 
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+        call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
 
         if (chanindx > 0) then
           biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bias_getPredictors(predictor,headerIndex,iobs,chanindx,obsSpaceData)
+            call bcs_getPredictors(predictor,headerIndex,iobs,chanindx,obsSpaceData)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if ( iPredictor == 1 ) then
@@ -1136,13 +1141,13 @@ CONTAINS
     end do HEADER
 
 
-  end subroutine bias_calcBias_tl
+  end subroutine bcs_calcBias_tl
 
  
   !----------------------
-  ! bias_getTrialPredictors
+  ! bcs_getTrialPredictors
   !----------------------
-  subroutine bias_getTrialPredictors(obsSpaceData,columnhr)
+  subroutine bcs_getTrialPredictors(obsSpaceData,columnhr)
     !
     ! :Purpose: get predictors from trial fields
     !
@@ -1173,7 +1178,7 @@ CONTAINS
       allocate(trialTG(nobs))
       allocate(RadiosondeWeight(nobs))
     else
-      write(*,*) 'bias_getTrialPredictors: NO OBS found'
+      write(*,*) 'bcs_getTrialPredictors: NO OBS found'
       return
     end if
 
@@ -1213,7 +1218,7 @@ CONTAINS
     end do HEADER2
 
     if ( trialTG(1) > 150.0d0) then
-      write(*,*) 'bias_getTrialPredictors: converting TG from Kelvin to deg_C'
+      write(*,*) 'bcs_getTrialPredictors: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
 
@@ -1222,7 +1227,7 @@ CONTAINS
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
 
-    write(*,*) 'bias_getTrialPredictors: end'
+    write(*,*) 'bcs_getTrialPredictors: end'
 
   contains
 
@@ -1254,13 +1259,13 @@ CONTAINS
    
     end function logInterpHeight
 
-  end subroutine bias_getTrialPredictors
+  end subroutine bcs_getTrialPredictors
 
 
   !----------------------
-  ! bias_cvToCoeff
+  ! bcs_cvToCoeff
   !----------------------
-  subroutine bias_cvToCoeff(cv_bias)
+  subroutine bcs_cvToCoeff(cv_bias)
     !
     ! :Purpose: get coefficient increment from control vector
     !
@@ -1272,7 +1277,7 @@ CONTAINS
     integer  :: nsize,ierr
  
     if ( mpi_myid == 0 ) then
-      write(*,*) 'bias_cvToCoeff: start'
+      write(*,*) 'bcs_cvToCoeff: start'
       index_cv = 0
       ! initialize of coeffIncr
       do iSensor = 1, tvs_nSensors
@@ -1331,12 +1336,12 @@ CONTAINS
       end if
     end do
 
-  end subroutine bias_cvToCoeff
+  end subroutine bcs_cvToCoeff
 
   !-----------------------------------
-  ! bias_getPredictors
+  ! bcs_getPredictors
   !---------------------------------- 
-   subroutine bias_getPredictors(predictor,headerIndex,obsIndex,chanindx,obsSpaceData)
+   subroutine bcs_getPredictors(predictor,headerIndex,obsIndex,chanindx,obsSpaceData)
      !
      ! :Purpose: get predictors
      !
@@ -1385,13 +1390,13 @@ CONTAINS
       predictor(jPredictor) =  predictor(jPredictor) - bias(iSensor)%chans(chanindx)%coeff_offset(iPredictor)
     end do
    
-  end subroutine bias_getPredictors
+  end subroutine bcs_getPredictors
 
 
   !---------------------------------------------
-  ! bias_calcBias_ad
+  ! bcs_calcBias_ad
   !---------------------------------------------
-  subroutine bias_calcBias_ad(cv_out,obsColumnIndex,obsSpaceData)
+  subroutine bcs_calcBias_ad(cv_out,obsColumnIndex,obsSpaceData)
     !
     ! :Purpose: bias computation adjoint (for varBC)
     !
@@ -1411,14 +1416,14 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_calcBias_ad: start'
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_calcBias_ad: start'
 
     nullify(cv_bias)
     if ( mpi_myid == 0 ) then
       if ( cvm_subVectorExists('BIAS') ) then
         cv_bias => cvm_getSubVector(cv_out,'BIAS')
       else
-        write(*,*) 'bias_calcBias_ad: control vector does not include bias coefficients'
+        write(*,*) 'bcs_calcBias_ad: control vector does not include bias coefficients'
         return
       end if
     else
@@ -1458,11 +1463,11 @@ CONTAINS
 
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+        call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
 
         if (chanindx > 0) then
           if (bias(iSensor)%chans(chanIndx)%isDynamic) then
-            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            call bcs_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
             biasCor = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
@@ -1487,18 +1492,18 @@ CONTAINS
     end do HEADER
 
     ! put the coefficients into the control vector
-    call bias_cvToCoeff_ad(cv_bias)
+    call bcs_cvToCoeff_ad(cv_bias)
 
     if ( mpi_myid == 0 ) then
-      write(*,*) 'bias_calcBias_ad: maxval(cv_bias)=',maxval(cv_bias(:))
+      write(*,*) 'bcs_calcBias_ad: maxval(cv_bias)=',maxval(cv_bias(:))
     end if
 
-  end subroutine bias_calcBias_ad
+  end subroutine bcs_calcBias_ad
 
   !----------------------------------------------------
-  ! bias_cvToCoeff_ad
+  ! bcs_cvToCoeff_ad
   !----------------------------------------------------
-  subroutine bias_cvToCoeff_ad(cv_bias)
+  subroutine bcs_cvToCoeff_ad(cv_bias)
     !
     ! :Purpose: adjoint of control vector to coeff transfer (for varBC)
     !
@@ -1512,7 +1517,7 @@ CONTAINS
     real(8), allocatable  :: temp_coeffIncr(:), temp_coeffIncr_fov(:)
 
 
-    Write(*,*) "bias_cvToCoeff_ad: start"
+    Write(*,*) "bcs_cvToCoeff_ad: start"
 
     do iSensor = 1, tvs_nSensors
       if (bias(iSensor)%numScan > 0) then
@@ -1573,12 +1578,12 @@ CONTAINS
       end do
     end if
     
-  end subroutine bias_cvToCoeff_ad
+  end subroutine bcs_cvToCoeff_ad
 
   !-----------------------------------------
-  ! bias_writeBias
+  ! bcs_writeBias
   !-----------------------------------------
-  subroutine bias_writeBias(cv_in)
+  subroutine bcs_writeBias(cv_in)
     !
     ! :Purpose: to write bias increments and coefficients (varBC)
     !
@@ -1599,8 +1604,8 @@ CONTAINS
     character(len=10)   :: coefInstrName(tvs_nSensors), temp_instrName
     character(len=25)   :: filecoeff
     logical             :: coeffExists
-    ! these variables are not used but need to be present to satisfy bias_updateCoeff interface
-    ! some bias_updateCoeff arguments could be made optional (todo)
+    ! these variables are not used but need to be present to satisfy bcs_updateCoeff interface
+    ! some bcs_updateCoeff arguments could be made optional (todo)
     integer            :: chans(tvs_nSensors, tvs_maxChannelNumber), nsat, nfov
     integer            :: nchan(tvs_nSensors)
     character(len=10)  :: sats(tvs_nsensors) ! satellite names
@@ -1613,15 +1618,15 @@ CONTAINS
       if ( mpi_myid == 0 ) then
         if ( cvm_subVectorExists('BIAS') ) then
           cv_bias => cvm_getSubVector(cv_in,'BIAS')
-          write(*,*) 'bias_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
+          write(*,*) 'bcs_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
         else
-          write(*,*) 'bias_writeBias: control vector does not include bias coefficients'
+          write(*,*) 'bcs_writeBias: control vector does not include bias coefficients'
           return
         end if
       else
         cv_bias => dummy4Pointer
       end if
-      call bias_cvToCoeff(cv_bias)
+      call bcs_cvToCoeff(cv_bias)
     end if
 
     ! apply transformation to account for predictor offset
@@ -1641,13 +1646,13 @@ CONTAINS
             end if
           end do
           if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0 .and. (.not. doRegression) ) &
-               Write(*,*) "bias_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
+               Write(*,*) "bcs_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
     end do
 
     if (  doRegression ) then
-      call bias_writeCoeff()
+      call bcs_writeCoeff()
       return
     end if
 
@@ -1728,17 +1733,17 @@ CONTAINS
     ! update coeff_file_instrument and write out
     do iInstr=1, numCoefFile 
       BgFileName = './coeff_file_' // coefInstrName(iInstr)
-      call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum)
+      call bcs_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum)
     end do
 
 
-  end subroutine bias_writeBias
+  end subroutine bcs_writeBias
 
   
   !-----------------------------------------
-  ! bias_updateCoeff
+  ! bcs_updateCoeff
   !-----------------------------------------
-  subroutine bias_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,updateCoeff_opt)
+  subroutine bcs_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,updateCoeff_opt)
     !
     ! :Purpose: to read, and optionaly update and write out, the coeff files (varBC).
     !
@@ -1812,7 +1817,7 @@ CONTAINS
         tmp_InstName = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
         
         if ( trim(tmp_SatName) /= trim(sats(iSat)) .or. trim(tmp_InstName) /= trim(cinstrum) ) cycle instloop
-        write(*,*) "bias_updateCoeff: " //tmp_SatName//" "//tmp_InstName
+        write(*,*) "bcs_updateCoeff: " //tmp_SatName//" "//tmp_InstName
 
         if ( .not. allocated(bias(iSensor)%chans ) ) cycle instloop
 
@@ -1885,7 +1890,7 @@ CONTAINS
       filename2 ='./anlcoeffs_'//cinstrum 
       ierr = fnom(iuncoef2, filename2,'FTN+FMT',0)
 
-      write(*,*) 'bias_updateCoeff: write in bias_updateCoeff'
+      write(*,*) 'bcs_updateCoeff: write in bcs_updateCoeff'
    
       do iSat = 1, nsat
         do jChan = 1, nchan(iSat)      
@@ -1902,17 +1907,17 @@ CONTAINS
 
       ierr = fclos(iuncoef2) 
    
-      write(*,*) 'bias_updateCoeff: finish writing coeffient file', filename2
+      write(*,*) 'bcs_updateCoeff: finish writing coeffient file', filename2
     
     end if
 
-  end subroutine bias_updateCoeff
+  end subroutine bcs_updateCoeff
 
 
   !-----------------------------------------
-  ! bias_writeCoeff
+  ! bcs_writeCoeff
   !-----------------------------------------
-  subroutine bias_writeCoeff()
+  subroutine bcs_writeCoeff()
     !
     ! :Purpose:  write out  the coeff files (regression case).
     !
@@ -1930,7 +1935,7 @@ CONTAINS
 
         if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-        write(*,*) "bias_writeCoeff: sensorIndex ",  sensorIndex
+        write(*,*) "bcs_writeCoeff: sensorIndex ",  sensorIndex
 
         nchans = bias(sensorIndex)%numChannels
         nscan   = bias(sensorIndex)% numscan
@@ -1978,12 +1983,12 @@ CONTAINS
 
     end if
 
- end subroutine bias_writeCoeff
+ end subroutine bcs_writeCoeff
 
  !-----------------------------------------
- ! bias_removeBiasCorrection
+ ! bcs_removeBiasCorrection
  !-----------------------------------------
- subroutine bias_removeBiasCorrection(obsSpaceData,family_opt)
+ subroutine bcs_removeBiasCorrection(obsSpaceData,family_opt)
     !
     ! :Purpose: to remove bias correction from OBS_VAR
     !           After the call OBS_VAR contains the uncorrected
@@ -2000,7 +2005,7 @@ CONTAINS
 
     if (.not. removeBiasCorrection) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_removeBiasCorrection: start'
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_removeBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData,family_opt)
@@ -2019,16 +2024,16 @@ CONTAINS
     end do BODY
 
     if ( mpi_myid == 0 ) then
-      write(*,*) 'bias_removeBiasCorrection: removed bias correction for ', nbcor, ' observations'
-      write(*,*) 'bias_removeBiasCorrection exiting'
+      write(*,*) 'bcs_removeBiasCorrection: removed bias correction for ', nbcor, ' observations'
+      write(*,*) 'bcs_removeBiasCorrection exiting'
     end if
 
-  end subroutine bias_removeBiasCorrection
+  end subroutine bcs_removeBiasCorrection
 
   !-----------------------------------------
-  ! bias_filterObs
+  ! bcs_filterObs
   !-----------------------------------------
-  subroutine bias_filterObs(obsSpaceData)
+  subroutine bcs_filterObs(obsSpaceData)
     !
     ! :Purpose: to filter radiance observations to include into
     !           bias correction offline computation
@@ -2046,7 +2051,7 @@ CONTAINS
 
     if (.not. filterObs ) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_filterObs: start'
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_filterObs: start'
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
@@ -2097,7 +2102,7 @@ CONTAINS
         assim =  obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
         if ( assim == obs_notAssimilated ) then
-          call bias_getChannelIndex(obsSpaceData, idsat, chanIndx,bodyIndex)
+          call bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,bodyIndex)
           if (chanIndx > 0) then
             flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
 
@@ -2206,12 +2211,12 @@ CONTAINS
       end do BODY
     end do HEADER
  
-  end subroutine bias_filterObs
+  end subroutine bcs_filterObs
 
   !-----------------------------------------
-  ! bias_applyBiasCorrection
+  ! bcs_applyBiasCorrection
   !-----------------------------------------
-  subroutine bias_applyBiasCorrection(obsSpaceData,column,family_opt)
+  subroutine bcs_applyBiasCorrection(obsSpaceData,column,family_opt)
     !
     ! :Purpose: to apply bias correction from OBS_BCOR to
     !           obsSpaceData column column.
@@ -2231,7 +2236,7 @@ CONTAINS
     if ( .not. biasActive ) return
     if ( trim(biasMode) /= "apply") return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_applyBiasCorrection: start'
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_applyBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData,family_opt)
@@ -2254,17 +2259,17 @@ CONTAINS
     end do BODY
 
     if ( mpi_myid == 0 ) then
-      write(*,*) 'bias_applyBiasCorrection: apply bias correction for ', nbcor, ' observations'
-      write(*,*) 'bias_applyBiasCorrection exiting'
+      write(*,*) 'bcs_applyBiasCorrection: apply bias correction for ', nbcor, ' observations'
+      write(*,*) 'bcs_applyBiasCorrection exiting'
     end if
 
-  end subroutine bias_applyBiasCorrection
+  end subroutine bcs_applyBiasCorrection
 
 
   !-----------------------------------------
-  ! bias_refreshBiasCorrection
+  ! bcs_refreshBiasCorrection
   !-----------------------------------------
-  subroutine bias_refreshBiasCorrection(obsSpaceData,columnhr)
+  subroutine bcs_refreshBiasCorrection(obsSpaceData,columnhr)
     !
     ! :Purpose: to apply bias correction from read coefficient file to OBS_VAR
     !           After the call OBS_VAR contains the corrected observation
@@ -2278,18 +2283,18 @@ CONTAINS
     if ( .not.biasActive ) return
     if ( .not. refreshBiasCorrection) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_refreshBiasCorrection: start'
-    call bias_calcBias(obsSpaceData,columnhr)
-    call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
-    if ( mpi_myid == 0 ) write(*,*) 'bias_refreshBiasCorrection: exit'
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_refreshBiasCorrection: start'
+    call bcs_calcBias(obsSpaceData,columnhr)
+    call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
+    if ( mpi_myid == 0 ) write(*,*) 'bcs_refreshBiasCorrection: exit'
 
-  end subroutine bias_refreshBiasCorrection
+  end subroutine bcs_refreshBiasCorrection
 
 
   !-----------------------------------------
-  ! bias_applyBiasCorrection
+  ! bcs_applyBiasCorrection
   !-----------------------------------------
-  subroutine bias_getRadiosondeWeight(obsSpaceData,lmodify_obserror_opt)
+  subroutine bcs_getRadiosondeWeight(obsSpaceData,lmodify_obserror_opt)
     !
     ! :Purpose: initialize the weights to give more importance to data near radiosonde stations
     !
@@ -2360,13 +2365,13 @@ CONTAINS
       RadiosondeWeight(:) = 1.d0
     end if
 
-  end subroutine bias_getRadiosondeWeight
+  end subroutine bcs_getRadiosondeWeight
 
 
   !-----------------------------------------
-  ! bias_do_regression
+  ! bcs_do_regression
   !-----------------------------------------
-  subroutine bias_do_regression(columnhr,obsSpaceData)
+  subroutine bcs_do_regression(columnhr,obsSpaceData)
     !
     ! :Purpose: compute the bias correction coefficients by linear regresion
     !
@@ -2388,13 +2393,13 @@ CONTAINS
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
     character(len=80)    :: errorMessage
 
-    Write(*,*) "bias_do_regression: start"
+    Write(*,*) "bcs_do_regression: start"
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bias_getTrialPredictors(obsSpaceData,columnhr)
-      call bias_computePredictorBiases(obsSpaceData)
+      call bcs_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_computePredictorBiases(obsSpaceData)
     end if
 
-    call  bias_getRadiosondeWeight(obsSpaceData)
+    call  bcs_getRadiosondeWeight(obsSpaceData)
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
@@ -2455,7 +2460,7 @@ CONTAINS
           if ( bodyIndex < 0 ) exit BODY1
             
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY1 
-          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
           if (chanindx > 0) then
             if  (mimicSatBcor) then
               OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
@@ -2473,14 +2478,14 @@ CONTAINS
       if ( mimicSatbcor ) then
         call rpn_comm_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
         if (ierr /=0) then
-          Write(errorMessage,*) "bias_do_regression: MPI communication error 1",  ierr 
+          Write(errorMessage,*) "bcs_do_regression: MPI communication error 1",  ierr 
           call utl_abort(errorMessage)
         end if
       end if
       call rpn_comm_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
 
       if (ierr /=0) then
-        Write(errorMessage,*) "bias_do_regression: MPI communication error 2",  ierr 
+        Write(errorMessage,*) "bcs_do_regression: MPI communication error 2",  ierr 
         call utl_abort(errorMessage)
       end if
       if ( mimicSatbcor)  then
@@ -2490,7 +2495,7 @@ CONTAINS
         end if
         call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
-          Write(errorMessage,*) "bias_do_regression: MPI communication error 3",  ierr 
+          Write(errorMessage,*) "bcs_do_regression: MPI communication error 3",  ierr 
           call utl_abort(errorMessage)
         end if
         do iChannel = 1, nchans
@@ -2529,9 +2534,9 @@ CONTAINS
           if ( bodyIndex < 0 ) exit BODY2
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY2 
 
-          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
           if (chanIndx > 0) then
-            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            call bcs_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
             OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
 
             if (mimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
@@ -2576,12 +2581,12 @@ CONTAINS
       ! communication MPI pour tout avoir sur tache 0
       call rpn_comm_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
-        Write(errorMessage,*) "bias_do_regression: MPI communication error 4",  ierr 
+        Write(errorMessage,*) "bcs_do_regression: MPI communication error 4",  ierr 
         call utl_abort(errorMessage)
       end if
       call rpn_comm_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
-        Write(errorMessage,*) "bias_do_regression: MPI communication error 5",  ierr 
+        Write(errorMessage,*) "bcs_do_regression: MPI communication error 5",  ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -2622,7 +2627,7 @@ CONTAINS
 
         call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION", 0, "GRID", ierr )
         if (ierr /=0) then
-          Write(errorMessage,*) "bias_do_regression: MPI communication error 6",  ierr 
+          Write(errorMessage,*) "bcs_do_regression: MPI communication error 6",  ierr 
           call utl_abort(errorMessage)
         end if
 
@@ -2654,13 +2659,13 @@ CONTAINS
        
     end do SENSORS
 
-  end subroutine bias_do_regression
+  end subroutine bcs_do_regression
 
 
   !----------------------
-  ! bias_Finalize
+  ! bcs_Finalize
   !----------------------
-  subroutine bias_Finalize
+  subroutine bcs_Finalize
     !
     ! :Purpose: release allocated memory for the module
     !
@@ -2695,7 +2700,7 @@ CONTAINS
       deallocate(bias(iSensor)%chans)
     end do
 
-  end subroutine bias_Finalize 
+  end subroutine bcs_Finalize 
  
   !-----------------------------
   ! InstrNametoCoeffFileName 
@@ -2775,7 +2780,7 @@ CONTAINS
 
   
   !-----------------------------------------
-  ! bias_read_bcif
+  ! read_bcif
   !-----------------------------------------
   subroutine read_bcif(bcifFile, hspec, ncan, can, bcmode, bctype, npred, pred, global_opt, exitcode)
     !
@@ -2984,7 +2989,7 @@ CONTAINS
 
   
   !-----------------------------------------
-  ! bias_applyBiasCorrection
+  ! read_coeff
   !-----------------------------------------
   subroutine read_coeff(sats,chans,fovbias,coeff,nsat,nchan,nfov,npred,cinstrum,coeff_file,ptypes,ndata)
     !
@@ -3155,9 +3160,9 @@ CONTAINS
   end subroutine read_coeff
 
   !-----------------------------------------
-  ! bias_getChannelIndex
+  ! bcs_getChannelIndex
   !-----------------------------------------
-  subroutine bias_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody)
+  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody)
     !
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
@@ -3193,8 +3198,7 @@ CONTAINS
     
     chanIndx = Index(idsat,ichan)
 
-  end subroutine bias_getChannelIndex
+  end subroutine bcs_getChannelIndex
 
-
-end MODULE biascorrection_mod
+end MODULE biasCorrectionSat_mod
 

@@ -49,7 +49,7 @@ module innovation_mod
   use obsErrors_mod
   use bufr_mod
   use statetocolumn_mod
-  use biascorrection_mod
+  use biascorrectionSat_mod
   implicit none
   save
   private
@@ -148,8 +148,8 @@ contains
     !
     !  Additional filtering for bias correction if requested 
     !
-    call bias_setup()
-    call bias_filterObs(obsSpaceData)
+    call bcs_setup()
+    call bcs_filterObs(obsSpaceData)
 
     if ( present(obsClean_opt) ) then
       if ( obsClean_opt ) then

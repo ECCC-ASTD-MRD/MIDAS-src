@@ -38,6 +38,7 @@ module oMinusF_mod
   use tovs_nl_mod
   use obsErrors_mod
   use obsOperators_mod
+  use biasCorrectionConv_mod
   implicit none
   private
 
@@ -129,6 +130,11 @@ module oMinusF_mod
       !- 1.10 Setup and read observations
       call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
 
+      ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
+      ! (Only reverse existing corrections when namelist logicals aiRevOnly, gpRevOnly are TRUE)
+      call bcc_applyAIBcor(obsSpaceData)    
+      call bcc_applyGPBcor(obsSpaceData)      
+      
       !- 1.11 Basic setup of columnData module
       call col_setup
 

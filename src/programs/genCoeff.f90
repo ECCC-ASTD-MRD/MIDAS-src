@@ -36,12 +36,11 @@ program midas_gencoeff
   use tovs_nl_mod
   use obsErrors_mod
   use statetocolumn_mod
-  use biasCorrection_mod
+  use biasCorrectionSat_mod
   use increment_mod
   use stateToColumn_mod
   use backgroundCheck_mod
   use analysisGrid_mod
-  use biasCorrection_mod
 
   implicit none
 
@@ -95,11 +94,11 @@ program midas_gencoeff
   ! Remove bias correction if requested
   !
   call tmg_start(4,'REMOVE_BCOR')
-  call bias_removeBiasCorrection(obsSpaceData,"TO")
+  call bcs_removeBiasCorrection(obsSpaceData,"TO")
   call tmg_stop(4)
 
   call tmg_start(5,'REMOVE_OUTLIERS')
-  call bias_removeOutliers(obsSpaceData)
+  call bcs_removeOutliers(obsSpaceData)
   call tmg_stop(5)
    
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -113,40 +112,40 @@ program midas_gencoeff
   ! Refresh bias correction if requested
   !
   call tmg_start(8,'REFRESH_BCOR')
-  call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
+  call bcs_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(8)
 
   call tmg_start(9,'REGRESSION')
-  call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)
+  call bcs_do_regression(trlColumnOnAnlLev,obsSpaceData)
   call tmg_stop(9)
 
   ! Write coefficients to file
   call tmg_start(12,'WRITECOEFFS')
-  call bias_writebias()
+  call bcs_writebias()
   call tmg_stop(12)
 
   !
   ! output O-F statistics befor bias coorection
   !
   call tmg_start(13,'STATS')
-  call bias_computeResidualsStatistics(obsSpaceData,"_raw")
+  call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
   call tmg_stop(13)
   !
   ! fill OBS_BCOR with computed bias correction
   !
   call tmg_start(15,'COMPBIAS')
-  call bias_calcBias(obsSpaceData,trlColumnOnAnlLev)
+  call bcs_calcBias(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(15)
 
   !
   ! output  O-F statistics after bias coorection
   !
   call tmg_start(13,'STATS')
-  call  bias_computeResidualsStatistics(obsSpaceData,"_corrected")
+  call  bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
   call tmg_stop(13)
 
   ! Deallocate internal bias correction structures 
-  call bias_finalize()
+  call bcs_finalize()
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -238,7 +237,7 @@ contains
     !
     !- Read Bias correction module namelist
     !
-    call bias_readConfig()
+    call bcs_readConfig()
 
     !
     !- Setup and read observations
@@ -255,7 +254,7 @@ contains
     !
     !- Initialize the observation error covariances
     !
-    if (.not. bias_mimicSatbcor) call oer_setObsErrors(obsSpaceData, varMode) ! IN
+    if (.not. bcs_mimicSatbcor) call oer_setObsErrors(obsSpaceData, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
  end subroutine gencoeff_setup
