@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
  * Efficiency improvements (mostly for global EnVar) (#235 and !337):
    * Allow single precision in parts of the code, controlled by environment variables
    * Compute height and pressure increments on the column instead of the grid, controlled by namelist variable
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix minor bug in `midas-letkf` when no obs near analysis grid point (#352 and !339)
 
 ### Removed
 
