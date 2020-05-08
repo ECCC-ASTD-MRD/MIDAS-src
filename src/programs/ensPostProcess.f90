@@ -160,9 +160,9 @@ program midas_ensPostProcess
   end if
 
   !- Allocate ensembles, read the Trl ensemble
+  allocate(ensembleTrl)
   if (readTrlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-    allocate(ensembleTrl)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
   end if
