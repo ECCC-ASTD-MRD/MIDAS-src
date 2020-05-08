@@ -418,6 +418,7 @@ contains
           dnstepobs = 1.0d0
         end if
       else
+        dddt = tim_windowsize
         if (dlhours < -dddt/2.0d0 .or. dlhours > tim_windowsize + dddt/2.d0) then
           ! outside time window
           dnstepobs = -1.0d0
