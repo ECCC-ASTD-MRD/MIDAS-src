@@ -7,7 +7,6 @@
    WEIGHTLATLONSTEP         = 10
    HLOCALIZE                = 2000.0D0
    VLOCALIZE                = 2.0D0
-   alphaRTPP                = 0.00D0
    modifyAmsubObsError      = .false.
    backgroundCheck          = .false.
    huberize                 = .false.
@@ -17,6 +16,7 @@
    mpiDistribution          = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
+   alphaRTPP                = 0.00D0
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.33D0
    alphaRandomPertSubSample = 0.66D0
