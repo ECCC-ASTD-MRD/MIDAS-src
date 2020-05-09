@@ -925,8 +925,8 @@ contains
     integer :: procIndex, nsize, ierr, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(INCR_REAL), pointer :: ptr4d(:,:,:,:)
-    real(INCR_REAL), pointer :: ptr3d_UV(:,:,:)
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
+    real(pre_incrReal), pointer :: ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -1173,7 +1173,7 @@ contains
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(INCR_REAL), pointer :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -1805,7 +1805,7 @@ contains
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(INCR_REAL)          :: field_in(:,:)
+    real(pre_incrReal)      :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -1855,7 +1855,7 @@ contains
     ! Arguments:
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
-    real(INCR_REAL)         :: field_out(:,:)
+    real(pre_incrReal)      :: field_out(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -1991,8 +1991,8 @@ contains
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(INCR_REAL)         :: fieldUU_in(:,:)
-    real(INCR_REAL)         :: fieldVV_in(:,:)
+    real(pre_incrReal)      :: fieldUU_in(:,:)
+    real(pre_incrReal)      :: fieldVV_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -2076,8 +2076,8 @@ contains
     ! arguments
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
-    real(INCR_REAL)         :: fieldUU_out(:,:)
-    real(INCR_REAL)         :: fieldVV_out(:,:)
+    real(pre_incrReal)      :: fieldUU_out(:,:)
+    real(pre_incrReal)      :: fieldVV_out(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex

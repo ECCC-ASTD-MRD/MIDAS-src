@@ -210,9 +210,9 @@ CONTAINS
           oldCorr = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
           corr = MPC_missingValue_R8
           
-          if ( tt /= real(MPC_missingValue_R8,OBS_REAL) ) then
+          if ( tt /= real(MPC_missingValue_R8,pre_obsReal) ) then
           
-            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
+            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,pre_obsReal) ) then
               tt = tt + oldCorr
               flag = ibclr(flag, 6)
             end if
@@ -423,10 +423,10 @@ CONTAINS
           
           corr = MPC_missingValue_R8
           
-          if ( ztd /= real(MPC_missingValue_R8,OBS_REAL) ) then  
+          if ( ztd /= real(MPC_missingValue_R8,pre_obsReal) ) then  
             
             ! Remove any previous bias correction
-            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,OBS_REAL) ) then
+            if ( btest(flag, 6) .and. oldCorr /= real(MPC_missingValue_R8,pre_obsReal) ) then
               ztd = ztd - oldCorr
               flag = ibclr(flag, 6)
             end if

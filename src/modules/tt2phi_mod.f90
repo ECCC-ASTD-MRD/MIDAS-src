@@ -419,10 +419,10 @@ subroutine tt2phi_gsv_tl(statevector,statevector_trial)
   real(8), allocatable :: delThick(:,:,:,:)
   real(8), pointer     :: height_T_ptr(:,:,:,:),height_M_ptr(:,:,:,:)
   real(8), pointer     :: P_T(:,:,:,:), P_M(:,:,:,:)
-  real(INCR_REAL), pointer  :: delHeight_M_ptr_r48(:,:,:,:),delHeight_T_ptr_r48(:,:,:,:)
-  real(INCR_REAL), pointer  :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:),delP0_r48(:,:,:,:)
-  real(INCR_REAL), pointer  :: delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
-  type(struct_vco), pointer :: vco_anl
+  real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:),delHeight_T_ptr_r48(:,:,:,:)
+  real(pre_incrReal), pointer :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:),delP0_r48(:,:,:,:)
+  real(pre_incrReal), pointer :: delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
+  type(struct_vco),   pointer :: vco_anl
 
   call tmg_start(193,'tt2phi_tl')
 
@@ -758,10 +758,10 @@ subroutine tt2phi_gsv_ad(statevector,statevector_trial)
   real(8), pointer     :: height_M_ptr(:,:,:,:),height_T_ptr(:,:,:,:)
   real(8), allocatable :: delHeight_M(:,:,:,:),delHeight_T(:,:,:,:)
   real(8), pointer     :: P_M(:,:,:,:),P_T(:,:,:,:)
-  real(INCR_REAL), pointer  :: delHeight_M_ptr_r48(:,:,:,:),delHeight_T_ptr_r48(:,:,:,:)
-  real(INCR_REAL), pointer  :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:),delP0_r48(:,:,:,:)
-  real(INCR_REAL), pointer  :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
-  type(struct_vco), pointer :: vco_anl
+  real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:),delHeight_T_ptr_r48(:,:,:,:)
+  real(pre_incrReal), pointer :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:),delP0_r48(:,:,:,:)
+  real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
+  type(struct_vco),   pointer :: vco_anl
 
   call tmg_start(194,'tt2phi_ad')
 

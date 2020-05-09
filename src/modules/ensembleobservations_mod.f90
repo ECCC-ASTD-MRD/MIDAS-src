@@ -910,8 +910,8 @@ CONTAINS
     type(struct_eob) :: ensObs
 
     ! locals
-    integer        :: bodyIndex
-    real(obs_real) :: sigo, sigb, sigi
+    integer           :: bodyIndex
+    real(pre_obsReal) :: sigo, sigb, sigi
 
     ! Set 'sigi' and 'sigo' before oer is modified by Huber norm
     do bodyIndex = 1, obs_numbody(ensObs%obsSpaceData)
@@ -940,10 +940,10 @@ CONTAINS
     type(struct_eob) :: ensObs
 
     ! locals
-    integer        :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
-    integer        :: bodyIndex, bodyIndexBeg, bodyIndexEnd, headerIndex
-    real(obs_real) :: c_limit, sig, sigo, sigb, omp, sigo_hub, sigo_hub_wind
-    logical        :: reject_wind
+    integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
+    integer           :: bodyIndex, bodyIndexBeg, bodyIndexEnd, headerIndex
+    real(pre_obsReal) :: c_limit, sig, sigo, sigb, omp, sigo_hub, sigo_hub_wind
+    logical           :: reject_wind
 
     c_limit = 2.0
     huberCount = 0

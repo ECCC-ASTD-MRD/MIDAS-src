@@ -1567,7 +1567,7 @@ CONTAINS
 
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
-    REAL(OBS_REAL) , ALLOCATABLE  :: azimuth(:)
+    REAL(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
 
@@ -1586,10 +1586,10 @@ CONTAINS
     REAL   , ALLOCATABLE   :: BCOR(:,:), BiasCorrection(:,:)
     REAL   , ALLOCATABLE   :: BCOR2(:,:,:), BiasCorrection2(:,:)
 
-    REAL(OBS_REAL), ALLOCATABLE  :: CFRAC(:,:)
+    REAL(pre_obsReal), ALLOCATABLE  :: CFRAC(:,:)
 
-    REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
-    REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
+    REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
+    REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
     INTEGER                :: LISTE_INFO(19),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
@@ -1601,7 +1601,7 @@ CONTAINS
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
     INTEGER                :: vcord_type(10),SUM,vcoord_type
-    REAL(OBS_REAL)         :: RELEV,XLAT,XLON,RELEV2
+    REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
     REAL                   :: XTIME
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
                                drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
@@ -2494,7 +2494,7 @@ CONTAINS
             XLAT    = XLAT*MPC_RADIANS_PER_DEGREE_R8
             YMD_DATE=date_h
             HM      =hhmm_h
-            RELEV   =REAL(ELEV,OBS_REAL) - 400.
+            RELEV   =REAL(ELEV,pre_obsReal) - 400.
           END IF
 
           if (allocated(RINFO))      TRINFO(1:NELE_INFO)     =RINFO       (1:NELE_INFO,k)
@@ -2883,7 +2883,7 @@ CONTAINS
     INTEGER     ::   VARNO,IL,J,COUNT,NLV
 
     INTEGER     ::   IFLAG,BITSflagoff,BITSflagon
-    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR
+    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
@@ -3073,7 +3073,7 @@ CONTAINS
     type (struct_obs), intent(inout) :: obsdat
 
     INTEGER     ::   DATE,TIME,CODTYP,STATUS,FILENUMB
-    REAL(OBS_REAL)  :: ELEV,LAT,LON
+    REAL(pre_obsReal) :: ELEV,LAT,LON
 
     INTEGER     ::   NOBS
 
@@ -3104,7 +3104,7 @@ CONTAINS
     INTEGER     ::    FILENUMB
     INTEGER, optional :: phase_opt
 
-    REAL(OBS_REAL) :: ELEV,LAT,LON
+    REAL(pre_obsReal) :: ELEV,LAT,LON
 
     INTEGER     ::   NOBS
 
@@ -3155,7 +3155,7 @@ CONTAINS
   subroutine write_al(obsdat, azimuth)
     implicit none
     type (struct_obs), intent(inout) :: obsdat
-    real(kind=OBS_REAL) :: azimuth
+    real(pre_obsReal) :: azimuth
     integer :: nobs
 
     nobs = obs_numHeader(obsdat)
@@ -3187,9 +3187,9 @@ CONTAINS
 
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
-    REAL(OBS_REAL) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
+    REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
-    REAL(OBS_REAL) ::   cloudLiquidWater
+    REAL(pre_obsReal) ::   cloudLiquidWater
 
     NOBS=obs_numHeader(obsdat)
 
@@ -3204,8 +3204,8 @@ CONTAINS
     IGQISQUALINDEXLOC=0
     IGQISFLAGQUAL=0
 
-    RTANGENT_RADIUS=real(MPC_missingValue_R8,OBS_REAL)
-    RGEOID=real(MPC_missingValue_R8,OBS_REAL)
+    RTANGENT_RADIUS=real(MPC_missingValue_R8,pre_obsReal)
+    RGEOID=real(MPC_missingValue_R8,pre_obsReal)
     TERRAIN_TYPE=99
     RCLOUD_COVER = MPC_missingValue_R4
     CONSTITUENT_TYPE = MPC_missingValue_INT
@@ -3213,11 +3213,11 @@ CONTAINS
     RIGQISQUALINDEXLOC = MPC_missingValue_R4
     RIGQISFLAGQUAL = MPC_missingValue_R4
     RRO_QCFLAG = MPC_missingValue_R4
-    RSOLAR_AZIMUTH = real(MPC_missingValue_R8,OBS_REAL)
-    RSOLAR_ZENITH = real(MPC_missingValue_R8,OBS_REAL)
+    RSOLAR_AZIMUTH = real(MPC_missingValue_R8,pre_obsReal)
+    RSOLAR_ZENITH = real(MPC_missingValue_R8,pre_obsReal)
     RZENITH = 90.
     RAZIMUTH = 0.
-    cloudLiquidWater = real(MPC_missingValue_R8,OBS_REAL)
+    cloudLiquidWater = real(MPC_missingValue_R8,pre_obsReal)
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)

@@ -579,22 +579,22 @@ CONTAINS
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
@@ -805,7 +805,7 @@ CONTAINS
 
     ! Locals:
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
-    real(INCR_REAL), pointer :: field(:,:,:,:)
+    real(pre_incrReal), pointer :: field(:,:,:,:)
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:)
     real(8), pointer :: cv_pert_bchm_mpilocal(:)
@@ -1025,7 +1025,7 @@ CONTAINS
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         dataKind_opt=INCR_REAL, mpi_local_opt=.true.)
+                         dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

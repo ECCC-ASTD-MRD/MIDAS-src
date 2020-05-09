@@ -107,12 +107,12 @@ module sqliteFiles_mod
     character(len=*), parameter :: my_name = 'sqlf_readFile'
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
     character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
-    real(obs_real)  :: missingValue
+    real(pre_obsReal)           :: missingValue
 
     write(*,*)' '
     write(*,*)'                '//trim(my_name)//': Starting          '
     write(*,*)' '
-    missingValue = real(MPC_missingValue_R8,OBS_REAL)
+    missingValue = real(MPC_missingValue_R8,pre_obsReal)
     write(*,*) my_name//': FileName   : ', trim(FileName)
     write(*,*) my_name//': FamilyType : ', FamilyType
 

@@ -159,7 +159,7 @@ contains
 
     ! locals
     integer :: bodyIndex
-    real(OBS_REAL) :: obsValue
+    real(pre_obsReal) :: obsValue
 
     do bodyIndex=1,obs_numbody(obsSpaceData)
       obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)

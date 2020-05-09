@@ -4524,7 +4524,7 @@ contains
     integer :: sensorIndex, channelIndex, tovsIndex
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(OBS_REAL) :: zdtb
+    real(pre_obsReal) :: zdtb
     integer nchanperline, startChannel, endChannel
     integer count, incanjo
     integer idatyp

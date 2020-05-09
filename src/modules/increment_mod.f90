@@ -114,12 +114,12 @@ CONTAINS
     character(len=4), pointer :: varNames(:)
 
     real(8)             :: deltaHours
-    real(INCR_REAL), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:), analInc(:,:,:,:)
-    real(INCR_REAL), pointer    :: PsfcIncrement(:,:,:,:)
-    real(INCR_REAL), pointer    :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
+    real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:), analInc(:,:,:,:)
+    real(pre_incrReal), pointer :: PsfcIncrement(:,:,:,:)
+    real(pre_incrReal), pointer :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
     real(8), pointer            :: HeightSfc_increment(:,:), HeightSfc_trial(:,:)
-    real(INCR_REAL), pointer    :: GL_ptr(:,:,:,:)
-    real(INCR_REAL), pointer    :: analIncMask(:,:,:)
+    real(pre_incrReal), pointer :: GL_ptr(:,:,:,:)
+    real(pre_incrReal), pointer :: analIncMask(:,:,:)
     real(8), allocatable        :: PsfcAnalysis_r8(:,:)
 
     logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
@@ -172,7 +172,7 @@ CONTAINS
         write(*,*) 'inc_computeAndWriteAnalysis: extract only the increment levels from the trials'
         allocate(statevector_trial)
         call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
-                          dataKind_opt=INCR_REAL, &
+                          dataKind_opt=pre_incrReal, &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                           allocHeight_opt=.false., allocPressure_opt=.false.)
@@ -230,7 +230,7 @@ CONTAINS
       if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
       allocate(statevector_trial)
       call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
-                        dataKind_opt=INCR_REAL, &
+                        dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                         allocHeight_opt=.false., allocPressure_opt=.false.)
@@ -246,7 +246,7 @@ CONTAINS
     !
     if (.not. hco_trl%global .and. useAnalIncMask) then
       call gsv_allocate(statevector_mask, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
-                        dataKind_opt=INCR_REAL, &
+                        dataKind_opt=pre_incrReal, &
                         mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
                         hInterpolateDegree_opt=hInterpolationDegree)
       call gsv_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
@@ -258,7 +258,7 @@ CONTAINS
     !
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
-                        dataKind_opt=INCR_REAL, &
+                        dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
@@ -271,7 +271,7 @@ CONTAINS
         call gsv_allocate(statevector_PsfcLowRes, numStep,  &
                           statevector_incLowRes_opt%hco, vco_trl,  &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                          dataKind_opt=INCR_REAL, &
+                          dataKind_opt=pre_incrReal, &
                           varNames_opt=(/'P0'/))
         call gsv_getField(statevector_PsfcLowRes,PsfcIncLowRes,'P0')
         call gsv_getField(statevector_incLowRes_opt,PsfcIncLowResFrom3Dgsv,'P0')
@@ -336,11 +336,11 @@ CONTAINS
 
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      dataKind_opt=INCR_REAL, allocHeightSfc_opt=allocHeightSfc, &
+                      dataKind_opt=pre_incrReal, allocHeightSfc_opt=allocHeightSfc, &
                       hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
@@ -438,7 +438,7 @@ CONTAINS
     call gsv_varNamesList(varNames, stateVector_analysis)
     call gsv_deallocate( stateVector_incHighRes )
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
-                      dataKind_opt=INCR_REAL,  &
+                      dataKind_opt=pre_incrReal,  &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       varNames_opt=varNames )
@@ -654,15 +654,15 @@ CONTAINS
     type(struct_gsv)  :: statevector_in, statevector_inout
 
     real(8), optional :: scaleFactor_opt
-    real(INCR_REAL), optional  :: PsfcReference_opt(:,:,:)
-    type(struct_gsv), optional :: mask2d_opt
+    real(pre_incrReal), optional :: PsfcReference_opt(:,:,:)
+    type(struct_gsv),   optional :: mask2d_opt
 
     type(struct_gsv) :: statevector_in_hvInterp
 
-    real(INCR_REAL), pointer :: increment(:,:,:,:)
-    real(INCR_REAL), pointer :: analIncMask(:,:,:)
-    real(4), allocatable     :: PsfcReference_r4(:,:,:)
-    real(8), allocatable     :: PsfcReference_r8(:,:,:)
+    real(pre_incrReal), pointer :: increment(:,:,:,:)
+    real(pre_incrReal), pointer :: analIncMask(:,:,:)
+    real(4), allocatable        :: PsfcReference_r4(:,:,:)
+    real(8), allocatable        :: PsfcReference_r8(:,:,:)
 
     integer :: latIndex,kIndex,lonIndex, stepIndex
 
@@ -692,7 +692,7 @@ CONTAINS
                       varNames_opt=varNamesToInterpolate,                                       &
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree)
 
-    ! Need to copy input PsfcReference to both real4 and real8 to isolate gsv from INCR_REAL
+    ! Need to copy input PsfcReference to both real4 and real8 to isolate gsv from pre_incrReal
     if (gsv_getDataKind(statevector_in)==4) then
       allocate(PsfcReference_r4(statevector_in_hvInterp%myLonBeg:statevector_in_hvInterp%myLonEnd, &
                                 statevector_in_hvInterp%myLatBeg:statevector_in_hvInterp%myLatEnd, &

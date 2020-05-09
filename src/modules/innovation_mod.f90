@@ -263,7 +263,7 @@ contains
     ! if requested, make trials available to calling routine after degrading timesteps
     if (present(stateVectorTrialOut_opt)) then
       call gsv_allocate( stateVectorTrialOut_opt, tim_nstepobsinc, hco_trl, vco_trl,  &
-                         dataKind_opt=INCR_REAL, &
+                         dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                          allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                          allocHeight_opt=.false., allocPressure_opt=.false. )

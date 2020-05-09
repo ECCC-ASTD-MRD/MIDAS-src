@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module codePrecision_mod
-  ! MODULE codePrecision_mod (prefix='pre' category='8. Global constants and interfaces')
+  ! MODULE codePrecision_mod (prefix='prec' category='8. Global constants and interfaces')
   !
   !:Purpose: A module to specify the precision, mostly for floating
   !          point variables
@@ -25,49 +25,55 @@ module codePrecision_mod
   save
   public
 
-  ! Precision for columns in obsSpaceData
+  !
+  ! Precision for columns in obsSpaceData - default is real8
+  !
 #if !defined(CODEPRECISION_OBS_REAL_SINGLE) && !defined(CODEPRECISION_OBS_REAL_DOUBLE)
 #define CODEPRECISION_OBS_REAL_DOUBLE
 #endif
 
 #ifdef CODEPRECISION_OBS_REAL_DOUBLE
-  integer, parameter :: OBS_REAL = selected_real_kind(15)
-  character(len=20)  :: MPI_OBS_REAL="mpi_real8"
+  integer, parameter :: pre_obsReal    = selected_real_kind(15)
+  character(len=20)  :: pre_obsMpiReal ="mpi_real8"
 #endif
 
 #ifdef CODEPRECISION_OBS_REAL_SINGLE
-  integer, parameter :: OBS_REAL = selected_real_kind(6)
-  character(len=20)  :: MPI_OBS_REAL="mpi_real4"
+  integer, parameter :: pre_obsReal = selected_real_kind(6)
+  character(len=20)  :: pre_obsMpiReal="mpi_real4"
 #endif
 
-  ! Precision for calculation of analysis increment in variational analysis
+  !
+  ! Precision for calculation of analysis increment in variational analysis - default is real8
+  !
 #if !defined(CODEPRECISION_INCR_REAL_SINGLE) && !defined(CODEPRECISION_INCR_REAL_DOUBLE)
 #define CODEPRECISION_INCR_REAL_DOUBLE
 #endif
 
 #ifdef CODEPRECISION_INCR_REAL_DOUBLE
-  integer, parameter :: INCR_REAL = selected_real_kind(15)
+  integer, parameter :: pre_incrReal = selected_real_kind(15)
 #endif
 
 #ifdef CODEPRECISION_INCR_REAL_SINGLE
-  integer, parameter :: INCR_REAL = selected_real_kind(6)
+  integer, parameter :: pre_incrReal = selected_real_kind(6)
 #endif
 
-  ! Precision for calculation of analysis increment in variational analysis
+  !
+  ! Precision for mpi transposes in (global) spectral transform - default is real8
+  !
 #if !defined(CODEPRECISION_SPECTRANS_REAL_SINGLE) && !defined(CODEPRECISION_SPECTRANS_REAL_DOUBLE)
 #define CODEPRECISION_SPECTRANS_REAL_DOUBLE
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_DOUBLE
-  integer, parameter :: SPECTRANS_REAL = selected_real_kind(15)
-  integer, parameter :: MPITYPE_SPECTRANS_REAL = MPI_REAL8
-  character(len=20)  :: MPI_SPECTRANS_REAL="mpi_real8"
+  integer, parameter :: pre_specTransReal    = selected_real_kind(15)
+  integer, parameter :: pre_specTransMpiType = MPI_REAL8
+  character(len=20)  :: pre_specTransMpiReal ="mpi_real8"
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_SINGLE
-  integer, parameter :: SPECTRANS_REAL = selected_real_kind(6)
-  integer, parameter :: MPITYPE_SPECTRANS_REAL = MPI_REAL4
-  character(len=20)  :: MPI_SPECTRANS_REAL="mpi_real4"
+  integer, parameter :: pre_specTransReal    = selected_real_kind(6)
+  integer, parameter :: pre_specTransMpiType = MPI_REAL4
+  character(len=20)  :: pre_specTransMpiReal ="mpi_real4"
 #endif
 
 end module codePrecision_mod

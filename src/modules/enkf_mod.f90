@@ -1407,9 +1407,9 @@ contains
     type(struct_obs), target  :: obsSpaceData
 
     ! locals:
-    real(obs_real), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
+    real(pre_obsReal), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
     integer            :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
-    real(obs_real)     :: lat_obs
+    real(pre_obsReal)  :: lat_obs
 
     ! for AMSUB observations set the observation error std dev equal to 1.0
     ! in the larger tropical area where the spread-skill correlation suggests 
@@ -1442,8 +1442,8 @@ contains
     type(struct_obs), target  :: obsSpaceData
 
     ! locals:
-    integer        :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
-    real(obs_real) :: lat_obs
+    integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
+    real(pre_obsReal) :: lat_obs
 
     ! reject all HIR radiance observation in arctic and antarctic (.i.e |lat|>60. )
     do headerIndex = 1, obs_numheader(obsSpaceData)

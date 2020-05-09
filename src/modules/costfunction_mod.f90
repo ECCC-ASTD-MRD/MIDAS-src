@@ -238,15 +238,13 @@ contains
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
     
-    real(OBS_REAL) :: zdtb
-    integer idatyp
-    integer channelNumber, ichobs_a
-    integer :: headerIndex, bodyIndex
+    real(pre_obsReal) :: zdtb
+    integer :: idatyp, channelNumber, ichobs_a
+    integer :: headerIndex, bodyIndex, count
     real(8) :: obsIn(tvs_maxChannelNumber), obsOut(tvs_maxChannelNumber)
     real(8) :: sigmaObs, dlsum
     integer :: list_chan(tvs_maxChannelNumber)
     real(8) :: list_oer(tvs_maxChannelNumber)
-    integer :: count
 
     pjo = 0.d0
 

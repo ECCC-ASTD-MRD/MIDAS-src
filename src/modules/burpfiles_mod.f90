@@ -166,12 +166,12 @@ contains
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     logical :: burp_chem
-    real(obs_real)  :: missingValue
+    real(pre_obsReal)  :: missingValue
 
     write(*,*) ' '
     write(*,*) 'brpf_readFile: Starting'
     write(*,*) ' '
-    missingValue = real(MPC_missingValue_R8,OBS_REAL)
+    missingValue = real(MPC_missingValue_R8,pre_obsReal)
     
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
@@ -302,11 +302,11 @@ contains
 
       integer  :: bodyIndex,rln,nlv
 
-      real(obs_real) :: obsv
-      real(obs_real) :: vomp, voma, voer, vhpht, scale
+      real(pre_obsReal) :: obsv
+      real(pre_obsReal) :: vomp, voma, voer, vhpht, scale
       integer        :: nexp,iobs,iexp
 
-      real(obs_real), allocatable :: expnt(:)
+      real(pre_obsReal), allocatable :: expnt(:)
 
       rln = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
       nlv = obs_headElem_i(obsdat,OBS_NLV,headerIndex)

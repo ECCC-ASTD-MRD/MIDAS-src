@@ -111,7 +111,7 @@ program midas_var
   ierr=fclos(nulnam)
 
   write(*,*)
-  write(*,*) 'Real Kind used for computing the increment =', INCR_REAL
+  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
   write(*,*)
 
   write(*,*)
@@ -285,7 +285,7 @@ program midas_var
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-         dataKind_opt=INCR_REAL, allocHeight_opt=.false., allocPressure_opt=.false.)
+         dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment
     call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)

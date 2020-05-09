@@ -273,7 +273,7 @@ contains
     hco_anl => agd_getHco('ComputationalGrid')
     !- 1.3 Create a gridstatevector to store the perturbations
     call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl, &
-                      dataKind_opt=INCR_REAL,mpi_local_opt=.true.)
+                      dataKind_opt=pre_incrReal,mpi_local_opt=.true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)

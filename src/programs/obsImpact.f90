@@ -103,7 +103,7 @@ program midas_obsimpact
   end if
 
   write(*,*)
-  write(*,*) 'Real Kind used for computing the increment =', INCR_REAL
+  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
   write(*,*)
 
   call ram_setup
@@ -342,7 +342,7 @@ contains
 
     ! for statevector_fso 
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
  
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
@@ -708,7 +708,7 @@ contains
       hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(columng_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
-                        dataKind_opt=INCR_REAL, mpi_local_opt=.true.)
+                        dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 

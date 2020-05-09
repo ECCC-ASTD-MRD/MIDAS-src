@@ -252,7 +252,7 @@ contains
     integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
     real(8), pointer         :: cvBhi(:), cvBen(:), cvBchm(:)
-    real(INCR_REAL), pointer :: field(:,:,:,:)
+    real(pre_incrReal), pointer :: field(:,:,:,:)
     real(8), allocatable     :: HxBhi(:), HxBen(:)
     real(8), allocatable     :: scaleFactor(:),scaleFactorChm(:,:)
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
@@ -282,7 +282,7 @@ contains
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
     call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=INCR_REAL, mpi_local_opt=.true.)
+                      dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
     nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
 

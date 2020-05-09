@@ -491,7 +491,7 @@ contains
     gstID = nGstAlreadyAllocated
     call gst_setDefaultID(gstID)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: Now setting up spectral transform #', gstID
-    if(mpi_myid.eq.0) write(*,*) 'gst_setup: following *kind* used for internal reals : ', SPECTRANS_REAL
+    if(mpi_myid.eq.0) write(*,*) 'gst_setup: following *kind* used for internal reals : ', pre_specTransReal
 
     gst(gstID)%ni = ni_in
     gst(gstID)%nj = nj_in
@@ -666,34 +666,34 @@ contains
     ! ... mpi_type_vector(count, blocklength, stride, ...)
     ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
 
-    call mpi_type_size(MPITYPE_SPECTRANS_REAL, realSize, ierr)
+    call mpi_type_size(pre_specTransMpiType, realSize, ierr)
     lowerBound = 0
 
     ! create the send type for LevToLon
     extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
     call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, MPITYPE_SPECTRANS_REAL, sendtype, ierr)
+                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, sendtype, ierr)
     call mpi_type_create_resized(sendtype, lowerBound , extent, gst(gstID)%sendType_LevToLon, ierr);
     call mpi_type_commit(gst(gstID)%sendType_LevToLon,ierr)
 
     ! create the receive type for LevToLon
     extent = gst(gstID)%maxMyLevCount * realSize
     call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, MPITYPE_SPECTRANS_REAL, recvtype, ierr);
+                         gst(gstID)%nk, pre_specTransMpiType, recvtype, ierr);
     call mpi_type_create_resized(recvtype, lowerBound, extent, gst(gstID)%recvType_LevToLon, ierr);
     call mpi_type_commit(gst(gstID)%recvType_LevToLon, ierr);
 
     ! create the send type for LonToLev
     extent = gst(gstID)%maxMyLevCount * realSize
     call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, MPITYPE_SPECTRANS_REAL, sendtype, ierr);
+                         gst(gstID)%nk, pre_specTransMpiType, sendtype, ierr);
     call mpi_type_create_resized(sendtype, lowerBound, extent, gst(gstID)%sendType_LonToLev, ierr);
     call mpi_type_commit(gst(gstID)%sendType_LonToLev, ierr);
 
     ! create the recv type for LonToLev
     extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
     call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, MPITYPE_SPECTRANS_REAL, recvtype, ierr)
+                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, recvtype, ierr)
     call mpi_type_create_resized(recvtype, lowerBound , extent, gst(gstID)%recvType_LonToLev, ierr);
     call mpi_type_commit(gst(gstID)%recvType_LonToLev,ierr)
 
@@ -714,10 +714,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: sp_send(gst(gstID)%maxMyNla, 2, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
-    real(SPECTRANS_REAL) :: sp_recv(gst(gstID)%maxMyNla, 2, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(113,'GST_NTOLEV_BARR')
@@ -741,8 +741,8 @@ contains
     call tmg_start(21,'ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, MPI_SPECTRANS_REAL,  &
-                             sp_recv, nsize, MPI_SPECTRANS_REAL, 'EW', ierr)
+      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
+                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -775,10 +775,10 @@ contains
     real(8) :: psp_out(gst(gstID)%myNla, 2, gst(gstID)%nk)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: sp_send(gst(gstID)%maxMyNla, 2, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
-    real(SPECTRANS_REAL) :: sp_recv(gst(gstID)%maxMyNla, 2, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(114,'GST_LEVTON_BARR')
@@ -804,8 +804,8 @@ contains
     call tmg_start(21,'ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, MPI_SPECTRANS_REAL,  &
-                             sp_recv, nsize, MPI_SPECTRANS_REAL, 'EW', ierr)
+      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
+                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -838,10 +838,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npey)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -872,8 +872,8 @@ contains
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -912,8 +912,8 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL), allocatable, save :: gd_send(:,:,:,:,:)
-    real(SPECTRANS_REAL), allocatable, save :: gd_recv(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
@@ -946,8 +946,8 @@ contains
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -985,10 +985,10 @@ contains
                          gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npey)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1019,8 +1019,8 @@ contains
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1059,8 +1059,8 @@ contains
                        gst(gstID)%nj)
 
     ! Locals:
-    real(SPECTRANS_REAL), allocatable, save :: gd_send(:,:,:,:,:)
-    real(SPECTRANS_REAL), allocatable, save :: gd_recv(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
@@ -1093,8 +1093,8 @@ contains
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1132,10 +1132,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1158,8 +1158,8 @@ contains
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send,nsize,MPI_SPECTRANS_REAL,  &
-                             gd_recv,nsize,MPI_SPECTRANS_REAL,'EW',ierr)
+      call rpn_comm_alltoall(gd_send,nsize,pre_specTransMpiReal,  &
+                             gd_recv,nsize,pre_specTransMpiReal,'EW',ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1261,10 +1261,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                                    gst(gstID)%latPerPEmax, mpi_npex)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                                    gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1, nsize, ierr, yourNumLev
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
@@ -1284,8 +1284,8 @@ contains
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,   &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,   &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1316,10 +1316,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                                    gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1342,8 +1342,8 @@ contains
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1452,10 +1452,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(SPECTRANS_REAL) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                                    gst(gstID)%latPerPEmax, mpi_npex)
-    real(SPECTRANS_REAL) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                                    gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2,yourNumLev
 
     call tmg_start(118,'GST_LONTOLEV_BARR')
@@ -1478,8 +1478,8 @@ contains
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, MPI_SPECTRANS_REAL,  &
-                             gd_recv, nsize, MPI_SPECTRANS_REAL, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -2418,7 +2418,7 @@ contains
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     if( gst(gstID)%lonLatDivisible ) then
-      if (SPECTRANS_REAL == 4) then
+      if (pre_specTransReal == 4) then
         call transpose2d_LevtoLon_kij_mpitypes4(pgd3,pgd)
       else
         call transpose2d_LevtoLon_kij_mpitypes8(pgd3,pgd)
@@ -2511,7 +2511,7 @@ contains
 
     ! Transpose data along npex from Longitudes to Levels
     if( gst(gstID)%lonLatDivisible ) then
-      if (SPECTRANS_REAL == 4) then
+      if (pre_specTransReal == 4) then
         call transpose2d_LontoLev_kij_mpitypes4(pgd,pgd3)
       else
         call transpose2d_LontoLev_kij_mpitypes8(pgd,pgd3)
