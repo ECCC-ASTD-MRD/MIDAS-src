@@ -284,7 +284,7 @@ contains
       if (writeSubSample) then
         ! Copy sub-sampled analysis and trial ensemble members
         call epp_selectSubSample(ensembleAnl, ensembleAnlSubSample,  &
-                                  ensembleTrl, ensembleTrlSubSample)
+                                 ensembleTrl, ensembleTrlSubSample)
 
         ! Create subdirectory for outputting sub sample increments
         ierr = clib_mkdir_r('subspace')
@@ -452,7 +452,7 @@ contains
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
         call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
       end if
-      call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowMismatch_opt=.true.)
+      call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
       call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       
@@ -753,9 +753,9 @@ contains
 
     write(*,*) 'epp_RTPS: Starting'
 
-    stdDevTrl_ptr_r4 => gsv_getField_r4(stateVectorStdDevTrl)
-    stdDevAnl_ptr_r4 => gsv_getField_r4(stateVectorStdDevAnl)
-    meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
+    call gsv_getField(stateVectorStdDevTrl,stdDevTrl_ptr_r4)
+    call gsv_getField(stateVectorStdDevAnl,stdDevAnl_ptr_r4)
+    call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
     nEns = ens_getNumMembers(ensembleAnl)
     numVarLev = ens_getNumK(ensembleAnl)
@@ -865,7 +865,7 @@ contains
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.,  &
                       hInterpolateDegree_opt='LINEAR')
-    perturbation_ptr => gsv_getField3d_r8(stateVectorPerturbationInterp)
+    call gsv_getField(stateVectorPerturbationInterp,perturbation_ptr)
     allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1))
     PsfcReference(:,:,:) = 100000.0D0
 
@@ -875,7 +875,7 @@ contains
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       hExtrapolateDegree_opt='MINIMUM', &
                       varNames_opt=(/'HU','P0'/) )
-    call gsv_copy(stateVectorMeanTrl, stateVectorTrlHU, allowMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanTrl, stateVectorTrlHU, allowVarMismatch_opt=.true.)
     call gsv_allocate(stateVectorVtr, 1, hco_randomPert, vco_randomPert,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
@@ -1193,7 +1193,7 @@ contains
     weight(:,:) = weight(:,:) / sumWeight
     
     ! compute global mean variance accounting for weights
-    stdDev_ptr_r4 => gsv_getField3D_r4(stateVectorStdDev)
+    call gsv_getField(stateVectorStdDev,stdDev_ptr_r4)
     rmsvalue(:) = 0.0D0
     do kIndex = 1, numK
       do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd

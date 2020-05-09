@@ -1796,45 +1796,25 @@ contains
       firstTime = .false.
     end if
 
-    call tmg_start(42,'OBS_PPP_TLAD')
     call oop_Hpp()           ! fill in OBS_WORK : Hdx
-    call tmg_stop(42)
 
-    call tmg_start(43,'OBS_SFC_TLAD')
     call oop_Hsf()           ! fill in OBS_WORK : Hdx
-    call tmg_stop (43)
 
-    call tmg_start(44,'OBS_TOV_TLAD')
     call oop_Hto()           ! fill in OBS_WORK : Hdx
-    call tmg_stop (44)
 
-    call tmg_start(45,'OBS_GPSRO_TLAD')
     call oop_Hro()
-    call tmg_stop (45)
 
-    call tmg_start(46,'OBS_ZZZ_TLAD')
     call oop_Hzp()
-    call tmg_stop (46)
 
-    call tmg_start(47,'OBS_GPSGB_TLAD')
     if (numGPSZTD > 0)  call oop_Hgp()
-    call tmg_stop (47)
 
-    call tmg_start(126,'OBS_CHM_TL')
     call oop_Hchm()          ! fill in OBS_WORK : Hdx
-    call tmg_stop (126)
 
-    call tmg_start(190,'OBS_SST_TLAD')
     call oop_Hsst()          ! fill in OBS_WORK : Hdx
-    call tmg_stop (190)
 
-    call tmg_start(49,'OBS_ICE_TLAD')
     call oop_Hice()          ! fill in OBS_WORK : Hdx
-    call tmg_stop (49)
 
-    call tmg_start(195,'OBS_HYDRO_TLAD')
     call oop_Hhydro()        ! fill in OBS_WORK : Hdx
-    call tmg_stop (195)
 
   CONTAINS
 
@@ -2614,45 +2594,25 @@ contains
       firstTime = .false.
     end if
 
-    call tmg_start(125,'OBS_CHM_TLAD')
     call oop_HTchm
-    call tmg_stop (125)
 
-    call tmg_start(47,'OBS_GPSGB_TLAD')
     if (numGPSZTD > 0) call oop_HTgp
-    call tmg_stop (47)
 
-    call tmg_start(46,'OBS_ZZZ_TLAD')
     call oop_HTzp
-    call tmg_stop (46)
 
-    call tmg_start(45,'OBS_GPSRO_TLAD')
     call oop_HTro
-    call tmg_stop (45)
 
-    call tmg_start(44,'OBS_TOV_TLAD')
     call oop_HTto
-    call tmg_stop (44)
 
-    call tmg_start(43,'OBS_SFC_TLAD')
     call oop_HTsf
-    call tmg_stop (43)
 
-    call tmg_start(42,'OBS_PPP_TLAD')
     call oop_HTpp
-    call tmg_stop (42)
 
-    call tmg_start(191,'OBS_SST_TLAD')
     call oop_HTsst
-    call tmg_stop (191)
 
-    call tmg_start(49,'OBS_ICE_TLAD')
     call oop_HTice
-    call tmg_stop (49)
 
-    call tmg_start(195,'OBS_HYDRO_TLAD')
     call oop_HThydro()
-    call tmg_stop (195)
 
   CONTAINS
 

@@ -335,7 +335,7 @@ program midas_letkf
   write(*,*) ''
   write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean background'
   write(*,*) ''
-  call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowMismatch_opt=.true.)
+  call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
   call tvs_allocTransmission ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
@@ -425,10 +425,10 @@ program midas_letkf
   if (tim_nstepobsinc < tim_nstepobs) then
     ! meanAnl is only 3D, so need to make 4D for s2c_nl
     middleStepIndex = (tim_nstepobs + 1) / 2
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
     call gsv_3dto4d(stateVectorWithZandP4D)
   else
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
   end if
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )

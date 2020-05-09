@@ -20,6 +20,7 @@ module globalSpectralTransform_mod
   ! :Purpose: To perform global spectral transform (spherical harmonic transform
   !           with grid-point field on a standard global Gaussian grid). 
   !
+  use codePrecision_mod
   use mpi
   use mpi_mod
   use mpivar_mod
@@ -29,12 +30,6 @@ module globalSpectralTransform_mod
   implicit none
   save
   private
-
-  ! specify floating point "kind" for internal calculations
-  !integer, parameter          :: gst_real = selected_real_kind(6)  ! single precision
-  !character(len=9), parameter :: gst_real_mpi_str = 'MPI_REAL4'
-  integer, parameter          :: gst_real = selected_real_kind(15) ! double precision
-  character(len=9), parameter :: gst_real_mpi_str = 'MPI_REAL8'
 
   ! public subroutines
   public :: gst_setup,  &
@@ -496,7 +491,7 @@ contains
     gstID = nGstAlreadyAllocated
     call gst_setDefaultID(gstID)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: Now setting up spectral transform #', gstID
-    if(mpi_myid.eq.0) write(*,*) 'gst_setup: following *kind* used for internal reals : ', gst_real
+    if(mpi_myid.eq.0) write(*,*) 'gst_setup: following *kind* used for internal reals : ', pre_specTransReal
 
     gst(gstID)%ni = ni_in
     gst(gstID)%nj = nj_in
@@ -671,34 +666,34 @@ contains
     ! ... mpi_type_vector(count, blocklength, stride, ...)
     ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
 
-    call mpi_type_size(MPI_REAL8, realSize, ierr)
+    call mpi_type_size(pre_specTransMpiType, realSize, ierr)
     lowerBound = 0
 
     ! create the send type for LevToLon
     extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
     call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, MPI_REAL8, sendtype, ierr)
+                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, sendtype, ierr)
     call mpi_type_create_resized(sendtype, lowerBound , extent, gst(gstID)%sendType_LevToLon, ierr);
     call mpi_type_commit(gst(gstID)%sendType_LevToLon,ierr)
 
     ! create the receive type for LevToLon
     extent = gst(gstID)%maxMyLevCount * realSize
     call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, MPI_REAL8, recvtype, ierr);
+                         gst(gstID)%nk, pre_specTransMpiType, recvtype, ierr);
     call mpi_type_create_resized(recvtype, lowerBound, extent, gst(gstID)%recvType_LevToLon, ierr);
     call mpi_type_commit(gst(gstID)%recvType_LevToLon, ierr);
 
     ! create the send type for LonToLev
     extent = gst(gstID)%maxMyLevCount * realSize
     call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, MPI_REAL8, sendtype, ierr);
+                         gst(gstID)%nk, pre_specTransMpiType, sendtype, ierr);
     call mpi_type_create_resized(sendtype, lowerBound, extent, gst(gstID)%sendType_LonToLev, ierr);
     call mpi_type_commit(gst(gstID)%sendType_LonToLev, ierr);
 
     ! create the recv type for LonToLev
     extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
     call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, MPI_REAL8, recvtype, ierr)
+                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, recvtype, ierr)
     call mpi_type_create_resized(recvtype, lowerBound , extent, gst(gstID)%recvType_LonToLev, ierr);
     call mpi_type_commit(gst(gstID)%recvType_LonToLev,ierr)
 
@@ -719,10 +714,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(113,'GST_NTOLEV_BARR')
@@ -731,7 +726,7 @@ contains
 
     call tmg_start(26,'TRANSP_2D_NtoLEV')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
     do yourid = 0, (mpi_npex-1)
       do jlev = gst(gstID)%allLevBeg(yourid+1), gst(gstID)%allLevEnd(yourid+1)
         jlev2 = jlev - gst(gstID)%allLevBeg(yourid+1) + 1
@@ -741,19 +736,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(21,'ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, gst_real_mpi_str,  &
-                             sp_recv, nsize, gst_real_mpi_str, 'EW', ierr)
+      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
+                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
     call tmg_stop(21)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
     do yourid = 0, (mpi_npex-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -764,7 +759,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(26)
 
@@ -780,10 +775,10 @@ contains
     real(8) :: psp_out(gst(gstID)%myNla, 2, gst(gstID)%nk)
 
     ! Locals:
-    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(114,'GST_LEVTON_BARR')
@@ -792,7 +787,7 @@ contains
 
     call tmg_start(26,'TRANSP_2D_NtoLEV')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
     do yourid = 0, (mpi_npex-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -804,19 +799,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(21,'ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, gst_real_mpi_str,  &
-                             sp_recv, nsize, gst_real_mpi_str, 'EW', ierr)
+      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
+                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
     call tmg_stop(21)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
     do yourid = 0, (mpi_npex-1)
       do jlev = gst(gstID)%allLevBeg(yourid+1), gst(gstID)%allLevEnd(yourid+1)
         jlev2 = jlev - gst(gstID)%allLevBeg(yourid+1) + 1
@@ -826,7 +821,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(26)
 
@@ -843,10 +838,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -855,7 +850,7 @@ contains
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -872,19 +867,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
     call tmg_stop(22)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -900,7 +895,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(27)
 
@@ -917,8 +912,8 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
-    real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
@@ -930,7 +925,7 @@ contains
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       gd_send(:, :, :, :, yourid+1) = 0.0d0
       do jlat = gst(gstID)%allLatBeg(yourid+1), gst(gstID)%allLatEnd(yourid+1)
@@ -946,19 +941,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
     call tmg_stop(22)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
         jlat2 = jlat - gst(gstID)%myLatBeg + 1
@@ -973,7 +968,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(27)
 
@@ -990,10 +985,10 @@ contains
                          gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1002,7 +997,7 @@ contains
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -1019,19 +1014,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
     call tmg_stop(22)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
         jlev2 = jlev - gst(gstID)%myLevBeg + 1
@@ -1047,7 +1042,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(27)
 
@@ -1064,8 +1059,8 @@ contains
                        gst(gstID)%nj)
 
     ! Locals:
-    real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
-    real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
+    real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
@@ -1077,7 +1072,7 @@ contains
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       gd_send(:, :, :, :, yourid+1) = 0.0d0
       do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
@@ -1093,19 +1088,19 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(22,'ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'NS', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
     call tmg_stop(22)
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
+    !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
       do jlat = gst(gstID)%allLatBeg(yourid+1), gst(gstID)%allLatEnd(yourid+1)
         jlat2 = jlat - gst(gstID)%allLatBeg(yourid+1) + 1
@@ -1120,7 +1115,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(27)
 
@@ -1137,10 +1132,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1149,7 +1144,7 @@ contains
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
       jlev2 = jlev - gst(gstID)%myLevBeg + 1
       do youridP1 = 1, mpi_npex
@@ -1158,33 +1153,33 @@ contains
           pgd_in(gst(gstID)%allLonBeg(youridP1):gst(gstID)%allLonEnd(youridP1), :, jlev)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send,nsize,gst_real_mpi_str,  &
-                             gd_recv,nsize,gst_real_mpi_str,'EW',ierr)
+      call rpn_comm_alltoall(gd_send,nsize,pre_specTransMpiReal,  &
+                             gd_recv,nsize,pre_specTransMpiReal,'EW',ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
     call tmg_stop(25)
 
-!$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
       do jlev=gst(gstID)%allLevBeg(youridP1),gst(gstID)%allLevEnd(youridP1)
         jlev2=jlev-gst(gstID)%allLevBeg(youridP1)+1
         pgd_out(:, :, jlev) = gd_recv(1:gst(gstID)%lonPerPE, 1:gst(gstID)%latPerPE, jlev2, youridP1)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(28)
 
   end subroutine transpose2d_LevtoLon
 
 
-  subroutine transpose2d_LevtoLon_kij_mpitypes(pgd_in,pgd_out)
+  subroutine transpose2d_LevtoLon_kij_mpitypes8(pgd_in,pgd_out)
     implicit none
 
     ! Arguments:
@@ -1205,8 +1200,8 @@ contains
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mpi_npex.gt.1) then
-      call mpi_alltoall(pgd_in,      1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out,     1, gst(gstID)%recvType_LevToLon, mpi_comm_EW, ierr)
+      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
+                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mpi_comm_EW, ierr)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1214,7 +1209,46 @@ contains
 
     call tmg_stop(28)
 
-  end subroutine transpose2d_LevtoLon_kij_mpitypes
+  end subroutine transpose2d_LevtoLon_kij_mpitypes8
+
+
+  subroutine transpose2d_LevtoLon_kij_mpitypes4(pgd_in,pgd_out)
+    implicit none
+
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
+    integer :: nsize,ierr
+    real(4) :: pgd_in_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                         gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(4) :: pgd_out_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    call tmg_start(117,'GST_LEVTOLON_BARR')
+    if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call tmg_stop(117)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+    call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
+    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
+    if(mpi_npex.gt.1) then
+      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
+      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
+                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mpi_comm_EW, ierr)
+      pgd_out(:,:,:) = pgd_out_r4(:,:,:)
+    else
+      pgd_out(:,:,:) = pgd_in(:,:,:)
+    endif
+    call tmg_stop(25)
+
+    call tmg_stop(28)
+
+  end subroutine transpose2d_LevtoLon_kij_mpitypes4
 
 
   subroutine transpose2d_LevtoLon_kij(pgd_in,pgd_out)
@@ -1227,10 +1261,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                              gst(gstID)%latPerPEmax, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                              gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1, nsize, ierr, yourNumLev
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
@@ -1239,32 +1273,32 @@ contains
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!$OMP PARALLEL DO PRIVATE(youridP1)
+    !$OMP PARALLEL DO PRIVATE(youridP1)
     do youridP1 = 1, mpi_npex
       gd_send(:, :, :, youridP1) = 0.0d0
       gd_send(:, 1:gst(gstID)%allLonPerPE(youridP1), 1:gst(gstID)%latPerPE, youridP1) =  &
         pgd_in(:, gst(gstID)%allLonBeg(youridP1):gst(gstID)%allLonEnd(youridP1), :)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,   &
-                             gd_recv, nsize, gst_real_mpi_str, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,   &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
     call tmg_stop(25)
 
     call tmg_start(111,'LEVtoLON_KIJ_SHUFFLE2')
-!$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
+    !$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
     do youridP1 = 1, mpi_npex
       yourNumLev = gst(gstID)%allLevEnd(youridP1) - gst(gstID)%allLevBeg(youridP1) + 1
       pgd_out(gst(gstID)%allLevBeg(youridP1):gst(gstID)%allLevEnd(youridP1), :, :) =  &
            gd_recv(1:yourNumLev, 1:gst(gstID)%lonPerPE, 1:gst(gstID)%latPerPE, youridP1)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     call tmg_stop(111)
 
     call tmg_stop(28)
@@ -1282,10 +1316,10 @@ contains
                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
-                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                                       gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1294,7 +1328,7 @@ contains
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
       do jlev=gst(gstID)%allLevBeg(youridP1),gst(gstID)%allLevEnd(youridP1)
         jlev2=jlev-gst(gstID)%allLevBeg(youridP1)+1
@@ -1303,19 +1337,19 @@ contains
              pgd_in(:,:,jlev)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
     call tmg_stop(25)
 
-!$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
       jlev2 = jlev - gst(gstID)%myLevBeg + 1
       do youridP1 = 1, mpi_npex
@@ -1323,14 +1357,14 @@ contains
           gd_recv(1:gst(gstID)%allLonPerPE(youridP1),1:gst(gstID)%latPerPE,jlev2,youridP1)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(28)
 
   end subroutine transpose2d_LontoLev
 
 
-  subroutine transpose2d_LontoLev_kij_mpitypes(pgd_in,pgd_out)
+  subroutine transpose2d_LontoLev_kij_mpitypes8(pgd_in,pgd_out)
     implicit none
 
     ! Arguments:
@@ -1363,7 +1397,49 @@ contains
 
     call tmg_stop(28)
 
-  end subroutine transpose2d_LontoLev_kij_mpitypes
+  end subroutine transpose2d_LontoLev_kij_mpitypes8
+
+
+  subroutine transpose2d_LontoLev_kij_mpitypes4(pgd_in,pgd_out)
+    implicit none
+
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
+    integer :: nsize, ierr
+    real(4) :: pgd_in_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                         gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(4) :: pgd_out_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    call tmg_start(118,'GST_LONTOLEV_BARR')
+    if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call tmg_stop(118)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+    call tmg_start(112,'LEVtoLON_KIJ_SHUFFLE3')
+    call tmg_stop(112)
+
+    call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
+    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
+    if(mpi_npex.gt.1) then
+      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
+      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
+                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mpi_comm_EW, ierr)
+      pgd_out(:,:,:) = pgd_out_r4(:,:,:)
+    else
+      pgd_out(:,:,:) = pgd_in(:,:,:)
+    endif
+    call tmg_stop(25)
+
+    call tmg_stop(28)
+
+  end subroutine transpose2d_LontoLev_kij_mpitypes4
 
 
   subroutine transpose2d_LontoLev_kij(pgd_in,pgd_out)
@@ -1376,10 +1452,10 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                              gst(gstID)%latPerPEmax, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
-                              gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
+    real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                                       gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2,yourNumLev
 
     call tmg_start(118,'GST_LONTOLEV_BARR')
@@ -1389,32 +1465,32 @@ contains
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
     call tmg_start(112,'LEVtoLON_KIJ_SHUFFLE3')
-!$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
+    !$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
     do youridP1 = 1, mpi_npex
       yourNumLev = gst(gstID)%allLevEnd(youridP1) - gst(gstID)%allLevBeg(youridP1) + 1
       gd_send(:, :, :, youridP1) = 0.0d0
       gd_send(1:yourNumLev, 1:gst(gstID)%lonPerPE, 1:gst(gstID)%latPerPE, youridP1) =  &
            pgd_in(gst(gstID)%allLevBeg(youridP1):gst(gstID)%allLevEnd(youridP1),:,:)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     call tmg_stop(112)
 
     call tmg_start(25,'ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, gst_real_mpi_str,  &
-                             gd_recv, nsize, gst_real_mpi_str, 'EW', ierr)
+      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
+                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
     call tmg_stop(25)
 
-!$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
       pgd_out(:, gst(gstID)%allLonBeg(youridP1):gst(gstID)%allLonEnd(youridP1), :) =  &
         gd_recv(:, 1:gst(gstID)%allLonPerPE(youridP1), 1:gst(gstID)%latPerPE, youridP1)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(28)
 
@@ -1436,7 +1512,7 @@ contains
     real(8) :: tempvalues(2,nflev*2)
     integer :: jk, ila
 
-!$OMP PARALLEL DO PRIVATE (ILA,JK,TEMPVALUES)
+    !$OMP PARALLEL DO PRIVATE (ILA,JK,TEMPVALUES)
     do ila = 1, gst(gstID)%myNla
        do jk = 1, nflev
           ! place u in new position in temporary array
@@ -1447,7 +1523,7 @@ contains
        ! move contents of temporary array back to original array
        psp(ila,:,1:2*nflev) = tempvalues(:,1:2*nflev)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine interleaveWinds_sp
 
@@ -1463,7 +1539,7 @@ contains
     real(8) :: tempvalues(2,nflev*2)
     integer :: jk, ila
 
-!$OMP PARALLEL DO PRIVATE (ILA,JK,TEMPVALUES)
+    !$OMP PARALLEL DO PRIVATE (ILA,JK,TEMPVALUES)
     do ila = 1, gst(gstID)%myNla
        do jk = 1, nflev
           ! place u in original position in temporary array
@@ -1474,7 +1550,7 @@ contains
        ! move contents of temporary array back to original array
        psp(ila,:,1:2*nflev) = tempvalues(:,1:2*nflev)
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine unInterleaveWinds_sp
 
@@ -1491,7 +1567,7 @@ contains
     real(8) :: tempvalues(nflev*2)
     integer :: jlat, jk, jlon
 
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK,TEMPVALUES)
+    !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK,TEMPVALUES)
     do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
        do jlon = gst(gstID)%myLonBeg, gst(gstID)%myLonEnd
           do jk = 1, nflev
@@ -1504,7 +1580,7 @@ contains
           pgd(jlon,jlat,1:2*nflev) = tempvalues(1:2*nflev)
        enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine interleaveWinds_gd
 
@@ -1521,7 +1597,7 @@ contains
     real(8) :: tempvalues(nflev*2)
     integer :: jlat, jk, jlon
 
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK,TEMPVALUES)
+    !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK,TEMPVALUES)
     do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
        do jlon = gst(gstID)%myLonBeg, gst(gstID)%myLonEnd
           do jk = 1, nflev
@@ -1534,7 +1610,7 @@ contains
           pgd(jlon,jlat,1:2*nflev) = tempvalues(1:2*nflev)
        enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine unInterleaveWinds_gd
 
@@ -1570,9 +1646,7 @@ contains
     allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
 
     ! 1.0 First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
     ! 1.1 Transpose data along npex from N to Levels
     call transpose2d_NtoLev(psp,psp2)
@@ -1587,7 +1661,7 @@ contains
     call transpose2d_MtoLat(pgd2,pgd3)
     deallocate(pgd2)
 
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
+    !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
     ! 2.1 Reset to zero the modes that are not part of the truncation
     do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
       do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
@@ -1596,7 +1670,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! 2.2 Apply the FFT 
     call tmg_start(24,'GST_FFT')
@@ -1608,9 +1682,7 @@ contains
     deallocate(pgd3)
 
     ! 2.4 Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_spgd
 
@@ -1643,9 +1715,7 @@ contains
     allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
 
     ! 1.0 First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
     ! Transpose data along npex from Longitudes to Levels
     call transpose2d_LontoLev(pgd,pgd3)
@@ -1670,9 +1740,7 @@ contains
     deallocate(psp2)
 
     ! 2.4 Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_gdsp
 
@@ -1700,8 +1768,8 @@ contains
 
     ! Inverse Legendre transform
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI,FACTOR)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI,FACTOR)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
        ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -1813,7 +1881,7 @@ contains
           endif
        enddo ! jk
     enddo  ! end loop on m
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine spgdpar
 
@@ -1852,8 +1920,8 @@ contains
        dlrwocs(gst(gstID)%njlath) = dlrwocs(gst(gstID)%njlath)/2.d0
     end if
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,DLSP2,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,DLSP2,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
        ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -1957,7 +2025,7 @@ contains
        enddo
 
     enddo ! jm
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   end subroutine gdsppar
 
 
@@ -1990,9 +2058,7 @@ contains
     call adjnorm(pgd)
 
     ! First reorder wind components to have u and v for same level on same mpi task
-    call tmg_start(29,'GST_INTERLEAVE')
     call interleaveWinds_gd(pgd,nflev)
-    call tmg_stop(29)
 
     ! Transpose data along npex from Longitudes to Levels
     call transpose2d_LontoLev(pgd,pgd3)
@@ -2017,9 +2083,7 @@ contains
     deallocate(psp2)
 
     ! Now undo reordering of wind components 
-    call tmg_start(29,'GST_INTERLEAVE')
     call unInterleaveWinds_sp(psp,nflev)
-    call tmg_stop(29)
 
   end subroutine gst_spgda
 
@@ -2055,8 +2119,8 @@ contains
     end if
 
     ! 2. Fourier transform all fields for all latitudes
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,DLSP2,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI,FACTOR)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,DLSP2,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI,FACTOR)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
           ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -2242,7 +2306,7 @@ contains
 
     ! End of loop on zonal wavenumbers
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine spgdapar
 
@@ -2277,7 +2341,7 @@ contains
     deallocate(pgd2)
 
     ! 2.1 Reset to zero the modes that are not part of the truncation
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
+    !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
     do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
       do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
         do jlon = 2*(gst(gstID)%ntrunc+1)+1, gst(gstID)%ni
@@ -2285,7 +2349,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(24,'GST_FFT')
@@ -2337,7 +2401,7 @@ contains
     deallocate(pgd2)
 
     ! 2.1 Reset to zero the modes that are not part of the truncation
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
+    !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
     do jlat = gst(gstID)%myLatBeg, gst(gstID)%myLatEnd
       do jlon = 2*(gst(gstID)%ntrunc+1)+1, gst(gstID)%ni
         do jk = 1, gst(gstID)%maxMyLevCount
@@ -2345,7 +2409,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(24,'GST_FFT')
@@ -2354,7 +2418,11 @@ contains
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     if( gst(gstID)%lonLatDivisible ) then
-      call transpose2d_LevtoLon_kij_mpitypes(pgd3,pgd)
+      if (pre_specTransReal == 4) then
+        call transpose2d_LevtoLon_kij_mpitypes4(pgd3,pgd)
+      else
+        call transpose2d_LevtoLon_kij_mpitypes8(pgd3,pgd)
+      end if
     else
       call transpose2d_LevtoLon_kij(pgd3,pgd)
     end if
@@ -2443,7 +2511,11 @@ contains
 
     ! Transpose data along npex from Longitudes to Levels
     if( gst(gstID)%lonLatDivisible ) then
-      call transpose2d_LontoLev_kij_mpitypes(pgd,pgd3)
+      if (pre_specTransReal == 4) then
+        call transpose2d_LontoLev_kij_mpitypes4(pgd,pgd3)
+      else
+        call transpose2d_LontoLev_kij_mpitypes8(pgd,pgd3)
+      end if
     else
       call transpose2d_LontoLev_kij(pgd,pgd3)
     end if
@@ -2510,7 +2582,7 @@ contains
       rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat, gstID)
     enddo
 
-!$OMP PARALLEL DO PRIVATE (jk,jlat,jlon)
+    !$OMP PARALLEL DO PRIVATE (jk,jlat,jlon)
     do jk = 1, gst(gstID)%nk
         do jlat = lat1, lat2
           do jlon = lon1, lon2
@@ -2518,7 +2590,7 @@ contains
           end do
         end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine adjnorm
 
@@ -2543,7 +2615,7 @@ contains
       rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat, gstID)
     enddo
 
-!$OMP PARALLEL DO PRIVATE (jlat,jlon,jk)
+    !$OMP PARALLEL DO PRIVATE (jlat,jlon,jk)
     do jlat = lat1, lat2
        do jlon = lon1, lon2
          do jk = 1, gst(gstID)%nk
@@ -2551,7 +2623,7 @@ contains
          end do
        end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine adjnorm_kij
 
@@ -2579,8 +2651,8 @@ contains
 
     ! Inverse Legendre transform
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
        ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -2618,7 +2690,7 @@ contains
           enddo
        enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine spereepar
 
@@ -2644,8 +2716,8 @@ contains
 
     ! Inverse Legendre transform
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
        ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -2686,7 +2758,7 @@ contains
        enddo
 
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine spereepar_kij
 
@@ -2719,8 +2791,8 @@ contains
        dlrwt(gst(gstID)%njlath) = dlrwt(gst(gstID)%njlath)/2.d0
     end if
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
       ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -2781,7 +2853,7 @@ contains
 
     ! End of loop on zonal wavenumbers
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine reespepar
 
@@ -2811,8 +2883,8 @@ contains
        dlrwt(gst(gstID)%njlath) = dlrwt(gst(gstID)%njlath)/2.d0
     end if
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
+    !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
+    !$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
       ilonr = 2*gst(gstID)%mymIndex(jm)-1
@@ -2879,7 +2951,7 @@ contains
 
     ! End of loop on zonal wavenumbers
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine reespepar_kij
 
@@ -3679,7 +3751,7 @@ contains
     allocate(pgd2(ni+2,nj))
 
     ! Copy over input data into over-dimensioned array
-!$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
+    !$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
     do jk=1,kfield
       do jj=1, nj
         do ji=1,ni
@@ -3706,7 +3778,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     deallocate(pgd2)
 
@@ -3741,7 +3813,7 @@ contains
     allocate(pgd2(kfield,ni+2))
 
     ! Copy over input data into over-dimensioned array
-!$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
+    !$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
     do jj=1, nj
       do ji=1,ni
         do jk=1,kfield
@@ -3770,7 +3842,7 @@ contains
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     deallocate(pgd2)
 

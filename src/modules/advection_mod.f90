@@ -318,8 +318,8 @@ CONTAINS
                                containsFullField_opt=.true.)
       end do
 
-      uu_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow, 'UU')
-      vv_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow, 'VV')
+      call gsv_getField(statevector_steeringFlow, uu_steeringFlow_ptr4d, 'UU')
+      call gsv_getField(statevector_steeringFlow, vv_steeringFlow_ptr4d, 'VV')
 
     else if (present(statevector_steeringFlow_opt)) then
 
@@ -330,8 +330,8 @@ CONTAINS
         write(*,*) statevector_steeringFlow_opt%dateStampList(:)
       end if
       dateStampListSteeringFlow(:) = statevector_steeringFlow_opt%dateStampList(:)
-      uu_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow_opt, 'UU')
-      vv_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow_opt, 'VV')
+      call gsv_getField(statevector_steeringFlow_opt, uu_steeringFlow_ptr4d, 'UU')
+      call gsv_getField(statevector_steeringFlow_opt, vv_steeringFlow_ptr4d, 'VV')
 
     else
       call utl_abort('adv_setup: steeringFlow source was not provided!')
@@ -1371,7 +1371,7 @@ CONTAINS
         levTypeIndex = SFindex
       end if
 
-      field4D => gsv_getField_r8(statevector, varName)
+      call gsv_getField(statevector, field4D, varName)
 
       gatheringDone = .false.
 
@@ -1497,7 +1497,7 @@ CONTAINS
         levTypeIndex = SFindex
       end if
 
-      field4D => gsv_getField_r8(statevector, varName)
+      call gsv_getField(statevector, field4D, varName)
 
       do stepIndexAF = 1, adv%nTimeStep
 

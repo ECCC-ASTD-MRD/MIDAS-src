@@ -20,6 +20,7 @@ module minimization_mod
   ! :Purpose: Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
+  use codePrecision_mod
   use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -578,18 +579,22 @@ CONTAINS
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
@@ -800,8 +805,9 @@ CONTAINS
 
     ! Locals:
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
+    real(pre_incrReal), pointer :: field(:,:,:,:)
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
-    real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
+    real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:)
     real(8), pointer :: cv_pert_bchm_mpilocal(:)
     real(8), allocatable :: scaleFactorBhi(:),scaleFactorBchm(:,:)
     logical, save :: firstTime = .true.
@@ -892,7 +898,7 @@ CONTAINS
       icount=0
       do jvar=1,vnl_numvarmax 
         if(gsv_varExist(statevector_randpert,vnl_varNameList(jvar))) then
-           field => gsv_getField_r8(statevector_randpert,vnl_varNameList(jvar))
+           call gsv_getField(statevector_randpert,field,vnl_varNameList(jvar))
            nlev=gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList(jvar))) 
            if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
              write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList(jvar)
@@ -941,7 +947,7 @@ CONTAINS
             (trim(vnl_varNameList3D(jvar)) == 'UU' .or.  &
              trim(vnl_varNameList3D(jvar)) == 'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
-        field => gsv_getField_r8(statevector_randpert,vnl_varNameList3D(jvar))
+        call gsv_getField(statevector_randpert,field,vnl_varNameList3D(jvar))
         do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
           field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)*pertScaleFactor_UV(jlev)
@@ -1014,14 +1020,12 @@ CONTAINS
 
        ! Computation of background term of cost function:
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
-       call tmg_start(89,'MIN_COMM')       
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
-       call tmg_stop(89)
 
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local_opt=.true.)
+                         dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
@@ -1139,20 +1143,14 @@ CONTAINS
     ! Locals:
     INTEGER J
 
-    call tmg_start(71,'QN_PRSCAL')
     DDSC = 0.D0
 
     do j=1,nvadim_mpilocal
       DDSC = DDSC + PX(J)*PY(J)
     ENDDO
 
-    call tmg_start(79,'QN_COMM')
     call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
-    call tmg_stop(79)
 
-    call tmg_stop(71)
-
-    RETURN
   end subroutine prscal
 
 

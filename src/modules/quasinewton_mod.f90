@@ -131,7 +131,6 @@ module quasinewton_mod
       integer jfin,i,j,jp
       real(8) r,ps
 !
-      call tmg_start(72,'DDD')
       jfin=jmax
       if (jfin.lt.jmin) jfin=jmax+nm
 !
@@ -181,8 +180,7 @@ module quasinewton_mod
 120       continue
 !$OMP END PARALLEL DO
 200   continue
-      call tmg_stop(72)
-      !return
+
       end subroutine ddd
 
       subroutine ddds (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin, &
@@ -210,7 +208,6 @@ module quasinewton_mod
       integer jfin,i,j,jp
       real(8) r,ps
 !
-      call tmg_start(72,'DDD')
       jfin=jmax
       if (jfin.lt.jmin) jfin=jmax+nm
 !
@@ -254,8 +251,7 @@ module quasinewton_mod
               depl(i)=depl(i)+r*sbar(i)
 120       continue
 200   continue
-      call tmg_stop(72)
-      !return
+
       end subroutine ddds
 
       subroutine dystbl (store,ybar,sbar,n,j)
@@ -590,7 +586,6 @@ module quasinewton_mod
 !
 !---- initialisation
 !
-      call tmg_start(73,'N1QN3A')
       rmin=1.d-20
 !
       sscale=.true.
@@ -610,9 +605,7 @@ module quasinewton_mod
       call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
                               "mpi_max","GRID",ierr)
 !
-      call tmg_stop(73)
       call prosca (n,g,g,ps,izs,rzs,dzs)
-      call tmg_start(73,'N1QN3A')
       gnorm=dsqrt(ps)
       if (impres.ge.1) write (io,900) f,gnorm
   900 format (5x,"f         = ",d15.8 &
@@ -651,24 +644,18 @@ module quasinewton_mod
 !         --- use the matrix stored in [diag and] the (y,s) pairs
 !
           if (sscale) then
-              call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
               precos=1.d+0/ps
           endif
           do 11 i=1,n
               d(i)=-g(i)
   11      continue
           if (inmemo) then
-              call tmg_stop(73)
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                        precos,diag,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
           else
-              call tmg_stop(73)
               call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                          precos,diag,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
           endif
       endif
 !
@@ -683,9 +670,7 @@ module quasinewton_mod
 !     --- initialisation pour nlis0
 !
       tmax=1.d+20
-      call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
-      call tmg_start(73,'N1QN3A')
       if (hp0.ge.0.d+0) then
           mode=7
           if (impres.ge.1) write (io,905) niter,hp0
@@ -698,11 +683,9 @@ module quasinewton_mod
 !     --- compute the angle (-g,d)
 !
       if (warm.and.impresmax.ge.5) then
-          call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          call tmg_start(73,'N1QN3A')
           ps2=dsqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
@@ -723,9 +706,7 @@ module quasinewton_mod
       if (impres.lt.0) then
           if (mod(niter,-impres).eq.0) then
               indic=1
-              call tmg_stop(73)
               call simul (indic,n,x,f,g,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
           endif
       endif
       if (impres.ge.5) write(io,903)
@@ -751,21 +732,17 @@ module quasinewton_mod
       do 200 i=1,n
           tmin=max(tmin,dabs(d(i)))
 200   continue
-      call tmg_start(79,'QN_COMM')
       call rpn_comm_allreduce(tmin,tmin_mpiglobal,1, &
                               "mpi_double_precision", &
                               "mpi_max","GRID",ierr)
       tmin = tmin_mpiglobal
-      call tmg_stop(79)
 
       tmin=dxmin/tmin
       t=1.d+0
       d1=hp0
 !
-      call tmg_stop(73)
       call nlis0 (n,simul,prosca,x,f,d1,t,tmin,tmax,d,g,rm2,rm1, &
                  impres,io,moderl,isim,nsim,aux,izs,rzs,dzs)
-      call tmg_start(73,'N1QN3A')
 !
 !         --- nlis0 renvoie les nouvelles valeurs de x, f et g
 !
@@ -835,18 +812,14 @@ module quasinewton_mod
 400       continue
 !$OMP END PARALLEL DO
           if (impresmax.ge.5) then
-              call tmg_stop(73)
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
               dk1=dsqrt(ps)
               if (impres.ge.5.and.niter.gt.1) write (io,930) dk1/dk
   930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ", &
                       d12.5)
               dk=dk1
           endif
-          call tmg_stop(73)
           call prosca (n,ybar(1,jcour),sbar(1,jcour),ys,izs,rzs,dzs)
-          call tmg_start(73,'N1QN3A')
           if (ys.le.0.d+0) then
               mode=7
               if (impres.ge.1) write (io,931) niter,ys
@@ -865,9 +838,7 @@ module quasinewton_mod
               ybar(i,jcour)=d1*ybar(i,jcour)
   410     continue
 !$OMP END PARALLEL DO
-          call tmg_stop(73)
           if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
-          call tmg_start(73,'N1QN3A')
 !
 !         --- compute the scalar or diagonal preconditioner
 !
@@ -877,9 +848,7 @@ module quasinewton_mod
 !             --- Here is the Oren-Spedicato factor, for scalar scaling
 !
           if (sscale) then
-              call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
               precos=1.d+0/ps
 !
               if (impres.ge.5) write (io,933) precos
@@ -891,16 +860,12 @@ module quasinewton_mod
 !                 identity matrix.
 !
           else
-              call tmg_stop(73)
               call dtonb (n,ybar(1,jcour),aux,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
               ps=0.d0
               do 420 i=1,n
                   ps=ps+diag(i)*aux(i)*aux(i)
   420         continue
-              call tmg_start(79,'QN_COMM')
               call mpi_allreduce_sumreal8scalar(ps,"GRID")
-              call tmg_stop(79)
               d1=1.d0/ps
               if (impres.ge.5) then
                   write (io,934) d1
@@ -915,16 +880,12 @@ module quasinewton_mod
 !             --- update the diagonal
 !                 (gg is used as an auxiliary vector)
 !
-              call tmg_stop(73)
               call dtonb (n,sbar(1,jcour),gg,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
               ps=0.d0
               do 430 i=1,n
                   ps=ps+gg(i)*gg(i)/diag(i)
   430         continue
-              call tmg_start(79,'QN_COMM')
               call mpi_allreduce_sumreal8scalar(ps,"GRID")
-              call tmg_stop(79)
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 431 i=1,n
@@ -944,9 +905,7 @@ module quasinewton_mod
                   do 440 i=1,n
                       ps=ps+diag(i)
   440             continue
-                  call tmg_start(79,'QN_COMM')
                   call mpi_allreduce_sumreal8scalar(ps,"GRID")
-                  call tmg_stop(79)
                   ps=ps/ntotal
                   preco=ps
 !
@@ -954,9 +913,7 @@ module quasinewton_mod
                   do 441 i=1,n
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
-                  call tmg_start(79,'QN_COMM')
                   call mpi_allreduce_sumreal8scalar(ps2,"GRID")
-                  call tmg_stop(79)
                   ps2=dsqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3, &
@@ -967,9 +924,7 @@ module quasinewton_mod
 !
 !     --- tests d'arret
 !
-      call tmg_stop(73)
       call prosca(n,g,g,ps,izs,rzs,dzs)
-      call tmg_start(73,'N1QN3A')
       eps1=ps
       eps1=dsqrt(eps1)/gnorm
 !
@@ -1010,35 +965,27 @@ module quasinewton_mod
   510     continue
 !$OMP END PARALLEL DO
           if (inmemo) then
-              call tmg_stop(73)
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                         precos,diag,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
           else
-              call tmg_stop(73)
               call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                          precos,diag,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(73,'N1QN3A')
           endif
       endif
 !
 !         --- test: la direction d est-elle de descente ?
 !             hp0 sera utilise par nlis0
 !
-      call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
-      call tmg_start(73,'N1QN3A')
       if (hp0.ge.0.d+0) then
           mode=7
           if (impres.ge.1) write (io,905) niter,hp0
           goto 1000
       endif
       if (impresmax.ge.5) then
-          call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          call tmg_start(73,'N1QN3A')
           ps2=dsqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
@@ -1057,8 +1004,6 @@ module quasinewton_mod
  1000 continue
       nsim=isim
       epsg=eps1
-
-      call tmg_stop(73)
 
       end subroutine n1qn3a
 
@@ -1090,7 +1035,6 @@ module quasinewton_mod
       real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !
-      call tmg_start(74,'NLIS0')
  1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2, &
        7h  tmin=,d9.2,6h tmax=,d9.2)
  1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,  &
@@ -1164,9 +1108,7 @@ module quasinewton_mod
 !
 !     --- appel simulateur
 !
-      call tmg_stop(74)
       call simul(indic,n,x,f,g,izs,rzs,dzs)
-      call tmg_start(74,'NLIS0')
       if(indic.eq.0) then
 !
 !         --- arret demande par l'utilisateur
@@ -1287,10 +1229,8 @@ module quasinewton_mod
             exit
           endif
       enddo
-      call tmg_start(79,'QN_COMM')
       call rpn_comm_allreduce(lfound,lfound2,1,"mpi_logical", &
            "mpi_lor","GRID",ierr)
-      call tmg_stop(79)
       if(lfound2) go to 950
 !
 ! --- arret sur dxmin ou de secours
@@ -1320,7 +1260,7 @@ module quasinewton_mod
   950 do 960 i=1,n
   960 x(i)=xn(i)+t*d(i)
       go to 100
-  999 call tmg_stop(74)
+  999 continue
       end subroutine nlis0
 
       end module quasinewton_mod

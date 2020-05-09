@@ -504,9 +504,9 @@ contains
     logical        :: direction_missing, speed_missing
     logical        :: uWind_present, vWind_present
 
-    real(obs_real) :: obsValue
-    real(obs_real) :: uWind, vWind, direction, speed
-    real(obs_real) :: level_direction, level, level2, level3
+    real(pre_obsReal) :: obsValue
+    real(pre_obsReal) :: uWind, vWind, direction, speed
+    real(pre_obsReal) :: level_direction, level, level2, level3
 
     speedFlag = 0
 
@@ -709,7 +709,7 @@ contains
     integer :: uWindBufrCode, vWindBufrCode, speedBufrCode, directionBufrCode
     integer :: headerIndex, headerIndexStart, headerIndexEnd, windTypeIndex, bodyIndex, bodyIndex2
 
-    real(obs_real) :: uWindLevel, speed, direction, uWind, vWind
+    real(pre_obsReal) :: uWindLevel, speed, direction, uWind, vWind
 
     windType: do windTypeIndex = 1, 2
       if (windTypeIndex == 1) then
@@ -770,13 +770,13 @@ contains
               
               if ( obs_bodyElem_r( obsSpaceData,residualTypeID,bodyIndex2) >  180.0d0)  &
                 call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) - real(360.0d0,OBS_REAL) )
+                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) - real(360.0d0,pre_obsReal) )
               if ( obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) <= -180.0d0)  &
                 call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + real(360.0d0,OBS_REAL) )
+                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + real(360.0d0,pre_obsReal) )
               call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                  - real(1.0d0,OBS_REAL) * obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2 ) )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
+                                  - real(1.0d0,pre_obsReal) * obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2 ) )
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated )
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0 )
             end if
@@ -784,7 +784,7 @@ contains
                   obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == uWindLevel ) then
               call obs_bodySet_r( obsSpaceData, residualTypeID,  bodyIndex2, &
                                   obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - speed )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0)
             end if
@@ -816,7 +816,7 @@ contains
     ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
     integer        :: visFlag, logVisFlag
-    real(obs_real) :: visObs, visLevel, logVisObs, level
+    real(pre_obsReal) :: visObs, visLevel, logVisObs, level
     logical        :: logVisFound
 
     ! Loop through headers
@@ -885,8 +885,8 @@ contains
 
     ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
-    real(obs_real) :: visObs, logVisLevel, logVisObs, level
-    real(obs_real) :: visResidual, logVisResidual
+    real(pre_obsReal) :: visObs, logVisLevel, logVisObs, level
+    real(pre_obsReal) :: visResidual, logVisResidual
     logical        :: visFound
 
     ! Find each log of visibily assimilated observations
@@ -954,7 +954,7 @@ contains
     ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
     integer        :: precipFlag, logPrecipFlag
-    real(obs_real) :: precipObs, precipLevel, logPrecipObs, level
+    real(pre_obsReal) :: precipObs, precipLevel, logPrecipObs, level
     logical        :: logPrecipFound
 
     ! Loop through headers
@@ -1023,8 +1023,8 @@ contains
 
     ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
-    real(obs_real) :: precipObs, logPrecipLevel, logPrecipObs, level
-    real(obs_real) :: precipResidual, logPrecipResidual
+    real(pre_obsReal) :: precipObs, logPrecipLevel, logPrecipObs, level
+    real(pre_obsReal) :: precipResidual, logPrecipResidual
     logical        :: precipFound
 
     ! Find each log of precipitation assimilated observations
@@ -1095,8 +1095,8 @@ contains
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: bufrCode
 
-    real(obs_real), parameter :: ESmax = 30.0
-    real(obs_real) :: gz, obsValue
+    real(pre_obsReal), parameter :: ESmax = 30.0
+    real(pre_obsReal) :: gz, obsValue
 
     do headerIndex = headerIndexStart, headerIndexEnd 
 

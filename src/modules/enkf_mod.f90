@@ -750,9 +750,9 @@ contains
       !
       ! Apply the weights to compute the ensemble mean and members
       !
-      meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
-      meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
-      meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
+      call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
+      call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
+      call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -870,7 +870,7 @@ contains
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
     call gsv_zero(stateVectorMeanTrlPressure)
-    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
     call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
     if (mpi_myid == 0) then
       call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
@@ -882,7 +882,7 @@ contains
     call gsv_deallocate(stateVectorMeanTrlPressure)
     allocate(logPres_M_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
     if (mpi_myid == 0) then
-      logPres_M_ptr_r4 => gsv_getField3d_r4(stateVectorMeanTrlPressure_1step,'P_M')
+      call gsv_getField(stateVectorMeanTrlPressure_1step,logPres_M_ptr_r4,'P_M')
       logPres_M_r4(:,:,:) = log(logPres_M_ptr_r4(:,:,:))
     end if
     nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
@@ -1407,9 +1407,9 @@ contains
     type(struct_obs), target  :: obsSpaceData
 
     ! locals:
-    real(obs_real), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
+    real(pre_obsReal), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
     integer            :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
-    real(obs_real)     :: lat_obs
+    real(pre_obsReal)  :: lat_obs
 
     ! for AMSUB observations set the observation error std dev equal to 1.0
     ! in the larger tropical area where the spread-skill correlation suggests 
@@ -1442,8 +1442,8 @@ contains
     type(struct_obs), target  :: obsSpaceData
 
     ! locals:
-    integer        :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
-    real(obs_real) :: lat_obs
+    integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
+    real(pre_obsReal) :: lat_obs
 
     ! reject all HIR radiance observation in arctic and antarctic (.i.e |lat|>60. )
     do headerIndex = 1, obs_numheader(obsSpaceData)

@@ -136,7 +136,7 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowMismatch_opt=.true. )
+      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 
@@ -524,8 +524,8 @@ CONTAINS
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
-    hu_ptr => gsv_getField_r8(statevector,'HU')
-    lq_ptr => gsv_getField_r8(statevector,'HU')
+    call gsv_getField(statevector,hu_ptr,'HU')
+    call gsv_getField(statevector,lq_ptr,'HU')
 
     do stepIndex = 1, statevector%numStep
       !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -553,10 +553,10 @@ CONTAINS
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
 
-    if ( statevector%dataKind == 8 ) then
+    if ( gsv_getDataKind(statevector) == 8 ) then
 
-      hu_ptr_r8   => gsv_getField_r8(statevector,'HU')
-      lq_ptr_r8   => gsv_getField_r8(statevector,'HU')
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,lq_ptr_r8,'HU')
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -572,8 +572,8 @@ CONTAINS
 
     else
 
-      hu_ptr_r4   => gsv_getField_r4(statevector,'HU')
-      lq_ptr_r4   => gsv_getField_r4(statevector,'HU')
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,lq_ptr_r4,'HU')
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -641,29 +641,51 @@ CONTAINS
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if (present(statevectorRef_opt)) then
-      hu_trial => gsv_getField_r8(stateVectorRef_opt,'HU')
+      call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
-      hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
+      call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
-    hu_ptr   => gsv_getField_r8(statevector      ,'HU')
-    lq_ptr   => gsv_getField_r8(statevector      ,'HU')
+    if (gsv_getDataKind(statevector) == 4) then
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,lq_ptr_r4,'HU')
 
-    do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
-            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) =  lq_ptr(lonIndex,latIndex,levIndex,stepIndex)*max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
+                   lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
+                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R4)
+            end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
-    end do
+    else
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,lq_ptr_r8,'HU')
+
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+              hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
+                   lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)*  &
+                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    end if
 
   end subroutine LQtoHU_tlm
 
@@ -679,29 +701,51 @@ CONTAINS
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if (present(statevectorRef_opt)) then
-      hu_trial => gsv_getField_r8(stateVectorRef_opt,'HU')
+      call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
-      hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
+      call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
-    hu_ptr   => gsv_getField_r8(statevector      ,'HU')
-    lq_ptr   => gsv_getField_r8(statevector      ,'HU')
+    if (gsv_getDataKind(statevector) == 4) then
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,lq_ptr_r4,'HU')
 
-    do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            lq_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)/max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
+                   hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) / &
+                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+            end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
-    end do
+    else
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,lq_ptr_r8,'HU')
+
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
+                   hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) / &
+                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    end if
 
   end subroutine HUtoLQ_tlm
 
@@ -743,22 +787,22 @@ CONTAINS
       end if
     end if
 
-    if ( statevector_in%dataKind == 8 ) then
+    if ( gsv_getDataKind(statevector_in) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'PR')) then
-          pr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'PR')
+          call gsv_getField(statevectorOut_opt,pr_ptr_r8,'PR')
         else
-          pr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LPR')
+          call gsv_getField(statevectorOut_opt,pr_ptr_r8,'LPR')
         end if
       else
         if (gsv_varExist(stateVector_in,'PR')) then
-          pr_ptr_r8  => gsv_getField_r8(statevector_in,'PR')
+          call gsv_getField(statevector_in,pr_ptr_r8,'PR')
         else
-          pr_ptr_r8  => gsv_getField_r8(statevector_in,'LPR')
+          call gsv_getField(statevector_in,pr_ptr_r8,'LPR')
         end if
       end if
-      lpr_ptr_r8 => gsv_getField_r8(statevector_in,'LPR')
+      call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
       
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -782,18 +826,18 @@ CONTAINS
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'PR')) then
-          pr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'PR')
+          call gsv_getField(statevectorOut_opt,pr_ptr_r4,'PR')
         else
-          pr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LPR')
+          call gsv_getField(statevectorOut_opt,pr_ptr_r4,'LPR')
         end if
       else
         if (gsv_varExist(stateVector_in,'PR')) then
-          pr_ptr_r4  => gsv_getField_r4(statevector_in,'PR')
+          call gsv_getField(statevector_in,pr_ptr_r4,'PR')
         else
-          pr_ptr_r4  => gsv_getField_r4(statevector_in,'LPR')
+          call gsv_getField(statevector_in,pr_ptr_r4,'LPR')
         end if
       end if
-      lpr_ptr_r4 => gsv_getField_r4(statevector_in,'LPR')
+      call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
 
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -910,14 +954,14 @@ CONTAINS
     real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
     real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
 
-    if ( statevector_in%dataKind == 8 ) then
+    if ( gsv_getDataKind(statevector_in) == 8 ) then
 
       if (present(statevectorOut_opt)) then
-        lpr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LPR')
+        call gsv_getField(statevectorOut_opt,lpr_ptr_r8,'LPR')
       else
-        lpr_ptr_r8  => gsv_getField_r8(statevector_in,'LPR')
+        call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
       end if
-      pr_ptr_r8 => gsv_getField_r8(statevector_in,'PR')
+      call gsv_getField(statevector_in,pr_ptr_r8,'PR')
       
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -939,11 +983,11 @@ CONTAINS
     else
 
       if (present(statevectorOut_opt)) then
-        lpr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LPR')
+        call gsv_getField(statevectorOut_opt,lpr_ptr_r4,'LPR')
       else
-        lpr_ptr_r4  => gsv_getField_r4(statevector_in,'LPR')
+        call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
       end if
-      pr_ptr_r4 => gsv_getField_r4(statevector_in,'PR')
+      call gsv_getField(statevector_in,pr_ptr_r4,'PR')
 
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -1004,22 +1048,22 @@ CONTAINS
       end if
     end if
 
-    if ( statevector_in%dataKind == 8 ) then
+    if ( gsv_getDataKind(statevector_in) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'VIS')) then
-          vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'VIS')
+          call gsv_getField(statevectorOut_opt,vis_ptr_r8,'VIS')
         else
-          vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LVIS')
+          call gsv_getField(statevectorOut_opt,vis_ptr_r8,'LVIS')
         end if
       else
         if (gsv_varExist(stateVector_in,'VIS')) then
-          vis_ptr_r8  => gsv_getField_r8(statevector_in,'VIS')
+          call gsv_getField(statevector_in,vis_ptr_r8,'VIS')
         else
-          vis_ptr_r8  => gsv_getField_r8(statevector_in,'LVIS')
+          call gsv_getField(statevector_in,vis_ptr_r8,'LVIS')
         end if
       end if
-      lvis_ptr_r8 => gsv_getField_r8(statevector_in,'LVIS')
+      call gsv_getField(statevector_in,lvis_ptr_r8,'LVIS')
       
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -1037,18 +1081,18 @@ CONTAINS
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'VIS')) then
-          vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'VIS')
+          call gsv_getField(statevectorOut_opt,vis_ptr_r4,'VIS')
         else
-          vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LVIS')
+          call gsv_getField(statevectorOut_opt,vis_ptr_r4,'LVIS')
         end if
       else
         if (gsv_varExist(stateVector_in,'VIS')) then
-          vis_ptr_r4  => gsv_getField_r4(statevector_in,'VIS')
+          call gsv_getField(statevector_in,vis_ptr_r4,'VIS')
         else
-          vis_ptr_r4  => gsv_getField_r4(statevector_in,'LVIS')
+          call gsv_getField(statevector_in,vis_ptr_r4,'LVIS')
         end if
       end if
-      lvis_ptr_r4 => gsv_getField_r4(statevector_in,'LVIS')
+      call gsv_getField(statevector_in,lvis_ptr_r4,'LVIS')
 
       do stepIndex = 1, statevector_in%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -1125,10 +1169,10 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( statevector%dataKind == 8 ) then
-      call calcpressure_nl_r8(statevector)
-    else if ( statevector%dataKind == 4 ) then
+    if ( gsv_getDataKind(statevector) == 4 ) then
       call calcpressure_nl_r4(statevector)
+    else
+      call calcpressure_nl_r8(statevector)
     end if
 
   end subroutine PsfcToP_nl
@@ -1175,15 +1219,15 @@ CONTAINS
 
     integer :: nlev_M
 
-    uu_ptr => gsv_getField_r8(statevector,'UU')
-    vv_ptr => gsv_getField_r8(statevector,'VV')
+    call gsv_getField(statevector,uu_ptr,'UU')
+    call gsv_getField(statevector,vv_ptr,'VV')
     if (gsv_varExist(statevector,'QR') .and. &
         gsv_varExist(statevector,'DD')) then
-      qr_ptr => gsv_getField_r8(statevector,'QR')
-      dd_ptr => gsv_getField_r8(statevector,'DD')
+      call gsv_getField(statevector,qr_ptr,'QR')
+      call gsv_getField(statevector,dd_ptr,'DD')
     else
-      qr_ptr => gsv_getField_r8(statevector,'UU')
-      dd_ptr => gsv_getField_r8(statevector,'VV')
+      call gsv_getField(statevector,qr_ptr,'UU')
+      call gsv_getField(statevector,dd_ptr,'VV')
     end if
 
     nlev_M =  gsv_getNumLev  (statevector,'MM')
@@ -1222,20 +1266,20 @@ CONTAINS
 
     if (gsv_varExist(statevector,'QR') .and. &
         gsv_varExist(statevector,'DD')) then
-      qr_ptr => gsv_getField_r8(statevector,'QR')
-      dd_ptr => gsv_getField_r8(statevector,'DD')
+      call gsv_getField(statevector,qr_ptr,'QR')
+      call gsv_getField(statevector,dd_ptr,'DD')
     else
-      qr_ptr => gsv_getField_r8(statevector,'UU')
-      dd_ptr => gsv_getField_r8(statevector,'VV')
+      call gsv_getField(statevector,qr_ptr,'UU')
+      call gsv_getField(statevector,dd_ptr,'VV')
     end if
 
     if (gsv_varExist(statevector,'PP') .and. &
         gsv_varExist(statevector,'CC')) then
-      pp_ptr => gsv_getField_r8(statevector,'PP')
-      cc_ptr => gsv_getField_r8(statevector,'CC')
+      call gsv_getField(statevector,pp_ptr,'PP')
+      call gsv_getField(statevector,cc_ptr,'CC')
     else
-      pp_ptr => gsv_getField_r8(statevector,'UU')
-      cc_ptr => gsv_getField_r8(statevector,'VV')
+      call gsv_getField(statevector,pp_ptr,'UU')
+      call gsv_getField(statevector,cc_ptr,'VV')
     end if
 
     nlev_M =  gsv_getNumLev  (statevector,'MM')
@@ -1305,10 +1349,10 @@ CONTAINS
 
     else
 
-      uu_ptr  => gsv_getField_r8(statevector,'UU')
-      vv_ptr  => gsv_getField_r8(statevector,'VV')
-      psi_ptr => gsv_getField_r8(statevector,'PP')
-      chi_ptr => gsv_getField_r8(statevector,'CC')
+      call gsv_getField(statevector,uu_ptr,'UU')
+      call gsv_getField(statevector,vv_ptr,'VV')
+      call gsv_getField(statevector,psi_ptr,'PP')
+      call gsv_getField(statevector,chi_ptr,'CC')
       nlev_M = gsv_getNumLev(statevector,'MM')
 
       if ( gstID < 0 ) then
@@ -1503,12 +1547,12 @@ CONTAINS
     nullify(P_T)
     nullify(P_M)
 
-    P_T => gsv_getField_r8(statevector,'P_T')
-    P_M => gsv_getField_r8(statevector,'P_M')
+    call gsv_getField(statevector,P_T,'P_T')
+    call gsv_getField(statevector,P_M,'P_M')
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
-    field_Psfc => gsv_getField_r8(statevector,'P0')
+    call gsv_getField(statevector,field_Psfc,'P0')
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
@@ -1589,12 +1633,12 @@ CONTAINS
     nullify(P_T)
     nullify(P_M)
 
-    P_T => gsv_getField_r4(statevector,'P_T')
-    P_M => gsv_getField_r4(statevector,'P_M')
+    call gsv_getField(statevector,P_T,'P_T')
+    call gsv_getField(statevector,P_M,'P_M')
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
-    field_Psfc => gsv_getField_r4(statevector,'P0')
+    call gsv_getField(statevector,field_Psfc,'P0')
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
@@ -1651,10 +1695,13 @@ CONTAINS
 
     ! Locals:
     real(8), allocatable  :: Psfc(:,:)
-    real(8), pointer      :: delPsfc(:,:,:,:)
+    real(4), pointer      :: delPsfc_r4(:,:,:,:)
+    real(8), pointer      :: delPsfc_r8(:,:,:,:)
     real(8), pointer      :: field_Psfc(:,:,:,:)
-    real(8), pointer      :: delP_T(:,:,:,:)
-    real(8), pointer      :: delP_M(:,:,:,:)
+    real(4), pointer      :: delP_T_r4(:,:,:,:)
+    real(8), pointer      :: delP_T_r8(:,:,:,:)
+    real(4), pointer      :: delP_M_r4(:,:,:,:)
+    real(8), pointer      :: delP_M_r8(:,:,:,:)
     real(8), pointer      :: dP_dPsfc_T(:,:,:)
     real(8), pointer      :: dP_dPsfc_M(:,:,:)
     integer               :: status, stepIndex,lonIndex,latIndex
@@ -1669,17 +1716,24 @@ CONTAINS
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_tl: computing delP_T/delP_M on the gridstatevector'
 
-    nullify(delPsfc)
-    nullify(field_Psfc)
-    nullify(delP_T)
-    nullify(delP_M)
     nullify(dP_dPsfc_T)
     nullify(dP_dPsfc_M)
+    nullify(delPsfc_r4,delPsfc_r8)
+    nullify(delP_T_r4,delP_T_r8)
+    nullify(delP_M_r4,delP_M_r8)
 
-    delP_T => gsv_getField_r8(statevector,'P_T')
-    delP_M => gsv_getField_r8(statevector,'P_M')
-    delPsfc => gsv_getField_r8(statevector,'P0')
-    field_Psfc => gsv_getField_r8(statevector_trial,'P0')
+    if (gsv_getDataKind(statevector) == 4) then
+      call gsv_getField(statevector,delP_T_r4,'P_T')
+      call gsv_getField(statevector,delP_M_r4,'P_M')
+      call gsv_getField(statevector,delPsfc_r4,'P0')
+    else
+      call gsv_getField(statevector,delP_T_r8,'P_T')
+      call gsv_getField(statevector,delP_M_r8,'P_M')
+      call gsv_getField(statevector,delPsfc_r8,'P0')
+    end if
+
+    nullify(field_Psfc)
+    call gsv_getField(statevector_trial,field_Psfc,'P0')
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1700,13 +1754,27 @@ CONTAINS
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
       ! calculate delP_M
-      do lev_M = 1, nlev_M
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            delP_M(lonIndex,latIndex,lev_M,stepIndex) = dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * delPsfc(lonIndex,latIndex,1,stepIndex)
+      if (gsv_getDataKind(statevector) == 4) then
+        do lev_M = 1, nlev_M
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delP_M_r4(lonIndex,latIndex,lev_M,stepIndex) =  &
+                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                   delPsfc_r4(lonIndex,latIndex,1,stepIndex)
+            end do
           end do
         end do
-      end do
+      else
+        do lev_M = 1, nlev_M
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delP_M_r8(lonIndex,latIndex,lev_M,stepIndex) =  &
+                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                   delPsfc_r8(lonIndex,latIndex,1,stepIndex)
+            end do
+          end do
+        end do
+      end if
       deallocate(dP_dPsfc_M)
 
       ! dP_dPsfc_T
@@ -1717,13 +1785,27 @@ CONTAINS
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
       ! calculate delP_T
-      do lev_T = 1, nlev_T
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            delP_T(lonIndex,latIndex,lev_T,stepIndex) = dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * delPsfc(lonIndex,latIndex,1,stepIndex)
+      if (gsv_getDataKind(statevector) == 4) then
+        do lev_T = 1, nlev_T
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delP_T_r4(lonIndex,latIndex,lev_T,stepIndex) =  &
+                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                   delPsfc_r4(lonIndex,latIndex,1,stepIndex)
+            end do
           end do
         end do
-      end do
+      else
+        do lev_T = 1, nlev_T
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delP_T_r8(lonIndex,latIndex,lev_T,stepIndex) =  &
+                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                   delPsfc_r8(lonIndex,latIndex,1,stepIndex)
+            end do
+          end do
+        end do
+      end if
       deallocate(dP_dPsfc_T)
 
     end do
@@ -1747,16 +1829,19 @@ CONTAINS
     logical, optional               :: beSilent_opt
 
     ! Locals:
-    real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: delPsfc(:,:,:,:)
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    real(8), pointer            :: delP_T(:,:,:,:)
-    real(8), pointer            :: delP_M(:,:,:,:)
-    real(8), pointer            :: dP_dPsfc_T(:,:,:)
-    real(8), pointer            :: dP_dPsfc_M(:,:,:)
-    integer                     :: status, stepIndex,lonIndex,latIndex
-    integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
-    logical                     :: beSilent
+    real(8), allocatable     :: Psfc(:,:)
+    real(4), pointer         :: delPsfc_r4(:,:,:,:)
+    real(8), pointer         :: delPsfc_r8(:,:,:,:)
+    real(8), pointer         :: field_Psfc(:,:,:,:)
+    real(4), pointer         :: delP_T_r4(:,:,:,:)
+    real(8), pointer         :: delP_T_r8(:,:,:,:)
+    real(4), pointer         :: delP_M_r4(:,:,:,:)
+    real(8), pointer         :: delP_M_r8(:,:,:,:)
+    real(8), pointer         :: dP_dPsfc_T(:,:,:)
+    real(8), pointer         :: dP_dPsfc_M(:,:,:)
+    integer                  :: status, stepIndex,lonIndex,latIndex
+    integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
+    logical                  :: beSilent
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1766,17 +1851,23 @@ CONTAINS
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_ad: computing delP_T/delP_M on the gridstatevector'
 
-    nullify(delPsfc)
+    nullify(delPsfc_r4, delPsfc_r8)
     nullify(field_Psfc)
-    nullify(delP_T)
-    nullify(delP_M)
+    nullify(delP_T_r4, delP_T_r8)
+    nullify(delP_M_r4, delP_M_r8)
     nullify(dP_dPsfc_T)
     nullify(dP_dPsfc_M)
 
-    delP_T => gsv_getField_r8(statevector,'P_T')
-    delP_M => gsv_getField_r8(statevector,'P_M')
-    delPsfc => gsv_getField_r8(statevector,'P0')
-    field_Psfc => gsv_getField_r8(statevector_trial,'P0')
+    if (gsv_getDataKind(statevector) == 4) then
+      call gsv_getField(statevector,delP_T_r4,'P_T')
+      call gsv_getField(statevector,delP_M_r4,'P_M')
+      call gsv_getField(statevector,delPsfc_r4,'P0')
+    else
+      call gsv_getField(statevector,delP_T_r8,'P_T')
+      call gsv_getField(statevector,delP_M_r8,'P_M')
+      call gsv_getField(statevector,delPsfc_r8,'P0')
+    end if
+    call gsv_getField(statevector_trial,field_Psfc,'P0')
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1797,13 +1888,29 @@ CONTAINS
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
       ! calculate delP_M
-      do lev_M = 1, nlev_M
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            delPsfc(lonIndex,latIndex,1,stepIndex) = delPsfc(lonIndex,latIndex,1,stepIndex) + dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * delP_M(lonIndex,latIndex,lev_M,stepIndex)
+      if (gsv_getDataKind(statevector) == 4) then
+        do lev_M = 1, nlev_M
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
+                   delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
+                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                   delP_M_r4(lonIndex,latIndex,lev_M,stepIndex)
+            end do
           end do
         end do
-      end do
+      else
+        do lev_M = 1, nlev_M
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
+                   delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
+                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                   delP_M_r8(lonIndex,latIndex,lev_M,stepIndex)
+            end do
+          end do
+        end do
+      end if
       deallocate(dP_dPsfc_M)
 
       ! dP_dPsfc_T
@@ -1814,13 +1921,29 @@ CONTAINS
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
       ! calculate delP_T
-      do lev_T = 1, nlev_T
-        do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            delPsfc(lonIndex,latIndex,1,stepIndex) = delPsfc(lonIndex,latIndex,1,stepIndex) + dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * delP_T(lonIndex,latIndex,lev_T,stepIndex)
+      if (gsv_getDataKind(statevector) == 4) then
+        do lev_T = 1, nlev_T
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
+                   delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
+                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                   delP_T_r4(lonIndex,latIndex,lev_T,stepIndex)
+            end do
           end do
         end do
-      end do
+      else
+        do lev_T = 1, nlev_T
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
+                   delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
+                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                   delP_T_r8(lonIndex,latIndex,lev_T,stepIndex)
+            end do
+          end do
+        end do
+      end if
       deallocate(dP_dPsfc_T)
 
     end do
@@ -1893,15 +2016,15 @@ CONTAINS
     real(8) :: minVal
 
     if ( present(statevectorRef_opt) ) then
-      var_trial  => gsv_getField_r8(stateVectorRef_opt,trim(varName))
+       call gsv_getField(stateVectorRef_opt,var_trial,trim(varName))
     else
       varIndex = vnl_varListIndex(varName)
       if ( .not. varKindCHTrialsInitialized(varIndex) ) call gvt_setupTrials(trim(varName),varKind_opt='CH')
-      var_trial => gsv_getField_r8(stateVectorTrialvarKindCH(varIndex),trim(varName))
+      call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,trim(varName))
     end if
 
-    var_ptr    => gsv_getField_r8(statevector,trim(varName))
-    logVar_ptr => gsv_getField_r8(statevector,trim(varName))
+    call gsv_getField(statevector,var_ptr,trim(varName))
+    call gsv_getField(statevector,logVar_ptr,trim(varName))
 
     minVal=gsv_minValVarKindCH(vnl_varListIndex(varName))
 
@@ -1943,7 +2066,7 @@ CONTAINS
       if ( .not.gsv_varExist(varName=trim(varName)) ) cycle
       if ( vnl_varKindFromVarname(trim(varName)) /= 'CH' ) cycle
 
-      var_ptr    => gsv_getField_r8(statevector,trim(varName))
+      call gsv_getField(statevector,var_ptr,trim(varName))
 
       minVal=gsv_minValVarKindCH(vnl_varListIndex(varName))
 

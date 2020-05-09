@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Efficiency improvements (mostly for global EnVar) (#235 and !337):
+   * Allow single precision in parts of the code, controlled by environment variables
+   * Compute height and pressure increments on the column instead of the grid, controlled by namelist variable
  * Improvement of the filtering functionality of module biascorrection_mod.f90 (#341 and !330)
  * Program `ensPostProcess` can now be used to just do recentering or computing trial mean and spread (#334 and !327)
    * **Note:** changes must be made to namelist block names for the `ensPostProcess` and `letkf` programs!

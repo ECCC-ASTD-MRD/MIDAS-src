@@ -671,8 +671,8 @@ module ObsDataColumn_mod
       logical          :: allocated = .false.
                                         ! For these arrays:
                                         !   1st dim'n:  row index (element index)
-      integer,       pointer :: value_i(:)     => NULL()
-      real(OBS_REAL),pointer :: value_r(:)     => NULL()
+      integer,          pointer :: value_i(:)     => NULL()
+      real(pre_obsReal),pointer :: value_r(:)     => NULL()
       character(len=4) :: dataType
    end type struct_obsDataColumn
 
@@ -803,8 +803,8 @@ contains
       type(struct_obsDataColumn), intent(inout) :: odc
       integer, intent(in) :: numRows
       character(len=*), intent(in) :: name,dataType
-      real(OBS_REAL), pointer, intent(in) :: scratchReal(:)
-      integer       , pointer, intent(in) :: scratchInt(:)
+      real(pre_obsReal), pointer, intent(in) :: scratchReal(:)
+      integer          , pointer, intent(in) :: scratchInt(:)
 
       if(odc%allocated) then
          call odc_abort('ODC_ALLOCATE: column is already allocated. name=' &
@@ -823,7 +823,7 @@ contains
 
       case ('REAL')
          allocate(odc%value_r(numRows))
-         odc%value_r(:)=real(0.0D0, OBS_REAL)
+         odc%value_r(:)=real(0.0D0, pre_obsReal)
          odc%value_i   => scratchInt
 
       case default
@@ -1087,7 +1087,7 @@ contains
      integer                         , intent(in)  :: column_index
      integer                         , intent(in)  :: row_index
      integer                         , intent(out) :: value_i
-     real(OBS_REAL)                  , intent(out) :: value_r
+     real(pre_obsReal)               , intent(out) :: value_r
 
      character(len=100) :: message
       
@@ -1167,7 +1167,7 @@ contains
       integer                         , intent(in)    :: column_index
       integer                         , intent(in)    :: row_index
       integer                         , intent(in)    :: value_i
-      real(OBS_REAL)                  , intent(in)    :: value_r
+      real(pre_obsReal)               , intent(in)    :: value_r
       integer                         , intent(inout) :: numElements
       integer                         , intent(in)    :: numElements_max
 
@@ -1471,14 +1471,14 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
 
-   real(OBS_REAL), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, OBS_REAL) ! Missing value
+   real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
                                         ! It is intended that these null values
                                         ! be used with scratchRealHeader, etc.
-   real(OBS_REAL), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, OBS_REAL)
-   integer       , parameter :: NULL_COLUMN_VALUE_I = -9.99
+   real(pre_obsReal), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, pre_obsReal)
+   integer          , parameter :: NULL_COLUMN_VALUE_I = -9.99
 
    ! This type is the goal of the ObsSpaceData and supporting modules.  An
    ! instance of this derived type contains all information pertaining to a set
@@ -1506,10 +1506,10 @@ module ObsSpaceData_mod
       ! (real and integer) values of any obsDataColumn, without having to decide
       ! which one (real or integer) contains the sought value.  This ability
       ! simplifies the code.
-      real(OBS_REAL), pointer :: scratchRealHeader(:), &
-                                 scratchRealBody  (:)
-      integer       , pointer :: scratchIntHeader (:), &
-                                 scratchIntBody   (:)
+      real(pre_obsReal), pointer :: scratchRealHeader(:), &
+                                    scratchRealBody  (:)
+      integer          , pointer :: scratchIntHeader (:), &
+                                    scratchIntBody   (:)
 
       integer :: numHeader              ! Actual number of headers on record
       integer :: numHeader_max          ! maximum number of headers(i.e.stations)
@@ -1993,7 +1993,7 @@ contains
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
 
-      real(OBS_REAL) :: value_r         ! not used
+      real(pre_obsReal) :: value_r         ! not used
 
       call odc_columnElem(obsdat%intBodies, column_index, row_index, &
                           value_i, value_r)
@@ -2008,7 +2008,7 @@ contains
       !      index from the "body".
       !
       implicit none
-      real(OBS_REAL)                :: value_r
+      real(pre_obsReal)             :: value_r
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
@@ -2066,7 +2066,7 @@ contains
       integer         , intent(in)     :: row_index
       real(4)         , intent(in)     :: value_r4
 
-      real(obs_real)                   :: value_r
+      real(pre_obsReal)                :: value_r
 
       value_r = value_r4
 
@@ -2089,7 +2089,7 @@ contains
       integer         , intent(in)     :: row_index
       real(8)         , intent(in)     :: value_r8
 
-      real(obs_real)                   :: value_r
+      real(pre_obsReal)                :: value_r
 
       value_r = value_r8
 
@@ -2542,8 +2542,8 @@ contains
 
       integer :: column_index
       integer :: active_index
-      integer       , pointer :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
-      real(OBS_REAL), pointer :: realHeaders_tmp(:,:),realBodies_tmp(:,:)
+      integer          , pointer :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
+      real(pre_obsReal), pointer :: realHeaders_tmp(:,:),realBodies_tmp(:,:)
       integer :: ier,master,ncomm,nobs
       character(len=100) :: message
 
@@ -2607,7 +2607,7 @@ contains
          realHeaders_tmp(active_index,1:nstncom) &
                      =obsdat%realHeaders%columns(column_index)%value_r(1:nstncom)
       enddo
-      call rpn_comm_bcast(realHeaders_tmp,ncomm,MPI_OBS_REAL,master,"world",ier)
+      call rpn_comm_bcast(realHeaders_tmp,ncomm,pre_obsMpiReal,master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
          column_index=odc_columnIndexFromActiveIndex( &
@@ -2652,7 +2652,7 @@ contains
          realBodies_tmp(active_index,1:nobs) &
                          =obsdat%realBodies%columns(column_index)%value_r(1:nobs)
       enddo
-      call rpn_comm_bcast(realBodies_tmp,ncomm,MPI_OBS_REAL,master,"world",ier)
+      call rpn_comm_bcast(realBodies_tmp,ncomm,pre_obsMpiReal,master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,odc_numActiveColumn(obsdat%realBodies)
          column_index=odc_columnIndexFromActiveIndex( &
@@ -3227,12 +3227,12 @@ contains
       integer, allocatable :: headerIndex_mpiglobal(:),all_headerIndex_mpiglobal(:,:)
       integer, allocatable :: bodyIndex_mpiglobal(:),all_bodyIndex_mpiglobal(:,:)
       integer, allocatable :: intHeaders_mpilocal(:,:),all_intHeaders_mpilocal(:,:,:)
-      real(OBS_REAL), allocatable :: realHeaders_mpilocal(:,:),all_realHeaders_mpilocal(:,:,:)
+      real(pre_obsReal), allocatable :: realHeaders_mpilocal(:,:),all_realHeaders_mpilocal(:,:,:)
       integer, allocatable :: intStnid_mpilocal(:,:),all_intStnid_mpilocal(:,:,:)
       integer, allocatable :: intFamily_mpilocal(:,:),all_intFamily_mpilocal(:,:,:)
       integer, allocatable :: intBodies_mpilocal(:,:),all_intBodies_mpilocal(:,:,:)
       integer, allocatable :: all_numHeader_mpilocal(:), all_numBody_mpilocal(:)
-      real(OBS_REAL), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
+      real(pre_obsReal), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
 
       integer :: ierr
       integer :: get_max_rss
@@ -3370,7 +3370,7 @@ contains
 
       ! make header-level real data mpiglobal
       allocate(realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax))
-      realHeaders_mpilocal(:,:)=real(0.0d0,OBS_REAL)
+      realHeaders_mpilocal(:,:)=real(0.0d0,pre_obsReal)
       do headerIndex_mpilocal=1,obsdat%numHeader
          do activeIndex=1,odc_numActiveColumn(obsdat%realHeaders)
             columnIndex=odc_columnIndexFromActiveIndex( &
@@ -3387,8 +3387,8 @@ contains
       end if
 
       nsize=size(realHeaders_mpilocal)
-      call rpn_comm_gather(realHeaders_mpilocal    ,nsize,MPI_OBS_REAL, &
-                           all_realHeaders_mpilocal,nsize,MPI_OBS_REAL, &
+      call rpn_comm_gather(realHeaders_mpilocal    ,nsize,pre_obsMpiReal, &
+                           all_realHeaders_mpilocal,nsize,pre_obsMpiReal, &
                            0,"GRID",ierr)
       deallocate(realHeaders_mpilocal)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -3486,7 +3486,7 @@ contains
 
       ! make body-level real data mpiglobal
       allocate(realBodies_mpilocal(odc_numActiveColumn(obsdat%realBodies),numBody_mpilocalmax))
-      realBodies_mpilocal(:,:)=real(0.0d0,OBS_REAL)
+      realBodies_mpilocal(:,:)=real(0.0d0,pre_obsReal)
       do bodyIndex_mpilocal=1,obsdat%numBody
          do activeIndex=1,odc_numActiveColumn(obsdat%realBodies)
             columnIndex=odc_columnIndexFromActiveIndex( &
@@ -3503,8 +3503,8 @@ contains
       end if
 
       nsize=size(realBodies_mpilocal)
-      call rpn_comm_gather(realBodies_mpilocal    ,nsize,MPI_OBS_REAL, &
-                           all_realBodies_mpilocal,nsize,MPI_OBS_REAL, &
+      call rpn_comm_gather(realBodies_mpilocal    ,nsize,pre_obsMpiReal, &
+                           all_realBodies_mpilocal,nsize,pre_obsMpiReal, &
                            0,"GRID",ierr)
       deallocate(realBodies_mpilocal)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -3776,10 +3776,10 @@ contains
       integer, intent(in) :: idate
       integer, intent(in) :: itime
       integer, intent(in) :: imask
-      real(kind=OBS_REAL) :: clfr
-      real(kind=OBS_REAL) :: sunza
-      real(kind=OBS_REAL) :: satzen
-      real(kind=OBS_REAL) :: satazim
+      real(kind=pre_obsReal) :: clfr
+      real(kind=pre_obsReal) :: sunza
+      real(kind=pre_obsReal) :: satzen
+      real(kind=pre_obsReal) :: satazim
       character(len=9), intent(in) :: clstnid
       real(kind=8) :: torad
 
@@ -4058,7 +4058,7 @@ contains
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
 
-      real(OBS_REAL) :: value_r         ! not used
+      real(pre_obsReal) :: value_r         ! not used
 
       call odc_columnElem(obsdat%intHeaders, column_index, row_index, &
                           value_i, value_r)
@@ -4073,7 +4073,7 @@ contains
       !      index from the "header".
       !
       implicit none
-      real(OBS_REAL)                :: value_r
+      real(pre_obsReal)             :: value_r
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
@@ -4131,7 +4131,7 @@ contains
       integer         , intent(in)     :: row_index
       real(4)         , intent(in)     :: value_r4
 
-      real(OBS_REAL)                   :: value_r
+      real(pre_obsReal)                :: value_r
 
       value_r = value_r4
 
@@ -4154,7 +4154,7 @@ contains
       integer         , intent(in)     :: row_index
       real(8)         , intent(in)     :: value_r8
 
-      real(OBS_REAL)                   :: value_r
+      real(pre_obsReal)                :: value_r
 
       value_r = value_r8
 
@@ -4528,10 +4528,10 @@ contains
          integer          , intent(in)    :: j
          integer          , intent(in)    :: k
 
-         real(OBS_REAL):: rdum 
-         integer       :: idum
-         integer       :: column_index
-         character(12) :: cdum
+         real(pre_obsReal):: rdum 
+         integer          :: idum
+         integer          :: column_index
+         character(12)    :: cdum
 
          do column_index=NHDR_INT_BEG, NHDR_INT_END
             if(obsdat%intHeaders%odc_flavour%columnActive(column_index)) then
@@ -4915,7 +4915,7 @@ contains
       integer :: active_index
       integer :: column_index
 
-      real(OBS_REAL),    save :: realHeaders_1(1:NHDR_REAL_SIZE)
+      real(pre_obsReal), save :: realHeaders_1(1:NHDR_REAL_SIZE)
       integer,           save :: intHeaders_1(1:NHDR_INT_SIZE)
       character(len=12), save :: cstnid_1
       character(len=2),  save :: cfamily_1
@@ -5073,7 +5073,7 @@ contains
    integer :: numheader, numBody
    integer :: intHeader
    integer :: iregcur
-   real(OBS_REAL) :: realHeader
+   real(pre_obsReal) :: realHeader
    integer,save :: istart=1
 !
    iregcur=1
@@ -5184,10 +5184,10 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
-      character(len=12),allocatable,dimension(:)   :: cstnid_tmp
-      character(len=2), allocatable,dimension(:)   :: cfamily_tmp
-      real(OBS_REAL),   allocatable,dimension(:,:) :: realHeaders_tmp
-      real(OBS_REAL),   allocatable,dimension(:,:) :: realBodies_tmp
+      character(len=12), allocatable,dimension(:)   :: cstnid_tmp
+      character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
+      real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
+      real(pre_obsReal), allocatable,dimension(:,:) :: realBodies_tmp
 
       integer,allocatable,dimension(:,:) :: intHeaders_tmp,intBodies_tmp
 
@@ -5392,10 +5392,10 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
-      character(len=12),allocatable :: cstnid_tmp(:)
-      character(len=2), allocatable :: cfamily_tmp(:)
-      real(OBS_REAL),   allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
-      integer,allocatable           :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
+      character(len=12), allocatable :: cstnid_tmp(:)
+      character(len=2),  allocatable :: cfamily_tmp(:)
+      real(pre_obsReal), allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
+      integer,           allocatable :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
       integer :: bodyIndex, headerIndex, active_index, column_index
       integer :: idataend, idata
 
@@ -5536,12 +5536,12 @@ contains
       type(struct_obs) :: obsdat_tmp
       integer, allocatable :: numHeaderPE_mpilocal(:), numHeaderPE_mpiglobal(:)
       integer, allocatable :: numBodyPE_mpilocal(:), numBodyPE_mpiglobal(:)
-      integer,          allocatable :: intcstnid_send(:,:,:), intcstnid_recv(:,:,:)
-      integer,          allocatable :: intcfamily_send(:,:,:), intcfamily_recv(:,:,:)
-      real(OBS_REAL),   allocatable :: real_send(:,:,:), real_recv(:,:,:)
-      integer,          allocatable :: int_send(:,:,:), int_recv(:,:,:), message_onm(:,:)
-      real(OBS_REAL),   allocatable :: real_send_2d(:,:), real_recv_2d(:,:)
-      integer,          allocatable :: int_send_2d(:,:), int_recv_2d(:,:)
+      integer,           allocatable :: intcstnid_send(:,:,:), intcstnid_recv(:,:,:)
+      integer,           allocatable :: intcfamily_send(:,:,:), intcfamily_recv(:,:,:)
+      real(pre_obsReal), allocatable :: real_send(:,:,:), real_recv(:,:,:)
+      integer,           allocatable :: int_send(:,:,:), int_recv(:,:,:), message_onm(:,:)
+      real(pre_obsReal), allocatable :: real_send_2d(:,:), real_recv_2d(:,:)
+      integer,           allocatable :: int_send_2d(:,:), int_recv_2d(:,:)
       integer :: numHeader_in, numBody_in
       integer :: numHeader_out, numBody_out
       integer :: numHeader_mpimessage, numBody_mpimessage
@@ -5945,10 +5945,10 @@ contains
 
       type (struct_obs), intent(in) :: obsdat
       type (struct_obs), intent(inout) :: obs_sel
-      real(8),        intent(in) :: hx(:,:)
-      real(OBS_REAL), intent(in) :: zhamin
-      real(OBS_REAL), intent(in) :: zhamax
-      real(8),        intent(out):: hx_sel(:,:)
+      real(8),           intent(in) :: hx(:,:)
+      real(pre_obsReal), intent(in) :: zhamin
+      real(pre_obsReal), intent(in) :: zhamax
+      real(8),           intent(out):: hx_sel(:,:)
       integer, intent(in)    :: nens
       integer, intent(in)    :: nobsout
 

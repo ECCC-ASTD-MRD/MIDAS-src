@@ -18,6 +18,7 @@ program midas_obsimpact
   !
   ! :Purpose: Main program for Observation Impact computation (FSOI)
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -100,6 +101,10 @@ program midas_obsimpact
   if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
   end if
+
+  write(*,*)
+  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
+  write(*,*)
 
   call ram_setup
 
@@ -337,6 +342,7 @@ contains
 
     ! for statevector_fso 
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
  
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
@@ -697,14 +703,12 @@ contains
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call tmg_start(89,'MIN_COMM')
       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
-      call tmg_stop(89)
 
       hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(columng_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
-                        mpi_local_opt=.true.)
+                        dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
@@ -804,18 +808,14 @@ contains
     INTEGER mythread,numthreads,jstart,jend
     INTEGER omp_get_thread_num,omp_get_num_threads
 
-    call tmg_start(71,'QN_PRSCAL')
     DDSC = 0.D0
 
     do j=1,nvadim_mpilocal
       DDSC = DDSC + PX(J)*PY(J)
     end do
 
-    call tmg_start(79,'QN_COMM')
     call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
-    call tmg_stop(79)
 
-    call tmg_stop(71)
     RETURN
 
   END SUBROUTINE PRSCAL

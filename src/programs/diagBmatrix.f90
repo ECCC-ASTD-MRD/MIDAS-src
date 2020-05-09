@@ -256,7 +256,7 @@ program midas_diagBmatrix
           lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
 
           call gsv_zero(statevector)                   
-          field4d => gsv_getField_r8(statevector,vnl_varNameList(varIndex))
+          call gsv_getField(statevector,field4d,vnl_varNameList(varIndex))
 
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
                lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
@@ -458,7 +458,7 @@ program midas_diagBmatrix
     iseed = abs(nrandseed)
     call rng_setup(iseed)
 
-    field3d => gsv_getField3d_r8(statevector)
+    call gsv_getField(statevector,field3d)
 
     !
     !- Compute the ensemble of random perturbations
@@ -632,7 +632,7 @@ program midas_diagBmatrix
         if (.not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
 
         write(*,*) 'midas-diagBmatrix: writing zonal mean stddev to text file for variable: ', vnl_varNameList(varIndex)
-        field3d => gsv_getField3d_r8(statevector,vnl_varNameList(varIndex))
+        call gsv_getField(statevector,field3d,vnl_varNameList(varIndex))
 
         varName = vnl_varNameList(varIndex)
         if ( varName == 'HU' ) varName = 'LQ'

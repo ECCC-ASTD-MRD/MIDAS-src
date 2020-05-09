@@ -1161,7 +1161,8 @@ contains
     integer :: var
     integer :: kgdStart, kgdEnd, i, j, k, kgd, nlev
 
-    real(8), pointer :: field(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
 
     character(len=4 )      :: varname
 
@@ -1189,7 +1190,11 @@ contains
          call utl_abort('StatevectorInterface')
       end if
 
-      field => gsv_getField3D_r8(statevector,varname)
+      if (gsv_getDataKind(statevector) == 4) then
+        call gsv_getField(statevector,field_r4,varname)
+      else
+        call gsv_getField(statevector,field_r8,varname)
+      end if
 
       kgdStart = ControlVariable(var)%kDimStart
       kgdEnd   = ControlVariable(var)%kDimEnd
@@ -1203,27 +1208,53 @@ contains
       end if
 
       if ( ToStateVector ) then
-        !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
-         do kgd = kgdStart, kgdEnd
+        if (gsv_getDataKind(statevector) == 4) then
+          !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+          do kgd = kgdStart, kgdEnd
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
-               do i = myLonBeg, myLonEnd
-                  field(i,j,k) = gd(i,j,kgd)
-               end do
+              do i = myLonBeg, myLonEnd
+                field_r4(i,j,k) = gd(i,j,kgd)
+              end do
             end do
-         end do
-         !$OMP END PARALLEL DO
+          end do
+          !$OMP END PARALLEL DO
+        else
+          !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+          do kgd = kgdStart, kgdEnd
+            k = kgd - kgdStart + 1
+            do j = myLatBeg, myLatEnd
+              do i = myLonBeg, myLonEnd
+                field_r8(i,j,k) = gd(i,j,kgd)
+              end do
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
       else
-        !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
-         do kgd = kgdStart, kgdEnd
+        if (gsv_getDataKind(statevector) == 4) then
+          !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+          do kgd = kgdStart, kgdEnd
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
-               do i = myLonBeg, myLonEnd
-                  gd(i,j,kgd)  = field(i,j,k)
-               end do
+              do i = myLonBeg, myLonEnd
+                gd(i,j,kgd)  = field_r4(i,j,k)
+              end do
             end do
-         end do
-         !$OMP END PARALLEL DO
+          end do
+          !$OMP END PARALLEL DO
+        else
+          !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+          do kgd = kgdStart, kgdEnd
+            k = kgd - kgdStart + 1
+            do j = myLatBeg, myLatEnd
+              do i = myLonBeg, myLonEnd
+                gd(i,j,kgd)  = field_r8(i,j,k)
+              end do
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
       end if
    end do
 

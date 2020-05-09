@@ -358,7 +358,7 @@ CONTAINS
     call gsv_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
 
     do variableIndex = 1, numvar2d
-      field3D_r4_ptr   => gsv_getField3D_r4( statevector, bdiff_varNameList( variableIndex ) )
+      call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
       stddev( :, :, variableIndex ) = dble( field3D_r4_ptr( :, :, 1 ) )
       write(*,*) myName//': variable ', bdiff_varNameList( variableIndex ),' min/max: ', &
                  minval( stddev(:,:,variableIndex) ), maxval( stddev(:,:,variableIndex) )
@@ -483,28 +483,39 @@ CONTAINS
     type(struct_gsv), intent(inout) :: statevector
 
     integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
     character(len=*), parameter :: myName = 'bdiff_copyToStatevector'
     
     do variableIndex = 1, numvar2d
 
-      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
-      field => gsv_getField3D_r8( statevector, bdiff_varNameList( variableIndex ) )
-      if(mpi_myid == 0) write(*,*) myName//': gsv_getField3D_r8 done.'
-
       ilev1 = nsposit( variableIndex )
       ilev2 = nsposit( variableIndex + 1 ) - 1 
 
-!!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-      do jlev = ilev1, ilev2
-        jlev2 = jlev-ilev1+1
-        do jlat = myLatBeg, myLatEnd
-          do jlon = myLonBeg, myLonEnd
-            field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      
+      if (gsv_getDataKind(statevector) == 4) then
+        call gsv_getField( statevector, field_r4, bdiff_varNameList( variableIndex ) )
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
+            do jlon = myLonBeg, myLonEnd
+              field_r4(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+            end do
           end do
         end do
-      end do
-!!!$OMP END PARALLEL DO
+      else
+        call gsv_getField( statevector, field_r8, bdiff_varNameList( variableIndex ) )
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
+            do jlon = myLonBeg, myLonEnd
+              field_r8(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+            end do
+          end do
+        end do
+      end if
+
     end do
 
   end subroutine bdiff_copyToStatevector
@@ -518,27 +529,37 @@ CONTAINS
     real(8),          intent(out) :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
     integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
-    real(8), pointer :: field(:,:,:)
+    real(4), pointer :: field_r4(:,:,:)
+    real(8), pointer :: field_r8(:,:,:)
     character(len=*), parameter :: myName = 'bdiff_copyFromStatevector'
 
     do variableIndex = 1, numvar2d
 
-      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
-      field => gsv_getField3D_r8(statevector, bdiff_varNameList( variableIndex ))
-      
       ilev1 = nsposit( variableIndex )
       ilev2 = nsposit( variableIndex + 1 ) - 1 
 
-!!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-      do jlev = ilev1, ilev2
-        jlev2 = jlev-ilev1+1
-        do jlat = myLatBeg, myLatEnd
-          do jlon = myLonBeg, myLonEnd
-            gd( jlon, jlat, jlev ) = field( jlon, jlat, jlev2 )
+      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      if (gsv_getDataKind(statevector) == 4) then
+        call gsv_getField(statevector, field_r4, bdiff_varNameList( variableIndex ))
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
+            do jlon = myLonBeg, myLonEnd
+              gd( jlon, jlat, jlev ) = field_r4( jlon, jlat, jlev2 )
+            end do
           end do
         end do
-      end do
-!!!$OMP END PARALLEL DO
+      else
+        call gsv_getField(statevector, field_r8, bdiff_varNameList( variableIndex ))
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
+            do jlon = myLonBeg, myLonEnd
+              gd( jlon, jlat, jlev ) = field_r8( jlon, jlat, jlev2 )
+            end do
+          end do
+        end do
+      end if
     end do
 
   end subroutine bdiff_copyFromStatevector

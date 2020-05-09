@@ -51,7 +51,7 @@ contains
     integer          :: flag, flagExtra, mergedFlag
     integer          :: sourceBufrCode, sourceBufrCodeExtra
     integer          :: headerIndex, bodyIndexStart, bodyIndexEnd, bodyIndex, bodyIndex2
-    real(obs_real)   :: level
+    real(pre_obsReal)   :: level
 
     integer :: transformIndex, transformedBufrCodeIndex
 
@@ -252,7 +252,7 @@ contains
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno, codtyp
     real           :: sfc_vco, elev
-    real(obs_real) :: ppp
+    real(pre_obsReal) :: ppp
 
     HEADER: do headerIndex = headerIndexStart, headerIndexEnd
         
@@ -298,7 +298,7 @@ contains
     integer          , intent(in)    :: headerIndexEnd
 
     ! locals
-    real(obs_real)    :: obsv
+    real(pre_obsReal)    :: obsv
     integer  :: bodyIndex, headerIndex,bodyIndexStart, bodyIndexEnd
     integer  :: varno
 
@@ -306,7 +306,7 @@ contains
  
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
-      obsv = real(MPC_missingValue_R8, obs_real)
+      obsv = real(MPC_missingValue_R8, pre_obsReal)
       
       BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
@@ -324,7 +324,7 @@ contains
 
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
 
-        if ( varno == bufr_nezd .and. obsv /= real(MPC_missingValue_R8, obs_real)) then
+        if ( varno == bufr_nezd .and. obsv /= real(MPC_missingValue_R8, pre_obsReal)) then
           call obs_bodySet_r(obsdat, OBS_OER, bodyIndex, obsv )
           exit BODY2
         end if
@@ -395,7 +395,7 @@ contains
 
     ! locals
     integer  :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
-    real(OBS_REAL)  :: FSOVal
+    real(pre_obsReal)  :: FSOVal
 
     do headerIndex = 1, obs_numHeader(obsdat)
 

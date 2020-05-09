@@ -2017,8 +2017,8 @@ CONTAINS
       biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8 .and. Obs /= MPC_missingValue_R8) then
-        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs - biasCor,OBS_REAL))
-        call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, real(0.d0,OBS_REAL))
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs - biasCor,pre_obsReal))
+        call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, real(0.d0,pre_obsReal))
         nbcor = nbcor + 1
       end if
     end do BODY
@@ -2249,7 +2249,7 @@ CONTAINS
       if (biasCor /= MPC_missingValue_R8) then
         Obs =  obs_bodyElem_r(obsSpaceData,column,bodyIndex)
         if (Obs /= MPC_missingValue_R8) then
-          call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,OBS_REAL))
+          call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,pre_obsReal))
           flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
           flag = ibset(flag, 6)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, flag)

@@ -19,6 +19,7 @@ program midas_var
   ! :Purpose: Main program for variational minimization or background check 
   !           (depending on the mode selected in the namelist).
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -60,11 +61,12 @@ program midas_var
   type(struct_obs),        target  :: obsSpaceData
   type(struct_columnData), target  :: trlColumnOnAnlLev
   type(struct_columnData), target  :: trlColumnOnTrlLev
-  type(struct_gsv)                 :: statevector_incr
+  type(struct_gsv)                 :: stateVectorIncr
+  type(struct_gsv)                 :: stateVectorTrial
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_vco), pointer        :: vco_anl => null()
 
-  real(8), allocatable :: controlVector_incr(:)
+  real(8), allocatable :: controlVectorIncr(:)
 
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -107,6 +109,10 @@ program midas_var
   if(ierr.ne.0) call utl_abort('midas-var: Error reading namelist')
   write(*,nml=namct0)
   ierr=fclos(nulnam)
+
+  write(*,*)
+  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
+  write(*,*)
 
   write(*,*)
   select case(nconf)
@@ -232,7 +238,12 @@ program midas_var
 
     ! Read trials and horizontally interpolate to columns
     call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+    if (writeAnalysis) then
+      call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
+                                       stateVectorTrialOut_opt=stateVectorTrial )
+    else
+      call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+    end if
 
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -260,28 +271,28 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    allocate(controlVector_incr(cvm_nvadim),stat=ierr)
+    allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'var: Problem allocating memory for ''controlVector_incr''',ierr
+      write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
       call utl_abort('aborting in VAR')
     endif
 
     ! Do minimization of cost function
-    call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVector_incr)
+    call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVectorIncr)
 
     ! Compute satellite bias correction increment and write to file
-    call bcs_writebias(controlVector_incr)
+    call bcs_writebias(controlVectorIncr)
 
-    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+    call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-         allocHeight_opt=.false., allocPressure_opt=.false.)
+         dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment
-    call inc_getIncrement(controlVector_incr,statevector_incr,cvm_nvadim)
+    call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
-    call inc_writeIncrement(statevector_incr) ! IN
+    call inc_writeIncrement(stateVectorIncr) ! IN
     call tmg_stop(6)
 
     ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
@@ -294,7 +305,8 @@ program midas_var
     ! compute and write the analysis (as well as the increment on the trial grid)
     if (writeAnalysis) then
       call tmg_start(18,'ADDINCREMENT')
-      call inc_computeAndWriteAnalysis(statevector_incr) ! IN
+      call inc_computeAndWriteAnalysis(stateVectorIncr,                    &  ! IN
+                                       stateVectorTrial_opt=stateVectorTrial) ! IN
       call tmg_stop(18)
     end if
 
@@ -303,11 +315,11 @@ program midas_var
       call utl_writeStatus(clmsg)
     end if
 
-    call gsv_deallocate(statevector_incr)
+    call gsv_deallocate(stateVectorIncr)
 
     ! write the Hessian
-    call min_writeHessian(controlVector_incr)
-    deallocate(controlVector_incr)
+    call min_writeHessian(controlVectorIncr)
+    deallocate(controlVectorIncr)
 
     ! Deallocate memory related to variational bias correction
     call bcs_finalize()

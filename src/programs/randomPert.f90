@@ -212,7 +212,7 @@ program midas_randomPert
   end if
 
   gdmean(:,:,:) = 0.0D0
-  field => gsv_getField3d_r8(statevector)
+  call gsv_getField(statevector,field)
 
   !- 4.1 Generate a (potentially) biased ensemble
   do memberIndex = 1, NENS
@@ -378,7 +378,7 @@ program midas_randomPert
     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
                       dateStamp_opt=nstamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    field => gsv_getField3d_r8(statevector)
+    call gsv_getField(statevector,field)
 
 !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim

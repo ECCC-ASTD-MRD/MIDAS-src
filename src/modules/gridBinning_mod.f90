@@ -125,7 +125,7 @@ contains
     !
     !- 2.  Set the bins
     !
-    bin2d => gsv_getField3D_r4(gbi%statevector_bin2d)
+    call gsv_getField(gbi%statevector_bin2d,bin2d)
 
     myLonBeg = gbi%statevector_bin2d%myLonBeg
     myLonEnd = gbi%statevector_bin2d%myLonEnd
@@ -192,7 +192,7 @@ contains
       call gsv_readFromFile(statevector_landSeaTopo, './dataForGridBinning.fst', ' ', ' ', &
                             readHeightSfc_opt=.true.)
 
-      data2d   => gsv_getField3D_r4(statevector_landSeaTopo)
+      call gsv_getField(statevector_landSeaTopo,data2d)
 
       if (.not. statevector_template%hco%global) then
         hco_coregrid => agd_getHco('CoreGrid')
@@ -298,10 +298,10 @@ contains
     myLatBeg  = statevector_in%myLatBeg
     myLatEnd  = statevector_in%myLatEnd
 
-    field4d => gsv_getField_r8(statevector_in)
-    mean4d  => gsv_getField_r8(statevector_out)
+    call gsv_getField(statevector_in,field4d)
+    call gsv_getField(statevector_out,mean4d)
 
-    bin2d   => gsv_getField3D_r4(gbi%statevector_bin2d)
+    call gsv_getField(gbi%statevector_bin2d,bin2d)
 
     do stepIndex = 1, nStep
       do varLevIndex = 1, nVarLev
@@ -403,8 +403,8 @@ contains
     nStep   = ens_getNumStep(ens)
     nEns    = ens_getNumMembers(ens)
 
-    stdDev_r8 => gsv_getField_r8(statevector)
-    bin2d     => gsv_getField3D_r4(gbi%statevector_bin2d)
+    call gsv_getField(statevector,stdDev_r8)
+    call gsv_getField(gbi%statevector_bin2d,bin2d)
 
     do varLevIndex = 1, nVarLev
 

@@ -55,6 +55,7 @@ module columnData_mod
     logical           :: varExistList(vnl_numVarMax)
     type(struct_vco), pointer :: vco => null()
     logical           :: addHeightSfcOffset = .false.
+    real(8), pointer  :: lat(:)
   end type struct_columnData
 
   real(8) :: rhumin, col_rhumin
@@ -306,6 +307,8 @@ contains
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
+      allocate(column%lat(numCol))
+      if ( setToZero ) column%lat(:)=0.0d0
     end if
  
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk

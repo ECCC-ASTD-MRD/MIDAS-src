@@ -269,6 +269,7 @@ contains
     call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
+                       dataKind_opt=gsv_getDataKind(statevector),        &
                        mpi_local_opt=.true., varNames_opt=varNames )
     deallocate(varNames)
 
@@ -376,6 +377,7 @@ contains
     call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
+                       dataKind_opt=gsv_getDataKind(statevector),        &
                        mpi_local_opt=.true., varNames_opt=varNames )
     deallocate(varNames)
 

@@ -25,6 +25,7 @@ module stateToColumn_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod 
+  use codePrecision_mod
   use gridstatevector_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -36,6 +37,7 @@ module stateToColumn_mod
   use windRotation_mod
   use utilities_mod
   use gridVariableTransforms_mod
+  use columnVariableTransforms_mod
   use varNameList_mod
   use physicsFunctions_mod
   use timeCoord_mod
@@ -87,9 +89,6 @@ module stateToColumn_mod
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
 
-  real(8), pointer :: allLatOneLev(:,:)
-  real(8), pointer :: allLonOneLev(:,:)
-
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   ! "special" values of the footprint radius
@@ -97,10 +96,12 @@ module stateToColumn_mod
   real(4), parameter ::             lakeFootprint = -1.0
   real(4), parameter ::         bilinearFootprint =  0.0
 
-  integer, external    :: get_max_rss
+  ! namelist variables:
   logical, save :: slantPath_nl
   logical, save :: slantPath_tlad
-  logical, save :: nmlAlreadyRead = .false.
+  logical, save :: calcHeightPressIncrOnColumn
+
+  integer, external    :: get_max_rss
 
 contains 
 
@@ -244,9 +245,11 @@ contains
     character(len=*)           :: inputStateVectorType
 
     ! locals
-    type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step, stateVector_Tiles_1Step, stateVector_1Step
+    type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
+    type(struct_gsv)          :: stateVector_Tiles_1Step, stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
-    integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex, bodyIndex, kIndex, kIndexCount, myKBeg
+    integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
+    integer :: bodyIndex, kIndex, kIndexCount, myKBeg
     integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
@@ -254,28 +257,59 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: footprintRadius_r4 ! (metres)
-    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), allHeaderIndex(:,:,:), headerIndexVec(:,:)
+    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:)
+    integer, allocatable :: allHeaderIndex(:,:,:), headerIndexVec(:,:)
     real(8), allocatable :: lat_send_r8(:,:), lat_recv_r8(:,:), lon_send_r8(:,:), lon_recv_r8(:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
-    integer :: gdllfxy
+    real(8), allocatable :: allLatOneLev(:,:)
+    real(8), allocatable :: allLonOneLev(:,:)
     logical :: obsOutsideGrid
     character(len=4), pointer :: varNames(:)
     character(len=4)          :: varLevel, varName
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
     real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
-    real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:), height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
+    real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
+    real(4), pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     logical :: thisProcIsAsender(mpi_nprocs)
-    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
+    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
+    integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
-    integer :: firstHeaderIndexUsed(mpi_nprocs)
     logical :: doSlantPath, firstHeaderSlantPath 
+    logical, save :: nmlAlreadyRead = .false.
 
-    namelist /nams2c/ slantPath_nl, slantPath_tlad 
+    namelist /nams2c/ slantPath_nl, slantPath_tlad, calcHeightPressIncrOnColumn
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
+
+    if ( .not. nmlAlreadyRead ) then
+      nmlAlreadyRead = .true.
+
+      ! default values
+      slantPath_nl = .false.
+      slantPath_tlad = .false.
+      calcHeightPressIncrOnColumn = .false.
+
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=nams2c, iostat=ierr)
+      if ( ierr /= 0 .and. mpi_myid == 0 ) then
+        write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
+        write(*,*) '                     The default values will be taken.'
+      end if
+      if ( mpi_myid == 0 ) write(*, nml=nams2c)
+      ierr = fclos(nulnam)
+    end if
+
+    doSlantPath = .false.
+    if ( slantPath_nl   .and. inputStateVectorType == 'nl' ) doSlantPath = .true.
+    if ( slantPath_tlad .and. inputStateVectorType /= 'nl' ) doSlantPath = .true.
+    write(*,*) 's2c_setupInterpInfo: doSlantPath=', doSlantPath
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -299,29 +333,6 @@ contains
     else
       niP1 = stateVector%ni
     end if
-
-    write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
-
-    if ( .not. nmlAlreadyRead ) then
-      nmlAlreadyRead = .true.
-
-      ! default values
-      slantPath_nl = .false.
-      slantPath_tlad = .false.
-
-      ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=nams2c, iostat=ierr)
-      if ( ierr /= 0 .and. mpi_myid == 0 ) write(*,*) 's2c_setupInterpInfomyWarning: nams2c is missing in the namelist. The default value will be taken.'
-      if ( mpi_myid == 0 ) write(*, nml=nams2c)
-      ierr = fclos(nulnam)
-    end if
-
-    doSlantPath = .false.
-    if ( slantPath_nl   .and. inputStateVectorType == 'nl' ) doSlantPath = .true.
-    if ( slantPath_tlad .and. inputStateVectorType /= 'nl' ) doSlantPath = .true.
-    write(*,*) 's2c_setupInterpInfo: doSlantPath=', doSlantPath
 
     ! First count the number of headers for each stepIndex
     allocate(allNumHeaderUsed(numStep,mpi_nprocs))
@@ -382,8 +393,6 @@ contains
 
     ! allocate arrays that will be returned
     allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
-    nullify(allLatOneLev)
-    nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allLonOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
@@ -417,8 +426,8 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
                            dataKind_opt=4, varNames_opt=varNames )
 
-        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector)
-        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_VarsLevs_1Step)
+        call gsv_getField(stateVector,height3D_r4_ptr1)
+        call gsv_getField(stateVector_VarsLevs_1Step,height3D_r4_ptr2)
         height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
 
         call gsv_allocate( stateVector_Tiles_allVar_1Step, 1, &
@@ -434,12 +443,12 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
 
-        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector_Tiles_allVar_1Step,'Z_T')
-        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_T')
+        call gsv_getField(stateVector_Tiles_allVar_1Step,height3D_r4_ptr1,'Z_T')
+        call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_T')
         height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
 
-        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector_Tiles_allVar_1Step,'Z_M')
-        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_M')
+        call gsv_getField(stateVector_Tiles_allVar_1Step,height3D_r4_ptr1,'Z_M')
+        call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_M')
         height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
 
         call gsv_deallocate(stateVector_Tiles_allVar_1Step)
@@ -452,12 +461,12 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
 
-        height3D_r8_ptr1 => gsv_getField3D_r8(stateVector_Tiles_ptr,'Z_T')
-        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_T')
+        call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_T')
+        call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_T')
         height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
 
-        height3D_r8_ptr1 => gsv_getField3D_r8(stateVector_Tiles_ptr,'Z_M')
-        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_M')
+        call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_M')
+        call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_M')
         height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
 
       end if ! inputStateVectorType 
@@ -470,8 +479,8 @@ contains
                            mpi_local_opt=.false., &
                            dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
 
-        height3D_T_r4 => gsv_getField3D_r4(stateVector_1Step,'Z_T')
-        height3D_M_r4 => gsv_getField3D_r4(stateVector_1Step,'Z_M')
+        call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
+        call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
 
       else
         allocate(height3D_T_r4(stateVector%ni,stateVector%nj,nlev_T))
@@ -568,12 +577,10 @@ contains
           end if !tvs_isIdBurpTovs
 
           ! check if the slanted lat/lon is inside the domain
-          call tmg_start(198,'latlonChecks')
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
                               latLev_M, lonLev_M )             ! IN/OUT 
-          call tmg_stop(198)
 
           ! put the lat/lon from TH/MM levels to kIndex
           do kIndex = allkBeg(1), stateVector%nk
@@ -711,12 +718,10 @@ contains
           lonLev_M(:) = real(lon_r4,8)
 
           ! check if the lat/lon is inside the domain
-          call tmg_start(198,'latlonChecks')
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
                               latLev_M, lonLev_M )             ! IN/OUT 
-          call tmg_stop(198)
 
           latColumn(headerUsedIndex,allkBeg(1)) = latLev_T(1)
           lonColumn(headerUsedIndex,allkBeg(1)) = lonLev_T(1)
@@ -899,7 +904,7 @@ contains
   !---------------------------------------------------------
   ! s2c_tl
   !---------------------------------------------------------
-  subroutine s2c_tl( statevector, column, columng, obsSpaceData )
+  subroutine s2c_tl( statevector_in, column, columng, obsSpaceData )
     !
     ! :Purpose: Tangent linear version of the horizontal
     !           interpolation, used for the increment (or perturbations).
@@ -907,19 +912,21 @@ contains
     implicit none
 
     ! arguments
-    type(struct_gsv)           :: stateVector
+    type(struct_gsv), target   :: stateVector_in
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column
     type(struct_columnData)    :: columng
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
-    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
+    type(struct_gsv), pointer  :: stateVector
+    integer :: kIndex, kIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(8), pointer     :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
+    real(pre_incrReal), pointer :: ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -935,25 +942,38 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(160)
 
-    if ( .not. stateVector%allocated ) then 
+    if ( .not. stateVector_in%allocated ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
     ! check the column and statevector have same nk/varNameList
-    call checkColumnStatevectorMatch(column,statevector)
+    call checkColumnStatevectorMatch(column,statevector_in)
 
-    ! calculate delP_T/delP_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call gvt_transform( statevector, & ! INOUT
-                          'PsfcToP_tl')  ! IN
-    end if
+    ! if we only compute Height and Pressure on column, make copy without them
+    if (calcHeightPressIncrOnColumn) then
+      allocate(stateVector)
+      call gsv_allocate( stateVector, statevector_in%numstep, &
+                         statevector_in%hco, statevector_in%vco, &
+                         mpi_local_opt=.true., &
+                         dataKind_opt=gsv_getDataKind(statevector_in), &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_copy(stateVector_in, stateVector, allowVarMismatch_opt=.true.)
+    else
+      stateVector => stateVector_in
 
-    ! calculate del Z_T/Z_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call gvt_transform( statevector, & ! INOUT
-                          'TTHUtoHeight_tl') ! IN
+      ! calculate delP_T/delP_M on the grid
+      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('P_M')) ) then
+        call gvt_transform( statevector, & ! INOUT
+                            'PsfcToP_tl')  ! IN
+      end if
+
+      ! calculate del Z_T/Z_M on the grid
+      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+        call gvt_transform( statevector, & ! INOUT
+                            'TTHUtoHeight_tl') ! IN
+      end if
     end if
 
     nullify(varNames)
@@ -961,6 +981,7 @@ contains
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                       dataKind_opt=gsv_getDataKind(statevector), &
                        varNames_opt=varNames )
     deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
@@ -994,7 +1015,7 @@ contains
     allCols_ptr => col_getAllColumns(column)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
-    ptr4d => gsv_getField_r8(stateVector_VarsLevs)
+    call gsv_getField(stateVector_VarsLevs, ptr4d)
 
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
@@ -1007,7 +1028,7 @@ contains
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          ptr3d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs,kIndex)
+          call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,kIndex)
         end if
 
         call tmg_start(161,'S2CTL_HINTERP')
@@ -1028,8 +1049,8 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                               ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex, procIndex )
+                call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex, procIndex )
               end if
             end if
           end do
@@ -1079,17 +1100,40 @@ contains
       call tmg_stop(163)
 
       ! reorganize ensemble of distributed columns
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
+      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mpi_nprocs
+        ! This is kIndex value of source (can be different for destination)
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
         if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+
+        ! Figure out which variable/level of destination
+        varName = gsv_getVarNameFromK(statevector,kIndex2)
+        levIndex = gsv_getLevFromK(statevector,kIndex2)
+        allCols_ptr => col_getAllColumns(column,varName)
+
         do headerIndex = 1, numHeader
-          allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
+          allCols_ptr(levIndex,headerIndex) = cols_recv(headerIndex,procIndex)
         end do
       end do proc_loop
       !$OMP END PARALLEL DO
 
     end do k_loop
+
+    if (calcHeightPressIncrOnColumn) then
+      ! calculate delP_T/delP_M on the columns
+      if ( statevector_in%varExistList(vnl_varListIndex('P_T')) .and. &
+           statevector_in%varExistList(vnl_varListIndex('P_M')) ) then
+        call cvt_transform( column, columng, & ! INOUT
+                            'PsfcToP_tl')      ! IN
+      end if
+
+      ! calculate del Z_T/Z_M on the columns
+      if ( statevector_in%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector_in%varExistList(vnl_varListIndex('Z_M')) ) then
+        call cvt_transform( column, columng, & ! INOUT
+                            'TTHUtoHeight_tl') ! IN
+      end if
+    end if
 
     deallocate(cols_hint)
     deallocate(cols_send)
@@ -1097,7 +1141,9 @@ contains
     deallocate(cols_send_1proc)
 
     call gsv_deallocate( statevector_VarsLevs )
-
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_deallocate( stateVector )
+    end if
     call tmg_stop(167)
 
   end subroutine s2c_tl
@@ -1105,7 +1151,7 @@ contains
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
-  subroutine s2c_ad( statevector, column, columng, obsSpaceData )
+  subroutine s2c_ad( statevector_out, column, columng, obsSpaceData )
     !
     ! :Purpose: Adjoint version of the horizontal interpolation,
     !           used for the cost function gradient with respect to the increment.
@@ -1113,20 +1159,21 @@ contains
     implicit none
 
     ! arguments
-    type(struct_gsv)           :: stateVector
+    type(struct_gsv), target   :: stateVector_out
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column
     type(struct_columnData)    :: columng
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
-    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
+    type(struct_gsv), pointer  :: stateVector
+    integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(8), pointer     :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -1140,8 +1187,34 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(160)
 
-    if ( .not. stateVector%allocated ) then 
+    if ( .not. stateVector_out%allocated ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
+    end if
+
+    ! if we only compute Height and Pressure on column, make copy without them
+    if (calcHeightPressIncrOnColumn) then
+      allocate(stateVector)
+      call gsv_allocate( stateVector, statevector_out%numstep, &
+                         statevector_out%hco, statevector_out%vco, &
+                         mpi_local_opt=.true., &
+                         dataKind_opt=gsv_getDataKind(statevector_out), &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      ! Adjoint of calculate del Z_T/Z_M on the columns
+      if ( statevector_out%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector_out%varExistList(vnl_varListIndex('Z_M')) ) then
+        call cvt_transform( column, columng, & ! INOUT
+                            'TTHUtoHeight_ad') ! IN
+      end if
+
+      ! Adjoint of calculate delP_T/delP_M on the columns
+      if ( statevector_out%varExistList(vnl_varListIndex('P_T')) .and. &
+           statevector_out%varExistList(vnl_varListIndex('P_M')) ) then
+        call cvt_transform( column, columng, & ! INOUT
+                            'PsfcToP_ad')      ! IN
+      end if
+
+    else
+      stateVector => stateVector_out
     end if
 
     nullify(varNames)
@@ -1149,6 +1222,7 @@ contains
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                       dataKind_opt=gsv_getDataKind(statevector), &
                        varNames_opt=varNames )
     deallocate(varNames)
     call gsv_zero( statevector_VarsLevs )
@@ -1179,7 +1253,7 @@ contains
     ! set contents of column to zero
     allCols_ptr => col_getAllColumns(column)
 
-    ptr4d => gsv_getField_r8(stateVector_VarsLevs)
+    call gsv_getField(stateVector_VarsLevs,ptr4d)
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
@@ -1188,12 +1262,19 @@ contains
       kCount = kCount + 1
 
       ! reorganize ensemble of distributed columns
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
+      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mpi_nprocs
+        ! This is kIndex value of destination (can be different for source)
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
         if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+        
+        ! Figure out which variable/level of source
+        varName = gsv_getVarNameFromK(statevector,kIndex2)
+        levIndex = gsv_getLevFromK(statevector,kIndex2)
+        allCols_ptr => col_getAllColumns(column,varName)
+
         do headerIndex = 1, numHeader
-          cols_send(headerIndex,procIndex) = allCols_ptr(kIndex2,headerIndex)
+          cols_send(headerIndex,procIndex) = allCols_ptr(levIndex,headerIndex)
         end do
       end do proc_loop
       !$OMP END PARALLEL DO
@@ -1217,7 +1298,7 @@ contains
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          ptr3d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs,kIndex)
+          call gsv_getFieldUV(stateVector_VarsLevs, ptr3d_UV, kIndex)
         end if
 
         ! interpolate in time to the columns destined for all procs and one level/variable
@@ -1256,9 +1337,9 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                call myezsintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                 ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex,  &
-                                 procIndex )
+                call myezsint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex,  &
+                                  procIndex )
               end if
             end if
           end do
@@ -1281,17 +1362,23 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call gvt_transform( statevector, & ! INOUT
-                          'TTHUtoHeight_ad') ! IN
-    end if
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_zero(statevector_out)
+      call gsv_copy(stateVector, stateVector_out, allowVarMismatch_opt=.true.)
+    else
+      ! Adjoint of calculate del Z_T/Z_M on the grid
+      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+        call gvt_transform( statevector, & ! INOUT
+                            'TTHUtoHeight_ad') ! IN
+      end if
 
-    ! Adjoint of calculate delP_T/delP_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call gvt_transform( statevector, & ! INOUT
-                          'PsfcToP_ad')  ! IN
+      ! Adjoint of calculate delP_T/delP_M on the grid
+      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('P_M')) ) then
+        call gvt_transform( statevector, & ! INOUT
+                            'PsfcToP_ad')  ! IN
+      end if
     end if
 
     call gsv_deallocate( statevector_VarsLevs )
@@ -1437,7 +1524,7 @@ contains
     allCols_ptr => col_getAllColumns(column,varName_opt)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
-    ptr4d_r4    => gsv_getField_r4(stateVector_VarsLevs)
+    call gsv_getField(stateVector_VarsLevs,ptr4d_r4)
 
     allocate(field2d(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
     allocate(field2d_UV(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
@@ -1452,7 +1539,7 @@ contains
         varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector_VarsLevs,kIndex)
+          call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
         end if
 
         call tmg_start(166,'S2CNL_HINTERP')
@@ -1477,8 +1564,8 @@ contains
                 call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                    field2d_UV, field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               else
-                call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                               field2d, interpInfo_nl, kindex, stepIndex, procIndex )
+                call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                  field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               end if
             end if
           end do
@@ -1556,8 +1643,8 @@ contains
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
-              call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                             ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
+              call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
 
             end if
           end do
@@ -1655,9 +1742,9 @@ contains
   end subroutine s2c_nl
 
   ! -------------------------------------------------
-  ! myezsint: Scalar field horizontal interpolation
+  ! myezsint_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_nl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -1703,12 +1790,63 @@ contains
 
     end do
 
-  end subroutine myezsint
+  end subroutine myezsint_nl
+
+  ! -------------------------------------------------
+  ! myezsint_tl: Scalar field horizontal interpolation
+  ! -------------------------------------------------
+  subroutine myezsint_tl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Scalar horizontal interpolation, replaces the
+    !           ezsint routine from rmnlib.
+    !
+    implicit none
+
+    ! arguments
+    real(8)                 :: column_out(:)
+    character(len=*)        :: varName
+    real(pre_incrReal)      :: field_in(:,:)
+    type(struct_interpInfo) :: interpInfo
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
+
+    ! locals
+    integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
+    real(8) :: interpValue, weight
+
+    numColumn = size( column_out )
+
+    do headerIndex = 1, numColumn
+
+      ! Interpolate the model state to the obs point
+      interpValue = 0.0d0
+
+      do subGridIndex = 1, interpInfo%hco%numSubGrid
+
+        do gridptIndex =  &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
+
+          interpValue = interpValue + weight * field_in(lonIndex, latIndex)
+
+        end do
+
+      end do
+      column_out(headerIndex) = interpValue
+
+    end do
+
+  end subroutine myezsint_tl
 
   ! -------------------------------------------------------------
-  ! myezsintad: Adjoint of scalar field horizontal interpolation
+  ! myezsint_ad: Adjoint of scalar field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezsintad( column_in, varName, field_out, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_ad( column_in, varName, field_out, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Adjoint of the scalar horizontal interpolation.
     !
@@ -1717,7 +1855,7 @@ contains
     ! Arguments:
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
-    real(8)                 :: field_out(:,:)
+    real(pre_incrReal)      :: field_out(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -1752,7 +1890,7 @@ contains
 
     end do
 
-  end subroutine myezsintad
+  end subroutine myezsint_ad
 
   ! -------------------------------------------------------------
   ! myezuvint_nl: Vector field horizontal interpolation
@@ -1853,8 +1991,8 @@ contains
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_in(:,:)
-    real(8)                 :: fieldVV_in(:,:)
+    real(pre_incrReal)      :: fieldUU_in(:,:)
+    real(pre_incrReal)      :: fieldVV_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -1938,8 +2076,8 @@ contains
     ! arguments
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_out(:,:)
-    real(8)                 :: fieldVV_out(:,:)
+    real(pre_incrReal)      :: fieldUU_out(:,:)
+    real(pre_incrReal)      :: fieldVV_out(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -2051,7 +2189,7 @@ contains
     allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%nk))
   
     zgd(:,:,:)=0.0d0
-    field_ptr => gsv_getField3D_r8(statevector)
+    call gsv_getField(statevector,field_ptr)
     zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
          field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
 

@@ -20,6 +20,7 @@ module obsSpaceDiag_mod
   ! :Purpose: Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
+  use codePrecision_mod
   use mpi_mod
   use mpivar_mod
   use bufr_mod
@@ -120,7 +121,7 @@ module obsSpaceDiag_mod
 
   ! namelist variables
   integer, parameter :: max_cfg_size=100
-  real*8 :: deltaLat,deltaLon,deltaPressure,deltaHeight
+  real(8) :: deltaLat,deltaLon,deltaPressure,deltaHeight
   integer :: numFamily
   character(len=2) :: familyList(ofl_numFamily)
   integer :: numElement
@@ -233,26 +234,27 @@ contains
     integer                 :: dateprnt
 
     ! Locals:
-    type(struct_gsv) :: statevector
-    type(struct_columnData) :: column
-    type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl
-    real*8, allocatable,target :: controlVector(:)
+    type(struct_gsv)            :: statevector
+    type(struct_columnData)     :: column
+    type(struct_hco), pointer   :: hco_anl
+    type(struct_vco), pointer   :: vco_anl
+    real(8), allocatable,target :: controlVector(:)
 
     integer :: familyIndex,elementIndex,bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
     integer :: maxLat,maxLon,maxVertical
-    real*8, allocatable  :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
+    real(8), allocatable :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
     integer, allocatable :: counts(:,:,:)
 
-    real*8, allocatable  :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
+    real(8), allocatable :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
     integer, allocatable :: my_counts(:,:,:)
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
     integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
-    real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), field(:,:,:,:)
-    real*8,allocatable :: HxBhi(:), HxBen(:)
-    real*8,allocatable :: scaleFactor(:),scaleFactorChm(:,:)
+    real(8), pointer         :: cvBhi(:), cvBen(:), cvBchm(:)
+    real(pre_incrReal), pointer :: field(:,:,:,:)
+    real(8), allocatable     :: HxBhi(:), HxBen(:)
+    real(8), allocatable     :: scaleFactor(:),scaleFactorChm(:,:)
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
     character(len=6)   :: elementStr
     character(len=10)  :: dateStr
@@ -279,7 +281,8 @@ contains
     ! initialize gridStateVector object for increment
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
-    call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, mpi_local_opt=.true.)
+    call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
     nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
 
@@ -340,7 +343,7 @@ contains
        do jvar=1,vnl_numvarmax 
           if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
 
-             field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
+             call gsv_getField(statevector,field,vnl_varNameList(jvar))
 
              if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
@@ -394,7 +397,7 @@ contains
        do jvar=1,vnl_numvarmax 
           if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
 
-             field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
+             call gsv_getField(statevector,field,vnl_varNameList(jvar))
 
              if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   

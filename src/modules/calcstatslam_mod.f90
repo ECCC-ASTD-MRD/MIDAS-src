@@ -1358,7 +1358,7 @@ contains
     !
     !- 4.  Write to file
     !
-    ptr3d_r8 => gsv_getField3D_r8(statevector)
+    call gsv_getField(statevector,ptr3d_r8)
     ptr3d_r8(:,:,:) = GridState(:,:,:)
     call gsv_writeToFile(statevector, './horizCorrel.fst', 'CORRELFUNC')
 
@@ -2215,12 +2215,12 @@ contains
 
     dnEns = 1.0d0/dble(nEns-1)
 
-    ptr3d_r8 => gsv_getField3D_r8(statevector_locHorizCor)
+    call gsv_getField(statevector_locHorizCor,ptr3d_r8)
 
     do ens = 1, nEns
       call ens_copyMember(ensPerts, statevector_oneMemberTiles, ens)
       call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember)
-      ptr3d_r8_oneMember => gsv_getField3D_r8(statevector_oneMember)
+      call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
 
       do k = statevector_locHorizCor%mykBeg, statevector_locHorizCor%mykEnd
         do jref_id = 1, njrefpoint

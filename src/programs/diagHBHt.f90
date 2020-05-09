@@ -19,6 +19,7 @@ program midas_diagHBHt
   ! :Purpose: Main program for computing background error variance in observation
   !           space.
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -271,7 +272,8 @@ contains
     vco_anl => col_getVco(columng)
     hco_anl => agd_getHco('ComputationalGrid')
     !- 1.3 Create a gridstatevector to store the perturbations
-    call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl,mpi_local_opt=.true.)
+    call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl, &
+                      dataKind_opt=pre_incrReal,mpi_local_opt=.true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)

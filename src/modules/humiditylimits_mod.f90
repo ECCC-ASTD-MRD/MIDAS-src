@@ -81,11 +81,11 @@ contains
 
     vco_ptr => gsv_getVco(statevector)
     if (stateVector%dataKind == 8) then
-      hu_ptr_r8 => gsv_getField_r8(statevector,'HU')
-      tt_ptr_r8 => gsv_getField_r8(statevector,'TT')
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,tt_ptr_r8,'TT')
     else
-      hu_ptr_r4 => gsv_getField_r4(statevector,'HU')
-      tt_ptr_r4 => gsv_getField_r4(statevector,'TT')
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,tt_ptr_r4,'TT')
     end if
 
     lon1 = statevector%myLonBeg
@@ -98,10 +98,10 @@ contains
     allocate(psfc(lon2-lon1+1,lat2-lat1+1))
     do stepIndex = 1, statevector%numStep
       if (stateVector%dataKind == 8) then
-        psfc_ptr_r8 => gsv_getField_r8(statevector,'P0')
+        call gsv_getField(statevector,psfc_ptr_r8,'P0')
         psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
       else
-        psfc_ptr_r4 => gsv_getField_r4(statevector,'P0')
+        call gsv_getField(statevector,psfc_ptr_r4,'P0')
         psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
       end if
       nullify(pressure)
@@ -311,9 +311,9 @@ contains
 
     vco_ptr => gsv_getVco(statevector)
     if (statevector%dataKind == 8) then
-      hu_ptr_r8 => gsv_getField_r8(statevector,'HU')
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
     else
-      hu_ptr_r4 => gsv_getField_r4(statevector,'HU')
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
     end if
 
     lon1 = statevector%myLonBeg
@@ -332,10 +332,10 @@ contains
 
     do stepIndex = 1, statevector%numStep
       if (statevector%dataKind == 8) then
-        psfc_ptr_r8 => gsv_getField_r8(statevector,'P0')
+        call gsv_getField(statevector,psfc_ptr_r8,'P0')
         psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
       else
-        psfc_ptr_r4 => gsv_getField_r4(statevector,'P0')
+        call gsv_getField(statevector,psfc_ptr_r4,'P0')
         psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
       end if
       nullify(pressure)

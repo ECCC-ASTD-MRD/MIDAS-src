@@ -694,7 +694,7 @@ contains
        
        array_size = nrep_max*obsdata%dim1
 
-       call rpn_comm_allgather(data1d_local,array_size,MPI_OBS_REAL,data1d_global,array_size,MPI_OBS_REAL,"GRID",ierr)
+       call rpn_comm_allgather(data1d_local,array_size,pre_obsMpiReal,data1d_global,array_size,pre_obsMpiReal,"GRID",ierr)
     else 
        
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
@@ -705,7 +705,7 @@ contains
 
        array_size = nrep_max*obsdata%dim1*obsdata%dim2
 
-       call rpn_comm_allgather(data2d_local,array_size,MPI_OBS_REAL,data2d_global,array_size,MPI_OBS_REAL,"GRID",ierr)
+       call rpn_comm_allgather(data2d_local,array_size,pre_obsMpiReal,data2d_global,array_size,pre_obsMpiReal,"GRID",ierr)
 
     end if
   

@@ -5,6 +5,15 @@
 echo
 echo "... compile_setup.sh script"
 
+# User-specified compilation options
+#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
+#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
+if [ -n "${COMPILE_MIDAS_COMPF_GLOBAL}" ];then
+     echo "..."
+     echo "... Additional user-specified compilation options = ${COMPILE_MIDAS_COMPF_GLOBAL}"
+     echo "..."
+fi
+
 if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
     echo "... Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
     . r.env.dot --arch sles-11-broadwell-64-xc40
@@ -113,8 +122,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.4.5"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.5
+    echo "... loading eccc/mrd/rpn/vgrid/6.5.b2"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.b2
     VGRID_LIBNAME="vgrid"
 
     echo "... loading eccc/cmd/cmda/libs/19.5/${COMP_ARCH}"
@@ -132,7 +141,7 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
 fi
 
-COMPF_GLOBAL="-openmp -mpi"
+COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
     OPTF="-mkl ${OPTF}"

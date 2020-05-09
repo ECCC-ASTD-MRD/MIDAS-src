@@ -15,6 +15,7 @@
  &NAMS2C
   SLANTPATH_NL   = .FALSE.,
   SLANTPATH_TLAD = .FALSE.,
+  calcHeightPressIncrOnColumn = .FALSE.
 /
  &NAMMIN
    NVAMAJ = 25,
