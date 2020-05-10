@@ -830,8 +830,8 @@ contains
 
     write(*,*) 'epp_RTPP: Starting'
 
-    meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
-    meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
+    call gsv_getField(stateVectorMeanAnl, meanAnl_ptr_r4)
+    call gsv_getField(stateVectorMeanTrl, meanTrl_ptr_r4)
 
     nEns = ens_getNumMembers(ensembleAnl)
     numVarLev = ens_getNumK(ensembleAnl)
