@@ -765,7 +765,7 @@ contains
 
           call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
                  
-          !The value computed will be used only if when sunZenithAnglePresent is true
+          !The value computed will be used only if sunZenithAnglePresent is true
           call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
           call stat_avhrr(avhrr_bgck(headerIndex))
           
