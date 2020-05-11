@@ -78,7 +78,7 @@ module multi_ir_bgck_mod
   integer, parameter        :: ihgt = 2
 
   ! Maximum delta temperature allowed between guess and true skin temperature
-  ! over water (dtw) and land (dtl)   (subroutine airsqc)
+  ! over water (dtw) and land (dtl)   (subroutine irbg_doQualityControl)
 
   real(8) :: dtw,dtl 
 
@@ -88,17 +88,16 @@ module multi_ir_bgck_mod
   real(8) :: pco2min, pco2max
 
   ! First channel affected by sun (for channels used only at night)
-  ! (subroutine airsqc)
+  ! (subroutine irbg_doQualityControl)
 
   integer :: ichn_sun(nmaxinst)
   
   ! Minimum solar zenith angle for night (between 90 and 180)
-  ! (subroutine airsqc)
+  ! (subroutine irbg_doQualityControl)
 
   real(8) :: night_ang
 
   ! Highest flag in post files (value of N in 2^N)
-  ! Currently 21
 
   integer, parameter :: bitflag = 29
 
@@ -766,7 +765,7 @@ contains
 
           call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
                  
-          !The value computed when .not. sunZenithAnglePresent will not be used
+          !The value computed will be used only if when sunZenithAnglePresent is true
           call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
           call stat_avhrr(avhrr_bgck(headerIndex))
           
