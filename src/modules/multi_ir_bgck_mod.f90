@@ -78,7 +78,7 @@ module multi_ir_bgck_mod
   integer, parameter        :: ihgt = 2
 
   ! Maximum delta temperature allowed between guess and true skin temperature
-  ! over water (dtw) and land (dtl)   (subroutine airsqc)
+  ! over water (dtw) and land (dtl)   (subroutine irbg_doQualityControl)
 
   real(8) :: dtw,dtl 
 
@@ -88,17 +88,16 @@ module multi_ir_bgck_mod
   real(8) :: pco2min, pco2max
 
   ! First channel affected by sun (for channels used only at night)
-  ! (subroutine airsqc)
+  ! (subroutine irbg_doQualityControl)
 
   integer :: ichn_sun(nmaxinst)
   
   ! Minimum solar zenith angle for night (between 90 and 180)
-  ! (subroutine airsqc)
+  ! (subroutine irbg_doQualityControl)
 
   real(8) :: night_ang
 
   ! Highest flag in post files (value of N in 2^N)
-  ! Currently 21
 
   integer, parameter :: bitflag = 29
 
@@ -390,7 +389,8 @@ contains
     integer :: ntop_bt_avhrr(NIR,nClassAVHRR),ntop_eq_avhrr(nClassAVHRR)
 
     logical :: assim_all
-  
+    logical :: sunZenithAnglePresent
+    logical :: satelliteAzimuthAnglePresent, satelliteZenithAnglePresent, sunAzimuthAnglePresent
     integer, parameter :: nn=2
     integer, parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
     integer :: countChannels
@@ -607,6 +607,7 @@ contains
             end if
           end do
           sunAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex)
+          sunAzimuthAnglePresent = ( abs(sunAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
 
         tg = col_getElem(columnHr, 1, headerIndex, 'TG')
@@ -674,6 +675,9 @@ contains
         satelliteZenithAngle= obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
         if ( satelliteZenithAngle < 0 .or. satelliteZenithAngle > 75. ) then
           rejflag(:,9) = 1
+          satelliteZenithAnglePresent = .false.
+        else
+          satelliteZenithAnglePresent = .true.
         end if
         clfr = 0.
         if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
@@ -683,8 +687,10 @@ contains
         end do
 
         sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
+        sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
         if (liasi) then
-          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle 
+          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle
+          satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
         albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo
         ice =  tvs_surfaceParameters(tvs_nobtov) % ice
@@ -759,6 +765,7 @@ contains
 
           call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
                  
+          !The value computed will be used only if sunZenithAnglePresent is true
           call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
           call stat_avhrr(avhrr_bgck(headerIndex))
           
@@ -807,7 +814,7 @@ contains
         !  In daytime, set cloudy if cloud fraction over 5% 
         cfsub = -1.d0
         if (lairs) then
-          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 ) then
+          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 .and. sunZenithAnglePresent) then
             cldflag = 1
             cfsub = 0.01d0 * clfr !conversion % -> 0-1
           end if
@@ -842,13 +849,13 @@ contains
           end do
 
           !criteres AVHRR utilisant les canaux visibles (de jour seulement)
-          if (sunZenithAngle < sunzenmax) then 
+          if ( sunZenithAngle < sunzenmax .and. sunZenithAnglePresent .and. satelliteAzimuthAnglePresent .and. &
+               sunAzimuthAnglePresent .and. satelliteZenithAnglePresent) then 
             anisot = 1.d0
-            deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
-           
-            if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
             
-            if (albedo < 0.17d0) then               
+            if (albedo < 0.17d0) then
+              deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
+              if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
               call visocn(sunZenithAngle,satelliteZenithAngle,deltaphi,anisot,zlamb,zcloud,IER)
               albedoThreshold = 10.d0 * max(1.d0,anisot) 
             else
@@ -888,7 +895,7 @@ contains
           end if
 
           !AVHRR Homogeneity criteria
-          if (cldflag == 0) then
+          if (cldflag == 0 .and. sunZenithAnglePresent) then
             ijour = 1
             if (sunZenithAngle < 90.d0) ijour=2
             ! 1 NUIT
@@ -1085,7 +1092,7 @@ contains
             ! *** Test # 5 ***
             ! *** Do not assimilate shortwave channels during the day ***
 
-            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang ) then
+            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang .and. sunZenithAnglePresent) then
               rejflag(channelIndex,11) = 1
               rejflag(channelIndex,7)  = 1
             end if
@@ -1265,8 +1272,8 @@ contains
       call calcbt(avhrr % radmoy(classIndex,4:6), bt, dbtsdrad, freq, offset, slope)
       avhrr % tbmoy(classIndex,4:6) = bt(1:3)
       avhrr % tbstd(classIndex,4:6) = avhrr % radstd(classIndex,4:6) * dbtsdrad(1:3)
-      call calcreflect(avhrr % radmoy(classIndex,1:3) ,sunzen,avhrr % albedmoy(classIndex,1:3) )
-      call calcreflect(avhrr % radstd(classIndex,1:3) ,sunzen,avhrr % albedstd(classIndex,1:3) )
+      call calcreflect(avhrr % radmoy(classIndex,1:3), sunzen, avhrr % albedmoy(classIndex,1:3) )
+      call calcreflect(avhrr % radstd(classIndex,1:3), sunzen, avhrr % albedstd(classIndex,1:3) )
     end do
 
   end subroutine convert_avhrr

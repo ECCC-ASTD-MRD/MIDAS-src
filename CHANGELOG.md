@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changed IR quality control and background check to add protection against missing values for angles (#349 and !341)
  * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
  * Efficiency improvements (mostly for global EnVar) (#235 and !337):
    * Allow single precision in parts of the code, controlled by environment variables
