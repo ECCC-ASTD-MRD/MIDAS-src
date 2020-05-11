@@ -74,7 +74,7 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                alphaRTPP, mpiDistribution)
+                                mpiDistribution)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean.
@@ -92,7 +92,6 @@ contains
     real(8)                     :: hLocalize(:)
     real(8)                     :: hLocalizePressure(:)
     real(8)                     :: vLocalize
-    real(8)                     :: alphaRTPP
     character(len=*)            :: mpiDistribution
 
     ! Locals
@@ -393,12 +392,8 @@ contains
               end do
             end do
 
-            ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
-            weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
-            do memberIndex = 1, nEns
-              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
-                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-            end do
+            ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
+            weightsMembersLatLon(:,:,latLonIndex) = sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
 
           else if (trim(algorithm) == 'CVLETKF') then
             !
@@ -448,11 +443,9 @@ contains
             end do
 
             ! Compute ensemble perturbation weights: 
-            ! Wa = (1-alphaRTPP) * 
-            !      [ I - (Nens-1)^1/2 * E * 
+            ! Wa = [ I - (Nens-1)^1/2 * E * 
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
             !        E^T * YbTinvRYb ]
-            !      + alphaRTPP*I
             ! Loop over sub-ensembles
             do subEnsIndex = 1, numSubEns
 
@@ -528,14 +521,6 @@ contains
                    sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
             end do
 
-            ! Apply RTPP
-            weightsMembersLatLon(:,:,latLonIndex) =  &
-                 (1.0d0 - alphaRTPP) * weightsMembersLatLon(:,:,latLonIndex)
-            do memberIndex = 1, nEns
-              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
-                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-            end do
-
           else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
             !
             ! Weight calculation for perturbed-obs cross-validation LETKF algorithm
@@ -587,7 +572,6 @@ contains
             ! formula, but with subset of members: 
             ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
             ! Wa   = wa_i - mean_over_i(wa_i) 
-            ! Wa   = (1-alphaRTPP) * Wa
             !
             ! Loop over sub-ensembles
             do subEnsIndex = 1, numSubEns
@@ -670,14 +654,6 @@ contains
                    sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
             end do
 
-            ! Apply RTPP
-            weightsMembersLatLon(:,:,latLonIndex) =  &
-                 (1.0d0 - alphaRTPP) * weightsMembersLatLon(:,:,latLonIndex)
-            do memberIndex = 1, nEns
-              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
-                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-            end do
-
           else
 
             call utl_abort('UNKNOWN LETKF ALGORITHM')
@@ -685,9 +661,14 @@ contains
           end if
 
         else
-          ! no observations near this grid point, set weights to zero
+
+          ! no obs near this grid point, mean weights zero, member weights identity
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
+          do memberIndex = 1, nEns
+            weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
+          end do
+
         end if ! numLocalObs > 0
 
         call tmg_stop(91)

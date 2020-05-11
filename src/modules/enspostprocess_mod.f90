@@ -88,6 +88,7 @@ contains
     logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
     logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for initializing medium-range fcsts
     real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
+    real(8)  :: alphaRTPP            ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
     real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
     logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
@@ -100,7 +101,7 @@ contains
     integer  :: numBits                ! number of bits when writing ensemble mean and spread
 
     NAMELIST /namEnsPostProcModule/randomSeed, writeSubSample, writeSubSampleUnPert,  &
-                                   alphaRTPS, alphaRandomPert, alphaRandomPertSubSample,  &
+                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
                                    weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket0, numBits
@@ -120,6 +121,7 @@ contains
     writeSubSample        = .false.
     writeSubSampleUnPert  = .false.
     alphaRTPS             =  0.0D0
+    alphaRTPP             =  0.0D0
     alphaRandomPert       =  0.0D0
     alphaRandomPertSubSample =  -1.0D0
     huLimitsBeforeRecenter = .true.
@@ -140,6 +142,7 @@ contains
     ierr = fclos(nulnam)
 
     if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
+    if (alphaRTPP < 0.0D0) alphaRTPP = 0.0D0
     if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
     if (alphaRandomPertSubSample < 0.0D0) alphaRandomPertSubSample = 0.0D0
     if (numMembersToRecenter == -1) numMembersToRecenter = nEns ! default behaviour
@@ -201,7 +204,8 @@ contains
 
       if (ens_allocated(ensembleTrl)) then
         !- Allocate and compute mean increment
-        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+                           dateStamp_opt=tim_getDateStamp(), &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            dataKind_opt=4, allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt = hInterpolationDegree, &
@@ -210,9 +214,19 @@ contains
         call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
         call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
 
+        !- Apply RTPP, if requested
+        if (alphaRTPP > 0.0D0) then
+          call epp_RTPP(ensembleAnl, ensembleTrl, stateVectorMeanAnl, &
+                        stateVectorMeanTrl, alphaRTPP)
+          ! recompute the analysis spread stddev
+          call ens_computeStdDev(ensembleAnl)
+          call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+        end if
+
         !- Apply RTPS, if requested
         if (alphaRTPS > 0.0D0) then
-          call epp_RTPS(ensembleAnl, ensembleTrl, stateVectorStdDevAnl, stateVectorStdDevTrl, stateVectorMeanAnl, alphaRTPS)
+          call epp_RTPS(ensembleAnl, stateVectorStdDevAnl, stateVectorStdDevTrl, &
+                        stateVectorMeanAnl, alphaRTPS)
           ! recompute the analysis spread stddev
           call ens_computeStdDev(ensembleAnl)
           call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
@@ -730,15 +744,14 @@ contains
   !--------------------------------------------------------------------------
   ! epp_RTPS
   !--------------------------------------------------------------------------
-  subroutine epp_RTPS(ensembleAnl, ensembleTrl, stateVectorStdDevAnl,  &
-                       stateVectorStdDevTrl, stateVectorMeanAnl, alphaRTPS)
+  subroutine epp_RTPS(ensembleAnl, stateVectorStdDevAnl, stateVectorStdDevTrl, &
+                      stateVectorMeanAnl, alphaRTPS)
     ! :Purpose: Apply Relaxation To Prior Spread ensemble inflation according
     !           to the factor alphaRTPS (usually between 0 and 1).
     implicit none
 
     ! Arguments
     type(struct_ens) :: ensembleAnl
-    type(struct_ens) :: ensembleTrl
     type(struct_gsv) :: stateVectorStdDevAnl
     type(struct_gsv) :: stateVectorStdDevTrl
     type(struct_gsv) :: stateVectorMeanAnl
@@ -792,6 +805,64 @@ contains
     write(*,*) 'epp_RTPS: Finished'
 
   end subroutine epp_RTPS
+
+  !--------------------------------------------------------------------------
+  ! epp_RTPP
+  !--------------------------------------------------------------------------
+  subroutine epp_RTPP(ensembleAnl, ensembleTrl, stateVectorMeanAnl, &
+                      stateVectorMeanTrl, alphaRTPP)
+    ! :Purpose: Apply Relaxation To Prior Perturbation ensemble inflation according
+    !           to the factor alphaRTPP (usually between 0 and 1).
+    implicit none
+
+    ! Arguments
+    type(struct_ens) :: ensembleAnl
+    type(struct_ens) :: ensembleTrl
+    type(struct_gsv) :: stateVectorMeanAnl
+    type(struct_gsv) :: stateVectorMeanTrl
+    real(8)          :: alphaRTPP
+
+    ! Locals
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
+    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    real(4), pointer     :: meanAnl_ptr_r4(:,:,:,:), meanTrl_ptr_r4(:,:,:,:)
+    real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:), memberTrl_ptr_r4(:,:,:,:)
+
+    write(*,*) 'epp_RTPP: Starting'
+
+    call gsv_getField(stateVectorMeanAnl, meanAnl_ptr_r4)
+    call gsv_getField(stateVectorMeanTrl, meanTrl_ptr_r4)
+
+    nEns = ens_getNumMembers(ensembleAnl)
+    numVarLev = ens_getNumK(ensembleAnl)
+    call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+
+    do varLevIndex = 1, numVarLev
+      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+      memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do stepIndex = 1, tim_nstepobsinc
+            ! apply RTPP to all Anl members (in place)
+            ! member_anl = mean_anl + (1-a)*(member_anl-mean_anl) + a*(member_trl-mean_trl)
+            do memberIndex = 1, nEns
+              memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
+                   meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + &
+                   (1.0D0 - alphaRTPP) * &
+                   ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
+                   alphaRTPP * &
+                   ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+            end do ! memberIndex
+          end do ! stepIndex
+        end do ! lonIndex
+      end do ! latIndex
+    end do ! varLevIndex
+
+    write(*,*) 'epp_RTPP: Finished'
+
+  end subroutine epp_RTPP
 
   !--------------------------------------------------------------------------
   ! epp_addRandomPert

@@ -6,7 +6,6 @@
    weightLatLonStep      = 10
    hLocalize             = 1500.0D0
    vLocalize             = 2.0D0
-   alphaRTPP             = 0.40D0
    modifyAmsubObsError   = .false.
    backgroundCheck       = .false.
    huberize              = .false.
@@ -16,6 +15,7 @@
    mpiDistribution       = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
+   alphaRTPP             = 0.40D0
    alphaRTPS             = 0.80D0
    alphaRandomPert       = 0.25D0
    imposeSaturationLimit = .true.

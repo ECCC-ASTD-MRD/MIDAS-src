@@ -87,7 +87,6 @@ program midas_letkf
   integer  :: nEns                 ! ensemble size
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
-  real(8)  :: alphaRTPP            ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck      ! apply additional background check using ensemble spread
   logical  :: huberize             ! apply huber norm quality control procedure
@@ -102,7 +101,7 @@ program midas_letkf
                      hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     alphaRTPP, obsTimeInterpType, mpiDistribution
+                     obsTimeInterpType, mpiDistribution
 
 
   write(*,'(/,' //  &
@@ -153,7 +152,6 @@ program midas_letkf
   hLocalize(:)          = -1.0D0
   hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
-  alphaRTPP             =  0.0D0
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
 
@@ -172,7 +170,6 @@ program midas_letkf
   end if
   hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
   hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
-  if (alphaRTPP < 0.0D0) alphaRTPP = 0.0D0
   if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
       trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
@@ -413,7 +410,7 @@ program midas_letkf
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
-                          hLocalize, hLocalizePressure, vLocalize, alphaRTPP, mpiDistribution)
+                          hLocalize, hLocalizePressure, vLocalize, mpiDistribution)
   call tmg_stop(3)
 
   !- 6. Output obs files with mean OMP and (unrecentered) OMA
