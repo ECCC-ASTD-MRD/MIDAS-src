@@ -390,6 +390,7 @@ contains
     integer :: ntop_bt_avhrr(NIR,nClassAVHRR),ntop_eq_avhrr(nClassAVHRR)
 
     logical :: assim_all
+    logical :: sunZenithAnglePresent
   
     integer, parameter :: nn=2
     integer, parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
@@ -683,6 +684,7 @@ contains
         end do
 
         sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
+        sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
         if (liasi) then
           satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle 
         end if
@@ -759,6 +761,7 @@ contains
 
           call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
                  
+          !The value computed when .not. sunZenithAnglePresent will not be used
           call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
           call stat_avhrr(avhrr_bgck(headerIndex))
           
@@ -807,7 +810,7 @@ contains
         !  In daytime, set cloudy if cloud fraction over 5% 
         cfsub = -1.d0
         if (lairs) then
-          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 ) then
+          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 .and. sunZenithAnglePresent) then
             cldflag = 1
             cfsub = 0.01d0 * clfr !conversion % -> 0-1
           end if
@@ -842,7 +845,7 @@ contains
           end do
 
           !criteres AVHRR utilisant les canaux visibles (de jour seulement)
-          if (sunZenithAngle < sunzenmax) then 
+          if ( sunZenithAngle < sunzenmax .and. sunZenithAnglePresent ) then 
             anisot = 1.d0
             deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
            
@@ -888,7 +891,7 @@ contains
           end if
 
           !AVHRR Homogeneity criteria
-          if (cldflag == 0) then
+          if (cldflag == 0 .and. sunZenithAnglePresent) then
             ijour = 1
             if (sunZenithAngle < 90.d0) ijour=2
             ! 1 NUIT
@@ -1085,7 +1088,7 @@ contains
             ! *** Test # 5 ***
             ! *** Do not assimilate shortwave channels during the day ***
 
-            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang ) then
+            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang .and. sunZenithAnglePresent) then
               rejflag(channelIndex,11) = 1
               rejflag(channelIndex,7)  = 1
             end if
@@ -1265,8 +1268,8 @@ contains
       call calcbt(avhrr % radmoy(classIndex,4:6), bt, dbtsdrad, freq, offset, slope)
       avhrr % tbmoy(classIndex,4:6) = bt(1:3)
       avhrr % tbstd(classIndex,4:6) = avhrr % radstd(classIndex,4:6) * dbtsdrad(1:3)
-      call calcreflect(avhrr % radmoy(classIndex,1:3) ,sunzen,avhrr % albedmoy(classIndex,1:3) )
-      call calcreflect(avhrr % radstd(classIndex,1:3) ,sunzen,avhrr % albedstd(classIndex,1:3) )
+      call calcreflect(avhrr % radmoy(classIndex,1:3), sunzen, avhrr % albedmoy(classIndex,1:3) )
+      call calcreflect(avhrr % radstd(classIndex,1:3), sunzen, avhrr % albedstd(classIndex,1:3) )
     end do
 
   end subroutine convert_avhrr
