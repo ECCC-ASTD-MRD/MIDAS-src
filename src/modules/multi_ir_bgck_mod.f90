@@ -391,7 +391,7 @@ contains
 
     logical :: assim_all
     logical :: sunZenithAnglePresent
-  
+    logical :: satelliteAzimuthAnglePresent, satelliteZenithAnglePresent, sunAzimuthAnglePresent
     integer, parameter :: nn=2
     integer, parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
     integer :: countChannels
@@ -608,6 +608,7 @@ contains
             end if
           end do
           sunAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex)
+          sunAzimuthAnglePresent = ( abs(sunAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
 
         tg = col_getElem(columnHr, 1, headerIndex, 'TG')
@@ -675,6 +676,9 @@ contains
         satelliteZenithAngle= obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
         if ( satelliteZenithAngle < 0 .or. satelliteZenithAngle > 75. ) then
           rejflag(:,9) = 1
+          satelliteZenithAnglePresent = .false.
+        else
+          satelliteZenithAnglePresent = .true.
         end if
         clfr = 0.
         if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
@@ -686,7 +690,8 @@ contains
         sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
         sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
         if (liasi) then
-          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle 
+          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle
+          satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
         albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo
         ice =  tvs_surfaceParameters(tvs_nobtov) % ice
@@ -845,13 +850,13 @@ contains
           end do
 
           !criteres AVHRR utilisant les canaux visibles (de jour seulement)
-          if ( sunZenithAngle < sunzenmax .and. sunZenithAnglePresent ) then 
+          if ( sunZenithAngle < sunzenmax .and. sunZenithAnglePresent .and. satelliteAzimuthAnglePresent .and. &
+               sunAzimuthAnglePresent .and. satelliteZenithAnglePresent) then 
             anisot = 1.d0
-            deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
-           
-            if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
             
-            if (albedo < 0.17d0) then               
+            if (albedo < 0.17d0) then
+              deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
+              if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
               call visocn(sunZenithAngle,satelliteZenithAngle,deltaphi,anisot,zlamb,zcloud,IER)
               albedoThreshold = 10.d0 * max(1.d0,anisot) 
             else
