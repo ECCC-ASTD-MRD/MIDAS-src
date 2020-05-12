@@ -46,7 +46,7 @@ module ozoneClim_mod
 
 contains
 
-  subroutine ozo_get_profile(o3p,toto3obs,zlat,plev,nlev,nprf,datestamp)
+  subroutine ozo_get_profile(o3p,zlat,plev,nlev,nprf)
     !
     !:Purpose: Get ozone profile from climatology interpolated to desired P levels
     !
@@ -55,16 +55,12 @@ contains
     integer ,intent(in) :: nlev            ! NUMBER OF VERTICAL LEVELS
     integer ,intent(in) :: nprf            ! NUMBER OF PROFILES
     REAL(8),intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
-    REAL(8),intent(in)  :: TOTO3OBS(NPRF)  ! TOTAL OZONE IF KNOWN FROM OUTSIDE SOURCE SUCH AS TOMS
     REAL(8),intent(in)  :: PLEV(NLEV)      ! PRESSURE LEVELS (HPA)
     REAL(8),intent(out)  :: O3P(NLEV,NPRF) ! OZONE PROFILES (PPMV)
-    integer, intent(in) :: datestamp       ! DateStamp
 
     INTEGER   :: JN, K, NUMLAT(NPRF)
-    INTEGER   :: IJOUR,ITIME,IJ,IMONTH,IER
     REAL(8)   :: QO3B(NLEVO3,NPRF)
     REAL(8)   :: PRO3(NLEVO3,NPRF)
-    INTEGER   :: NEWDATE
 
 
     !* assign default qgas values if need be
@@ -82,20 +78,6 @@ contains
     FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
 
     CALL ppo_LINTV(pro3,qo3b,nlevo3,nprf,nlev,plev,O3P)
-
-    !* if total climatological ozone is known from outside source
-    !* then set the climatological profile so that it matches that total
-
-    DO JN = 1, NPRF
-       IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
-    !      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
-          ier = newdate(datestamp,ijour,itime,-3)
-          IJ = IJOUR/100
-          IMONTH = IJ - (IJ/100)*100
-          O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO_r4(NUMLAT(JN),IMONTH)
-       END IF
-    ENDDO
-
 
   end subroutine ozo_get_profile
 

@@ -104,8 +104,11 @@ contains
     logical, pointer :: calcemis(:)
     logical :: runObsOperatorWithClw_tl
     integer :: asw
+    type (rttov_profile), pointer :: profiles(:)
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
+
+    call tvs_getProfile(profiles, 'tlad')
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
       call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
@@ -349,7 +352,7 @@ contains
            errorstatus,                                           & ! out
            chanprof,                                              & ! in
            tvs_opts(sensorIndex),                                 & ! in
-           tvs_profiles_tlad(sensorTovsIndexes(1:profileCount)),  & ! in
+           profiles(sensorTovsIndexes(1:profileCount)),           & ! in
            profilesdata_tl,                                       & ! inout
            tvs_coefs(sensorIndex),                                & ! in
            transmission,                                          & ! inout
@@ -363,7 +366,7 @@ contains
                
       if (errorstatus /= 0) then
         Write(*,*) "Error in rttov_parallel_tl",errorstatus
-        write(*,*) 'temperature           profile=',tvs_profiles_tlad(sensorTovsIndexes(1)) % t(:)
+        write(*,*) 'temperature           profile=',profiles(sensorTovsIndexes(1)) % t(:)
         write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
         call utl_abort('tovs_rttov_tl')
       end if
@@ -413,6 +416,7 @@ contains
     end do sensor_loop
 
     deallocate ( sensorTovsIndexes )
+    nullify( profiles )
 
 
   end subroutine tvslin_rttov_tl
@@ -471,12 +475,15 @@ contains
     type(rttov_radiance) :: radiancedata_ad, radiancedata_d
     
     type(rttov_profile), pointer  :: profilesdata_ad(:) ! ad profiles buffer used in rttov calls
+    type(rttov_profile), pointer  :: profiles(:)
     type(rttov_chanprof), pointer :: chanprof(:)
     integer :: asw
     logical, pointer :: calcemis  (:)
     logical :: runObsOperatorWithClw_ad
          
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
+
+    call tvs_getProfile(profiles, 'tlad')
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
       call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
@@ -638,7 +645,7 @@ contains
            errorstatus,                                     & ! out
            chanprof,                                        & ! in
            tvs_opts(sensorIndex),                           & ! in
-           tvs_profiles_tlad(sensorTovsIndexes(1:profileCount)), & ! in
+           profiles(sensorTovsIndexes(1:profileCount)),     & ! in
            profilesdata_ad,                                 & ! in
            tvs_coefs(sensorIndex),                          & ! in
            transmission,                                    & ! inout
@@ -790,6 +797,7 @@ contains
     ! 3.  Close up
 
     deallocate ( sensorTovsIndexes )
+    nullify( profiles )
 
   end subroutine tvslin_rttov_ad
 

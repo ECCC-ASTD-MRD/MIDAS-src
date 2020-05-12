@@ -129,8 +129,8 @@ module multi_ir_bgck_mod
      real(8) :: albstd_pixeliasi(1:NVIS)
      real(8) :: radclearcalc(NVIS+1:NVIS+NIR)
      real(8) :: tbclearcalc(NVIS+1:NVIS+NIR)
-     real(8) :: radovcalc( tvs_nlevels-1,NVIS+1:NVIS+NIR)
-     real(8) :: transmcalc( tvs_nlevels,NVIS+1:NVIS+NIR)
+     real(8),allocatable :: radovcalc(:,:)
+     real(8),allocatable :: transmcalc(:,:)
      real(8) :: transmsurf(NVIS+1:NVIS+NIR)
      real(8) :: emiss(NVIS+1:NVIS+NIR)
   end type avhrr_bgck_iasi
@@ -299,7 +299,7 @@ contains
     end do
 
     if (qcid == -1) then
-      Write(*,*) "Unknown instrument ", instrumentName
+      write(*,*) "Unknown instrument ", instrumentName
       call utl_abort('bgck_get_qcid')
     end if
 
@@ -381,8 +381,11 @@ contains
     integer :: channelIndex,ilist_sun,ilist_co2(nco2),ilist_co2_pair(nco2),ilist_he(nch_he)
     integer :: nlv_T,id,sensorIndex, qcid, nchannels
     logical :: liasi,lairs,lcris
+    type (rttov_profile), pointer :: profiles(:)
 
     write (*,*) "Entering irbg_doQualityControl"
+
+    call tvs_getProfile(profiles, 'nl')
 
     liasi= ( trim(instrumentName) == "IASI" .or.  trim(instrumentName) == "iasi")
     lairs= ( trim(instrumentName) == "AIRS" .or.  trim(instrumentName) == "airs")
@@ -603,7 +606,7 @@ contains
           if (btCalc(channelIndex) > 350.d0) rejflag(channelIndex,9) = 1
         end do
 
-        ksurf = tvs_profiles_nl(tvs_nobtov) % skin % surftype
+        ksurf = profiles(tvs_nobtov) % skin % surftype
 
         !Test pour detecter l angle zenithal  manquant (-1) ou anormal
         ! (angle negatif ou superieur a 75 degres )
@@ -1174,7 +1177,8 @@ contains
     deallocate ( btObs,                    stat= allocStatus(23))
     deallocate ( btObsErr,                 stat= allocStatus(24))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl", .false.)
-        
+    nullify(profiles)
+
   end subroutine irbg_doQualityControl
 
 
@@ -2105,9 +2109,9 @@ contains
          ( EMI(ichref) * SFCtau(ichref) )
 
     if (radts <= 0.d0) then
-      Write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ichref), rtg, rcal(ichref), EMI(ichref), SFCtau(ichref), &
+      write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ichref), rtg, rcal(ichref), EMI(ichref), SFCtau(ichref), &
            ( RADOBS(ichref) + rtg - rcal(ichref) ), ( EMI(ichref) * SFCtau(ichref) ), radts
-      Write(*,*) "Skipping tskin retrieval."
+      write(*,*) "Skipping tskin retrieval."
       return
     end if
 
@@ -2450,7 +2454,8 @@ contains
     real(8), intent(in) :: surfem1_avhrr(3) ! AHVRR surface emissivities
     integer, intent(in) :: idiasi           ! iasi (in fact METOP) number
 
-    ! locals
+    ! Locals:
+    type (rttov_profile), pointer :: profiles(:)
     type (rttov_chanprof)  :: chanprof(3)
     logical :: calcemis  (3)
     integer ::  list_sensor (3),errorstatus,allocStatus
@@ -2497,8 +2502,10 @@ contains
    
     end if
 
+    call tvs_getProfile(profiles, 'nl')
+
     iptobs(1) = headerIndex
-    nlevels =  tvs_profiles_nl(headerIndex)% nlevels
+    nlevels =  profiles(headerIndex)% nlevels
 
     nchannels = NIR
 
@@ -2534,7 +2541,7 @@ contains
          errorstatus,             & ! out
          chanprof,                & ! in
          tvs_opts(1),             & ! in
-         tvs_profiles_nl(iptobs(:)), & ! in
+         profiles(iptobs(:)),     & ! in
          coefs_avhrr,             & ! in
          transmission,            & ! inout
          radiancedata_d,          & ! out
@@ -2543,7 +2550,9 @@ contains
     
     avhrr_bgck(headerIndex)% radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
     avhrr_bgck(headerIndex)% tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
+    allocate( avhrr_bgck(headerIndex)% radovcalc(nlevels-1,NVIS+1:NVIS+NIR) )
     avhrr_bgck(headerIndex)% radovcalc(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
+    allocate( avhrr_bgck(headerIndex)% transmcalc(nlevels,NVIS+1:NVIS+NIR) )
     avhrr_bgck(headerIndex)% transmcalc(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
     avhrr_bgck(headerIndex)% emiss(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
     avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
@@ -2564,6 +2573,8 @@ contains
       write(*,*) "Memory deallocation error"
       call utl_abort('tovs_rttov_avhrr_for_IASI')
     end if
+
+    nullify(profiles)
   
   end subroutine tovs_rttov_avhrr_for_IASI
 
