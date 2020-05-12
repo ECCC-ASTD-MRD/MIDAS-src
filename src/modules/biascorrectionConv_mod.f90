@@ -456,6 +456,8 @@ CONTAINS
               else 
                 corr = 0.0
               end if
+            else
+              corr = 0.0
             end if
 
           end if
