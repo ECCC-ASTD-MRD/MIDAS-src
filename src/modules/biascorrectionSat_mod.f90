@@ -78,7 +78,6 @@ MODULE biasCorrectionSat_mod
   type(struct_bias), allocatable  :: bias(:)
   type(struct_vco),       pointer :: vco_mask => null()
   type(struct_hco),       pointer :: hco_mask => null()
-  type(struct_gsv)      :: statevector_mask
   type(struct_columnData) :: column_mask
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
@@ -2303,9 +2302,10 @@ CONTAINS
     type(struct_obs), intent(inout) :: obsSpaceData
     logical, intent(in), optional   :: lmodify_obserror_opt
     !Locals:
-    integer :: iobs, headerIndex, idatyp, nobs, bodyIndex
+    integer :: iobs, headerIndex, idatyp, nobs, bodyIndex, stepIndex
     logical :: lmodify_obserror
     real(8) :: sigmaObs
+    type(struct_gsv)      :: stateVector_mask, stateVector_mask_4d
 
     lmodify_obserror =.false.
 
@@ -2316,17 +2316,23 @@ CONTAINS
       call hco_SetupFromFile(hco_mask, './raob_masque.std', 'WEIGHT', GridName_opt='RadiosondeWeight',varName_opt='WT' )
       call vco_SetupFromFile(vco_mask, './raob_masque.std')   ! IN
 
-      call gsv_allocate(statevector_mask, 1, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
+      call gsv_allocate(stateVector_mask, 1, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
            dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
-     
-      call gsv_readFromFile(statevector_mask,'./raob_masque.std' , 'WEIGHT', 'O', unitConversion_opt=.false., &
+      call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
+           dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
+
+      call gsv_readFromFile(stateVector_mask,'./raob_masque.std' , 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
 
+      do stepIndex = 1, tim_nstepobs
+        call gsv_copy(stateVector_mask, stateVector_mask_4d, stepIndexOut_opt=stepIndex)
+      end do
+      call gsv_deallocate(stateVector_mask)
       call col_setVco(column_mask,vco_mask)
       nobs = obs_numHeader(obsSpaceData)
       call col_allocate(column_mask, nobs,beSilent_opt=.false., varNames_opt=(/"WT"/) )
-     
-      call s2c_nl( stateVector_mask, obsSpaceData, column_mask, 'NEAREST', varName_opt="WT", moveObsAtPole_opt=.true.)
+
+      call s2c_nl( stateVector_mask_4d, obsSpaceData, column_mask, 'NEAREST', varName_opt="WT", moveObsAtPole_opt=.true.)
 
       call obs_set_current_header_list(obsSpaceData,'TO')
       iobs = 0
@@ -2360,7 +2366,7 @@ CONTAINS
         end if
 
       end do HEADER
-
+      call gsv_deallocate(stateVector_mask_4d)
     else
       RadiosondeWeight(:) = 1.d0
     end if
