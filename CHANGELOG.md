@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug in the way radiosonde weights are read and interpolated in genCoeff (#354 and !342)
  * Fix minor bug in `midas-letkf` when no obs near analysis grid point (#352 and !339)
 
 ### Removed
