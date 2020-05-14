@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.5.2]
+
+### Added
+
  * Add ability to bias correct AI and GP observations in Midas (#305 and !335)
  * Introduction of vertical correlation ansatz functions, with coefficients (one set per satid) in GPSRO namelist (#296 and !332)
  * New namelist variable HTPMAXER in NAMGPSRO namelist section (#343 and !328)
@@ -18,26 +36,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Using `oavar_scripts` to version `2.2.7` which includes the following changes since version `2.2.6`:
-   * oavar.launch:
+   * `oavar.launch`:
       - On rend facultatif l'etape `reunir_obs` si on utilise
        `oavar.launch ... -oavar_reunir_obs no`
    * La variable `OAVAR_OBS_MPI_ORDERING` est mise a `regular` par
-     defaut
-      - Cela est coherent avec le code de MIDAS depuis la version
+     défaut
+      - Cela est cohérent avec le code de MIDAS depuis la version
        `v_3.5.0`.
    * Adaptation des scripts pour pouvoir tourner `midas-genCoeff`
-   * oavar.mpi_barrier:
+   * `oavar.mpi_barrier`:
       - Le script est beaucoup moins verbose qu'auparavant.  On peut
        utiliser la variable d'environnement
-       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour reactiver le `set -x` dans ce
+       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour réactiver le `set -x` dans ce
        script.
-   * oavar.launch et oavar.var_mpi:
+   * `oavar.launch` et `oavar.var_mpi`:
       - Ajout du mode `distribute` pour `-splitobs_mode` pour distribuer
-      les fichiers sur chacune des tuiles MPI plutot que d'utiliser le
+      les fichiers sur chacune des tuiles MPI plutôt que d'utiliser le
       programme `splitobs.Abs` pour ce faire
-   * oavar.check_ensemble:
+   * `oavar.check_ensemble`:
       - Adaptation de la manipulation du namelist pour transformer un
-        EnVar en 3D-Var
+        EnVar en 3D-Var pour les versions après `v_3.4.2`
  * Changed IR quality control and background check to add protection against missing values for angles (#349 and !341)
   * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
   * Efficiency improvements (mostly for global EnVar) (#235 and !337):
@@ -479,8 +497,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...HEAD
-[3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...HEAD
+[3.5.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...v_3.5.2
+[3.5.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
 [3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...v_3.5.0
 [3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
 [3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
