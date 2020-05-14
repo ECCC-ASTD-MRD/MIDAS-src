@@ -17,14 +17,35 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Using `oavar_scripts` to version `2.2.7` which includes the following changes since version `2.2.6`:
+   * oavar.launch:
+      - On rend facultatif l'etape `reunir_obs` si on utilise
+       `oavar.launch ... -oavar_reunir_obs no`
+   * La variable `OAVAR_OBS_MPI_ORDERING` est mise a `regular` par
+     defaut
+      - Cela est coherent avec le code de MIDAS depuis la version
+       `v_3.5.0`.
+   * Adaptation des scripts pour pouvoir tourner `midas-genCoeff`
+   * oavar.mpi_barrier:
+      - Le script est beaucoup moins verbose qu'auparavant.  On peut
+       utiliser la variable d'environnement
+       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour reactiver le `set -x` dans ce
+       script.
+   * oavar.launch et oavar.var_mpi:
+      - Ajout du mode `distribute` pour `-splitobs_mode` pour distribuer
+      les fichiers sur chacune des tuiles MPI plutot que d'utiliser le
+      programme `splitobs.Abs` pour ce faire
+   * oavar.check_ensemble:
+      - Adaptation de la manipulation du namelist pour transformer un
+        EnVar en 3D-Var
  * Changed IR quality control and background check to add protection against missing values for angles (#349 and !341)
- * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
- * Efficiency improvements (mostly for global EnVar) (#235 and !337):
-   * Allow single precision in parts of the code, controlled by environment variables
-   * Compute height and pressure increments on the column instead of the grid, controlled by namelist variable
- * Improvement of the filtering functionality of module biascorrection_mod.f90 (#341 and !330)
- * Program `ensPostProcess` can now be used to just do recentering or computing trial mean and spread (#334 and !327)
-   * **Note:** changes must be made to namelist block names for the `ensPostProcess` and `letkf` programs!
+  * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
+  * Efficiency improvements (mostly for global EnVar) (#235 and !337):
+    * Allow single precision in parts of the code, controlled by environment variables
+    * Compute height and pressure increments on the column instead of the grid, controlled by namelist variable
+  * Improvement of the filtering functionality of module biascorrection_mod.f90 (#341 and !330)
+  * Program `ensPostProcess` can now be used to just do recentering or computing trial mean and spread (#334 and !327)
+    * **Note:** changes must be made to namelist block names for the `ensPostProcess` and `letkf` programs!
 
 ### Fixed
 
