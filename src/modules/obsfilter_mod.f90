@@ -1151,12 +1151,12 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_surfaceWind
   !--------------------------------------------------------------------------
-  SUBROUTINE filt_surfaceWind( lobsSpaceData, beSilent )
+  SUBROUTINE filt_surfaceWind( obsSpaceData, beSilent )
     !
     ! :Purpose: zap sfc wind components at land stations
     !
     IMPLICIT NONE
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
     INTEGER, parameter :: JPINEL=2,JPIDLND=9
@@ -1206,10 +1206,10 @@ end subroutine filt_topoAISW
        !
        ! Set the header list
        ! (& start at the beginning of the list)
-       call obs_set_current_header_list(lobsSpaceData, &
+       call obs_set_current_header_list(obsSpaceData, &
             list_family(index_family))
        HEADER: do
-          index_header = obs_getHeaderIndex(lobsSpaceData)
+          index_header = obs_getHeaderIndex(obsSpaceData)
           if (index_header < 0) exit HEADER
 
           !
@@ -1217,21 +1217,21 @@ end subroutine filt_topoAISW
           !
           ! Set the body list
           ! (& start at the beginning of the list)
-          call obs_set_current_body_list(lobsSpaceData, index_header)
+          call obs_set_current_body_list(obsSpaceData, index_header)
           BODY: do 
-             index_body = obs_getBodyIndex(lobsSpaceData)
+             index_body = obs_getBodyIndex(obsSpaceData)
              if (index_body < 0) exit BODY
 
              !             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-             ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-             IDBURP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+             ITYP=obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+             IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
              IF ( ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                    IF(IDBURP == IDLND(JID) .AND. &
-                        obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) THEN
-                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, &
-                           ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 19))
-                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,obs_notAssimilated)
+                        obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) THEN
+                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, &
+                           ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY), 19))
+                      call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY,obs_notAssimilated)
                       DO J = 1, JPINEL
                          IF(ITYP ==ILISTEL(J)) THEN
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -1239,10 +1239,10 @@ end subroutine filt_topoAISW
                       END DO
                       IF(LLPRINT .and. .not.beSilent ) THEN
                          WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP &
-                              ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP &
-                              ,obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
-                              ,obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
-                              ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                              ,obs_elem_c(obsSpaceData,'STID',INDEX_HEADER),IDBURP &
+                              ,obs_headElem_r(obsSpaceData,OBS_LAT,INDEX_HEADER) &
+                              ,obs_headElem_r(obsSpaceData,OBS_LON,INDEX_HEADER) &
+                              ,obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
                       END IF
                    END IF
                 END DO
@@ -1266,8 +1266,8 @@ end subroutine filt_topoAISW
     END DO ! family
     !
     IKOUNTT=0
-    DO JDATA=1,obs_numbody(lobsSpaceData)
-       IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) == obs_assimilated) IKOUNTT=IKOUNTT+1
+    DO JDATA=1,obs_numbody(obsSpaceData)
+       IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated) IKOUNTT=IKOUNTT+1
     END DO
     if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
@@ -1279,7 +1279,7 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_gpsro
   !--------------------------------------------------------------------------
-  SUBROUTINE FILT_GPSRO( lcolumnhr, lobsSpaceData, beSilent )
+  SUBROUTINE FILT_GPSRO( columnhr, obsSpaceData, beSilent )
     !
     ! :Purpose: Filter GPSRO observations
     !           Guarantee that altitude and observation values are
@@ -1293,13 +1293,13 @@ end subroutine filt_topoAISW
     use gps_mod
     IMPLICIT NONE
     !
-    type(struct_columnData) :: lcolumnhr
-    type(struct_obs)        :: lobsSpaceData
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     !
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
     INTEGER :: JL, ISAT, IQLF, iProfile, I, IFLG
-    REAL(8) :: ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
+    REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL
     !
@@ -1310,25 +1310,25 @@ end subroutine filt_topoAISW
     !
     ! Loop over all header indices of the 'RO' family:
     !
-    call obs_set_current_header_list(lobsSpaceData,'RO')
+    call obs_set_current_header_list(obsSpaceData,'RO')
     gps_numROProfiles=0
     HEADER: do
-      index_header = obs_getHeaderIndex(lobsSpaceData)
+      index_header = obs_getHeaderIndex(obsSpaceData)
       if (index_header < 0) exit HEADER
       !
       ! Process only refractivity data (codtyp 169):
       !
-      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+      IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
       if ( IDATYP == 169 ) then
         gps_numROProfiles=gps_numROProfiles+1
         !
         ! Basic variables of the profile:
         !
-        AZM  = obs_headElem_r(lobsSpaceData,OBS_AZA ,INDEX_HEADER)
-        ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT ,INDEX_HEADER)
-        IQLF = obs_headElem_i(lobsSpaceData,OBS_ROQF,INDEX_HEADER)
-        Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
-        Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+        AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,INDEX_HEADER)
+        ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
+        IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
+        Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,INDEX_HEADER)
+        Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,INDEX_HEADER)
         LNOM = .NOT.BTEST(IQLF,16-1)
         LAZM = .TRUE.
         if (LEVELGPSRO == 1) LAZM = (-0.1d0 < AZM .AND. AZM < 360.1)
@@ -1338,12 +1338,12 @@ end subroutine filt_topoAISW
         ZSAT = ABS(WGPS(ISAT,1))+ABS(WGPS(ISAT,2))+ABS(WGPS(ISAT,3))+ABS(WGPS(ISAT,4))
         LSAT = ( ZSAT > 0.d0 )
         !
-        ZMT = col_getHeight(lcolumnhr,0,index_header,'SF')
+        ZMT = col_getHeight(columnhr,0,index_header,'SF')
         !
         ! Acceptable height limits:
         !
         JL = 1
-        HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
+        HTP = col_getHeight(columnhr,JL,INDEX_HEADER,'TH')
         HSF = ZMT+SURFMIN
         IF (HSF < HSFMIN) HSF=HSFMIN
         IF (HTP > HTPMAX) HTP=HTPMAX
@@ -1353,14 +1353,14 @@ end subroutine filt_topoAISW
         ! Loop over all body indices for this index_header:
         ! (start at the beginning of the list)
         !
-        call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+        call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
         BODY: do 
-          index_body = obs_getBodyIndex(lobsSpaceData)
+          index_body = obs_getBodyIndex(obsSpaceData)
           if (index_body < 0) exit BODY
           !
           ! Altitude and reference order of magnitude value:
           !
-          HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+          HNH1= obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
           if (LEVELGPSRO == 1) then
             HNH1=HNH1-Rad
             ZREF = 0.025d0*exp(-HNH1/6500.d0)
@@ -1370,7 +1370,7 @@ end subroutine filt_topoAISW
           !
           ! Observation:
           !
-          ZOBS= obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+          ZOBS= obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
           !
           ! Positively verify that the altitude is within bounds:
           !
@@ -1384,9 +1384,9 @@ end subroutine filt_topoAISW
           !
           LALL = LLEV .AND. LOBS .AND. LAZM .AND. LNOM .AND. LSAT
           if ( .NOT.LALL ) then
-            call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
-            IFLG = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
-            call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+            IFLG = obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
           end if
         end do BODY
       end if
@@ -1400,21 +1400,17 @@ end subroutine filt_topoAISW
       !
       ! Loop over all header indices of the 'RO' family:
       !
-      call obs_set_current_header_list(lobsSpaceData,'RO')
+      call obs_set_current_header_list(obsSpaceData,'RO')
       HEADER2: do
-        index_header = obs_getHeaderIndex(lobsSpaceData)
+        index_header = obs_getHeaderIndex(obsSpaceData)
         if (index_header < 0) exit HEADER2
         !     
         ! Process only refractivity data (codtyp 169):
         !
-        IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+        IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
           gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
-          !zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-          !zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-          !Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
-          !Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
         end if
       end do HEADER2
     end if
