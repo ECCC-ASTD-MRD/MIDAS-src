@@ -67,6 +67,7 @@ MODULE BmatrixDiff_mod
 
   integer             :: myLatBeg, myLatEnd
   integer             :: myLonBeg, myLonEnd
+  integer             :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
   integer,external    :: get_max_rss
 
@@ -85,7 +86,6 @@ CONTAINS
     character(len=15) :: bdiff_mode
 
     integer :: nulnam, ierr, fnom, fclos
-    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
     integer :: variableIndex
 
     type(struct_vco), pointer :: vco_anl
@@ -225,7 +225,7 @@ CONTAINS
     call mpivar_setup_lonbands( ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
 
     ! compute mpilocal control vector size
-    cvDim_mpilocal = ni_l *nj_l * numvar2d
+    cvDim_mpilocal = lonPerPE * latPerPE * numvar2d
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
@@ -479,7 +479,7 @@ CONTAINS
     
     implicit none
 
-    real(8),          intent(in)    :: gd( myLonBeg :myLonEnd, myLatBeg : myLatEnd, numvar2d )
+    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     type(struct_gsv), intent(inout) :: statevector
 
     integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2

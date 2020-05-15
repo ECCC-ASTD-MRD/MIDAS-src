@@ -29,30 +29,40 @@ module diffusion_mod
   !
   ! :Origin: diffus_mod.f from the envar experiments by Anna Shlyaeva
   !
-  
+  use mpi_mod
+  use mpivar_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use EarthConstants_mod, only : rayt
+  use randomNumber_mod
+  use utilities_mod
+  use gridStateVector_mod
+
   implicit none
+  save
   private
 
   ! Public subroutines and functions
   public :: diff_setup, diff_finalize, diff_Csqrt, diff_Csqrtadj
 
   type struct_diff
-     ! number of grid points in x and y directions (includes perimeter of land points)
-     integer :: ni, nj
-     integer :: numt
-     real(8) :: dt
-     real(8), allocatable :: cosyhalf(:), cosyinv(:), cosyinvsq(:)
-     real(8), allocatable :: mhalfx(:,:), mhalfy(:,:)
-     real(8), allocatable :: khalfx(:,:), khalfy(:,:)
-     real(8) :: dlon, dlat        ! grid spacing in radians
-     ! These are used in subroutines diff_Csqrt and diff_Csqrtadj
-     real(8), allocatable :: Winv(:,:), Wsqrt(:,:), Winvsqrt(:,:)
-     real(8), allocatable :: Lambda(:,:)
-     real(8), allocatable :: diff1x_ap(:,:),diff1x_bp_inv(:,:)
-     real(8), allocatable :: diff1x_c(:,:)
-     real(8), allocatable :: diff1y_ap(:,:),diff1y_bp_inv(:,:)
-     real(8), allocatable :: diff1y_c(:,:)
-     logical :: limplicit
+    ! number of grid points in x and y directions (includes perimeter of land points)
+    integer :: ni, nj
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: numt
+    real(8) :: dt
+    real(8), allocatable :: cosyhalf(:), cosyinv(:), cosyinvsq(:)
+    real(8), allocatable :: mhalfx(:,:), mhalfy(:,:)
+    real(8), allocatable :: khalfx(:,:), khalfy(:,:)
+    real(8) :: dlon, dlat        ! grid spacing in radians
+    ! These are used in subroutines diff_Csqrt and diff_Csqrtadj
+    real(8), allocatable :: Winv(:,:), Wsqrt(:,:), Winvsqrt(:,:)
+    real(8), allocatable :: Lambda(:,:)
+    real(8), allocatable :: diff1x_ap(:,:),diff1x_bp_inv(:,:)
+    real(8), allocatable :: diff1x_c(:,:)
+    real(8), allocatable :: diff1y_ap(:,:),diff1y_bp_inv(:,:)
+    real(8), allocatable :: diff1y_c(:,:)
+    logical :: limplicit
   end type struct_diff
 
   integer, parameter :: nMaxDiff = 10
@@ -63,15 +73,8 @@ module diffusion_mod
 
 contains
 
-  integer function diff_setup ( variableIndex, bdiff_varNameList, hco, vco, corr_len, stab, nsamp, limplicit)
+  integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, corr_len, stab, nsamp, limplicit)
 
-    use horizontalCoord_mod
-    use verticalCoord_mod
-    use EarthConstants_mod, only : rayt
-    use randomNumber_mod
-    use utilities_mod
-    use gridStateVector_mod
-    
     implicit none
 
     ! Arguments:
@@ -82,23 +85,16 @@ contains
     real,                      intent(in) :: corr_len             ! Horizontal correlation length scale (km);
                                                                   ! if it is equal to -1, a 2D field of it is read from a file
     real,                      intent(in) :: stab                 ! Stability criteria (definitely < 0.5)
-    integer,                   intent(in) :: nsamp                ! Number of samples in the estimation of the normalization factors by randomization.
+    integer,                   intent(in) :: nsamp                ! Number samples to estimate normalization factors by randomization.
     logical,                   intent(in) :: limplicit            ! Indicate to use the implicit formulation
-                                                                  ! of the diffusion operator (.true.) or the explicit version (.false.).
 
-    ! Locals:
-
-    ! latitudes on the analysis rotated grid, in radians
-    real(8), allocatable :: latr(:)
-
-    real, allocatable :: buf2d(:,:)
-
+    ! Locals:    
+    real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
+    real(4), allocatable :: buf2d(:,:)
     integer :: lonIndex, latIndex, isamp, k, l, timeStep
-
+    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax
     real(8) :: mindxy, maxL, currentMin, currentLatSpacing, currentLonSpacing
-
     real(8) :: a,b
-
     real(8), allocatable :: Lcorr(:,:)
     real(8), allocatable :: kappa(:,:)
     real(8), allocatable :: W(:,:)
@@ -309,8 +305,11 @@ contains
     diff( diffID ) % Wsqrt(:,:)    = sqrt( W(:,:) )
     diff( diffID ) % Winvsqrt(:,:) = 1.0d0 / diff( diffID ) % Wsqrt(:,:)
 
+    ! domain partionning
     diff( diffID ) % ni = ni
     diff( diffID ) % nj = nj
+    call mpivar_setup_latbands(diff( diffID ) % nj, latPerPE, latPerPEmax, diff( diffID ) % myLatBeg, diff( diffID ) % myLatEnd)
+    call mpivar_setup_lonbands(diff( diffID ) % ni, lonPerPE, lonPerPEmax, diff( diffID ) % myLonBeg, diff( diffID ) % myLonEnd)
 
     ! specify number of timesteps and timestep length for implicit 1D diffusion
     if ( limplicit ) then
@@ -584,42 +583,54 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin ( diff( diffID ) %ni, diff( diffID ) % nj )
-    real(8), intent(out) :: xout( diff( diffID ) %ni, diff( diffID ) % nj )
+    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: t, latIndex, lonIndex
-
-    real(8) :: xlast( diff( diffID ) % ni, diff( diffID ) % nj )
+    integer :: tIndex, latIndex, lonIndex
+    integer :: myLonBegNoB, myLonEndNoB, myLatBegNoB, myLatEndNoB
+    real(8) :: xhalo( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
+    real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
 
     call tmg_start(192, 'diffusion_explicit' )
 
-    xlast(:,:) = xin(:,:)
+    ! remove global border from range of grid points where output is calculated
+    myLonBegNoB = max(diff(diffID)%myLonBeg, 2)
+    myLonEndNoB = min(diff(diffID)%myLonEnd, diff(diffID)%ni-1)
+    myLatBegNoB = max(diff(diffID)%myLatBeg, 2)
+    myLatEndNoB = min(diff(diffID)%myLatEnd, diff(diffID)%nj-1)
+
+    xhalo(:,:) = 0.0d0
+    xlast(:,:) = 0.0d0
+    xlast( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd ) = xin(:,:)
     ! iterate difference equations
-    do t = 1, diff( diffID ) % numt / 2
+    do tIndex = 1, diff( diffID ) % numt / 2
       !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
-      do latIndex = 2, diff( diffID ) % nj - 1
-        do lonIndex = 2, diff( diffID ) % ni - 1
-          xout( lonIndex, latIndex ) = xlast( lonIndex, latIndex ) + diff( diffID ) % dt * (                                                                        &
-                diff( diffID ) % cosyinvsq( latIndex ) * ( diff( diffID ) % mhalfx ( lonIndex, latIndex ) * diff( diffID ) % khalfx( lonIndex, latIndex ) *         &
-                ( xlast( lonIndex + 1, latIndex ) - xlast( lonIndex    , latIndex ) ) / diff( diffID ) % dlon -                                                     &
-                diff( diffID ) % mhalfx ( lonIndex - 1, latIndex ) * diff( diffID ) % khalfx( lonIndex - 1, latIndex ) *                                            &
-                ( xlast( lonIndex    , latIndex ) - xlast( lonIndex - 1, latIndex ) ) / diff( diffID ) % dlon ) / diff( diffID ) % dlon                             &
-                + diff( diffID ) % cosyinv( latIndex ) *                                                                                                            &
-                ( diff( diffID ) % cosyhalf( latIndex ) * diff( diffID ) % mhalfy( lonIndex, latIndex ) * diff( diffID ) % khalfy( lonIndex, latIndex ) *           &
-                ( xlast( lonIndex, latIndex + 1 ) - xlast( lonIndex, latIndex ) ) / diff( diffID ) % dlat -                                                         &
-                diff( diffID ) % cosyhalf( latIndex - 1 ) * diff( diffID ) % mhalfy( lonIndex, latIndex - 1 ) * diff( diffID ) % khalfy( lonIndex, latIndex - 1 ) * &
-                ( xlast( lonIndex, latIndex  ) - xlast( lonIndex, latIndex - 1 ) ) / diff( diffID ) % dlat    ) / diff( diffID ) % dlat                             &
+      do latIndex = myLatBegNoB, myLatEndNoB
+        do lonIndex = myLonBegNoB, myLonEndNoB
+          xhalo(lonIndex,latIndex) = xlast(lonIndex,latIndex) + diff(diffID)%dt *                                                              &
+                ( diff(diffID)%cosyinvsq(latIndex) *                                                                                          &
+                  ( diff(diffID)%mhalfx(lonIndex,latIndex) * diff(diffID)%khalfx(lonIndex,latIndex) *                                         &
+                    ( xlast(lonIndex+1,latIndex) - xlast(lonIndex,latIndex) ) / diff(diffID)%dlon -                                           &
+                    diff(diffID)%mhalfx(lonIndex-1,latIndex) * diff(diffID)%khalfx(lonIndex-1,latIndex) *                                     &
+                    ( xlast(lonIndex,latIndex) - xlast(lonIndex-1,latIndex) ) / diff(diffID)%dlon                                             &
+                  ) / diff(diffID)%dlon +                                                                                                     &
+                  diff(diffID)%cosyinv(latIndex) *                                                                                            &
+                  ( diff(diffID)%cosyhalf(latIndex) * diff(diffID)%mhalfy(lonIndex,latIndex) * diff(diffID)%khalfy(lonIndex,latIndex) *       &
+                    ( xlast(lonIndex,latIndex+1) - xlast(lonIndex,latIndex) ) / diff(diffID)%dlat -                                           &
+                    diff(diffID)%cosyhalf(latIndex-1) * diff(diffID)%mhalfy(lonIndex,latIndex-1) * diff(diffID)%khalfy(lonIndex,latIndex-1) * &
+                    ( xlast(lonIndex,latIndex) - xlast(lonIndex,latIndex-1) ) / diff(diffID)%dlat                                             &
+                  ) / diff(diffID)%dlat                                                                                                       &
                 )
         end do
       end do
       !$OMP END PARALLEL DO
 
-      xlast(:,:) = xout(:,:)
+      xlast(:,:) = xhalo(:,:)
 
     end do
 
-    xout(:,:) = xlast(:,:)
+    xout(:,:) = xlast( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     call tmg_stop(192)
 
@@ -632,25 +643,30 @@ contains
 
     ! Arguments
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin ( diff( diffID ) % ni, diff( diffID ) % nj )
-    real(8), intent(out) :: xout( diff( diffID ) % ni, diff( diffID ) % nj )
+    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: t
+    integer :: tIndex
 
     ! compute Csqrt
 
     ! this is the C^1/2 required for the forward model: Csqrt = Lambda * Diffuse * W^-1/2
-    xout(:,:) = diff( diffID ) % Winvsqrt(:,:) * xin(:,:)
+    xout(:,:) = xin(:,:) *  &
+                diff( diffID ) % Winvsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                          diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     if ( diff( diffID ) % limplicit ) then
-      do t = 1, diff( diffID ) % numt
+      do tIndex = 1, diff( diffID ) % numt
         call diffusion1x_implicit( diffID, xout, xout )
         call diffusion1y_implicit( diffID, xout, xout )
       end do
     else
       call diffusion_explicit ( diffID, xout, xout )
     end if
-    xout(:,:) = diff( diffID ) % Lambda(:,:) * xout(:,:)
+
+    xout(:,:) = xout(:,:) *  &
+                diff( diffID ) % Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                        diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrt
 
@@ -661,8 +677,8 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin ( diff( diffID ) % ni, diff( diffID ) % nj )
-    real(8), intent(out) :: xout( diff( diffID ) % ni, diff( diffID ) % nj )
+    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
     integer :: t
@@ -670,8 +686,10 @@ contains
     ! compute Csqrtadj
 
     ! this is the (C^1/2)^T required for the adjoint: Csqrt^T = W^1/2 * Diffuse * W^-1 * Lambda
-    xout(:,:) = diff( diffID ) % Lambda(:,:) * xin (:,:)
-    xout(:,:) = diff( diffID ) %   Winv(:,:) * xout(:,:)
+    xout(:,:) = xin (:,:) * diff( diffID ) % Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
+    xout(:,:) = xout(:,:) * diff( diffID ) %   Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
     if ( diff( diffID ) % limplicit ) then
       do t = 1, diff( diffID ) % numt
         call diffusion1y_implicit( diffID, xout, xout )
@@ -680,7 +698,8 @@ contains
     else
       call diffusion_explicit( diffID, xout, xout )
     end if
-    xout(:,:) = diff( diffID ) % Wsqrt (:,:) * xout (:,:)
+    xout(:,:) = xout(:,:) * diff( diffID ) % Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                                   diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrtadj
 
@@ -694,8 +713,8 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin ( diff( diffID ) % ni, diff( diffID ) % nj )
-    real(8), intent(out) :: xout( diff( diffID ) % ni, diff( diffID ) % nj )
+    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
     integer :: t, latIndex, lonIndex
@@ -744,8 +763,8 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
-    real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
+    real(8), intent(in)  :: xin(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+    real(8), intent(out) :: xout(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
     ! Locals:
     integer :: t, latIndex, lonIndex
@@ -753,8 +772,9 @@ contains
     real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
     real(8) :: dp(diff(diffID)%nj)
 
-! NOTE:for improved efficiency, the 2D fields used internally are !
-!      ordered (diff(diffID)%nj,diff(diffID)%ni) and NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code !
+    ! NOTE:for improved efficiency, the 2D fields used internally are
+    !      ordered (diff(diffID)%nj,diff(diffID)%ni) and
+    !      NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code!
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff ( diffID ) % nj
