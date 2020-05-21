@@ -231,7 +231,7 @@ CONTAINS
     ! also compute mpiglobal control vector dimension
     call rpn_comm_allreduce( cvDim_mpilocal, cvDim_mpiglobal, 1, "mpi_integer", "mpi_sum", "GRID", ierr )
 
-    allocate(stddev(ni_l, nj_l, numvar2d ))
+    allocate(stddev(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d))
 
     call bdiff_rdstats( hco_in, vco_in )
 
@@ -344,24 +344,34 @@ CONTAINS
     type(struct_vco), pointer, intent(in) :: vco_in
 
     ! locals
-    integer                     :: variableIndex
+    integer                     :: variableIndex, ierr
     type(struct_gsv)            :: statevector
-    real(4),pointer             :: field3D_r4_ptr(:,:,:)
+    real(4), pointer            :: field3D_r4_ptr(:,:,:)
+    real(8)                     :: minStddev, maxStddev
     character(len=*), parameter :: myName = 'bdiff_readBGstdField'
 
     write(*,*) myName//': Reading 2D fields from ./bgstddev...'
     write(*,*) myName//': Number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
 
-    call gsv_allocate( statevector, 1, hco_in, vco_in, dateStamp_opt = -1, dataKind_opt = 4, &
-                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = bdiff_varNameList( 1 : numvar2d ) )
+    call gsv_allocate( statevector, 1, hco_in, vco_in, dateStamp_opt=-1, &
+                       dataKind_opt=4, mpi_local_opt=.true., &
+                       hInterpolateDegree_opt='LINEAR', &
+                       varNames_opt=bdiff_varNameList(1:numvar2d) )
     call gsv_zero( statevector )
     call gsv_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
 
     do variableIndex = 1, numvar2d
       call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
       stddev( :, :, variableIndex ) = dble( field3D_r4_ptr( :, :, 1 ) )
+      if (mpi_nprocs > 1) then
+        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
+        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+      else
+        minStddev = minval(stddev(:,:,variableIndex))
+        maxStddev = maxval(stddev(:,:,variableIndex))
+      end if
       write(*,*) myName//': variable ', bdiff_varNameList( variableIndex ),' min/max: ', &
-                 minval( stddev(:,:,variableIndex) ), maxval( stddev(:,:,variableIndex) )
+                 minStddev, maxStddev
     end do
    
     call gsv_deallocate( statevector )

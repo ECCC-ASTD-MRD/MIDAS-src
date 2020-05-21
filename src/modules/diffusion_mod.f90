@@ -248,8 +248,9 @@ contains
     if ( corr_len == -1 ) then
        
       write(*,*) myName//'Correlation length scale 2D field will be read from the file: ', correlationLengthFileName
-      call gsv_allocate( statevector, 1, hco, vco, dateStamp_opt = -1, dataKind_opt = 4, &
-                         hInterpolateDegree_opt = 'LINEAR', varNames_opt = bdiff_varNameList )
+      call gsv_allocate( statevector, 1, hco, vco, dateStamp_opt=-1, dataKind_opt=4, &
+                         hInterpolateDegree_opt='LINEAR', varNames_opt=bdiff_varNameList, &
+                         mpi_local_opt=.false. )
       call gsv_zero( statevector )
       call gsv_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', unitConversion_opt = .false. )
 

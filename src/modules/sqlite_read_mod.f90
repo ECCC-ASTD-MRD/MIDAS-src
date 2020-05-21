@@ -187,11 +187,10 @@ contains
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
     real(pre_obsReal), parameter :: zemFact = 0.01
-    character(len=10)        :: timeCharacter
     character(len=512)       :: query, queryData, queryHeader
     character(len=256)       :: cfgSqlite, csqlcrit, columnsHeader, columnsData
     logical                  :: finished
-    real, allocatable        :: matdata(:,:)
+    real(8), allocatable     :: matdata(:,:)
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
@@ -231,10 +230,9 @@ contains
       call utl_abort( myError//'fSQL_open' )
     end if
 
-    timeCharacter = sqlr_query(db,"select time('now')")
     query = "select schema from rdb4_schema ;"
     rdbSchema = sqlr_query(db,trim(query))
-    write(*,'(4a)') myName//' START OF QUERY TIME IS = ', timeCharacter, 'rdbSchema is ---> ', trim(rdbSchema)
+    write(*,'(4a)') myName//' rdbSchema is ---> ', trim(rdbSchema)
 
     sqlExtraHeader = ''
     sqlExtraDat    = ''
@@ -436,8 +434,8 @@ contains
       elevFact=0.
     end if
 
-    call fSQL_prepare( db, trim(queryHeader) , stmt, stat)
-    call fSQL_prepare( db, trim(queryData), stmt2, stat2)
+    call fSQL_prepare( db, trim(queryHeader) , stmt, stat )
+    call fSQL_prepare( db, trim(queryData), stmt2, stat2 )
     if ( fSQL_error(stat)  /= FSQL_OK ) call sqlr_handleError(stat ,'fSQL_prepare hdr: ')
     if ( fSQL_error(stat2) /= FSQL_OK ) call sqlr_handleError(stat2,'fSQL_prepare dat: ')
 
@@ -446,15 +444,15 @@ contains
     headerIndexStart = headerIndex
     write(*,*) myName//' DEBUT numheader  =', obs_numHeader(obsdat)
     write(*,*) myName//' DEBUT numbody    =', obs_numBody(obsdat)
-    call fSQL_get_many (  stmt2, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
+    call fSQL_get_many( stmt2, nrows=numberRows, ncols=numberColumns, mode=FSQL_REAL8 )
     write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
     write(*,*) myName//'  rdbSchema = ', rdbSchema
     write(*,*)' ========================================== '
     allocate( matdata(numberRows, numberColumns) )
-    matdata = 0.0
-    call fSQL_fill_matrix ( stmt2, matdata )
-    call fSQL_free_mem    ( stmt2 )
-    call fSQL_finalize    ( stmt2 )
+    matdata = 0.0d0
+    call fSQL_fill_matrix( stmt2, matdata )
+    call fSQL_free_mem( stmt2 )
+    call fSQL_finalize( stmt2 )
 
     obsNlv = 0
     lastId = 1
@@ -577,17 +575,24 @@ contains
         ! ---------------------------------------------------
         if ( int(matdata(rowIndex,2)) > obsIdo ) then 
 
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
-                                earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,   &
+               real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
+               roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
+               real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
+               real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType,  &
+               obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
 
-          if ( headerIndex == headerIndexStart .and. obsNlv == 0  ) &
-            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
-                                  earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                  real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+          if ( headerIndex == headerIndexStart .and. obsNlv == 0 ) then
+            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,   &
+                 real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
+                 roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
+                 real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
+                 real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType,  &
+                 obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+          end if
 
           lastId = rowIndex + 1
           obsIdd = int(matdata(rowIndex,1))
@@ -607,8 +612,9 @@ contains
 
             biasCorrection = matdata(rowIndex,8)
 
-            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) &
-                 call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
+            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+              call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
+            end if
 
           end if
 
@@ -630,7 +636,7 @@ contains
           else ! CONV
  
            call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+                               obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
            if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
                .not. ovt_bufrCodeSkipped(obsVarno)) then
@@ -685,8 +691,6 @@ contains
     write(*,*)  myName//' FIN numheader  =', obs_numHeader(obsdat)                    
     write(*,*)  myName//' FIN numbody    =', obs_numBody(obsdat)
     write(*,*)  myName//' fin header '
-    timeCharacter = sqlr_query(db,"select time('now')")
-    write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
     write(*,*) 'end subroutine: ', myName
@@ -815,7 +819,8 @@ contains
     last_question  = scan(itemChar, '?', back)
     item2Char   = itemChar(1:last_question)
     itemChar    = item2Char
-    query = ' update data set flag = ? '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
+    query = ' update data set flag = ? '//trim(itemChar)
+    query = trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')

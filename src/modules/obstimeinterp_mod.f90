@@ -45,6 +45,8 @@ module obsTimeInterp_mod
     real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
   end type struct_oti
 
+  integer, parameter :: maxNumWrites = 50
+
   integer, external :: get_max_rss
 
 contains
@@ -64,6 +66,7 @@ contains
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
     character(len=256)   :: formatspec, formatspec2
     real(8)              :: stepObsIndex
+    integer, save :: numWrites = 0
 
     if ( .not.tim_initialized() ) call utl_abort('oti_timeBinning: timeCoord module not initialized')
 
@@ -96,7 +99,13 @@ contains
           end if
         end do
       else
-        write(*,*) 'oti_timeBinning: observation outside time window:',headerIndex,stepObsIndex
+        numWrites = numWrites + 1
+        if (numWrites < maxNumWrites) then
+          write(*,*) 'oti_timeBinning: observation outside time window:',headerIndex,stepObsIndex
+        else if (numWrites == maxNumWrites) then
+          write(*,*) 'oti_timeBinning: more observations outside time window, but reached'
+          write(*,*) '                 maximum number of writes to the listing.'
+        end if
       end if
     end do
 
@@ -180,8 +189,9 @@ contains
     logical, optional          :: flagObsOutside_opt
 
     ! Locals:
-    integer           :: headerIndex
-    real(8)           :: stepObsIndex
+    integer       :: headerIndex
+    real(8)       :: stepObsIndex
+    integer, save :: numWrites = 0
 
     if ( associated(oti) ) then
       call utl_abort('oti_setup: the supplied oti pointer is not null!')
@@ -218,9 +228,19 @@ contains
       ! leave all weights zero if obs time is out of range, otherwise set weights
 
       if ( .not.tim_fullyUseExtremeTimeBins .and. (floor(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
-        write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+        numWrites = numWrites + 1
+        if (numWrites < maxNumWrites) then
+          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+        else if (numWrites == maxNumWrites) then
+          write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
+        end if
       else if ( tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1) ) then
-        write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+        numWrites = numWrites + 1
+        if (numWrites < maxNumWrites) then
+          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+        else if (numWrites == maxNumWrites) then
+          write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
+        end if
       else
         if (numStep == 1) then
           call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
@@ -390,6 +410,7 @@ contains
 
     ! locals
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
+    integer, save :: numWrites = 0
 
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_flagObsOutsideWindow: oti_setup must first be called')
@@ -400,8 +421,13 @@ contains
       if ( oti_timeInterpWeightAllZero(oti, headerIndex) ) then
         ! obs is outside of assimilation window
 
-        write(*,*) 'oti_flagObsOutsideWindow: Observation time outside assimilation window: ',  &
-             obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+        numWrites = numWrites + 1
+        if (numWrites < maxNumWrites) then
+          write(*,*) 'oti_flagObsOutsideWindow: Observation time outside assimilation window: ',  &
+               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+        else if (numWrites == maxNumWrites) then
+          write(*,*) 'oti_flagObsOutsideWindow: More rejects, but reached maximum number of writes to the listing.'
+        end if
 
         ! flag these observations as out of time domain and turn off its assimilation flag
         bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)

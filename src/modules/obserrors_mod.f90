@@ -122,7 +122,7 @@ module obsErrors_mod
   real    :: oer_ascatAnisOpenWater(ncells,12), oer_ascatAnisIce(ncells,12)
 
   ! SST
-  real(8) :: xstd_sst(5,2)
+  real(8) :: xstd_sst(6,2)
 
   ! Hydrology
   real(8) :: xstd_hydro(1)
@@ -907,7 +907,7 @@ contains
 
     write(*, '(A)') ' '
 
-    SECTIONS: do sectionIndex = 1, 5
+    SECTIONS: do sectionIndex = 1, 6
 
       do lineIndex = 1, 3
         read(nulstat, '(A)') ligne
@@ -1363,6 +1363,10 @@ contains
             else if ( codeType == 147 ) then ! moored buoys
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
+	      
+            else if ( codeType == 150 ) then ! bogus pseudo observations
+
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 6, 1 ) )
 
             else if ( codeType ==  88 ) then ! all satellites: AVHRR, VIIRS and AMSR2
                       
