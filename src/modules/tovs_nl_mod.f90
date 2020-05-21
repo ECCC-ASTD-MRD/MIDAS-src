@@ -1941,7 +1941,7 @@ contains
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
         ksurf = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
-        tvs_profiles_nl(tovsIndex) % skin % surftype = ksurf
+        profiles(tovsIndex) % skin % surftype = ksurf
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
