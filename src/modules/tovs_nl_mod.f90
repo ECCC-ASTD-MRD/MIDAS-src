@@ -1813,8 +1813,6 @@ contains
     type(struct_vco), pointer :: vco
 
     real(8), allocatable :: pressure (:,:)
-    real(8), allocatable :: tt(:,:)
-    real(8), allocatable :: hu(:,:)
     real(8), allocatable :: latitudes(:)
     real(8), allocatable :: ozone(:,:)
     character(len=4)     :: ozoneVarName
@@ -1918,13 +1916,11 @@ contains
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
       allocate (ozone(nlv_T,profileCount),                           stat = allocStatus(4) ) 
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
-      allocate (tt(nlv_T,profileCount),                              stat = allocStatus(6) )
-      allocate (hu(nlv_T,profileCount),                              stat = allocStatus(7) )
       if ( runObsOperatorWithClw ) then
-        allocate (clw       (nlv_T,profileCount),stat= allocStatus(8))
+        allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
         clw(:,:) = minClwValue
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(9)) 
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(7)) 
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
@@ -1980,10 +1976,6 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
         end do
         
-        column_ptr => col_getColumn(columnghr, headerIndex,'TT' )
-        tt  (:,profileCount) = column_ptr(:)
-        column_ptr => col_getColumn(columnghr, headerIndex,'HU' )
-        hu  (:,profileCount) = column_ptr(:)
         if (  runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
           column_ptr => col_getColumn(columnghr, headerIndex,'LWCR' )
           clw (:,profileCount) = column_ptr(:)
@@ -2034,36 +2026,38 @@ contains
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
-        profiles(tovsIndex) % t(:)            = tt(:,profileIndex)
+        column_ptr => col_getColumn(columnghr, headerIndex,'TT' )
+        profiles(tovsIndex) % t(:)   = column_ptr(:)
+        
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv over dry air                                                                                                            ! because atmosphere is very dry where there is significant absorption by ozone)
           if (.not. tvs_useO3Climatology)  then
             profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
-        profiles(tovsIndex) % q(:)            = hu  (:,profileIndex) 
+
+        column_ptr => col_getColumn(columnghr, headerIndex,'HU' )
+        profiles(tovsIndex) % q(:)            =  column_ptr(:)
+
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
-
         ! using the minimum CLW value for land FOV
         if ( runObsOperatorWithClw ) &
              profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
       end do
 
-      deallocate (hu,                  stat = allocStatus(2))
-      deallocate (tt,                  stat = allocStatus(3))
-      deallocate (pressure,            stat = allocStatus(4))
-      deallocate (ozone,               stat = allocStatus(5))
-      deallocate (latitudes,           stat = allocStatus(6))
-      deallocate (sensorHeaderIndexes, stat = allocStatus(7))
-      deallocate (sensorTovsIndexes,   stat = allocStatus(8))
+      deallocate (pressure,            stat = allocStatus(2))
+      deallocate (ozone,               stat = allocStatus(3))
+      deallocate (latitudes,           stat = allocStatus(4))
+      deallocate (sensorHeaderIndexes, stat = allocStatus(5))
+      deallocate (sensorTovsIndexes,   stat = allocStatus(6))
       if (tvs_coefs(sensorIndex) %coef %nozone > 0 .and. .not.tvs_useO3Climatology) then
-        deallocate (ozone,             stat = allocStatus(9))
+        deallocate (ozone,             stat = allocStatus(7))
       end if
       if ( runObsOperatorWithClw ) then
-        deallocate (clw       ,stat= allocStatus(10))
+        deallocate (clw       ,stat= allocStatus(8))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(11)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(9)) 
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
      
