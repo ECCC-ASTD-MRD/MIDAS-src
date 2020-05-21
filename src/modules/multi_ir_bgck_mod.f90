@@ -620,11 +620,11 @@ contains
         clfr = 0.
         if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
-        sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
+        sunZenithAngle = profiles(tvs_nobtov) % sunzenangle
         sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
 
         if (liasi) then
-          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle
+          satelliteAzimuthAngle = profiles(tvs_nobtov) % azangle
           satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
         albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo

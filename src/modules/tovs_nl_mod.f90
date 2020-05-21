@@ -671,7 +671,7 @@ contains
 
       deallocate(tvs_profiles_nl,   stat=allocStatus(1) )
       deallocate(tvs_profiles_tlad, stat=allocStatus(2) )
-      call utl_checkAllocationStatus(allocStatus(1:2), " tvs_setupAlloc tvs_profiles 1")
+      call utl_checkAllocationStatus(allocStatus(1:2), " tvs_setupAlloc tvs_profiles_nl/tlad")
 
       do iSensor = tvs_nsensors,1,-1
         call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
@@ -1779,7 +1779,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_fillProfiles(columnghr, obsSpaceData, datestamp, profileType, limlvhu, beSilent)
     !
-    ! :Purpose:  to fill in tvs_profiles structure before call to non-linear, 
+    ! :Purpose:  to fill in tvs_profiles_nl structure before call to non-linear, 
     !            tangent-linear or adjoint of RTTOV
     !
     implicit none
@@ -1941,7 +1941,7 @@ contains
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
         ksurf = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
-        tvs_profiles(tovsIndex) % skin % surftype = ksurf
+        tvs_profiles_nl(tovsIndex) % skin % surftype = ksurf
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
