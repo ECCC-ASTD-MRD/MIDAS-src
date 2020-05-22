@@ -1793,7 +1793,6 @@ contains
     logical,                 intent(in) :: beSilent     ! To control verbosity
 
     ! Locals:
-    integer :: ksurf
     integer :: instrum, iplatform
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
@@ -1940,8 +1939,7 @@ contains
         call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_fillProfiles")
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        ksurf = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
-        profiles(tovsIndex) % skin % surftype = ksurf
+        profiles(tovsIndex) % skin % surftype = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
