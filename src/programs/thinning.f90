@@ -64,7 +64,7 @@ program midas_thinning
   call tmg_init(mpi_myid, 'TMG_THIN' )
   call tmg_start(1,'MAIN')
 
-  varMode='bgck'  ! a necessary argument for obsf_setup
+  varMode='thinning'  ! a necessary argument for obsf_setup
 
 
   ! 1. Top level setup

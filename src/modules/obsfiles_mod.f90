@@ -212,9 +212,13 @@ contains
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
     if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
-    if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
+    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
+      call ovt_transformResiduals(obsSpaceData, obs_omp)
+    end if
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
-    if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
+    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
+      call obsu_updateSourceVariablesFlag(obsSpaceData)
+    end if
     ! Put the scale factor for FSO
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
