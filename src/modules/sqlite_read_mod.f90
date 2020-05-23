@@ -1086,8 +1086,8 @@ contains
       write(*,*) myError, fSQL_errmsg(status)
     end if
 
-    ! Mark for deletion all records with bit 11 (0x800) set
-    query = ' delete from data where flag & 800;'
+    ! Mark for deletion all records with bit 11 (2048) set
+    query = ' delete from data where flag & 2048;'
     call fSQL_prepare(db, query, statement, status)
     if (fSQL_error(status) /= FSQL_OK) &
       call sqlr_handleError(status, 'thinning fSQL_prepare : ')

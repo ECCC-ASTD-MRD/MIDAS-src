@@ -1,3 +1,8 @@
+ &THIN_ALADIN
+  keepNthVertical=3
+/
+ &NAMTIME
+/
  &NAMFILT
    NELEMS    = 16,
    NLIST(1)=11003,
@@ -31,8 +36,7 @@
    NMXOBS=200000,
    NDATAMX=2000000,
 /
- &THIN_ALADIN
-  keepNthVertical=3
+ &NAMCODTYP
 /
  &NAMSQLAL
   numberElem=2,

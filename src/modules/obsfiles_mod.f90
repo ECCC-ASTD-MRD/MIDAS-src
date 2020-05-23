@@ -286,8 +286,8 @@ contains
 
     call obsf_determineFileType(obsFileType)
     if ( obsFileType /= 'SQLITE' ) then
-      write(*,*)"WARNING:  observation thinning cannot be done with a BURP file."
-      write(*,*)"          No observation has been removed from the data base."
+      write(*,*) 'obsf_thinFiles:  observation thinning cannot be done with a BURP file.'
+      write(*,*) '                 No observation has been removed from the data base.'
       return
     end if
 
