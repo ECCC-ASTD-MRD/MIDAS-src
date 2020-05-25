@@ -36,7 +36,7 @@ module thinning_mod
   implicit none
   private
 
-  public :: thn_thinAladin, thn_thinIASI
+  public :: thn_thinAladin, thn_thinHyper
 
 contains
 
@@ -82,48 +82,56 @@ contains
   end subroutine thn_thinAladin
 
   !--------------------------------------------------------------------------
-  ! thn_thinIASI
+  ! thn_thinHyper
   !--------------------------------------------------------------------------
-  subroutine thn_thinIASI(obsdat)
+  subroutine thn_thinHyper(obsdat)
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
 
     ! Namelist variables
-    integer :: deltmax ! time window by bin (from bin center to bin edge) (in minutes)
-    integer :: deltax  ! thinning (dimension of box sides) (in km)
-    integer :: deltrad ! radius around box center for chosen obs (in km)
-    namelist /thin_iasi/deltmax, deltax, deltrad
+    logical :: removeUnCorrected ! indicate if obs without bias correction should be removed
+    integer :: deltmax           ! time window by bin (from bin center to bin edge) (in minutes)
+    integer :: deltax            ! thinning (dimension of box sides) (in km)
+    integer :: deltrad           ! radius around box center for chosen obs (in km)
+    namelist /thin_hyper/removeUnCorrected, deltmax, deltax, deltrad
 
     ! Locals:
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
     ! Default namelist values
+    removeUnCorrected = .true.
     deltmax = 22
     deltax  = 150
     deltrad = 45
 
     ! Read the namelist for Aladin observations (if it exists)
-    if (utl_isNamelistPresent('thin_iasi','./flnml')) then
+    if (utl_isNamelistPresent('thin_hyper','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinIASI: Error opening file flnml')
-      read(nulnam,nml=thin_iasi,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinIASI: Error reading namelist')
-      write(*,nml=thin_iasi)
+      if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
+      read(nulnam,nml=thin_hyper,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading namelist')
+      write(*,nml=thin_hyper)
       ierr = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'thn_thinIASI: Namelist block thin_iasi is missing in the namelist.'
-      write(*,*) '              The default value will be taken.'
+      write(*,*) 'thn_thinHyper: Namelist block thin_iasi is missing in the namelist.'
+      write(*,*) '               The default value will be taken.'
     end if
 
-    call thn_thinByLatLonBoxes(obsdat, deltmax, deltax, deltrad, 'TO',  &
-                               codtyp_opt=codtyp_get_codtyp('iasi'))
+    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                               'TO', codtyp_opt=codtyp_get_codtyp('airs'))
+    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                               'TO', codtyp_opt=codtyp_get_codtyp('iasi'))
+    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                               'TO', codtyp_opt=codtyp_get_codtyp('cris'))
+    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                               'TO', codtyp_opt=codtyp_get_codtyp('crisfsr'))
 
-  end subroutine thn_thinIASI
+  end subroutine thn_thinHyper
 
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 !_/
@@ -218,8 +226,9 @@ contains
   !--------------------------------------------------------------------------
   ! thn_thinByLatLonBoxes
   !--------------------------------------------------------------------------
-  subroutine thn_thinByLatLonBoxes(obsdat, deltmax, deltax, deltrad, familyType,  &
-                                   codtyp_opt)
+  subroutine thn_thinByLatLonBoxes(obsdat, removeUnCorrected, &
+                                   deltmax, deltax, deltrad,  &
+                                   familyType, codtyp_opt)
     !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
@@ -229,6 +238,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
+    logical, intent(in)             :: removeUnCorrected
     integer, intent(in)             :: deltmax
     integer, intent(in)             :: deltax
     integer, intent(in)             :: deltrad
@@ -241,11 +251,11 @@ contains
     integer :: lonBinIndex, latBinIndex, timeBinIndex
     integer :: ierr, nsize, procIndex
     real(4) :: latr, length, distance
-    real(8) :: lonBoxCenterInRad, latBoxCenterInRad
-    real(8) :: obsLatInRad, obsLonInRad
+    real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
+    real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
     real(8) :: obsLatInDegrees, obsLonInDegrees, stepObsIndex
-    integer, parameter :: LAT_LENGTH = 10000 
-    integer, parameter :: LON_LENGTH = 40000 
+    integer, parameter :: LAT_LENGTH = 10000
+    integer, parameter :: LON_LENGTH = 40000
     real(4), allocatable :: latdeg(:)
     integer, allocatable :: ngrd(:)
     integer, allocatable :: headerIndexKeep(:,:,:), numChannelsKeep(:,:,:)
@@ -257,6 +267,8 @@ contains
     real(4), allocatable :: allDistance(:,:,:,:)
     logical, allocatable :: rejectThisHeader(:)
     logical :: keepThisObs
+    integer :: obsLonBurpFile, obsLatBurpFile
+    character(len=9) :: stnid
 
     write(*,*) 'thn_thinByLatLonBoxes: Starting'
 
@@ -309,10 +321,14 @@ contains
 
       obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
       obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
-      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
-      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      obsLonBurpFile = nint(100.0*(obsLonInDegrees - 180.0))
+      if(obsLonBurpFile < 0) obsLonBurpFile = obsLonBurpFile + 36000
+      obsLatBurpFile = 9000+nint(100.0*obsLatInDegrees)
 
       numChannels = 0
 
@@ -322,6 +338,16 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
 
+        ! mark for rejection if not bias corrected (bit 6 not set)
+        if (removeUnCorrected) then
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          if (.not. btest(obsFlag,6)) then
+            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+            call obs_bodySet_i(obsdat, OBS_ASS, bodyIndex, obs_notAssimilated)
+          end if
+        end if
+
+        ! count the number of accepted channels
         if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) then
           numChannels = numChannels + 1
         end if
@@ -335,7 +361,7 @@ contains
           exit
         end if
       end do
-      lonBinIndex = int( obsLonInDegrees/(360.0/ngrd(latBinIndex)) ) + 1
+      lonBinIndex = int( obsLonBurpFile/(36000.0/ngrd(latBinIndex)) ) + 1
       if ( lonBinIndex > ngrd(latBinIndex) ) lonBinIndex = ngrd(latBinIndex)
 
       ! Determine the time bin index
@@ -345,12 +371,16 @@ contains
       delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - stepObsIndex))
 
       ! Determine distance from box center
-      latBoxCenterInRad = MPC_RADIANS_PER_DEGREE_R8 * &
-                          (latdeg(latBinIndex) - 0.5 * (180./nblat))
-      lonBoxCenterInRad = MPC_RADIANS_PER_DEGREE_R8 * &
-                          ((360. / ngrd(latBinIndex)) * (lonBinIndex - 0.5))
-      distance = 1.0d-3 * phf_calcDistance(latBoxCenterInRad, lonBoxCenterInRad, &
-                                       obsLatInRad, obsLonInRad )
+      latBoxCenterInDegrees = latdeg(latBinIndex) - 0.5 * (180./nblat)
+      lonBoxCenterInDegrees = (360. / ngrd(latBinIndex)) * (lonBinIndex - 0.5)
+      !distance = 1.0d-3 * phf_calcDistance(latBoxCenterInRad, lonBoxCenterInRad, &
+      !                                     obsLatInRad, obsLonInRad )
+      obsLat = (obsLatBurpFile - 9000.) / 100.
+      obsLon = obsLonBurpFile / 100.
+      distance = separation(lonBoxCenterInDegrees,latBoxCenterInDegrees,obsLon,obsLat) &
+                 * lat_length / 90.
+
+      stnid = obs_elem_c(obsdat,'STID',headerIndex)
 
       ! Apply thinning criteria
       keepThisObs = .false.
@@ -366,10 +396,14 @@ contains
         if ( headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == -1 ) then
           keepThisObs = .false.
         else
-          if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) keepThisObs = .false.
+          if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
+            keepThisObs = .false.
+          end if
          
           if ( delMinutes == delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
-            if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) keepThisObs = .false.
+            if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
+              keepThisObs = .false.
+            end if
           end if
 
         end if
@@ -427,10 +461,14 @@ contains
               if ( headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == -1 ) then
                 keepThisObs = .false.
               else
-                if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) keepThisObs = .false.
+                if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
+                  keepThisObs = .false.
+                end if
          
                 if ( delMinutes == delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
-                  if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) keepThisObs = .false.
+                  if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
+                    keepThisObs = .false.
+                  end if
                 end if
 
               end if
@@ -492,5 +530,43 @@ contains
     write(*,*) 'thn_thinByLatLonBoxes: Finished'
 
   end subroutine thn_thinByLatLonBoxes
+
+  FUNCTION SEPARATION(XLON1,XLAT1,XLON2,XLAT2)
+    !
+    !AUTHOR  PETER HOUTEKAMER
+    !        JANUARY 1995 - RPN - DORVAL - 421-4775
+    !
+    !OBJECT COMPUTE THE DISTANCE IN DEGREES BETWEEN
+    !         (XLON1,XLAT1) AND (XLON2,XLAT2).
+    !
+    !ARGUMENTS:
+    !  INPUT  XLON1: GEOGRAPHICAL LONGITUDE IN DEGREES OF THE
+    !                  FIRST POINT.
+    !         XLON2: GEOGRAPHICAL LONGITUDE OF THE SECOND POINT.
+    !         XLAT1: GEOGRAPHICAL LATITUDE OF THE FIRST POINT.
+    !         XLAT2: GEOGRAPHICAL LATITUDE OF THE SECOND POINT.
+    !  OUTPUT SEPARA: THE SEPARATION IN DEGREES BETWEEN THE
+    !                 TWO POINTS.
+    !
+    IMPLICIT NONE
+
+    REAL(8) ::  XLAT1,XLAT2,XLON1,XLON2,SEPARATION,COSVAL,DEGRAD,RADDEG
+
+    RADDEG=180.0/3.14159265358979
+    DEGRAD=1.0/RADDEG
+    COSVAL=SIN(XLAT1*DEGRAD)*SIN(XLAT2*DEGRAD)+  &
+           COS(XLAT1*DEGRAD)*COS(XLAT2*DEGRAD)*  &
+           COS((XLON1-XLON2)*DEGRAD)
+    !!!
+    ! PROTECT AGAINST ROUND OF ERRORS
+    !!!
+    IF (COSVAL.LT.-1.0D0) THEN
+      COSVAL=-1.0D0
+    ELSE IF (COSVAL.GT.1.0D0) THEN
+      COSVAL=1.0D0
+    ENDIF
+    SEPARATION=ACOS(COSVAL)*RADDEG
+
+  END FUNCTION SEPARATION
 
 end module thinning_mod

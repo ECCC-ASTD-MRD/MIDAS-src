@@ -92,7 +92,7 @@ program midas_thinning
 
   ! Set bit 11 of flag, one observation type at a time
   call thn_thinAladin(obsSpaceData)
-  call thn_thinIASI(obsSpaceData)
+  call thn_thinHyper(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !- Write bit11 to the sql files (FLG must be set in namSQLUpdate)
