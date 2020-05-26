@@ -7,10 +7,10 @@
 ##        ```
 ##        make help
 ##        ```
-##		* Full multiprecision build (on a given architecture):
+##		* Build all programs (on a given architecture):
 ##		  ```
-##		  . ./programs/commons/compile_setup.sh 
-##		  make [-j${NCPUS}] [VERBOSE=(1|2)]
+##		  source ./config.dot.sh
+##		  make [-j${NCPUS} -O] [VERBOSE=(1|2)]
 ##		  make install
 ##		  ```
 ##
@@ -18,17 +18,10 @@
 ##		  without actually doing it, use `make ${TARGET} -n`.
 ##		  (see also https://www.gnu.org/software/make/manual/html_node/Instead-of-Execution.html)
 ##
-##		* To build a single target you have to 
-##	      1. source the configuration script
-##		  2. pass the variable `MIDAS_COMPILE_REAL_SINGLE=true` to make
-##		     if you want real 4 objects and binaries, for example:
+##		* To build a single target (object, absolute or dependency file) 
 ##		  ```
 ##		  . ./programs/commons/compile_setup.sh 
-##		  make spectralfilter_mod.o MIDAS_COMPILE_REAL_SINGLE=true
-##		  ```
-##		  or for double precision:
-##		  ```
-##		  make spectralfilter_mod.o
+##		  make spectralfilter_mod.o 
 ##		  ```
 ##	@SEQUENCE
 ##		1. preprocessing of ftn90 files
@@ -44,6 +37,8 @@
 ##	
 ##
 ##	@DEV_NOTES
+##		* inline comments starting with `#>` are interpreted for `make help`
+##		  (search for `help:`)
 ##		* need `makedepf90`
 ##		  available on 
 ##        [anaconda.org](https://anaconda.org/conda-forge/makedepf90)
@@ -98,7 +93,7 @@ FILE_CFG := ./config.dot.sh
 ## 	can be initialized from parent shell
 ifneq ($(MAKECMDGOALS),help)
    ifndef DIR_BLD_ROOT
-      $(error DIR_BLD_ROOT is not set, source $(FILE_CFG))
+      $(error DIR_BLD_ROOT is not set, source $(FILE_CFG) )
    endif
 endif
 
@@ -118,7 +113,7 @@ ifdef VERBOSE
     V :=
     export VERBOSE
     ifeq ($(VERBOSE), 2)
-        export Verbose=1 # for s.f90
+        export Verbose=1 ## for s.f90
     endif
 endif 
 
@@ -129,6 +124,9 @@ endif
 ## 	(independent of environment: available anytime) 
 .PHONY: clean cleanabs cleanobj cleandep
 
+
+
+## TODO
 clean:	#> delete the build directory 
 	@echo "rm -rf $(DIR_BLD_ROOT)"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
@@ -146,9 +144,16 @@ cleandep:	#> delete all dependency file
 
 .PHONY: help
 help:	#> print this help
-	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST) | sort | \
+	@echo "USAGE:"
+	@echo "    source $(FILE_CFG)"
+	@echo '    make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]'
+	@echo "OPTIONS:"
+	@echo '    consult make manual: man make'
+	@echo "TARGETS:"
+	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST)|sort|\
 	cut -d":" -f2- | \
-	awk 'BEGIN {FS = ":[^:]*#> "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' | cut -d":" -f2
+	awk 'BEGIN {FS = ":[^:]*#> "}; \
+		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
 
 
 
@@ -195,34 +200,7 @@ endif
 endif
 
 
-##-----------------------------------------------
-##	Phony global targets
-##
-
-.PHONY: all real4 real8 install4 install8 install depend4 depend8 depend
-
-all: real4 real8 	#> compile all programs 
-real4:	#> compile all REAL 4 programs (for EnKF) 
-	$(MAKE) absolutes --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-real8:	#> compile all REAL 8 programs 
-	$(MAKE) absolutes --no-print-directory
-
-##  dependency analysis tool are only available on frontend
-##	the `depend` target generate dependency files for both 
-##	REAL 4 and 8 on both platforms.
-depend : depend4 depend8	#> generate all dependency files
-	$(MAKE) copy_depend_backend --no-print-directory
-depend4:	#> generate dependency files for REAL 4 objects
-	$(MAKE) depend_ --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-depend8:	#> generate dependency files for REAL 8 objects
-	$(MAKE) depend_ --no-print-directory
-
-install: install4 install8	#> install all programs
-install4:	#> install all REAL 4 programs
-	$(MAKE) install_ --no-print-directory MIDAS_COMPILE_REAL_SINGLE=true
-install8: 	#> install all REAL 8 programs
-	$(MAKE) install_ --no-print-directory
-
+## TODO
 ##	END of Common block
 ##
 ##===================================================================
@@ -235,9 +213,8 @@ install8: 	#> install all REAL 8 programs
 ##	Synopsis:
 ##		1. `make` is called from `./src`
 ##		2. gets here and `target.mk` is included
-##		3. `target.mk` move us into the build directory, either:
-##			* `${DIR_BLD_ROOT}/${ORDENV_PLAT}/${EC_ARCH}/real4`
-##			* `${DIR_BLD_ROOT}/${ORDENV_PLAT}/${EC_ARCH}/real8`
+##		3. `target.mk` move us into the build directory:
+##         `$(DIR_BLD_ROOT)/$(revnum)/$(EC_ARCH)`
 ##		4. defines the relative position of the `Makefile` with
 ##		   $(SRC_ROOT) used in the `else` section
 ##		5. it calls `make` from there (allowing clean out-of-tree compilation)
@@ -247,7 +224,7 @@ install8: 	#> install all REAL 8 programs
 ##		<!> be very careful with `target.mk` it's filled with
 ##		    ancestral make black magic
 ##
-ifeq (,$(filter real%,$(notdir $(CURDIR))))
+ifneq (,$(filter src%,$(notdir $(CURDIR))))
 include target.mk
 else
 ##===================================================================
@@ -259,6 +236,11 @@ else
 ##	(only processed when make called from within the build directory
 ##	see ./target.mk)
 ##	
+##  <!> I can see potential problems with line
+##      `ifneq (,$(filter src%,$(notdir $(CURDIR))))`
+##      It means that make, called from anywhere except from `src` would
+##      trigger this part, even out of build dir...
+##      TODO: improve that condition
 ##
 
 FC := s.f90
@@ -279,34 +261,24 @@ LIBRMN := rmnMP
 ##-----------------------------------------------
 ##	Modules	
 ##
-## 	1. gathering of all module sources
+## 	1. gathering of all module and program sources
 ##
 SRC_F90 := $(wildcard $(DIR_MOD)/*.f90)
 SRC_FTN := $(wildcard $(DIR_MOD)/*.ftn90)
 SRC_PGM := $(wildcard $(DIR_PGM)/*.f90)
 SRC_FTN_F90 := $(notdir $(subst .ftn90,.f90,$(SRC_FTN)))
-SRC_ALL := $(SRC_F90) $(SRC_FTN_F90) $(SRC_PGM) 
+SRC_ALL := $(SRC_F90) $(SRC_FTN_F90)  $(SRC_PGM) 
 OBJ := $(notdir $(subst .f90,.o,$(SRC_ALL)))
 
-##-----------------------------------------------
-## 	Multi-real-precision builds
-##
-##		(see also `./programs/programs.mk`)
-ifeq ($(MIDAS_COMPILE_REAL_SINGLE), true)
-    ABS		=	$(ABS_SMPL)
-    COMPF 	+=  -DCODEPRECISION_OBS_REAL_SINGLE
-    DEP_OBJ	= 	dep.real4.inc
-    DEP_ABS	= 	dep.real4.abs.inc
-else
-    ABS		=	$(ABS_DBL)
-    DEP_OBJ	= 	dep.real8.inc
-    DEP_ABS	= 	dep.real8.abs.inc
-endif
+##-- ABS defined in programs/programs.mk
+DEP_OBJ	= 	dep.obj.inc
+DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
 #ABS_INSTALL_PRFX = $(SRC_ROOT)/$(DIR_BLD_ROOT)/midas_abs/midas-
 ## DIR_BLD_ROOT is now absolute path
-ABS_INSTALL_PRFX = $(DIR_BLD_ROOT)/midas_abs/midas-
+ABS_INSTALL_DIR = $(DIR_BLD_ROOT)/midas_abs
+ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS)))
 
@@ -319,11 +291,12 @@ $(ABS_INSTALL_PRFX)%$(ABS_INSTALL_SUFX).Abs : $(CURDIR)/%.Abs
 	+@[ -d $(@D) ] || mkdir -p $(@D)
 	cp $< $@
 
-##-----------------------------------------------
-##	Main ftn90 preprocessing, compilation and linking recipes
+##----------------------------------------------
+##     Main ftn90 preprocessing, compilation and linking recipes
 ##
+
 _D_options=$(filter -D%,$(COMPF))
-%.f90: %.ftn90	#> preprocess an ftn90 file
+%.f90: %.ftn90 #> preprocess an ftn90 file
 	@echo 'Preprocessing $(@F) inplace'
 	$(V) r.gppf -lang-f90+ $(GPP_OPTS) $(_D_options) $< \
 	> $@ \
@@ -379,7 +352,8 @@ endif
 ifeq ($(ORDENV_PLAT),$(FRONTEND_PLAT))
 $(DEP_OBJ): $(SRC_ALL)
 	$(V) echo "Generating object dependencies > $@"	
-	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | sed  's/\([^ ]* :\)/\n\1/g' > $@
+	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
+		sed  's/\([^ ]* :\)/\n\1/g' > $@
 
 ##  ### Absolute linking prerequisites
 ##
@@ -400,9 +374,11 @@ $(DEP_OBJ) $(DEP_ABS) copy_depend_backend:
 endif
 
 ##-----------------------------------------------
-##	Other phony global targets
+##	Phony global targets
 ##
-.PHONY: absolutes objects info ssm doc diagrams install_ depend_ 
+.PHONY: all absolutes objects info ssm doc diagrams install depend 
+
+all: absolutes	#> compile all programs 
 
 absolutes: $(ABS) 
 
@@ -427,15 +403,16 @@ info:	#>	print build configuration
 	@echo '===| INFO |================================='
 	@echo version: $(VERSION)
 	@echo build directory: $(CURDIR)
+	@echo install directory: $(ABS_INSTALL_DIR)
 	@echo COMPF=$(COMPF)
 	@echo FOPTMIZ=$(FOPTMIZ) 
 	@echo GPP_OPTS=$(GPP_OPTS) 
 	@echo '============================================'
 	@echo
 
-install_: $(ABS_INSTALL)
+install: $(ABS_INSTALL)			#> install all programs
 
-depend_: $(DEP_OBJ) $(DEP_ABS)
+depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
 
 ##
@@ -445,4 +422,4 @@ depend_: $(DEP_OBJ) $(DEP_ABS)
 ##===================================================================
 ##===================================================================
 endif
-# vim: set noexpandtab noautoindent:
+# vim: set noexpandtab noautoindent nolist:
