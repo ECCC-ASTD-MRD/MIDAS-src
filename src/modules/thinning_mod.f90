@@ -373,12 +373,12 @@ contains
       ! Determine distance from box center
       latBoxCenterInDegrees = latdeg(latBinIndex) - 0.5 * (180./nblat)
       lonBoxCenterInDegrees = (360. / ngrd(latBinIndex)) * (lonBinIndex - 0.5)
-      !distance = 1.0d-3 * phf_calcDistance(latBoxCenterInRad, lonBoxCenterInRad, &
-      !                                     obsLatInRad, obsLonInRad )
       obsLat = (obsLatBurpFile - 9000.) / 100.
       obsLon = obsLonBurpFile / 100.
-      distance = separation(lonBoxCenterInDegrees,latBoxCenterInDegrees,obsLon,obsLat) &
-                 * lat_length / 90.
+      distance = 1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
+                                           MPC_RADIANS_PER_DEGREE_R8 * lonBoxCenterInDegrees, &
+                                           MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
+                                           MPC_RADIANS_PER_DEGREE_R8 * obsLon )
 
       stnid = obs_elem_c(obsdat,'STID',headerIndex)
 
@@ -530,43 +530,5 @@ contains
     write(*,*) 'thn_thinByLatLonBoxes: Finished'
 
   end subroutine thn_thinByLatLonBoxes
-
-  FUNCTION SEPARATION(XLON1,XLAT1,XLON2,XLAT2)
-    !
-    !AUTHOR  PETER HOUTEKAMER
-    !        JANUARY 1995 - RPN - DORVAL - 421-4775
-    !
-    !OBJECT COMPUTE THE DISTANCE IN DEGREES BETWEEN
-    !         (XLON1,XLAT1) AND (XLON2,XLAT2).
-    !
-    !ARGUMENTS:
-    !  INPUT  XLON1: GEOGRAPHICAL LONGITUDE IN DEGREES OF THE
-    !                  FIRST POINT.
-    !         XLON2: GEOGRAPHICAL LONGITUDE OF THE SECOND POINT.
-    !         XLAT1: GEOGRAPHICAL LATITUDE OF THE FIRST POINT.
-    !         XLAT2: GEOGRAPHICAL LATITUDE OF THE SECOND POINT.
-    !  OUTPUT SEPARA: THE SEPARATION IN DEGREES BETWEEN THE
-    !                 TWO POINTS.
-    !
-    IMPLICIT NONE
-
-    REAL(8) ::  XLAT1,XLAT2,XLON1,XLON2,SEPARATION,COSVAL,DEGRAD,RADDEG
-
-    RADDEG=180.0/3.14159265358979
-    DEGRAD=1.0/RADDEG
-    COSVAL=SIN(XLAT1*DEGRAD)*SIN(XLAT2*DEGRAD)+  &
-           COS(XLAT1*DEGRAD)*COS(XLAT2*DEGRAD)*  &
-           COS((XLON1-XLON2)*DEGRAD)
-    !!!
-    ! PROTECT AGAINST ROUND OF ERRORS
-    !!!
-    IF (COSVAL.LT.-1.0D0) THEN
-      COSVAL=-1.0D0
-    ELSE IF (COSVAL.GT.1.0D0) THEN
-      COSVAL=1.0D0
-    ENDIF
-    SEPARATION=ACOS(COSVAL)*RADDEG
-
-  END FUNCTION SEPARATION
 
 end module thinning_mod
