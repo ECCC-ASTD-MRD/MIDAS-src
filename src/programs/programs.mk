@@ -1,12 +1,12 @@
 
 #===| DOUBLE PRECISION |=========================
-PGM_DBL := var thinning seaIce randomPert obsSelection obsImpact oMinusF\
+PGM := var thinning seaIce randomPert obsSelection obsImpact oMinusF\
 			letkf genCoeff ensembleH ensManip diagHBHt diagBmatrix\
 			calcStats bgckMW advector adjointTest addIncrement\
-			ensPostProcess 
+			ensPostProcess prepcma
 # TODO: automate that ^
 
-ABS_DBL := $(addsuffix .Abs,$(PGM_DBL)) 
+ABS := $(addsuffix .Abs,$(PGM)) 
 
 #--------------------------------------
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
@@ -99,18 +99,9 @@ letkf.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel rttov_main\
 		rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module $(VGRID_LIBNAME)\
 		irc $(MPILIB) f90sqlite udfsqlite random
 
-#===| SINGLE PRECISION |=========================
-PGM_SMPL := prepcma obsIO
-ABS_SMPL := $(addsuffix .Abs,$(PGM_SMPL))
-
 #--------------------------------------
 prepcma.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) f90sqlite\
 		udfsqlite burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
-#--------------------------------------
-obsIO.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
-		rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
-		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite  
-
-# vim: set noexpandtab noautoindent:
+# vim: set noexpandtab noautoindent nolist:
