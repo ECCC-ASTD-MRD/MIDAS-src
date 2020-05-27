@@ -50,7 +50,7 @@ module obsFiles_mod
 
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
-  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update, obsf_thinFiles
+  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName
 
   logical           :: obsFilesSplit
@@ -174,21 +174,20 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, burpClean_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, obsFileClean_opt )
   implicit none
 
   ! arguments
   type(struct_obs)  :: obsSpaceData
   real(8), optional :: HXens_mpiglobal_opt(:,:)
   logical, optional :: asciDumpObs_opt
-  logical, optional :: burpClean_opt
+  logical, optional :: obsFileClean_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType, sfFileName
   character(len=*), parameter :: myName = 'obsf_writeFiles'
-  character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-  character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+  character(len=*), parameter :: myWarning = myName //' WARNING: '
 
   ! namelist variables
   logical :: lwritediagsql
@@ -223,15 +222,28 @@ contains
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
     do fileIndex = 1, obsf_nfiles
-
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+
       if ( obsFileType == 'BURP'   ) then
-        call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        if ( present(burpClean_opt) ) then
-          if ( burpClean_opt ) call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
+                              fileIndex )
+        if ( present(obsFileClean_opt) ) then
+          if ( obsFileClean_opt ) then
+            call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+          end if
         end if
       end if
-      if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+
+      if ( obsFileType == 'SQLITE' ) then
+        call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
+                              fileIndex )
+        if ( present(obsFileClean_opt) ) then
+          if ( obsFileClean_opt ) then
+            call sqlf_cleanFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                 obsf_cfamtyp(fileIndex), fileIndex )
+          end if
+        end if
+      end if
 
     end do
 
@@ -264,39 +276,6 @@ contains
   end if
 
   end subroutine obsf_writeFiles
-
-
-  subroutine obsf_thinFiles(obsSpaceData)
-    !
-    ! :Purpose: to reduce the number of observation data
-    !
-    ! :Note:    operates only on SQL files. Issues a warning for other file types
-    !
-    implicit none
-
-    ! arguments
-    type(struct_obs), intent(inout) :: obsSpaceData
-
-    ! locals
-    integer :: fileIndex
-    character(len=10) :: obsFileType
-
-    if(.not.initialized) call utl_abort( &
-                                'obsf_thinFiles: obsFiles_mod not initialized!')
-
-    call obsf_determineFileType(obsFileType)
-    if ( obsFileType /= 'SQLITE' ) then
-      write(*,*) 'obsf_thinFiles:  observation thinning cannot be done with a BURP file.'
-      write(*,*) '                 No observation has been removed from the data base.'
-      return
-    end if
-
-    do fileIndex = 1, obsf_nfiles
-      call sqlf_thinFile(obsSpaceData, obsf_cfilnam(fileIndex), &
-                         obsf_cfamtyp(fileIndex), fileIndex)
-
-    end do
-  end subroutine obsf_thinFiles
 
 
   subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)

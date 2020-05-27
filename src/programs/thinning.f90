@@ -90,16 +90,13 @@ program midas_thinning
 
   ! 3. Do the Thinning
 
-  ! Set bit 11 of flag, one observation type at a time
+  !- Set bit 11 of flag, process one observation type at a time
   call thn_thinAladin(obsSpaceData)
   call thn_thinHyper(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !- Write bit11 to the sql files (FLG must be set in namSQLUpdate)
-  call obsf_writeFiles(obsSpaceData, burpClean_opt=.true.)
-
-  !- Delete the flagged observations, and make the files smaller
-  call obsf_thinFiles(obsSpaceData)
+  !- Update obs files and remove rejected obs (bit 11) from file (obsFileClean)
+  call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! 4. Job termination

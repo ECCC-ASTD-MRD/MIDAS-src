@@ -34,7 +34,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_thinFile, sqlf_writeSqlDiagFiles
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -202,7 +202,7 @@ module sqliteFiles_mod
   end subroutine sqlf_updateFile
 
 
-  subroutine sqlf_thinFile(obsSpaceData, fileName, familyType, fileIndex)
+  subroutine sqlf_cleanFile(obsSpaceData, fileName, familyType, fileIndex)
     !
     ! :Purpose: to reduce the number of observation data in an SQLite file
     !
@@ -215,22 +215,18 @@ module sqliteFiles_mod
     integer,           intent(in) :: fileIndex
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlf_thinFile'
+    character(len=*), parameter :: myName = 'sqlf_cleanFile'
 
-    call tmg_start(96,'POST_THINSQL')
-    write(*,*) myName//' Starting'
+    call tmg_start(96,'POST_CLEANSQL')
+    write(*,*) myName//': Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
 
-    call sqlr_thinSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    call sqlr_cleanSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
 
-    write(*,*)' '
-    write(*,*)'================================================='
-    write(*,*)'                '//trim(myName)//'    END               '
-    write(*,*)'================================================='
-    write(*,*)' '
+    write(*,*)myName//': Finished'
     call tmg_stop(96)
-  end subroutine sqlf_thinFile
+  end subroutine sqlf_cleanFile
 
 
   subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )

@@ -42,7 +42,7 @@ save
 
 private
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_thinSqlite, sqlr_writeAllSqlDiagFiles
+public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles
 
 contains
   
@@ -1060,7 +1060,7 @@ contains
   end subroutine sqlr_insertSqlite
 
 
-  subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
+  subroutine sqlr_cleanSqlite(db, obsdat, familyType, fileName, fileNumber)
     !
     ! :Purpose: Remove flagged (bit 11 set) observations in an SQLite file
     !
@@ -1074,7 +1074,7 @@ contains
     integer,             intent(in) :: fileNumber
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlr_thinSqlite:'
+    character(len=*), parameter :: myName = 'sqlr_cleanSqlite:'
     character(len=*), parameter :: myError = myName //' ERROR: '
 
     character(len = 128) :: query
@@ -1098,7 +1098,7 @@ contains
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
-  end subroutine sqlr_thinSqlite
+  end subroutine sqlr_cleanSqlite
 
 
   function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)

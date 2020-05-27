@@ -249,7 +249,7 @@ contains
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
     integer :: nblat, nblon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex
-    integer :: ierr, nsize, procIndex
+    integer :: ierr, nsize, procIndex, countHeader
     real(4) :: latr, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
@@ -309,6 +309,8 @@ contains
       ngrd(latIndex)   = nint(length/deltax)
     end do
 
+    countHeader = 0
+
     ! loop over all header indices of the specified family
     call obs_set_current_header_list(obsdat,trim(familyType))
     HEADER: do
@@ -318,6 +320,8 @@ contains
       if (present(codtyp_opt)) then
         if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp_opt) cycle HEADER
       end if
+
+      countHeader = countHeader + 1
 
       obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
       obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
@@ -418,6 +422,13 @@ contains
       end if
 
     end do HEADER
+
+    ! return if no observations for this instrument
+    if (countHeader == 0) then
+      call deallocLocals()
+      write(*,*) 'thn_thinByLatLonBoxes: no observations for this instrument'
+      return
+    end if
 
     ! communicate results to all other mpi tasks
     nsize = nblat * nblon * tim_nstepobs
@@ -526,8 +537,30 @@ contains
       end do BODY2
 
     end do HEADER2
+    deallocate(rejectThisHeader)
+
+    call deallocLocals()
 
     write(*,*) 'thn_thinByLatLonBoxes: Finished'
+
+  contains
+
+    subroutine deallocLocals()
+      implicit none
+
+      deallocate(headerIndexKeep)
+      deallocate(numChannelsKeep)
+      deallocate(distanceKeep)
+      deallocate(delMinutesKeep)
+      deallocate(latdeg)
+      deallocate(ngrd)
+      deallocate(allHeaderIndex)
+      deallocate(allNumChannels)
+      deallocate(allDistance)
+      deallocate(allDelMinutes)
+      deallocate(procIndexKeep)
+      
+    end subroutine deallocLocals
 
   end subroutine thn_thinByLatLonBoxes
 
