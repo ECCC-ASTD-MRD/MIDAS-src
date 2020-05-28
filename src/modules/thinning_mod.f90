@@ -168,13 +168,13 @@ contains
     end if
 
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_opt=codtyp_get_codtyp('airs'))
+                               'TO', codtyp_get_codtyp('airs'))
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_opt=codtyp_get_codtyp('iasi'))
+                               'TO', codtyp_get_codtyp('iasi'))
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_opt=codtyp_get_codtyp('cris'))
+                               'TO', codtyp_get_codtyp('cris'))
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_opt=codtyp_get_codtyp('crisfsr'))
+                               'TO', codtyp_get_codtyp('crisfsr'))
 
   end subroutine thn_thinHyper
 
@@ -286,7 +286,7 @@ contains
     integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, ierr
     integer :: bodyIndex, headerIndex1, headerIndex2, stepIndex, obsCount, obsIndex
     integer :: loscan, hiscan, icntqc, nassim, obsFlag, obsFov, icntptg, nbstn2
-    integer :: icntstn, icntkept, icntfin, icntothr
+    integer :: icntkept, icntothr
     logical :: global1, global2
     real(4) :: zlength, zlatrad, zdlon, zlatchk, zlonchk, zlontmp
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon
@@ -311,9 +311,31 @@ contains
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
 
+    write(*,*) 'thn_tovsFilt: Starting, ', trim(codtyp_get_name(codtyp))
+
+    numHeader = obs_numHeader(obsdat)
+
+    ! Check if we have any observations to process
+    allocate(valid(numHeader))
+    valid(:) = .false.
+    do headerIndex = 1, numHeader
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) == codtyp) then
+        valid(headerIndex) = .true.
+      else if (present(codtyp2_opt)) then
+        if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) == codtyp2_opt) then
+          valid(headerIndex) = .true.
+        end if
+      end if
+    end do
+    if (count(valid(:)) == 0) then
+      write(*,*) 'thn_tovsFilt: no observations for this instrument'
+      return
+    end if
+
+    write(*,*) 'obsCount initial = ', count(valid(:))
+
     nblat = 2*xlat/delta
     nblon = xlon/delta
-    numHeader = obs_numHeader(obsdat)
 
     ! Allocations
     allocate(zlatdeg(nblat))
@@ -327,17 +349,17 @@ contains
     allocate(ngrd(nblat))
     allocate(igrds(numHeader))
     allocate(indexs(numHeader))
-    allocate(valid(numHeader))
     allocate(zcentregen(numHeader))
     allocate(obsDateStamp(numHeader))
     allocate(obsLonBurpFile(numHeader))
     allocate(obsLatBurpFile(numHeader))
     allocate(zdobs(numHeader))
 
+    write(*,*) 'thn_tovsFilt: after alloction'
+
     ! Initialize some arrays
     nbstn(:) = 0
-    valid(:) = .true.
-    zcentregen(:) = 0
+    zcentregen(:) = 0 ! NOTE: currently not reading this from burp file (element 1033)
 
     ! Set up the grid used for thinning
     ngrdtot = 0
@@ -360,9 +382,12 @@ contains
       gridIndex = gridIndex + ngrd(latIndex)
     end do
 
+    write(*,*) 'thn_tovsFilt: after grid setup'
+
     ! Loop over all observation locations
     do headerIndex = 1, numHeader
-
+      if ( .not. valid(headerIndex) ) cycle
+      
       ! Date stamp for each observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
@@ -403,15 +428,12 @@ contains
 
     end do ! headerIndex
 
+    write(*,*) 'thn_tovsFilt: after first pass'
 
     ! start of "passe2"
-    obsCount = 0
     HEADER1: do headerIndex1 = 1, (numHeader-1)
         
-      if ( .not. valid(headerIndex1) ) cycle
-
-      ! Verifier si la station est rars
-      global1 = any(centre_gen_global(:) == zcentregen(headerIndex1))
+      if ( .not. valid(headerIndex1) ) cycle HEADER1
  
       HEADER2: do headerIndex2 = headerIndex1+1, numHeader
           
@@ -422,54 +444,55 @@ contains
         ! pas s'y fier.
         ! Il faut comparer le temps de la reception des
         ! donnees
-        if ( zcentregen(headerIndex1) /= zcentregen(headerIndex2) .and.  &
-             obs_elem_c(obsdat,'STID',headerIndex1) ==  &
-             obs_elem_c(obsdat,'STID',headerIndex2) .and.  &
-             obs_headElem_i(obsdat,OBS_FOV,headerIndex1) ==  &
-             obs_headElem_i(obsdat,OBS_FOV,headerIndex2) ) then
+        if ( zcentregen(headerIndex1) /= zcentregen(headerIndex2) ) then
+          if ( (obs_headElem_i(obsdat,OBS_FOV,headerIndex1) ==  &
+                obs_headElem_i(obsdat,OBS_FOV,headerIndex2)) ) then
+            if ( (obs_elem_c(obsdat,'STID',headerIndex1) ==  &
+                  obs_elem_c(obsdat,'STID',headerIndex2)) ) then
             
-          obsCount = obsCount + 1
-            
-          ! Difference (in hours) between obs time
-          call difdatr(obsDateStamp(headerIndex1),obsDateStamp(headerIndex2),dlhours)
+              ! Difference (in hours) between obs time
+              call difdatr(obsDateStamp(headerIndex1),obsDateStamp(headerIndex2),dlhours)
 
-          ! Si la difference est moins de 6 minutes,
-          ! on peut avoir affaire a un rars
+              ! Si la difference est moins de 6 minutes,
+              ! on peut avoir affaire a un rars
 
-          if ( abs(dlhours) <= 0.1 ) then
+              if ( abs(dlhours) <= 0.1 ) then
 
-            ! ON RAMENE LES LATS ENTRE -90 ET 90
-            ! ET LES LONS ENTRE 0 ET 360
-            zlat1 = ( obsLatBurpFile(headerIndex1) - 9000.) / 100.
-            zlon1 =   obsLonBurpFile(headerIndex1) / 100.
-            zlat2 = ( obsLatBurpFile(headerIndex2) - 9000.) / 100.
-            zlon2 =   obsLonBurpFile(headerIndex2) / 100.
+                ! ON RAMENE LES LATS ENTRE -90 ET 90
+                ! ET LES LONS ENTRE 0 ET 360
+                zlat1 = ( obsLatBurpFile(headerIndex1) - 9000.) / 100.
+                zlon1 =   obsLonBurpFile(headerIndex1) / 100.
+                zlat2 = ( obsLatBurpFile(headerIndex2) - 9000.) / 100.
+                zlon2 =   obsLonBurpFile(headerIndex2) / 100.
 
-            ! SI LA DISTANCE ENTRE DEUX STNS < MINIMUM
-            ! ETABLI ICI A 10KM (PAR EXPERIENCE)
-            distance = separa(zlon1,zlat1,zlon2,zlat2) * float(xlat) / 90.
-            if (distance <= 10.) then
+                ! SI LA DISTANCE ENTRE DEUX STNS < MINIMUM
+                ! ETABLI ICI A 10KM (PAR EXPERIENCE)
+                distance = separa(zlon1,zlat1,zlon2,zlat2) * float(xlat) / 90.
+                if (distance <= 10.) then
 
-              ! si l'element_i est global, on doit le garder et rejeter l'element_j
-              if (global1) then 
-                valid(headerIndex2) = .false.
-              else
-                  
-                ! toutefois, ca ne signifie pas que l'element_j est un rars
-                ! VERIFIER SI LA STATION 2 EST RARS
-                global2 = any(centre_gen_global(:) == zcentregen(headerIndex2))
+                  ! si l'element_i est global, on doit le garder et rejeter l'element_j
+                  global1 = any(centre_gen_global(:) == zcentregen(headerIndex1))
+                  if (global1) then 
+                    valid(headerIndex2) = .false.
+                  else
+                    ! toutefois, ca ne signifie pas que l'element_j est un rars
+                    ! VERIFIER SI LA STATION 2 EST RARS
+                    global2 = any(centre_gen_global(:) == zcentregen(headerIndex2))
 
-                ! Si l'element_j est global, rejeter l'element_i
-                ! Si les 2 elements sont rars, garder le 1er
+                    ! Si l'element_j est global, rejeter l'element_i
+                    ! Si les 2 elements sont rars, garder le 1er
+                    if (global2) then 
+                      valid(headerIndex1) = .false.
+                      cycle HEADER1
+                    else
+                      valid(headerIndex2) = .false.
+                    end if
 
-                if (global2) then 
-                  valid(headerIndex1) = .false.
-                  cycle HEADER1
-                else
-                  valid(headerIndex2) = .false.
-                end if
+                  end if
 
-              end if
+                end if ! distance <= 10
+
+              end if ! abs(dlhours) <= 0.1
 
             end if
           end if
@@ -477,10 +500,9 @@ contains
 
       end do HEADER2
     end do HEADER1
-      
-    write(*,*) 'obsCount', obsCount
-    ! end of passe2
 
+    write(*,*) 'thn_tovsFilt: obsCount after second pass = ', count(valid(:))
+    ! end of passe2
 
     ! start of passe1
     if      ( codtyp == codtyp_get_codtyp('amsua') ) then
@@ -497,7 +519,10 @@ contains
       hiscan   = mxscanmwhs2
     end if
 
+    icntqc = 0
     do headerIndex = 1, numHeader
+
+      if ( .not. valid(headerIndex) ) cycle
 
       ! Look at the obs flags
       nassim = 0
@@ -539,11 +564,14 @@ contains
     end do
     ! end of passe1
 
+    write(*,*) 'thn_tovsFilt: obsCount after third pass = ', count(valid(:))
 
     ! start of passe3
     
     ! Calculate distance of obs. from center of its grid box center
     do headerIndex = 1, numHeader
+      if ( .not. valid(headerIndex) ) cycle
+
       gridIndex = igrds(headerIndex)
       if (nbstn(gridIndex) /= 0) then
         latIndex = (zlatg(gridIndex)+90.)/(180./nblat)
@@ -563,6 +591,8 @@ contains
       
     obsCount = 0
     do headerIndex = 1, numHeader
+      if ( .not. valid(headerIndex) ) cycle
+
       gridIndex = igrds(headerIndex)
       if (nbstn(gridIndex) /= 0) then
         obsCount = obsCount + 1
@@ -572,8 +602,11 @@ contains
       end if
     end do
 
+    write(*,*) 'thn_tovsFilt: before stepIndex loop'
+
     ! BOUCLE SUR LES STEPOBS
     do stepIndex = 1, tim_nstepobs
+      write(*,*) 'thn_tovsFilt: stepIndex =', stepIndex
 
       ! BOUCLE SUR TOUTES LES BOITES
       icntptg = 0
@@ -628,10 +661,24 @@ contains
 
     ! end of passe3
 
+    write(*,*) 'thn_tovsFilt: obsCount after thinning = ', count(valid(:))
 
     ! start of modflg
-
+    obsCount = 0
     do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) then
+        if (present(codtyp2_opt)) then
+          if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp2_opt) then
+            cycle
+          end if
+        else
+          cycle
+        end if
+      end if
+     
+      obsCount = obsCount + 1
+
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY2: do 
@@ -648,39 +695,36 @@ contains
     ! end of modflg
 
     ! start of sommair
-    if (icntstn > 0) then         
+    icntkept = count(valid)
+    icntothr = obsCount - count(valid) - icntqc
 
-      icntkept = icntstn - icntfin
-      icntothr = icntfin - icntqc
+    pcttot = 100.0
+    pctqc  = (float(icntqc)   / float(obsCount)) * 100.0
+    pctoth = (float(icntothr) / float(obsCount)) * 100.0
+    pctkep = (float(icntkept) / float(obsCount)) * 100.0
          
-      pcttot = 100.0
-      pctqc  = (float(icntqc)   / float(icntstn)) * 100.0
-      pctoth = (float(icntothr) / float(icntstn)) * 100.0
-      pctkep = (float(icntkept) / float(icntstn)) * 100.0
-         
-      write(*,100) 
-100   format(/,' SOMMAIRE DES RESULTATS',/)
-      write(*,200) icntstn,pcttot,icntqc,pctqc,icntothr,pctoth, &
-                   icntkept,pctkep,delta,ngrdtot,icntptg
-200   format(' NB.STNS TOTAL AU DEBUT EN ENTREE        =    ',I7, &
-             '  =  ',F6.1,'%',/, &
-             ' NB.STNS REJETEES AU CONTROLE QUALITATIF =  - ',I7, &
-             '  =  ',F6.1,'%',/, &
-             ' NB.STNS REJETEES POUR LES AUTRES RAISONS=  - ',I7, &
-             '  =  ',F6.1,'%',/, &
-             '                                              ', &
-             '-------- = -------',/, &
-             ' NB.STNS GARDEES A LA FIN                =    ',I7, &
-             '  =  ',F6.1,'%',/////, &
-             ' NB.PTS GRILLE AVEC LA RESOLUTION ',I5,' KM   =    ', &
-             I7,/, &
-             ' NB.PTS GRILLE TRAITES                       =    ',I7)
-    else
-      write(*,*) 'AUCUNE STATION AU DEPART DANS LE FICHIER BURP'
-    end if
+    write(*,100)
+100 format(/,' SOMMAIRE DES RESULTATS',/)
+    write(*,200) obsCount,pcttot,icntqc,pctqc,icntothr,pctoth, &
+                 icntkept,pctkep,delta,ngrdtot,icntptg
+200 format(' NB.STNS TOTAL AU DEBUT EN ENTREE        =    ',I7, &
+           '  =  ',F6.1,'%',/, &
+           ' NB.STNS REJETEES AU CONTROLE QUALITATIF =  - ',I7, &
+           '  =  ',F6.1,'%',/, &
+           ' NB.STNS REJETEES POUR LES AUTRES RAISONS=  - ',I7, &
+           '  =  ',F6.1,'%',/, &
+           '                                              ', &
+           '-------- = -------',/, &
+           ' NB.STNS GARDEES A LA FIN                =    ',I7, &
+           '  =  ',F6.1,'%',/////, &
+           ' NB.PTS GRILLE AVEC LA RESOLUTION ',I5,' KM   =    ', &
+           I7,/, &
+           ' NB.PTS GRILLE TRAITES                       =    ',I7)
 
     ! end of sommair
-    
+
+    write(*,*) 'thn_tovsFilt: finished'
+
   end subroutine thn_tovsFilt
 
 
@@ -710,7 +754,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine thn_thinByLatLonBoxes(obsdat, removeUnCorrected, &
                                    deltmax, deltax, deltrad,  &
-                                   familyType, codtyp_opt)
+                                   familyType, codtyp)
     !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
@@ -725,7 +769,7 @@ contains
     integer, intent(in)             :: deltax
     integer, intent(in)             :: deltrad
     character(len=*), intent(in)    :: familyType
-    integer, optional, intent(in)   :: codtyp_opt
+    integer, intent(in)             :: codtyp
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
@@ -752,7 +796,7 @@ contains
     integer :: obsLonBurpFile, obsLatBurpFile
     character(len=9) :: stnid
 
-    write(*,*) 'thn_thinByLatLonBoxes: Starting'
+    write(*,*) 'thn_thinByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
 
     ! Initial setup
     nblat = nint( 2. * real(LAT_LENGTH) / real(deltax) )
@@ -799,9 +843,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER
 
-      if (present(codtyp_opt)) then
-        if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp_opt) cycle HEADER
-      end if
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER
 
       countHeader = countHeader + 1
 
@@ -1002,9 +1044,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER2
 
-      if (present(codtyp_opt)) then
-        if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp_opt) cycle HEADER2
-      end if
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER2
 
       if (.not. rejectThisHeader(headerIndex)) cycle HEADER2
 
