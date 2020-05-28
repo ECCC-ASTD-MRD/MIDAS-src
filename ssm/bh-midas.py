@@ -24,31 +24,7 @@ def _clean(b):
 def _make(b):
     global compiler
 
-    if b.platform == "all":
-        b.shell("""
-           (set -ex
-            mkdir -p ${CONTROL_DIR}
-            CONTROL_FILE=${CONTROL_DIR}/control.template
-            echo \"Package:  x\"                                 > ${CONTROL_FILE}
-            echo \"Version:  x\"                                >> ${CONTROL_FILE}
-            echo \"Platform:  x\"                               >> ${CONTROL_FILE}
-            echo \"Maintainer: Mark Buehner, Jean-Francois Caron, Ervig Lapalme)\"       >> ${CONTROL_FILE}
-            echo \"BuildInfo: Compile script for MIDAS version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
-            echo \"           with source ${BH_PULL_SOURCE}\"   >> ${CONTROL_FILE}
-            echo \"Description:  Modular and Integrated Data Assimilation System (MIDAS)\">> ${CONTROL_FILE}
-
-            cat > ${CONTROL_DIR}/control.json <<EOF
-{
-    \"package\": \"x\",
-    \"version\": \"x\",
-    \"platform\": \"x\",
-    \"maintainer\": \"RPN-AD\",
-    \"summary\": \"Modular and Integrated Data Assimilation System (MIDAS)\",
-    \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
-}
-EOF
-           )""")
-    else:
+    if b.platform != "all":
         b.shell("""
            (set -ex
             mkdir -p ${CONTROL_DIR}
@@ -71,14 +47,11 @@ EOF
     \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
 }
 EOF
-
-            cd ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs
-
            )""")
 
 
 def _install(b):
-    if b.platform ! "all":
+    if b.platform != "all":
         b.shell("""
         (set -ex
 
@@ -105,7 +78,6 @@ if __name__ == "__main__":
  
     b.supported_platforms = [
         "ubuntu-18.04-skylake-64",
-        "sles-15-skylake-64-xc50",
-        "all"
+        "sles-15-skylake-64-xc50"
     ]
     dr.run(b)
