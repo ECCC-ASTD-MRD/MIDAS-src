@@ -78,38 +78,7 @@ EOF
 
 
 def _install(b):
-    if b.platform == "all":
-        b.shell("""
-        (set -ex
-         INSTALL_DIR=${BH_INSTALL_DIR}/bin
-         mkdir -p ${INSTALL_DIR}
-         cp ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/commons/compile_setup.sh ${INSTALL_DIR}/midas.compile_commons.sh
-         cat > ${INSTALL_DIR}/midas.compile.sh <<'EOF'
-#!/bin/bash
-
-if [ $1 = '-h' ]; then
-    echo 'To compile a program with MIDAS libs, please call'
-    echo '    midas.compile.sh -src ${src_files} -o ${program}'
-    exit
-fi
-
-ORIGINAL_ORDENV_PLAT=${ORDENV_PLAT}
-
-. midas.compile_commons.sh --no-rttov
-
-if [ \"${ORDENV_PLAT}\" != \"${ORIGINAL_ORDENV_PLAT}\" ]; then
-    ## load MIDAS libs
-    cmpscr=$(true_path ${0})
-    ssm=${cmpscr%*/*/bin/midas.compile.sh}
-    echo \"loading MIDAS libs '${ssm}'\"
-    . ssmuse-sh -d ${ssm}
-fi
-
-s.compile ${COMPF} -O ${FOPTMIZ} ${MPILIBDIR} -libappl midas burp_module descrip ${MPILIB} f90sqlite udfsqlite -libsys ${LIBSYS} -librmn ${LIBRMN} $*
-EOF
-         chmod +x ${INSTALL_DIR}/midas.compile.sh
-        )""")
-    else:
+    if b.platform ! "all":
         b.shell("""
         (set -ex
 
