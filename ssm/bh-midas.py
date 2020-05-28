@@ -74,9 +74,6 @@ EOF
 
             cd ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs
 
-            ## Compile 'obsIO' without erasing compiling directory.
-            ## We will need some files to build the library.
-            ./compile_program.sh obsIO full no
            )""")
 
 
@@ -125,20 +122,6 @@ EOF
              babsname=$(basename ${absname})
              program=$(echo ${babsname} | cut -d_ -f1)
              ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
-         done
-
-         INCLUDE_DIR=${BH_INSTALL_DIR}/include
-         LIB_DIR=${BH_INSTALL_DIR}/lib
-         mkdir -p ${INCLUDE_DIR} ${LIB_DIR}
-         for fmod in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_${MIDAS_VERSION}/*.mod; do
-             cp ${fmod} ${INCLUDE_DIR}
-         done
-         [ -f ${LIB_DIR}/libmidas.a ] && rm ${LIB_DIR}/libmidas.a
-         for obj in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_${MIDAS_VERSION}/*.o; do
-             [ ${obj} = obsIO.o ] && continue
-             if [ -f ${obj} ]; then
-                 ar cru ${LIB_DIR}/libmidas.a ${obj}
-             fi
          done
         )""")
 
