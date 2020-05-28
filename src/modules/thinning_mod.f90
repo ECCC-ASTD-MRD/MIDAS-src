@@ -36,7 +36,7 @@ module thinning_mod
   implicit none
   private
 
-  public :: thn_thinAladin, thn_thinHyper
+  public :: thn_thinAladin, thn_thinHyper, thn_thinTovs
 
 contains
 
@@ -82,6 +82,51 @@ contains
   end subroutine thn_thinAladin
 
   !--------------------------------------------------------------------------
+  ! thn_thinTovs
+  !--------------------------------------------------------------------------
+  subroutine thn_thinTovs(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Namelist variables
+    integer :: delta    ! 
+
+    namelist /thin_tovs/delta
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Default namelist values
+    delta = 100
+
+    ! Read the namelist for Aladin observations (if it exists)
+    if (utl_isNamelistPresent('thin_tovs','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
+      read(nulnam,nml=thin_tovs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading namelist')
+      write(*,nml=thin_tovs)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
+      write(*,*) '              The default value will be taken.'
+    end if
+
+    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsub'), &
+                      codtyp2_opt=codtyp_get_codtyp('mhs'))
+    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('atms'))
+    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('mwhs2'))
+
+
+  end subroutine thn_thinTovs
+
+  !--------------------------------------------------------------------------
   ! thn_thinHyper
   !--------------------------------------------------------------------------
   subroutine thn_thinHyper(obsdat)
@@ -118,7 +163,7 @@ contains
       ierr = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'thn_thinHyper: Namelist block thin_iasi is missing in the namelist.'
+      write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
     end if
 
@@ -222,6 +267,443 @@ contains
     end function new_column
 
   end subroutine thn_keepNthObs
+
+  !--------------------------------------------------------------------------
+  ! thn_tovsFilt
+  !--------------------------------------------------------------------------
+  subroutine thn_tovsFilt(obsdat, delta, familyType, codtyp, codtyp2_opt)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer, intent(in)             :: delta
+    character(len=*), intent(in)    :: familyType
+    integer, intent(in)             :: codtyp
+    integer, optional, intent(in)   :: codtyp2_opt
+
+    ! Locals:
+    integer :: nblat, nblon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
+    integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, ierr
+    integer :: bodyIndex, headerIndex1, headerIndex2, stepIndex, obsCount, obsIndex
+    integer :: loscan, hiscan, icntqc, nassim, obsFlag, obsFov, icntptg, nbstn2
+    integer :: icntstn, icntkept, icntfin, icntothr
+    logical :: global1, global2
+    real(4) :: zlength, zlatrad, zdlon, zlatchk, zlonchk, zlontmp
+    real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon
+    real(4) :: obsLatInDegrees, obsLonInDegrees
+    real(4) :: zlat1, zlon1, zlat2, zlon2, distance, minDistance
+    real(4) :: zdatflgs, zlatmid, zlonmid, zlatobs, zlonobs
+    real(4) :: pcttot, pctqc, pctoth, pctkep
+    real(8) :: dlhours, stepObsIndex
+    real(4), allocatable :: zlatdeg(:), zlatg(:), zlong(:), zdobs(:)
+    logical, allocatable :: valid(:), indexs(:)
+    integer, allocatable :: ngrd(:), nbstn(:), igrds(:), zcentregen(:)
+    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
+    integer, allocatable :: obsDateStamp(:), bufref(:), link(:)
+    integer, allocatable :: headerIndexList(:), headerIndexList2(:)
+    integer, external :: newdate
+
+    ! Local parameters:
+    integer, parameter :: xlat=10000, xlon=40000, xdelt=50
+    integer, parameter :: centre_gen_global(3)=(/53, 74, 160/)
+    integer, parameter :: mxscanamsua=30
+    integer, parameter :: mxscanamsub=90
+    integer, parameter :: mxscanatms =96
+    integer, parameter :: mxscanmwhs2=98
+
+    nblat = 2*xlat/delta
+    nblon = xlon/delta
+    numHeader = obs_numHeader(obsdat)
+
+    ! Allocations
+    allocate(zlatdeg(nblat))
+    allocate(zlatg(nblat*nblon))
+    allocate(zlong(nblat*nblon))
+    allocate(nbstn(nblat*nblon))
+    allocate(bufref(nblat*nblon))
+    allocate(link(numHeader))
+    allocate(headerIndexList(numHeader))
+    allocate(headerIndexList2(numHeader))
+    allocate(ngrd(nblat))
+    allocate(igrds(numHeader))
+    allocate(indexs(numHeader))
+    allocate(valid(numHeader))
+    allocate(zcentregen(numHeader))
+    allocate(obsDateStamp(numHeader))
+    allocate(obsLonBurpFile(numHeader))
+    allocate(obsLatBurpFile(numHeader))
+    allocate(zdobs(numHeader))
+
+    ! Initialize some arrays
+    nbstn(:) = 0
+    valid(:) = .true.
+    zcentregen(:) = 0
+
+    ! Set up the grid used for thinning
+    ngrdtot = 0
+    do latIndex = 1, nblat
+      zlatdeg(latIndex) = (latIndex*180./nblat) - 90.
+      zlatrad           = zlatdeg(latIndex) * mpc_pi_r4 / 180.
+      zlength           = xlon * cos(zlatrad)
+      ngrd(latIndex)    = nint(zlength/delta)
+      ngrd(latIndex)    = max(ngrd(latIndex),1)
+      ngrdtot           = ngrdtot + ngrd(latIndex)
+    end do
+
+    gridIndex = 0
+    do latIndex = 1, nblat
+      zdlon = 360./ngrd(latIndex)
+      do lonIndex = 1, ngrd(latIndex)
+        zlatg(gridIndex+lonIndex) = zlatdeg(latIndex)
+        zlong(gridIndex+lonIndex) = (lonIndex-1)*zdlon
+      end do
+      gridIndex = gridIndex + ngrd(latIndex)
+    end do
+
+    ! Loop over all observation locations
+    do headerIndex = 1, numHeader
+
+      ! Date stamp for each observation
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime*10000+2900, 3)
+
+      ! Lat and Lon for each observation
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      obsLonBurpFile(headerIndex) = nint(100.0*(obsLonInDegrees - 180.0))
+      if(obsLonBurpFile(headerIndex) < 0) then
+        obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 36000
+      end if
+      obsLatBurpFile(headerIndex) = 9000+nint(100.0*obsLatInDegrees)
+
+      ! Associate each observation to a grid point
+      zlatchk = (obsLatBurpFile(headerIndex) - 9000.) / 100.
+      zlonchk = obsLonBurpFile(headerIndex) / 100.
+      zlontmp = zlonchk
+      if (zlonchk > 180.) zlonchk = zlonchk - 360.
+      do latIndex = 1,nblat-1
+        if (zlatchk <  zlatdeg(1))     zlatchk = zlatdeg(1)
+        if (zlatchk >= zlatdeg(nblat)) zlatchk = zlatdeg(nblat) - 0.5
+        if (zlatchk >= zlatdeg(latIndex) .and. zlatchk < zlatdeg(latIndex+1)) then
+          gridIndex = 1
+          do latIndex2 = 1, latIndex-1
+            gridIndex = gridIndex + ngrd(latIndex2)
+          end do
+          zdlon = 360./ngrd(latIndex)
+          gridIndex = gridIndex + ifix(zlontmp/zdlon)
+          exit
+        end if
+      end do
+      igrds(headerIndex) = gridIndex
+      nbstn(gridIndex) = nbstn(gridIndex) + 1
+
+    end do ! headerIndex
+
+
+    ! start of "passe2"
+    obsCount = 0
+    HEADER1: do headerIndex1 = 1, (numHeader-1)
+        
+      if ( .not. valid(headerIndex1) ) cycle
+
+      ! Verifier si la station est rars
+      global1 = any(centre_gen_global(:) == zcentregen(headerIndex1))
+ 
+      HEADER2: do headerIndex2 = headerIndex1+1, numHeader
+          
+        if ( .not. valid(headerIndex2) ) cycle HEADER2
+
+        ! Certaines stations locales nous envoient 
+        ! le mauvais numero d'orbite. On ne peut donc
+        ! pas s'y fier.
+        ! Il faut comparer le temps de la reception des
+        ! donnees
+        if ( zcentregen(headerIndex1) /= zcentregen(headerIndex2) .and.  &
+             obs_elem_c(obsdat,'STID',headerIndex1) ==  &
+             obs_elem_c(obsdat,'STID',headerIndex2) .and.  &
+             obs_headElem_i(obsdat,OBS_FOV,headerIndex1) ==  &
+             obs_headElem_i(obsdat,OBS_FOV,headerIndex2) ) then
+            
+          obsCount = obsCount + 1
+            
+          ! Difference (in hours) between obs time
+          call difdatr(obsDateStamp(headerIndex1),obsDateStamp(headerIndex2),dlhours)
+
+          ! Si la difference est moins de 6 minutes,
+          ! on peut avoir affaire a un rars
+
+          if ( abs(dlhours) <= 0.1 ) then
+
+            ! ON RAMENE LES LATS ENTRE -90 ET 90
+            ! ET LES LONS ENTRE 0 ET 360
+            zlat1 = ( obsLatBurpFile(headerIndex1) - 9000.) / 100.
+            zlon1 =   obsLonBurpFile(headerIndex1) / 100.
+            zlat2 = ( obsLatBurpFile(headerIndex2) - 9000.) / 100.
+            zlon2 =   obsLonBurpFile(headerIndex2) / 100.
+
+            ! SI LA DISTANCE ENTRE DEUX STNS < MINIMUM
+            ! ETABLI ICI A 10KM (PAR EXPERIENCE)
+            distance = separa(zlon1,zlat1,zlon2,zlat2) * float(xlat) / 90.
+            if (distance <= 10.) then
+
+              ! si l'element_i est global, on doit le garder et rejeter l'element_j
+              if (global1) then 
+                valid(headerIndex2) = .false.
+              else
+                  
+                ! toutefois, ca ne signifie pas que l'element_j est un rars
+                ! VERIFIER SI LA STATION 2 EST RARS
+                global2 = any(centre_gen_global(:) == zcentregen(headerIndex2))
+
+                ! Si l'element_j est global, rejeter l'element_i
+                ! Si les 2 elements sont rars, garder le 1er
+
+                if (global2) then 
+                  valid(headerIndex1) = .false.
+                  cycle HEADER1
+                else
+                  valid(headerIndex2) = .false.
+                end if
+
+              end if
+
+            end if
+          end if
+        end if
+
+      end do HEADER2
+    end do HEADER1
+      
+    write(*,*) 'obsCount', obsCount
+    ! end of passe2
+
+
+    ! start of passe1
+    if      ( codtyp == codtyp_get_codtyp('amsua') ) then
+      loscan   = 1
+      hiscan   = mxscanamsua
+    else if ( codtyp == codtyp_get_codtyp('amsub') ) then
+      loscan   = 1
+      hiscan   = mxscanamsub
+    else if ( codtyp == codtyp_get_codtyp('atms') ) then
+      loscan   = 2
+      hiscan   = mxscanatms - 1
+    else if ( codtyp == codtyp_get_codtyp('mwhs2') ) then
+      loscan   = 1
+      hiscan   = mxscanmwhs2
+    end if
+
+    do headerIndex = 1, numHeader
+
+      ! Look at the obs flags
+      nassim = 0
+      zdatflgs = 0.
+
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY
+        
+        ! If not a blacklisted channel (note that bit 11 is set in 
+        ! satqc_amsu*.f for blacklisted channels)
+        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        if ( .not. btest(obsFlag,11) ) then
+          nassim = nassim + 1
+          if ( btest(obsFlag,9) ) then
+            zdatflgs = zdatflgs + 1.0
+          end if
+        end if
+      end do BODY
+
+      ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
+      if ( zdatflgs == 0. .and. nassim == 0 ) then
+        zdatflgs = 1.
+      else
+        zdatflgs = zdatflgs / max(nassim,1)  
+      end if
+
+      obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
+      if ( zdatflgs >= 0.80 ) then
+        icntqc = icntqc + 1
+        valid(headerIndex) = .false.
+      else if (obsFov < loscan .or.  &
+               obsFov > hiscan ) then
+        icntqc = icntqc + 1
+        valid(headerIndex) = .false.
+      end if
+
+    end do
+    ! end of passe1
+
+
+    ! start of passe3
+    
+    ! Calculate distance of obs. from center of its grid box center
+    do headerIndex = 1, numHeader
+      gridIndex = igrds(headerIndex)
+      if (nbstn(gridIndex) /= 0) then
+        latIndex = (zlatg(gridIndex)+90.)/(180./nblat)
+        zdlon = 360./ngrd(latIndex)
+        zlatmid = zlatg(gridIndex) + 0.5*(180./nblat)
+        zlonmid = zlong(gridIndex) + 0.5*zdlon
+        zlatobs = (obsLatBurpFile(headerIndex) - 9000.) / 100.
+        zlonobs = obsLonBurpFile(headerIndex) / 100.
+        zdobs(headerIndex) = separa(zlonobs,zlatobs,zlonmid,zlatmid) * &
+             float(xlat) / 90.
+      end if
+    end do
+
+    ! Create a linked list of observations (link to grid point)
+    bufref(:) = 0
+    link(:) = 0
+      
+    obsCount = 0
+    do headerIndex = 1, numHeader
+      gridIndex = igrds(headerIndex)
+      if (nbstn(gridIndex) /= 0) then
+        obsCount = obsCount + 1
+        headerIndexList(obsCount) = headerIndex
+        link(obsCount) = bufref(gridIndex)
+        bufref(gridIndex) = obsCount
+      end if
+    end do
+
+    ! BOUCLE SUR LES STEPOBS
+    do stepIndex = 1, tim_nstepobs
+
+      ! BOUCLE SUR TOUTES LES BOITES
+      icntptg = 0
+      do gridIndex = 1, ngrdtot
+        if (nbstn(gridIndex) /= 0) then
+          icntptg = icntptg + 1
+        end if
+        nbstn2 = 0
+        obsIndex = bufref(gridIndex)
+        do
+          if (obsIndex == 0) exit
+          headerIndex = headerIndexList(obsIndex)
+          obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+          obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+          call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+                                   obsDate, obsTime, tim_nstepobs)
+          if ( igrds(headerIndex) == gridIndex  .and. &
+               valid(headerIndex)               .and. &
+               nint(stepObsIndex) == stepIndex ) then
+            nbstn2 = nbstn2 + 1
+            headerIndexList2(nbstn2) = headerIndex
+          end if
+
+          obsIndex = link(obsIndex)
+        end do
+  
+        if (nbstn2 /= 0) then
+
+          ! CHOISIR LA PLUS PRES DU CENTRE DE LA BOITE, EN DECA DE 75KM.
+          minDistance = 1000000.             
+          do obsIndex = 1, nbstn2
+            if (zdobs(headerIndexList2(obsIndex)) < minDistance) then
+              headerIndexKeep = headerIndexList2(obsIndex)
+              minDistance = zdobs(headerIndexList2(obsIndex))
+            end if
+          end do
+            
+          do obsIndex = 1, nbstn2
+            valid(headerIndexList2(obsIndex)) = .false.
+          end do
+          if ( minDistance .le. 75. ) then
+            valid(headerIndexKeep) = .true.
+          end if
+        else
+          do obsIndex = 1, nbstn2
+            valid(headerIndexList2(obsIndex)) = .false.
+          end do
+        end if
+          
+      end do ! gridIndex
+    end do ! stepIndex
+
+    ! end of passe3
+
+
+    ! start of modflg
+
+    do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY2: do 
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY2
+        
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+
+        end do BODY2
+      end if
+    end do
+
+    ! end of modflg
+
+    ! start of sommair
+    if (icntstn > 0) then         
+
+      icntkept = icntstn - icntfin
+      icntothr = icntfin - icntqc
+         
+      pcttot = 100.0
+      pctqc  = (float(icntqc)   / float(icntstn)) * 100.0
+      pctoth = (float(icntothr) / float(icntstn)) * 100.0
+      pctkep = (float(icntkept) / float(icntstn)) * 100.0
+         
+      write(*,100) 
+100   format(/,' SOMMAIRE DES RESULTATS',/)
+      write(*,200) icntstn,pcttot,icntqc,pctqc,icntothr,pctoth, &
+                   icntkept,pctkep,delta,ngrdtot,icntptg
+200   format(' NB.STNS TOTAL AU DEBUT EN ENTREE        =    ',I7, &
+             '  =  ',F6.1,'%',/, &
+             ' NB.STNS REJETEES AU CONTROLE QUALITATIF =  - ',I7, &
+             '  =  ',F6.1,'%',/, &
+             ' NB.STNS REJETEES POUR LES AUTRES RAISONS=  - ',I7, &
+             '  =  ',F6.1,'%',/, &
+             '                                              ', &
+             '-------- = -------',/, &
+             ' NB.STNS GARDEES A LA FIN                =    ',I7, &
+             '  =  ',F6.1,'%',/////, &
+             ' NB.PTS GRILLE AVEC LA RESOLUTION ',I5,' KM   =    ', &
+             I7,/, &
+             ' NB.PTS GRILLE TRAITES                       =    ',I7)
+    else
+      write(*,*) 'AUCUNE STATION AU DEPART DANS LE FICHIER BURP'
+    end if
+
+    ! end of sommair
+    
+  end subroutine thn_tovsFilt
+
+
+  FUNCTION SEPARA(XLON1,XLAT1,XLON2,XLAT2)
+    IMPLICIT NONE
+
+    REAL XLAT1,XLAT2,XLON1,XLON2,SEPARA,COSVAL,DEGRAD,RADDEG
+
+    RADDEG=180.0/3.14159265358979
+    DEGRAD=1.0/RADDEG
+    COSVAL=SIN(XLAT1*DEGRAD)*SIN(XLAT2*DEGRAD)+ &
+         COS(XLAT1*DEGRAD)*COS(XLAT2*DEGRAD)* &
+         COS((XLON1-XLON2)*DEGRAD)
+
+    IF (COSVAL.LT.-1.0D0) THEN
+      COSVAL=-1.0D0
+    ELSE IF (COSVAL.GT.1.0D0) THEN
+      COSVAL=1.0D0
+    ENDIF
+    SEPARA=ACOS(COSVAL)*RADDEG
+
+  END FUNCTION SEPARA
+
 
   !--------------------------------------------------------------------------
   ! thn_thinByLatLonBoxes
