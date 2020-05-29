@@ -28,11 +28,13 @@ module thinning_mod
   use mpi_mod
   use bufr_mod
   use mathPhysConstants_mod
+  use earthConstants_mod
   use obsSpaceData_mod
   use timeCoord_mod
   use codtyp_mod
   use physicsFunctions_mod
   use utilities_mod
+  use kdtree2_mod
   implicit none
   private
 
@@ -302,6 +304,14 @@ contains
     integer, allocatable :: obsDateStamp(:), bufref(:), link(:)
     integer, allocatable :: headerIndexList(:), headerIndexList2(:)
     integer, external :: newdate
+    ! Locals related to kdtree2
+    type(kdtree2), pointer            :: tree
+    integer, parameter                :: maxNumSearch = 100
+    integer                           :: numFoundSearch, resultIndex
+    type(kdtree2_result)              :: searchResults(maxNumSearch)
+    real(kdkind)                      :: maxRadius = 100.d0
+    real(kdkind)                      :: refPosition(3)
+    real(kdkind), allocatable         :: obsPosition3d(:,:)
 
     ! Local parameters:
     integer, parameter :: xlat=10000, xlon=40000, xdelt=50
@@ -354,12 +364,13 @@ contains
     allocate(obsLonBurpFile(numHeader))
     allocate(obsLatBurpFile(numHeader))
     allocate(zdobs(numHeader))
+    allocate(obsPosition3d(3,numHeader))
 
     write(*,*) 'thn_tovsFilt: after alloction'
 
     ! Initialize some arrays
     nbstn(:) = 0
-    zcentregen(:) = 0 ! NOTE: currently not reading this from burp file (element 1033)
+    zcentregen(:) = 0
 
     ! Set up the grid used for thinning
     ngrdtot = 0
@@ -387,7 +398,10 @@ contains
     ! Loop over all observation locations
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
-      
+
+      ! Originating centre of data
+      zcentregen(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
+
       ! Date stamp for each observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
@@ -404,6 +418,11 @@ contains
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 36000
       end if
       obsLatBurpFile(headerIndex) = 9000+nint(100.0*obsLatInDegrees)
+
+      ! location array for kdtree
+      obsPosition3d(1,headerIndex) = RA * sin(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(2,headerIndex) = RA * cos(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(3,headerIndex) = RA *                    sin(obsLatInRad)
 
       ! Associate each observation to a grid point
       zlatchk = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -431,11 +450,26 @@ contains
     write(*,*) 'thn_tovsFilt: after first pass'
 
     ! start of "passe2"
+    nullify(tree)
+    tree => kdtree2_create(obsPosition3d, sort=.true., rearrange=.true.)
     HEADER1: do headerIndex1 = 1, (numHeader-1)
         
       if ( .not. valid(headerIndex1) ) cycle HEADER1
- 
-      HEADER2: do headerIndex2 = headerIndex1+1, numHeader
+
+      ! Find all obs within 10km
+      refPosition(:) = obsPosition3d(:,headerIndex1)
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch,&
+                             nalloc=maxNumSearch, results=searchResults)
+      if (numFoundSearch >= maxNumSearch) then
+        call utl_abort('thn_tovsFilt: the parameter maxNumSearch must be increased')
+      end if
+      if (numFoundSearch == 0) then
+        call utl_abort('thn_tovsFilt: no match found. This should not happen!!!')
+      end if
+
+      ! Loop over all of these nearby locations
+      HEADER2: do resultIndex = 1, numFoundSearch
+        headerIndex2 = searchResults(resultIndex)%idx
           
         if ( .not. valid(headerIndex2) ) cycle HEADER2
 
@@ -500,6 +534,7 @@ contains
 
       end do HEADER2
     end do HEADER1
+    call kdtree2_destroy(tree)
 
     write(*,*) 'thn_tovsFilt: obsCount after second pass = ', count(valid(:))
     ! end of passe2

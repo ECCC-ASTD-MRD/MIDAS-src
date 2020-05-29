@@ -1685,7 +1685,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    INTEGER                :: LISTE_INFO(19),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(20),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1716,7 +1716,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209/
+        013209,1033/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1842,7 +1842,7 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=19
+        NELE_INFO=20
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -3161,33 +3161,6 @@ CONTAINS
   END FUNCTION  WRITE_BODY
 
 
-  subroutine GET_HEADER(obsdat, LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,NOBS,FILENUMB)
-
-    implicit none
-    type (struct_obs), intent(inout) :: obsdat
-
-    INTEGER     ::   DATE,TIME,CODTYP,STATUS,FILENUMB
-    REAL(pre_obsReal) :: ELEV,LAT,LON
-
-    INTEGER     ::   NOBS
-
-    NOBS=obs_numHeader(obsdat) 
-
-    LAT     = obs_headElem_r(obsdat,OBS_LAT,nobs)
-    LON     = obs_headElem_r(obsdat,OBS_LON,nobs)
-    DATE    = obs_headElem_i(obsdat,OBS_DAT,nobs)
-    TIME    = obs_headElem_i(obsdat,OBS_ETM,nobs)
-    CODTYP  = obs_headElem_i(obsdat,OBS_ITY,nobs)
-    STATUS  = obs_headElem_i(obsdat,OBS_ST1,nobs)
-    !NOBS    = obs_headElem_i(obsdat,OBS_IDO,nobs)
-    FILENUMB= obs_headElem_i(obsdat,OBS_OTP,nobs)
-    ELEV    = obs_headElem_r(obsdat,OBS_ALT,nobs)
-
-    RETURN
-
-  END SUBROUTINE  GET_HEADER
-
-
   SUBROUTINE WRITE_HEADER(obsdat, STNID,LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,FILENUMB,PHASE_Opt)
 
     implicit none
@@ -3277,10 +3250,10 @@ CONTAINS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
-    INTEGER     ::   IFOV
+    INTEGER     ::   IFOV,ORIGIN_CENTRE
 
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
-    REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
+    REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
     REAL(pre_obsReal) ::   cloudLiquidWater
@@ -3293,6 +3266,7 @@ CONTAINS
     INSTRUMENT = 0
     ID_SAT     = 0
     SENSOR     = 0
+    ORIGIN_CENTRE = 0
 
     IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
@@ -3322,6 +3296,13 @@ CONTAINS
             ID_SAT=0
           ELSE
             ID_SAT=NINT(RID_SAT)
+          END IF
+        CASE( 1033)
+          RORIGIN_CENTRE=INFOV
+          IF (RORIGIN_CENTRE == MPC_missingValue_R4 ) THEN 
+            ORIGIN_CENTRE=0
+          ELSE
+            ORIGIN_CENTRE=NINT(RORIGIN_CENTRE)
           END IF
         CASE( 2048)
           RSENSOR = INFOV
@@ -3449,10 +3430,10 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
+    if ( obs_columnActive_IH(obsdat,OBS_ORI) ) call obs_headSet_i(obsdat,OBS_ORI,nobs,ORIGIN_CENTRE)
     if ( obs_columnActive_IH(obsdat,OBS_TEC) ) call obs_headSet_i(obsdat,OBS_TEC,nobs,0)
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
-    !if( trim(FAMTYP) == trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID
     if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
     if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,RCLOUD_COVER )
     if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,RSOLAR_ZENITH )

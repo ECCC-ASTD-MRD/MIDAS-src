@@ -355,9 +355,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
    integer, parameter, public :: OBS_PRFL= OBS_FOV+1   ! profile id. number
    integer, parameter, public :: OBS_PHAS = OBS_PRFL+1 ! phase of flight
+   integer, parameter, public :: OBS_ORI = OBS_PHAS+1 ! originating centre code
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_PHAS
+   integer, parameter :: NHDR_INT_END = OBS_ORI
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -369,7 +370,7 @@ module ObsColumnNames_mod
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQI','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
-         'PRFL','PHAS' /)
+         'PRFL','PHAS','ORI' /)
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1434,7 +1435,7 @@ module ObsSpaceData_mod
    public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
    public :: OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
-   public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS
+   public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
