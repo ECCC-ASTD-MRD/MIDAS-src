@@ -40,6 +40,8 @@ module thinning_mod
 
   public :: thn_thinAladin, thn_thinHyper, thn_thinTovs
 
+  integer, external :: get_max_rss
+
 contains
 
   !--------------------------------------------------------------------------
@@ -104,7 +106,7 @@ contains
     ! Default namelist values
     delta = 100
 
-    ! Read the namelist for Aladin observations (if it exists)
+    ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -119,12 +121,16 @@ contains
       write(*,*) '              The default value will be taken.'
     end if
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsua'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('atms'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('mwhs2'))
-
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinTovs
 
@@ -169,14 +175,19 @@ contains
       write(*,*) '               The default value will be taken.'
     end if
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                'TO', codtyp_get_codtyp('airs'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                'TO', codtyp_get_codtyp('iasi'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                'TO', codtyp_get_codtyp('cris'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                'TO', codtyp_get_codtyp('crisfsr'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinHyper
 
@@ -287,20 +298,23 @@ contains
     integer :: nblat, nblon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
     integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, ierr
     integer :: bodyIndex, headerIndex1, headerIndex2, stepIndex, obsCount, obsIndex
-    integer :: loscan, hiscan, icntqc, nassim, obsFlag, obsFov, icntptg, nbstn2
-    integer :: icntkept, icntothr
+    integer :: loscan, hiscan, icntqc, obsFlag, obsFov, icntptg, nbstn2
+    integer :: icntkept, icntothr, procIndex, procIndexKeep, minLonBurpFile
+    integer :: allMinLonBurpFile(mpi_nprocs)
     logical :: global1, global2
     real(4) :: zlength, zlatrad, zdlon, zlatchk, zlonchk, zlontmp
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon
     real(4) :: obsLatInDegrees, obsLonInDegrees
     real(4) :: zlat1, zlon1, zlat2, zlon2, distance, minDistance
+    real(4) :: allMinDistance(mpi_nprocs)
     real(4) :: zdatflgs, zlatmid, zlonmid, zlatobs, zlonobs
     real(4) :: pcttot, pctqc, pctoth, pctkep
-    real(8) :: dlhours, stepObsIndex
+    real(8) :: dlhours
+    real(8), allocatable :: stepObsIndex(:)
     real(4), allocatable :: zlatdeg(:), zlatg(:), zlong(:), zdobs(:)
     logical, allocatable :: valid(:), indexs(:)
     integer, allocatable :: ngrd(:), nbstn(:), igrds(:), zcentregen(:)
-    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
+    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), nassim(:)
     integer, allocatable :: obsDateStamp(:), bufref(:), link(:)
     integer, allocatable :: headerIndexList(:), headerIndexList2(:)
     integer, external :: newdate
@@ -363,7 +377,9 @@ contains
     allocate(obsDateStamp(numHeader))
     allocate(obsLonBurpFile(numHeader))
     allocate(obsLatBurpFile(numHeader))
+    allocate(nassim(numHeader))
     allocate(zdobs(numHeader))
+    allocate(stepObsIndex(numHeader))
     allocate(obsPosition3d(3,numHeader))
 
     write(*,*) 'thn_tovsFilt: after alloction'
@@ -371,6 +387,8 @@ contains
     ! Initialize some arrays
     nbstn(:) = 0
     zcentregen(:) = 0
+    stepObsIndex(:) = 0.0d0
+    obsPosition3d(:,:) = 0.0
 
     ! Set up the grid used for thinning
     ngrdtot = 0
@@ -419,6 +437,10 @@ contains
       end if
       obsLatBurpFile(headerIndex) = 9000+nint(100.0*obsLatInDegrees)
 
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
       ! location array for kdtree
       obsPosition3d(1,headerIndex) = RA * sin(obsLonInRad) * cos(obsLatInRad)
       obsPosition3d(2,headerIndex) = RA * cos(obsLonInRad) * cos(obsLatInRad)
@@ -555,12 +577,12 @@ contains
     end if
 
     icntqc = 0
+    nassim(:) = 0
     do headerIndex = 1, numHeader
 
       if ( .not. valid(headerIndex) ) cycle
 
       ! Look at the obs flags
-      nassim = 0
       zdatflgs = 0.
 
       call obs_set_current_body_list(obsdat, headerIndex)
@@ -572,7 +594,7 @@ contains
         ! satqc_amsu*.f for blacklisted channels)
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if ( .not. btest(obsFlag,11) ) then
-          nassim = nassim + 1
+          nassim(headerIndex) = nassim(headerIndex) + 1
           if ( btest(obsFlag,9) ) then
             zdatflgs = zdatflgs + 1.0
           end if
@@ -580,10 +602,10 @@ contains
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
-      if ( zdatflgs == 0. .and. nassim == 0 ) then
+      if ( zdatflgs == 0. .and. nassim(headerIndex) == 0 ) then
         zdatflgs = 1.
       else
-        zdatflgs = zdatflgs / max(nassim,1)  
+        zdatflgs = zdatflgs / max(nassim(headerIndex),1)  
       end if
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -637,11 +659,8 @@ contains
       end if
     end do
 
-    write(*,*) 'thn_tovsFilt: before stepIndex loop'
-
     ! BOUCLE SUR LES STEPOBS
     do stepIndex = 1, tim_nstepobs
-      write(*,*) 'thn_tovsFilt: stepIndex =', stepIndex
 
       ! BOUCLE SUR TOUTES LES BOITES
       icntptg = 0
@@ -654,43 +673,89 @@ contains
         do
           if (obsIndex == 0) exit
           headerIndex = headerIndexList(obsIndex)
-          obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-          obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-          call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-                                   obsDate, obsTime, tim_nstepobs)
           if ( igrds(headerIndex) == gridIndex  .and. &
                valid(headerIndex)               .and. &
-               nint(stepObsIndex) == stepIndex ) then
+               nint(stepObsIndex(headerIndex)) == stepIndex ) then
             nbstn2 = nbstn2 + 1
             headerIndexList2(nbstn2) = headerIndex
           end if
 
           obsIndex = link(obsIndex)
         end do
-  
-        if (nbstn2 /= 0) then
 
-          ! CHOISIR LA PLUS PRES DU CENTRE DE LA BOITE, EN DECA DE 75KM.
-          minDistance = 1000000.             
-          do obsIndex = 1, nbstn2
-            if (zdobs(headerIndexList2(obsIndex)) < minDistance) then
-              headerIndexKeep = headerIndexList2(obsIndex)
-              minDistance = zdobs(headerIndexList2(obsIndex))
-            end if
-          end do
-            
-          do obsIndex = 1, nbstn2
-            valid(headerIndexList2(obsIndex)) = .false.
-          end do
-          if ( minDistance .le. 75. ) then
-            valid(headerIndexKeep) = .true.
+        minDistance = 1000000.             
+
+        ! CHOISIR LA PLUS PRES DU CENTRE DE LA BOITE, EN DECA DE 75KM.
+        do obsIndex = 1, nbstn2
+          if (zdobs(headerIndexList2(obsIndex)) < minDistance) then
+            minDistance = zdobs(headerIndexList2(obsIndex))
+            minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
+            headerIndexKeep = headerIndexList2(obsIndex)
           end if
-        else
-          do obsIndex = 1, nbstn2
-            valid(headerIndexList2(obsIndex)) = .false.
-          end do
+        end do
+
+        ! Check for multiple obs with same distance to grid point
+        if (nbstn2 > 0) then
+          if ( count(zdobs(headerIndexList2(1:nbstn2)) == minDistance) > 1 ) then
+            write(*,*) 'multiple obs with same minDistance!', &
+                 zdobs(headerIndexList2(1:nbstn2))
+            ! resolve ambiguity by choosing obs with min value of lon
+            minLonBurpFile = 10000000
+            do obsIndex = 1, nbstn2
+              if (zdobs(headerIndexList2(obsIndex)) == minDistance) then
+                if (obsLonBurpFile(headerIndexList2(obsIndex)) < minLonBurpFile) then
+                  minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
+                  headerIndexKeep = headerIndexList2(obsIndex)
+                end if
+              end if
+            end do
+          end if
         end if
-          
+
+        do obsIndex = 1, nbstn2
+          valid(headerIndexList2(obsIndex)) = .false.
+        end do
+        if (nbstn2 > 0 .and. minDistance <= 75. ) then
+          valid(headerIndexKeep) = .true.
+        end if
+
+        ! Communicate the distance of chosen observation among all mpi tasks
+        call rpn_comm_allgather(minDistance,    1, 'mpi_real4',  &
+                                allMinDistance, 1, 'mpi_real4', 'grid', ierr)
+
+        ! Choose the closest to the center of the box among all mpi tasks
+        minDistance = 1000000.
+        do procIndex = 1, mpi_nprocs
+          if (allMinDistance(procIndex) < minDistance) then
+            minDistance = allMinDistance(procIndex)
+            procIndexKeep = procIndex
+          end if
+        end do
+
+        ! Adjust flags to only keep 1 observation among all mpi tasks
+        if (minDistance < 1000000.) then
+          if ( count(allMinDistance(:) == minDistance) > 1 ) then
+            write(*,*) 'multiple obs with same minDistance! (MPI) ', allMinDistance(:)
+            ! resolve ambiguity by choosing obs with min value of lon
+            call rpn_comm_allgather(minLonBurpFile,    1, 'mpi_integer',  &
+                                    allMinLonBurpFile, 1, 'mpi_integer', 'grid', ierr)
+            minLonBurpFile = 10000000
+            do procIndex = 1, mpi_nprocs
+              if (allMinDistance(procIndex) == minDistance) then
+                if (allMinLonBurpFile(procIndex) < minLonBurpFile) then
+                  minLonBurpFile = allMinLonBurpFile(procIndex)
+                  procIndexKeep = procIndex
+                end if
+              end if
+            end do            
+          end if
+          if (mpi_myid /= (procIndexKeep-1)) then
+            if (nbstn2 > 0) then
+              valid(headerIndexKeep) = .false.
+            end if
+          end if
+        end if
+
       end do ! gridIndex
     end do ! stepIndex
 
@@ -757,6 +822,27 @@ contains
            ' NB.PTS GRILLE TRAITES                       =    ',I7)
 
     ! end of sommair
+
+    deallocate(valid)
+    deallocate(zlatdeg)
+    deallocate(zlatg)
+    deallocate(zlong)
+    deallocate(nbstn)
+    deallocate(bufref)
+    deallocate(link)
+    deallocate(headerIndexList)
+    deallocate(headerIndexList2)
+    deallocate(ngrd)
+    deallocate(igrds)
+    deallocate(indexs)
+    deallocate(zcentregen)
+    deallocate(obsDateStamp)
+    deallocate(obsLonBurpFile)
+    deallocate(obsLatBurpFile)
+    deallocate(nassim)
+    deallocate(zdobs)
+    deallocate(stepObsIndex)
+    deallocate(obsPosition3d)
 
     write(*,*) 'thn_tovsFilt: finished'
 
