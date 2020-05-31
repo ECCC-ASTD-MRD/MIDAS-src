@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * remove the script `midas.compile.sh` from the SSM domain
       * this script was designed to help users of the MIDAS librairies to compile and link but it has never been used
    * remove the description of the library in the automatic documentation
+ * Remove the programs `write_subdomains` and `reunir_obs` from SSM domain publication (#360, #361 and !345)
 
 ## [3.5.2]
 
