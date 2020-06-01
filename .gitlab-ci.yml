@@ -25,6 +25,25 @@ stages:
     - master
     - tags
 
+.monitor_build:: &build_template
+  stage: build
+  script:
+    - cd tools/monitor
+    - make
+    - make install PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+  only:
+    - master
+    - tags
+
+.monitor_test: &runtests_template
+   stage: test
+   script:
+     - cd tools/monitor
+     - make test PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+   only:
+     - master
+     - tags
+
 .runtests: &runtests_template
    stage: test
    script:
