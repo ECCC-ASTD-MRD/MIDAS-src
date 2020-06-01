@@ -296,40 +296,29 @@ contains
 
     ! Locals:
     integer :: nblat, nblon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
-    integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, ierr
-    integer :: bodyIndex, headerIndex1, headerIndex2, stepIndex, obsCount, obsIndex
-    integer :: loscan, hiscan, icntqc, obsFlag, obsFov, icntptg, nbstn2
-    integer :: icntkept, icntothr, procIndex, procIndexKeep, minLonBurpFile
+    integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
+    integer :: bodyIndex, stepIndex, obsIndex, obsFov
+    integer :: loscan, hiscan, obsFlag, nbstn2, nsize
+    integer :: procIndex, procIndexKeep, minLonBurpFile, obsCount, obsCountMpi
+    integer :: countQc, countKept, countOther, countKeptMpi, countQcMpi, countGridPoints
     integer :: allMinLonBurpFile(mpi_nprocs)
-    logical :: global1, global2
     real(4) :: zlength, zlatrad, zdlon, zlatchk, zlonchk, zlontmp
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon
     real(4) :: obsLatInDegrees, obsLonInDegrees
-    real(4) :: zlat1, zlon1, zlat2, zlon2, distance, minDistance
+    real(4) :: minDistance
     real(4) :: allMinDistance(mpi_nprocs)
     real(4) :: zdatflgs, zlatmid, zlonmid, zlatobs, zlonobs
-    real(4) :: pcttot, pctqc, pctoth, pctkep
-    real(8) :: dlhours
+    real(4) :: percentTotal, percentQc, percentOther, percentKept
     real(8), allocatable :: stepObsIndex(:)
     real(4), allocatable :: zlatdeg(:), zlatg(:), zlong(:), zdobs(:)
     logical, allocatable :: valid(:), indexs(:)
-    integer, allocatable :: ngrd(:), nbstn(:), igrds(:), zcentregen(:)
+    integer, allocatable :: ngrd(:), nbstn(:), igrds(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), nassim(:)
-    integer, allocatable :: obsDateStamp(:), bufref(:), link(:)
+    integer, allocatable :: bufref(:), link(:)
     integer, allocatable :: headerIndexList(:), headerIndexList2(:)
-    integer, external :: newdate
-    ! Locals related to kdtree2
-    type(kdtree2), pointer            :: tree
-    integer, parameter                :: maxNumSearch = 100
-    integer                           :: numFoundSearch, resultIndex
-    type(kdtree2_result)              :: searchResults(maxNumSearch)
-    real(kdkind)                      :: maxRadius = 100.d0
-    real(kdkind)                      :: refPosition(3)
-    real(kdkind), allocatable         :: obsPosition3d(:,:)
 
     ! Local parameters:
     integer, parameter :: xlat=10000, xlon=40000, xdelt=50
-    integer, parameter :: centre_gen_global(3)=(/53, 74, 160/)
     integer, parameter :: mxscanamsua=30
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
@@ -338,9 +327,12 @@ contains
     write(*,*) 'thn_tovsFilt: Starting, ', trim(codtyp_get_name(codtyp))
 
     numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
+    write(*,*) 'thn_tovsFilt: numHeader, numHeaderMaxMpi = ', numHeader, numHeaderMaxMpi
 
     ! Check if we have any observations to process
-    allocate(valid(numHeader))
+    allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
     do headerIndex = 1, numHeader
       if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) == codtyp) then
@@ -356,7 +348,12 @@ contains
       return
     end if
 
-    write(*,*) 'obsCount initial = ', count(valid(:))
+    write(*,*) 'thn_tovsFilt: obsCount initial = ', count(valid(:))
+
+    ! Remove RARS obs that are also present from a global originating centre
+    call thn_removeRarsDuplicates(obsdat, valid)
+
+    write(*,*) 'thn_tovsFilt: obsCount after thn_removeRarsDuplicates = ', count(valid(:))
 
     nblat = 2*xlat/delta
     nblon = xlon/delta
@@ -373,22 +370,29 @@ contains
     allocate(ngrd(nblat))
     allocate(igrds(numHeader))
     allocate(indexs(numHeader))
-    allocate(zcentregen(numHeader))
-    allocate(obsDateStamp(numHeader))
     allocate(obsLonBurpFile(numHeader))
     allocate(obsLatBurpFile(numHeader))
     allocate(nassim(numHeader))
     allocate(zdobs(numHeader))
     allocate(stepObsIndex(numHeader))
-    allocate(obsPosition3d(3,numHeader))
 
-    write(*,*) 'thn_tovsFilt: after alloction'
-
-    ! Initialize some arrays
+    ! Initialize arrays
+    zlatdeg(:) = 0.0
+    zlatg(:) = 0.0
+    zlong(:) = 0.0
+    zdobs(:) = 0.0
     nbstn(:) = 0
-    zcentregen(:) = 0
+    bufref(:) = 0
+    link(:) = 0
+    headerIndexList(:) = 0
+    headerIndexList2(:) = 0
+    ngrd(:) = 0
+    igrds(:) = 0
+    indexs(:) = 0
+    obsLonBurpFile(:) = 0
+    obsLatBurpFile(:) = 0
+    nassim(:) = 0
     stepObsIndex(:) = 0.0d0
-    obsPosition3d(:,:) = 0.0
 
     ! Set up the grid used for thinning
     ngrdtot = 0
@@ -411,19 +415,9 @@ contains
       gridIndex = gridIndex + ngrd(latIndex)
     end do
 
-    write(*,*) 'thn_tovsFilt: after grid setup'
-
     ! Loop over all observation locations
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
-
-      ! Originating centre of data
-      zcentregen(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
-
-      ! Date stamp for each observation
-      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime*10000+2900, 3)
 
       ! Lat and Lon for each observation
       obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
@@ -441,10 +435,6 @@ contains
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
       call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      ! location array for kdtree
-      obsPosition3d(1,headerIndex) = RA * sin(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(2,headerIndex) = RA * cos(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(3,headerIndex) = RA *                    sin(obsLatInRad)
 
       ! Associate each observation to a grid point
       zlatchk = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -469,99 +459,6 @@ contains
 
     end do ! headerIndex
 
-    write(*,*) 'thn_tovsFilt: after first pass'
-
-    ! start of "passe2"
-    nullify(tree)
-    tree => kdtree2_create(obsPosition3d, sort=.true., rearrange=.true.)
-    HEADER1: do headerIndex1 = 1, (numHeader-1)
-        
-      if ( .not. valid(headerIndex1) ) cycle HEADER1
-
-      ! Find all obs within 10km
-      refPosition(:) = obsPosition3d(:,headerIndex1)
-      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch,&
-                             nalloc=maxNumSearch, results=searchResults)
-      if (numFoundSearch >= maxNumSearch) then
-        call utl_abort('thn_tovsFilt: the parameter maxNumSearch must be increased')
-      end if
-      if (numFoundSearch == 0) then
-        call utl_abort('thn_tovsFilt: no match found. This should not happen!!!')
-      end if
-
-      ! Loop over all of these nearby locations
-      HEADER2: do resultIndex = 1, numFoundSearch
-        headerIndex2 = searchResults(resultIndex)%idx
-          
-        if ( .not. valid(headerIndex2) ) cycle HEADER2
-
-        ! Certaines stations locales nous envoient 
-        ! le mauvais numero d'orbite. On ne peut donc
-        ! pas s'y fier.
-        ! Il faut comparer le temps de la reception des
-        ! donnees
-        if ( zcentregen(headerIndex1) /= zcentregen(headerIndex2) ) then
-          if ( (obs_headElem_i(obsdat,OBS_FOV,headerIndex1) ==  &
-                obs_headElem_i(obsdat,OBS_FOV,headerIndex2)) ) then
-            if ( (obs_elem_c(obsdat,'STID',headerIndex1) ==  &
-                  obs_elem_c(obsdat,'STID',headerIndex2)) ) then
-            
-              ! Difference (in hours) between obs time
-              call difdatr(obsDateStamp(headerIndex1),obsDateStamp(headerIndex2),dlhours)
-
-              ! Si la difference est moins de 6 minutes,
-              ! on peut avoir affaire a un rars
-
-              if ( abs(dlhours) <= 0.1 ) then
-
-                ! ON RAMENE LES LATS ENTRE -90 ET 90
-                ! ET LES LONS ENTRE 0 ET 360
-                zlat1 = ( obsLatBurpFile(headerIndex1) - 9000.) / 100.
-                zlon1 =   obsLonBurpFile(headerIndex1) / 100.
-                zlat2 = ( obsLatBurpFile(headerIndex2) - 9000.) / 100.
-                zlon2 =   obsLonBurpFile(headerIndex2) / 100.
-
-                ! SI LA DISTANCE ENTRE DEUX STNS < MINIMUM
-                ! ETABLI ICI A 10KM (PAR EXPERIENCE)
-                distance = separa(zlon1,zlat1,zlon2,zlat2) * float(xlat) / 90.
-                if (distance <= 10.) then
-
-                  ! si l'element_i est global, on doit le garder et rejeter l'element_j
-                  global1 = any(centre_gen_global(:) == zcentregen(headerIndex1))
-                  if (global1) then 
-                    valid(headerIndex2) = .false.
-                  else
-                    ! toutefois, ca ne signifie pas que l'element_j est un rars
-                    ! VERIFIER SI LA STATION 2 EST RARS
-                    global2 = any(centre_gen_global(:) == zcentregen(headerIndex2))
-
-                    ! Si l'element_j est global, rejeter l'element_i
-                    ! Si les 2 elements sont rars, garder le 1er
-                    if (global2) then 
-                      valid(headerIndex1) = .false.
-                      cycle HEADER1
-                    else
-                      valid(headerIndex2) = .false.
-                    end if
-
-                  end if
-
-                end if ! distance <= 10
-
-              end if ! abs(dlhours) <= 0.1
-
-            end if
-          end if
-        end if
-
-      end do HEADER2
-    end do HEADER1
-    call kdtree2_destroy(tree)
-
-    write(*,*) 'thn_tovsFilt: obsCount after second pass = ', count(valid(:))
-    ! end of passe2
-
-    ! start of passe1
     if      ( codtyp == codtyp_get_codtyp('amsua') ) then
       loscan   = 1
       hiscan   = mxscanamsua
@@ -576,7 +473,7 @@ contains
       hiscan   = mxscanmwhs2
     end if
 
-    icntqc = 0
+    countQc = 0
     nassim(:) = 0
     do headerIndex = 1, numHeader
 
@@ -610,21 +507,18 @@ contains
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
       if ( zdatflgs >= 0.80 ) then
-        icntqc = icntqc + 1
+        countQc = countQc + 1
         valid(headerIndex) = .false.
       else if (obsFov < loscan .or.  &
                obsFov > hiscan ) then
-        icntqc = icntqc + 1
+        countQc = countQc + 1
         valid(headerIndex) = .false.
       end if
 
     end do
-    ! end of passe1
 
-    write(*,*) 'thn_tovsFilt: obsCount after third pass = ', count(valid(:))
+    write(*,*) 'thn_tovsFilt: obsCount after QC = ', count(valid(:))
 
-    ! start of passe3
-    
     ! Calculate distance of obs. from center of its grid box center
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
@@ -645,7 +539,6 @@ contains
     ! Create a linked list of observations (link to grid point)
     bufref(:) = 0
     link(:) = 0
-      
     obsCount = 0
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
@@ -659,14 +552,14 @@ contains
       end if
     end do
 
-    ! BOUCLE SUR LES STEPOBS
+    ! Loop over stepObs
     do stepIndex = 1, tim_nstepobs
 
-      ! BOUCLE SUR TOUTES LES BOITES
-      icntptg = 0
+      ! Loop over all grid points
+      countGridPoints = 0
       do gridIndex = 1, ngrdtot
         if (nbstn(gridIndex) /= 0) then
-          icntptg = icntptg + 1
+          countGridPoints = countGridPoints + 1
         end if
         nbstn2 = 0
         obsIndex = bufref(gridIndex)
@@ -685,7 +578,7 @@ contains
 
         minDistance = 1000000.             
 
-        ! CHOISIR LA PLUS PRES DU CENTRE DE LA BOITE, EN DECA DE 75KM.
+        ! Choose the obs closest to the grid point
         do obsIndex = 1, nbstn2
           if (zdobs(headerIndexList2(obsIndex)) < minDistance) then
             minDistance = zdobs(headerIndexList2(obsIndex))
@@ -697,8 +590,6 @@ contains
         ! Check for multiple obs with same distance to grid point
         if (nbstn2 > 0) then
           if ( count(zdobs(headerIndexList2(1:nbstn2)) == minDistance) > 1 ) then
-            write(*,*) 'multiple obs with same minDistance!', &
-                 zdobs(headerIndexList2(1:nbstn2))
             ! resolve ambiguity by choosing obs with min value of lon
             minLonBurpFile = 10000000
             do obsIndex = 1, nbstn2
@@ -735,7 +626,6 @@ contains
         ! Adjust flags to only keep 1 observation among all mpi tasks
         if (minDistance < 1000000.) then
           if ( count(allMinDistance(:) == minDistance) > 1 ) then
-            write(*,*) 'multiple obs with same minDistance! (MPI) ', allMinDistance(:)
             ! resolve ambiguity by choosing obs with min value of lon
             call rpn_comm_allgather(minLonBurpFile,    1, 'mpi_integer',  &
                                     allMinLonBurpFile, 1, 'mpi_integer', 'grid', ierr)
@@ -749,8 +639,8 @@ contains
               end if
             end do            
           end if
-          if (mpi_myid /= (procIndexKeep-1)) then
-            if (nbstn2 > 0) then
+          if (nbstn2 > 0) then
+            if (mpi_myid /= (procIndexKeep-1)) then
               valid(headerIndexKeep) = .false.
             end if
           end if
@@ -759,11 +649,9 @@ contains
       end do ! gridIndex
     end do ! stepIndex
 
-    ! end of passe3
-
     write(*,*) 'thn_tovsFilt: obsCount after thinning = ', count(valid(:))
 
-    ! start of modflg
+    ! modify the observation flags in obsSpaceData
     obsCount = 0
     do headerIndex = 1, numHeader
       ! skip observation if we're not supposed to consider it
@@ -792,21 +680,27 @@ contains
       end if
     end do
 
-    ! end of modflg
+    ! print a summary to the listing
+    countKept = count(valid)
+    call rpn_comm_allReduce(countKept, countKeptMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countQc,   countQcMpi,   1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(obsCount, obsCountMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
 
-    ! start of sommair
-    icntkept = count(valid)
-    icntothr = obsCount - count(valid) - icntqc
+    countOther = obsCountMpi - countKeptMpi - countQcMpi
 
-    pcttot = 100.0
-    pctqc  = (float(icntqc)   / float(obsCount)) * 100.0
-    pctoth = (float(icntothr) / float(obsCount)) * 100.0
-    pctkep = (float(icntkept) / float(obsCount)) * 100.0
+    percentTotal = 100.0
+    percentQc    = (float(countQcMpi)   / float(obsCountMpi)) * 100.0
+    percentOther = (float(countOther)   / float(obsCountMpi)) * 100.0
+    percentKept  = (float(countKeptMpi) / float(obsCountMpi)) * 100.0
          
     write(*,100)
 100 format(/,' SOMMAIRE DES RESULTATS',/)
-    write(*,200) obsCount,pcttot,icntqc,pctqc,icntothr,pctoth, &
-                 icntkept,pctkep,delta,ngrdtot,icntptg
+    write(*,200) obsCountMpi, percentTotal, countQcMpi, percentQc, &
+                 countOther, percentOther, countKeptMpi, percentKept, &
+                 delta, ngrdtot, countGridPoints
 200 format(' NB.STNS TOTAL AU DEBUT EN ENTREE        =    ',I7, &
            '  =  ',F6.1,'%',/, &
            ' NB.STNS REJETEES AU CONTROLE QUALITATIF =  - ',I7, &
@@ -835,39 +729,237 @@ contains
     deallocate(ngrd)
     deallocate(igrds)
     deallocate(indexs)
-    deallocate(zcentregen)
-    deallocate(obsDateStamp)
     deallocate(obsLonBurpFile)
     deallocate(obsLatBurpFile)
     deallocate(nassim)
     deallocate(zdobs)
     deallocate(stepObsIndex)
-    deallocate(obsPosition3d)
 
     write(*,*) 'thn_tovsFilt: finished'
 
   end subroutine thn_tovsFilt
 
+  !--------------------------------------------------------------------------
+  ! thn_removeRarsDuplicates
+  !--------------------------------------------------------------------------
+  subroutine thn_removeRarsDuplicates(obsdat, valid)
+    implicit none
 
-  FUNCTION SEPARA(XLON1,XLAT1,XLON2,XLAT2)
-    IMPLICIT NONE
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    logical,          intent(inout) :: valid(:)
 
-    REAL XLAT1,XLAT2,XLON1,XLON2,SEPARA,COSVAL,DEGRAD,RADDEG
+    ! Locals:
+    integer :: nsize, ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
+    integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
+    integer :: obsDate, obsTime
+    real(4) :: obsLatInRad, obsLonInRad
+    real(8) :: dlhours
+    logical :: global1, global2
+    integer, allocatable :: centreOrig(:), allCentreOrig(:)
+    integer, allocatable :: obsFov(:), allObsFov(:)
+    integer, allocatable :: obsDateStamp(:), allObsDateStamp(:)
+    integer, allocatable :: stnIdInt(:,:), allStnIdInt(:,:)
+    logical, allocatable :: allValid(:)
+    character(len=12)    :: stnId
+    
+    ! Locals related to kdtree2:
+    type(kdtree2), pointer            :: tree
+    integer, parameter                :: maxNumSearch = 100
+    integer                           :: numFoundSearch, resultIndex
+    type(kdtree2_result)              :: searchResults(maxNumSearch)
+    real(kdkind)                      :: maxRadius = 100.d6
+    real(kdkind)                      :: refPosition(3)
+    real(kdkind), allocatable         :: obsPosition3d(:,:)
+    real(kdkind), allocatable         :: allObsPosition3d(:,:)
 
-    RADDEG=180.0/3.14159265358979
-    DEGRAD=1.0/RADDEG
-    COSVAL=SIN(XLAT1*DEGRAD)*SIN(XLAT2*DEGRAD)+ &
-         COS(XLAT1*DEGRAD)*COS(XLAT2*DEGRAD)* &
-         COS((XLON1-XLON2)*DEGRAD)
+    ! Local parameters:
+    integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
 
-    IF (COSVAL.LT.-1.0D0) THEN
-      COSVAL=-1.0D0
-    ELSE IF (COSVAL.GT.1.0D0) THEN
-      COSVAL=1.0D0
-    ENDIF
-    SEPARA=ACOS(COSVAL)*RADDEG
+    ! Externals:
+    integer, external    :: newdate
 
-  END FUNCTION SEPARA
+    numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
+
+    ! Allocations
+    allocate(obsPosition3d(3,numHeaderMaxMpi))
+    allocate(allObsPosition3d(3,numHeaderMaxMpi*mpi_nprocs))
+    allocate(centreOrig(numHeaderMaxMpi))
+    allocate(allCentreOrig(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsFov(numHeaderMaxMpi))
+    allocate(allObsFov(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDateStamp(numHeaderMaxMpi))
+    allocate(allObsDateStamp(numHeaderMaxMpi*mpi_nprocs))
+    allocate(allValid(numHeaderMaxMpi*mpi_nprocs))
+    lenStnId = len(stnId)
+    allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
+    allocate(allStnIdInt(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+
+    ! Some initializations
+    centreOrig(:) = 0
+    obsPosition3d(:,:) = 0.0
+
+    ! Loop over all observation locations
+    do headerIndex = 1, numHeader
+      if ( .not. valid(headerIndex) ) cycle
+
+      ! Originating centre of data
+      centreOrig(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
+
+      ! Station ID converted to integer array
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+
+      ! Date stamp for each observation
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime*10000+2900, 3)
+
+      ! Field of View for each observation
+      obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
+
+      ! Lat and Lon for each observation
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+
+      ! 3D location array for kdtree
+      obsPosition3d(1,headerIndex) = RA * sin(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(2,headerIndex) = RA * cos(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(3,headerIndex) = RA *                    sin(obsLatInRad)
+    end do
+
+    nsize = 3 * numHeaderMaxMpi
+    call rpn_comm_allgather(obsPosition3d,    nsize, 'mpi_real8',  &
+                            allObsPosition3d, nsize, 'mpi_real8', 'grid', ierr)
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            allValid, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(centreOrig,    nsize, 'mpi_integer',  &
+                            allCentreOrig, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
+                            allObsFov, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDateStamp,    nsize, 'mpi_integer',  &
+                            allObsDateStamp, nsize, 'mpi_integer', 'grid', ierr)
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            allStnIdInt, nsize, 'mpi_integer', 'grid', ierr)
+    nullify(tree)
+
+    tree => kdtree2_create(allObsPosition3d, sort=.true., rearrange=.true.)
+    HEADER1: do headerIndex1 = 1, mpi_nprocs*numHeaderMaxMpi
+        
+      if ( .not. allValid(headerIndex1) ) cycle HEADER1
+
+      ! Find all obs within 10km
+      refPosition(:) = allObsPosition3d(:,headerIndex1)
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch, &
+                             nalloc=maxNumSearch, results=searchResults)
+      if (numFoundSearch >= maxNumSearch) then
+        call utl_abort('thn_tovsFilt: the parameter maxNumSearch must be increased')
+      end if
+      if (numFoundSearch == 0) then
+        call utl_abort('thn_tovsFilt: no match found. This should not happen!!!')
+      end if
+
+      ! Loop over all of these nearby locations
+      HEADER2: do resultIndex = 1, numFoundSearch
+        headerIndex2 = searchResults(resultIndex)%idx
+
+        if ( .not. allValid(headerIndex2) ) cycle HEADER2
+
+        ! Certaines stations locales nous envoient 
+        ! le mauvais numero d'orbite. On ne peut donc
+        ! pas s'y fier.
+        ! Il faut comparer le temps de la reception des
+        ! donnees
+        if ( allCentreOrig(headerIndex1) /= allCentreOrig(headerIndex2) ) then
+          if ( allObsFov(headerIndex1) == allObsFov(headerIndex2) ) then
+            if ( all(allStnIdInt(:,headerIndex1) ==  allStnIdInt(:,headerIndex2)) ) then
+            
+              ! Difference (in hours) between obs time
+              call difdatr(allObsDateStamp(headerIndex1),allObsDateStamp(headerIndex2),dlhours)
+
+              ! Si la difference est moins de 6 minutes,
+              ! on peut avoir affaire a un rars
+
+              if ( abs(dlhours) <= 0.1 ) then
+
+                ! si l'element_i est global, on doit le garder et rejeter l'element_j
+                global1 = any(centreOrigGlobal(:) == allCentreOrig(headerIndex1))
+                if (global1) then 
+                  allValid(headerIndex2) = .false.
+                else
+                  ! toutefois, ca ne signifie pas que l'element_j est un rars
+                  ! VERIFIER SI LA STATION 2 EST RARS
+                  global2 = any(centreOrigGlobal(:) == allCentreOrig(headerIndex2))
+
+                  ! Si l'element_j est global, rejeter l'element_i
+                  ! Si les 2 elements sont rars, garder le 1er
+                  if (global2) then 
+                    allValid(headerIndex1) = .false.
+                    cycle HEADER1
+                  else
+                    allValid(headerIndex2) = .false.
+                  end if
+                end if
+
+              end if ! abs(dlhours) <= 0.1
+              
+            end if ! STID1 == STID2
+          end if ! FOV1 == FOV2
+        end if ! centreOrig1 /= centreOrig2
+
+      end do HEADER2
+    end do HEADER1
+    call kdtree2_destroy(tree)
+
+    ! update local copy of 'valid' array
+    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = allValid(headerIndexBeg:headerIndexEnd)
+
+    deallocate(obsPosition3d)
+    deallocate(allObsPosition3d)
+    deallocate(centreOrig)
+    deallocate(allCentreOrig)
+    deallocate(obsFov)
+    deallocate(allObsFov)
+    deallocate(obsDateStamp)
+    deallocate(allObsDateStamp)
+    deallocate(allValid)
+    deallocate(stnIdInt)
+    deallocate(allStnIdInt)
+
+  end subroutine thn_removeRarsDuplicates
+
+  function separa(xlon1,xlat1,xlon2,xlat2)
+    implicit none
+
+    ! Arguments:
+    real(4) :: separa
+    real(4) :: xlat1, xlat2, xlon1, xlon2
+
+    ! Locals:
+    real(4) :: cosval, degrad, raddeg
+
+    raddeg = 180.0/3.14159265358979
+    degrad = 1.0/raddeg
+    cosval = sin(xlat1*degrad) * sin(xlat2*degrad) + &
+             cos(xlat1*degrad) * cos(xlat2*degrad) * &
+             cos((xlon1-xlon2) * degrad)
+
+    if (cosval < -1.0d0) then
+      cosval = -1.0d0
+    else if (cosval > 1.0d0) then
+      cosval = 1.0d0
+    end if
+    separa = acos(cosval) * raddeg
+
+  end function separa
 
 
   !--------------------------------------------------------------------------
