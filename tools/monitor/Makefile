@@ -1,6 +1,11 @@
 
-monitor: monitor.c
+PGM ?= ./midas.monitor.Abs
+
+midas.monitor.Abs: monitor.c
 	gcc monitor.c -o midas.monitor.Abs
 
-test: monitor
-	./test.sh
+test: midas.monitor.Abs
+	./test.sh ${PGM}
+
+install:
+	cp midas.monitor.Abs ${PGM}
