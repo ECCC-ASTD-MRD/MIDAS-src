@@ -4,6 +4,9 @@
 
 set -e
 
+MONITOR_PGM=${1:-./midas.monitor.Abs}
+
+echo "Testing program '${MONITOR_PGM}'"
 cat > run_after_rebm_done.sh <<EOF
 #!/bin/ksh
 
@@ -17,7 +20,7 @@ chmod +x run_after_rebm_done.sh
 function launch_monitor {
     set -e
 
-    ./midas.monitor.Abs VAR3D_STATUS.dot run_after_rebm_done.sh
+    ${MONITOR_PGM} VAR3D_STATUS.dot run_after_rebm_done.sh
     sleep 10
 
     cat > VAR3D_STATUS.dot <<EOF
