@@ -689,6 +689,7 @@ CONTAINS
         if ( bodyIndex < 0 ) exit BODY
 
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
+        if ( obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) == MPC_missingValue_R8) cycle BODY
 
         call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
         if (chanindx > 0) then
