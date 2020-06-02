@@ -90,7 +90,6 @@ toplevel=$(git rev-parse --show-toplevel)
 MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.7}
-OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v3}
 SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.3.4}
 FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 
@@ -105,7 +104,6 @@ fi
 
 VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}
 FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
-OAVARMONITOR_SOURCE=${OAVARMONITOR_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
 
 export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
@@ -128,7 +126,7 @@ whichPlatforms () {
     unset __whichPlatforms_bhscript__
 
     case "${pkgname}" in
-	SplitObs|OavarMonitor)
+	SplitObs)
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
 	midas)
@@ -159,10 +157,6 @@ whichPlatforms () {
 	midas)
 	    BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION}
 	    BH_PULL_SOURCE=${MIDAS_SOURCE}
-	    ;;
-	OavarMonitor)
-	    BH_PULL_SOURCE_GIT_BRANCH=${OAVARMONITOR_REVISION}
-	    BH_PULL_SOURCE=${OAVARMONITOR_SOURCE}
 	    ;;
 	*)
 	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte." >&2
