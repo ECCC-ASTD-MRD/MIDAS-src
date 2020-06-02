@@ -23,6 +23,7 @@ stages:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
+    - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
     - tags
 
 .monitor_build: &build_template
@@ -62,6 +63,7 @@ stages:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
+     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
 
 .doc_sphinx: &doc_sphinx_template
