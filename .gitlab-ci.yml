@@ -69,6 +69,7 @@ midas_tests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
+     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
    tags:
      - hpcr-u1
