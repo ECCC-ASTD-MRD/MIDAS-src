@@ -20,7 +20,7 @@ chmod +x run_after_rebm_done.sh
 function launch_monitor {
     set -e
 
-    ${MONITOR_PGM} VAR3D_STATUS.dot run_after_rebm_done.sh
+    ${MONITOR_PGM} VAR3D_STATUS.dot ./run_after_rebm_done.sh
     sleep 10
 
     cat > VAR3D_STATUS.dot <<EOF
