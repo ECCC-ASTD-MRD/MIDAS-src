@@ -38,11 +38,50 @@ module thinning_mod
   implicit none
   private
 
-  public :: thn_thinAladin, thn_thinHyper, thn_thinTovs
+  public :: thn_thinHyper, thn_thinTovs, thn_thinAircraft, thn_thinAladin
 
   integer, external :: get_max_rss
 
 contains
+
+  !--------------------------------------------------------------------------
+  ! thn_thinAircraft
+  !--------------------------------------------------------------------------
+  subroutine thn_thinAircraft(obsdat)
+    implicit none
+
+    ! ARGUMENTS
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! NAMELIST VARIABLES
+    integer :: deltmax ! maximum time difference (in minutes)
+
+    namelist /thin_aircraft/deltmax
+
+    ! LOCAL VARIABLES
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    deltmax = 90
+
+    ! Read the namelist for Aircraft observations (if it exists)
+    if (utl_isNamelistPresent('thin_aircraft','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
+      read(nulnam,nml=thin_aircraft,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading namelist')
+      write(*,nml=thin_aircraft)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
+      write(*,*) '                  The default value will be taken.'
+    end if
+
+    call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
+
+  end subroutine thn_thinAircraft
 
   !--------------------------------------------------------------------------
   ! thn_thinAladin
@@ -198,6 +237,23 @@ contains
 !_/
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
+
+  !--------------------------------------------------------------------------
+  ! thn_aircraftByBoxes
+  !--------------------------------------------------------------------------
+  subroutine thn_aircraftByBoxes(obsdat, familyType, deltmax)
+    !
+    ! :Purpose: Original method for thinning aircraft data by lat-lon boxes.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in) :: familyType
+    integer,          intent(in) :: deltmax
+
+  end subroutine thn_aircraftByBoxes
 
   !--------------------------------------------------------------------------
   ! thn_keepNthObs

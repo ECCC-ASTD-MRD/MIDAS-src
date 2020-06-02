@@ -89,9 +89,10 @@ program midas_thinning
   ! 3. Do the Thinning
 
   !- Set bit 11 of flag, process one observation type at a time
-  call thn_thinAladin(obsSpaceData)
   call thn_thinHyper(obsSpaceData)
   call thn_thinTovs(obsSpaceData)
+  call thn_thinAircraft(obsSpaceData)
+  call thn_thinAladin(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !- Update obs files and remove rejected obs (bit 11) from file (obsFileClean)
