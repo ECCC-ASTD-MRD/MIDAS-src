@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * RTTOV radiative transfer performed directly on model levels - NOTE: this affects the results and is not backward compatible (#253 and !323)
+
  * Using `oavar_scripts` to version `2.2.7` which includes the following changes since version `2.2.6`:
    * `oavar.launch`:
       - On rend facultatif l'etape `reunir_obs` si on utilise
