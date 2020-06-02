@@ -33,6 +33,7 @@ stages:
     - make install PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
   only:
     - master
+    - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
     - tags
 
 .monitor_test: &runtests_template
@@ -42,6 +43,7 @@ stages:
      - make test PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
    only:
      - master
+     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
 
 .runtests: &runtests_template
