@@ -11,8 +11,8 @@ from bh.actions import package as actions
 def _init(b):
     global compiler
 
-    environ["BH_PROJECT_NAME"]    = "midas"
-    environ["CONTROL_DIR"]    = "%(BH_PACKAGE_CONTROL_DIR)s/%(BH_PACKAGE_NAMES)s/.ssm.d" % environ
+    environ["BH_PROJECT_NAME"] = "midas"
+    environ["CONTROL_DIR"]     = "%(BH_PACKAGE_CONTROL_DIR)s/%(BH_PACKAGE_NAMES)s/.ssm.d" % environ
 
 def _pull(b):
     ## no need to pull MIDAS code since this script is contained directly in the MIDAS git depot
@@ -57,9 +57,20 @@ def _install(b):
 
          INSTALL_DIR=${BH_INSTALL_DIR}/bin
          mkdir -p ${INSTALL_DIR}
+
+         ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
          for prog in ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/*.f90; do
              progname=$(basename ${prog} .f90)
              absname=${BH_MIDAS_ABS}/midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
+             cp ${absname} ${INSTALL_DIR}
+             babsname=$(basename ${absname})
+             program=$(echo ${babsname} | cut -d_ -f1)
+             ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
+         done
+
+         ## install other tools with prefix 'midas.'
+         for progname in monitor; do
+             absname=${BH_MIDAS_ABS}/midas.${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
              cp ${absname} ${INSTALL_DIR}
              babsname=$(basename ${absname})
              program=$(echo ${babsname} | cut -d_ -f1)
