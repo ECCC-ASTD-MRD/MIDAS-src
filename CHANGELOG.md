@@ -20,7 +20,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Compile using only one precision and remove the publication of the MIDAS library (#358 and !344)
+   * remove the program `midas-obsIO`
+   * convert the program `midas-prepcma` to `CODEPRECISION_OBS_REAL_DOUBLE`
+      * this affects the results of the `midas-prepcma`system test
+   * remove the automatic generation of the MIDAS library when building the MIDAS SSM domain
+   * remove the script `midas.compile.sh` from the SSM domain
+      * this script was designed to help users of the MIDAS librairies to compile and link but it has never been used
+   * remove the description of the library in the automatic documentation
 
 ## [3.5.2]
 

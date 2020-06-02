@@ -136,7 +136,7 @@ whichPlatforms () {
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
 	midas)
-	    platforms="all ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
+	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
         VarScripts|FindTrials)
             platforms=all
