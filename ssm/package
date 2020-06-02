@@ -92,8 +92,6 @@ MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.7}
 OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v3}
 SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.3.4}
-REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.11}
-WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.9}
 FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 
 ## If MIDAS_SOURCE is not yet defined we use the git repository itself.
@@ -109,8 +107,6 @@ VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data
 FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
 OAVARMONITOR_SOURCE=${OAVARMONITOR_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
-REUNIROBS_SOURCE=${REUNIROBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/reunir_obs.git}
-WRITESUBDOMAINS_SOURCE=${WRITESUBDOMAINS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/write_subdomains.git}
 
 export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
 
@@ -132,7 +128,7 @@ whichPlatforms () {
     unset __whichPlatforms_bhscript__
 
     case "${pkgname}" in
-	FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
+	SplitObs|OavarMonitor)
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
 	midas)
@@ -151,14 +147,6 @@ whichPlatforms () {
 	VarScripts)
 	    BH_PULL_SOURCE_GIT_BRANCH=${VARSCRIPTS_REVISION}
 	    BH_PULL_SOURCE=${VARSCRIPTS_SOURCE}
-	    ;;
-	FstdWriteSubdomains)
-	    BH_PULL_SOURCE_GIT_BRANCH=${WRITESUBDOMAINS_REVISION}
-	    BH_PULL_SOURCE=${WRITESUBDOMAINS_SOURCE}
-	    ;;
-	ReunirObs)
-	    BH_PULL_SOURCE_GIT_BRANCH=${REUNIROBS_REVISION}
-	    BH_PULL_SOURCE=${REUNIROBS_SOURCE}
 	    ;;
 	SplitObs)
 	    BH_PULL_SOURCE_GIT_BRANCH=${SPLITOBS_REVISION}
