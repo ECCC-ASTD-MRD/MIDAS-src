@@ -16,7 +16,7 @@ stages:
 #    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
 #    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
 
-.build:: &build_template
+.build: &build_template
   stage: build
   script:
     - cd src/programs
@@ -25,7 +25,7 @@ stages:
     - master
     - tags
 
-.monitor_build:: &build_template
+.monitor_build: &build_template
   stage: build
   script:
     - cd tools/monitor
