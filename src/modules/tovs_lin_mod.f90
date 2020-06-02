@@ -66,19 +66,14 @@ contains
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
-    integer :: allocStatus(17)
+    integer :: allocStatus(3)
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,nlv_M,nlv_T
     integer :: levelIndex, profileIndex
     integer :: status, Vcode
 
-    real(8), allocatable :: tt_tl(:,:)
-    real(8), allocatable :: hu_tl(:,:)
-    real(8), allocatable :: pressure_tl(:,:)
-    real(8), allocatable :: ozone_tl(:,:)
     character(len=4) :: ozoneVarName
-    real(8), allocatable :: clw_tl(:,:)
     logical, allocatable :: surfTypeIsWater(:)
     real(8), pointer :: delTT(:), delHU(:), delP(:)
     real(8), pointer :: delO3(:)
@@ -156,10 +151,9 @@ contains
 
     sensor_loop:  do sensorIndex = 1, tvs_nsensors
 
-      runObsOperatorWithClw_tl = .false.
-      if ( col_varExist(columng,'LWCR') .and. &
+      runObsOperatorWithClw_tl = col_varExist(columng,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
-        tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_tl = .true.
+        tvs_mwInstrumUsingCLW_tl
        
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
@@ -181,36 +175,15 @@ contains
       if ( btCount == 0 ) cycle  sensor_loop
    
       allocate (sensorHeaderIndexes (profileCount), stat= allocStatus(1))
-      allocate (tt_tl     (nlv_T,profileCount),     stat= allocStatus(2))
-      allocate (hu_tl    (nlv_T,profileCount),      stat= allocStatus(3))
-      allocate (pressure_tl(nlv_T,profileCount),    stat= allocStatus(4))
-      allocate (profilesdata_tl(profileCount),      stat= allocStatus(5))
-      if (.not. tvs_useO3Climatology) then
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          allocate (ozone_tl(nlv_T,profileCount),   stat= allocStatus(6))
-        end if
-      end if
+      allocate (profilesdata_tl(profileCount),      stat= allocStatus(2))
       if ( runObsOperatorWithClw_tl ) then
         write(*,*) 'tvslin_rttov_tl: using clw_data'
-        allocate (clw_tl(nlv_T,profileCount),stat= allocStatus(7))
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(8))
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(3))
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_tl")
  
       sensorHeaderIndexes(:) = 0 
       
-      tt_tl(:,:) = 0.0d0
-      hu_tl(:,:) = 0.0d0
-      pressure_tl(:,:) = 0.0d0
-
-      if (.not. tvs_useO3Climatology) then
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          ozone_tl(:,:) = 0.0d0
-        end if
-      end if
-      if ( runObsOperatorWithClw_tl ) then
-        clw_tl(:,:) = 0.0d0
-      end if
       surfTypeIsWater(:) = .false.
 
       ! allocate profiledata_tl structures
@@ -242,27 +215,7 @@ contains
         if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle obs_loop
         headerIndex = tvs_headerIndex(tovsIndex)
         profileCount = profileCount + 1
-        delP => col_getColumn(column,headerIndex,'P_T')
-        delTT => col_getColumn(column,headerIndex,'TT')
-        delHU => col_getColumn(column,headerIndex,'HU')
-        do levelIndex = 1, nlv_T
-          pressure_tl(levelIndex,profileCount) = delP(levelIndex) * MPC_MBAR_PER_PA_R8
-          tt_tl(levelIndex,profileCount) = delTT(levelIndex)
-          hu_tl(levelIndex,profileCount) = delHU(levelIndex)
-        end do
-        if (.not. tvs_useO3Climatology) then
-          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-            delO3 => col_getColumn(column,headerIndex,trim(ozoneVarName))
-            ozone_tl(1:nlv_T,profileCount) =  delO3(1:nlv_T) * 1.0d-9 ! Assuimes model ozone in ug/kg
-          end if
-        end if
-
         surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
-
-        if ( runObsOperatorWithClw_tl .and. surfTypeIsWater(profileCount) ) then
-          delCLW => col_getColumn(column,headerIndex,'LWCR')
-          clw_tl(1:nlv_T,profileCount) = delCLW(1:nlv_T)
-        end if
         sensorHeaderIndexes(profileCount) = headerIndex
       end do obs_loop
 
@@ -274,15 +227,22 @@ contains
           if (tvs_useO3Climatology) then
             profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           else
-            profilesdata_tl(profileIndex) % o3(1:nlv_T) = ozone_tl(1:nlv_T,profileIndex)
+            delO3 => col_getColumn(column,sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
+            profilesdata_tl(profileIndex) % o3(1:nlv_T) =  delO3(1:nlv_T) * 1.0d-9 ! Assumes model ozone in ug/kg
             profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
 
         ! using the zero CLW value for land FOV
-        if ( runObsOperatorWithClw_tl ) &
-          profilesdata_tl(profileIndex) % clw(1:nlv_T)  = clw_tl(1:nlv_T,profileIndex)
-
+        if ( runObsOperatorWithClw_tl ) then 
+          if ( surfTypeIsWater(profileCount) ) then
+            delCLW => col_getColumn(column,sensorHeaderIndexes(profileIndex),'LWCR')
+            profilesdata_tl(profileIndex) % clw(1:nlv_T)  = delCLW(:)
+          else
+            profilesdata_tl(profileIndex) % clw(1:nlv_T)  = 0.d0
+          end if
+        end if
+         
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
         profilesdata_tl(profileIndex) % zenangle        = 0.0d0
@@ -297,25 +257,17 @@ contains
         profilesdata_tl(profileIndex) % s2m % p         = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'P0')*MPC_MBAR_PER_PA_R8
         profilesdata_tl(profileIndex) % s2m % u         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'UU')
         profilesdata_tl(profileIndex) % s2m % v         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'VV')
-        
-        profilesdata_tl(profileIndex) % p(1:nlv_T)    = pressure_tl(:,profileIndex)
-        profilesdata_tl(profileIndex) % t(1:nlv_T)    = tt_tl(:,profileIndex)
-        profilesdata_tl(profileIndex) % q(1:nlv_T)    = hu_tl(:,profileIndex)
+
+        delP => col_getColumn(column,sensorHeaderIndexes(profileIndex),'P_T')
+        profilesdata_tl(profileIndex) % p(1:nlv_T)    = delP(:) * MPC_MBAR_PER_PA_R8
+        delTT => col_getColumn(column,sensorHeaderIndexes(profileIndex),'TT')
+        profilesdata_tl(profileIndex) % t(1:nlv_T)    = delTT(:)
+        delHU => col_getColumn(column,sensorHeaderIndexes(profileIndex),'HU')
+        profilesdata_tl(profileIndex) % q(1:nlv_T)    = delHU(:)
       end do
 
       deallocate (sensorHeaderIndexes,  stat= allocStatus(1) )
-      deallocate (tt_tl,                stat= allocStatus(2) )
-      deallocate (hu_tl,                stat= allocStatus(3) )
-      deallocate (pressure_tl,          stat= allocStatus(4) )
-      if (.not. tvs_useO3Climatology) then
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          deallocate (ozone_tl,         stat= allocStatus(5))
-        end if
-      end if
-      if ( runObsOperatorWithClw_tl ) then
-        deallocate (clw_tl,stat= allocStatus(6))
-      end if
-      deallocate (surfTypeIsWater,stat= allocStatus(7)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(2)) 
       call utl_checkAllocationStatus(allocStatus, "tvslin_rttov_tl", .false.)
 
       !  set nthreads to actual number of threads which will be used.
@@ -527,10 +479,9 @@ contains
 
     sensor_loop:do  sensorIndex = 1, tvs_nsensors
 
-      runObsOperatorWithClw_ad = .false.
-      if ( col_varExist(columng,'LWCR') .and. &
+      runObsOperatorWithClw_ad = col_varExist(columng,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
-        tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_ad = .true.
+        tvs_mwInstrumUsingCLW_tl
      
       sensorType = tvs_coefs(sensorIndex) % coef% id_sensor
       instrum = tvs_coefs(sensorIndex) % coef% id_inst
