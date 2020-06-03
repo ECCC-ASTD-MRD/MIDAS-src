@@ -335,7 +335,7 @@ program midas_letkf
   call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
-  call tvs_allocTransmission ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
+  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)

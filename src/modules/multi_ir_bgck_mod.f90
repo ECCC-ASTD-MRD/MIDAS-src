@@ -129,8 +129,8 @@ module multi_ir_bgck_mod
      real(8) :: albstd_pixeliasi(1:NVIS)
      real(8) :: radclearcalc(NVIS+1:NVIS+NIR)
      real(8) :: tbclearcalc(NVIS+1:NVIS+NIR)
-     real(8) :: radovcalc( tvs_nlevels-1,NVIS+1:NVIS+NIR)
-     real(8) :: transmcalc( tvs_nlevels,NVIS+1:NVIS+NIR)
+     real(8),allocatable :: radovcalc(:,:)
+     real(8),allocatable :: transmcalc(:,:)
      real(8) :: transmsurf(NVIS+1:NVIS+NIR)
      real(8) :: emiss(NVIS+1:NVIS+NIR)
   end type avhrr_bgck_iasi
@@ -185,25 +185,6 @@ contains
     allocStatus(:) = 0
     allocate( tvs_surfaceParameters(tvs_nobtov), stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), " irbg_setup tvs_surfaceParameters")
-
-    !___ radiance by profile
-    do tovsIndex = 1, tvs_nobtov
-      sensorIndex = tvs_lsensor(tovsIndex)
-      channelNumber = tvs_nchan(sensorIndex)
-      nlevels = tvs_coefs(sensorIndex) % coef % nlevels
-      ! allocate clear sky radiance output
-      allocate( tvs_radiance(tovsIndex)  % clear  ( channelNumber ) ,stat= allocStatus(2) )
-      tvs_radiance(tovsIndex)  % clear  ( : ) = 0.d0
-      !  allocate overcast black cloud sky radiance output
-      allocate( tvs_radiance(tovsIndex)  % overcast  (nlevels - 1,channelNumber), stat=allocStatus(1))
-      call utl_checkAllocationStatus(allocStatus(1:1), " irbg_setup")
-      tvs_radiance(tovsIndex)  % overcast  (:,:) = 0.d0
-    end do
-
-
-    !___ transmission by profile
-
-    call tvs_allocTransmission
 
     !___ emissivity by profile
 
@@ -318,7 +299,7 @@ contains
     end do
 
     if (qcid == -1) then
-      Write(*,*) "Unknown instrument ", instrumentName
+      write(*,*) "Unknown instrument ", instrumentName
       call utl_abort('bgck_get_qcid')
     end if
 
@@ -341,7 +322,7 @@ contains
     integer, intent(in), optional       :: id_opt
 
     ! Locals:
-    integer       :: jc, nchn, levelIndex, nRttovLevels, levelsBelowModelTop, iextr, bitIndex, channelNumber, classIndex
+    integer       :: jc, nchn, levelIndex, bitIndex, channelNumber, classIndex
     integer       :: columnIndex
     integer       :: iwindo, iwindo_alt
     integer       :: bodyIndex, bodyStart, bodyEnd, headerIndex
@@ -350,20 +331,18 @@ contains
     integer       :: modelTopIndex
     integer       :: count
     real(8)       :: t_effective
-    integer       :: allocStatus(28)
+    integer       :: allocStatus(25)
     real(8)       :: tg, p0, tskinRetrieved, ptop_T, qs
-    real(8), allocatable :: tt(:), height(:,:), pressureInterpolated(:)
+    real(8), allocatable :: tt(:), height(:,:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: btObsErr(:), btObs(:), btCalc(:), rcal_clr(:), sfctau(:)
     real(8), allocatable :: radObs(:), cloudyRadiance(:,:), transm(:,:), emi_sfc(:) 
-    real(8), allocatable :: ttInterpolated(:), heightInterpolated(:,:)
     real(8), allocatable :: ptop_bt(:), ptop_rd(:)
     real(8), allocatable :: pmin(:), dtaudp1(:), maxwf(:)
     real(8), allocatable :: cloudyRadiance_avhrr(:,:)
     integer, allocatable :: rejflag(:,:) 
     integer, allocatable :: ntop_bt(:), ntop_rd(:)
     integer, allocatable :: minp(:), fate(:), channelIndexes(:)
-    real(8), allocatable :: rttovPressure(:)
 
     real(8) :: clfr, sunZenithAngle, satelliteAzimuthAngle, satelliteZenithAngle, sunAzimuthAngle
     real(8) :: albedo, ice, pcnt_wat, pcnt_reg
@@ -402,8 +381,11 @@ contains
     integer :: channelIndex,ilist_sun,ilist_co2(nco2),ilist_co2_pair(nco2),ilist_he(nch_he)
     integer :: nlv_T,id,sensorIndex, qcid, nchannels
     logical :: liasi,lairs,lcris
+    type (rttov_profile), pointer :: profiles(:)
 
     write (*,*) "Entering irbg_doQualityControl"
+
+    call tvs_getProfile(profiles, 'nl')
 
     liasi= ( trim(instrumentName) == "IASI" .or.  trim(instrumentName) == "iasi")
     lairs= ( trim(instrumentName) == "AIRS" .or.  trim(instrumentName) == "airs")
@@ -445,31 +427,9 @@ contains
 
     nchn = tvs_coefs(id) % coef % fmv_chn
 
-    nRttovLevels = tvs_coefs(id) % coef % nlevels 
-    allocate (rttovPressure(nRttovLevels))
-    rttovPressure(1:nRttovLevels) = tvs_coefs(id) % coef % ref_prfl_p(1:nRttovLevels)
-
-    select case(nRttovLevels)
-    case(43)
-      iextr = 0
-    case(44)
-      iextr = 1
-    case(51)
-      iextr = 2
-    case(54)
-      iextr = 4
-    case(101)
-      iextr = 4
-    case default
-      Write(*,*) "Attention: modification necessaire dans irbg_doQualityControl", nRttovLevels
-      call utl_abort('irbg_doQualityControl')
-    end select
-   
-    levelsBelowModelTop = nRttovLevels - iextr
+    nlv_T = col_getNumLev(columnHr,'TH')
 
     write(*,*) ' irbg_doQualityControl - nchn ', nchn
-  
-    nlv_T = col_getNumLev(columnHr,'TH')
    
 
     ! information to extract (transvidage)
@@ -484,13 +444,11 @@ contains
     ! btCalc(nchn) -- computed brightness temperatures (deg K)
     ! rcal_clr(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
     ! sfctau(nchn) -- surface to space transmittances (0-1)
-    ! cloudyRadiance(nchn,nRttovLevels) -- overcast cloudy radiances (mw/m2/sr/cm-1)
-    ! transm(nchn,nRttovLevels) -- layer to space transmittances (0-1)
+    ! cloudyRadiance(nchn,nlv_T) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+    ! transm(nchn,nlv_T) -- layer to space transmittances (0-1)
     ! emi_sfc(nchn) -- surface emissivities (0-1)
     ! ksurf -- surface type in obs file (0, 1)
     ! clfr -- cloud fraction (%)
-    ! ttInterpolated(levelsBelowModelTop) -- temperature profiles on RT model levels (deg K)
-    ! heightInterpolated(levelsBelowModelTop) -- height profiles on RT model levels (m)
     ! sunZenithAngle -- sun zenith angle (deg)
     ! satelliteAzimuthAngle -- satellite azimuth angle (deg)
     ! satelliteZenithAngle -- satellite zenith angle (deg)
@@ -508,11 +466,9 @@ contains
     allocate ( btCalc(nchn),                             stat= allocStatus(3))
     allocate ( rcal_clr(nchn),                           stat= allocStatus(4))
     allocate ( sfctau(nchn),                             stat= allocStatus(5))
-    allocate ( cloudyRadiance(nchn,levelsBelowModelTop), stat= allocStatus(6))
-    allocate ( transm(nchn,levelsBelowModelTop),         stat= allocStatus(7))
+    allocate ( cloudyRadiance(nchn,nlv_T), stat= allocStatus(6))
+    allocate ( transm(nchn,nlv_T),         stat= allocStatus(7))
     allocate ( emi_sfc(nchn),                            stat= allocStatus(8))
-    allocate ( ttInterpolated(levelsBelowModelTop),      stat= allocStatus(9))
-    allocate ( heightInterpolated(levelsBelowModelTop,1),stat= allocStatus(10))
     allocate ( radObs(nchn),                             stat= allocStatus(11))
     allocate ( rejflag(nchn,0:bitflag),                  stat= allocStatus(12))
     allocate ( ntop_bt(nchn),                            stat= allocStatus(13))
@@ -523,38 +479,23 @@ contains
     allocate ( pmin(nchn),                               stat= allocStatus(18))
     allocate ( dtaudp1(nchn),                            stat= allocStatus(19))
     allocate ( fate(nchn),                               stat= allocStatus(20))
-    if (liasi) allocate ( cloudyRadiance_avhrr(NIR,levelsBelowModelTop), stat= allocStatus(21))
+    if (liasi) allocate ( cloudyRadiance_avhrr(NIR,nlv_T), stat= allocStatus(21))
     allocate ( maxwf(nchn),                              stat= allocStatus(22))
-    allocate ( pressureInterpolated(levelsBelowModelTop),stat= allocStatus(23))
     allocate ( pressure(nlv_T,1),                        stat= allocStatus(24))
     allocate ( tt(nlv_T),                                stat= allocStatus(25))
     allocate ( height(nlv_T,1),                          stat= allocStatus(26))
     allocate ( channelIndexes(nchn),                     stat= allocStatus(27))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl 1")
-
-    do levelIndex = 1, levelsBelowModelTop
-      pressureInterpolated(levelIndex) = rttovPressure(levelIndex + iextr)
-    end do
-
   
     difftop_min = 100000.d0
     modelTopIndex = 1
 
     ptop_T = col_getPressure(columnHr,1,1,'TH')
-    do levelIndex = 1, levelsBelowModelTop
-      if ( abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex)) < difftop_min ) then
-        difftop_min = abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex))
-        modelTopIndex = levelIndex
-      end if
-    end do
-    !  Find radiative transfer model level nearest to trial top (only compute one time)
+
     write(*,*) 'TOIT DU MODELE (MB)'
     write(*,*) 0.01d0 * ptop_T
     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
     write(*,*) modelTopIndex
-
-    co2min = minloc( abs( pressureInterpolated(:) - pco2min ) )
-    co2max = minloc( abs( pressureInterpolated(:) - pco2max ) )
 
     tvs_nobtov = 0
 
@@ -620,9 +561,6 @@ contains
         end do
         qs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
 
-        call ppo_lintv (pressure(:,1:1),height(:,1:1),nlv_T,1, &
-             levelsBelowModelTop,pressureInterpolated,heightInterpolated(:,1:1))
-
         bodyStart   = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyStart - 1
         bad = .false.
@@ -630,7 +568,6 @@ contains
              obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) /=0)
         if (liasi) bad=( obs_headElem_i(obsSpaceData, OBS_GQF, headerIndex)/=0 .or. &
              obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) >1) 
-
 
         nchannels = 0 ! number of channels available at that observation point
         do bodyIndex= bodyStart, bodyEnd
@@ -659,9 +596,9 @@ contains
           btCalc(channelIndex) = tvs_radiance(tvs_nobtov) % bt(channelIndex)
           rcal_clr(channelIndex) = tvs_radiance(tvs_nobtov) % clear(channelIndex)
           sfctau(channelIndex) = tvs_transmission(tvs_nobtov) % tau_total(channelIndex)
-          do levelIndex = 1, levelsBelowModelTop
-            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex + iextr - 1,channelIndex)
-            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex + iextr,channelIndex)
+          do levelIndex = 1, nlv_T
+            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex  - 1,channelIndex)
+            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex,channelIndex)
           end do
           emi_sfc(channelIndex) = tvs_emissivity(channelIndex,tvs_nobtov)
           !  Gross check on computed BTs ***
@@ -669,7 +606,8 @@ contains
           if (btCalc(channelIndex) > 350.d0) rejflag(channelIndex,9) = 1
         end do
 
-        ksurf = tvs_profiles(tvs_nobtov) % skin % surftype
+        ksurf = profiles(tvs_nobtov) % skin % surftype
+
         !Test pour detecter l angle zenithal  manquant (-1) ou anormal
         ! (angle negatif ou superieur a 75 degres )
         satelliteZenithAngle= obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
@@ -682,14 +620,11 @@ contains
         clfr = 0.
         if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
-        do levelIndex = 1, levelsBelowModelTop
-          ttInterpolated(levelIndex) = tvs_profiles(tvs_nobtov)%t(levelIndex + iextr)
-        end do
-
-        sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
+        sunZenithAngle = profiles(tvs_nobtov) % sunzenangle
         sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
+
         if (liasi) then
-          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle
+          satelliteAzimuthAngle = profiles(tvs_nobtov) % azangle
           satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
         albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo
@@ -713,9 +648,6 @@ contains
         end do channels
 
         !  Set height fields to 'height above ground' fields
-        do levelIndex = 1, levelsBelowModelTop
-          heightInterpolated(levelIndex,1) = heightInterpolated(levelIndex,1) - height(nlv_T,1)
-        end do
         do levelIndex = 1, nlv_T
           height(levelIndex,1) = height(levelIndex,1) - height(nlv_T,1)
         end do
@@ -778,8 +710,8 @@ contains
             emi_sfc_avhrr(:) = avhrr_bgck(headerIndex) % emiss(:)
             sfctau_avhrr(:) = avhrr_bgck(headerIndex) % transmsurf(:)
             
-            do levelIndex = 1, levelsBelowModelTop
-              cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex + iextr - 1,:)
+            do levelIndex = 1, nlv_T
+              cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex - 1,:)
             end do
            
             if (btObs_avhrr(2,classIndex) > 100.d0 ) then
@@ -792,7 +724,7 @@ contains
             end if
             
             call cloud_height (ptop_eq_avhrr(classIndex),ntop_eq_avhrr(classIndex), btObs_avhrr(:,classIndex),cldflag_avhrr(classIndex),tt, &
-                 height(:,1),p0,pressureInterpolated,ichref_avhrr(classIndex),lev_start_avhrr(classIndex),iopt1)
+                 height(:,1),p0,pressure,ichref_avhrr(classIndex),lev_start_avhrr(classIndex),iopt1)
           end do
           
         end if
@@ -947,14 +879,14 @@ contains
         end do
 
         call cloud_top ( ptop_bt,ptop_rd,ntop_bt,ntop_rd, &
-             btObs,ttInterpolated,heightInterpolated(:,1),rcal_clr,p0,radObs,cloudyRadiance,pressureInterpolated, &
+             btObs,tt,height(:,1),rcal_clr,p0,radObs,cloudyRadiance,pressure(:,1), &
              cldflag, lev_start, iopt2, ihgt, ilist_he,rejflag_opt=rejflag,ichref_opt=ichref)
 
         if (liasi) then
           lev_start_avhrr(:) = 0
           do classIndex=1,nClassAVHRR
             call cloud_top( ptop_bt_avhrr(:,classIndex),ptop_rd_avhrr(:,classIndex),ntop_bt_avhrr(:,classIndex),ntop_rd_avhrr(:,classIndex), &
-                 btObs_avhrr(:,classIndex),ttInterpolated,heightInterpolated(:,1),rcal_clr_avhrr,p0,radObs_avhrr(:,classIndex),cloudyRadiance_avhrr,pressureInterpolated, &
+                 btObs_avhrr(:,classIndex),tt,height(:,1),rcal_clr_avhrr,p0,radObs_avhrr(:,classIndex),cloudyRadiance_avhrr,pressure(:,1), &
                  cldflag_avhrr(classIndex),lev_start_avhrr(classIndex),iopt2,ihgt,ilist_avhrr)
           end do
         end if
@@ -992,11 +924,13 @@ contains
         end if
         !  Cloud top based on co2 slicing 
 
+        co2min = minloc( abs( pressure(:,1) - pco2min ) )
+        co2max = minloc( abs( pressure(:,1) - pco2max ) )
         
         lev_start = max( min(lev_start,co2max(1)), co2min(1) )
 
         call co2_slicing ( ptop_co2, ntop_co2, fcloud_co2, &
-             rcal_clr, cloudyRadiance, radObs, p0, pressureInterpolated, cldflag, rejflag, &
+             rcal_clr, cloudyRadiance, radObs, p0, pressure(:,1), cldflag, rejflag, &
              lev_start, ichref, ilist_co2, ilist_co2_pair)
 
         !  -- Find consensus cloud top and fraction
@@ -1054,7 +988,7 @@ contains
         end if
 
         !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds        
-        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm, pressureInterpolated, cldflag, modelTopIndex)
+        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm, pressure(:,1), cldflag, modelTopIndex)
         !  -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
         ! *** Test # 3 ***
@@ -1100,7 +1034,7 @@ contains
             ! *** Test # 6 ***
             ! *** Do not assimilate surface channels over land ***
 
-            if ( minp(channelIndex) == levelsBelowModelTop .or. p0-pmin(channelIndex) < 100.d0 ) then
+            if ( minp(channelIndex) == nlv_T .or. p0-pmin(channelIndex) < 100.d0 ) then
               if ( ksurf == 0 ) then
                 rejflag(channelIndex,11) = 1    !!! comment this line if assimilation under conditions
                 rejflag(channelIndex,19) = 1    !!! comment this line if assimilation under conditions
@@ -1150,6 +1084,10 @@ contains
           end if
 
           ! Condition valid if model top is higher than 10 mb
+          ! with computation made on model levels instead of RTTOV levels
+          ! this test is a litle bit more strict than before
+          ! decrease of the order of  1-2% in the number of high peaking radiance IR assimilated
+          ! not dramatic so could be kept as is
           if ( nint(ptop_T) < 1000 ) then
             if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.95d0 ) then
               rejflag(channelIndex,11) = 1
@@ -1218,32 +1156,29 @@ contains
     deallocate ( height,                   stat= allocStatus(2))
     deallocate ( tt,                       stat= allocStatus(3))
     deallocate ( pressure,                 stat= allocStatus(4))
-    deallocate ( pressureInterpolated,     stat= allocStatus(5))
-    deallocate ( maxwf,                    stat= allocStatus(6))
-    if (liasi) deallocate ( cloudyRadiance_avhrr , stat= allocStatus(7))
-    deallocate ( fate,                     stat= allocStatus(8))
-    deallocate ( dtaudp1,                  stat= allocStatus(9))
-    deallocate ( pmin,                     stat= allocStatus(10))
-    deallocate ( minp,                     stat= allocStatus(11))
-    deallocate ( ptop_rd,                  stat= allocStatus(12))
-    deallocate ( ptop_bt,                  stat= allocStatus(13))
-    deallocate ( ntop_rd,                  stat= allocStatus(14))
-    deallocate ( ntop_bt,                  stat= allocStatus(15))
-    deallocate ( rejflag,                  stat= allocStatus(16))
-    deallocate ( radObs,                   stat= allocStatus(17))
-    deallocate ( heightInterpolated,       stat= allocStatus(18))
-    deallocate ( ttInterpolated,           stat= allocStatus(19))
-    deallocate ( emi_sfc,                  stat= allocStatus(20))
-    deallocate ( transm,                   stat= allocStatus(21))
-    deallocate ( cloudyRadiance,           stat= allocStatus(22))
-    deallocate ( sfctau,                   stat= allocStatus(23))
-    deallocate ( rcal_clr,                 stat= allocStatus(24))
-    deallocate ( btCalc,                   stat= allocStatus(25))
-    deallocate ( btObs,                    stat= allocStatus(26))
-    deallocate ( btObsErr,                 stat= allocStatus(27))
-    deallocate ( rttovPressure,            stat= allocStatus(28))
+    deallocate ( maxwf,                    stat= allocStatus(5))
+    if (liasi) deallocate ( cloudyRadiance_avhrr , stat= allocStatus(6))
+    deallocate ( fate,                     stat= allocStatus(7))
+    deallocate ( dtaudp1,                  stat= allocStatus(8))
+    deallocate ( pmin,                     stat= allocStatus(9))
+    deallocate ( minp,                     stat= allocStatus(10))
+    deallocate ( ptop_rd,                  stat= allocStatus(11))
+    deallocate ( ptop_bt,                  stat= allocStatus(12))
+    deallocate ( ntop_rd,                  stat= allocStatus(13))
+    deallocate ( ntop_bt,                  stat= allocStatus(14))
+    deallocate ( rejflag,                  stat= allocStatus(15))
+    deallocate ( radObs,                   stat= allocStatus(16))
+    deallocate ( emi_sfc,                  stat= allocStatus(17))
+    deallocate ( transm,                   stat= allocStatus(18))
+    deallocate ( cloudyRadiance,           stat= allocStatus(19))
+    deallocate ( sfctau,                   stat= allocStatus(20))
+    deallocate ( rcal_clr,                 stat= allocStatus(21))
+    deallocate ( btCalc,                   stat= allocStatus(22))
+    deallocate ( btObs,                    stat= allocStatus(23))
+    deallocate ( btObsErr,                 stat= allocStatus(24))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl", .false.)
-        
+    nullify(profiles)
+
   end subroutine irbg_doQualityControl
 
 
@@ -2174,9 +2109,9 @@ contains
          ( EMI(ichref) * SFCtau(ichref) )
 
     if (radts <= 0.d0) then
-      Write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ichref), rtg, rcal(ichref), EMI(ichref), SFCtau(ichref), &
+      write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ichref), rtg, rcal(ichref), EMI(ichref), SFCtau(ichref), &
            ( RADOBS(ichref) + rtg - rcal(ichref) ), ( EMI(ichref) * SFCtau(ichref) ), radts
-      Write(*,*) "Skipping tskin retrieval."
+      write(*,*) "Skipping tskin retrieval."
       return
     end if
 
@@ -2519,10 +2454,11 @@ contains
     real(8), intent(in) :: surfem1_avhrr(3) ! AHVRR surface emissivities
     integer, intent(in) :: idiasi           ! iasi (in fact METOP) number
 
-    ! locals
+    ! Locals:
+    type (rttov_profile), pointer :: profiles(:)
     type (rttov_chanprof)  :: chanprof(3)
     logical :: calcemis  (3)
-    integer ::  list_sensor (3),errorstatus,allocStatus(2)
+    integer ::  list_sensor (3),errorstatus,allocStatus
     integer, save :: idiasi_old=-1
     integer :: ich
     integer :: ichan_avhrr (NIR)
@@ -2556,7 +2492,6 @@ contains
            tvs_opts(1),                    &! in
            channels=ichan_avhrr,           &! in
            instrument=list_sensor )         ! in
-
        
       if ( errorstatus /= 0) then
         write(*,*) "Probleme dans rttov_read_coefs !"
@@ -2567,9 +2502,11 @@ contains
    
     end if
 
+    call tvs_getProfile(profiles, 'nl')
 
-    nlevels = coefs_avhrr % coef % nlevels
-  
+    iptobs(1) = headerIndex
+    nlevels =  profiles(headerIndex)% nlevels
+
     nchannels = NIR
 
     calcemis(:) = .false.
@@ -2581,24 +2518,30 @@ contains
       chanprof(ich) % chan = ich
     end do
 
-    ! allocate transmittance structure
     allocStatus = 0
-    allocate( transmission % tau_levels     ( nlevels, nchannels ) ,stat= allocStatus(1))
-    allocate( transmission % tau_total      ( nchannels )          ,stat= allocStatus(2))
-    call utl_checkAllocationStatus(allocStatus, " tovs_rttov_avhrr_for_IASI transmission")
-    transmission % tau_levels (:,:) = 0.0D0
-    transmission % tau_total (:) = 0.0D0
-    ! allocate radiance structure
+    call rttov_alloc_direct(         &
+         allocStatus,                &
+         asw=1,                      &
+         nprofiles=1,                & ! (not used)
+         nchanprof=nchannels,        &
+         nlevels=nlevels,            &
+         opts=tvs_opts(1),           &
+         coefs=coefs_avhrr,          &
+         transmission=transmission,  &
+         radiance=radiancedata_d,    &
+         init=.true.)
 
-    asw = 1 ! 1 to allocate,0 to deallocate
-    call rttov_alloc_rad (allocStatus(1),nchannels,radiancedata_d,nlevels,asw)
-    call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rttov_avhrr_for_IASI radiances")
-    iptobs(1) = headerIndex
+    if (allocStatus /= 0) then
+      write(*,*) "Memory allocation error"
+      call utl_abort('tovs_rttov_avhrr_for_IASI')
+    end if
+
+    
     call rttov_direct(            &
          errorstatus,             & ! out
          chanprof,                & ! in
          tvs_opts(1),             & ! in
-         tvs_profiles(iptobs(:)), & ! in
+         profiles(iptobs(:)),     & ! in
          coefs_avhrr,             & ! in
          transmission,            & ! inout
          radiancedata_d,          & ! out
@@ -2607,19 +2550,31 @@ contains
     
     avhrr_bgck(headerIndex)% radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
     avhrr_bgck(headerIndex)% tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
+    allocate( avhrr_bgck(headerIndex)% radovcalc(nlevels-1,NVIS+1:NVIS+NIR) )
     avhrr_bgck(headerIndex)% radovcalc(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
+    allocate( avhrr_bgck(headerIndex)% transmcalc(nlevels,NVIS+1:NVIS+NIR) )
     avhrr_bgck(headerIndex)% transmcalc(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
     avhrr_bgck(headerIndex)% emiss(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
     avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
 
-    deallocate( transmission % tau_total    ,stat= allocStatus(1))
-    deallocate( transmission % tau_levels   ,stat= allocStatus(2))
-    call utl_checkAllocationStatus(allocStatus, " tovs_rttov_avhrr_for_IASI transmission", .false.)
+    call rttov_alloc_direct(         &
+         allocStatus,                &
+         asw=0,                      &
+         nprofiles=1,                & ! (not used)
+         nchanprof=nchannels,        &
+         nlevels=nlevels,            &
+         opts=tvs_opts(1),           &
+         coefs=coefs_avhrr,          &
+         transmission=transmission,  &
+         radiance=radiancedata_d )
 
-    asw = 0 ! 1 to allocate,0 to deallocate
-    call rttov_alloc_rad (allocStatus(1),nchannels,radiancedata_d,nlevels,asw)
-    call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rttov_avhrr_for_IASI radiances", .false.)
+    if (allocStatus /= 0) then
+      write(*,*) "Memory deallocation error"
+      call utl_abort('tovs_rttov_avhrr_for_IASI')
+    end if
+
+    nullify(profiles)
   
   end subroutine tovs_rttov_avhrr_for_IASI
 

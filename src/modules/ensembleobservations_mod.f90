@@ -566,6 +566,7 @@ CONTAINS
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
+    type(rttov_profile), pointer :: profiles(:) 
 
     call eob_setAssFlag(ensObs)
 
@@ -573,6 +574,8 @@ CONTAINS
     heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
     sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
     nLev_M = col_getNumLev(columnMeanTrl,'MM')
+
+    call tvs_getProfile(profiles,'nl')
 
     call obs_extractObsRealBodyColumn(obsPPP, ensObs%obsSpaceData, OBS_PPP) ! this needs to work also for non-pressure level obs!!!
     call obs_extractObsIntBodyColumn(varNumber, ensObs%obsSpaceData, OBS_VNM)
@@ -642,7 +645,7 @@ CONTAINS
         channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor), tvs_nchan(nosensor), channelIndex)
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
-                                channelIndex, tvs_profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
+                                channelIndex, profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
           if(mpi_myid == 0) then
             write(*,*) 'eob_setLogPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
           end if
@@ -665,6 +668,8 @@ CONTAINS
       end if
 
     end do
+
+    nullify(profiles)
 
   end subroutine eob_setLogPres
 
