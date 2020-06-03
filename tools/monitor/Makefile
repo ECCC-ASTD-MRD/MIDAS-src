@@ -7,5 +7,5 @@ midas.monitor.Abs: monitor.c
 test: midas.monitor.Abs
 	./test.sh ${PGM}
 
-install:
+install: midas.monitor.Abs
 	cp midas.monitor.Abs ${PGM}

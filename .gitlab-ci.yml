@@ -31,7 +31,6 @@ monitor_build:
   stage: build
   script:
     - cd tools/monitor
-    - make
     - make install PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
   only:
     - master
@@ -44,7 +43,7 @@ monitor_tests:
    stage: test
    script:
      - cd tools/monitor
-     - make test PGM=$MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - ./test.sh $MIDAS_ABS/midas.monitor_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
    only:
      - master
      - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
