@@ -25,7 +25,7 @@ def _make(b):
     global compiler
 
     if b.platform == "all":
-        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd tools/findTrials; cp midas.findTrials ..."
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cp tools/findTrials/midas.findTrials ...; cd tools/monitor; make"
     else:
         build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh"
 
@@ -63,8 +63,16 @@ def _install(b):
          mkdir -p ${INSTALL_DIR}
 
          ## install scripts to be published for 'all' platform
-         cp ${BH_PULL_SOURCE}/tools/findTrials/midas.findTrials ${INSTALL_DIR}/midas.findTrials_all-${MIDAS_VERSION}
-         ln -s midas.findTrials_all-${MIDAS_VERSION} ${INSTALL_DIR}/midas.findTrials
+         cp ${BH_MIDAS_TOP_LEVEL_DIR}/tools/findTrials/midas.findTrials ${INSTALL_DIR}/midas.findTrials_${MIDAS_VERSION}
+         ln -s midas.findTrials_${MIDAS_VERSION} ${INSTALL_DIR}/midas.findTrials
+
+         ## The program 'midas.monitor' does not need to be compiled on a specific platform
+         progname=monitor
+         absname=${BH_MIDAS_ABS}/midas.${progname}_${MIDAS_VERSION}.Abs
+         cp ${absname} ${INSTALL_DIR}
+         babsname=$(basename ${absname})
+         program=$(echo ${babsname} | cut -d_ -f1)
+         ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
         )""")
     else:
         b.shell("""
@@ -77,15 +85,6 @@ def _install(b):
          for prog in ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/*.f90; do
              progname=$(basename ${prog} .f90)
              absname=${BH_MIDAS_ABS}/midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
-             cp ${absname} ${INSTALL_DIR}
-             babsname=$(basename ${absname})
-             program=$(echo ${babsname} | cut -d_ -f1)
-             ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
-         done
-
-         ## install other tools with prefix 'midas.'
-         for progname in monitor; do
-             absname=${BH_MIDAS_ABS}/midas.${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
              cp ${absname} ${INSTALL_DIR}
              babsname=$(basename ${absname})
              program=$(echo ${babsname} | cut -d_ -f1)
