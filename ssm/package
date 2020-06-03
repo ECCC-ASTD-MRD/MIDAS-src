@@ -91,7 +91,6 @@ MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.7}
 SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.3.4}
-FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 
 ## If MIDAS_SOURCE is not yet defined we use the git repository itself.
 ## If this script is run from elsewhere, then we use the path to the GitLab project
@@ -103,7 +102,6 @@ if [ -z "${MIDAS_SOURCE}" ]; then
 fi
 
 VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}
-FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
 
 export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
@@ -130,9 +128,9 @@ whichPlatforms () {
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
 	midas)
-	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
+	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
 	    ;;
-        VarScripts|FindTrials)
+        VarScripts)
             platforms=all
             ;;
 	*)
@@ -149,10 +147,6 @@ whichPlatforms () {
 	SplitObs)
 	    BH_PULL_SOURCE_GIT_BRANCH=${SPLITOBS_REVISION}
 	    BH_PULL_SOURCE=${SPLITOBS_SOURCE}
-	    ;;
-	FindTrials)
-	    BH_PULL_SOURCE_GIT_BRANCH=${FINDTRIALS_REVISION}
-	    BH_PULL_SOURCE=${FINDTRIALS_SOURCE}
 	    ;;
 	midas)
 	    BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION}

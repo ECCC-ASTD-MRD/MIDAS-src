@@ -24,8 +24,12 @@ def _clean(b):
 def _make(b):
     global compiler
 
-    if b.platform != "all":
-        b.shell("""
+    if b.platform == "all":
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd tools/findTrials; cp midas.findTrials ..."
+    else:
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh"
+
+    b.shell("""
            (set -ex
             mkdir -p ${CONTROL_DIR}
             CONTROL_FILE=${CONTROL_DIR}/control.template
@@ -44,14 +48,25 @@ def _make(b):
     \"platform\": \"x\",
     \"maintainer\": \"RPN-AD\",
     \"summary\": \"Modular and Integrated Data Assimilation System (MIDAS)\",
-    \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
+    \"build_info\": \"%s\"
 }
 EOF
-           )""")
+           )""" % build_info)
 
 
 def _install(b):
-    if b.platform != "all":
+    if b.platform == "all":
+        b.shell("""
+        (set -ex
+
+         INSTALL_DIR=${BH_INSTALL_DIR}/bin
+         mkdir -p ${INSTALL_DIR}
+
+         ## install scripts to be published for 'all' platform
+         cp ${BH_PULL_SOURCE}/tools/findTrials/midas.findTrials ${INSTALL_DIR}/midas.findTrials_all-${MIDAS_VERSION}
+         ln -s midas.findTrials_all-${MIDAS_VERSION} ${INSTALL_DIR}/midas.findTrials
+        )""")
+    else:
         b.shell("""
         (set -ex
 
@@ -89,6 +104,7 @@ if __name__ == "__main__":
  
     b.supported_platforms = [
         "ubuntu-18.04-skylake-64",
-        "sles-15-skylake-64-xc50"
+        "sles-15-skylake-64-xc50",
+        "all"
     ]
     dr.run(b)
