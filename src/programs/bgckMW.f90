@@ -29,7 +29,7 @@ program midas_bgckMW
   use gridStateVector_mod
   use timeCoord_mod
   use columnData_mod
-  use biasCorrection_mod
+  use biasCorrectionSat_mod
   use innovation_mod
 
   implicit none
@@ -187,7 +187,7 @@ program midas_bgckMW
   !
   !- Read bias correction namelist (default is to not use it)
   !
-  call bias_readConfig()
+  call bcs_readConfig()
   !
 
 
@@ -284,8 +284,8 @@ program midas_bgckMW
   !
   !  Additional filtering for bias correction if requested 
   !
-  call bias_setup()
-  call bias_filterObs(obsSpaceData)
+  call bcs_setup()
+  call bcs_filterObs(obsSpaceData)
 
   !
   !- Initialization and memory allocation for TOVS processing
@@ -310,17 +310,17 @@ program midas_bgckMW
   ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
   !
   call tmg_start(11,'BIAS_COR')
-  call bias_calcBias(obsSpaceData,trlColumnOnTrlLev)
+  call bcs_calcBias(obsSpaceData,trlColumnOnTrlLev)
   !
   ! Apply bias correction to OBS
   !
   write(*,*) 'Apply bias correction to OBS'
-  call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
+  call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
   !
   ! Apply bias correction to O-F
   !
   write(*,*) 'Apply bias correction to O-F'
-  call bias_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO")
+  call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO")
   !
   call tmg_stop(11)
   ! QC LOOP
@@ -404,7 +404,7 @@ program midas_bgckMW
       !###############################################################################
       write(*,*) ' ==> mwbg_updateBurp For : ', instName
       call mwbg_updateBurp(burpFileNameIn,instName, reportIndex,ETIKRESU,obsTb,           &
-                           obsTbBiasCorr, ompTb, cloudLiquidWaterPath,        &
+                           obsTbBiasCorr, obsChannels, ompTb, cloudLiquidWaterPath,        &
                            atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
                            globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
                            obsFlags, writeTbValuesToFile, writeModelLsqTT)

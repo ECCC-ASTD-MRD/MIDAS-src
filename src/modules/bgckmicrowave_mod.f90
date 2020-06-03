@@ -31,7 +31,7 @@ module bgckmicrowave_mod
   use gridStateVector_mod
   use timeCoord_mod
   use columnData_mod
-  use biasCorrection_mod
+  use biasCorrectionSat_mod
   use horizontalCoord_mod
   use analysisGrid_mod
   use obsUtil_mod
@@ -1836,7 +1836,7 @@ contains
         dataIndex = dataIndex + 1        
       end do
     end do 
-    !Call BURP_Convert_Block(burpBlock)
+    Call BURP_Convert_Block(burpBlock)
 
   end subroutine addIntegerElementBurpBlock
 
@@ -1919,14 +1919,13 @@ contains
       do burpLocationIndex = 1, burpLocationNum
         do burpChannelIndex = 1, burpChannelNum
             idata = idata + 1
-            if (burpElement == 5042) write(*,*) 'locInd = ', burpLocationIndex, 'chanInd =', burpChannelIndex, &
-                                                ' channel = ', burpArr(idata) 
             Call BURP_Set_Tblval(burpBlock,indice,burpChannelIndex,burpLocationIndex,burpArr(idata))
         end do
       end do
     else
       call utl_abort('bgckMicrowave_mod: 3D block (btyp=5120) missing element '//trim(burpArrName))
     end if
+    !Call BURP_Convert_Block(burpBlock)
 
   end subroutine copyIntegerElementToBurpBlock
 
@@ -1957,9 +1956,7 @@ contains
     integer                                         :: error                  
     real                                            :: idata 
 
-    write(*,*) 'Getting indice'
     indice = BURP_Find_Element(burpBlock,burpElement,iostat=error)
-    write(*,*) 'indice = ', indice
     if (error /= burp_noerr) call utl_abort('bgckMicrowave_mod: BURP_Find_Element Error')
     idata = 0
     if ( indice > 0 ) then
@@ -1972,6 +1969,7 @@ contains
     else
       call utl_abort('bgckMicrowave_mod: 3D block (btyp=5120) missing element '//trim(burpArrName))
     end if
+    !Call BURP_Convert_Block(burpBlock)
 
   end subroutine copyRealElementToBurpBlock
 
@@ -2015,7 +2013,7 @@ contains
   !  mwbg_updateBurp
   !--------------------------------------------------------------------------
   subroutine mwbg_updateBurp(burpFileName, instName, ReportIndex, ETIKRESU, ztb, obsTbBiasCorr, &
-                             ompTb, clw, scatw, ident, globMarq, RESETQC, KCHKPRF, &
+                             obsChannels, ompTb, clw, scatw, ident, globMarq, RESETQC, KCHKPRF, &
                              KTERMER, ITERRAIN, IMARQ, writeModelLsqTT, writeEle25174)
     !:Purpose:      Pour AMSUA et ATMS: 
     !               Allumer les bits des marqueurs pour les tovs rejetes.
@@ -2032,6 +2030,7 @@ contains
     character(len=*),     intent(in)     :: ETIKRESU           !resume report etiket
     real,                 intent(inout)  :: ztb(:)             ! tempertature de brillance
     real,                 intent(inout)  :: obsTbBiasCorr(:)   ! bias correctiob of tb
+    integer,              intent(inout)  :: obsChannels(:)     ! obs channels
     real,                 intent(inout)  :: ompTb(:)           ! O-P tb
     real, allocatable,    intent(inout)  :: clw(:)             !cloud liquid water path 
     real, allocatable,    intent(inout)  :: scatw(:)           !scattering index 
@@ -2121,7 +2120,7 @@ contains
       Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
       nsize = MRFMXL(iun_burpin)
       ! Add nsize to report size to accomodate modified (larger) data blocks
-      nsize = nsize*5
+      nsize = nsize*15
       ! Create new report (reportOut) to contain modified blocks from reportIn
       Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
       if (error /= burp_noerr) call burpErrorHistory(file_in, reportOut)
@@ -2218,8 +2217,12 @@ contains
       !    Modifier le bktyp pour signifier "vu par AO".
       else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
                 my_bfam == 0 ) then
-        ! Add new elements obsTbBiasCorr
+        ! 1- Add new elements obsTbBiasCorr
         call addRealElementBurpBlock(blk, 12233, obsTbBiasCorr, my_nval, my_nt, my_nele+1)
+        ! Create the block  Omp 9322
+        ! 2- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
+        write(*,*)'copy data bloc in blk_copy'
+        blk_copy = .clear.blk
         !-------------------------------------------------------------------------------------------------------
         ! Continue modification for Data Block
         write(*,*)'write ztb values'
@@ -2227,17 +2230,19 @@ contains
         call copyRealElementToBurpBlock(blk, 12163, ztb, "Tb_data", my_nval, my_nt)
         ! Modify bktyp and write both block to report
         write(*,*)'Modify bktyp and write'
-        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .true.)        
         !-------------------------------------------------------------------------------------------------------
-        ! Create the block  Omp 9322
+        ! back to Omp 9322
         ! 1- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
         write(*,*)'copy data bloc in blk_copy'
         blk_copy = .clear.blk
         ! 2- Create the block 9322 from the new copied block
-        Call BURP_Set_Property(blk_copy,btyp=9322, bfam= 14, iostat=error)
+        call BURP_Set_Property(blk_copy,btyp=9322, bfam= 14, iostat=error)
         ! 3- copy channels and omp data into the new block
-        !call copyIntegerElementToBurpBlock(blk_copy, eleChannel, obsChannels, "Channel_Number", my_nval, my_nt)
         call copyRealElementToBurpBlock(blk_copy, 12163, ompTb, "omp_Tb", my_nval, my_nt)
+        !call BURP_Convert_Block(blk_copy)
+        call copyIntegerElementToBurpBlock(blk_copy, eleChannel, obsChannels, "Channel_Number", my_nval, my_nt)
+        !call BURP_Convert_Block(blk_copy)
         ! 4- Modify bktyp and copy block to report
         call modifyBurpBktypAndWriteReport(reportOut, blk_copy, my_bktyp+4, .true.)
 
@@ -2255,7 +2260,7 @@ contains
         call addIntegerElementBurpBlock(blk, 212233, tempIntegerArray, my_nval, my_nt, my_nele+1)
         ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
         write(*,*) 'START Remplacer le bloc et modifier le bktyp pour signifier vu par AO'
-        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .false.)        
         write(*,*) 'END Remplacer le bloc et modifier le bktyp pour signifier vu par AO'
       ! From now Dont copy these OTHER BLOCK my_btyp == 9712 .or. my_btyp == 15361 
       else if (my_btyp == 9217 .or. my_btyp == 15361) then
@@ -2263,7 +2268,7 @@ contains
         cycle BLOCKS
       ! Copy the rest of the reportIn to reportOut
       else
-        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp, .True.)
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp, .true.)
       !
       end if
 
@@ -3957,8 +3962,6 @@ contains
     ref_blk = 0
     do while ((ref_blk <= 0 ) .and. (burpBlkTypListIndex <= burpBlkTypListNum))
       ref_blk = 0
-      write(*,*) 'ref_blk = ', ref_blk
-      write(*,*) 'burpBlkTypListIndex = ', burpBlkTypListIndex
       ref_blk = BURP_Find_Block(burpRpt, &
                     BLOCK       = burpBlk, &
                     SEARCH_FROM = ref_blk, &
@@ -4054,8 +4057,6 @@ contains
     ref_blk = 0
     do while ((ref_blk <= 0 ) .and. (burpBlkTypListIndex <= burpBlkTypListNum))
       ref_blk = 0
-      write(*,*) 'ref_blk = ', ref_blk
-      write(*,*) 'burpBlkTypListIndex = ', burpBlkTypListIndex
       ref_blk = BURP_Find_Block(burpRpt, &
                     BLOCK       = burpBlk, &
                     SEARCH_FROM = ref_blk, &
@@ -5511,7 +5512,7 @@ contains
     integer                         :: reportLocation 
     integer                         :: headerCompt 
     integer                         :: bodyCompt
-    logical                         :: verbose = .true.
+    logical                         :: verbose = .false.
     
     headerCompt = 1 
     bodyCompt   = 1
@@ -5552,8 +5553,8 @@ contains
       call obs_headSet_r( obsSpaceData, OBS_SZA,  headerIndex, satZenithAngle(headerCompt)       )
       call obs_headSet_r( obsSpaceData, OBS_AZA,  headerIndex, azimuthAngle(headerCompt)         )
       call obs_headSet_r( obsSpaceData, OBS_SUN,  headerIndex, solarZenithAngle(headerCompt)     )
-      call obs_headSet_i( obsSpaceData, OBS_OFL,  headerIndex, landQualifierIndice(headerCompt)  )
-      call obs_headSet_i( obsSpaceData, OBS_STYP, headerIndex, terrainTypeIndice(headerCompt)    )
+      call obs_headSet_i( obsSpaceData, OBS_STYP, headerIndex, landQualifierIndice(headerCompt)  )
+      call obs_headSet_i( obsSpaceData, OBS_TTYP, headerIndex, terrainTypeIndice(headerCompt)    )
       call obs_headSet_i( obsSpaceData, OBS_DAT,  headerIndex, obsDate(headerCompt)              )
       call obs_headSet_i( obsSpaceData, OBS_ETM,  headerIndex, obsTime(headerCompt)              )
       call obs_headSet_r( obsSpaceData, OBS_LAT,  headerIndex, obsLatitude(headerCompt)          )
@@ -5571,7 +5572,7 @@ contains
         call obs_bodySet_i(obsSpaceData, OBS_VNM,    bodyIndex, 12163                            ) !!!this should come from file!!!
         call obs_bodySet_r(obsSpaceData, OBS_VAR,    bodyIndex, obsTb(bodyCompt)                 )
         call obs_bodySet_i(obsSpaceData, OBS_FLG,    bodyIndex, obsFlags(bodyCompt)              )
-        call obs_bodySet_r(obsSpaceData, OBS_PPP,    bodyIndex, real(obsChannels(bodyCompt),OBS_REAL) )
+        call obs_bodySet_r(obsSpaceData, OBS_PPP,    bodyIndex, real(obsChannels(bodyCompt),pre_obsReal) )
         call obs_bodySet_i(obsSpaceData, OBS_QCF2,   bodyIndex, obsQcFlag2(bodyCompt)            )
         call obs_bodySet_r(obsSpaceData, OBS_OER,    bodyIndex, 1.0                              )
         bodyCompt = bodyCompt + 1
@@ -5679,8 +5680,8 @@ contains
       burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
       satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
       satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
-      landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_OFL , headerIndex) 
-      terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
+      landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
+      terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
       obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
       obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
       satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
@@ -5706,7 +5707,7 @@ contains
       BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
         obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
         ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-        obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex)
+        obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
         obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
         obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
         obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
