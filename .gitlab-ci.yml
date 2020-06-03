@@ -71,6 +71,18 @@ midas_tests:
    tags:
      - hpcr-u1
 
+findTrials_tests:
+   stage: test
+   script:
+     - cd tools/findTrials
+     - ./midas.findTrials --unittest
+   only:
+     - master
+     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
+     - tags
+   tags:
+     - hpcr-u1
+
 doc_sphinx:
   stage: doc
   variables:
