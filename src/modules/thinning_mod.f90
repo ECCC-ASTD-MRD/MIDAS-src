@@ -23,14 +23,15 @@ module thinning_mod
   ! :Note:    This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
-  !           So far, only aladin wind data are treated.
-  !
   use mpi_mod
   use bufr_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use obsSpaceData_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
   use timeCoord_mod
+  use gridStateVector_mod
   use codtyp_mod
   use physicsFunctions_mod
   use utilities_mod
@@ -50,18 +51,19 @@ contains
   subroutine thn_thinAircraft(obsdat)
     implicit none
 
-    ! ARGUMENTS
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
 
-    ! NAMELIST VARIABLES
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
     integer :: deltmax ! maximum time difference (in minutes)
 
     namelist /thin_aircraft/deltmax
 
-    ! LOCAL VARIABLES
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
-
+    ! Default values for namelist variables
     deltmax = 90
 
     ! Read the namelist for Aircraft observations (if it exists)
@@ -89,18 +91,19 @@ contains
   subroutine thn_thinAladin(obsdat)
     implicit none
 
-    ! ARGUMENTS
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
 
-    ! NAMELIST VARIABLES
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
     integer :: keepNthVertical ! keep every nth vertical datum
 
     namelist /thin_aladin/keepNthVertical
 
-    ! LOCAL VARIABLES
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
-
+    ! Default values for namelist variables
     keepNthVertical=-1
 
     ! Read the namelist for Aladin observations (if it exists)
@@ -133,14 +136,14 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
 
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
     ! Namelist variables
     integer :: delta    ! 
 
     namelist /thin_tovs/delta
-
-    ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
 
     ! Default namelist values
     delta = 100
@@ -161,14 +164,14 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsua'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('amsub'), &
+    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('atms'))
+    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('atms'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, 'TO', codtyp_get_codtyp('mwhs2'))
+    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinTovs
@@ -182,16 +185,16 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
 
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
     ! Namelist variables
     logical :: removeUnCorrected ! indicate if obs without bias correction should be removed
     integer :: deltmax           ! time window by bin (from bin center to bin edge) (in minutes)
     integer :: deltax            ! thinning (dimension of box sides) (in km)
     integer :: deltrad           ! radius around box center for chosen obs (in km)
     namelist /thin_hyper/removeUnCorrected, deltmax, deltax, deltrad
-
-    ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
 
     ! Default namelist values
     removeUnCorrected = .true.
@@ -253,6 +256,507 @@ contains
     character(len=*), intent(in) :: familyType
     integer,          intent(in) :: deltmax
 
+    ! Locals:
+    type(struct_hco), pointer :: hco_thinning
+    type(struct_vco), pointer :: vco_sfc
+    type(struct_gsv)          :: stateVectorPsfc
+    integer, parameter :: maxlev = 500
+    integer :: nblon, nblat, nblev, countObsTotal
+    integer :: nulnam, ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
+    integer :: obsLonIndex, obsLatIndex, obsLevIndex, timeBinIndex
+    integer :: numHeader, headerIndex, bodyIndex, aiTypeCount(4)
+    integer :: obsFlag, obsVarno, obsDate, obsTime
+    integer :: notmp, nohum, nouuw, novvw, noddw, noffw
+    real(8) :: zpresa, zpresb, obsPressure, delMinutes, stepObsIndex
+    real(8) :: obsLonInRad, obsLatInRad, obsLonInDegrees, obsLatInDegrees
+    real(8) :: delx, dely, delp, uuw, vvw, tmp, medd, score
+    real(4), allocatable :: lat(:), lon(:)
+    integer, allocatable :: rcount(:)
+    real(8), allocatable :: ppres(:,:,:,:)
+    real(8), pointer     :: surfPressure(:,:,:,:)
+    logical, allocatable :: keep_obs(:), isAircraft(:)
+    character(len=*), parameter :: trlmFileName = './trlm_p0.fst'
+    integer, external :: fnom, fclos
+    integer, allocatable :: o_lat(:), o_lon(:), o_lev(:), o_tim(:)
+    logical, allocatable :: o_uvf(:), o_tmf(:)
+    real(4), allocatable :: o_dis(:), o_uuw(:), o_vvw(:), o_tmp(:)
+    integer, allocatable :: handles(:,:,:), n_val(:,:,:)
+    real(4), allocatable :: scr_min(:,:,:), dis_min(:,:,:), dis_max(:,:,:)
+    real(4), allocatable :: sum_u(:,:,:), sum_v(:,:,:), sum_t(:,:,:)
+
+    ! Namelist variables:
+    real(8) :: rprefinc
+    real(8) :: rptopinc
+    real(8) :: rcoefinc
+    real(4) :: vlev(maxlev)
+    integer :: numlev
+    namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
+
+    write(*,*) 'thn_aircraftByBoxes: Starting'
+
+    numHeader = obs_numHeader(obsdat)
+    allocate(keep_obs(numHeader))
+    allocate(isAircraft(numHeader))
+    keep_obs(:) = .true.
+    aiTypeCount(:) = 0
+
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+
+      ! check observation type
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
+      if ( codtyp == codtyp_get_codtyp('airep') ) then
+        aiTypeCount(1) = aiTypeCount(1) + 1
+      else if ( codtyp == codtyp_get_codtyp('amdar')  ) then
+        aiTypeCount(2) = aiTypeCount(2) + 1
+      else if ( codtyp == codtyp_get_codtyp('acars') ) then
+        aiTypeCount(3) = aiTypeCount(3) + 1
+      else if ( codtyp == codtyp_get_codtyp('ads') ) then
+        aiTypeCount(4) = aiTypeCount(4) + 1
+      else
+        keep_obs(headerIndex) = .false.
+      end if
+    end do HEADER0
+
+    ! Return if no aircraft obs to thin
+    isAircraft(:) = keep_obs(:)
+    if (count(isAircraft(:)) == 0) then
+      write(*,*) 'thn_aircraftByBoxes: no aircraft observations present'
+      return
+    end if
+
+    write(*,*) 'thn_aircraftByBoxes: number of obs initial = ', count(keep_obs(:))
+
+    ! Setup horizontal thinning grid
+    nullify(hco_thinning)
+    call hco_SetupFromFile(hco_thinning, './analysisgrid_thinning_ai', 'ANALYSIS', 'Analysis')
+
+    ! Default namelist values
+    numlev = 80
+    vlev(:) = -1
+    rprefinc = 0.0d0
+    rptopinc = 0.0d0
+    rcoefinc = 0.0d0
+    ! Read the namelist defining the vertical levels
+    if (utl_isNamelistPresent('namgem','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
+      read(nulnam,nml=namgem,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namelist')
+      write(*,nml=namgem)
+      ierr = fclos(nulnam)
+    else
+      call utl_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
+    end if
+
+    ! Setup thinning grid parameters
+    nblon = hco_thinning%ni
+    nblat = hco_thinning%nj
+    nblev = numlev
+    allocate(lat(nblat))
+    allocate(lon(nblon))
+    lon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
+    lat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    write(*,*) 'thinning grid lats = '
+    write(*,*) lat(:)
+    write(*,*) 'thinning grid lons = '
+    write(*,*) lon(:)
+    write(*,*) 'thinning grid vlev = '
+    write(*,*) vlev(1:nblev)
+
+    ! Allocate vectors
+    allocate(rcount(tim_nstepObs))
+    allocate(o_lat(numHeader))
+    allocate(o_lon(numHeader))
+    allocate(o_lev(numHeader))
+    allocate(o_tim(numHeader))
+    allocate(o_dis(numHeader))
+    allocate(o_uuw(numHeader))
+    allocate(o_vvw(numHeader))
+    allocate(o_tmp(numHeader))
+    allocate(o_uvf(numHeader))
+    allocate(o_tmf(numHeader))
+
+    ! Initialize vectors
+    rcount(:) = 0
+    o_lat(:) = 0
+    o_lon(:) = 0
+    o_lev(:) = 0
+    o_tim(:) = 0
+    o_dis(:) = 0.
+    o_uuw(:) = 0.
+    o_vvw(:) = 0.
+    o_tmp(:) = 0.
+    o_uvf(:) = .true.
+    o_tmf(:) = .true.
+
+    ! Read and interpolate the trial surface pressure
+    nullify(vco_sfc)
+    call vco_setupFromFile(vco_sfc, trlmFileName)
+    call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_thinning, vco_sfc, &
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
+                       varNames_opt=(/'P0'/), hInterpolateDegree_opt='LINEAR' )
+    do stepIndex = 1, tim_nstepobs
+      call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true. )
+    end do
+
+    ! compute pressure of each model level using p0
+    allocate(ppres(nblon,nblat,nblev,tim_nstepobs))
+    ppres(:,:,:,:) = -1.0
+    call gsv_getField(stateVectorPsfc,surfPressure)
+    do stepIndex = 1, tim_nstepobs
+      write(*,*) 'Psfc maxval = ', stepIndex, maxval(surfPressure(:,:,1,stepIndex)/100.0)
+      do levIndex  = 1, nblev
+        zpresb = ( (vlev(levIndex) - rptopinc/rprefinc) /  &
+                   (1.0D0-rptopinc/rprefinc) )**rcoefinc
+        zpresa = rprefinc * (vlev(levIndex)-zpresb)
+        do latIndex = 1, nblat
+          do lonIndex = 1, nblon
+            ppres(lonIndex,latIndex,levIndex,stepIndex) =  &
+                 zpresa + zpresb*surfPressure(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+    end do
+    call gsv_deallocate(stateVectorPsfc)
+
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+
+      ! find time difference
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      timeBinIndex = nint(stepObsIndex)
+      delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - stepObsIndex))
+
+      ! check time window
+      if ( abs( delMinutes ) > deltmax ) then
+        keep_obs(headerIndex) = .false.
+        rcount(timeBinIndex) = rcount(timeBinIndex) + 1
+      end if
+
+      ! Only accept obs below 175hPa
+      obsPressure = -1.0d0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY
+        
+        if (obsPressure < 0.0d0) then
+          obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+          if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) keep_obs(headerIndex) = .false.
+        end if
+      end do BODY
+
+      notmp = 1
+      nohum = 1
+      nouuw = 1
+      novvw = 1
+      noddw = 1
+      noffw = 1      
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY2
+        
+        obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+
+        ! find number of elements availables
+        if (obsVarno == BUFR_NETT) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) then
+            notmp = 0
+            tmp = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          end if
+        else if (obsVarno == BUFR_NEES) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) nohum = 0
+        else if (obsVarno == BUFR_NEUU) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) then
+            nouuw = 0
+            uuw = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          end if
+        else if (obsVarno == BUFR_NEVV) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) then
+            novvw = 0
+            vvw = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          end if
+        else if (obsVarno == BUFR_NEDD) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) noddw = 0
+        else if (obsVarno == BUFR_NEFF) then
+          if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+                      btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
+                      btest(obsFlag,2)) ) noffw = 0
+        end if
+
+      end do BODY2
+
+      ! wind components are rejected if speed or direction 
+      if (noddw == 1 .or. noffw == 1) then
+        nouuw = 1
+        novvw = 1
+      end if
+
+      ! eliminate records with nothing to assimilate
+      if ( (notmp + nohum + nouuw + novvw) == 4 ) then
+        rcount(timeBinIndex) = rcount(timeBinIndex) + 1
+        keep_obs(headerIndex) = .false.
+      end if
+
+      o_uuw(headerIndex) = uuw
+      o_vvw(headerIndex) = vvw
+      o_tmp(headerIndex) = tmp
+      if( nouuw == 1 .or. novvw == 1 ) o_uvf(headerIndex) = .false.
+      if( notmp == 1 )                 o_tmf(headerIndex) = .false.
+
+      ! Lat and Lon for each observation
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+
+      ! latitude index
+      dely = abs(lat(1) - obsLatInDegrees)
+      obsLatIndex = 1
+      do latIndex = 2, nblat
+        if (abs(lat(latIndex) - obsLatInDegrees) < dely) then
+          dely = abs(lat(latIndex) - obsLatInDegrees)
+          obsLatIndex = latIndex
+        end if
+      end do
+
+      ! longitude index
+      delx = abs(lon(1) - obsLonInDegrees)
+      obsLonIndex = 1
+      do lonIndex = 2, nblon
+        if ( abs(lon(lonIndex) - obsLonInDegrees) < delx ) then
+          delx = abs(lon(lonIndex) - obsLonInDegrees)
+          obsLonIndex = lonIndex
+        end if
+      end do
+
+      ! layer index
+      delp = abs(ppres(obsLonIndex,obsLatIndex,1,timeBinIndex) - obsPressure)
+      obsLevIndex = 1
+      do levIndex = 2, nblev
+        if ( abs(ppres(obsLonIndex,obsLatIndex,levIndex,timeBinIndex) - obsPressure) < delp ) then
+          delp = abs(ppres(obsLonIndex,obsLatIndex,levIndex,timeBinIndex) - obsPressure)
+          obsLevIndex = levIndex
+        end if
+      end do
+
+      o_lat(headerIndex) = obsLatIndex
+      o_lon(headerIndex) = obsLonIndex
+      o_lev(headerIndex) = obsLevIndex
+      o_tim(headerIndex) = timeBinIndex
+      o_dis(headerIndex) = sqrt((delx*3)**2 + (dely*3)**2 + (delp/100.0)**2)
+
+    end do HEADER1
+
+    write(*,*)
+    write(*,'(a50,i10)') ' Number of reports = ', sum(aiTypeCount(:))
+    write(*,*)
+    do stepIndex = 1, tim_nstepobs
+      write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rcount(stepIndex)
+    enddo
+    write(*,'(a50,i10)')' Total number of rejects = ', sum(rcount)
+    write(*,*)
+    write(*,'(a50,i10)') '====nb AIREP = ', aiTypeCount(1)
+    write(*,'(a50,i10)') '====nb AMDAR = ', aiTypeCount(2)
+    write(*,'(a50,i10)') '====nb ACARS = ', aiTypeCount(3)
+    write(*,'(a50,i10)') '====nb ADS = ',   aiTypeCount(4)
+    write(*,*)
+
+    allocate(handles(nblat,nblon,nblev))
+    allocate(scr_min(nblat,nblon,nblev))
+    allocate(dis_min(nblat,nblon,nblev))
+    allocate(dis_max(nblat,nblon,nblev))
+    allocate(  n_val(nblat,nblon,nblev))
+    allocate(  sum_u(nblat,nblon,nblev))
+    allocate(  sum_v(nblat,nblon,nblev))
+    allocate(  sum_t(nblat,nblon,nblev))
+
+    STEP: do stepIndex = 1, tim_nstepobs
+      write (*,'(a50,i10)' ) ' Process bin number = ', stepIndex
+
+      handles(:,:,:) = -1
+      scr_min(:,:,:) = 1000000.
+      dis_min(:,:,:) = 1000000.
+      dis_max(:,:,:) = 0.
+      n_val(:,:,:) = 0 
+      sum_u(:,:,:) = 0. 
+      sum_v(:,:,:) = 0. 
+      sum_t(:,:,:) = 0. 
+
+      ! Calcul des distances min et max du centre la boite des rapports 
+      ! contenus dans les boites
+      do headerIndex = 1, numHeader
+        if( keep_obs(headerIndex) ) then
+          if( o_tim(headerIndex) == stepIndex ) then
+            latIndex = o_lat(headerIndex)
+            lonIndex = o_lon(headerIndex)
+            levIndex = o_lev(headerIndex)
+            if ( o_dis(headerIndex) < dis_min(latIndex,lonIndex,levIndex) ) then
+              dis_min(latIndex,lonIndex,levIndex) = o_dis(headerIndex)
+            end if
+            if ( o_dis(headerIndex) > dis_max(latIndex,lonIndex,levIndex) ) then
+              dis_max(latIndex,lonIndex,levIndex) = o_dis(headerIndex)
+            end if
+          end if
+        end if
+      end do
+
+      ! Calcul des sommes de u, v et t des observations situees a une distance medd
+      ! du centre de la boite
+      do headerIndex = 1, numHeader
+        if( keep_obs(headerIndex) ) then
+          if( o_tim(headerIndex) == stepIndex ) then
+            latIndex = o_lat(headerIndex)
+            lonIndex = o_lon(headerIndex)
+            levIndex = o_lev(headerIndex)
+            medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
+            if ((o_dis(headerIndex) < medd) .and. o_tmf(headerIndex) .and. o_uvf(headerIndex) ) then
+              n_val(latIndex,lonIndex,levIndex) =  &
+                   n_val(latIndex,lonIndex,levIndex) + 1
+              sum_u(latIndex,lonIndex,levIndex) =  &
+                   sum_u(latIndex,lonIndex,levIndex) + o_uuw(headerIndex)
+              sum_v(latIndex,lonIndex,levIndex) =  &
+                   sum_v(latIndex,lonIndex,levIndex) + o_vvw(headerIndex)
+              sum_t(latIndex,lonIndex,levIndex) =  &
+                   sum_t(latIndex,lonIndex,levIndex) + o_tmp(headerIndex)
+            end if
+          end if
+        end if
+      end do
+
+      ! Calcul la moyenne de u, v et t s'il y a plus de 3 rapports dans la boite
+      do latIndex=1,nblat
+        do lonIndex=1,nblon
+          do levIndex=1,nblev
+            if(n_val(latIndex,lonIndex,levIndex) >= 3) then
+              sum_u(latIndex,lonIndex,levIndex) =  &
+                   sum_u(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
+              sum_v(latIndex,lonIndex,levIndex) =  &
+                   sum_v(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
+              sum_t(latIndex,lonIndex,levIndex) =  &
+                   sum_t(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
+            end if
+          end do
+        end do
+      end do
+
+      ! S'il y a plus de 3 rapports dans la boite, le rapport dont le score est le plus
+      ! petit est retenu. S'il y a 2 rapports ou moins, le rapport le plus pres du centre
+      ! de la boite est retenu.
+      do headerIndex = 1, numHeader
+        if( .not. keep_obs(headerIndex) ) cycle
+        if( o_tim(headerIndex) == stepIndex ) then
+          latIndex = o_lat(headerIndex)
+          lonIndex = o_lon(headerIndex)
+          levIndex = o_lev(headerIndex)
+
+          if(n_val(latIndex,lonIndex,levIndex) >= 3) then
+
+            medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
+            if ((o_dis(headerIndex) < medd) .and. o_tmf(headerIndex) .and. o_uvf(headerIndex) ) then
+              score = sqrt ( (sum_u(latIndex,lonIndex,levIndex) - o_uuw(headerIndex))**2/(1.4**2) +   &
+                             (sum_v(latIndex,lonIndex,levIndex) - o_vvw(headerIndex))**2/(1.4**2) ) + &
+                      (sum_t(latIndex,lonIndex,levIndex) - o_tmp(headerIndex))**2/(0.9**2)
+
+              if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+                if ( score >= scr_min(latIndex,lonIndex,levIndex) ) then
+                  keep_obs(headerIndex) = .false.
+                end if
+              end if
+          
+              if ( keep_obs(headerIndex) ) then
+                if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+                  keep_obs(handles(latIndex,lonIndex,levIndex)) = .false.
+                end if
+                scr_min(latIndex,lonIndex,levIndex) = score
+                keep_obs(headerIndex) = .true.
+                handles(latIndex,lonIndex,levIndex) = headerIndex
+              end if
+
+            else
+              keep_obs(headerIndex) = .false.
+            end if
+
+          else ! if(n_val(latIndex,lonIndex,levIndex) < 3)
+
+            if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+              if ( o_dis(headerIndex) > dis_min(latIndex,lonIndex,levIndex) ) then
+                keep_obs(headerIndex) = .false.
+              end if
+            end if
+
+            if ( keep_obs(headerIndex) ) then
+              if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+                keep_obs(handles(latIndex,lonIndex,levIndex)) = .false.
+              end if
+              keep_obs(headerIndex) = .true.
+              handles(latIndex,lonIndex,levIndex) = headerIndex
+            end if
+
+          end if
+
+        end if
+      end do ! headerIndex
+
+    end do  STEP
+
+    deallocate(handles)
+    deallocate(scr_min)
+    deallocate(dis_min)
+    deallocate(dis_max)
+    deallocate(n_val)
+    deallocate(sum_u)
+    deallocate(sum_v)
+    deallocate(sum_t)
+
+    write (*,*)
+    write (*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCount(:))
+    write (*,'(a50,i10)') " Number of obs out = ", count(keep_obs(:))
+    write (*,'(a50,i10)') " Number of obs not out = ", sum(aiTypeCount(:)) - count(keep_obs(:))
+    write (*,*)
+
+    ! Modify the flags for rejected observations
+    do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if (.not. isAirCraft(headerIndex)) cycle
+     
+      if (.not. keep_obs(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY3: do 
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY3
+        
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+
+        end do BODY3
+      end if
+    end do
+    
+    write(*,*) 'thn_aircraftByBoxes: Finished'
+
   end subroutine thn_aircraftByBoxes
 
   !--------------------------------------------------------------------------
@@ -278,6 +782,7 @@ contains
     integer :: countKeepN ! count to keep every Nth observation in the column
     integer :: newProfileId
 
+    write(*,*) 'thn_keepNthObs: Starting'
     countKeepN=0
 
     ! Loop over all body indices (columns) of the family of interest and
@@ -308,6 +813,8 @@ contains
       end if
 
     end do BODY
+
+    write(*,*) 'thn_keepNthObs: Finished'
 
   contains
     function new_column()
@@ -340,13 +847,12 @@ contains
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
-  subroutine thn_tovsFilt(obsdat, delta, familyType, codtyp, codtyp2_opt)
+  subroutine thn_tovsFilt(obsdat, delta, codtyp, codtyp2_opt)
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer, intent(in)             :: delta
-    character(len=*), intent(in)    :: familyType
     integer, intent(in)             :: codtyp
     integer, optional, intent(in)   :: codtyp2_opt
 
