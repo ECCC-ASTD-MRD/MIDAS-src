@@ -23,7 +23,6 @@ midas_build:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
-    - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
     - tags
   tags:
     - hpcr-u1
@@ -69,7 +68,6 @@ midas_tests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
-     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
    tags:
      - hpcr-u1
