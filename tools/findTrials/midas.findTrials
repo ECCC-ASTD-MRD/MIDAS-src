@@ -42,7 +42,7 @@ def get_command_line():
         print('\t' + options,file=sys.stderr)
 
     if options.version:
-        print("envar.findTrials version: " + VERSION)
+        print("midas.findTrials version: " + VERSION)
         sys.exit(0)
 
     return options
