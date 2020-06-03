@@ -49,9 +49,9 @@ int main(int argc, char **argv) {
       }
       close(fd);
 
-      printf("file=%s,cmd=%s\n",argv[1],argv[2]);
+      printf("file='%s',cmd='%s'\n",argv[1],argv[2]);
       snprintf(buffer,sizeof(buffer)-1,"%s %s",argv[2],argv[1]);
-      printf("Executing:%s\n",buffer);
+      printf("Executing: %s\n",buffer);
       system(buffer);
 
       exit(0);

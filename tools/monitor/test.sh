@@ -2,7 +2,7 @@
 
 ## Ce script sert a tester le programme 'midas.monitor.Abs'.
 
-set -e
+set -eo pipefail
 
 MONITOR_PGM=${1:-./midas.monitor.Abs}
 
@@ -87,8 +87,8 @@ EOF
 cat <<EOF | diff - monitor_stdout.txt || diff_status=1
 On a trouve le fichier 'VAR3D_STATUS.dot' qui contenait 'VAR3D_STATUS=REBM_DONE'
 ORDENV_PLAT=${ORDENV_PLAT}
-file=VAR3D_STATUS.dot,cmd=run_after_rebm_done.sh
-Executing:run_after_rebm_done.sh VAR3D_STATUS.dot
+file='VAR3D_STATUS.dot',cmd='./run_after_rebm_done.sh'
+Executing: ./run_after_rebm_done.sh VAR3D_STATUS.dot
 EOF
 
 if [ "${diff_status}" -eq 0 ]; then
