@@ -73,12 +73,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
       read(nulnam,nml=thin_aircraft,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading namelist')
-      write(*,nml=thin_aircraft)
+      if (mpi_myid == 0) write(*,nml=thin_aircraft)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
       write(*,*) '                  The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_aircraft)
     end if
 
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
@@ -119,6 +120,7 @@ contains
       write(*,*)
       write(*,*) 'thn_thinAladin: Namelist block thin_aladin is missing in the namelist.'
       write(*,*) '                The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_aladin)
     end if
 
     if (keepNthVertical > 0) then
@@ -155,12 +157,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
       read(nulnam,nml=thin_tovs,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading namelist')
-      write(*,nml=thin_tovs)
+      if (mpi_myid == 0) write(*,nml=thin_tovs)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
       write(*,*) '              The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -209,12 +212,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
       read(nulnam,nml=thin_hyper,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading namelist')
-      write(*,nml=thin_hyper)
+      if (mpi_myid == 0) write(*,nml=thin_hyper)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_hyper)
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -257,29 +261,34 @@ contains
     integer,          intent(in) :: deltmax
 
     ! Locals:
+    character(len=20) :: trlmFileName
+    character(len=2)  :: fileNumber
     type(struct_hco), pointer :: hco_thinning
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
     integer, parameter :: maxlev = 500
-    integer :: nblon, nblat, nblev, countObsTotal
+    integer :: nblon, nblat, nblev, nsize, headerIndexBeg, headerIndexEnd
     integer :: nulnam, ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
     integer :: obsLonIndex, obsLatIndex, obsLevIndex, timeBinIndex
-    integer :: numHeader, headerIndex, bodyIndex, aiTypeCount(4)
+    integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
+    integer :: aiTypeCount(4), aiTypeCountMpi(4)
     integer :: obsFlag, obsVarno, obsDate, obsTime
     integer :: notmp, nohum, nouuw, novvw, noddw, noffw
     real(8) :: zpresa, zpresb, obsPressure, delMinutes, stepObsIndex
     real(8) :: obsLonInRad, obsLatInRad, obsLonInDegrees, obsLatInDegrees
     real(8) :: delx, dely, delp, uuw, vvw, tmp, medd, score
     real(4), allocatable :: lat(:), lon(:)
-    integer, allocatable :: rcount(:)
+    integer, allocatable :: rcount(:), rcountMpi(:)
     real(8), allocatable :: ppres(:,:,:,:)
     real(8), pointer     :: surfPressure(:,:,:,:)
-    logical, allocatable :: keep_obs(:), isAircraft(:)
-    character(len=*), parameter :: trlmFileName = './trlm_p0.fst'
+    logical, allocatable :: keepObs(:), keepObsMpi(:), isAircraft(:)
     integer, external :: fnom, fclos
     integer, allocatable :: o_lat(:), o_lon(:), o_lev(:), o_tim(:)
+    integer, allocatable :: o_latMpi(:), o_lonMpi(:), o_levMpi(:), o_timMpi(:)
     logical, allocatable :: o_uvf(:), o_tmf(:)
+    logical, allocatable :: o_uvfMpi(:), o_tmfMpi(:)
     real(4), allocatable :: o_dis(:), o_uuw(:), o_vvw(:), o_tmp(:)
+    real(4), allocatable :: o_disMpi(:), o_uuwMpi(:), o_vvwMpi(:), o_tmpMpi(:)
     integer, allocatable :: handles(:,:,:), n_val(:,:,:)
     real(4), allocatable :: scr_min(:,:,:), dis_min(:,:,:), dis_max(:,:,:)
     real(4), allocatable :: sum_u(:,:,:), sum_v(:,:,:), sum_t(:,:,:)
@@ -295,9 +304,14 @@ contains
     write(*,*) 'thn_aircraftByBoxes: Starting'
 
     numHeader = obs_numHeader(obsdat)
-    allocate(keep_obs(numHeader))
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
+    write(*,*) 'thn_aircraftByBoxes: numHeader, numHeaderMaxMpi = ', &
+         numHeader, numHeaderMaxMpi
+
+    allocate(keepObs(numHeaderMaxMpi))
     allocate(isAircraft(numHeader))
-    keep_obs(:) = .true.
+    keepObs(:) = .false.
     aiTypeCount(:) = 0
 
     call obs_set_current_header_list(obsdat,trim(familyType))
@@ -309,29 +323,36 @@ contains
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if ( codtyp == codtyp_get_codtyp('airep') ) then
         aiTypeCount(1) = aiTypeCount(1) + 1
+        keepObs(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('amdar')  ) then
         aiTypeCount(2) = aiTypeCount(2) + 1
+        keepObs(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('acars') ) then
         aiTypeCount(3) = aiTypeCount(3) + 1
+        keepObs(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('ads') ) then
         aiTypeCount(4) = aiTypeCount(4) + 1
-      else
-        keep_obs(headerIndex) = .false.
+        keepObs(headerIndex) = .true.
       end if
     end do HEADER0
+    isAircraft(:) = keepObs(:)
 
     ! Return if no aircraft obs to thin
-    isAircraft(:) = keep_obs(:)
-    if (count(isAircraft(:)) == 0) then
+    allocate(keepObsMpi(numHeaderMaxMpi*mpi_nprocs))
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(keepObs,    nsize, 'mpi_logical',  &
+                            keepObsMpi, nsize, 'mpi_logical', 'grid', ierr)
+    if (count(keepObsMpi(:)) == 0) then
       write(*,*) 'thn_aircraftByBoxes: no aircraft observations present'
       return
     end if
 
-    write(*,*) 'thn_aircraftByBoxes: number of obs initial = ', count(keep_obs(:))
+    write(*,*) 'thn_aircraftByBoxes: number of *local* obs initial = ', count(keepObs(:))
 
     ! Setup horizontal thinning grid
     nullify(hco_thinning)
-    call hco_SetupFromFile(hco_thinning, './analysisgrid_thinning_ai', 'ANALYSIS', 'Analysis')
+    call hco_SetupFromFile(hco_thinning, './analysisgrid_thinning_ai', &
+                           'ANALYSIS', 'Analysis')
 
     ! Default namelist values
     numlev = 80
@@ -369,16 +390,29 @@ contains
 
     ! Allocate vectors
     allocate(rcount(tim_nstepObs))
-    allocate(o_lat(numHeader))
-    allocate(o_lon(numHeader))
-    allocate(o_lev(numHeader))
-    allocate(o_tim(numHeader))
-    allocate(o_dis(numHeader))
-    allocate(o_uuw(numHeader))
-    allocate(o_vvw(numHeader))
-    allocate(o_tmp(numHeader))
-    allocate(o_uvf(numHeader))
-    allocate(o_tmf(numHeader))
+    allocate(o_lat(numHeaderMaxMpi))
+    allocate(o_lon(numHeaderMaxMpi))
+    allocate(o_lev(numHeaderMaxMpi))
+    allocate(o_tim(numHeaderMaxMpi))
+    allocate(o_dis(numHeaderMaxMpi))
+    allocate(o_uuw(numHeaderMaxMpi))
+    allocate(o_vvw(numHeaderMaxMpi))
+    allocate(o_tmp(numHeaderMaxMpi))
+    allocate(o_uvf(numHeaderMaxMpi))
+    allocate(o_tmf(numHeaderMaxMpi))
+
+    ! Allocate mpi global vectors
+    allocate(rcountMpi(tim_nstepObs))
+    allocate(o_latMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_lonMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_levMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_timMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_disMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_uuwMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_vvwMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_tmpMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_uvfMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(o_tmfMpi(numHeaderMaxMpi*mpi_nprocs))
 
     ! Initialize vectors
     rcount(:) = 0
@@ -395,11 +429,14 @@ contains
 
     ! Read and interpolate the trial surface pressure
     nullify(vco_sfc)
+    trlmFileName = './trlm_01'
     call vco_setupFromFile(vco_sfc, trlmFileName)
     call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_thinning, vco_sfc, &
                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
                        varNames_opt=(/'P0'/), hInterpolateDegree_opt='LINEAR' )
     do stepIndex = 1, tim_nstepobs
+      write(fileNumber,'(I2.2)') stepIndex
+      trlmFileName = './trlm_' // trim(fileNumber)
       call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true. )
     end do
@@ -409,7 +446,6 @@ contains
     ppres(:,:,:,:) = -1.0
     call gsv_getField(stateVectorPsfc,surfPressure)
     do stepIndex = 1, tim_nstepobs
-      write(*,*) 'Psfc maxval = ', stepIndex, maxval(surfPressure(:,:,1,stepIndex)/100.0)
       do levIndex  = 1, nblev
         zpresb = ( (vlev(levIndex) - rptopinc/rprefinc) /  &
                    (1.0D0-rptopinc/rprefinc) )**rcoefinc
@@ -439,7 +475,7 @@ contains
 
       ! check time window
       if ( abs( delMinutes ) > deltmax ) then
-        keep_obs(headerIndex) = .false.
+        keepObs(headerIndex) = .false.
         rcount(timeBinIndex) = rcount(timeBinIndex) + 1
       end if
 
@@ -452,7 +488,7 @@ contains
         
         if (obsPressure < 0.0d0) then
           obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
-          if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) keep_obs(headerIndex) = .false.
+          if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) keepObs(headerIndex) = .false.
         end if
       end do BODY
 
@@ -517,7 +553,7 @@ contains
       ! eliminate records with nothing to assimilate
       if ( (notmp + nohum + nouuw + novvw) == 4 ) then
         rcount(timeBinIndex) = rcount(timeBinIndex) + 1
-        keep_obs(headerIndex) = .false.
+        keepObs(headerIndex) = .false.
       end if
 
       o_uuw(headerIndex) = uuw
@@ -570,18 +606,23 @@ contains
 
     end do HEADER1
 
+    call rpn_comm_allReduce(aiTypeCount, aiTypeCountMpi, 4, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(rcount, rcountMpi, tim_nstepObs, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+
     write(*,*)
-    write(*,'(a50,i10)') ' Number of reports = ', sum(aiTypeCount(:))
+    write(*,'(a50,i10)') ' Total number of obs = ', sum(aiTypeCountMpi(:))
     write(*,*)
     do stepIndex = 1, tim_nstepobs
-      write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rcount(stepIndex)
+      write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rcountMpi(stepIndex)
     enddo
-    write(*,'(a50,i10)')' Total number of rejects = ', sum(rcount)
+    write(*,'(a50,i10)')' Total number of rejects = ', sum(rcountMpi)
     write(*,*)
-    write(*,'(a50,i10)') '====nb AIREP = ', aiTypeCount(1)
-    write(*,'(a50,i10)') '====nb AMDAR = ', aiTypeCount(2)
-    write(*,'(a50,i10)') '====nb ACARS = ', aiTypeCount(3)
-    write(*,'(a50,i10)') '====nb ADS = ',   aiTypeCount(4)
+    write(*,'(a50,i10)') '====nb AIREP = ', aiTypeCountMpi(1)
+    write(*,'(a50,i10)') '====nb AMDAR = ', aiTypeCountMpi(2)
+    write(*,'(a50,i10)') '====nb ACARS = ', aiTypeCountMpi(3)
+    write(*,'(a50,i10)') '====nb ADS = ',   aiTypeCountMpi(4)
     write(*,*)
 
     allocate(handles(nblat,nblon,nblev))
@@ -592,6 +633,31 @@ contains
     allocate(  sum_u(nblat,nblon,nblev))
     allocate(  sum_v(nblat,nblon,nblev))
     allocate(  sum_t(nblat,nblon,nblev))
+
+    ! Make all inputs to the following tests mpiglobal
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(keepObs,    nsize, 'mpi_logical',  &
+                            keepObsMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(o_lat,    nsize, 'mpi_integer',  &
+                            o_latMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(o_lon,    nsize, 'mpi_integer',  &
+                            o_lonMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(o_lev,    nsize, 'mpi_integer',  &
+                            o_levMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(o_tim,    nsize, 'mpi_integer',  &
+                            o_timMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(o_dis,    nsize, 'mpi_real4',  &
+                            o_disMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(o_uuw,    nsize, 'mpi_real4',  &
+                            o_uuwMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(o_vvw,    nsize, 'mpi_real4',  &
+                            o_vvwMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(o_tmp,    nsize, 'mpi_real4',  &
+                            o_tmpMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(o_uvf,    nsize, 'mpi_logical',  &
+                            o_uvfMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(o_tmf,    nsize, 'mpi_logical',  &
+                            o_tmfMpi, nsize, 'mpi_logical', 'grid', ierr)
 
     STEP: do stepIndex = 1, tim_nstepobs
       write (*,'(a50,i10)' ) ' Process bin number = ', stepIndex
@@ -607,42 +673,38 @@ contains
 
       ! Calcul des distances min et max du centre la boite des rapports 
       ! contenus dans les boites
-      do headerIndex = 1, numHeader
-        if( keep_obs(headerIndex) ) then
-          if( o_tim(headerIndex) == stepIndex ) then
-            latIndex = o_lat(headerIndex)
-            lonIndex = o_lon(headerIndex)
-            levIndex = o_lev(headerIndex)
-            if ( o_dis(headerIndex) < dis_min(latIndex,lonIndex,levIndex) ) then
-              dis_min(latIndex,lonIndex,levIndex) = o_dis(headerIndex)
-            end if
-            if ( o_dis(headerIndex) > dis_max(latIndex,lonIndex,levIndex) ) then
-              dis_max(latIndex,lonIndex,levIndex) = o_dis(headerIndex)
-            end if
-          end if
+      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( o_timMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = o_latMpi(headerIndex)
+        lonIndex = o_lonMpi(headerIndex)
+        levIndex = o_levMpi(headerIndex)
+        if ( o_disMpi(headerIndex) < dis_min(latIndex,lonIndex,levIndex) ) then
+          dis_min(latIndex,lonIndex,levIndex) = o_disMpi(headerIndex)
+        end if
+        if ( o_disMpi(headerIndex) > dis_max(latIndex,lonIndex,levIndex) ) then
+          dis_max(latIndex,lonIndex,levIndex) = o_disMpi(headerIndex)
         end if
       end do
 
       ! Calcul des sommes de u, v et t des observations situees a une distance medd
       ! du centre de la boite
-      do headerIndex = 1, numHeader
-        if( keep_obs(headerIndex) ) then
-          if( o_tim(headerIndex) == stepIndex ) then
-            latIndex = o_lat(headerIndex)
-            lonIndex = o_lon(headerIndex)
-            levIndex = o_lev(headerIndex)
-            medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
-            if ((o_dis(headerIndex) < medd) .and. o_tmf(headerIndex) .and. o_uvf(headerIndex) ) then
-              n_val(latIndex,lonIndex,levIndex) =  &
-                   n_val(latIndex,lonIndex,levIndex) + 1
-              sum_u(latIndex,lonIndex,levIndex) =  &
-                   sum_u(latIndex,lonIndex,levIndex) + o_uuw(headerIndex)
-              sum_v(latIndex,lonIndex,levIndex) =  &
-                   sum_v(latIndex,lonIndex,levIndex) + o_vvw(headerIndex)
-              sum_t(latIndex,lonIndex,levIndex) =  &
-                   sum_t(latIndex,lonIndex,levIndex) + o_tmp(headerIndex)
-            end if
-          end if
+      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( o_timMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = o_latMpi(headerIndex)
+        lonIndex = o_lonMpi(headerIndex)
+        levIndex = o_levMpi(headerIndex)
+        medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
+        if ((o_disMpi(headerIndex) < medd) .and. o_tmfMpi(headerIndex) .and. o_uvfMpi(headerIndex) ) then
+          n_val(latIndex,lonIndex,levIndex) =  &
+               n_val(latIndex,lonIndex,levIndex) + 1
+          sum_u(latIndex,lonIndex,levIndex) =  &
+               sum_u(latIndex,lonIndex,levIndex) + o_uuwMpi(headerIndex)
+          sum_v(latIndex,lonIndex,levIndex) =  &
+               sum_v(latIndex,lonIndex,levIndex) + o_vvwMpi(headerIndex)
+          sum_t(latIndex,lonIndex,levIndex) =  &
+               sum_t(latIndex,lonIndex,levIndex) + o_tmpMpi(headerIndex)
         end if
       end do
 
@@ -665,62 +727,66 @@ contains
       ! S'il y a plus de 3 rapports dans la boite, le rapport dont le score est le plus
       ! petit est retenu. S'il y a 2 rapports ou moins, le rapport le plus pres du centre
       ! de la boite est retenu.
-      do headerIndex = 1, numHeader
-        if( .not. keep_obs(headerIndex) ) cycle
-        if( o_tim(headerIndex) == stepIndex ) then
-          latIndex = o_lat(headerIndex)
-          lonIndex = o_lon(headerIndex)
-          levIndex = o_lev(headerIndex)
+      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( o_timMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = o_latMpi(headerIndex)
+        lonIndex = o_lonMpi(headerIndex)
+        levIndex = o_levMpi(headerIndex)
 
-          if(n_val(latIndex,lonIndex,levIndex) >= 3) then
+        if(n_val(latIndex,lonIndex,levIndex) >= 3) then
 
-            medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
-            if ((o_dis(headerIndex) < medd) .and. o_tmf(headerIndex) .and. o_uvf(headerIndex) ) then
-              score = sqrt ( (sum_u(latIndex,lonIndex,levIndex) - o_uuw(headerIndex))**2/(1.4**2) +   &
-                             (sum_v(latIndex,lonIndex,levIndex) - o_vvw(headerIndex))**2/(1.4**2) ) + &
-                      (sum_t(latIndex,lonIndex,levIndex) - o_tmp(headerIndex))**2/(0.9**2)
-
-              if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-                if ( score >= scr_min(latIndex,lonIndex,levIndex) ) then
-                  keep_obs(headerIndex) = .false.
-                end if
-              end if
-          
-              if ( keep_obs(headerIndex) ) then
-                if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-                  keep_obs(handles(latIndex,lonIndex,levIndex)) = .false.
-                end if
-                scr_min(latIndex,lonIndex,levIndex) = score
-                keep_obs(headerIndex) = .true.
-                handles(latIndex,lonIndex,levIndex) = headerIndex
-              end if
-
-            else
-              keep_obs(headerIndex) = .false.
-            end if
-
-          else ! if(n_val(latIndex,lonIndex,levIndex) < 3)
+          medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
+          if ((o_disMpi(headerIndex) < medd) .and. o_tmfMpi(headerIndex) .and. o_uvfMpi(headerIndex) ) then
+            score = sqrt ( (sum_u(latIndex,lonIndex,levIndex) - o_uuwMpi(headerIndex))**2/(1.4**2) +   &
+                           (sum_v(latIndex,lonIndex,levIndex) - o_vvwMpi(headerIndex))**2/(1.4**2) ) + &
+                    (sum_t(latIndex,lonIndex,levIndex) - o_tmpMpi(headerIndex))**2/(0.9**2)
 
             if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-              if ( o_dis(headerIndex) > dis_min(latIndex,lonIndex,levIndex) ) then
-                keep_obs(headerIndex) = .false.
+              if ( score >= scr_min(latIndex,lonIndex,levIndex) ) then
+                keepObsMpi(headerIndex) = .false.
               end if
             end if
-
-            if ( keep_obs(headerIndex) ) then
+          
+            if ( keepObsMpi(headerIndex) ) then
               if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-                keep_obs(handles(latIndex,lonIndex,levIndex)) = .false.
+                keepObsMpi(handles(latIndex,lonIndex,levIndex)) = .false.
               end if
-              keep_obs(headerIndex) = .true.
+              scr_min(latIndex,lonIndex,levIndex) = score
+              keepObsMpi(headerIndex) = .true.
               handles(latIndex,lonIndex,levIndex) = headerIndex
             end if
 
+          else
+            keepObsMpi(headerIndex) = .false.
+          end if
+
+        else ! if(n_val(latIndex,lonIndex,levIndex) < 3)
+
+          if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+            if ( o_disMpi(headerIndex) > dis_min(latIndex,lonIndex,levIndex) ) then
+              keepObsMpi(headerIndex) = .false.
+            end if
+          end if
+
+          if ( keepObsMpi(headerIndex) ) then
+            if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
+              keepObsMpi(handles(latIndex,lonIndex,levIndex)) = .false.
+            end if
+            keepObsMpi(headerIndex) = .true.
+            handles(latIndex,lonIndex,levIndex) = headerIndex
           end if
 
         end if
+
       end do ! headerIndex
 
     end do  STEP
+
+    ! Update local copy of keepObs from global mpi version
+    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    keepObs(:) = keepObsMpi(headerIndexBeg:headerIndexEnd)
 
     deallocate(handles)
     deallocate(scr_min)
@@ -732,9 +798,10 @@ contains
     deallocate(sum_t)
 
     write (*,*)
-    write (*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCount(:))
-    write (*,'(a50,i10)') " Number of obs out = ", count(keep_obs(:))
-    write (*,'(a50,i10)') " Number of obs not out = ", sum(aiTypeCount(:)) - count(keep_obs(:))
+    write (*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCountMpi(:))
+    write (*,'(a50,i10)') " Number of obs out = ", count(keepObsMpi(:))
+    write (*,'(a50,i10)') " Number of obs not out = ", &
+         sum(aiTypeCountMpi(:)) - count(keepObsMpi(:))
     write (*,*)
 
     ! Modify the flags for rejected observations
@@ -742,7 +809,7 @@ contains
       ! skip observation if we're not supposed to consider it
       if (.not. isAirCraft(headerIndex)) cycle
      
-      if (.not. keep_obs(headerIndex)) then
+      if (.not. keepObs(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY3: do 
           bodyIndex = obs_getBodyIndex(obsdat)
