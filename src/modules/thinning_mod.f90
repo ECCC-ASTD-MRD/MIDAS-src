@@ -257,8 +257,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in) :: familyType
-    integer,          intent(in) :: deltmax
+    character(len=*), intent(in)    :: familyType
+    integer,          intent(in)    :: deltmax
 
     ! Locals:
     character(len=20) :: trlmFileName
@@ -266,38 +266,41 @@ contains
     type(struct_hco), pointer :: hco_thinning
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
-    integer, parameter :: maxlev = 500
-    integer :: nblon, nblat, nblev, nsize, headerIndexBeg, headerIndexEnd
+    integer :: numLon, numLat, nsize, headerIndexBeg, headerIndexEnd
     integer :: nulnam, ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
-    integer :: obsLonIndex, obsLatIndex, obsLevIndex, timeBinIndex
+    integer :: obsLonIndex, obsLatIndex, obsLevIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
     integer :: aiTypeCount(4), aiTypeCountMpi(4)
     integer :: obsFlag, obsVarno, obsDate, obsTime
-    integer :: notmp, nohum, nouuw, novvw, noddw, noffw
-    real(8) :: zpresa, zpresb, obsPressure, delMinutes, stepObsIndex
+    logical :: ttMissing, huMissing, uuMissing, vvMissing, ddMissing, ffMissing
+    real(8) :: zpresa, zpresb, obsPressure, delMinutes, obsStepIndex_r8
     real(8) :: obsLonInRad, obsLatInRad, obsLonInDegrees, obsLatInDegrees
-    real(8) :: delx, dely, delp, uuw, vvw, tmp, medd, score
-    real(4), allocatable :: lat(:), lon(:)
-    integer, allocatable :: rcount(:), rcountMpi(:)
-    real(8), allocatable :: ppres(:,:,:,:)
+    real(8) :: deltaLon, deltaLat, deltaPress, midDistance, score
+    real(4), allocatable :: gridLat(:), gridLon(:)
+    integer, allocatable :: rejectCount(:), rejectCountMpi(:)
+    real(8), allocatable :: gridPressure(:,:,:,:)
     real(8), pointer     :: surfPressure(:,:,:,:)
     logical, allocatable :: keepObs(:), keepObsMpi(:), isAircraft(:)
+    integer, allocatable :: obsLatIndexVec(:), obsLonIndexVec(:)
+    integer, allocatable :: obsTimeIndexVec(:), obsLevIndexVec(:)
+    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:)
+    integer, allocatable :: obsTimeIndexMpi(:), obsLevIndexMpi(:)
+    logical, allocatable :: obsUVPresent(:), obsTTPresent(:)
+    logical, allocatable :: obsUVPresentMpi(:), obsTTPresentMpi(:)
+    real(4), allocatable :: obsDistance(:), obsUU(:), obsVV(:), obsTT(:)
+    real(4), allocatable :: obsDistanceMpi(:), obsUUMpi(:), obsVVMpi(:), obsTTMpi(:)
+    integer, allocatable :: handlesGrid(:,:,:), numObsGrid(:,:,:)
+    real(4), allocatable :: minScoreGrid(:,:,:), minDistGrid(:,:,:), maxDistGrid(:,:,:)
+    real(4), allocatable :: uuSumGrid(:,:,:), vvSumGrid(:,:,:), ttSumGrid(:,:,:)
+
     integer, external :: fnom, fclos
-    integer, allocatable :: o_lat(:), o_lon(:), o_lev(:), o_tim(:)
-    integer, allocatable :: o_latMpi(:), o_lonMpi(:), o_levMpi(:), o_timMpi(:)
-    logical, allocatable :: o_uvf(:), o_tmf(:)
-    logical, allocatable :: o_uvfMpi(:), o_tmfMpi(:)
-    real(4), allocatable :: o_dis(:), o_uuw(:), o_vvw(:), o_tmp(:)
-    real(4), allocatable :: o_disMpi(:), o_uuwMpi(:), o_vvwMpi(:), o_tmpMpi(:)
-    integer, allocatable :: handles(:,:,:), n_val(:,:,:)
-    real(4), allocatable :: scr_min(:,:,:), dis_min(:,:,:), dis_max(:,:,:)
-    real(4), allocatable :: sum_u(:,:,:), sum_v(:,:,:), sum_t(:,:,:)
+    integer, parameter :: maxLev = 500
 
     ! Namelist variables:
     real(8) :: rprefinc
     real(8) :: rptopinc
     real(8) :: rcoefinc
-    real(4) :: vlev(maxlev)
+    real(4) :: vlev(maxLev)
     integer :: numlev
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
@@ -374,58 +377,57 @@ contains
     end if
 
     ! Setup thinning grid parameters
-    nblon = hco_thinning%ni
-    nblat = hco_thinning%nj
-    nblev = numlev
-    allocate(lat(nblat))
-    allocate(lon(nblon))
-    lon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
-    lat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    numLon = hco_thinning%ni
+    numLat = hco_thinning%nj
+    allocate(gridLat(numLat))
+    allocate(gridLon(numLon))
+    gridLon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
+    gridLat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
     write(*,*) 'thinning grid lats = '
-    write(*,*) lat(:)
+    write(*,*) gridLat(:)
     write(*,*) 'thinning grid lons = '
-    write(*,*) lon(:)
+    write(*,*) gridLon(:)
     write(*,*) 'thinning grid vlev = '
-    write(*,*) vlev(1:nblev)
+    write(*,*) vlev(1:numLev)
 
     ! Allocate vectors
-    allocate(rcount(tim_nstepObs))
-    allocate(o_lat(numHeaderMaxMpi))
-    allocate(o_lon(numHeaderMaxMpi))
-    allocate(o_lev(numHeaderMaxMpi))
-    allocate(o_tim(numHeaderMaxMpi))
-    allocate(o_dis(numHeaderMaxMpi))
-    allocate(o_uuw(numHeaderMaxMpi))
-    allocate(o_vvw(numHeaderMaxMpi))
-    allocate(o_tmp(numHeaderMaxMpi))
-    allocate(o_uvf(numHeaderMaxMpi))
-    allocate(o_tmf(numHeaderMaxMpi))
+    allocate(rejectCount(tim_nstepObs))
+    allocate(obsLatIndexVec(numHeaderMaxMpi))
+    allocate(obsLonIndexVec(numHeaderMaxMpi))
+    allocate(obsLevIndexVec(numHeaderMaxMpi))
+    allocate(obsTimeIndexVec(numHeaderMaxMpi))
+    allocate(obsDistance(numHeaderMaxMpi))
+    allocate(obsUU(numHeaderMaxMpi))
+    allocate(obsVV(numHeaderMaxMpi))
+    allocate(obsTT(numHeaderMaxMpi))
+    allocate(obsUVPresent(numHeaderMaxMpi))
+    allocate(obsTTPresent(numHeaderMaxMpi))
 
     ! Allocate mpi global vectors
-    allocate(rcountMpi(tim_nstepObs))
-    allocate(o_latMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_lonMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_levMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_timMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_disMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_uuwMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_vvwMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_tmpMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_uvfMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(o_tmfMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(rejectCountMpi(tim_nstepObs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLevIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsTimeIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsUUMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsVVMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsTTMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsUVPresentMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsTTPresentMpi(numHeaderMaxMpi*mpi_nprocs))
 
     ! Initialize vectors
-    rcount(:) = 0
-    o_lat(:) = 0
-    o_lon(:) = 0
-    o_lev(:) = 0
-    o_tim(:) = 0
-    o_dis(:) = 0.
-    o_uuw(:) = 0.
-    o_vvw(:) = 0.
-    o_tmp(:) = 0.
-    o_uvf(:) = .true.
-    o_tmf(:) = .true.
+    rejectCount(:) = 0
+    obsLatIndexVec(:) = 0
+    obsLonIndexVec(:) = 0
+    obsLevIndexVec(:) = 0
+    obsTimeIndexVec(:) = 0
+    obsDistance(:) = 0.
+    obsUU(:) = 0.
+    obsVV(:) = 0.
+    obsTT(:) = 0.
+    obsUVPresent(:) = .true.
+    obsTTPresent(:) = .true.
 
     ! Read and interpolate the trial surface pressure
     nullify(vco_sfc)
@@ -442,17 +444,17 @@ contains
     end do
 
     ! compute pressure of each model level using p0
-    allocate(ppres(nblon,nblat,nblev,tim_nstepobs))
-    ppres(:,:,:,:) = -1.0
+    allocate(gridPressure(numLon,numLat,numLev,tim_nstepobs))
+    gridPressure(:,:,:,:) = -1.0
     call gsv_getField(stateVectorPsfc,surfPressure)
     do stepIndex = 1, tim_nstepobs
-      do levIndex  = 1, nblev
+      do levIndex  = 1, numLev
         zpresb = ( (vlev(levIndex) - rptopinc/rprefinc) /  &
                    (1.0D0-rptopinc/rprefinc) )**rcoefinc
         zpresa = rprefinc * (vlev(levIndex)-zpresb)
-        do latIndex = 1, nblat
-          do lonIndex = 1, nblon
-            ppres(lonIndex,latIndex,levIndex,stepIndex) =  &
+        do latIndex = 1, numLat
+          do lonIndex = 1, numLon
+            gridPressure(lonIndex,latIndex,levIndex,stepIndex) =  &
                  zpresa + zpresb*surfPressure(lonIndex,latIndex,1,stepIndex)
           end do
         end do
@@ -468,15 +470,15 @@ contains
       ! find time difference
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      timeBinIndex = nint(stepObsIndex)
-      delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - stepObsIndex))
+      obsStepIndex = nint(obsStepIndex_r8)
+      delMinutes = abs(nint(60.0 * tim_dstepobs * abs(real(obsStepIndex) - obsStepIndex_r8)))
 
       ! check time window
-      if ( abs( delMinutes ) > deltmax ) then
+      if ( delMinutes > deltmax ) then
         keepObs(headerIndex) = .false.
-        rcount(timeBinIndex) = rcount(timeBinIndex) + 1
+        rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
       end if
 
       ! Only accept obs below 175hPa
@@ -492,12 +494,12 @@ contains
         end if
       end do BODY
 
-      notmp = 1
-      nohum = 1
-      nouuw = 1
-      novvw = 1
-      noddw = 1
-      noffw = 1      
+      ttMissing = .true.
+      huMissing = .true.
+      uuMissing = .true.
+      vvMissing = .true.
+      ddMissing = .true.
+      ffMissing = .true.      
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY2: do 
         bodyIndex = obs_getBodyIndex(obsdat)
@@ -511,56 +513,53 @@ contains
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
                       btest(obsFlag,2)) ) then
-            notmp = 0
-            tmp = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            ttMissing = .false.
+            obsTT(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEES) then
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
-                      btest(obsFlag,2)) ) nohum = 0
+                      btest(obsFlag,2)) ) huMissing = .false.
         else if (obsVarno == BUFR_NEUU) then
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
                       btest(obsFlag,2)) ) then
-            nouuw = 0
-            uuw = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            uuMissing = .false.
+            obsUU(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEVV) then
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
                       btest(obsFlag,2)) ) then
-            novvw = 0
-            vvw = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            vvMissing = .false.
+            obsVV(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEDD) then
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
-                      btest(obsFlag,2)) ) noddw = 0
+                      btest(obsFlag,2)) ) ddMissing = .false.
         else if (obsVarno == BUFR_NEFF) then
           if ( .not. (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
                       btest(obsFlag,9)  .or. btest(obsFlag,8)  .or. &
-                      btest(obsFlag,2)) ) noffw = 0
+                      btest(obsFlag,2)) ) ffMissing = .false.
         end if
 
       end do BODY2
 
       ! wind components are rejected if speed or direction 
-      if (noddw == 1 .or. noffw == 1) then
-        nouuw = 1
-        novvw = 1
+      if (ddMissing .or. ffMissing) then
+        uuMissing = .true.
+        vvMissing = .true.
       end if
 
       ! eliminate records with nothing to assimilate
-      if ( (notmp + nohum + nouuw + novvw) == 4 ) then
-        rcount(timeBinIndex) = rcount(timeBinIndex) + 1
+      if (ttMissing .and. huMissing .and. uuMissing .and. vvMissing) then
+        rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
         keepObs(headerIndex) = .false.
       end if
 
-      o_uuw(headerIndex) = uuw
-      o_vvw(headerIndex) = vvw
-      o_tmp(headerIndex) = tmp
-      if( nouuw == 1 .or. novvw == 1 ) o_uvf(headerIndex) = .false.
-      if( notmp == 1 )                 o_tmf(headerIndex) = .false.
+      if( uuMissing .or. vvMissing ) obsUVPresent(headerIndex) = .false.
+      if( ttMissing )                obsTTPresent(headerIndex) = .false.
 
       ! Lat and Lon for each observation
       obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
@@ -569,55 +568,55 @@ contains
       obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
 
       ! latitude index
-      dely = abs(lat(1) - obsLatInDegrees)
+      deltaLat = abs(gridLat(1) - obsLatInDegrees)
       obsLatIndex = 1
-      do latIndex = 2, nblat
-        if (abs(lat(latIndex) - obsLatInDegrees) < dely) then
-          dely = abs(lat(latIndex) - obsLatInDegrees)
+      do latIndex = 2, numLat
+        if (abs(gridLat(latIndex) - obsLatInDegrees) < deltaLat) then
+          deltaLat = abs(gridLat(latIndex) - obsLatInDegrees)
           obsLatIndex = latIndex
         end if
       end do
 
       ! longitude index
-      delx = abs(lon(1) - obsLonInDegrees)
+      deltaLon = abs(gridLon(1) - obsLonInDegrees)
       obsLonIndex = 1
-      do lonIndex = 2, nblon
-        if ( abs(lon(lonIndex) - obsLonInDegrees) < delx ) then
-          delx = abs(lon(lonIndex) - obsLonInDegrees)
+      do lonIndex = 2, numLon
+        if ( abs(gridLon(lonIndex) - obsLonInDegrees) < deltaLon ) then
+          deltaLon = abs(gridLon(lonIndex) - obsLonInDegrees)
           obsLonIndex = lonIndex
         end if
       end do
 
       ! layer index
-      delp = abs(ppres(obsLonIndex,obsLatIndex,1,timeBinIndex) - obsPressure)
+      deltaPress = abs(gridPressure(obsLonIndex,obsLatIndex,1,obsStepIndex) - obsPressure)
       obsLevIndex = 1
-      do levIndex = 2, nblev
-        if ( abs(ppres(obsLonIndex,obsLatIndex,levIndex,timeBinIndex) - obsPressure) < delp ) then
-          delp = abs(ppres(obsLonIndex,obsLatIndex,levIndex,timeBinIndex) - obsPressure)
+      do levIndex = 2, numLev
+        if ( abs(gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - obsPressure) < deltaPress ) then
+          deltaPress = abs(gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - obsPressure)
           obsLevIndex = levIndex
         end if
       end do
 
-      o_lat(headerIndex) = obsLatIndex
-      o_lon(headerIndex) = obsLonIndex
-      o_lev(headerIndex) = obsLevIndex
-      o_tim(headerIndex) = timeBinIndex
-      o_dis(headerIndex) = sqrt((delx*3)**2 + (dely*3)**2 + (delp/100.0)**2)
+      obsLatIndexVec(headerIndex) = obsLatIndex
+      obsLonIndexVec(headerIndex) = obsLonIndex
+      obsLevIndexVec(headerIndex) = obsLevIndex
+      obsTimeIndexVec(headerIndex) = obsStepIndex
+      obsDistance(headerIndex) = sqrt((deltaLon*3)**2 + (deltaLat*3)**2 + (deltaPress/100.0)**2)
 
     end do HEADER1
 
     call rpn_comm_allReduce(aiTypeCount, aiTypeCountMpi, 4, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(rcount, rcountMpi, tim_nstepObs, 'mpi_integer', &
+    call rpn_comm_allReduce(rejectCount, rejectCountMpi, tim_nstepObs, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
 
     write(*,*)
     write(*,'(a50,i10)') ' Total number of obs = ', sum(aiTypeCountMpi(:))
     write(*,*)
     do stepIndex = 1, tim_nstepobs
-      write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rcountMpi(stepIndex)
+      write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rejectCountMpi(stepIndex)
     enddo
-    write(*,'(a50,i10)')' Total number of rejects = ', sum(rcountMpi)
+    write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi)
     write(*,*)
     write(*,'(a50,i10)') '====nb AIREP = ', aiTypeCountMpi(1)
     write(*,'(a50,i10)') '====nb AMDAR = ', aiTypeCountMpi(2)
@@ -625,100 +624,103 @@ contains
     write(*,'(a50,i10)') '====nb ADS = ',   aiTypeCountMpi(4)
     write(*,*)
 
-    allocate(handles(nblat,nblon,nblev))
-    allocate(scr_min(nblat,nblon,nblev))
-    allocate(dis_min(nblat,nblon,nblev))
-    allocate(dis_max(nblat,nblon,nblev))
-    allocate(  n_val(nblat,nblon,nblev))
-    allocate(  sum_u(nblat,nblon,nblev))
-    allocate(  sum_v(nblat,nblon,nblev))
-    allocate(  sum_t(nblat,nblon,nblev))
+    allocate(handlesGrid(numLat,numLon,numLev))
+    allocate(minScoreGrid(numLat,numLon,numLev))
+    allocate(minDistGrid(numLat,numLon,numLev))
+    allocate(maxDistGrid(numLat,numLon,numLev))
+    allocate(numObsGrid(numLat,numLon,numLev))
+    allocate(uuSumGrid(numLat,numLon,numLev))
+    allocate(vvSumGrid(numLat,numLon,numLev))
+    allocate(ttSumGrid(numLat,numLon,numLev))
 
     ! Make all inputs to the following tests mpiglobal
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(keepObs,    nsize, 'mpi_logical',  &
                             keepObsMpi, nsize, 'mpi_logical', 'grid', ierr)
-    call rpn_comm_allgather(o_lat,    nsize, 'mpi_integer',  &
-                            o_latMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(o_lon,    nsize, 'mpi_integer',  &
-                            o_lonMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(o_lev,    nsize, 'mpi_integer',  &
-                            o_levMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(o_tim,    nsize, 'mpi_integer',  &
-                            o_timMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(o_dis,    nsize, 'mpi_real4',  &
-                            o_disMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(o_uuw,    nsize, 'mpi_real4',  &
-                            o_uuwMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(o_vvw,    nsize, 'mpi_real4',  &
-                            o_vvwMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(o_tmp,    nsize, 'mpi_real4',  &
-                            o_tmpMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(o_uvf,    nsize, 'mpi_logical',  &
-                            o_uvfMpi, nsize, 'mpi_logical', 'grid', ierr)
-    call rpn_comm_allgather(o_tmf,    nsize, 'mpi_logical',  &
-                            o_tmfMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsLatIndexVec, nsize, 'mpi_integer',  &
+                            obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonIndexVec, nsize, 'mpi_integer',  &
+                            obsLonIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLevIndexVec, nsize, 'mpi_integer',  &
+                            obsLevIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsTimeIndexVec,nsize, 'mpi_integer',  &
+                            obsTimeIndexMpi,nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
+                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(obsUU,    nsize, 'mpi_real4',  &
+                            obsUUMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(obsVV,    nsize, 'mpi_real4',  &
+                            obsVVMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(obsTT,    nsize, 'mpi_real4',  &
+                            obsTTMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(obsUVPresent,    nsize, 'mpi_logical',  &
+                            obsUVPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsTTPresent,    nsize, 'mpi_logical',  &
+                            obsTTPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
 
     STEP: do stepIndex = 1, tim_nstepobs
       write (*,'(a50,i10)' ) ' Process bin number = ', stepIndex
 
-      handles(:,:,:) = -1
-      scr_min(:,:,:) = 1000000.
-      dis_min(:,:,:) = 1000000.
-      dis_max(:,:,:) = 0.
-      n_val(:,:,:) = 0 
-      sum_u(:,:,:) = 0. 
-      sum_v(:,:,:) = 0. 
-      sum_t(:,:,:) = 0. 
+      handlesGrid(:,:,:) = -1
+      minScoreGrid(:,:,:) = 1000000.
+      minDistGrid(:,:,:) = 1000000.
+      maxDistGrid(:,:,:) = 0.
+      numObsGrid(:,:,:) = 0 
+      uuSumGrid(:,:,:) = 0. 
+      vvSumGrid(:,:,:) = 0. 
+      ttSumGrid(:,:,:) = 0. 
 
       ! Calcul des distances min et max du centre la boite des rapports 
       ! contenus dans les boites
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
         if( .not. keepObsMpi(headerIndex) ) cycle
-        if( o_timMpi(headerIndex) /= stepIndex ) cycle
-        latIndex = o_latMpi(headerIndex)
-        lonIndex = o_lonMpi(headerIndex)
-        levIndex = o_levMpi(headerIndex)
-        if ( o_disMpi(headerIndex) < dis_min(latIndex,lonIndex,levIndex) ) then
-          dis_min(latIndex,lonIndex,levIndex) = o_disMpi(headerIndex)
+        if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = obsLatIndexMpi(headerIndex)
+        lonIndex = obsLonIndexMpi(headerIndex)
+        levIndex = obsLevIndexMpi(headerIndex)
+        if ( obsDistanceMpi(headerIndex) < minDistGrid(latIndex,lonIndex,levIndex) ) then
+          minDistGrid(latIndex,lonIndex,levIndex) = obsDistanceMpi(headerIndex)
         end if
-        if ( o_disMpi(headerIndex) > dis_max(latIndex,lonIndex,levIndex) ) then
-          dis_max(latIndex,lonIndex,levIndex) = o_disMpi(headerIndex)
+        if ( obsDistanceMpi(headerIndex) > maxDistGrid(latIndex,lonIndex,levIndex) ) then
+          maxDistGrid(latIndex,lonIndex,levIndex) = obsDistanceMpi(headerIndex)
         end if
       end do
 
-      ! Calcul des sommes de u, v et t des observations situees a une distance medd
+      ! Calcul des sommes de u, v et t des observations situees a une distance midDistance
       ! du centre de la boite
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
         if( .not. keepObsMpi(headerIndex) ) cycle
-        if( o_timMpi(headerIndex) /= stepIndex ) cycle
-        latIndex = o_latMpi(headerIndex)
-        lonIndex = o_lonMpi(headerIndex)
-        levIndex = o_levMpi(headerIndex)
-        medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
-        if ((o_disMpi(headerIndex) < medd) .and. o_tmfMpi(headerIndex) .and. o_uvfMpi(headerIndex) ) then
-          n_val(latIndex,lonIndex,levIndex) =  &
-               n_val(latIndex,lonIndex,levIndex) + 1
-          sum_u(latIndex,lonIndex,levIndex) =  &
-               sum_u(latIndex,lonIndex,levIndex) + o_uuwMpi(headerIndex)
-          sum_v(latIndex,lonIndex,levIndex) =  &
-               sum_v(latIndex,lonIndex,levIndex) + o_vvwMpi(headerIndex)
-          sum_t(latIndex,lonIndex,levIndex) =  &
-               sum_t(latIndex,lonIndex,levIndex) + o_tmpMpi(headerIndex)
+        if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = obsLatIndexMpi(headerIndex)
+        lonIndex = obsLonIndexMpi(headerIndex)
+        levIndex = obsLevIndexMpi(headerIndex)
+        midDistance = ( minDistGrid(latIndex,lonIndex,levIndex) + &
+                        maxDistGrid(latIndex,lonIndex,levIndex) )/2.
+        if ( (obsDistanceMpi(headerIndex) < midDistance) .and. &
+             obsTTPresentMpi(headerIndex) .and. &
+             obsUVPresentMpi(headerIndex) ) then
+          numObsGrid(latIndex,lonIndex,levIndex) =  &
+               numObsGrid(latIndex,lonIndex,levIndex) + 1
+          uuSumGrid(latIndex,lonIndex,levIndex) =  &
+               uuSumGrid(latIndex,lonIndex,levIndex) + obsUUMpi(headerIndex)
+          vvSumGrid(latIndex,lonIndex,levIndex) =  &
+               vvSumGrid(latIndex,lonIndex,levIndex) + obsVVMpi(headerIndex)
+          ttSumGrid(latIndex,lonIndex,levIndex) =  &
+               ttSumGrid(latIndex,lonIndex,levIndex) + obsTTMpi(headerIndex)
         end if
       end do
 
       ! Calcul la moyenne de u, v et t s'il y a plus de 3 rapports dans la boite
-      do latIndex=1,nblat
-        do lonIndex=1,nblon
-          do levIndex=1,nblev
-            if(n_val(latIndex,lonIndex,levIndex) >= 3) then
-              sum_u(latIndex,lonIndex,levIndex) =  &
-                   sum_u(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
-              sum_v(latIndex,lonIndex,levIndex) =  &
-                   sum_v(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
-              sum_t(latIndex,lonIndex,levIndex) =  &
-                   sum_t(latIndex,lonIndex,levIndex)/n_val(latIndex,lonIndex,levIndex)
+      do latIndex = 1, numLat
+        do lonIndex = 1, numLon
+          do levIndex = 1, numLev
+            if(numObsGrid(latIndex,lonIndex,levIndex) >= 3) then
+              uuSumGrid(latIndex,lonIndex,levIndex) =  &
+                   uuSumGrid(latIndex,lonIndex,levIndex)/numObsGrid(latIndex,lonIndex,levIndex)
+              vvSumGrid(latIndex,lonIndex,levIndex) =  &
+                   vvSumGrid(latIndex,lonIndex,levIndex)/numObsGrid(latIndex,lonIndex,levIndex)
+              ttSumGrid(latIndex,lonIndex,levIndex) =  &
+                   ttSumGrid(latIndex,lonIndex,levIndex)/numObsGrid(latIndex,lonIndex,levIndex)
             end if
           end do
         end do
@@ -729,52 +731,58 @@ contains
       ! de la boite est retenu.
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
         if( .not. keepObsMpi(headerIndex) ) cycle
-        if( o_timMpi(headerIndex) /= stepIndex ) cycle
-        latIndex = o_latMpi(headerIndex)
-        lonIndex = o_lonMpi(headerIndex)
-        levIndex = o_levMpi(headerIndex)
+        if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
+        latIndex = obsLatIndexMpi(headerIndex)
+        lonIndex = obsLonIndexMpi(headerIndex)
+        levIndex = obsLevIndexMpi(headerIndex)
 
-        if(n_val(latIndex,lonIndex,levIndex) >= 3) then
+        if(numObsGrid(latIndex,lonIndex,levIndex) >= 3) then
 
-          medd = (dis_min(latIndex,lonIndex,levIndex) + dis_max(latIndex,lonIndex,levIndex))/2.
-          if ((o_disMpi(headerIndex) < medd) .and. o_tmfMpi(headerIndex) .and. o_uvfMpi(headerIndex) ) then
-            score = sqrt ( (sum_u(latIndex,lonIndex,levIndex) - o_uuwMpi(headerIndex))**2/(1.4**2) +   &
-                           (sum_v(latIndex,lonIndex,levIndex) - o_vvwMpi(headerIndex))**2/(1.4**2) ) + &
-                    (sum_t(latIndex,lonIndex,levIndex) - o_tmpMpi(headerIndex))**2/(0.9**2)
+          midDistance = ( minDistGrid(latIndex,lonIndex,levIndex) + &
+                          maxDistGrid(latIndex,lonIndex,levIndex) )/2.
+          if ((obsDistanceMpi(headerIndex) < midDistance) .and. &
+               obsTTPresentMpi(headerIndex) .and. &
+               obsUVPresentMpi(headerIndex) ) then
+            score = sqrt( (uuSumGrid(latIndex,lonIndex,levIndex) - &
+                           obsUUMpi(headerIndex))**2/(1.4**2) +   &
+                          (vvSumGrid(latIndex,lonIndex,levIndex) - &
+                           obsVVMpi(headerIndex))**2/(1.4**2) ) + &
+                    (ttSumGrid(latIndex,lonIndex,levIndex) - &
+                     obsTTMpi(headerIndex))**2/(0.9**2)
 
-            if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-              if ( score >= scr_min(latIndex,lonIndex,levIndex) ) then
+            if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
+              if ( score >= minScoreGrid(latIndex,lonIndex,levIndex) ) then
                 keepObsMpi(headerIndex) = .false.
               end if
             end if
           
             if ( keepObsMpi(headerIndex) ) then
-              if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-                keepObsMpi(handles(latIndex,lonIndex,levIndex)) = .false.
+              if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
+                keepObsMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
               end if
-              scr_min(latIndex,lonIndex,levIndex) = score
+              minScoreGrid(latIndex,lonIndex,levIndex) = score
               keepObsMpi(headerIndex) = .true.
-              handles(latIndex,lonIndex,levIndex) = headerIndex
+              handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
             end if
 
           else
             keepObsMpi(headerIndex) = .false.
           end if
 
-        else ! if(n_val(latIndex,lonIndex,levIndex) < 3)
+        else ! if(numObsGrid(latIndex,lonIndex,levIndex) < 3)
 
-          if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-            if ( o_disMpi(headerIndex) > dis_min(latIndex,lonIndex,levIndex) ) then
+          if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
+            if ( obsDistanceMpi(headerIndex) > minDistGrid(latIndex,lonIndex,levIndex) ) then
               keepObsMpi(headerIndex) = .false.
             end if
           end if
 
           if ( keepObsMpi(headerIndex) ) then
-            if ( handles(latIndex,lonIndex,levIndex) /= -1 ) then
-              keepObsMpi(handles(latIndex,lonIndex,levIndex)) = .false.
+            if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
+              keepObsMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
             end if
             keepObsMpi(headerIndex) = .true.
-            handles(latIndex,lonIndex,levIndex) = headerIndex
+            handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
           end if
 
         end if
@@ -788,14 +796,14 @@ contains
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     keepObs(:) = keepObsMpi(headerIndexBeg:headerIndexEnd)
 
-    deallocate(handles)
-    deallocate(scr_min)
-    deallocate(dis_min)
-    deallocate(dis_max)
-    deallocate(n_val)
-    deallocate(sum_u)
-    deallocate(sum_v)
-    deallocate(sum_t)
+    deallocate(handlesGrid)
+    deallocate(minScoreGrid)
+    deallocate(minDistGrid)
+    deallocate(maxDistGrid)
+    deallocate(numObsGrid)
+    deallocate(uuSumGrid)
+    deallocate(vvSumGrid)
+    deallocate(ttSumGrid)
 
     write (*,*)
     write (*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCountMpi(:))
@@ -821,7 +829,37 @@ contains
         end do BODY3
       end if
     end do
-    
+
+    ! Deallocation
+    deallocate(keepObs)
+    deallocate(isAircraft)
+    deallocate(keepObsMpi)
+    deallocate(gridLat)
+    deallocate(gridLon)
+    deallocate(rejectCount)
+    deallocate(obsLatIndexVec)
+    deallocate(obsLonIndexVec)
+    deallocate(obsLevIndexVec)
+    deallocate(obsTimeIndexVec)
+    deallocate(obsDistance)
+    deallocate(obsUU)
+    deallocate(obsVV)
+    deallocate(obsTT)
+    deallocate(obsUVPresent)
+    deallocate(obsTTPresent)
+    deallocate(rejectCountMpi)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexMpi)
+    deallocate(obsLevIndexMpi)
+    deallocate(obsTimeIndexMpi)
+    deallocate(obsDistanceMpi)
+    deallocate(obsUUMpi)
+    deallocate(obsVVMpi)
+    deallocate(obsTTMpi)
+    deallocate(obsUVPresentMpi)
+    deallocate(obsTTPresentMpi)
+    deallocate(gridPressure)
+
     write(*,*) 'thn_aircraftByBoxes: Finished'
 
   end subroutine thn_aircraftByBoxes
@@ -924,7 +962,7 @@ contains
     integer, optional, intent(in)   :: codtyp2_opt
 
     ! Locals:
-    integer :: nblat, nblon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
+    integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
     integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
     integer :: loscan, hiscan, obsFlag, nbstn2, nsize
@@ -984,19 +1022,19 @@ contains
 
     write(*,*) 'thn_tovsFilt: obsCount after thn_removeRarsDuplicates = ', count(valid(:))
 
-    nblat = 2*xlat/delta
-    nblon = xlon/delta
+    numLat = 2*xlat/delta
+    numLon = xlon/delta
 
     ! Allocations
-    allocate(zlatdeg(nblat))
-    allocate(zlatg(nblat*nblon))
-    allocate(zlong(nblat*nblon))
-    allocate(nbstn(nblat*nblon))
-    allocate(bufref(nblat*nblon))
+    allocate(zlatdeg(numLat))
+    allocate(zlatg(numLat*numLon))
+    allocate(zlong(numLat*numLon))
+    allocate(nbstn(numLat*numLon))
+    allocate(bufref(numLat*numLon))
     allocate(link(numHeader))
     allocate(headerIndexList(numHeader))
     allocate(headerIndexList2(numHeader))
-    allocate(ngrd(nblat))
+    allocate(ngrd(numLat))
     allocate(igrds(numHeader))
     allocate(indexs(numHeader))
     allocate(obsLonBurpFile(numHeader))
@@ -1025,8 +1063,8 @@ contains
 
     ! Set up the grid used for thinning
     ngrdtot = 0
-    do latIndex = 1, nblat
-      zlatdeg(latIndex) = (latIndex*180./nblat) - 90.
+    do latIndex = 1, numLat
+      zlatdeg(latIndex) = (latIndex*180./numLat) - 90.
       zlatrad           = zlatdeg(latIndex) * mpc_pi_r4 / 180.
       zlength           = xlon * cos(zlatrad)
       ngrd(latIndex)    = nint(zlength/delta)
@@ -1035,7 +1073,7 @@ contains
     end do
 
     gridIndex = 0
-    do latIndex = 1, nblat
+    do latIndex = 1, numLat
       zdlon = 360./ngrd(latIndex)
       do lonIndex = 1, ngrd(latIndex)
         zlatg(gridIndex+lonIndex) = zlatdeg(latIndex)
@@ -1070,9 +1108,9 @@ contains
       zlonchk = obsLonBurpFile(headerIndex) / 100.
       zlontmp = zlonchk
       if (zlonchk > 180.) zlonchk = zlonchk - 360.
-      do latIndex = 1,nblat-1
+      do latIndex = 1,numLat-1
         if (zlatchk <  zlatdeg(1))     zlatchk = zlatdeg(1)
-        if (zlatchk >= zlatdeg(nblat)) zlatchk = zlatdeg(nblat) - 0.5
+        if (zlatchk >= zlatdeg(numLat)) zlatchk = zlatdeg(numLat) - 0.5
         if (zlatchk >= zlatdeg(latIndex) .and. zlatchk < zlatdeg(latIndex+1)) then
           gridIndex = 1
           do latIndex2 = 1, latIndex-1
@@ -1154,9 +1192,9 @@ contains
 
       gridIndex = igrds(headerIndex)
       if (nbstn(gridIndex) /= 0) then
-        latIndex = (zlatg(gridIndex)+90.)/(180./nblat)
+        latIndex = (zlatg(gridIndex)+90.)/(180./numLat)
         zdlon = 360./ngrd(latIndex)
-        zlatmid = zlatg(gridIndex) + 0.5*(180./nblat)
+        zlatmid = zlatg(gridIndex) + 0.5*(180./numLat)
         zlonmid = zlong(gridIndex) + 0.5*zdlon
         zlatobs = (obsLatBurpFile(headerIndex) - 9000.) / 100.
         zlonobs = obsLonBurpFile(headerIndex) / 100.
@@ -1615,7 +1653,7 @@ contains
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
-    integer :: nblat, nblon, latIndex, numChannels, delMinutes
+    integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex
     integer :: ierr, nsize, procIndex, countHeader
     real(4) :: latr, length, distance
@@ -1641,14 +1679,14 @@ contains
     write(*,*) 'thn_thinByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
 
     ! Initial setup
-    nblat = nint( 2. * real(LAT_LENGTH) / real(deltax) )
-    nblon = nint(      real(LON_LENGTH) / real(deltax) )
-    allocate(headerIndexKeep(nblat,nblon,tim_nstepobs))
-    allocate(numChannelsKeep(nblat,nblon,tim_nstepobs))
-    allocate(distanceKeep(nblat,nblon,tim_nstepobs))
-    allocate(delMinutesKeep(nblat,nblon,tim_nstepobs))
-    allocate(latdeg(nblat))
-    allocate(ngrd(nblat))
+    numLat = nint( 2. * real(LAT_LENGTH) / real(deltax) )
+    numLon = nint(      real(LON_LENGTH) / real(deltax) )
+    allocate(headerIndexKeep(numLat,numLon,tim_nstepobs))
+    allocate(numChannelsKeep(numLat,numLon,tim_nstepobs))
+    allocate(distanceKeep(numLat,numLon,tim_nstepobs))
+    allocate(delMinutesKeep(numLat,numLon,tim_nstepobs))
+    allocate(latdeg(numLat))
+    allocate(ngrd(numLat))
     headerIndexKeep(:,:,:) = -1
     numChannelsKeep(:,:,:) = 0
     distanceKeep(:,:,:)    = 0.0
@@ -1656,18 +1694,18 @@ contains
     latdeg(:)              = 0.0
     ngrd(:)                = 0
 
-    allocate(allHeaderIndex(nblat,nblon,tim_nstepobs,mpi_nprocs))
-    allocate(allNumChannels(nblat,nblon,tim_nstepobs,mpi_nprocs))
-    allocate(allDistance(nblat,nblon,tim_nstepobs,mpi_nprocs))
-    allocate(allDelMinutes(nblat,nblon,tim_nstepobs,mpi_nprocs))
-    allocate(procIndexKeep(nblat,nblon,tim_nstepobs))
+    allocate(allHeaderIndex(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(allNumChannels(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(allDistance(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(allDelMinutes(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(procIndexKeep(numLat,numLon,tim_nstepobs))
     procIndexKeep(:,:,:) = -1
 
     ! set spatial boxes properties
     ! latdeg(:) : latitude (deg) of northern side of the box
     ! ngrd(:)   : number of longitudinal boxes at this latitude
-    do latIndex = 1, nblat
-      latdeg(latIndex) = (latIndex*180./nblat) - 90.
+    do latIndex = 1, numLat
+      latdeg(latIndex) = (latIndex*180./numLat) - 90.
       if ( latdeg(latIndex) <= 0.0 ) then
         latr = latdeg(latIndex) * MPC_PI_R8 / 180.
       else
@@ -1725,7 +1763,7 @@ contains
       end do BODY
 
       ! Determine the lat and lon bin indexes
-      do latIndex = 1, nblat
+      do latIndex = 1, numLat
         if ( obsLatInDegrees <= (latdeg(latIndex)+0.000001) ) then
           latBinIndex = latIndex
           exit
@@ -1741,7 +1779,7 @@ contains
       delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - stepObsIndex))
 
       ! Determine distance from box center
-      latBoxCenterInDegrees = latdeg(latBinIndex) - 0.5 * (180./nblat)
+      latBoxCenterInDegrees = latdeg(latBinIndex) - 0.5 * (180./numLat)
       lonBoxCenterInDegrees = (360. / ngrd(latBinIndex)) * (lonBinIndex - 0.5)
       obsLat = (obsLatBurpFile - 9000.) / 100.
       obsLon = obsLonBurpFile / 100.
@@ -1797,7 +1835,7 @@ contains
     end if
 
     ! communicate results to all other mpi tasks
-    nsize = nblat * nblon * tim_nstepobs
+    nsize = numLat * numLon * tim_nstepobs
     call rpn_comm_allgather(distanceKeep, nsize, 'mpi_real4',  &
                             allDistance,  nsize, 'mpi_real4', 'grid', ierr)
     call rpn_comm_allgather(delMinutesKeep, nsize, 'mpi_integer',  &
@@ -1814,8 +1852,8 @@ contains
     delMinutesKeep(:,:,:)  = deltmax
 
     do timeBinIndex = 1, tim_nstepobs
-      do lonBinIndex = 1, nblon
-        do latBinIndex = 1, nblat
+      do lonBinIndex = 1, numLon
+        do latBinIndex = 1, numLat
 
           ! Apply thinning criteria to results from all mpi tasks
           do procIndex = 1, mpi_nprocs
@@ -1870,8 +1908,8 @@ contains
     allocate(rejectThisHeader(obs_numheader(obsdat)))
     rejectThisHeader(:) = .true.
     do timeBinIndex = 1, tim_nstepobs
-      do lonBinIndex = 1, nblon
-        do latBinIndex = 1, nblat
+      do lonBinIndex = 1, numLon
+        do latBinIndex = 1, numLat
           if (procIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == mpi_myid+1) then
             headerIndex = headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex)
             rejectThisHeader(headerIndex) = .false.
