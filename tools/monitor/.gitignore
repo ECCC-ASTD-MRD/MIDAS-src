@@ -1,0 +1,5 @@
+*~
+*.o
+oavar.monitor.Abs
+run_after_rebm_done.sh
+VAR3D_STATUS.dot
