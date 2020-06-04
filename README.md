@@ -158,7 +158,7 @@ cd ssm
 
 You can specify `${SSM_PACKAGES}` to a directory where you want the packages to be copied. They will be used in the next step.
 
-### Publish packages in SSM domain
+### Publish packages in a SSM domain
 
 Then, SSM publish is done with:
 ```bash
