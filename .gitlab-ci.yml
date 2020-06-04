@@ -34,7 +34,6 @@ monitor_build:
     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
   only:
     - master
-    - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
     - tags
   tags:
     - hpcr-u1
@@ -46,7 +45,6 @@ monitor_tests:
      - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
    only:
      - master
-     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
    tags:
      - hpcr-u1
@@ -78,7 +76,6 @@ findTrials_tests:
      - ./midas.findTrials --unittest
    only:
      - master
-     - 363-add-oavar-monitor-and-envar-findtrials-into-midas-codebase
      - tags
    tags:
      - hpcr-u1
