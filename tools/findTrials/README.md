@@ -1,11 +1,11 @@
-## `envar.findTrials`
+## `midas.findTrials`
 
-This scripts finds the trials file in an assimilation window.
+This scripts finds the trial name extensions in an assimilation window.
 
 Here is the `help` page:
 ```
 ./envar.findTrials -h
-usage: envar.findTrials [-h] [--trialfrequency TRIALFREQUENCY]
+usage: midas.findTrials [-h] [--trialfrequency TRIALFREQUENCY]
                         [--trialoutputfrequency TRIALOUTPUTFREQUENCY]
                         [--assimilationwindowwidth WIDTH] [--date DATE]
                         [--unittest] [--verbose] [--version]

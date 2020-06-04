@@ -59,14 +59,14 @@ located in the same directory as the main programs.
 
 To compile the programs used in this code, use the commands
 ```bash
-ssh eccc-ppp2  ## or eccc-ppp1
+ssh eccc-ppp3  ## or eccc-ppp4
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
 ```
 and
 ```bash
-ssh brooks  ## or hare
+ssh banting    ## or daley
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
@@ -133,17 +133,22 @@ The [CI](CI.md) has been configured to produce a SSM domain under
 ```
 automatically when a tag is pushed.
 
-You can produce your own SSM domain using these commands:
-```bash
-cd ssm
-export DOMAIN_PATH=${PATH TO THE SSM DOMAIN THAT WILL BE PRODUCED}
-export MIDAS_REVISION=${name of a branch or a tag}
-./publish
-```
-Then, you can use this domain with:
-```bash
-. ssmuse-sh -d ${DOMAIN_PATH}
-```
+# Tools
+
+Several tools related to MIDAS are included in the codebase.  Those
+tools have a code separated from the main code in MIDAS.
+
+## `midas.monitor`
+
+This program monitors a file to react to its content.
+
+See [`monitor/README.md`](tools/monitor/README.md) for more details.
+
+## `midas.findTrials`
+
+This scripts finds the trial name extensions in an assimilation window.
+
+See [`findTrials/README.md`](tools/findTrials/README.md) for more details.
 
 # Automatic Testing using GitLab-CI
 
