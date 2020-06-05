@@ -150,7 +150,7 @@ program midas_var
 
     call var_setup('ALL') ! obsColumnMode   
     
-    ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
+    ! Apply optional bias corrections
     call bcc_applyAIBcor(obsSpaceData)    
     call bcc_applyGPBcor(obsSpaceData)
     
@@ -398,12 +398,6 @@ contains
     !- Initialize constants
     !
     if(mpi_myid.eq.0) call mpc_printConstants(6)
-
-    !
-    !- Initialize variables of the model states
-    !
-    call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- Initialize the Analysis grid

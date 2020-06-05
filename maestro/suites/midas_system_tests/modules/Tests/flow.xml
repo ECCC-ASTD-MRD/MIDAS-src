@@ -109,22 +109,6 @@
     </FAMILY>
     <SUBMITS sub_name="bgck"/>
     <FAMILY  name="bgck">
-      <SUBMITS sub_name="conv"/>
-      <FAMILY  name="conv">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-      <SUBMITS sub_name="conv_ro_bending"/>
-      <FAMILY  name="conv_ro_bending">   
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-      <SUBMITS sub_name="convWBcor"/>
-      <FAMILY  name="convWBcor">   
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-
       <SUBMITS sub_name="hyperir"/>
       <FAMILY  name="hyperir">
         <SUBMITS sub_name="UnitTest"/>
@@ -139,6 +123,29 @@
     </FAMILY>
     <SUBMITS sub_name="vbc"/>
     <FAMILY  name="vbc">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+
+  <FAMILY  name="obsSelection">
+    <SUBMITS sub_name="conv"/>
+    <FAMILY  name="conv">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="conv_ro_bending"/>
+    <FAMILY  name="conv_ro_bending">   
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="convWBcor"/>
+    <FAMILY  name="convWBcor">   
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="select_AL"/>
+    <FAMILY  name="select_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -175,14 +182,6 @@
   <FAMILY  name="thinning">
     <SUBMITS sub_name="thin_AL"/>
     <FAMILY  name="thin_AL">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
-  <FAMILY  name="obsSelection">
-    <SUBMITS sub_name="select_AL"/>
-    <FAMILY  name="select_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

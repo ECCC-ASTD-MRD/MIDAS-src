@@ -25,6 +25,7 @@ module thinning_mod
   !
   !           So far, only aladin wind data are treated.
   !
+  use mpi_mod
   use bufr_mod
   use obsSpaceData_mod
   use utilities_mod
@@ -56,13 +57,20 @@ contains
     keepNthVertical=-1
 
     ! Read the namelist for Aladin observations
-    nulnam = 0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    if(ierr.ne.0) call utl_abort('thn_thinAladin: Error opening file flnml')
-    read(nulnam,nml=thin_aladin,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('thn_thinAladin: Error reading namelist')
-    write(*,nml=thin_aladin)
-    ierr=fclos(nulnam)
+    if (utl_isNamelistPresent('thin_aladin','./flnml')) then
+      nulnam = 0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if(ierr.ne.0) call utl_abort('thn_thinAladin: Error opening file flnml')
+      read(nulnam,nml=thin_aladin,iostat=ierr)
+      if(ierr.ne.0) call utl_abort('thn_thinAladin: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_aladin)
+      ierr=fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thn_thinAladin: Namelist block thin_aircraft is missing in the namelist.'
+      write(*,*) '                    The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_aladin)
+    end if
 
     if(keepNthVertical > 0) then
       call keepNthObs(obsdat, 'AL', keepNthVertical)
