@@ -11,7 +11,7 @@ def get_command_line():
     """
     Parse the command line and perform all the checks.
     """
-    parser = argparse.ArgumentParser(description="plot timings extracted by 'getTimings.py'")
+    parser = argparse.ArgumentParser(description="midas.findTrials finds the trial name extensions in an assimilation window")
     parser.add_argument("--trialfrequency", "-t", dest="trialFrequency",
                             help="The frequency of trials in hours (may be fractional)",
                             action="store", type=float, default=None)
