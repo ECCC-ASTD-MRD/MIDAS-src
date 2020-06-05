@@ -179,6 +179,12 @@ Then you can use the SSM domain published with:
 Several tools related to MIDAS are included in the codebase.  Those
 tools have a code separated from the main code in MIDAS.
 
+## `midas_scripts`
+
+Those are the helped scripts which launch MIDAS program.
+
+Refer to the [`midas_scripts/README.md`](tools/midas_scripts/README.md) for more details.
+
 ## `midas.monitor`
 
 This program monitors a file to react to its content.
