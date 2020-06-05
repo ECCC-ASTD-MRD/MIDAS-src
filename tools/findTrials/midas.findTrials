@@ -5,8 +5,6 @@ import datetime
 import argparse
 import unittest
 
-VERSION = 'alpha'
-
 dateFormat = '%Y%m%d%H'
 
 def get_command_line():
@@ -31,19 +29,12 @@ def get_command_line():
                            action="store_true", default=False)
     parser.add_argument("--verbose", "-v", dest="Verbosity",
                          help="Explain what is being done", action="store_true", default=False)
-    parser.add_argument("--version", "-V", dest="version",
-                           help="Output version information and exit",
-                           action="store_true", default=False)
 
     options = parser.parse_args()
 
     if options.Verbosity:
         print('get_command_line: options',file=sys.stderr)
         print('\t' + options,file=sys.stderr)
-
-    if options.version:
-        print("midas.findTrials version: " + VERSION)
-        sys.exit(0)
 
     return options
 
