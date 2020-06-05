@@ -26,7 +26,7 @@ for file000 in ${fstdin}/*${suffix}; do
     fi
 done
 
-ramdiskpath=${OAVAR_RAMDISKPATH:-${TMPDIR}}
+ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
 fileList=$(echo ${fstdin}/*${suffix})
 

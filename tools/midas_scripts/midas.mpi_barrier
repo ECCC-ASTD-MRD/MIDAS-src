@@ -2,9 +2,9 @@
 
 set -e
 
-OAVAR_MPI_BARRIER_VERBOSE=${OAVAR_MPI_BARRIER_VERBOSE:-no}
+MIDAS_MPI_BARRIER_VERBOSE=${OAVAR_MPI_BARRIER_VERBOSE:-no}
 
-if [ "${OAVAR_MPI_BARRIER_VERBOSE}" = yes ]; then
+if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
     set -x
 fi
 
@@ -49,7 +49,7 @@ if [ "${child}" = "${master}" ]; then
             break
         else
             ${sleep_cmd} ${sleep}
-            if [ "${OAVAR_MPI_BARRIER_VERBOSE}" = yes ]; then
+            if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
                 ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
             fi
         fi
@@ -58,7 +58,7 @@ if [ "${child}" = "${master}" ]; then
 else
     while [ ! -f ${workdir}/mpibarrier.${id}.all_done ]; do
         ${sleep_cmd} ${sleep}
-        if [ "${OAVAR_MPI_BARRIER_VERBOSE}" = yes ]; then
+        if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
             ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
         fi
     done

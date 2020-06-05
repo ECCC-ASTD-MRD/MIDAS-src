@@ -5,21 +5,21 @@ et à manipuler les fichiers d'input ou bien d'output.
 ## Variables d'environnement
 
 Les variables d'environnement suivantes sont possibles:
- * `OAVAR_RAMDISKPATH`: Cette variable définit le path vers le RAMDisk
+ * `MIDAS_RAMDISKPATH`: Cette variable définit le path vers le RAMDisk
    Par defaut, elle est égale à `${TMPDIR}`.
- * `OAVAR_SAVE_SPLITOBS`: Si cette variable est égale à `yes`, on
+ * `MIDAS_SAVE_SPLITOBS`: Si cette variable est égale à `yes`, on
    copie les observations qui ont été splittés mais conservés en
    RAMDisk dans le répertoire de travail de `midas.Abs`.  Par défaut,
    cette variable est vide.  Cela est utile pour débogguer le
    splitting des observations et pour examiner ce que les programmes
    MIDAS lisent comme fichier d'observations.
- * `OAVAR_OBS_MPI_ORDERING`: Si cette variable est égale à `inverse`,
+ * `MIDAS_OBS_MPI_ORDERING`: Si cette variable est égale à `inverse`,
    alors on utilisera la répartition MPI des observations telle que
    cela était utilisée dans les versions `v_3.3.*` et antérieures de
    MIDAS.  Si elle est égale à `regular`, alors on utilisera la
    répartition définie dans les versions de MIDAS postérieures à
    `v_3.3`.
- * `OAVAR_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
+ * `MIDAS_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
    alors un `set -x` sera effectué dans le script `midas.mpi_barrier`.
  * `INTERPENSTRIALS_THREADS_PER_MEMBER' : Cette variable définit le
    nombre de threads utilisés pour traiter en parallèle chacun des

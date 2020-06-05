@@ -203,7 +203,7 @@ else
 fi
 
 ${cp_cmd} ${fam} ${obsout}
-cd ${OAVAR_WORKDIR}
+cd ${MIDAS_WORKDIR}
 if [ "${fasttmp}" = yes ]; then
     ${rm_cmd} -rf ${FASTTMP}
 fi

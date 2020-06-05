@@ -320,7 +320,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
     fi
 done
 
-ramdiskpath=${OAVAR_RAMDISKPATH:-${TMPDIR}}
+ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
 # Acquire supplementary input files if provided
 if [ -n "${aux_input}" ]; then
@@ -405,7 +405,7 @@ if [ -n "${observations}" ]; then
                 mkdir diafiles_${fam}.updated
             fi
         fi
-        if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
+        if [ "${MIDAS_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
         fi
     done
@@ -457,7 +457,7 @@ ${oavar_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_p
     -tmpdir ${PWD}/oavar_mpi_tmpdir                                      \
     -args                                                                \
                             ${observations_files}                        \
-        =-oavar_abs         ${OAVAR_LAUNCH_ABS_COMMAND:-./midas.Abs}     \
+        =-oavar_abs         ${MIDAS_LAUNCH_ABS_COMMAND:-./midas.Abs}     \
                             ${barrier}                                   \
         =-oavar_splitobs    ${oavar_splitobs}                            \
         =-splitobs_mode     ${splitobs_mode}                             \

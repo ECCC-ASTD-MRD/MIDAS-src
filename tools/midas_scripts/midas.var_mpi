@@ -102,16 +102,16 @@ ${echo_cmd} ending preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} preparation took ${SECONDS}
 
 if [ -n "${observations}" ]; then
-    ## set variable 'OAVAR_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
-    OAVAR_OBS_MPI_ORDERING=${OAVAR_OBS_MPI_ORDERING:-regular}
-    if [ "${OAVAR_OBS_MPI_ORDERING}" = inverse ]; then
+    ## set variable 'MIDAS_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
+    MIDAS_OBS_MPI_ORDERING=${OAVAR_OBS_MPI_ORDERING:-regular}
+    if [ "${MIDAS_OBS_MPI_ORDERING}" = inverse ]; then
         obsfile_y=$(print_number $((npey-MP_CHILD/npex)) ${splitobs_ndigits})
         obsfile_x=$(print_number $((MP_CHILD+1-npex*(MP_CHILD/npex))) ${splitobs_ndigits})
-    elif [ "${OAVAR_OBS_MPI_ORDERING}" = regular ]; then
+    elif [ "${MIDAS_OBS_MPI_ORDERING}" = regular ]; then
         obsfile_y=$(print_number $((MP_CHILD/npex+1)) ${splitobs_ndigits})
         obsfile_x=$(print_number $((MP_CHILD%npex+1)) ${splitobs_ndigits})
     else
-        ${echo_cmd} "The variable 'OAVAR_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${OAVAR_OBS_MPI_ORDERING}'"
+        ${echo_cmd} "The variable 'MIDAS_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${OAVAR_OBS_MPI_ORDERING}'"
         exit 1
     fi
 
@@ -220,7 +220,7 @@ if [ -n "${observations}" ]; then
         done
         ${rm_cmd} ${OBS_DIRECTORY}/obs??????????_*_${obsfile_x}_${obsfile_y} || ${true_cmd}
 
-        if [ "${OAVAR_SAVE_SPLITOBS}" = yes ]; then
+        if [ "${MIDAS_SAVE_SPLITOBS}" = yes ]; then
             for file in ${OBS_DIRECTORY}/obs*_${obsfile_x}_${obsfile_y}; do
                 if [ -f "${file}" ]; then
                     #########################################################
