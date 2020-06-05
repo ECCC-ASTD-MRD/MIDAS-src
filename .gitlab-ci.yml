@@ -16,7 +16,7 @@ stages:
 #    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
 #    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
 
-.build:: &build_template
+midas_build:
   stage: build
   script:
     - cd src/programs
@@ -24,8 +24,32 @@ stages:
   only:
     - master
     - tags
+  tags:
+    - hpcr-u1
 
-.runtests: &runtests_template
+monitor_build:
+  stage: build
+  script:
+    - cd tools/monitor
+    - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+  only:
+    - master
+    - tags
+  tags:
+    - hpcr-u1
+
+monitor_tests:
+   stage: test
+   script:
+     - cd tools/monitor
+     - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+   only:
+     - master
+     - tags
+   tags:
+     - hpcr-u1
+
+midas_tests:
    stage: test
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
@@ -42,8 +66,21 @@ stages:
    only:
      - master
      - tags
+   tags:
+     - hpcr-u1
 
-.doc_sphinx: &doc_sphinx_template
+findTrials_tests:
+   stage: test
+   script:
+     - cd tools/findTrials
+     - ./midas.findTrials --unittest
+   only:
+     - master
+     - tags
+   tags:
+     - hpcr-u1
+
+doc_sphinx:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
@@ -56,8 +93,10 @@ stages:
   only:
     - master
     - tags
+  tags:
+    - hpcr-u1
 
-.ssm: &ssm_template
+ssm:
   stage: deploy
   script:
     - ./set_resources_def.sh
@@ -72,23 +111,5 @@ stages:
     - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
     - tags
-
-build:hpcr-u1:
-  <<: *build_template
-  tags:
-    - hpcr-u1
-
-runtests:hpcr-u1:
-  <<: *runtests_template
-  tags:
-    - hpcr-u1
-
-doc_sphinx:hpcr-u1:
-  <<: *doc_sphinx_template
-  tags:
-    - hpcr-u1
-
-ssm:hpcr-u1:
-  <<: *ssm_template
   tags:
     - hpcr-u1

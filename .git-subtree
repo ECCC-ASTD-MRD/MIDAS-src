@@ -1,0 +1,2 @@
+tools/monitor git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git master
+tools/findTrials git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git master

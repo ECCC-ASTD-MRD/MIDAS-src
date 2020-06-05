@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+
+import sys
+import datetime
+import argparse
+import unittest
+
+dateFormat = '%Y%m%d%H'
+
+def get_command_line():
+    """
+    Parse the command line and perform all the checks.
+    """
+    parser = argparse.ArgumentParser(description="midas.findTrials finds the trial name extensions in an assimilation window")
+    parser.add_argument("--hoursbetweenanalysis", "-t", dest="hoursbetweenanalysis",
+                            help="Time in hours between analyses (may be fractional)",
+                            action="store", type=float, default=None)
+    parser.add_argument("--minutesbetweentrialoutputs", "-o", dest="minutesbetweentrialoutputs",
+                            help="Minutes between each trial output in minutes (must be an integer, default is 15 minutes)",
+                            action="store", type=int, default=15)
+    parser.add_argument("--assimilationwindowwidth", "-w", dest="width",
+                           help="Width of the assimilation window in hours (may be fractional)",
+                           action="store", type=float, default=None)
+    parser.add_argument("--date", "-d", dest="date",
+                           help="Date of the analysis in format 'YYYYMMDDHH'",
+                           action="store", type=str, default=-1)
+    parser.add_argument("--unittest", "-u", dest="unittest",
+                           help="Ignore any other arguments and run the UnitTests",
+                           action="store_true", default=False)
+    parser.add_argument("--verbose", "-v", dest="Verbosity",
+                         help="Explain what is being done", action="store_true", default=False)
+
+    options = parser.parse_args()
+
+    if options.Verbosity:
+        print('get_command_line: options',file=sys.stderr)
+        print('\t' + options,file=sys.stderr)
+
+    return options
+
+
+class Test_findTrials(unittest.TestCase):
+    def test_6hrs(self):
+        trials = findTrials(6,360,6,'2018050212')
+        trials_ref = ['2018050206_360m']
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
+    def test_6hrs_15m(self):
+        trials = findTrials(6,15,6,'2018050212')
+        trials_ref = ['2018050206_%dm' % ext for ext in range(180,541,15)]
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
+    def test_1hr(self):
+        trials = findTrials(6,15,1,'2018050210')
+        trials_ref = ['2018050206_210m','2018050206_225m','2018050206_240m','2018050206_255m','2018050206_270m']
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
+    def test_1hr_1bin(self):
+        trials = findTrials(6,60,1,'2018050210')
+        trials_ref = ['2018050206_240m']
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
+    def test_error(self):
+        with self.assertRaises(Exception):
+            trials = findTrials(5,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(25,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(50,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3.5,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3,60.5,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3,60,1,datetime.datetime(2018,5,2,10))
+
+
+def findTrials(hoursbetweenanalysis,minutesbetweentrialoutputs,width,date):
+    if not isinstance(hoursbetweenanalysis,int) and not isinstance(hoursbetweenanalysis,float):
+        raise Exception("findTrials: --hoursbetweenanalysis (-t) must be an integer or a float")
+    if not isinstance(minutesbetweentrialoutputs,int):
+        raise Exception("findTrials: --minutesbetweentrialoutputs (-o) must be an integer")
+    if not isinstance(width,int) and not isinstance(width,float):
+        raise Exception("findTrials: width must be an integer or a float")
+    if not isinstance(date,str):
+        raise Exception("findTrials: date must be an str object")
+
+    if 24%hoursbetweenanalysis != 0:
+        raise Exception("findTrials: We expect the trial frequency (--trialfrequency or -t) to be a factor of 24 hours.")
+
+    centralDate = datetime.datetime.strptime(date,dateFormat)
+
+    halfAssimilationWindowSpan = datetime.timedelta(minutes=width*60/2)
+
+    beginAssimilationWindow = centralDate - halfAssimilationWindowSpan
+    endAssimilationWindow   = centralDate + halfAssimilationWindowSpan
+
+    numberBins = width*60/minutesbetweentrialoutputs
+
+    dateTrial = trialDate(hoursbetweenanalysis,centralDate)
+
+    dateloop=dateTrial
+    exts = []
+    trialLeadTime = 0 ## in minutes
+    while dateloop <= endAssimilationWindow:
+        if dateloop >= beginAssimilationWindow:
+            exts.append(trialLeadTime)
+
+        dateloop += datetime.timedelta(minutes=minutesbetweentrialoutputs)
+        trialLeadTime += minutesbetweentrialoutputs
+
+    dateTrialStr = dateTrial.strftime(dateFormat)
+    extsStr = ["_%3dm" % ext for ext in exts]
+    trials = [dateTrialStr + ext for ext in extsStr]
+
+    return trials
+
+class Test_trialDate(unittest.TestCase):
+    def test1(self):
+        date = trialDate(6,datetime.datetime(2018,5,2,12))
+        date_ref = datetime.datetime(2018,5,2,6)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+    def test2(self):
+        date = trialDate(6,datetime.datetime(2018,5,2,10))
+        date_ref = datetime.datetime(2018,5,2,6)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+    def test3(self):
+        date = trialDate(3,datetime.datetime(2018,5,2,10))
+        date_ref = datetime.datetime(2018,5,2,9)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+    def test4(self):
+        date = trialDate(3,datetime.datetime(2018,5,2,12))
+        date_ref = datetime.datetime(2018,5,2,9)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+def trialDate(hoursbetweenanalysis,date):
+    incHour = date.hour%hoursbetweenanalysis
+    if incHour == 0:
+        incHour = hoursbetweenanalysis
+
+    return date-datetime.timedelta(hours=incHour)
+
+if __name__ == "__main__":
+    tOptions = get_command_line()
+
+    if tOptions.unittest:
+        ## On doit effacer les arguments puisqu'ils sont traites par le module 'unittest'
+        del sys.argv[1:]
+        ## On ajoute l'option '--verbose' pour le module 'unittest'
+        sys.argv.append('--verbose')
+        unittest.main()        
+    else:
+        trial_list = findTrials(hoursbetweenanalysis = tOptions.hoursbetweenanalysis, \
+                                minutesbetweentrialoutputs = tOptions.minutesbetweentrialoutputs, \
+                                width = tOptions.width, date = tOptions.date)
+        for trial in trial_list:
+            print(trial)

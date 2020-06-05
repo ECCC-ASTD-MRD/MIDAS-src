@@ -11,8 +11,8 @@ from bh.actions import package as actions
 def _init(b):
     global compiler
 
-    environ["BH_PROJECT_NAME"]    = "midas"
-    environ["CONTROL_DIR"]    = "%(BH_PACKAGE_CONTROL_DIR)s/%(BH_PACKAGE_NAMES)s/.ssm.d" % environ
+    environ["BH_PROJECT_NAME"] = "midas"
+    environ["CONTROL_DIR"]     = "%(BH_PACKAGE_CONTROL_DIR)s/%(BH_PACKAGE_NAMES)s/.ssm.d" % environ
 
 def _pull(b):
     ## no need to pull MIDAS code since this script is contained directly in the MIDAS git depot
@@ -24,8 +24,12 @@ def _clean(b):
 def _make(b):
     global compiler
 
-    if b.platform != "all":
-        b.shell("""
+    if b.platform == "all":
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cp tools/findTrials/midas.findTrials ...; cd tools/monitor; make"
+    else:
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh"
+
+    b.shell("""
            (set -ex
             mkdir -p ${CONTROL_DIR}
             CONTROL_FILE=${CONTROL_DIR}/control.template
@@ -44,19 +48,40 @@ def _make(b):
     \"platform\": \"x\",
     \"maintainer\": \"RPN-AD\",
     \"summary\": \"Modular and Integrated Data Assimilation System (MIDAS)\",
-    \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
+    \"build_info\": \"%s\"
 }
 EOF
-           )""")
+           )""" % build_info)
 
 
 def _install(b):
-    if b.platform != "all":
+    if b.platform == "all":
         b.shell("""
         (set -ex
 
          INSTALL_DIR=${BH_INSTALL_DIR}/bin
          mkdir -p ${INSTALL_DIR}
+
+         ## install scripts to be published for 'all' platform
+         cp ${BH_MIDAS_TOP_LEVEL_DIR}/tools/findTrials/midas.findTrials ${INSTALL_DIR}/midas.findTrials_${MIDAS_VERSION}
+         ln -s midas.findTrials_${MIDAS_VERSION} ${INSTALL_DIR}/midas.findTrials
+
+         ## The program 'midas.monitor' does not need to be compiled on a specific platform
+         progname=monitor
+         absname=${BH_MIDAS_ABS}/midas.${progname}_${MIDAS_VERSION}.Abs
+         cp ${absname} ${INSTALL_DIR}
+         babsname=$(basename ${absname})
+         program=$(echo ${babsname} | cut -d_ -f1)
+         ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
+        )""")
+    else:
+        b.shell("""
+        (set -ex
+
+         INSTALL_DIR=${BH_INSTALL_DIR}/bin
+         mkdir -p ${INSTALL_DIR}
+
+         ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
          for prog in ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/*.f90; do
              progname=$(basename ${prog} .f90)
              absname=${BH_MIDAS_ABS}/midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
@@ -78,6 +103,7 @@ if __name__ == "__main__":
  
     b.supported_platforms = [
         "ubuntu-18.04-skylake-64",
-        "sles-15-skylake-64-xc50"
+        "sles-15-skylake-64-xc50",
+        "all"
     ]
     dr.run(b)

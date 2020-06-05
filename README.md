@@ -59,14 +59,14 @@ located in the same directory as the main programs.
 
 To compile the programs used in this code, use the commands
 ```bash
-ssh eccc-ppp2  ## or eccc-ppp1
+ssh eccc-ppp3  ## or eccc-ppp4
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
 ```
 and
 ```bash
-ssh brooks  ## or hare
+ssh banting    ## or daley
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
@@ -128,22 +128,65 @@ maintainer.
 # SSM
 
 The [CI](CI.md) has been configured to produce a SSM domain under
-```
+```bash
 /fs/ssm/eccc/mrd/rpn/anl/midas
 ```
 automatically when a tag is pushed.
 
-You can produce your own SSM domain using these commands:
+## Create your SSM domain
+
+First, to build the SSM packages, one must compile all the programs using:
+```bash
+cd src/programs
+./compile_all_plat.sh
+```
+
+Then, SSM publication is done in two steps:
+ * SSM packaging
+ * publish packages in SSM domain
+
+### SSM packaging
+
+Then, SSM packaging is done with:
+```bash
+VERSION=$(../midas.version.sh | cut -c3-)
+## to set variables 'MACHINE_PPP' and 'MACHINE_SUPER'
+. maestro/suites/midas_system_tests/set_machine_list.dot
+cd ssm
+./package --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+```
+
+You can specify `${SSM_PACKAGES}` to a directory where you want the packages to be copied. They will be used in the next step.
+
+### Publish packages in a SSM domain
+
+Then, SSM publish is done with:
 ```bash
 cd ssm
-export DOMAIN_PATH=${PATH TO THE SSM DOMAIN THAT WILL BE PRODUCED}
-export MIDAS_REVISION=${name of a branch or a tag}
-./publish
+./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${TMPDIR} --domainpath ~/data_maestro/ords/SSM/midas/${VERSION}
 ```
-Then, you can use this domain with:
+Then you can use the SSM domain published with:
 ```bash
-. ssmuse-sh -d ${DOMAIN_PATH}
+. ssmuse-sh -d ~/data_maestro/ords/SSM/midas/${VERSION}
 ```
+
+
+# Tools
+
+Several tools related to MIDAS are included in the codebase.  Those
+tools have a code separated from the main code in MIDAS.
+
+## `midas.monitor`
+
+This program monitors a file to react to its content.
+
+See [`monitor/README.md`](tools/monitor/README.md) for more details.
+
+## `midas.findTrials`
+
+This scripts finds the trial name extensions in an assimilation window.
+
+See [`findTrials/README.md`](tools/findTrials/README.md) for more details.
 
 # Automatic Testing using GitLab-CI
 
