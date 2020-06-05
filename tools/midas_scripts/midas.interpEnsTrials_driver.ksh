@@ -4,8 +4,8 @@ set -ex
 
 INTERPENSTRIALS_SSM_DOMAIN=${INTERPENSTRIALS_SSM_DOMAIN:-arma/envar/run/2.0.0}
 
-INTERPENSTRIALS_MPIRUN=${INTERPENSTRIALS_MPIRUN:-oavar.mpirun}
-INTERPENSTRIALS_INTERP_SCRIPT=${INTERPENSTRIALS_INTERP_SCRIPT:-$(which oavar.interpEnsTrials.ksh)}
+INTERPENSTRIALS_MPIRUN=${INTERPENSTRIALS_MPIRUN:-midas.mpirun}
+INTERPENSTRIALS_INTERP_SCRIPT=${INTERPENSTRIALS_INTERP_SCRIPT:-$(which midas.interpEnsTrials.ksh)}
 INTERPENSTRIALS_RAMDISKPATH=${INTERPENSTRIALS_RAMDISKPATH-${TMPDIR}}
 
 ## Cette variable permet de decider si on fait l'interpolation verticale des membres.
@@ -42,7 +42,7 @@ if [ $# -eq 9 ]; then
     fi
 fi
 
-which oavar.interpEnsTrials.ksh || . ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
+which midas.interpEnsTrials.ksh || . ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
 . ssmuse-sh -d ${INTERPENSTRIALS_VGRID_PACKAGE} ## get d.add_toctoc
 . ssmuse-sh -d ${INTERPENSTRIALS_CMDN_PACKAGE}  ## get d.pxs2pxt
 

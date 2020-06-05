@@ -12,16 +12,16 @@ eval `cclargs_lite -D "" $0 \
   -npey              "1"   "1"  "[number of MPI tiles in the y direction (default to 1]" \
   -omp_stacksize     "2G"  "2G" "[set the variable OMP_STACKSIZE to that number]" \
   -mpi_ssm           ""    ""   "[SSM domains to load the MPI environment]" \
-  -oavar_mpirun      "oavar.mpirun" "oavar.mpirun" "[script 'oavar.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
+  -oavar_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
   -run_in_parallel   "r.run_in_parallel"   "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
   ++ $arguments`
 
 for file000 in ${fstdin}/*${suffix}; do
     if [ -f "${file000}" ]; then
-	echo "oavar.combineFstd: There is at least one file found"
+	echo "midas.combineFstd: There is at least one file found"
 	break
     else
-	echo "oavar.combineFstd: No files found to combine"
+	echo "midas.combineFstd: No files found to combine"
 	exit 1
     fi
 done
@@ -50,14 +50,14 @@ fileList=(${fileList})
 file000=\${fileList[\${MP_CHILD}]}
 
 if [ ! -f "\${file000}" ]; then
-    ${echo_cmd} "oavar.combineFstd: This thread will not process any file (MP_CHILD=\${MP_CHILD})"
+    ${echo_cmd} "midas.combineFstd: This thread will not process any file (MP_CHILD=\${MP_CHILD})"
     exit 0
 fi
 
 ${echo_cmd} SECONDS=\${SECONDS}
 
 file_nosuffix=\$(${basename_cmd} \${file000} ${suffix})
-${echo_cmd} "oavar.combineFstd: Building the file: \${file_nosuffix}"
+${echo_cmd} "midas.combineFstd: Building the file: \${file_nosuffix}"
 
 if [ "${fasttmp}" = yes ]; then
     FASTTMPDIR=${ramdiskpath}/\${MP_CHILD}
@@ -91,4 +91,4 @@ EOF
 
 chmod +x mpi_script.sh
 
-${oavar_mpirun} "Launching oavar.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./mpi_script.sh -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi
+${oavar_mpirun} "Launching midas.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./mpi_script.sh -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi

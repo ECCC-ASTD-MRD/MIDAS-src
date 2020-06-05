@@ -4,7 +4,7 @@ set -ex
 
 arguments=$*
 eval `cclargs_lite -D "" $0 \
-  -oavar_reunir_obs_mpi "oavar.reunir_obs_mpi" "oavar.reunir_obs_mpi" "[path to script 'oavar.reunir_obs_mpi]" \
+  -oavar_reunir_obs_mpi "midas.reunir_obs_mpi" "midas.reunir_obs_mpi" "[path to script 'midas.reunir_obs_mpi]" \
   -obsin         "" "" "[input observation directory (where '*files_*.updated' directories are)]"  \
   -obsout        "" "" "[output observation directory]" \
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
@@ -13,7 +13,7 @@ eval `cclargs_lite -D "" $0 \
   -reflex      "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
   -rfiletype   "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
   -run_in_parallel  "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
-  -oavar_mpirun      "oavar.mpirun" "oavar.mpirun" "[script 'oavar.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
+  -oavar_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
   -npex              "1"   "1"   "[number of MPI tiles in the x direction (default to 1]" \
   -npey              "1"   "1"   "[number of MPI tiles in the y direction (default to 1]" \
   -omp_stacksize     "2G"  "2G"  "[set the variable OMP_STACKSIZE to that number]" \

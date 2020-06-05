@@ -7,9 +7,9 @@ CCLARGS=${CCLARGS:-cclargs_lite}
 arguments=$*
 eval `${CCLARGS}  -D "" $0 \
   -observations      ""   ""     "[List of observations files]" \
-  -oavar_abs         "oavar.Abs" "oavar.Abs"   "[path to 'oavar.Abs' program]" \
-  -oavar_mpi_barrier "" "oavar.mpi_barrier" "[path to 'oavar.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'oavar.mpi_barrier' in the PATH]" \
-  -oavar_splitobs    "oavar.splitobs" "oavar.splitobs"   "[path to 'oavar.splitobs' script]" \
+  -oavar_abs         "midas.Abs" "midas.Abs"   "[path to 'midas.Abs' program]" \
+  -oavar_mpi_barrier "" "midas.mpi_barrier" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
+  -oavar_splitobs    "midas.splitobs" "midas.splitobs"   "[path to 'midas.splitobs' script]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
   -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
   -splitobs_ndigits  "4"  "4" "[number of digits for file names of observations]" \
@@ -317,6 +317,6 @@ if [ "${fasttmp}" = yes ]; then
     ${rm_cmd} -rf ${FASTTMPDIR}
 fi
 
-${echo_cmd} ending oavar.var_mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} ending midas.var_mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ELAPSED_TIME=${SECONDS}
 ${echo_cmd} finalization took ${SECONDS}

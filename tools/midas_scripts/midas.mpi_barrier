@@ -24,7 +24,7 @@ eval `${CCLARGS}  -D "" $0 \
   -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
   ++ $arguments`
 
-${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) oavar.mpi_barrier starting for child=${child}
+${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier starting for child=${child}
 ${echo_cmd} ${workdir} ${id} ${child} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) > ${workdir}/mpibarrier.${id}.${child}
 
 SECONDS=0
@@ -50,7 +50,7 @@ if [ "${child}" = "${master}" ]; then
         else
             ${sleep_cmd} ${sleep}
             if [ "${OAVAR_MPI_BARRIER_VERBOSE}" = yes ]; then
-                ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) oavar.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
+                ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
             fi
         fi
         let iteration=iteration+1
@@ -59,9 +59,9 @@ else
     while [ ! -f ${workdir}/mpibarrier.${id}.all_done ]; do
         ${sleep_cmd} ${sleep}
         if [ "${OAVAR_MPI_BARRIER_VERBOSE}" = yes ]; then
-            ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) oavar.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
+            ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
         fi
     done
 fi
 
-${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) oavar.mpi_barrier done after ${SECONDS} seconds for child=${child}
+${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier done after ${SECONDS} seconds for child=${child}

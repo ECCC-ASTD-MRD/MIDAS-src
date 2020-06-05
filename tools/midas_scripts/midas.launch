@@ -32,13 +32,13 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -tail_script       "" "" "[A tail script to source after the main work is done to collect outputs files (default: collect known output files)]" \
   -abs               "" "" "[MIDAS binary to be run in the script (mandatory except if '-oavar' is specified)]" \
   -oavar             "" "" "[MIDAS binary to be run in the script (mandatory except if '-abs' is specified)]" \
-  -oavar_mpirun      "oavar.mpirun" "oavar.mpirun" "[script 'oavar.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
-  -oavar_check_ensemble "oavar.check_ensemble" "oavar.check_ensemble" "[script 'oavar.check_ensemble' (default: the one in the PATH)]" \
-  -oavar_var_mpi     "oavar.var_mpi" "oavar.var_mpi" "[script 'oavar.var_mpi' to used to launch 'oavar.Abs' in MPI (default: the one in the PATH)]" \
-  -oavar_mpi_barrier "" "$(which oavar.mpi_barrier)" "[path to 'oavar.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'oavar.mpi_barrier' in the PATH]" \
-  -oavar_splitobs    "$(which oavar.splitobs)" "$(which oavar.splitobs)" "[script 'oavar.splitobs' to used to split observations (default: the one in the PATH)]" \
-  -oavar_reunir_obs  "oavar.reunir_obs" "oavar.reunir_obs" "[path to script 'oavar.reunir_obs]" \
-  -oavar_reunir_obs_mpi "$(which oavar.reunir_obs_mpi)" "$(which oavar.reunir_obs_mpi)" "[path to script 'oavar.reunir_obs_mpi]" \
+  -oavar_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
+  -oavar_check_ensemble "midas.check_ensemble" "midas.check_ensemble" "[script 'midas.check_ensemble' (default: the one in the PATH)]" \
+  -oavar_var_mpi     "midas.var_mpi" "midas.var_mpi" "[script 'midas.var_mpi' to used to launch 'midas.Abs' in MPI (default: the one in the PATH)]" \
+  -oavar_mpi_barrier "" "$(which midas.mpi_barrier)" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
+  -oavar_splitobs    "$(which midas.splitobs)" "$(which midas.splitobs)" "[script 'midas.splitobs' to used to split observations (default: the one in the PATH)]" \
+  -oavar_reunir_obs  "midas.reunir_obs" "midas.reunir_obs" "[path to script 'midas.reunir_obs]" \
+  -oavar_reunir_obs_mpi "$(which midas.reunir_obs_mpi)" "$(which midas.reunir_obs_mpi)" "[path to script 'midas.reunir_obs_mpi]" \
   -npex              "1"   "1"   "[number of MPI tiles in the x direction (default to 1]" \
   -npey              "1"   "1"   "[number of MPI tiles in the y direction (default to 1]" \
   -omp_stacksize     "2G"  "2G"  "[set the variable OMP_STACKSIZE to that number]" \
@@ -74,11 +74,11 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
 ## EnVar will abort if required but not present.
 
 if [ -z "${oavar}" -a -z "${abs}" ]; then
-    echo "oavar.launch: the argument '-abs' must be defined"
+    echo "midas.launch: the argument '-abs' must be defined"
     exit 1
 elif [ -n "${oavar}" -a -n "${abs}" ]; then
-    echo "oavar.launch: only one of '-abs' or '-oavar' can be specified.  You specified both"
-    echo "                  oavar.launch -abs ${abs} -oavar ${oavar}"
+    echo "midas.launch: only one of '-abs' or '-oavar' can be specified.  You specified both"
+    echo "                  midas.launch -abs ${abs} -oavar ${oavar}"
     exit 1
 elif [ -n "${oavar}" ]; then
     ## This means 'abs' is empty so we can use this variable in the rest of the script
@@ -88,7 +88,7 @@ fi
 for __oavar_launch_arg__ in date namelist; do
     eval __oavar_launch_tmp_var__="\${${__oavar_launch_arg__}}"
     if [ -z "${__oavar_launch_tmp_var__}" ]; then
-        echo "oavar.launch: the argument '-${__oavar_launch_arg__}' must be defined"
+        echo "midas.launch: the argument '-${__oavar_launch_arg__}' must be defined"
         exit 1
     fi
     unset __oavar_launch_tmp_var__
@@ -98,7 +98,7 @@ unset __oavar_launch_arg__
 for __oavar_launch_arg__ in bgcov obscov coefsat statsat; do
     eval __oavar_launch_tmp_var__="\${${__oavar_launch_arg__}}"
     if [ -z "${__oavar_launch_tmp_var__}" ]; then
-       echo "Warning. oavar.launch: the argument '-${__oavar_launch_arg__}' has not been defined"
+       echo "Warning. midas.launch: the argument '-${__oavar_launch_arg__}' has not been defined"
     fi
     unset __oavar_launch_tmp_var__
 done
@@ -140,7 +140,7 @@ function copyOrLink {
 
     set +x
     if [ $# -lt 2 ]; then
-        echo "oavar.launch:copyOrLink: Cannot accept less than 2 arguments.  Here: 'copyOrLink ${*}'" >&2
+        echo "midas.launch:copyOrLink: Cannot accept less than 2 arguments.  Here: 'copyOrLink ${*}'" >&2
         exit 1
     fi
 
@@ -176,7 +176,7 @@ function copyOrLink {
         ln -s ${__copyOrLink_source__}  ${__copyOrLink_destination__}
         set +x
     else
-        echo "oavar.launch:copyOrLink: The local file '${__copyOrLink_firstArg__}' is not available." >&2
+        echo "midas.launch:copyOrLink: The local file '${__copyOrLink_firstArg__}' is not available." >&2
         exit 1
     fi
 
@@ -299,7 +299,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
         elif [ "${enskey}" = ensemble -o  "${enskey}" = ensemble_trial ]; then
             ensname=trials
             if [ -z "${date_trial}" ]; then
-                echo "You must provide '-date_trial' to 'oavar.launch to get the ensemble file name"
+                echo "You must provide '-date_trial' to 'midas.launch to get the ensemble file name"
                 exit 1
             fi
             date_file=${date_trial}
@@ -359,12 +359,12 @@ if [ -n "${aux_input}" ]; then
 fi
 
 if [ -f "${abs}" ]; then
-    cp ${abs} oavar.Abs
+    cp ${abs} midas.Abs
 else
-    ${remote_copy} ${abs} oavar.Abs
+    ${remote_copy} ${abs} midas.Abs
 fi
 
-## Rendu ici, on devrait avoir tout installe pour executer le 'oavar.Abs'.
+## Rendu ici, on devrait avoir tout installe pour executer le 'midas.Abs'.
 export TMG_ON=YES
 
 ${nodelogger} -n $SEQ_NODE -s infox -m "Building namelist"
@@ -419,13 +419,13 @@ fi
 
 cat > which_hostname <<EOF
 #!/bin/bash
-echo oavar.launch executing \${MP_CHILD} \$(hostname)
+echo midas.launch executing \${MP_CHILD} \$(hostname)
 EOF
 chmod +x which_hostname
 which_hostname_listing=$(${oavar_mpirun} "Getting the hostnames for each MPI tile" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${PWD}/which_hostname \
     -npex ${npex} -npey ${npey} -tmpdir ${PWD}/hostname_mpi_tmpdir)
 
-child_hostnames=$(printf "${which_hostname_listing}" | awk '/^oe-[0-9]*-[0-9]*: oavar.launch executing / {print $4, $5}')
+child_hostnames=$(printf "${which_hostname_listing}" | awk '/^oe-[0-9]*-[0-9]*: midas.launch executing / {print $4, $5}')
 
 hostnames=$(printf "${child_hostnames}" | awk '{print $(NF)}' | sort -u)
 ## Find minimum MP_CHILD for each hostname
@@ -457,7 +457,7 @@ ${oavar_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_p
     -tmpdir ${PWD}/oavar_mpi_tmpdir                                      \
     -args                                                                \
                             ${observations_files}                        \
-        =-oavar_abs         ${OAVAR_LAUNCH_ABS_COMMAND:-./oavar.Abs}     \
+        =-oavar_abs         ${OAVAR_LAUNCH_ABS_COMMAND:-./midas.Abs}     \
                             ${barrier}                                   \
         =-oavar_splitobs    ${oavar_splitobs}                            \
         =-splitobs_mode     ${splitobs_mode}                             \
@@ -551,4 +551,4 @@ fi
 
 cd ..
 
-echo "End of script 'oavar.launch'"
+echo "End of script 'midas.launch'"

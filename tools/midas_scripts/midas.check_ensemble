@@ -21,7 +21,7 @@ eval `cclargs_lite -D "" $0 \
 NUMBER_OF_MEMBERS=${number_of_members}
 
 if [ -z "${namelist}" ]; then
-    echo "oavar.check_ensemble: the argument '-namelist' must be given."
+    echo "midas.check_ensemble: the argument '-namelist' must be given."
     exit 1
 fi
 

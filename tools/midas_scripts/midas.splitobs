@@ -57,7 +57,7 @@ if [ "${splitobs_mode}" = 'splitobs' ]; then
 elif [ "${splitobs_mode}" = 'round-robin' ]; then
     splitobs_args="-round-robin -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}"
 elif [ "${splitobs_mode}"  != no ]; then
-    ${echo_cmd} "oavar.launch: 'splitobs_mode' must be 'splitobs', 'round-robin' or 'no' and not '${splitobs_mode}'"
+    ${echo_cmd} "midas.launch: 'splitobs_mode' must be 'splitobs', 'round-robin' or 'no' and not '${splitobs_mode}'"
     exit 1
 fi
 

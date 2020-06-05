@@ -9,7 +9,7 @@ shift
 __oavar_mpirun_OMP_STACKSIZE__=$1
 shift
 ## Cette variable doit inclure l'appel a 'r.run_in_parallel' comme par exemple
-##     ${TASK_BIN}/r.run_in_parallel -pgm ./oavar.Abs -npex 10 -npey 10
+##     ${TASK_BIN}/r.run_in_parallel -pgm ./midas.Abs -npex 10 -npey 10
 __oavar_mpirun_call_program__=$@
 
 if [ -x ${SEQ_BIN}/nodelogger ]; then
@@ -64,7 +64,7 @@ elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without chaning the results!
     export TBB_MALLOC_USE_HUGE_PAGES=1
 else
-    echo "oavar.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'AIX-powerpc7', 'Linux_x86-64', 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' and 'sles-11-amd64-64/PrgEnv-intel-5.2.82' are)"
+    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'AIX-powerpc7', 'Linux_x86-64', 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' and 'sles-11-amd64-64/PrgEnv-intel-5.2.82' are)"
     exit 1
 fi
 
