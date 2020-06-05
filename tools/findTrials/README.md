@@ -4,33 +4,31 @@ This scripts finds the trial name extensions in an assimilation window.
 
 Here is the `help` page:
 ```
-./envar.findTrials -h
-usage: midas.findTrials [-h] [--trialfrequency TRIALFREQUENCY]
-                        [--trialoutputfrequency TRIALOUTPUTFREQUENCY]
+usage: midas.findTrials [-h] [--hoursbetweenanalysis HOURSBETWEENANALYSIS]
+                        [--minutesbetweentrialoutputs MINUTESBETWEENTRIALOUTPUTS]
                         [--assimilationwindowwidth WIDTH] [--date DATE]
-                        [--unittest] [--verbose] [--version]
+                        [--unittest] [--verbose]
 
-plot timings extracted by 'getTimings.py'
+midas.findTrials finds the trial name extensions in an assimilation window
 
 optional arguments:
   -h, --help            show this help message and exit
-  --trialfrequency TRIALFREQUENCY, -t TRIALFREQUENCY
-                        The frequency of trials in hours (may be fractional)
-  --trialoutputfrequency TRIALOUTPUTFREQUENCY, -o TRIALOUTPUTFREQUENCY
-                        The frequency of trials in minutes (must be an
-                        integer, default is 15 minutes)
+  --hoursbetweenanalysis HOURSBETWEENANALYSIS, -t HOURSBETWEENANALYSIS
+                        Time in hours between analyses (may be fractional)
+  --minutesbetweentrialoutputs MINUTESBETWEENTRIALOUTPUTS, -o MINUTESBETWEENTRIALOUTPUTS
+                        Minutes between each trial output in minutes (must be
+                        an integer, default is 15 minutes)
   --assimilationwindowwidth WIDTH, -w WIDTH
                         Width of the assimilation window in hours (may be
                         fractional)
   --date DATE, -d DATE  Date of the analysis in format 'YYYYMMDDHH'
   --unittest, -u        Ignore any other arguments and run the UnitTests
   --verbose, -v         Explain what is being done
-  --version, -V         Output version information and exit
 ```
 
 ### Examples
 
-For example, when calling the command `./envar.findTrials -t 6 -o 15 -w 6 -d 2018050212`, we obtain the output:
+For example, when calling the command `./midas.findTrials -t 6 -o 15 -w 6 -d 2018050212`, we obtain the output:
 ```
 2018050206_180m
 2018050206_195m
@@ -60,7 +58,7 @@ For example, when calling the command `./envar.findTrials -t 6 -o 15 -w 6 -d 201
 ```
 
 For one hour assimilation window with trials at each 6 hours for which
-output each 15 minutes, we call `./envar.findTrials -t 6 -o 15 -w 1 -d 2018050210`
+output each 15 minutes, we call `./midas.findTrials -t 6 -o 15 -w 1 -d 2018050210`
 which gives:
 ```
 2018050206_210m
@@ -72,7 +70,7 @@ which gives:
 
 ## UnitTests
 
-You can run the unit tests very easily with the command `./envar.findTrials -u` which should give you an output like this.
+You can run the unit tests very easily with the command `./midas.findTrials -u` which should give you an output like this.
 ```
 test_1hr (__main__.Test_findTrials) ... ok
 test_1hr_1bin (__main__.Test_findTrials) ... ok
