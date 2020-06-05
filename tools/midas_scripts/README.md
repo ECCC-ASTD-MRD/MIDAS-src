@@ -40,7 +40,6 @@ et le contrôle de qualité.  Ce script appelle les scripts suivants:
    * `midas.mpi_barrier`
  * `midas.reunir_obs`
    * `midas.reunir_obs_mpi`
-
  * `midas.interpEnsTrials_driver.ksh`
    * `midas.interpEnsTrials.ksh`
  * `midas.combineFstd`
