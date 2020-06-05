@@ -1,7 +1,3 @@
- &NAMCT0
-   NCONF         = 141,
-   WRITEANALYSIS = .TRUE.
-/
  &NAMBHI
    NTRUNC      = 250,
    SCALEFACTOR = 100*0.0D0

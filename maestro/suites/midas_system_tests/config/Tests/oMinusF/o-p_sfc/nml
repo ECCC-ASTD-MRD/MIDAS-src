@@ -1,6 +1,3 @@
- &NAMCT0
-   NCONF  = 121,
-/
  &NAMOMF
    ADDSIGMAO = .FALSE.
    ADDHBHT   = .FALSE.

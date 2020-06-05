@@ -1,6 +1,3 @@
- &NAMCT0
-   NCONF = 111
-/
  &NAMBHI
    SCALEFACTOR   = 100*1.0D0
 /

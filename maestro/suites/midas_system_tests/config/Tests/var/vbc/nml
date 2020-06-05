@@ -1,6 +1,3 @@
- &NAMCT0
-   NCONF  = 141,
-/
  &NAMBHI
    NTRUNC  = 270,
    SCALEFACTOR   = 11*1.00D0,0.95D0,0.90D0,0.85D0,0.80D0,0.75D0,0.70D0,0.65D0,0.60D0,0.55D0,100*0.5D0
@@ -440,15 +437,4 @@
   BITEMLIST(3)='OER',
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
-/
- &NAMaai_control
-   s_nomvars='UU','VV','TT','HU','ES'
-   l_writeHighResDelxa=.true.,
-   n_nbits=16,
-   l_useAnalyzedPSurf = .true.,
-   l_huIncFromLq=.false.,
-   l_icePhaseEs=.false.
-/
- &NAMSHARED_AAI_3DV
-   CVCORD='GEMHYB'
 /
