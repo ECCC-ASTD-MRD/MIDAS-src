@@ -331,7 +331,7 @@ contains
     integer       :: modelTopIndex
     integer       :: count
     real(8)       :: t_effective
-    integer       :: allocStatus(25)
+    integer       :: allocStatus(27)
     real(8)       :: tg, p0, tskinRetrieved, ptop_T, qs
     real(8), allocatable :: tt(:), height(:,:)
     real(8), allocatable :: pressure(:,:)

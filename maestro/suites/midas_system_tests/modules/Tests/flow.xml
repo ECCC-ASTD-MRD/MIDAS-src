@@ -1,8 +1,8 @@
 <MODULE name="Tests">
   <SUBMITS sub_name="var"/>
-  <SUBMITS sub_name="oMinusF"/>
-  <SUBMITS sub_name="thinning"/>
   <SUBMITS sub_name="obsSelection"/>
+  <SUBMITS sub_name="thinning"/>
+  <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
   <SUBMITS sub_name="letkf"/>
@@ -107,20 +107,6 @@
         <MODULE  name="UnitTest"/>
       </FAMILY>
     </FAMILY>
-    <SUBMITS sub_name="bgck"/>
-    <FAMILY  name="bgck">
-      <SUBMITS sub_name="hyperir"/>
-      <FAMILY  name="hyperir">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-
-      <SUBMITS sub_name="bgckIasiwBcor"/>
-      <FAMILY  name="bgckIasiwBcor">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-    </FAMILY>
     <SUBMITS sub_name="vbc"/>
     <FAMILY  name="vbc">
       <SUBMITS sub_name="UnitTest"/>
@@ -146,6 +132,16 @@
     </FAMILY>
     <SUBMITS sub_name="select_AL"/>
     <FAMILY  name="select_AL">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="hyperir"/>
+    <FAMILY  name="hyperir">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="bgckIasiwBcor"/>
+    <FAMILY  name="bgckIasiwBcor">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

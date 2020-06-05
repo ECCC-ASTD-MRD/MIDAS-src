@@ -66,11 +66,6 @@ program midas_ominusf
   if (mpi_myid == 0) write(*,nml=namomf)
   ierr = fclos(nulnam)
 
-  !
-  !- 1.3 Read bias correction namelist (default is to not use it)
-  !
-  call bcs_readConfig()
-
   ! 2.1 Calculate the Observation - Forecast difference
   call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
                    'OminusF', addHBHT, addSigmaO)

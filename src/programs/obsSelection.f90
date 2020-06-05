@@ -50,10 +50,10 @@ program midas_obsSelection
 
   integer :: get_max_rss
 
-  write(*,*) " -------------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM midas-obsSelection ---"
-  write(*,*) " ---  Computation of the innovation            ---"
-  write(*,*) " -------------------------------------------------"
+  write(*,*) ' -------------------------------------------------'
+  write(*,*) ' ---  START OF MAIN PROGRAM midas-obsSelection ---'
+  write(*,*) ' ---  Computation of the innovation            ---'
+  write(*,*) ' -------------------------------------------------'
 
   !- 1.0 mpi
   call mpi_initialize
@@ -145,7 +145,21 @@ program midas_obsSelection
 
   ! 2.2 Perform the background check
   !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
+
+  ! Do the conventional data background check
   call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData)
+
+  if (obs_famExist(obsSpaceData,'TO')) then
+
+    ! Satellite radiance bias correction
+    call bcs_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+    call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,'TO') ! Apply bias correction to OBS
+    call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,'TO') ! Apply bias correction to O-F
+
+    ! Do the IR background check
+    call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
+
+  end if
 
   ! 2.3 Thinning1:  Set bit 11 of flag, one observation type at a time
   call thn_thinAladin(obsSpaceData)
@@ -163,6 +177,11 @@ program midas_obsSelection
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData)
+
+  !  Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+  end if
 
   ! Delete the flagged observations, and make the files smaller
   call obsf_thinFiles(obsSpaceData)

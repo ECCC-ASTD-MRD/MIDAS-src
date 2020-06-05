@@ -6016,9 +6016,7 @@ module gridStateVector_mod
       end if
       call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
       if (allZero_mpiglobal) then
-        if (mpi_myid == 0) then
-          write(*,*) 'gsv_transposeStepToTiles: Field equal to zero, skipping kIndex = ', kIndex
-        end if
+        ! Field equal to zero, skipping this kIndex to save time
         cycle kIndex_Loop
       end if
 

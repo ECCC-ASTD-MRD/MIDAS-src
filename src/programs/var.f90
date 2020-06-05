@@ -132,11 +132,6 @@ program midas_var
 
   call ram_setup
 
-  !
-  !- Read variational bias correction namelist (default is to not use it)
-  !
-  call bcs_readConfig()
-
   ! 2. Decide on configuration of job
 
   ! ---BGCHECK (conventional obs)--- !
