@@ -39,7 +39,8 @@ module thinning_mod
   implicit none
   private
 
-  public :: thn_thinHyper, thn_thinTovs, thn_thinAircraft, thn_thinAladin
+  public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
+  public :: thn_thinAircraft, thn_thinAladin
 
   integer, external :: get_max_rss
 
@@ -128,6 +129,53 @@ contains
     end if
 
   end subroutine thn_thinAladin
+
+  !--------------------------------------------------------------------------
+  ! thn_thinCSR
+  !--------------------------------------------------------------------------
+  subroutine thn_thinCSR(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    integer :: deltmax    ! time window by bin (from bin center to bin edge) (in minutes)
+    integer :: deltax     ! thinning (dimension of box sides) (in km)
+    integer :: deltrad    ! radius around box center for chosen obs (in km)
+
+    namelist /thin_csr/deltax, deltmax, deltrad
+
+    ! Default namelist values
+    deltmax = 8
+    deltax  = 150
+    deltrad = 45
+
+    ! Read the namelist for CSR observations (if it exists)
+    if (utl_isNamelistPresent('thin_csr','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinCSR: Error opening file flnml')
+      read(nulnam,nml=thin_csr,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_csr)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinCSR: Namelist block thin_csr is missing in the namelist.'
+      write(*,*) '             The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_csr)
+    end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call thn_csrByLatLonBoxes(obsdat, deltmax, deltax, deltrad)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine thn_thinCSR
 
   !--------------------------------------------------------------------------
   ! thn_thinTovs
@@ -1012,6 +1060,7 @@ contains
     end do
     if (count(valid(:)) == 0) then
       write(*,*) 'thn_tovsFilt: no observations for this instrument'
+      deallocate(valid)
       return
     end if
 
@@ -1628,6 +1677,285 @@ contains
 
   end function separa
 
+  !--------------------------------------------------------------------------
+  ! thn_csrByLatLonBoxes
+  !--------------------------------------------------------------------------
+  subroutine thn_csrByLatLonBoxes(obsdat, deltmax, deltax, deltrad)
+    !
+    ! :Purpose: Only keep the observation closest to the center of each
+    !           lat-lon (and time) box for CSR observations.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer, intent(in)             :: deltmax
+    integer, intent(in)             :: deltax
+    integer, intent(in)             :: deltrad
+
+    ! Locals parameters:
+    integer, parameter :: LAT_LENGTH = 10000 ! Earth dimension parameters
+    integer, parameter :: LON_LENGTH = 40000 ! Earth dimension parameters
+    integer, parameter :: maxNumChan = 15       ! nb max de canaux
+
+    ! Locals:
+    integer :: bodyIndex, channelIndex
+    integer :: nblat, nblon, latIndex, lonIndex, stepIndex
+    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi
+    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime, delMinutes
+    real(4) :: latr, length, distance, obsLat, obsLon, gridLat, gridLon
+    real(8) :: obsLatInRad, obsLonInRad
+    real(8) :: obsLatInDegrees, obsLonInDegrees, stepObsIndex
+    logical :: change
+    character(len=12) :: stnid
+    real,    allocatable          :: latdeg(:)
+    integer, allocatable          :: ngrd(:)
+    character(len=12), allocatable :: istation(:,:,:)
+    integer, allocatable          :: ipresent(:,:,:), iangle(:,:,:), idrkm(:,:,:)
+    integer, allocatable          :: headerIndex_tosave(:,:,:)
+    integer, allocatable          :: inuage(:,:,:,:)
+    logical, allocatable          :: valid(:)
+    integer, allocatable          :: ilat(:), ilon(:), ibin(:)
+    integer, allocatable          :: gangle(:), numChanAssim(:), numChannel(:)
+    integer, allocatable          :: gnuage(:,:)
+    real,    allocatable          :: drkm(:)
+
+    write(*,*) 'thn_csrByLatLonBoxes: Starting'
+
+    numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
+    write(*,*) 'thn_csrByLatLonBoxes: numHeader, numHeaderMaxMpi = ', &
+               numHeader, numHeaderMaxMpi
+
+    ! Check if we have any observations to process
+    allocate(valid(numHeaderMaxMpi))
+    valid(:) = .false.
+    do headerIndex = 1, numHeader
+      if ( obs_headElem_i(obsdat, OBS_ITY, headerIndex) == &
+           codtyp_get_codtyp('radianceclear') ) then
+        valid(headerIndex) = .true.
+      end if
+    end do
+    if (count(valid(:)) == 0) then
+      write(*,*) 'thn_csrByLatLonBoxes: no observations for this instrument'
+      deallocate(valid)
+      return
+    end if
+
+    write(*,*) 'thn_csrByLatLonBoxes: obsCount initial = ', count(valid(:))
+    
+    nblat = nint(2.*real(lat_length)/real(deltax))
+    nblon = nint(real(lon_length)/real(deltax))
+
+    write(*,*)
+    write(*,*)
+    write(*,*) 'Number of horizontal boxes : ', nblon
+    write(*,*) 'Number of vertical boxes   : ', nblat
+    write(*,*) 'Number of temporal bins    : ', tim_nstepobs
+
+    ! Allocate arrays
+    allocate(latdeg(nblat))
+    allocate(ngrd(nblat))
+    allocate(istation(nblat,nblon,tim_nstepobs))
+    allocate(ipresent(nblat,nblon,tim_nstepobs))
+    allocate(iangle(nblat,nblon,tim_nstepobs))
+    allocate(idrkm(nblat,nblon,tim_nstepobs))
+    allocate(headerIndex_tosave(nblat,nblon,tim_nstepobs))
+    allocate(inuage(maxNumChan,nblat,nblon,tim_nstepobs))
+    allocate(ilat(numHeaderMaxMpi))
+    allocate(ilon(numHeaderMaxMpi))
+    allocate(ibin(numHeaderMaxMpi))
+    allocate(numChanAssim(numHeaderMaxMpi))
+    allocate(numChannel(numHeaderMaxMpi))
+    allocate(gangle(numHeaderMaxMpi))
+    allocate(gnuage(maxNumChan,numHeaderMaxMpi))
+    allocate(drkm(numHeaderMaxMpi))
+
+    latdeg(:)             = 0.
+    ngrd(:)               = 0
+    istation(:,:,:)       = ''
+    ipresent(:,:,:)       = -1
+    iangle(:,:,:)         = -1
+    idrkm(:,:,:)          = -1
+    headerIndex_tosave(:,:,:) = -1
+    inuage(:,:,:,:)       = -1
+    numChanAssim(:)       = 0
+    numChannel(:)         = 0
+
+    ! set spatial boxes properties
+
+    do latIndex = 1, nblat
+      latdeg(latIndex) = (latIndex*180./nblat) - 90.
+      if (latdeg(latIndex) <= 0.0) then
+        latr = latdeg(latIndex) * MPC_PI_R8 / 180.
+      else
+        latr = latdeg(latIndex-1) * MPC_PI_R8 / 180.
+      endif
+      length = LON_LENGTH * cos(latr)
+      ngrd(latIndex) = nint(length/deltax)
+    end do
+
+    ! Initial pass through all observations
+    HEADER1: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER1
+
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      obsLonBurpFile = nint(100.0*(obsLonInDegrees - 180.0))
+      if(obsLonBurpFile < 0) obsLonBurpFile = obsLonBurpFile + 36000
+      obsLatBurpFile = 9000+nint(100.0*obsLatInDegrees)
+
+      ! compute box indices
+      do latIndex = 1, nblat
+        if ( (obsLatBurpFile - 9000.)/100. <= (latdeg(latIndex) + 0.000001) ) then
+          ilat(headerIndex) = latIndex
+          exit
+        end if
+      end do
+
+      ilon(headerIndex) = int(obsLonBurpFile / (36000. / ngrd(ilat(headerIndex)))) + 1
+      if ( ilon(headerIndex) > ngrd(ilat(headerIndex)) ) ilon(headerIndex) = ngrd(ilat(headerIndex))
+
+      ! compute spatial distances
+      ! position of the observation
+      obsLat = (obsLatBurpFile - 9000.) / 100.
+      obsLon = obsLonBurpFile / 100.
+
+      ! position of the box center
+      gridLat = latdeg(ilat(headerIndex)) - 0.5 * (180./nblat)
+      gridLon = (360. / ngrd(ilat(headerIndex))) * (ilon(headerIndex) - 0.5)
+
+      ! spatial separation
+      drkm(headerIndex) = separa(obsLon,obsLat,gridLon,gridLat) * lat_length / 90.
+
+      ! check if distance too far from box center
+      if (drkm(headerIndex) > deltrad) then
+        valid(headerIndex) = .false.
+        cycle HEADER1
+      end if
+
+      !calcul de la bin temporelle dans laquelle se trouve l'observation
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      ibin(headerIndex) = nint(stepObsIndex)
+      delMinutes = nint(60.0 * tim_dstepobs * abs(real(ibin(headerIndex)) - stepObsIndex))
+
+      ! get the zenith angle
+      gangle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
+
+      ! extract cloud fraction
+      channelIndex = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY
+
+        if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_cloudInSeg) then
+          cycle BODY
+        end if
+
+        channelIndex = channelIndex + 1
+        gnuage(channelIndex, headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+      end do BODY
+      if (channelIndex == 0) then
+        call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
+      end if
+
+      ! Keep obs only if at least one channel not rejected based on tests in suprep
+      valid(headerIndex) = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY2
+
+        if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_nbt3) then
+          cycle BODY2
+        end if
+
+        numChannel(headerIndex) = numChannel(headerIndex) + 1
+
+        if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) then
+          valid(headerIndex) = .true.
+          numChanAssim(headerIndex) = numChanAssim(headerIndex) + 1
+        end if
+      end do BODY2
+
+    end do HEADER1
+
+    write(*,*) 'thn_csrByLatLonBoxes: obsCount after initial pass = ', count(valid(:))
+
+    ! Apply thinning algorithm
+    HEADER2: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER2
+
+      change = .true.
+
+      latIndex = ilat(headerIndex)
+      lonIndex = ilon(headerIndex)
+      stepIndex = ibin(headerIndex)
+
+      stnid = obs_elem_c(obsdat,'STID',headerIndex)
+      if ( istation(latIndex, lonIndex, stepIndex) /= '' ) then
+
+        ! on veut previlegier les profils avec le plus de canaux assimiles
+        if ( numChanAssim(headerIndex) < ipresent(latIndex, lonIndex, stepIndex) ) change = .false.
+
+        ! en cas d'egalite, on doit regarder d'autres conditions pour faire un choix
+        if ( numChanAssim(headerIndex) == ipresent(latIndex, lonIndex, stepIndex) ) then
+          ! si le profil actuel est d'un autre instrument que celui deja considere
+          ! choisir celui qui a le plus petit angle satellite
+          if ( stnid /= istation(latIndex, lonIndex, stepIndex) ) then
+            if ( gangle(headerIndex)  > iangle(latIndex, lonIndex, stepIndex) ) change = .false.
+            ! en cas d'egalite de l'angle,
+            ! choisir le profil le plus pres du centre de la boite
+            if ( ( gangle(headerIndex) == iangle(latIndex, lonIndex, stepIndex) ) .and. &
+                 ( drkm(headerIndex) > idrkm(latIndex, lonIndex, stepIndex) ) ) change = .false.
+            ! si le profil actuel est du meme instrument que celui deja considere
+            ! choisir celui dont tous les canaux assimiles ont respectivement
+            ! moins de fraction nuageuse que celui deja considere
+          else
+            do channelIndex = 1, numChannel(headerIndex)
+              if ( ( obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated ) .and. &
+                   ( gnuage(channelIndex,headerIndex) > inuage(channelIndex,latIndex, lonIndex, stepIndex) ) ) change = .false.
+            end do
+            ! en cas d'egalite de la fraction nuageuse pour chaque canal present,
+            ! choisir le profil le plus pres du centre de la boite
+            do channelIndex = 1, numChannel(headerIndex)
+              if ( ( obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated ) .and. &
+                   ( gnuage(channelIndex,headerIndex) < inuage(channelIndex,latIndex, lonIndex, stepIndex) ) ) exit
+              if ( ( channelIndex == numChannel(headerIndex) ) .and. &
+                   ( drkm(headerIndex) > idrkm(latIndex, lonIndex, stepIndex) ) ) change = .false.
+            end do
+          end if
+        end if
+      end if
+
+      ! update list of data to save
+      if ( change ) then
+        ! remove previously accepted obs
+        if ( headerIndex_tosave(latIndex, lonIndex, stepIndex) /= -1 ) then
+          valid(headerIndex_tosave(latIndex, lonIndex, stepIndex)) = .false.
+        end if
+
+        ! keep currentl accepted obs
+        valid(headerIndex_tosave(latIndex, lonIndex, stepIndex)) = .true.
+        headerIndex_tosave(latIndex, lonIndex, stepIndex) = headerIndex
+        ipresent(latIndex, lonIndex, stepIndex) = numChanAssim(headerIndex)
+        istation(latIndex, lonIndex, stepIndex) = stnid
+        iangle(latIndex, lonIndex, stepIndex) = gangle(headerIndex)
+        inuage(:,latIndex, lonIndex, stepIndex) = gnuage(:,headerIndex)
+        idrkm(latIndex, lonIndex, stepIndex) = drkm(headerIndex)
+      end if
+
+    end do HEADER2
+
+  end subroutine thn_csrByLatLonBoxes
 
   !--------------------------------------------------------------------------
   ! thn_thinByLatLonBoxes
@@ -1674,7 +2002,7 @@ contains
     logical, allocatable :: rejectThisHeader(:)
     logical :: keepThisObs
     integer :: obsLonBurpFile, obsLatBurpFile
-    character(len=9) :: stnid
+    character(len=12) :: stnid
 
     write(*,*) 'thn_thinByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
 
