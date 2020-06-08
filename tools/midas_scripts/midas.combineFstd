@@ -12,7 +12,7 @@ eval `cclargs_lite -D "" $0 \
   -npey              "1"   "1"  "[number of MPI tiles in the y direction (default to 1]" \
   -omp_stacksize     "2G"  "2G" "[set the variable OMP_STACKSIZE to that number]" \
   -mpi_ssm           ""    ""   "[SSM domains to load the MPI environment]" \
-  -oavar_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
+  -midas_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
   -run_in_parallel   "r.run_in_parallel"   "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
   ++ $arguments`
 
@@ -91,4 +91,4 @@ EOF
 
 chmod +x mpi_script.sh
 
-${oavar_mpirun} "Launching midas.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./mpi_script.sh -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi
+${midas_mpirun} "Launching midas.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./mpi_script.sh -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi

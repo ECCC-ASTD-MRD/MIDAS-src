@@ -7,9 +7,9 @@ CCLARGS=${CCLARGS:-cclargs_lite}
 arguments=$*
 eval `${CCLARGS}  -D "" $0 \
   -observations      ""   ""     "[List of observations files]" \
-  -oavar_abs         "midas.Abs" "midas.Abs"   "[path to 'midas.Abs' program]" \
-  -oavar_mpi_barrier "" "midas.mpi_barrier" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
-  -oavar_splitobs    "midas.splitobs" "midas.splitobs"   "[path to 'midas.splitobs' script]" \
+  -abs               "midas.Abs" "midas.Abs"   "[path to 'midas.Abs' program]" \
+  -midas_mpi_barrier "" "midas.mpi_barrier" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-midas_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
+  -midas_splitobs    "midas.splitobs" "midas.splitobs"   "[path to 'midas.splitobs' script]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
   -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
   -splitobs_ndigits  "4"  "4" "[number of digits for file names of observations]" \
@@ -55,7 +55,7 @@ echo hostname=$(hostname)
 ${echo_cmd} starting preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 if [ "${fasttmp}" = yes ]; then
-    FASTTMPDIR=${ramdiskpath}/oavar_${MP_CHILD}
+    FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
     [ -d "${FASTTMPDIR}" ] && ${rm_cmd} -rf ${FASTTMPDIR}
     ${mkdir_cmd} -p ${FASTTMPDIR}
 
@@ -103,7 +103,7 @@ ${echo_cmd} preparation took ${SECONDS}
 
 if [ -n "${observations}" ]; then
     ## set variable 'MIDAS_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
-    MIDAS_OBS_MPI_ORDERING=${OAVAR_OBS_MPI_ORDERING:-regular}
+    MIDAS_OBS_MPI_ORDERING=${MIDAS_OBS_MPI_ORDERING:-regular}
     if [ "${MIDAS_OBS_MPI_ORDERING}" = inverse ]; then
         obsfile_y=$(print_number $((npey-MP_CHILD/npex)) ${splitobs_ndigits})
         obsfile_x=$(print_number $((MP_CHILD+1-npex*(MP_CHILD/npex))) ${splitobs_ndigits})
@@ -111,7 +111,7 @@ if [ -n "${observations}" ]; then
         obsfile_y=$(print_number $((MP_CHILD/npex+1)) ${splitobs_ndigits})
         obsfile_x=$(print_number $((MP_CHILD%npex+1)) ${splitobs_ndigits})
     else
-        ${echo_cmd} "The variable 'MIDAS_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${OAVAR_OBS_MPI_ORDERING}'"
+        ${echo_cmd} "The variable 'MIDAS_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${MIDAS_OBS_MPI_ORDERING}'"
         exit 1
     fi
 
@@ -183,7 +183,7 @@ if [ -n "${observations}" ]; then
             echo ${mpchild2getObservations[@]}
             MINIMIZE_COPY=${mpchild2getObservations[${MP_CHILD}]}
 	    if [ "${fasttmp}" = yes ]; then
-	        obsdir=${ramdiskpath}/oavar_${MINIMIZE_COPY}/obs.splitobs
+	        obsdir=${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs
 	    else
 	        obsdir=${PWD}/obs.splitobs
 	    fi
@@ -195,7 +195,7 @@ if [ -n "${observations}" ]; then
         SECONDS=0
         for filename in ${observations}; do
             bfilename=${filename##*/}
-            ${oavar_splitobs} -obsfile ${filename} -obsoutput ${OBS_DIRECTORY}  \
+            ${midas_splitobs} -obsfile ${filename} -obsoutput ${OBS_DIRECTORY}  \
                 -x ${obsfile_x} -y ${obsfile_y} -npex ${npex} -npey ${npey}     \
                 -obsdir           ${obsdir}                                     \
                 -fasttmp          ${fasttmp}                                    \
@@ -259,28 +259,28 @@ if [ -n "${observations}" ]; then
 
 fi ## End of 'if [ -n "${observations}" ]'
 
-if [ -n "${oavar_mpi_barrier}" ]; then
-    ${oavar_mpi_barrier} -master 0 -child ${MP_CHILD} -id oavar -npex ${npex} -npey ${npey} -sleep 0.01 -workdir ${PWD} \
+if [ -n "${midas_mpi_barrier}" ]; then
+    ${midas_mpi_barrier} -master 0 -child ${MP_CHILD} -id midas -npex ${npex} -npey ${npey} -sleep 0.01 -workdir ${PWD} \
         -echo_cmd ${echo_cmd} \
         -date_cmd ${date_cmd} \
         -sleep_cmd ${sleep_cmd}
 
     if [ "${splitobs_mode}" != no ]; then
         if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
-            ${rm_cmd} -fr ${ramdiskpath}/oavar_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
+            ${rm_cmd} -fr ${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
         fi
     fi
 fi
 
 ulimit -c unlimited
 
-${echo_cmd} starting ${oavar_abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} starting ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
-${oavar_abs}
-#/usr/bin/time --format "Total Memory: %MMb" ${oavar_abs}
+${abs}
+#/usr/bin/time --format "Total Memory: %MMb" ${abs}
 ELAPSED_TIME=${SECONDS}
-${echo_cmd} ending ${oavar_abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
-${echo_cmd} ${oavar_abs} took ${SECONDS}
+${echo_cmd} ending ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} ${abs} took ${SECONDS}
 
 if [ -n "${observations}" ]; then
     SECONDS=0

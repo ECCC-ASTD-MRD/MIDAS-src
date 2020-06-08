@@ -4,8 +4,7 @@ set -ex
 
 arguments=$*
 eval `cclargs_lite -D "" $0 \
-  -cfg               "not defined"   "not defined"    "[maestro OAVAR configuration file]" \
-  -workdir           ""   ""    "[working directory created  by the script (default: oavar_exec_\$\$)]" \
+  -cfg               "not defined"   "not defined"    "[maestro configuration file]" \
   -namelist          ""   ""    "[namelist for the configuration (no default)]" \
   -date              ""   ""    "[date of the files]" \
   -ext               "006"   "006"    "[extension to build the filename]" \
