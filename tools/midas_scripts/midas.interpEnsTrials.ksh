@@ -247,12 +247,18 @@ process_jdate () {
     cd ${MAIN_DIR}
 }  ## End of function 'process_jdate'
 
+if [ -n "${INTERPENSTRIALS_THREADS_PER_MEMBER}" -a -n "${MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER}" ]; then
+    echo "The variable 'INTERPENSTRIALS_THREADS_PER_MEMBER' which is equal to '${INTERPENSTRIALS_THREADS_PER_MEMBER}' is no longer supported."
+    echo "It has been replaced by variable 'MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER'."
+    exit 1
+fi
+
 SECONDS=0
 counter=0
 for jdate in ${list_datev}; do
     process_jdate ${jdate} || ${touch_cmd} abort.${jfile}.${jdate} &
     let counter=counter+1
-    if [ "${counter}" -eq "${INTERPENSTRIALS_THREADS_PER_MEMBER:-1}" ]; then
+    if [ "${counter}" -eq "${MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER:-1}" ]; then
         wait
         counter=0
     fi
