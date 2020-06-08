@@ -393,7 +393,7 @@ contains
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
 
-    integer :: allocStatus(17)
+    integer :: allocStatus(7)
     integer :: omp_get_num_threads, nthreads
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
@@ -517,7 +517,7 @@ contains
       if ( runObsOperatorWithClw_ad ) then
         allocate (clw_ad(nlv_T,profileCount), stat= allocStatus(6))
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(26))
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(7))
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad")

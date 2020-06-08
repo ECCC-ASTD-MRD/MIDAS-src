@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * RTTOV radiative transfer performed directly on model levels - NOTE: results affected and not backward compatible (#253 and !323)
+ * Move background procedure from `var` to `obsSelection` program (#359 and !347)
  * Improve documentation about SSM publishing for a single user (#363 and !346)
+ * RTTOV radiative transfer performed directly on model levels - NOTE: results affected and not backward compatible (#253 and !323)
 
 ### Fixed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Remove the programs `write_subdomains` and `reunir_obs` from SSM domain publication (#360, #361 and !345)
  * Compile using only one precision and remove the publication of the MIDAS library (#358 and !344)
    * remove the program `midas-obsIO`
    * convert the program `midas-prepcma` to `CODEPRECISION_OBS_REAL_DOUBLE`
@@ -31,7 +33,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * remove the script `midas.compile.sh` from the SSM domain
       * this script was designed to help users of the MIDAS librairies to compile and link but it has never been used
    * remove the description of the library in the automatic documentation
- * Remove the programs `write_subdomains` and `reunir_obs` from SSM domain publication (#360, #361 and !345)
 
 ## [3.5.2]
 

@@ -384,6 +384,8 @@ module gridStateVector_mod
     NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance
 
+    if (initialized) return
+
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D   =',vnl_varNameList3D(:)
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D   =',vnl_varNameList2D(:)
@@ -6014,9 +6016,7 @@ module gridStateVector_mod
       end if
       call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
       if (allZero_mpiglobal) then
-        if (mpi_myid == 0) then
-          write(*,*) 'gsv_transposeStepToTiles: Field equal to zero, skipping kIndex = ', kIndex
-        end if
+        ! Field equal to zero, skipping this kIndex to save time
         cycle kIndex_Loop
       end if
 

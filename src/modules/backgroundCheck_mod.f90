@@ -39,6 +39,11 @@ module backgroundCheck_mod
   ! public procedures
   public :: bgck_bgcheck_conv
 
+  integer,          parameter :: numFamilyToProcess = 11
+  character(len=2), parameter :: familyListToProcess(numFamilyToProcess)= (/ &
+                                 'UA','AI','SF','SC','SW','PR','RO','GP','RA', &
+                                 'CH','AL'/)
+
   contains
 
   !--------------------------------------------------------------------------
@@ -48,24 +53,36 @@ module backgroundCheck_mod
      !
      !:Purpose: Do background check on all conventional observations
      !
+     implicit none
 
-     IMPLICIT NONE
-
+     ! Arguments:
      type(struct_obs)        :: obsSpaceData  ! Observation-related data
      type(struct_columnData) :: columng       !
      type(struct_columnData) :: columnhr      ! 
 
-     integer :: j
+     ! Locals:
+     integer :: familyIndex
      real(8) :: zjo
-
      integer            :: nulNam, ier, fnom, fclos
      character(len=256) :: namFile
-     logical            :: NEW_BGCK_SW
-      
-     call tmg_start(3,'BGCHECK_CONV')
+     logical            :: NEW_BGCK_SW, noObsToProcess
 
      write(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
+
+     ! Check if any observations are present for conventional background check
+     noObsToProcess = .true.
+     do familyIndex = 1, numFamilyToProcess
+       if (obs_famExist(obsSpaceData,familyListToProcess(familyIndex))) then
+         noObsToProcess = .false.
+       end if
+     end do
+     if (noObsToProcess) then
+       write(*,*) 'bgcheck_conv: No observations to process'
+       return
+     end if
+     
+     call tmg_start(3,'BGCHECK_CONV')
 
      NEW_BGCK_SW = .false.
 
@@ -73,10 +90,8 @@ module backgroundCheck_mod
      namFile=trim("flnml")
      nulNam=0
      ier = FNOM( NULNAM, NAMFILE, 'R/O', 0 )
-
      read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
      if ( ier /= 0 ) write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
-
      ier = fclos(nulNam)
      
      write(*,*) 'new_bgck_sw = ',new_bgck_sw
@@ -91,9 +106,11 @@ module backgroundCheck_mod
      ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
      ! ----------------------------------------------
 
-     do j = 1, ofl_numFamily
+     do familyIndex = 1, ofl_numFamily
        ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-       if ( obs_famExist( obsSpaceData,  ofl_familyList(j) )) CALL bgck_data( ZJO,  ofl_familyList(j), obsSpaceData, new_bgck_sw )
+       if ( obs_famExist(obsSpaceData,ofl_familyList(familyIndex)) ) then
+         call bgck_data(zjo, ofl_familyList(familyIndex), obsSpaceData, new_bgck_sw)
+       end if
      end do
 
      if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )

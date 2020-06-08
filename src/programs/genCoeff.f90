@@ -235,11 +235,6 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
-    !- Read Bias correction module namelist
-    !
-    call bcs_readConfig()
-
-    !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN

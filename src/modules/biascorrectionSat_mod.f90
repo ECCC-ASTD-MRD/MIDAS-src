@@ -44,11 +44,11 @@ MODULE biasCorrectionSat_mod
   save
   private
 
-  public               :: bcs_setup,bcs_calcBias_tl,bcs_calcBias_ad, bcs_writeBias, bcs_finalize
-  public               :: bcs_removeBiasCorrection, bcs_refreshBiasCorrection, bcs_readConfig
-  public               :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias
-  public               :: bcs_removeOutliers, bcs_applyBiasCorrection
-  public               :: bcs_mimicSatbcor
+  public :: bcs_setup,bcs_calcBias_tl,bcs_calcBias_ad, bcs_writeBias, bcs_finalize
+  public :: bcs_removeBiasCorrection, bcs_refreshBiasCorrection
+  public :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias
+  public :: bcs_removeOutliers, bcs_applyBiasCorrection
+  public :: bcs_mimicSatbcor
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -135,7 +135,11 @@ CONTAINS
     implicit none
     !Locals:
     integer  :: ierr,nulnam
-  
+    logical, save :: firstCall=.true.
+
+    if (.not.firstCall) return
+    firstCall = .false.
+
     ! set default values for namelist variables
     biasActive   = .false.
     biasMode = "varbc"
@@ -201,6 +205,8 @@ CONTAINS
     character(len=3)   :: global
     character(len=128) :: errorMessage
     real(8), allocatable :: Bmatrix(:,:)
+
+    call bcs_readConfig()
 
     cvdim = 0
 

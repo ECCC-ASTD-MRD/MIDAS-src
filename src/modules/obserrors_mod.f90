@@ -483,7 +483,7 @@ contains
               end if
 
             end do
-            if ( trim(obserrorMode) == 'bgckIR' .or. useTovsUtil ) THEN
+            if ( trim(obserrorMode) == 'bgck' .or. useTovsUtil ) THEN
               do JI = 1, tvs_maxChannelNumber
                 tovutil(JI,JL) =  IUTILST(JI,JM)
               end do
@@ -1069,7 +1069,7 @@ contains
                   call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, sigmaObsErrUsed )
 
                   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
-                  if ( trim( obserrorMode ) == 'bgckIR' .or. useTovsUtil ) then
+                  if ( trim( obserrorMode ) == 'bgck' .or. useTovsUtil ) then
                     if  ( tovutil( ichn, jn ) == 0) &
                       call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex ), 8))
                   end if

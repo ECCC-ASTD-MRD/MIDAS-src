@@ -420,11 +420,3 @@
   TYPE_RESUME='POSTALT'
   skipUpdate=.TRUE.
 /
- &NAMaai_control
-   s_nomvars='UU','VV','TT','HU','ES'
-   l_writeHighResDelxa=.true.,
-   n_nbits=16,
-   l_useAnalyzedPSurf = .true.,
-   l_huIncFromLq=.false.,
-   l_icePhaseEs=.false.
-/

@@ -187,7 +187,7 @@ contains
     !
     if (obs_famExist(obsSpaceData,'TO')) then
       call tvs_setupAlloc(obsSpaceData)
-      if (trim(innovationMode) == 'bgckIR' ) call irbg_setup()
+      if (trim(innovationMode) == 'bgck' ) call irbg_setup()
       ! Initialize non diagonal observation error matrices
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
@@ -230,6 +230,7 @@ contains
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
+    call gsv_setup()
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
@@ -545,7 +546,7 @@ contains
     !
     !        TOVS - RADIANCE
     !-------------------------------
-    if (trim(innovationMode) == 'bgckIR'  ) then
+    if (trim(innovationMode) == 'bgck'  ) then
       call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
                        beSilent, ZJOTOV, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
