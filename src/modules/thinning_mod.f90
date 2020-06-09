@@ -144,14 +144,12 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    integer :: deltmax    ! time window by bin (from bin center to bin edge) (in minutes)
     integer :: deltax     ! thinning (dimension of box sides) (in km)
     integer :: deltrad    ! radius around box center for chosen obs (in km)
 
-    namelist /thin_csr/deltax, deltmax, deltrad
+    namelist /thin_csr/deltax, deltrad
 
     ! Default namelist values
-    deltmax = 8
     deltax  = 150
     deltrad = 45
 
@@ -172,7 +170,7 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_csrByLatLonBoxes(obsdat, deltmax, deltax, deltrad)
+    call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinCSR
@@ -319,7 +317,7 @@ contains
     integer :: obsLonIndex, obsLatIndex, obsLevIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
     integer :: aiTypeCount(4), aiTypeCountMpi(4)
-    integer :: obsFlag, obsVarno, obsDate, obsTime
+    integer :: obsFlag, obsVarno, obsDate, obsTime, countObs, countObsMpi
     logical :: ttMissing, huMissing, uuMissing, vvMissing, ddMissing, ffMissing
     real(8) :: zpresa, zpresb, obsPressure, delMinutes, obsStepIndex_r8
     real(8) :: obsLonInRad, obsLatInRad, obsLonInDegrees, obsLatInDegrees
@@ -357,11 +355,9 @@ contains
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
-    write(*,*) 'thn_aircraftByBoxes: numHeader, numHeaderMaxMpi = ', &
-         numHeader, numHeaderMaxMpi
 
     allocate(keepObs(numHeaderMaxMpi))
-    allocate(isAircraft(numHeader))
+    allocate(isAircraft(numHeaderMaxMpi))
     keepObs(:) = .false.
     aiTypeCount(:) = 0
 
@@ -398,7 +394,13 @@ contains
       return
     end if
 
-    write(*,*) 'thn_aircraftByBoxes: number of *local* obs initial = ', count(keepObs(:))
+    write(*,*) 'thn_aircraftByBoxes: numHeader, numHeaderMaxMpi = ', &
+         numHeader, numHeaderMaxMpi
+
+    countObs = count(keepObs(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_aircraftByBoxes: number of obs initial = ', countObs, countObsMpi
 
     ! Setup horizontal thinning grid
     nullify(hco_thinning)
@@ -1011,29 +1013,25 @@ contains
 
     ! Locals:
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
-    integer :: gridIndex, ngrdtot, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
+    integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
-    integer :: loscan, hiscan, obsFlag, nbstn2, nsize
-    integer :: procIndex, procIndexKeep, minLonBurpFile, obsCount, obsCountMpi
+    integer :: loscan, hiscan, obsFlag, numObs, nsize, allMinLonBurpFile(mpi_nprocs)
+    integer :: procIndex, procIndexKeep, minLonBurpFile, countObs, countObsMpi
     integer :: countQc, countKept, countOther, countKeptMpi, countQcMpi, countGridPoints
-    integer :: allMinLonBurpFile(mpi_nprocs)
-    real(4) :: zlength, zlatrad, zdlon, zlatchk, zlonchk, zlontmp
-    real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon
-    real(4) :: obsLatInDegrees, obsLonInDegrees
-    real(4) :: minDistance
-    real(4) :: allMinDistance(mpi_nprocs)
-    real(4) :: zdatflgs, zlatmid, zlonmid, zlatobs, zlonobs
+    real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon, distance
+    real(4) :: obsLatInDegrees, obsLonInDegrees, minDistance, allMinDistance(mpi_nprocs)
+    real(4) :: rejectRate, gridLat, gridLon
     real(4) :: percentTotal, percentQc, percentOther, percentKept
     real(8), allocatable :: stepObsIndex(:)
-    real(4), allocatable :: zlatdeg(:), zlatg(:), zlong(:), zdobs(:)
-    logical, allocatable :: valid(:), indexs(:)
-    integer, allocatable :: ngrd(:), nbstn(:), igrds(:)
-    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), nassim(:)
-    integer, allocatable :: bufref(:), link(:)
-    integer, allocatable :: headerIndexList(:), headerIndexList2(:)
+    real(4), allocatable :: gridLats(:), gridLatsAll(:), gridLonsAll(:), obsDistance(:)
+    logical, allocatable :: valid(:)
+    integer, allocatable :: numGridLons(:), numObsGrid(:), obsGridIndex(:)
+    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), numObsAssim(:)
+    integer, allocatable :: headerIndexList(:), headerIndexList2(:), obsIndexGrid(:), obsIndexLink(:)
 
     ! Local parameters:
-    integer, parameter :: xlat=10000, xlon=40000, xdelt=50
+    integer, parameter :: lat_length=10000
+    integer, parameter :: lon_length=40000
     integer, parameter :: mxscanamsua=30
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
@@ -1064,71 +1062,75 @@ contains
       return
     end if
 
-    write(*,*) 'thn_tovsFilt: obsCount initial = ', count(valid(:))
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_tovsFilt: countObs initial                        = ', &
+               countObs, countObsMpi
 
     ! Remove RARS obs that are also present from a global originating centre
     call thn_removeRarsDuplicates(obsdat, valid)
 
-    write(*,*) 'thn_tovsFilt: obsCount after thn_removeRarsDuplicates = ', count(valid(:))
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_tovsFilt: countObs after thn_removeRarsDuplicates = ', &
+               countObs, countObsMpi
 
-    numLat = 2*xlat/delta
-    numLon = xlon/delta
+    numLat = 2*lat_length/delta
+    numLon = lon_length/delta
 
     ! Allocations
-    allocate(zlatdeg(numLat))
-    allocate(zlatg(numLat*numLon))
-    allocate(zlong(numLat*numLon))
-    allocate(nbstn(numLat*numLon))
-    allocate(bufref(numLat*numLon))
-    allocate(link(numHeader))
+    allocate(gridLats(numLat))
+    allocate(gridLatsAll(numLat*numLon))
+    allocate(gridLonsAll(numLat*numLon))
+    allocate(numObsGrid(numLat*numLon))
+    allocate(obsIndexGrid(numLat*numLon))
+    allocate(obsIndexLink(numHeader))
     allocate(headerIndexList(numHeader))
     allocate(headerIndexList2(numHeader))
-    allocate(ngrd(numLat))
-    allocate(igrds(numHeader))
-    allocate(indexs(numHeader))
+    allocate(numGridLons(numLat))
+    allocate(obsGridIndex(numHeader))
     allocate(obsLonBurpFile(numHeader))
     allocate(obsLatBurpFile(numHeader))
-    allocate(nassim(numHeader))
-    allocate(zdobs(numHeader))
+    allocate(numObsAssim(numHeader))
+    allocate(obsDistance(numHeader))
     allocate(stepObsIndex(numHeader))
 
     ! Initialize arrays
-    zlatdeg(:) = 0.0
-    zlatg(:) = 0.0
-    zlong(:) = 0.0
-    zdobs(:) = 0.0
-    nbstn(:) = 0
-    bufref(:) = 0
-    link(:) = 0
+    gridLats(:) = 0.0
+    gridLatsAll(:) = 0.0
+    gridLonsAll(:) = 0.0
+    obsDistance(:) = 0.0
+    numObsGrid(:) = 0
+    obsIndexGrid(:) = 0
+    obsIndexLink(:) = 0
     headerIndexList(:) = 0
     headerIndexList2(:) = 0
-    ngrd(:) = 0
-    igrds(:) = 0
-    indexs(:) = 0
+    numGridLons(:) = 0
+    obsGridIndex(:) = 0
     obsLonBurpFile(:) = 0
     obsLatBurpFile(:) = 0
-    nassim(:) = 0
+    numObsAssim(:) = 0
     stepObsIndex(:) = 0.0d0
 
     ! Set up the grid used for thinning
-    ngrdtot = 0
+    numGridLonsTotal = 0
     do latIndex = 1, numLat
-      zlatdeg(latIndex) = (latIndex*180./numLat) - 90.
-      zlatrad           = zlatdeg(latIndex) * mpc_pi_r4 / 180.
-      zlength           = xlon * cos(zlatrad)
-      ngrd(latIndex)    = nint(zlength/delta)
-      ngrd(latIndex)    = max(ngrd(latIndex),1)
-      ngrdtot           = ngrdtot + ngrd(latIndex)
+      gridLats(latIndex)    = (latIndex*180./numLat) - 90.
+      distance              = lon_length * cos(gridLats(latIndex) * mpc_pi_r4 / 180.)
+      numGridLons(latIndex) = nint(distance/delta)
+      numGridLons(latIndex) = max(numGridLons(latIndex),1)
+      numGridLonsTotal      = numGridLonsTotal + numGridLons(latIndex)
     end do
 
     gridIndex = 0
     do latIndex = 1, numLat
-      zdlon = 360./ngrd(latIndex)
-      do lonIndex = 1, ngrd(latIndex)
-        zlatg(gridIndex+lonIndex) = zlatdeg(latIndex)
-        zlong(gridIndex+lonIndex) = (lonIndex-1)*zdlon
+      do lonIndex = 1, numGridLons(latIndex)
+        gridLatsAll(gridIndex+lonIndex) = gridLats(latIndex)
+        gridLonsAll(gridIndex+lonIndex) = (lonIndex-1) * 360. / numGridLons(latIndex)
       end do
-      gridIndex = gridIndex + ngrd(latIndex)
+      gridIndex = gridIndex + numGridLons(latIndex)
     end do
 
     ! Loop over all observation locations
@@ -1153,25 +1155,22 @@ contains
                                obsDate, obsTime, tim_nstepobs)
 
       ! Associate each observation to a grid point
-      zlatchk = (obsLatBurpFile(headerIndex) - 9000.) / 100.
-      zlonchk = obsLonBurpFile(headerIndex) / 100.
-      zlontmp = zlonchk
-      if (zlonchk > 180.) zlonchk = zlonchk - 360.
-      do latIndex = 1,numLat-1
-        if (zlatchk <  zlatdeg(1))     zlatchk = zlatdeg(1)
-        if (zlatchk >= zlatdeg(numLat)) zlatchk = zlatdeg(numLat) - 0.5
-        if (zlatchk >= zlatdeg(latIndex) .and. zlatchk < zlatdeg(latIndex+1)) then
+      obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
+      obsLon = obsLonBurpFile(headerIndex) / 100.
+      do latIndex = 1, numLat-1
+        if (obsLat <  gridLats(1))      obsLat = gridLats(1)
+        if (obsLat >= gridLats(numLat)) obsLat = gridLats(numLat) - 0.5
+        if (obsLat >= gridLats(latIndex) .and. obsLat < gridLats(latIndex+1)) then
           gridIndex = 1
           do latIndex2 = 1, latIndex-1
-            gridIndex = gridIndex + ngrd(latIndex2)
+            gridIndex = gridIndex + numGridLons(latIndex2)
           end do
-          zdlon = 360./ngrd(latIndex)
-          gridIndex = gridIndex + ifix(zlontmp/zdlon)
+          gridIndex = gridIndex + ifix(obsLon/(360./numGridLons(latIndex)))
           exit
         end if
       end do
-      igrds(headerIndex) = gridIndex
-      nbstn(gridIndex) = nbstn(gridIndex) + 1
+      obsGridIndex(headerIndex) = gridIndex
+      numObsGrid(gridIndex) = numObsGrid(gridIndex) + 1
 
     end do ! headerIndex
 
@@ -1190,13 +1189,13 @@ contains
     end if
 
     countQc = 0
-    nassim(:) = 0
+    numObsAssim(:) = 0
     do headerIndex = 1, numHeader
 
       if ( .not. valid(headerIndex) ) cycle
 
       ! Look at the obs flags
-      zdatflgs = 0.
+      rejectRate = 0.
 
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY: do 
@@ -1207,22 +1206,22 @@ contains
         ! satqc_amsu*.f for blacklisted channels)
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if ( .not. btest(obsFlag,11) ) then
-          nassim(headerIndex) = nassim(headerIndex) + 1
+          numObsAssim(headerIndex) = numObsAssim(headerIndex) + 1
           if ( btest(obsFlag,9) ) then
-            zdatflgs = zdatflgs + 1.0
+            rejectRate = rejectRate + 1.0
           end if
         end if
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
-      if ( zdatflgs == 0. .and. nassim(headerIndex) == 0 ) then
-        zdatflgs = 1.
+      if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
+        rejectRate = 1.
       else
-        zdatflgs = zdatflgs / max(nassim(headerIndex),1)  
+        rejectRate = rejectRate / max(numObsAssim(headerIndex),1)  
       end if
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
-      if ( zdatflgs >= 0.80 ) then
+      if ( rejectRate >= 0.80 ) then
         countQc = countQc + 1
         valid(headerIndex) = .false.
       else if (obsFov < loscan .or.  &
@@ -1233,38 +1232,41 @@ contains
 
     end do
 
-    write(*,*) 'thn_tovsFilt: obsCount after QC = ', count(valid(:))
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_tovsFilt: countObs after QC                       = ', &
+               countObs, countObsMpi
 
     ! Calculate distance of obs. from center of its grid box center
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
 
-      gridIndex = igrds(headerIndex)
-      if (nbstn(gridIndex) /= 0) then
-        latIndex = (zlatg(gridIndex)+90.)/(180./numLat)
-        zdlon = 360./ngrd(latIndex)
-        zlatmid = zlatg(gridIndex) + 0.5*(180./numLat)
-        zlonmid = zlong(gridIndex) + 0.5*zdlon
-        zlatobs = (obsLatBurpFile(headerIndex) - 9000.) / 100.
-        zlonobs = obsLonBurpFile(headerIndex) / 100.
-        zdobs(headerIndex) = separa(zlonobs,zlatobs,zlonmid,zlatmid) * &
-             float(xlat) / 90.
+      gridIndex = obsGridIndex(headerIndex)
+      if (numObsGrid(gridIndex) /= 0) then
+        latIndex = (gridLatsAll(gridIndex)+90.)/(180./numLat)
+        gridLat = gridLatsAll(gridIndex) + 0.5*(180./numLat)
+        gridLon = gridLonsAll(gridIndex) + 0.5*360./numGridLons(latIndex)
+        obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
+        obsLon = obsLonBurpFile(headerIndex) / 100.
+        obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
+             float(lat_length) / 90.
       end if
     end do
 
     ! Create a linked list of observations (link to grid point)
-    bufref(:) = 0
-    link(:) = 0
-    obsCount = 0
+    obsIndexGrid(:) = 0
+    obsIndexLink(:) = 0
+    countObs = 0
     do headerIndex = 1, numHeader
       if ( .not. valid(headerIndex) ) cycle
 
-      gridIndex = igrds(headerIndex)
-      if (nbstn(gridIndex) /= 0) then
-        obsCount = obsCount + 1
-        headerIndexList(obsCount) = headerIndex
-        link(obsCount) = bufref(gridIndex)
-        bufref(gridIndex) = obsCount
+      gridIndex = obsGridIndex(headerIndex)
+      if (numObsGrid(gridIndex) /= 0) then
+        countObs = countObs + 1
+        headerIndexList(countObs) = headerIndex
+        obsIndexLink(countObs) = obsIndexGrid(gridIndex)
+        obsIndexGrid(gridIndex) = countObs
       end if
     end do
 
@@ -1273,43 +1275,43 @@ contains
 
       ! Loop over all grid points
       countGridPoints = 0
-      do gridIndex = 1, ngrdtot
-        if (nbstn(gridIndex) /= 0) then
+      do gridIndex = 1, numGridLonsTotal
+        if (numObsGrid(gridIndex) /= 0) then
           countGridPoints = countGridPoints + 1
         end if
-        nbstn2 = 0
-        obsIndex = bufref(gridIndex)
+        numObs = 0
+        obsIndex = obsIndexGrid(gridIndex)
         do
           if (obsIndex == 0) exit
           headerIndex = headerIndexList(obsIndex)
-          if ( igrds(headerIndex) == gridIndex  .and. &
+          if ( obsGridIndex(headerIndex) == gridIndex  .and. &
                valid(headerIndex)               .and. &
                nint(stepObsIndex(headerIndex)) == stepIndex ) then
-            nbstn2 = nbstn2 + 1
-            headerIndexList2(nbstn2) = headerIndex
+            numObs = numObs + 1
+            headerIndexList2(numObs) = headerIndex
           end if
 
-          obsIndex = link(obsIndex)
+          obsIndex = obsIndexLink(obsIndex)
         end do
 
         minDistance = 1000000.             
 
         ! Choose the obs closest to the grid point
-        do obsIndex = 1, nbstn2
-          if (zdobs(headerIndexList2(obsIndex)) < minDistance) then
-            minDistance = zdobs(headerIndexList2(obsIndex))
+        do obsIndex = 1, numObs
+          if (obsDistance(headerIndexList2(obsIndex)) < minDistance) then
+            minDistance = obsDistance(headerIndexList2(obsIndex))
             minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
             headerIndexKeep = headerIndexList2(obsIndex)
           end if
         end do
 
         ! Check for multiple obs with same distance to grid point
-        if (nbstn2 > 0) then
-          if ( count(zdobs(headerIndexList2(1:nbstn2)) == minDistance) > 1 ) then
+        if (numObs > 0) then
+          if ( count(obsDistance(headerIndexList2(1:numObs)) == minDistance) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             minLonBurpFile = 10000000
-            do obsIndex = 1, nbstn2
-              if (zdobs(headerIndexList2(obsIndex)) == minDistance) then
+            do obsIndex = 1, numObs
+              if (obsDistance(headerIndexList2(obsIndex)) == minDistance) then
                 if (obsLonBurpFile(headerIndexList2(obsIndex)) < minLonBurpFile) then
                   minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
                   headerIndexKeep = headerIndexList2(obsIndex)
@@ -1319,10 +1321,10 @@ contains
           end if
         end if
 
-        do obsIndex = 1, nbstn2
+        do obsIndex = 1, numObs
           valid(headerIndexList2(obsIndex)) = .false.
         end do
-        if (nbstn2 > 0 .and. minDistance <= 75. ) then
+        if (numObs > 0 .and. minDistance <= 75. ) then
           valid(headerIndexKeep) = .true.
         end if
 
@@ -1355,7 +1357,7 @@ contains
               end if
             end do            
           end if
-          if (nbstn2 > 0) then
+          if (numObs > 0) then
             if (mpi_myid /= (procIndexKeep-1)) then
               valid(headerIndexKeep) = .false.
             end if
@@ -1365,10 +1367,14 @@ contains
       end do ! gridIndex
     end do ! stepIndex
 
-    write(*,*) 'thn_tovsFilt: obsCount after thinning = ', count(valid(:))
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_tovsFilt: obsCount after thinning                 = ', &
+               countObs, countObsMpi
 
     ! modify the observation flags in obsSpaceData
-    obsCount = 0
+    countObs = 0
     do headerIndex = 1, numHeader
       ! skip observation if we're not supposed to consider it
       if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) then
@@ -1381,7 +1387,7 @@ contains
         end if
       end if
      
-      obsCount = obsCount + 1
+      countObs = countObs + 1
 
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
@@ -1402,21 +1408,21 @@ contains
                             'mpi_sum','grid',ierr)
     call rpn_comm_allReduce(countQc,   countQcMpi,   1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(obsCount, obsCountMpi, 1, 'mpi_integer', &
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
 
-    countOther = obsCountMpi - countKeptMpi - countQcMpi
+    countOther = countObsMpi - countKeptMpi - countQcMpi
 
     percentTotal = 100.0
-    percentQc    = (float(countQcMpi)   / float(obsCountMpi)) * 100.0
-    percentOther = (float(countOther)   / float(obsCountMpi)) * 100.0
-    percentKept  = (float(countKeptMpi) / float(obsCountMpi)) * 100.0
+    percentQc    = (float(countQcMpi)   / float(countObsMpi)) * 100.0
+    percentOther = (float(countOther)   / float(countObsMpi)) * 100.0
+    percentKept  = (float(countKeptMpi) / float(countObsMpi)) * 100.0
          
     write(*,100)
 100 format(/,' SOMMAIRE DES RESULTATS',/)
-    write(*,200) obsCountMpi, percentTotal, countQcMpi, percentQc, &
+    write(*,200) countObsMpi, percentTotal, countQcMpi, percentQc, &
                  countOther, percentOther, countKeptMpi, percentKept, &
-                 delta, ngrdtot, countGridPoints
+                 delta, numGridLonsTotal, countGridPoints
 200 format(' NB.STNS TOTAL AU DEBUT EN ENTREE        =    ',I7, &
            '  =  ',F6.1,'%',/, &
            ' NB.STNS REJETEES AU CONTROLE QUALITATIF =  - ',I7, &
@@ -1434,21 +1440,20 @@ contains
     ! end of sommair
 
     deallocate(valid)
-    deallocate(zlatdeg)
-    deallocate(zlatg)
-    deallocate(zlong)
-    deallocate(nbstn)
-    deallocate(bufref)
-    deallocate(link)
+    deallocate(gridLats)
+    deallocate(gridLatsAll)
+    deallocate(gridLonsAll)
+    deallocate(numObsGrid)
+    deallocate(obsIndexGrid)
+    deallocate(obsIndexLink)
     deallocate(headerIndexList)
     deallocate(headerIndexList2)
-    deallocate(ngrd)
-    deallocate(igrds)
-    deallocate(indexs)
+    deallocate(numGridLons)
+    deallocate(obsGridIndex)
     deallocate(obsLonBurpFile)
     deallocate(obsLatBurpFile)
-    deallocate(nassim)
-    deallocate(zdobs)
+    deallocate(numObsAssim)
+    deallocate(obsDistance)
     deallocate(stepObsIndex)
 
     write(*,*) 'thn_tovsFilt: finished'
@@ -1652,35 +1657,10 @@ contains
 
   end subroutine thn_removeRarsDuplicates
 
-  function separa(xlon1,xlat1,xlon2,xlat2)
-    implicit none
-
-    ! Arguments:
-    real(4) :: separa
-    real(4) :: xlat1, xlat2, xlon1, xlon2
-
-    ! Locals:
-    real(4) :: cosval, degrad, raddeg
-
-    raddeg = 180.0/3.14159265358979
-    degrad = 1.0/raddeg
-    cosval = sin(xlat1*degrad) * sin(xlat2*degrad) + &
-             cos(xlat1*degrad) * cos(xlat2*degrad) * &
-             cos((xlon1-xlon2) * degrad)
-
-    if (cosval < -1.0d0) then
-      cosval = -1.0d0
-    else if (cosval > 1.0d0) then
-      cosval = 1.0d0
-    end if
-    separa = acos(cosval) * raddeg
-
-  end function separa
-
   !--------------------------------------------------------------------------
   ! thn_csrByLatLonBoxes
   !--------------------------------------------------------------------------
-  subroutine thn_csrByLatLonBoxes(obsdat, deltmax, deltax, deltrad)
+  subroutine thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
     !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for CSR observations.
@@ -1690,36 +1670,34 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: deltmax
     integer, intent(in)             :: deltax
     integer, intent(in)             :: deltrad
 
     ! Locals parameters:
-    integer, parameter :: LAT_LENGTH = 10000 ! Earth dimension parameters
-    integer, parameter :: LON_LENGTH = 40000 ! Earth dimension parameters
-    integer, parameter :: maxNumChan = 15       ! nb max de canaux
+    integer, parameter :: lat_length = 10000 ! Earth dimension parameters
+    integer, parameter :: lon_length = 40000 ! Earth dimension parameters
+    integer, parameter :: maxNumChan = 15    ! nb max de canaux
 
     ! Locals:
-    integer :: bodyIndex, channelIndex
-    integer :: nblat, nblon, latIndex, lonIndex, stepIndex
-    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi
-    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime, delMinutes
-    real(4) :: latr, length, distance, obsLat, obsLon, gridLat, gridLon
-    real(8) :: obsLatInRad, obsLonInRad
-    real(8) :: obsLatInDegrees, obsLonInDegrees, stepObsIndex
+    integer :: bodyIndex, channelIndex, charIndex, nsize, lenStnId
+    integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
+    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi, channelList(maxNumChan)
+    integer :: headerIndexBeg, headerIndexEnd, countObs, countObsMpi
+    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
+    real(4) :: latInRadians, distance, obsLat, obsLon, gridLat, gridLon
+    real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
     logical :: change
-    character(len=12) :: stnid
-    real,    allocatable          :: latdeg(:)
-    integer, allocatable          :: ngrd(:)
-    character(len=12), allocatable :: istation(:,:,:)
-    integer, allocatable          :: ipresent(:,:,:), iangle(:,:,:), idrkm(:,:,:)
-    integer, allocatable          :: headerIndex_tosave(:,:,:)
-    integer, allocatable          :: inuage(:,:,:,:)
-    logical, allocatable          :: valid(:)
-    integer, allocatable          :: ilat(:), ilon(:), ibin(:)
-    integer, allocatable          :: gangle(:), numChanAssim(:), numChannel(:)
-    integer, allocatable          :: gnuage(:,:)
-    real,    allocatable          :: drkm(:)
+    real(4), allocatable :: gridLats(:)
+    integer, allocatable :: numChanAssimGrid(:,:,:), headerIndexGrid(:,:,:)
+    real(4), allocatable :: angleGrid(:,:,:), distanceGrid(:,:,:), cloudGrid(:,:,:,:)
+    integer, allocatable :: obsLatIndex(:), obsLonIndex(:), obsStepIndex(:), numGridLons(:)
+    real(4), allocatable :: obsCloud(:,:), obsAngle(:), obsDistance(:)
+    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:), obsStepIndexMpi(:)
+    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), numChannel(:), numChannelMpi(:)
+    real(4), allocatable :: obsCloudMpi(:,:), obsAngleMpi(:), obsDistanceMpi(:)
+    logical, allocatable :: valid(:), validMpi(:), channelAssim(:,:), channelAssimMpi(:,:)
+    character(len=12) :: stnId
+    character(len=12), allocatable :: stnIdGrid(:,:,:)
 
     write(*,*) 'thn_csrByLatLonBoxes: Starting'
 
@@ -1738,87 +1716,91 @@ contains
         valid(headerIndex) = .true.
       end if
     end do
-    if (count(valid(:)) == 0) then
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsMpi == 0) then
       write(*,*) 'thn_csrByLatLonBoxes: no observations for this instrument'
       deallocate(valid)
       return
     end if
 
-    write(*,*) 'thn_csrByLatLonBoxes: obsCount initial = ', count(valid(:))
-    
-    nblat = nint(2.*real(lat_length)/real(deltax))
-    nblon = nint(real(lon_length)/real(deltax))
+    numLat = nint(2.*real(lat_length)/real(deltax))
+    numLon = nint(real(lon_length)/real(deltax))
 
     write(*,*)
-    write(*,*)
-    write(*,*) 'Number of horizontal boxes : ', nblon
-    write(*,*) 'Number of vertical boxes   : ', nblat
+    write(*,*) 'Number of horizontal boxes : ', numLon
+    write(*,*) 'Number of vertical boxes   : ', numLat
     write(*,*) 'Number of temporal bins    : ', tim_nstepobs
+    write(*,*)
+
+    write(*,*) 'thn_csrByLatLonBoxes: countObs initial                   = ', countObs, countObsMpi
 
     ! Allocate arrays
-    allocate(latdeg(nblat))
-    allocate(ngrd(nblat))
-    allocate(istation(nblat,nblon,tim_nstepobs))
-    allocate(ipresent(nblat,nblon,tim_nstepobs))
-    allocate(iangle(nblat,nblon,tim_nstepobs))
-    allocate(idrkm(nblat,nblon,tim_nstepobs))
-    allocate(headerIndex_tosave(nblat,nblon,tim_nstepobs))
-    allocate(inuage(maxNumChan,nblat,nblon,tim_nstepobs))
-    allocate(ilat(numHeaderMaxMpi))
-    allocate(ilon(numHeaderMaxMpi))
-    allocate(ibin(numHeaderMaxMpi))
-    allocate(numChanAssim(numHeaderMaxMpi))
+    allocate(gridLats(numLat))
+    allocate(numGridLons(numLat))
+    allocate(stnIdGrid(numLat,numLon,tim_nstepobs))
+    allocate(numChanAssimGrid(numLat,numLon,tim_nstepobs))
+    allocate(angleGrid(numLat,numLon,tim_nstepobs))
+    allocate(distanceGrid(numLat,numLon,tim_nstepobs))
+    allocate(headerIndexGrid(numLat,numLon,tim_nstepobs))
+    allocate(cloudGrid(maxNumChan,numLat,numLon,tim_nstepobs))
+    allocate(obsLatIndex(numHeaderMaxMpi))
+    allocate(obsLonIndex(numHeaderMaxMpi))
+    allocate(obsStepIndex(numHeaderMaxMpi))
     allocate(numChannel(numHeaderMaxMpi))
-    allocate(gangle(numHeaderMaxMpi))
-    allocate(gnuage(maxNumChan,numHeaderMaxMpi))
-    allocate(drkm(numHeaderMaxMpi))
+    allocate(channelAssim(maxNumChan,numHeaderMaxMpi))
+    allocate(obsAngle(numHeaderMaxMpi))
+    allocate(obsCloud(maxNumChan,numHeaderMaxMpi))
+    allocate(obsDistance(numHeaderMaxMpi))
 
-    latdeg(:)             = 0.
-    ngrd(:)               = 0
-    istation(:,:,:)       = ''
-    ipresent(:,:,:)       = -1
-    iangle(:,:,:)         = -1
-    idrkm(:,:,:)          = -1
-    headerIndex_tosave(:,:,:) = -1
-    inuage(:,:,:,:)       = -1
-    numChanAssim(:)       = 0
-    numChannel(:)         = 0
+    gridLats(:)             = 0.
+    numGridLons(:)          = 0
+    stnIdGrid(:,:,:)        = ''
+    numChanAssimGrid(:,:,:) = -1
+    angleGrid(:,:,:)        = -1.0
+    distanceGrid(:,:,:)     = -1.0
+    headerIndexGrid(:,:,:)  = -1
+    cloudGrid(:,:,:,:)      = -1.0
+    channelAssim(:,:)       = .false.
+    numChannel(:)           = 0
 
     ! set spatial boxes properties
 
-    do latIndex = 1, nblat
-      latdeg(latIndex) = (latIndex*180./nblat) - 90.
-      if (latdeg(latIndex) <= 0.0) then
-        latr = latdeg(latIndex) * MPC_PI_R8 / 180.
+    do latIndex = 1, numLat
+      gridLats(latIndex) = (latIndex*180./numLat) - 90.
+      if (gridLats(latIndex) <= 0.0) then
+        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
-        latr = latdeg(latIndex-1) * MPC_PI_R8 / 180.
+        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
       endif
-      length = LON_LENGTH * cos(latr)
-      ngrd(latIndex) = nint(length/deltax)
+      distance = LON_LENGTH * cos(latInRadians)
+      numGridLons(latIndex) = nint(distance/deltax)
     end do
 
     ! Initial pass through all observations
     HEADER1: do headerIndex = 1, numHeader
       if (.not. valid(headerIndex)) cycle HEADER1
 
-      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
-      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
-      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
       obsLonBurpFile = nint(100.0*(obsLonInDegrees - 180.0))
       if(obsLonBurpFile < 0) obsLonBurpFile = obsLonBurpFile + 36000
       obsLatBurpFile = 9000+nint(100.0*obsLatInDegrees)
 
       ! compute box indices
-      do latIndex = 1, nblat
-        if ( (obsLatBurpFile - 9000.)/100. <= (latdeg(latIndex) + 0.000001) ) then
-          ilat(headerIndex) = latIndex
+      do latIndex = 1, numLat
+        if ( (obsLatBurpFile - 9000.)/100. <= (gridLats(latIndex) + 0.000001) ) then
+          obsLatIndex(headerIndex) = latIndex
           exit
         end if
       end do
 
-      ilon(headerIndex) = int(obsLonBurpFile / (36000. / ngrd(ilat(headerIndex)))) + 1
-      if ( ilon(headerIndex) > ngrd(ilat(headerIndex)) ) ilon(headerIndex) = ngrd(ilat(headerIndex))
+      obsLonIndex(headerIndex) = int(obsLonBurpFile /  &
+           (36000. / numGridLons(obsLatIndex(headerIndex)))) + 1
+      if ( obsLonIndex(headerIndex) > numGridLons(obsLatIndex(headerIndex)) ) then
+        obsLonIndex(headerIndex) = numGridLons(obsLatIndex(headerIndex))
+      end if
 
       ! compute spatial distances
       ! position of the observation
@@ -1826,134 +1808,293 @@ contains
       obsLon = obsLonBurpFile / 100.
 
       ! position of the box center
-      gridLat = latdeg(ilat(headerIndex)) - 0.5 * (180./nblat)
-      gridLon = (360. / ngrd(ilat(headerIndex))) * (ilon(headerIndex) - 0.5)
+      gridLat = gridLats(obsLatIndex(headerIndex)) - 0.5 * (180./numLat)
+      gridLon = (360. / numGridLons(obsLatIndex(headerIndex))) *  &
+                (obsLonIndex(headerIndex) - 0.5)
 
       ! spatial separation
-      drkm(headerIndex) = separa(obsLon,obsLat,gridLon,gridLat) * lat_length / 90.
+      obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
+                                 lat_length / 90.
+
+      ! calcul de la bin temporelle dans laquelle se trouve l'observation
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! check if distance too far from box center
-      if (drkm(headerIndex) > deltrad) then
+      if (obsDistance(headerIndex) > real(deltrad)) then
         valid(headerIndex) = .false.
         cycle HEADER1
       end if
 
-      !calcul de la bin temporelle dans laquelle se trouve l'observation
-      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
-      ibin(headerIndex) = nint(stepObsIndex)
-      delMinutes = nint(60.0 * tim_dstepobs * abs(real(ibin(headerIndex)) - stepObsIndex))
+    end do HEADER1
 
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_csrByLatLonBoxes: countObs after deltrad test        = ', &
+               countObs, countObsMpi
+
+    ! Second pass through all observations
+    HEADER2: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER2
+      
       ! get the zenith angle
-      gangle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
-
-      ! extract cloud fraction
-      channelIndex = 0
-      call obs_set_current_body_list(obsdat, headerIndex)
-      BODY: do 
-        bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY
-
-        if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_cloudInSeg) then
-          cycle BODY
-        end if
-
-        channelIndex = channelIndex + 1
-        gnuage(channelIndex, headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-      end do BODY
-      if (channelIndex == 0) then
-        call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
-      end if
+      obsAngle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
 
       ! Keep obs only if at least one channel not rejected based on tests in suprep
       valid(headerIndex) = .false.
+      channelIndex = 0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY1: do 
         bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY2
+        if (bodyIndex < 0) exit BODY1
 
         if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_nbt3) then
-          cycle BODY2
+          cycle BODY1
         end if
 
         numChannel(headerIndex) = numChannel(headerIndex) + 1
+        channelIndex = channelIndex + 1
+        channelList(channelIndex) = nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex))
 
         if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) then
           valid(headerIndex) = .true.
-          numChanAssim(headerIndex) = numChanAssim(headerIndex) + 1
+          channelAssim(channelIndex,headerIndex) = .true.
         end if
-      end do BODY2
+      end do BODY1
 
-    end do HEADER1
+      ! extract cloud fraction
+      CHANNELS: do channelIndex = 1, numChannel(headerIndex)
+        obsCloud(channelIndex, headerIndex) = -1.0
 
-    write(*,*) 'thn_csrByLatLonBoxes: obsCount after initial pass = ', count(valid(:))
+        ! search for the cloud information for this channel
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY2
 
+          ! skip if not this is not cloud
+          if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_cloudInSeg) then
+            cycle BODY2
+          end if
+          ! check if channel number matches
+          if (nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)) == channelList(channelIndex)) then
+            obsCloud(channelIndex, headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            cycle CHANNELS
+          end if
+        end do BODY2
+        if (obsCloud(channelIndex, headerIndex) == -1.0) then
+          call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
+        end if
+      end do CHANNELS
+
+    end do HEADER2
+
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_csrByLatLonBoxes: countObs after rejection flag test = ', &
+               countObs, countObsMpi
+
+    ! Allocation for MPI gather
+    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(numChannelMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsAngleMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(channelAssimMpi(maxNumChan,numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsCloudMpi(maxNumChan,numHeaderMaxMpi*mpi_nprocs))
+    lenStnId = len(stnId)
+    allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+
+    ! Station ID converted to integer array
+    HEADER3: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER3
+
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+    end do HEADER3
+
+    ! Gather data from all MPI tasks
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsLatIndex,    nsize, 'mpi_integer',  &
+                            obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonIndex,    nsize, 'mpi_integer',  &
+                            obsLonIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
+                            obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(numChannel,    nsize, 'mpi_integer',  &
+                            numChannelMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsAngle,    nsize, 'mpi_real4',  &
+                            obsAngleMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
+                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
+
+    nsize = maxNumChan * numHeaderMaxMpi
+    call rpn_comm_allgather(channelAssim,    nsize, 'mpi_integer',  &
+                            channelAssimMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsCloud,    nsize, 'mpi_real4',  &
+                            obsCloudMpi, nsize, 'mpi_real4', 'grid', ierr)
+
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
+    
     ! Apply thinning algorithm
-    HEADER2: do headerIndex = 1, numHeader
-      if (.not. valid(headerIndex)) cycle HEADER2
+    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      if (.not. validMpi(headerIndex)) cycle HEADER4
 
       change = .true.
 
-      latIndex = ilat(headerIndex)
-      lonIndex = ilon(headerIndex)
-      stepIndex = ibin(headerIndex)
+      latIndex  = obsLatIndexMpi(headerIndex)
+      lonIndex  = obsLonIndexMpi(headerIndex)
+      stepIndex = obsStepIndexMpi(headerIndex)
 
-      stnid = obs_elem_c(obsdat,'STID',headerIndex)
-      if ( istation(latIndex, lonIndex, stepIndex) /= '' ) then
+      ! Station ID converted back to character string
+      do charIndex = 1, lenStnId
+        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
+      end do
+
+      if ( stnIdGrid(latIndex,lonIndex,stepIndex) /= '' ) then
 
         ! on veut previlegier les profils avec le plus de canaux assimiles
-        if ( numChanAssim(headerIndex) < ipresent(latIndex, lonIndex, stepIndex) ) change = .false.
+        if ( count(channelAssimMpi(:,headerIndex)) <  &
+             numChanAssimGrid(latIndex,lonIndex,stepIndex) ) change = .false.
 
         ! en cas d'egalite, on doit regarder d'autres conditions pour faire un choix
-        if ( numChanAssim(headerIndex) == ipresent(latIndex, lonIndex, stepIndex) ) then
+        if ( count(channelAssimMpi(:,headerIndex)) ==  &
+             numChanAssimGrid(latIndex,lonIndex,stepIndex) ) then
+
           ! si le profil actuel est d'un autre instrument que celui deja considere
           ! choisir celui qui a le plus petit angle satellite
-          if ( stnid /= istation(latIndex, lonIndex, stepIndex) ) then
-            if ( gangle(headerIndex)  > iangle(latIndex, lonIndex, stepIndex) ) change = .false.
+          if ( stnid /= stnIdGrid(latIndex,lonIndex,stepIndex) ) then
+            if ( obsAngleMpi(headerIndex)  >  &
+                 angleGrid(latIndex,lonIndex,stepIndex) ) change = .false.
+
             ! en cas d'egalite de l'angle,
             ! choisir le profil le plus pres du centre de la boite
-            if ( ( gangle(headerIndex) == iangle(latIndex, lonIndex, stepIndex) ) .and. &
-                 ( drkm(headerIndex) > idrkm(latIndex, lonIndex, stepIndex) ) ) change = .false.
-            ! si le profil actuel est du meme instrument que celui deja considere
-            ! choisir celui dont tous les canaux assimiles ont respectivement
-            ! moins de fraction nuageuse que celui deja considere
+            if ( ( obsAngleMpi(headerIndex) ==  &
+                   angleGrid(latIndex,lonIndex,stepIndex) ) .and. &
+                 ( obsDistanceMpi(headerIndex) >  &
+                   distanceGrid(latIndex,lonIndex,stepIndex) ) ) change = .false.
+
+          ! si le profil actuel est du meme instrument que celui deja considere
+          ! choisir celui dont tous les canaux assimiles ont respectivement
+          ! moins de fraction nuageuse que celui deja considere
           else
-            do channelIndex = 1, numChannel(headerIndex)
-              if ( ( obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated ) .and. &
-                   ( gnuage(channelIndex,headerIndex) > inuage(channelIndex,latIndex, lonIndex, stepIndex) ) ) change = .false.
+            do channelIndex = 1, numChannelMpi(headerIndex)
+              if ( channelAssimMpi(channelIndex,headerIndex) .and. &
+                   ( obsCloudMpi(channelIndex,headerIndex) >  &
+                     cloudGrid(channelIndex,latIndex,lonIndex,stepIndex) ) ) change = .false.
             end do
+
             ! en cas d'egalite de la fraction nuageuse pour chaque canal present,
             ! choisir le profil le plus pres du centre de la boite
-            do channelIndex = 1, numChannel(headerIndex)
-              if ( ( obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated ) .and. &
-                   ( gnuage(channelIndex,headerIndex) < inuage(channelIndex,latIndex, lonIndex, stepIndex) ) ) exit
-              if ( ( channelIndex == numChannel(headerIndex) ) .and. &
-                   ( drkm(headerIndex) > idrkm(latIndex, lonIndex, stepIndex) ) ) change = .false.
+            do channelIndex = 1, numChannelMpi(headerIndex)
+              if ( channelAssimMpi(channelIndex,headerIndex) .and. &
+                   ( obsCloudMpi(channelIndex,headerIndex) <  &
+                     cloudGrid(channelIndex,latIndex,lonIndex,stepIndex) ) ) exit
+              if ( ( channelIndex == numChannelMpi(headerIndex) ) .and. &
+                   ( obsDistanceMpi(headerIndex) >  &
+                     distanceGrid(latIndex,lonIndex,stepIndex) ) ) change = .false.
             end do
           end if
         end if
       end if
 
       ! update list of data to save
-      if ( change ) then
-        ! remove previously accepted obs
-        if ( headerIndex_tosave(latIndex, lonIndex, stepIndex) /= -1 ) then
-          valid(headerIndex_tosave(latIndex, lonIndex, stepIndex)) = .false.
+      if ( .not. change ) then
+        ! keep previously accepted obs, so reject current obs
+        validMpi(headerIndex) = .false.
+      else
+        ! reject previously accepted obs
+        if ( headerIndexGrid(latIndex,lonIndex,stepIndex) /= -1 ) then
+          validMpi(headerIndexGrid(latIndex,lonIndex,stepIndex)) = .false.
         end if
 
-        ! keep currentl accepted obs
-        valid(headerIndex_tosave(latIndex, lonIndex, stepIndex)) = .true.
-        headerIndex_tosave(latIndex, lonIndex, stepIndex) = headerIndex
-        ipresent(latIndex, lonIndex, stepIndex) = numChanAssim(headerIndex)
-        istation(latIndex, lonIndex, stepIndex) = stnid
-        iangle(latIndex, lonIndex, stepIndex) = gangle(headerIndex)
-        inuage(:,latIndex, lonIndex, stepIndex) = gnuage(:,headerIndex)
-        idrkm(latIndex, lonIndex, stepIndex) = drkm(headerIndex)
+        ! keep current obs
+        validMpi(headerIndex) = .true.
+        headerIndexGrid(latIndex,lonIndex,stepIndex) = headerIndex
+        numChanAssimGrid(latIndex,lonIndex,stepIndex) =  &
+             count(channelAssimMpi(:,headerIndex))
+        stnIdGrid(latIndex,lonIndex,stepIndex) = stnid
+        angleGrid(latIndex,lonIndex,stepIndex) = obsAngleMpi(headerIndex)
+        cloudGrid(:,latIndex,lonIndex,stepIndex) = obsCloudMpi(:,headerIndex)
+        distanceGrid(latIndex,lonIndex,stepIndex) = obsDistanceMpi(headerIndex)
       end if
 
-    end do HEADER2
+    end do HEADER4
+
+    ! update local copy of 'valid' array
+    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_csrByLatLonBoxes: countObs after choosing 1 per box  = ', &
+               countObs, countObsMpi
+
+    ! modify the observation flags in obsSpaceData
+    HEADER5: do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if ( obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= &
+           codtyp_get_codtyp('radianceclear') ) then
+        cycle HEADER5
+      end if
+     
+      if (.not. valid(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY3: do 
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY3
+        
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+
+        end do BODY3
+      end if
+    end do HEADER5
+
+    deallocate(valid)
+    deallocate(gridLats)
+    deallocate(numGridLons)
+    deallocate(stnIdGrid)
+    deallocate(numChanAssimGrid)
+    deallocate(angleGrid)
+    deallocate(distanceGrid)
+    deallocate(headerIndexGrid)
+    deallocate(cloudGrid)
+    deallocate(obsLatIndex)
+    deallocate(obsLonIndex)
+    deallocate(obsStepIndex)
+    deallocate(numChannel)
+    deallocate(channelAssim)
+    deallocate(obsAngle)
+    deallocate(obsCloud)
+    deallocate(obsDistance)
+    deallocate(validMpi)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexMpi)
+    deallocate(obsStepIndexMpi)
+    deallocate(numChannelMpi)
+    deallocate(obsAngleMpi)
+    deallocate(obsDistanceMpi)
+    deallocate(channelAssimMpi)
+    deallocate(obsCloudMpi)
+    deallocate(stnIdInt)
+    deallocate(stnIdIntMpi)
 
   end subroutine thn_csrByLatLonBoxes
 
@@ -1984,14 +2125,14 @@ contains
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex
     integer :: ierr, nsize, procIndex, countHeader
-    real(4) :: latr, length, distance
+    real(4) :: latInRadians, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
-    real(8) :: obsLatInDegrees, obsLonInDegrees, stepObsIndex
-    integer, parameter :: LAT_LENGTH = 10000
-    integer, parameter :: LON_LENGTH = 40000
-    real(4), allocatable :: latdeg(:)
-    integer, allocatable :: ngrd(:)
+    real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
+    integer, parameter :: lat_length = 10000
+    integer, parameter :: lon_length = 40000
+    real(4), allocatable :: gridLats(:)
+    integer, allocatable :: numGridLons(:)
     integer, allocatable :: headerIndexKeep(:,:,:), numChannelsKeep(:,:,:)
     integer, allocatable :: allHeaderIndex(:,:,:,:), allNumChannels(:,:,:,:)
     integer, allocatable :: delMinutesKeep(:,:,:)
@@ -2007,20 +2148,20 @@ contains
     write(*,*) 'thn_thinByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
 
     ! Initial setup
-    numLat = nint( 2. * real(LAT_LENGTH) / real(deltax) )
-    numLon = nint(      real(LON_LENGTH) / real(deltax) )
+    numLat = nint( 2. * real(lat_length) / real(deltax) )
+    numLon = nint(      real(lon_length) / real(deltax) )
     allocate(headerIndexKeep(numLat,numLon,tim_nstepobs))
     allocate(numChannelsKeep(numLat,numLon,tim_nstepobs))
     allocate(distanceKeep(numLat,numLon,tim_nstepobs))
     allocate(delMinutesKeep(numLat,numLon,tim_nstepobs))
-    allocate(latdeg(numLat))
-    allocate(ngrd(numLat))
+    allocate(gridLats(numLat))
+    allocate(numGridLons(numLat))
     headerIndexKeep(:,:,:) = -1
     numChannelsKeep(:,:,:) = 0
     distanceKeep(:,:,:)    = 0.0
     delMinutesKeep(:,:,:)  = deltmax
-    latdeg(:)              = 0.0
-    ngrd(:)                = 0
+    gridLats(:)              = 0.0
+    numGridLons(:)                = 0
 
     allocate(allHeaderIndex(numLat,numLon,tim_nstepobs,mpi_nprocs))
     allocate(allNumChannels(numLat,numLon,tim_nstepobs,mpi_nprocs))
@@ -2030,17 +2171,17 @@ contains
     procIndexKeep(:,:,:) = -1
 
     ! set spatial boxes properties
-    ! latdeg(:) : latitude (deg) of northern side of the box
-    ! ngrd(:)   : number of longitudinal boxes at this latitude
+    ! gridLats(:) : latitude (deg) of northern side of the box
+    ! numGridLons(:)   : number of longitudinal boxes at this latitude
     do latIndex = 1, numLat
-      latdeg(latIndex) = (latIndex*180./numLat) - 90.
-      if ( latdeg(latIndex) <= 0.0 ) then
-        latr = latdeg(latIndex) * MPC_PI_R8 / 180.
+      gridLats(latIndex) = (latIndex*180./numLat) - 90.
+      if ( gridLats(latIndex) <= 0.0 ) then
+        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
-        latr = latdeg(latIndex-1) * MPC_PI_R8 / 180.
+        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
       end if
-      length = LON_LENGTH * cos(latr)
-      ngrd(latIndex)   = nint(length/deltax)
+      length = LON_LENGTH * cos(latInRadians)
+      numGridLons(latIndex)   = nint(length/deltax)
     end do
 
     countHeader = 0
@@ -2092,23 +2233,23 @@ contains
 
       ! Determine the lat and lon bin indexes
       do latIndex = 1, numLat
-        if ( obsLatInDegrees <= (latdeg(latIndex)+0.000001) ) then
+        if ( obsLatInDegrees <= (gridLats(latIndex)+0.000001) ) then
           latBinIndex = latIndex
           exit
         end if
       end do
-      lonBinIndex = int( obsLonBurpFile/(36000.0/ngrd(latBinIndex)) ) + 1
-      if ( lonBinIndex > ngrd(latBinIndex) ) lonBinIndex = ngrd(latBinIndex)
+      lonBinIndex = int( obsLonBurpFile/(36000.0/numGridLons(latBinIndex)) ) + 1
+      if ( lonBinIndex > numGridLons(latBinIndex) ) lonBinIndex = numGridLons(latBinIndex)
 
       ! Determine the time bin index
-      call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      timeBinIndex = nint(stepObsIndex)
-      delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - stepObsIndex))
+      timeBinIndex = nint(obsStepIndex_r8)
+      delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - obsStepIndex_r8))
 
       ! Determine distance from box center
-      latBoxCenterInDegrees = latdeg(latBinIndex) - 0.5 * (180./numLat)
-      lonBoxCenterInDegrees = (360. / ngrd(latBinIndex)) * (lonBinIndex - 0.5)
+      latBoxCenterInDegrees = gridLats(latBinIndex) - 0.5 * (180./numLat)
+      lonBoxCenterInDegrees = (360. / numGridLons(latBinIndex)) * (lonBinIndex - 0.5)
       obsLat = (obsLatBurpFile - 9000.) / 100.
       obsLon = obsLonBurpFile / 100.
       distance = 1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
@@ -2282,8 +2423,8 @@ contains
       deallocate(numChannelsKeep)
       deallocate(distanceKeep)
       deallocate(delMinutesKeep)
-      deallocate(latdeg)
-      deallocate(ngrd)
+      deallocate(gridLats)
+      deallocate(numGridLons)
       deallocate(allHeaderIndex)
       deallocate(allNumChannels)
       deallocate(allDistance)
@@ -2293,5 +2434,33 @@ contains
     end subroutine deallocLocals
 
   end subroutine thn_thinByLatLonBoxes
+
+  !--------------------------------------------------------------------------
+  ! thn_separation
+  !--------------------------------------------------------------------------
+  function thn_separation(xlon1,xlat1,xlon2,xlat2)
+    implicit none
+
+    ! Arguments:
+    real(4) :: thn_separation
+    real(4) :: xlat1, xlat2, xlon1, xlon2
+
+    ! Locals:
+    real(4) :: cosval, degrad, raddeg
+
+    raddeg = 180.0/3.14159265358979
+    degrad = 1.0/raddeg
+    cosval = sin(xlat1*degrad) * sin(xlat2*degrad) + &
+             cos(xlat1*degrad) * cos(xlat2*degrad) * &
+             cos((xlon1-xlon2) * degrad)
+
+    if (cosval < -1.0d0) then
+      cosval = -1.0d0
+    else if (cosval > 1.0d0) then
+      cosval = 1.0d0
+    end if
+    thn_separation = acos(cosval) * raddeg
+
+  end function thn_separation
 
 end module thinning_mod

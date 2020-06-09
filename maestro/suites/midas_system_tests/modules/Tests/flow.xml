@@ -117,6 +117,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="CSR"/>
+    <FAMILY  name="CSR">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="aircraft"/>
     <FAMILY  name="aircraft">
       <SUBMITS sub_name="UnitTest"/>

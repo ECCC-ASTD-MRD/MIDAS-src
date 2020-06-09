@@ -347,9 +347,9 @@ CONTAINS
     BN_ITEMS=1
     BITEMLIST(1)='OMA'
     CALL BRPACMA_NML('namburp_update')
-    WRITE(*,*)  ' BN_ITEMS   =',BN_ITEMS
-    WRITE(*,'(a12,x)') ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
-    WRITE(*,'(x,a9)' ) ' BTYP OF UPDATED BURP FILE=', TYPE_RESUME
+    WRITE(*,*) ' BN_ITEMS   =',BN_ITEMS
+    WRITE(*,*) ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
+    WRITE(*,*) ' BTYP OF UPDATED BURP FILE=', TYPE_RESUME
 
     ! check if there is FSO calculation
     FSOFound = .false.
@@ -2237,7 +2237,8 @@ CONTAINS
             
             if (IND_BCOR > 0) then                              ! TOVS
                ALLOCATE(BCOR(nvale,nte))
-               ALLOCATE(BiasCorrection(1,nvale))
+               ALLOCATE(BiasCorrection(nele,nvale))
+               BiasCorrection(:,:) = 0.0
                BCOR(:,:) =  MPC_missingValue_R4
             elseif (IND_BCOR_TT > 0 .or. IND_BCOR_HU > 0) then  ! conventional (UA or AI)
                ALLOCATE(BCOR2(nele,nvale,nte))
