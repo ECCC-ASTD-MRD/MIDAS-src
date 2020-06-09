@@ -130,7 +130,6 @@ module multi_ir_bgck_mod
      real(8) :: radclearcalc(NVIS+1:NVIS+NIR)
      real(8) :: tbclearcalc(NVIS+1:NVIS+NIR)
      real(8),allocatable :: radovcalc(:,:)
-     real(8),allocatable :: transmcalc(:,:)
      real(8) :: transmsurf(NVIS+1:NVIS+NIR)
      real(8) :: emiss(NVIS+1:NVIS+NIR)
   end type avhrr_bgck_iasi
@@ -436,15 +435,15 @@ contains
     !
     ! tg -- guess skin temperatures (deg K)
     ! p0 -- surface pressure (hPa)
-    ! tt(nlv_T) -- temperature profiles on NWP model levels (deg K)
-    ! height(nlv_T,1) -- height profiles on NWP model levels (m)
+    ! tt(nlv_T-1) -- temperature profiles on NWP model levels (deg K)
+    ! height(nlv_T-1,1) -- height profiles on NWP model levels (m)
     ! qs -- surface specific humidity (kg/kg)
     ! btObsErr(nchn) -- observation error standard deviation
     ! btObs(nchn) -- observed brightness temperatures (deg K)
     ! btCalc(nchn) -- computed brightness temperatures (deg K)
     ! rcal_clr(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
     ! sfctau(nchn) -- surface to space transmittances (0-1)
-    ! cloudyRadiance(nchn,nlv_T) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+    ! cloudyRadiance(nchn,nlv_T-1) -- overcast cloudy radiances (mw/m2/sr/cm-1)
     ! transm(nchn,nlv_T) -- layer to space transmittances (0-1)
     ! emi_sfc(nchn) -- surface emissivities (0-1)
     ! ksurf -- surface type in obs file (0, 1)
@@ -466,8 +465,8 @@ contains
     allocate ( btCalc(nchn),                             stat= allocStatus(3))
     allocate ( rcal_clr(nchn),                           stat= allocStatus(4))
     allocate ( sfctau(nchn),                             stat= allocStatus(5))
-    allocate ( cloudyRadiance(nchn,nlv_T), stat= allocStatus(6))
-    allocate ( transm(nchn,nlv_T),         stat= allocStatus(7))
+    allocate ( cloudyRadiance(nchn,nlv_T-1),             stat= allocStatus(6))
+    allocate ( transm(nchn,nlv_T),                       stat= allocStatus(7))
     allocate ( emi_sfc(nchn),                            stat= allocStatus(8))
     allocate ( radObs(nchn),                             stat= allocStatus(11))
     allocate ( rejflag(nchn,0:bitflag),                  stat= allocStatus(12))
@@ -479,11 +478,11 @@ contains
     allocate ( pmin(nchn),                               stat= allocStatus(18))
     allocate ( dtaudp1(nchn),                            stat= allocStatus(19))
     allocate ( fate(nchn),                               stat= allocStatus(20))
-    if (liasi) allocate ( cloudyRadiance_avhrr(NIR,nlv_T), stat= allocStatus(21))
+    if (liasi) allocate ( cloudyRadiance_avhrr(NIR,nlv_T-1), stat= allocStatus(21))
     allocate ( maxwf(nchn),                              stat= allocStatus(22))
-    allocate ( pressure(nlv_T,1),                        stat= allocStatus(24))
-    allocate ( tt(nlv_T),                                stat= allocStatus(25))
-    allocate ( height(nlv_T,1),                          stat= allocStatus(26))
+    allocate ( pressure(nlv_T-1,1),                      stat= allocStatus(24))
+    allocate ( tt(nlv_T-1),                              stat= allocStatus(25))
+    allocate ( height(nlv_T-1,1),                        stat= allocStatus(26))
     allocate ( channelIndexes(nchn),                     stat= allocStatus(27))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl 1")
   
@@ -554,10 +553,10 @@ contains
         tg = col_getElem(columnHr, 1, headerIndex, 'TG')
         p0 = col_getElem(columnHr, 1, headerIndex, 'P0') * MPC_MBAR_PER_PA_R8
 
-        do levelIndex = 1, nlv_T
-          tt(levelIndex) = col_getElem(columnHr, levelIndex, headerIndex, 'TT')
-          height(levelIndex,1) = col_getHeight(columnHr, levelIndex, headerIndex, 'TH')
-          pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
+        do levelIndex = 1, nlv_T - 1
+          tt(levelIndex) = col_getElem(columnHr, levelIndex+1, headerIndex, 'TT')
+          height(levelIndex,1) = col_getHeight(columnHr, levelIndex+1, headerIndex, 'TH')
+          pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex+1, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
         end do
         qs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
 
@@ -591,14 +590,17 @@ contains
         end do
 
         if (nchannels==0) cycle HEADER_2
+
         do jc = 1, nchannels
           channelIndex = channelIndexes(jc)
           btCalc(channelIndex) = tvs_radiance(tvs_nobtov) % bt(channelIndex)
           rcal_clr(channelIndex) = tvs_radiance(tvs_nobtov) % clear(channelIndex)
           sfctau(channelIndex) = tvs_transmission(tvs_nobtov) % tau_total(channelIndex)
-          do levelIndex = 1, nlv_T
-            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex  - 1,channelIndex)
-            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex,channelIndex)
+          do levelIndex = 1, nlv_T 
+            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex, channelIndex)
+          end do          
+          do levelIndex = 1, nlv_T - 1
+            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex, channelIndex)
           end do
           emi_sfc(channelIndex) = tvs_emissivity(channelIndex,tvs_nobtov)
           !  Gross check on computed BTs ***
@@ -648,8 +650,8 @@ contains
         end do channels
 
         !  Set height fields to 'height above ground' fields
-        do levelIndex = 1, nlv_T
-          height(levelIndex,1) = height(levelIndex,1) - height(nlv_T,1)
+        do levelIndex = 1, nlv_T - 1
+          height(levelIndex,1) = height(levelIndex,1) - height(nlv_T-1,1)
         end do
 
         ! ///// ---------------------------------------------------- /////
@@ -710,8 +712,8 @@ contains
             emi_sfc_avhrr(:) = avhrr_bgck(headerIndex) % emiss(:)
             sfctau_avhrr(:) = avhrr_bgck(headerIndex) % transmsurf(:)
             
-            do levelIndex = 1, nlv_T
-              cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex - 1,:)
+            do levelIndex = 1, nlv_T - 1
+              cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex,:)
             end do
            
             if (btObs_avhrr(2,classIndex) > 100.d0 ) then
@@ -988,7 +990,7 @@ contains
         end if
 
         !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds        
-        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm, pressure(:,1), cldflag, modelTopIndex)
+        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm(:,2:nlv_T), pressure(:,1), cldflag, modelTopIndex)
         !  -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
         ! *** Test # 3 ***
@@ -1131,7 +1133,7 @@ contains
         call obs_headSet_r(obsSpaceData, OBS_HE,   headerIndex, heff )
         call obs_headSet_r(obsSpaceData, OBS_ZTSR, headerIndex, tskinRetrieved )
         call obs_headSet_i(obsSpaceData, OBS_NCO2, headerIndex, ngood)
-        call obs_headSet_r(obsSpaceData, OBS_ZTM,  headerIndex, tt(nlv_T) )
+        call obs_headSet_r(obsSpaceData, OBS_ZTM,  headerIndex, tt(nlv_T-1) )
         call obs_headSet_r(obsSpaceData, OBS_ZTGM, headerIndex, tg )
         call obs_headSet_r(obsSpaceData, OBS_ZLQM, headerIndex, qs )
         call obs_headSet_r(obsSpaceData, OBS_ZPS,  headerIndex, 100.d0 * p0 )
@@ -2179,7 +2181,7 @@ contains
 
     nlev = size( tt )
     i10=1
-    do i=2,nlev
+    do i=2, nlev
       if (plev(i - 1) <= 100.d0 .and. plev(i) > 100.d0) then
         i10 = i
         exit
@@ -2334,7 +2336,7 @@ contains
       im = minloc ( tt )
 
       i10 = -1
-      do I=2,nlev
+      do i = 2, nlev
         if (pp(i-1) <= 100.d0 .and. pp(i) > 100.d0) then
           I10 = I
           exit
@@ -2552,8 +2554,6 @@ contains
     avhrr_bgck(headerIndex)% tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
     allocate( avhrr_bgck(headerIndex)% radovcalc(nlevels-1,NVIS+1:NVIS+NIR) )
     avhrr_bgck(headerIndex)% radovcalc(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
-    allocate( avhrr_bgck(headerIndex)% transmcalc(nlevels,NVIS+1:NVIS+NIR) )
-    avhrr_bgck(headerIndex)% transmcalc(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
     avhrr_bgck(headerIndex)% emiss(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
     avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 

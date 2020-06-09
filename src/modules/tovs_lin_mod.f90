@@ -393,7 +393,7 @@ contains
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
 
-    integer :: allocStatus(7)
+    integer :: allocStatus(17)
     integer :: omp_get_num_threads, nthreads
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
