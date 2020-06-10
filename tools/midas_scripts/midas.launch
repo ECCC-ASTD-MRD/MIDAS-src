@@ -54,9 +54,8 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -editbrp     "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
   -reflex      "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
   -rfiletype   "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
-  -tripotenml  "r.tripotenml" "r.tripotenml"  "[path to 'r.tripotenml' (default: the one in the PATH)]" \
   -run_in_parallel  "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
-  -tripotenml  "r.tripotenml" "r.tripotenml"  "[path to 'r.tripotenml' (default: the one in the PATH)]" \
+  -tripotenml  "midas.tripotenml" "midas.tripotenml"  "[path to 'midas.tripotenml' (default: the one in the PATH)]" \
   -remote_copy "scp" "scp"  "[path to remote copy tool (default: 'scp')]" \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
