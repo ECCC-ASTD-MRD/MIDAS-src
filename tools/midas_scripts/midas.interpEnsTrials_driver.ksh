@@ -22,7 +22,7 @@ export INTERPENSTRIALS_CMDN_PACKAGE=${INTERPENSTRIALS_CMDN_PACKAGE:-eccc/cmd/cmd
 if [ $# -lt 5 -o $# -gt 8 ]; then
     set +x
     echo "You must specify a source for the staggered EnKF files and a working directory and"
-    echo "a prefix for the input files and the topology of the next EnVar execution (for separation into latitude and longitude bands)"
+    echo "a prefix for the input files and the topology of the next MIDAS program execution (for separation into latitude and longitude bands)"
     echo "and possibly a prototype file defining the vertical coordinate (defaut: ${proto_file})"
     echo "and there is also the possibility to add the option 'menage=oui' as the last argument to remove the original staggered files"
     set -x

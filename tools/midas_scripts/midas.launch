@@ -65,7 +65,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
 
 ## "bgcov obscov coefsat statsat" removed from list of required defined arguments as they are not necessary in some cases.
 ## Instead, a warning message is provided.
-## EnVar will abort if required but not present.
+## MIDAS program will abort if required but not present.
 
 if [ -z "${abs}" ]; then
     echo "midas.launch: the argument '-abs' must be defined"

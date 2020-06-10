@@ -9,8 +9,8 @@ eval `cclargs_lite -D "" $0 \
   -date              ""   ""    "[date of the files]" \
   -ext               "006"   "006"    "[extension to build the filename]" \
   -fallback_mode     "abort" "abort" "[fallback mode (default: 'abort')]" \
-  -ensemble          "" "" "[directory to find the ensemble trials fields for EnVar input]" \
-  -ensemble_output   "" "" "[direcotry where will be found the ensemble trials]" \
+  -ensemble          "" "" "[directory to find the ensemble trials input fields]" \
+  -ensemble_output   "" "" "[directory where will be found the ensemble trials]" \
   -number_of_members "" "" "[number of ensemble members]" \
   -enstrials_extension_length      "4" "4" "[Ensemble trials extension length (default: 4)]" \
   -minimum_proportion_of_members   "0.5" "0.5" "[minimum proportion of members]" \

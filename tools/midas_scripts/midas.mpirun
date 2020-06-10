@@ -35,11 +35,11 @@ unset __midas_mpirun_OMP_STACKSIZE__
 
 if [ "${EC_ARCH}" = Linux_x86-64 ]; then
     set +x
-    for __midas_mpirun_envar_ssmdomain__ in ${__midas_mpirun_ssm__}; do
-	echo "loading SSM domain '${__midas_mpirun_envar_ssmdomain__}'"
-	. ssmuse-sh -d ${__midas_mpirun_envar_ssmdomain__}
+    for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
+	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
+	. ssmuse-sh -d ${__midas_mpirun_ssmdomain__}
     done
-    unset __midas_mpirun_envar_ssmdomain__
+    unset __midas_mpirun_ssmdomain__
     set -x
 
     echo "loading OMPI_MCA variables"

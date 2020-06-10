@@ -46,10 +46,9 @@ et le contrôle de qualité.  Ce script appelle les scripts suivants:
 
 ### midas.check_ensemble
 
-Ce script verifie si tous les trials d'ensemble sont présent avant de
-demarrer une assimilation EnVar.  Dans le cas où on appelle le script
-avec `-fallback_mode` égal à `continue` et qu'il manque des membres
-d'ensemble, on applique l'[algorithme de
+Ce script verifie si tous les trials d'ensemble sont présents.  Dans
+le cas où on appelle le script avec `-fallback_mode` égal à `continue`
+et qu'il manque des membres d'ensemble, on applique l'[algorithme de
 contigence](https://wiki.cmc.ec.gc.ca/wiki/RPN-AD/Ensemble_contingency/FullDescription).
 
 ### midas.tripotenml
