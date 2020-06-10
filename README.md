@@ -135,7 +135,12 @@ automatically when a tag is pushed.
 
 ## Create your own SSM domain
 
-[You can create your own SSM domain using those instructions](ssm/README.md).
+You can create your own SSM domain using the script `ssm/domaingen`
+which takes two optional arguments:
+ 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
+   * default: `${HOME}/data_maestro/ords/SSM/midas`
+ 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
+   * default: `${DOMAIN_BASE}/packages`
 
 # Tools
 
