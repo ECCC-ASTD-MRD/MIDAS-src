@@ -1,5 +1,10 @@
 #!/bin/bash
 
+## Ce script verifie si tous les trials d'ensemble sont présents.  Dans
+## le cas où on appelle le script avec `-fallback_mode` égal à `continue`
+## et qu'il manque des membres d'ensemble, on applique l'[algorithme de
+## contigence](https://wiki.cmc.ec.gc.ca/wiki/RPN-AD/Ensemble_contingency/FullDescription).
+
 set -ex
 
 arguments=$*

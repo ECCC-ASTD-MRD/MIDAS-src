@@ -1,5 +1,8 @@
 #!/bin/ksh
 
+## Ce script est un wrapper autour de `r.run_in_parallel` pour rassembler
+## le code qui doit être exécuté avant de lancer le MPI.
+
 set -ex
 
 __midas_mpirun_msg__=$1

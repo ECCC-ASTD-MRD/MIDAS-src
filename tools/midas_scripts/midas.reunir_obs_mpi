@@ -1,5 +1,8 @@
 #!/bin/bash
 
+## Ce script est lancé par `midas.reunir_obs` et fait le rassemblage des
+## observations pour une seule famille.
+
 set -ex
 
 CCLARGS=${CCLARGS:-cclargs_lite}

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+## Ce script fait le splitting des observations avant de lancer le
+## programme MIDAS qui a besoin des observations déjà splittées.  On
+## supporte les fichiers BURP et SQLite.
+
 set -ex
 
 CCLARGS=${CCLARGS:-cclargs_lite}

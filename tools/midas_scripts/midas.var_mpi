@@ -1,5 +1,10 @@
 #!/bin/bash
 
+## Ce script est lancé en MPI et est celui qui appelle vraiment les
+## programmes de MIDAS.  C'est ce script qui appelle `midas.splitobs` qui
+## fait le splitting des observations avant d'appeler les véritables
+## programmes MPI.
+
 set -ex
 
 CCLARGS=${CCLARGS:-cclargs_lite}

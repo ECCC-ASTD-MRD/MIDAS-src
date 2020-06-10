@@ -1,5 +1,9 @@
 #!/bin/ksh
 
+## Ce script gère l'interpolation des ensembles sur la grille horizontale
+## et verticale de l'analyse.  Ce script appelle
+## `midas.interpEnsTrials.ksh`.
+
 set -ex
 
 INTERPENSTRIALS_SSM_DOMAIN=${INTERPENSTRIALS_SSM_DOMAIN:-arma/envar/run/2.0.0}

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+## Ce script est le driver principal pour rassembler les observations qui
+## ont ete splittées par `midas.splitobs` et modifiées par le programme
+## MIDAS.  On appelle `midas.reunir_obs_mpi` pour chaque famille.
+
 set -ex
 
 arguments=$*

@@ -30,8 +30,8 @@ Les variables d'environnement suivantes sont possibles:
 ## midas.launch
 
 Le script `midas.launch` est le script principal qui lance les
-binaires `midas-var`, `midas-oMinusf` qui servent dans l'assimilation
-et le contrôle de qualité.  Ce script appelle les scripts suivants:
+programmes MIDAS qui servent dans l'assimilation et le contrôle de
+qualité.  Ce script appelle les scripts suivants:
  * `midas.check_ensemble`
  * `midas.tripotenml`
  * `midas.mpirun`

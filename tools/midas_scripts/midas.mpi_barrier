@@ -1,5 +1,10 @@
 #!/bin/bash
 
+## Ce script permet de resynchronier toutes les tuiles MPI après le
+## splitting des observations et avant de lancer le programme MPI.
+## Sinon, on obtient des timeout avec des erreurs `Alarm call` sur les
+## PPP.
+
 set -e
 
 MIDAS_MPI_BARRIER_VERBOSE=${MIDAS_MPI_BARRIER_VERBOSE:-no}

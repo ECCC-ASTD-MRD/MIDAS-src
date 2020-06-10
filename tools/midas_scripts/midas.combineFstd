@@ -1,5 +1,8 @@
 #!/bin/ksh
 
+## Ce script rassemble plusieurs fichiers standard RPN en un seul.  Ce
+## script n'est pas utilisé mais on le laisse dans la librairie.
+
 set -ex
 
 arguments=$*

@@ -1,5 +1,8 @@
 #!/bin/ksh
 
+## Ce script fait l'interpolation pour un membre d'ensemble en
+## particulier.  On y utilise amplement l'outil `pxs2pxt`.
+
 set -ex
 
 if [ $# -ne 6 ]; then
