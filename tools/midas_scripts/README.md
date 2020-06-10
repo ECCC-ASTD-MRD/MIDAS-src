@@ -21,8 +21,8 @@ Les variables d'environnement suivantes sont possibles:
    `v_3.3`.
  * `MIDAS_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
    alors un `set -x` sera effectué dans le script `midas.mpi_barrier`.
- * `MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER' : Cette variable définit le
-   nombre de threads utilisés pour traiter en parallèle chacun des
+ * `MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER`: Cette variable définit
+   le nombre de threads utilisés pour traiter en parallèle chacun des
    trials d'ensemble dans le script `midas.interpEnsTrials.ksh`.  La
    parallélisation est faite sur les dates contenues dans chacun des
    trials d'ensemble.  Par défaut, cette variable est égale à 1.

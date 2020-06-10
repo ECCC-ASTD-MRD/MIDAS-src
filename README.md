@@ -144,7 +144,7 @@ tools have a code separated from the main code in MIDAS.
 
 ## `midas_scripts`
 
-Those are the helped scripts which launch MIDAS program.
+Those are the helper scripts which launch MIDAS programs.
 
 Refer to the [`midas_scripts/README.md`](tools/midas_scripts/README.md) for more details.
 
