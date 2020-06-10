@@ -1,0 +1,322 @@
+#!/bin/bash
+
+set -ex
+
+CCLARGS=${CCLARGS:-cclargs_lite}
+
+arguments=$*
+eval `${CCLARGS}  -D "" $0 \
+  -observations      ""   ""     "[List of observations files]" \
+  -oavar_abs         "oavar.Abs" "oavar.Abs"   "[path to 'oavar.Abs' program]" \
+  -oavar_mpi_barrier "" "oavar.mpi_barrier" "[path to 'oavar.mpi_barrier' script, default to none so no barrier, if '-oavar_mpi_barrier' then 'oavar.mpi_barrier' in the PATH]" \
+  -oavar_splitobs    "oavar.splitobs" "oavar.splitobs"   "[path to 'oavar.splitobs' script]" \
+  -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
+  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_ndigits  "4"  "4" "[number of digits for file names of observations]" \
+  -splitobs_fstin    ""   ""  "[value of '-fstin'  argument of 'splitobs.Abs']" \
+  -splitobs_nomvar   ""   ""  "[value of '-nomvar' argument of 'splitobs.Abs']" \
+  -splitobs_mpchild2getObservations   ""   ""  "[list of number which indicates for each mpi tile where it should take its observation file for splitting]" \
+  -enstrials_extension_length "4" "4" "[Ensemble trials extension length (default: 4)]" \
+  -number_of_members ""   ""     "[number of ensemble trials]" \
+  -npex              "1"  "1"    "[number of MPI tiles in the x direction (default to 1]" \
+  -npey              "1"  "1"    "[number of MPI tiles in the y direction (default to 1]" \
+  -fasttmp           "no" "yes"  "[Using the FASTTMP technology]" \
+  -ramdiskpath       ""   ""     "[path to RAMDisk]" \
+  -editbrp     "editbrp"         "editbrp"     "[path to 'editbrp' (default: the one in the PATH)]" \
+  -reflex      "reflex"          "reflex"      "[path to 'reflex'  (default: the one in the PATH)]" \
+  -rfiletype   "r.filetype"      "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
+  -ls_cmd      "/bin/ls"         "/bin/ls"     "[path to 'ls' command (default '/bin/ls')]" \
+  -cp_cmd      "/bin/cp"         "/bin/cp"     "[path to 'cp' command (default '/bin/cp')]" \
+  -rm_cmd      "/bin/rm"         "/bin/rm"     "[path to 'rm' command (default '/bin/rm')]" \
+  -mv_cmd      "/bin/mv"         "/bin/mv"     "[path to 'mv' command (default '/bin/mv')]" \
+  -df_cmd      "/bin/df"         "/bin/df"     "[path to 'df' command (default '/bin/df')]" \
+  -mv_cmd      "/bin/mv"         "/bin/mv"     "[path to 'mv' command (default '/bin/mv')]" \
+  -sed_cmd     "/bin/sed"        "/bin/sed"    "[path to 'sed' command (default '/bin/sed')]" \
+  -cut_cmd     "/usr/bin/cut"   "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
+  -rev_cmd     "/usr/bin/rev"   "/usr/bin/rev" "[path to 'rev' command (default '/usr/bin/rev')]" \
+  -echo_cmd    "/bin/echo"       "/bin/echo"   "[path to 'echo' command (default '/bin/echo')]" \
+  -date_cmd    "/bin/date"       "/bin/date"   "[path to 'date' command (default '/bin/date')]" \
+  -true_cmd    "/bin/true"       "/bin/true"   "[path to 'true' command (default '/bin/true')]" \
+  -mkdir_cmd   "/bin/mkdir"      "/bin/mkdir"  "[path to 'mkdir' command (default '/bin/mkdir')]"   \
+  -printf_cmd  "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
+  -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
+  ++ $arguments`
+
+function print_number {
+    __print_number__=$1
+    __print_number_ndigits__=${2:-4}
+    ${printf_cmd} "%0.${__print_number_ndigits__}d" ${__print_number__}
+    unset __print_number__ __print_number_ndigits__
+}
+
+let nprocs=npex*npey
+echo hostname=$(hostname)
+
+${echo_cmd} starting preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+SECONDS=0
+if [ "${fasttmp}" = yes ]; then
+    FASTTMPDIR=${ramdiskpath}/oavar_${MP_CHILD}
+    [ -d "${FASTTMPDIR}" ] && ${rm_cmd} -rf ${FASTTMPDIR}
+    ${mkdir_cmd} -p ${FASTTMPDIR}
+
+    if [ -n "${observations}" ]; then
+        ## Create observations directory on RAMDisk to be used later
+        ${mkdir_cmd} ${FASTTMPDIR}/obs ${FASTTMPDIR}/obs.splitobs
+        OBS_DIRECTORY=${FASTTMPDIR}/obs
+    fi
+
+    export MIDAS_RAMDISKDIR=${FASTTMPDIR}
+elif [ -n "${observations}" ]; then ## this preparation is needed only if we have observations
+    OBS_DIRECTORY=obs
+    if [ "${splitobs_mode}" != no ]; then
+       [ "${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} ${OBS_DIRECTORY} obs.splitobs
+       while [ ! -d ${OBS_DIRECTORY} ]; do
+           ${sleep_cmd} 1
+       done
+
+       if [ "${MP_CHILD}" -eq 0 ]; then
+           ${cp_cmd} ${observations} obs.splitobs
+       else
+           all_files_found=false
+           while [ "${all_files_found}" != true ]; do
+               ${sleep_cmd} 5
+               all_files_found=true
+               for file in ${observations}; do
+                    if [ ! -f obs.splitobs/${file##*/} ]; then
+                        all_files_found=false
+                        break
+                    fi
+               done
+           done
+       fi
+    else
+        [ "${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} ${OBS_DIRECTORY}
+        while [ ! -d ${OBS_DIRECTORY} ]; do
+            ${sleep_cmd} 1
+        done
+    fi
+fi ## End of 'elif [ -n "${observations}" ]'
+
+ELAPSED_TIME=${SECONDS}
+${echo_cmd} ending preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} preparation took ${SECONDS}
+
+if [ -n "${observations}" ]; then
+    ## set variable 'OAVAR_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
+    OAVAR_OBS_MPI_ORDERING=${OAVAR_OBS_MPI_ORDERING:-regular}
+    if [ "${OAVAR_OBS_MPI_ORDERING}" = inverse ]; then
+        obsfile_y=$(print_number $((npey-MP_CHILD/npex)) ${splitobs_ndigits})
+        obsfile_x=$(print_number $((MP_CHILD+1-npex*(MP_CHILD/npex))) ${splitobs_ndigits})
+    elif [ "${OAVAR_OBS_MPI_ORDERING}" = regular ]; then
+        obsfile_y=$(print_number $((MP_CHILD/npex+1)) ${splitobs_ndigits})
+        obsfile_x=$(print_number $((MP_CHILD%npex+1)) ${splitobs_ndigits})
+    else
+        ${echo_cmd} "The variable 'OAVAR_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${OAVAR_OBS_MPI_ORDERING}'"
+        exit 1
+    fi
+
+    function extractFamily {
+        set -ex
+        __extractFamily_obsfile__=$1
+        __extractFamily_tiling__=${2:-no}
+
+        __extractFamily_basename_obsfile__=${__extractFamily_obsfile__##*/}
+        if [ "${__extractFamily_tiling__}" = yes ]; then
+            ## if '__extractFamily_basename_obsfile__' is of the form 'obs??????????_*_${obsfile_x}_${obsfile_y}' or
+            ## 'obsto_amsua_${obsfile_x}_${obsfile_y}' or 'obsssmis_${obsfile_x}_${obsfile_y}'
+            __extractFamily_tmp_obsfile__=$(${echo_cmd} ${__extractFamily_basename_obsfile__} | ${rev_cmd} | ${cut_cmd} -d_ -f3- | ${rev_cmd})
+        else
+            ## if '__extractFamily_basename_obsfile__' is of the form 'obs??????????_*' or 'obsto_amsua' or 'obsssmis'
+            __extractFamily_tmp_obsfile__=${__extractFamily_basename_obsfile__}
+        fi
+
+        ## 'obs??????????_*' or 'obsto_amsua' or 'obsssmis'
+        ${echo_cmd} ${__extractFamily_tmp_obsfile__} | ${sed_cmd} 's/^obs[0-9_]*//'
+        unset __extractFamily_obsfile__ __extractFamily_basename_obsfile__ __extractFamily_tmp_obsfile__ __extractFamily_tiling__
+    }
+
+    if [ "${splitobs_mode}" = distribute ]; then
+        ${echo_cmd} starting observation distribution at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+        SECONDS=0
+        ## sort the files according to their size (then the files will be distributed more evenly across MPI tiles in term of total size)
+        declare -a observationsArray=( ${observations} )
+        let ncpus=npex*npey
+        let nobsfiles=${#observationsArray[@]}
+        let maxFilesPerTile=nobsfiles/ncpus+1
+        let maxTileIndexWithMaxFiles=nobsfiles%ncpus
+        let obsIndex=MP_CHILD || true
+        if [ "${MP_CHILD}" -lt "${maxTileIndexWithMaxFiles}" ]; then
+            let startIndex=maxFilesPerTile*MP_CHILD || true
+            let endIndex=startIndex+maxFilesPerTile-1
+        else
+            let startIndex=$((maxFilesPerTile*maxTileIndexWithMaxFiles+(maxFilesPerTile-1)*(MP_CHILD-maxTileIndexWithMaxFiles)))
+            let endIndex=startIndex+maxFilesPerTile-2
+        fi
+
+        for obsIndex in $(seq ${startIndex} ${endIndex}); do
+            obsFile=${observationsArray[${obsIndex}]}
+            fam=$(extractFamily ${obsFile})
+            ofile=${OBS_DIRECTORY}/obs${fam}_${obsfile_x}_${obsfile_y}
+            if [ ! -f "${ofile}" ]; then
+                ${cp_cmd} ${obsFile} ${ofile}
+            else
+                ls -la ${OBS_DIRECTORY}/
+                if [ "${fasttmp}" = yes ]; then
+                    obsFileTmp=${OBS_DIRECTORY}/${obsFile##*/}
+                    cp ${obsFile} ${obsFileTmp}
+                else
+                    obsFileTmp=${obsFile}
+                fi
+                ls -la ${OBS_DIRECTORY}/
+                ${reflex} -ixent ${obsFileTmp} -oxsrt ${ofile}
+                [ "${fasttmp}" = yes ] && rm -f ${obsFileTmp}
+            fi
+        done
+        ${echo_cmd} "observation distribution took ${SECONDS} seconds for all observations (including show of listings)."
+        ${echo_cmd} ending observation distribution at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+    elif [ "${splitobs_mode}" != no ]; then
+        ${echo_cmd} starting splitting at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+        if [ -n "${splitobs_mpchild2getObservations}" ]; then
+            declare -a mpchild2getObservations
+            mpchild2getObservations=(${splitobs_mpchild2getObservations})
+            echo ${mpchild2getObservations[*]}
+            echo ${mpchild2getObservations[@]}
+            MINIMIZE_COPY=${mpchild2getObservations[${MP_CHILD}]}
+	    if [ "${fasttmp}" = yes ]; then
+	        obsdir=${ramdiskpath}/oavar_${MINIMIZE_COPY}/obs.splitobs
+	    else
+	        obsdir=${PWD}/obs.splitobs
+	    fi
+        else
+            MINIMIZE_COPY=false
+	    obsdir=${PWD}/obs.splitobs
+        fi
+
+        SECONDS=0
+        for filename in ${observations}; do
+            bfilename=${filename##*/}
+            ${oavar_splitobs} -obsfile ${filename} -obsoutput ${OBS_DIRECTORY}  \
+                -x ${obsfile_x} -y ${obsfile_y} -npex ${npex} -npey ${npey}     \
+                -obsdir           ${obsdir}                                     \
+                -fasttmp          ${fasttmp}                                    \
+                -minimize_copy    ${MINIMIZE_COPY}                              \
+                -splitobs_pgm     ${splitobs_pgm}                               \
+                -splitobs_mode    ${splitobs_mode}                              \
+                -splitobs_ndigits ${splitobs_ndigits}                           \
+                -splitobs_fstin   ${splitobs_fstin}                             \
+                -splitobs_nomvar  ${splitobs_nomvar}                            \
+                -cp_cmd ${cp_cmd} -mv_cmd ${mv_cmd} -mkdir_cmd ${mkdir_cmd}     \
+                -sleep_cmd ${sleep_cmd} -echo_cmd ${echo_cmd}                   \
+                > splitfiles.${bfilename}.${MP_CHILD}.listing 2>&1 || touch splitfiles.${bfilename}.${MP_CHILD}.abort &
+        done
+        wait
+
+        for file in ${OBS_DIRECTORY}/obs*_${obsfile_x}_${obsfile_y}; do
+            fam=$(extractFamily ${file} yes)
+            ofile=${OBS_DIRECTORY}/obs${fam}_${obsfile_x}_${obsfile_y}
+            if [ "${file}" != "${ofile}" ]; then
+                ${reflex} -ixent ${file} -oxsrt ${ofile}
+            fi
+        done
+        ${rm_cmd} ${OBS_DIRECTORY}/obs??????????_*_${obsfile_x}_${obsfile_y} || ${true_cmd}
+
+        if [ "${OAVAR_SAVE_SPLITOBS}" = yes ]; then
+            for file in ${OBS_DIRECTORY}/obs*_${obsfile_x}_${obsfile_y}; do
+                if [ -f "${file}" ]; then
+                    #########################################################
+                    ## file='/a/path/to/obsto_amsua_0001_0003'
+                    bfile=${file##*/}
+                    ## bfile='obsto_amsua_0001_0003'
+                    afile=${bfile%%_[0-9]*_[0-9]*}
+                    ## afile='obsto_amsua'
+                    fam=${afile:3}
+                    ## fam='to_amsua'
+                    #########################################################
+                    ${cp_cmd} ${file} obsfiles_${fam}/${file##*/}
+                fi
+            done
+        fi
+
+        ${echo_cmd} "The splitting took ${SECONDS} seconds for all observations."
+        for listing in splitfiles.*.${MP_CHILD}.listing; do
+            cat ${listing}
+            rm  ${listing}
+        done
+        ${df_cmd} -hP ${FASTTMPDIR}
+        if [ -n "$(${ls_cmd} splitfiles.*.${MP_CHILD}.abort || ${true_cmd})" ]; then
+            ${echo_cmd} "One of the splitting commands aborted!"
+            exit 1
+        fi
+        ${echo_cmd} "The splitting took ${SECONDS} seconds for all observations (including show of listings)."
+        ${echo_cmd} ending splitting at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+    else  ## Donc 'splitobs_mode=no'
+        if [ "${MP_CHILD}" -eq 0 ]; then
+            for filename in ${observations}; do
+                cp ${filename} ${OBS_DIRECTORY}
+            done
+        fi
+    fi ## End of 'else' from 'if [ "${splitobs_mode}" != no ]; then'
+
+fi ## End of 'if [ -n "${observations}" ]'
+
+if [ -n "${oavar_mpi_barrier}" ]; then
+    ${oavar_mpi_barrier} -master 0 -child ${MP_CHILD} -id oavar -npex ${npex} -npey ${npey} -sleep 0.01 -workdir ${PWD} \
+        -echo_cmd ${echo_cmd} \
+        -date_cmd ${date_cmd} \
+        -sleep_cmd ${sleep_cmd}
+
+    if [ "${splitobs_mode}" != no ]; then
+        if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
+            ${rm_cmd} -fr ${ramdiskpath}/oavar_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
+        fi
+    fi
+fi
+
+ulimit -c unlimited
+
+${echo_cmd} starting ${oavar_abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+SECONDS=0
+${oavar_abs}
+#/usr/bin/time --format "Total Memory: %MMb" ${oavar_abs}
+ELAPSED_TIME=${SECONDS}
+${echo_cmd} ending ${oavar_abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} ${oavar_abs} took ${SECONDS}
+
+if [ -n "${observations}" ]; then
+    SECONDS=0
+    if [ "${splitobs_mode}" = no ]; then
+        if [ "${MP_CHILD}" -eq 0 ]; then
+            if [ "${fasttmp}" = yes ]; then
+                ${cp_cmd} ${FASTTMPDIR}/obs/* .
+            else
+                ${cp_cmd} ./obs/* .
+            fi
+        fi
+    else
+        for file in ${OBS_DIRECTORY}/*_${obsfile_x}_${obsfile_y}; do
+            if [ -f "${file}" ]; then
+                #########################################################
+                ## file='/a/path/to/obsto_amsua_0001_0003'
+                bfile=${file##*/}
+                ## bfile='obsto_amsua_0001_0003'
+                prefix=${bfile:0:3}
+                ## prefix=obs
+                afile=${bfile%%_[0-9]*_[0-9]*}
+                ## afile='obsto_amsua'
+                fam=${afile:3}
+                ## fam='to_amsua'
+                #########################################################
+                ${mv_cmd} ${file} ${prefix}files_${fam}.updated/${file##*/}
+            fi
+        done
+    fi
+fi ## End of 'if [ -n "${observations}" ]'
+
+if [ "${fasttmp}" = yes ]; then
+    ${df_cmd} -hP ${FASTTMPDIR}
+    ${rm_cmd} -rf ${FASTTMPDIR}
+fi
+
+${echo_cmd} ending oavar.var_mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+ELAPSED_TIME=${SECONDS}
+${echo_cmd} finalization took ${SECONDS}

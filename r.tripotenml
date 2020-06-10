@@ -1,0 +1,40 @@
+#!/bin/ksh
+#-*-ksh-*-
+#
+# Author : Simon Pellerin (ARMA/Nov. 2002)
+#
+# Positional arguments:
+#       1: type keyword [char, number or logical]
+#	2: Variable name
+#       3: Value to assign (replace)
+#       4: Namelist file
+#
+type=$1
+var=$(echo ${2} | sed 's/\(.\)/\1 /g') # Insert blanks between characters for looping below
+val=$3
+file=$4
+
+typeset -u ucase
+typeset -l lcase
+for char in ${var}
+do
+  ucase=$char
+  lcase=$char
+  regexp="${regexp}[${ucase}${lcase}]"
+done
+
+if [[ "${type}" = "char" ]]
+then
+  regexp="s/\(.*${regexp} *= *\)\('.*'\)\(.*\)/\1'${val}'\3/"
+elif [[ "${type}" = "number" ]]
+then
+  regexp="s/\(.*${regexp} *= *\)\(\-\{0,1\}[-\.eEGg\+0-9]*\)\(.*\)/\1${val}\3/"
+elif [[ "${type}" = "logical" ]]
+then
+  regexp="s/\(.*${regexp} *= *\)\(\.[TtFf][RrAa][UuLl][EeSs][Ee]\{0,1\}\.\)\(.*\)/\1${val}\3/"
+else
+  echo "Type ${type} is not implemented"
+  exit 1
+fi
+
+sed "${regexp}" ${file}

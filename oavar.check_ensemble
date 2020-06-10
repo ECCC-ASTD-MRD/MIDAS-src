@@ -1,0 +1,158 @@
+#!/bin/bash
+
+set -ex
+
+arguments=$*
+eval `cclargs_lite -D "" $0 \
+  -cfg               "not defined"   "not defined"    "[maestro OAVAR configuration file]" \
+  -workdir           ""   ""    "[working directory created  by the script (default: oavar_exec_\$\$)]" \
+  -namelist          ""   ""    "[namelist for the configuration (no default)]" \
+  -date              ""   ""    "[date of the files]" \
+  -ext               "006"   "006"    "[extension to build the filename]" \
+  -fallback_mode     "abort" "abort" "[fallback mode (default: 'abort')]" \
+  -ensemble          "" "" "[directory to find the ensemble trials fields for EnVar input]" \
+  -ensemble_output   "" "" "[direcotry where will be found the ensemble trials]" \
+  -number_of_members "" "" "[number of ensemble members]" \
+  -enstrials_extension_length      "4" "4" "[Ensemble trials extension length (default: 4)]" \
+  -minimum_proportion_of_members   "0.5" "0.5" "[minimum proportion of members]" \
+  -nodelogger   "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
+  ++ $arguments`
+
+NUMBER_OF_MEMBERS=${number_of_members}
+
+if [ -z "${namelist}" ]; then
+    echo "oavar.check_ensemble: the argument '-namelist' must be given."
+    exit 1
+fi
+
+function print_number {
+    __print_number__=$1
+    printf "%0.${enstrials_extension_length}d" ${__print_number__}
+    unset __print_number__
+}
+
+number=1
+MEMBER_MISSING=0
+missing_members=
+while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+    numstr=$(print_number ${number})
+    if [ ! -f ${ensemble}/${date}_${ext}_${numstr} ]; then
+        let MEMBER_MISSING=MEMBER_MISSING+1
+        touch MEMBER_MISSING.${numstr}
+        if [ -n "${missing_members}" ]; then
+            missing_members="${missing_members} ${number}"
+        else
+            missing_members=${number}
+        fi
+    fi
+    let number=number+1
+done
+
+if [ -n "${missing_members}" ]; then
+    ${nodelogger} -n $SEQ_NODE -s info -m "Some ensemble members are missing: ${missing_members}"
+fi
+
+[[ -d "${ensemble_output}" ]] && rm -rf ${ensemble_output}
+
+if [ "${MEMBER_MISSING}" -gt 0 ]; then
+    if [ "${fallback_mode}" = 'abort' ]; then
+        ${nodelogger} -n ${SEQ_NODE} -s info -m "At least one ensemble member is missing and 'fallback_mode' is 'abort' then ABORT!!!"
+        if [ "${USER}" = afsiops -o "${USER}" = afsipar ]; then
+            ${nodelogger} -n ${SEQ_NODE} -s info -m "A&P: CALL CMOIS"
+        fi
+        ${nodelogger} -n ${SEQ_NODE} -s info -m "If you want to continue by ignoring those missing ensemble members, put 'fallback_mode=continue' in ${cfg} and relaunch this task as indicated in the web page 'https://wiki.cmc.ec.gc.ca/wiki/ARMA/envar/contingency'"
+        exit 1
+    elif [ "${fallback_mode}" = 'continue' ]; then
+        ${nodelogger} -n ${SEQ_NODE} -s info -m "Since fallback_mode=${fallback_mode}, then continue"
+    else
+        echo "The variable 'fallback_mode' can only be 'abort' or 'continue' and not '${fallback_mode}'"
+        exit 1
+    fi
+
+    mkdir ${ensemble_output}
+
+    if [ "${MEMBER_MISSING}" -lt "$(echo ${NUMBER_OF_MEMBERS}*${minimum_proportion_of_members} | bc -l | cut -d. -f1)" ]; then
+        reponse=$(echo ${minimum_proportion_of_members} | awk '$1<0.5 {print "yes"}')
+        if [ "${reponse}" = yes ]; then
+            ${nodelogger} -n $SEQ_NODE -s info -m "Le parametre 'minimum_proportion_of_members' doit etre plus grand que 0.5"
+            exit 1
+        fi
+
+        number=1
+        while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+            numstr=$(print_number ${number})
+            if [ ! -f MEMBER_MISSING.${numstr} ]; then
+                ln -s ${ensemble}/${date}_${ext}_${numstr} ${ensemble_output}/${date}_${ext}_${numstr}
+            fi
+            let number=number+1
+        done
+
+        ## Tous les membres complets ont ete linkes
+        ## Il faut maintenant remplacer les membres incomplets
+        number=0
+        thisnumber=1
+        while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+            let number=number+1
+            numstr=$(print_number ${number})
+            if [ ! -f MEMBER_MISSING.${numstr} ]; then
+                ## Si le membre est complet alors le fichier 'MEMBER_MISSING.${number}'
+                ## n'existe pas alors on passe a l'autre nombre.
+                continue
+            fi
+            while [ "${thisnumber}" -le "${NUMBER_OF_MEMBERS}" ]; do
+                thisnumstr=$(print_number ${thisnumber})
+                if [ ! -f MEMBER_MISSING.${thisnumstr} ]; then
+                    break
+                fi
+                let thisnumber=thisnumber+1
+            done
+
+            ${nodelogger} -n ${SEQ_NODE} -s info -m "On remplace le membre ${numstr} par ${thisnumstr}"
+            ln -s ${ensemble}/${date}_${ext}_${thisnumstr} ${ensemble_output}/${date}_${ext}_${numstr}
+            let thisnumber=thisnumber+1
+        done ## Fin du 'while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]'
+    else
+        ${nodelogger} -n ${SEQ_NODE} -s info -m "Trop de membres sont absents alors nous tournerons sans les ensemble (3D-Var)"
+        ## On enleve la partie '&NAMBEN ... /' dans le namelist pour tourner sans ceux-ci.
+        ## cat ${namelist} | python -c "import re, sys; match=re.match('(.*)^ *?\&NAMBEN.*?^ *?/(.*)', sys.stdin.read(), re.DOTALL | re.MULTILINE); print match.group(1),match.group(2)," > flnml || true
+        cat > convert_to_3DVar.py <<EOF
+import re
+import sys
+
+## On modifie la ligne 'SCALEFACTOR' pour s'assurer que sa valeur soit 0 pour les matrices B d'ensemble et
+## 1 pour les matrices B NMC, puisqu'on est en 3D-Var pur.
+regex1=re.compile('^ *SCALEFACTOR.*?$', re.DOTALL | re.MULTILINE)
+subtxt_MODSCALEFACTOR = regex1.sub('   SCALEFACTOR   = 100*1.0D0', sys.stdin.read(), 1)
+
+## On attrape la ligne '&NAMBEN .... /' pour l'enlever puisqu'on est en 3D-Var pur
+regex2=re.compile('^ *?\&NAMBEN.*?^ *?/', re.DOTALL | re.MULTILINE)
+result=regex2.sub(' &NAMBEN\n/\n', subtxt_MODSCALEFACTOR, 1)
+
+## On evite d'ecrire la hessienne
+regex3=re.compile('^ *LWRTHESS.*$', re.MULTILINE)
+result=regex3.sub('   LWRTHESS = .FALSE.,', result, 1)
+
+## On double le nombre d'iterations et de simulations
+regex4=re.compile('^ *NITERMAX *= *([0-9]*) *, *$', re.MULTILINE)
+nitermax=regex4.search(result)
+result=regex4.sub('   NITERMAX = %d,' % (2*int(nitermax.group(1))), result, 1)
+
+regex5=re.compile('^ *NSIMMAX *= *([0-9]*) *, *$', re.MULTILINE)
+nsimmax=regex5.search(result)
+result=regex5.sub('   NSIMMAX = %d,' % (2*int(nsimmax.group(1))), result, 1)
+
+print result,
+EOF
+        cat ${namelist} | python convert_to_3DVar.py > flnml || true
+        if [ ! -s flnml ]; then
+            rm -f flnml
+        fi
+        ## Si on est en mode 3D-Var alors il ne faut pas utiliser la hessienne en intrant et a la sortie pour ne pas melanger les modes EnVar et 3D-Var
+        ## Par contre, on va la recycler pour pouvoir l'utiliser dans la prochaine analyse
+        if [ -f preconin ]; then
+            mv preconin pm1q
+        fi
+    fi ## Fin du 'else' relie au 'if [ "${MEMBER_MISSING}" -lt "$(echo ${NUMBER_OF_MEMBERS}*${minimum_proportion_of_members} | bc -l | cut -d. -f1)" ]'
+else
+    ln -s ${ensemble} ${ensemble_output}
+fi  ## Fin du 'else' relie au 'if [ "${MEMBER_MISSING}" -gt 0 ]'
