@@ -1,8 +1,5 @@
 #!/bin/bash
 
-## enlever 'splitobs_grid' qui peut etre remplace par 'analysisgrid'.
-##    l'enlever egalement du VAR.cfg
-
 set -ex
 
 arguments=$*
@@ -45,7 +42,6 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -mpimode           "mpi" "mpi" "[]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
   -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
-  -splitobs_grid     "" "" "[prototype of horizontal grid defining the analysis grid]" \
   -splitobs_nomvar   "P0" "P0" "[nomvar of the field to be read to define the grid]" \
   -splitobs_ndigits  "4" "4" "[number of digits for file names of observations]" \
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
