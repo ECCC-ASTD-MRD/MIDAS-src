@@ -35,7 +35,7 @@ qualité.  Ce script appelle les scripts suivants:
  * `midas.check_ensemble`
  * `midas.tripotenml`
  * `midas.mpirun`
- * `midas.var_mpi`
+ * `midas.mpi`
    * `midas.splitobs`
    * `midas.mpi_barrier`
  * `midas.reunir_obs`
@@ -61,7 +61,7 @@ l'utilise pour changer la valeur de l'étiquette.
 Ce script est un wrapper autour de `r.run_in_parallel` pour rassembler
 le code qui doit être exécuté avant de lancer le MPI.
 
-### midas.var_mpi
+### midas.mpi
 
 Ce script est lancé en MPI et est celui qui appelle vraiment les
 programmes de MIDAS.  C'est ce script qui appelle `midas.splitobs` qui

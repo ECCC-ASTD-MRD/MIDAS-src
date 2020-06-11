@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Incorporated in `tools/midas_scripts` all the helper scripts that was before in `oavar_scripts` (#364 and !349)
    * renamed them from `oavar.*` to `midas.*`
+     * renamed `midas.var_mpi` to `midas.mpi` to remove any reference to the VAR program
    * renamed the environment variables from `OAVAR_` to `MIDAS_*`
    * renamed the arguments in the script starting with `oavar_` to `midas_*`
    * modified the SSM publication process to take the scripts directly in the MIDAS code base

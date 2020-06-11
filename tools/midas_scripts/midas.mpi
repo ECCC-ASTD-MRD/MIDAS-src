@@ -47,6 +47,8 @@ eval `${CCLARGS}  -D "" $0 \
   -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
   ++ $arguments`
 
+${echo_cmd} starting midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+
 function print_number {
     __print_number__=$1
     __print_number_ndigits__=${2:-4}
@@ -322,6 +324,6 @@ if [ "${fasttmp}" = yes ]; then
     ${rm_cmd} -rf ${FASTTMPDIR}
 fi
 
-${echo_cmd} ending midas.var_mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+${echo_cmd} ending midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ELAPSED_TIME=${SECONDS}
 ${echo_cmd} finalization took ${SECONDS}

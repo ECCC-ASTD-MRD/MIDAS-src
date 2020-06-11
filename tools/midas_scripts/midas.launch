@@ -6,7 +6,7 @@
 ##  * `midas.check_ensemble`
 ##  * `midas.tripotenml`
 ##  * `midas.mpirun`
-##  * `midas.var_mpi`
+##  * `midas.mpi`
 ##    * `midas.splitobs`
 ##    * `midas.mpi_barrier`
 ##  * `midas.reunir_obs`
@@ -45,7 +45,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -abs               "" "" "[MIDAS binary to be run in the script (mandatory)]" \
   -midas_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
   -midas_check_ensemble "midas.check_ensemble" "midas.check_ensemble" "[script 'midas.check_ensemble' (default: the one in the PATH)]" \
-  -midas_var_mpi     "midas.var_mpi" "midas.var_mpi" "[script 'midas.var_mpi' to used to launch 'midas.Abs' in MPI (default: the one in the PATH)]" \
+  -midas_mpi     "midas.mpi" "midas.mpi" "[script 'midas.mpi' to used to launch 'midas.Abs' in MPI (default: the one in the PATH)]" \
   -midas_mpi_barrier "" "$(which midas.mpi_barrier)" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-midas_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
   -midas_splitobs    "$(which midas.splitobs)" "$(which midas.splitobs)" "[script 'midas.splitobs' to used to split observations (default: the one in the PATH)]" \
   -midas_reunir_obs  "midas.reunir_obs" "midas.reunir_obs" "[path to script 'midas.reunir_obs]" \
@@ -455,7 +455,7 @@ if [ -n "${observations}" ]; then
     observations_files="=-observations      ${observations_files}"
 fi
 
-${midas_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_var_mpi} -npex ${npex} -npey ${npey} \
+${midas_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_mpi} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
     -args                                                                \
                             ${observations_files}                        \
