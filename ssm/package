@@ -89,7 +89,6 @@ fi
 toplevel=$(git rev-parse --show-toplevel)
 MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
 
-VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.7}
 SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.3.4}
 
 ## If MIDAS_SOURCE is not yet defined we use the git repository itself.
@@ -101,7 +100,6 @@ if [ -z "${MIDAS_SOURCE}" ]; then
     fi
 fi
 
-VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
 
 export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
@@ -130,9 +128,6 @@ whichPlatforms () {
 	midas)
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
 	    ;;
-        VarScripts)
-            platforms=all
-            ;;
 	*)
 	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte." >&2
             return 1
@@ -140,10 +135,6 @@ whichPlatforms () {
     esac
 
     case "${pkgname}" in
-	VarScripts)
-	    BH_PULL_SOURCE_GIT_BRANCH=${VARSCRIPTS_REVISION}
-	    BH_PULL_SOURCE=${VARSCRIPTS_SOURCE}
-	    ;;
 	SplitObs)
 	    BH_PULL_SOURCE_GIT_BRANCH=${SPLITOBS_REVISION}
 	    BH_PULL_SOURCE=${SPLITOBS_SOURCE}

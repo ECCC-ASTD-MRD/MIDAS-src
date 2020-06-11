@@ -1,0 +1,72 @@
+#!/bin/bash
+
+## Ce script permet de resynchronier toutes les tuiles MPI après le
+## splitting des observations et avant de lancer le programme MPI.
+## Sinon, on obtient des timeout avec des erreurs `Alarm call` sur les
+## PPP.
+
+set -e
+
+MIDAS_MPI_BARRIER_VERBOSE=${MIDAS_MPI_BARRIER_VERBOSE:-no}
+
+if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
+    set -x
+fi
+
+CCLARGS=${CCLARGS:-cclargs_lite}
+
+arguments=$*
+eval `${CCLARGS}  -D "" $0 \
+  -master      "0"               "0"           "[MPI tile that will play the role of the master (default: 0)]" \
+  -child       "${MP_CHILD}"     "${MP_CHILD}" "[child id of this MPI tile (default: \\\${MP_CHILD})]" \
+  -npex        "1"               "1"           "[number of MPI tiles in the x direction (default to 1)]" \
+  -npey        "1"               "1"           "[number of MPI tiles in the y direction (default to 1)]" \
+  -id          "id"              "id"          "[id string to identify this barrier]" \
+  -workdir     "${PWD}"          "${PWD}"      "[working directory of where to put files]" \
+  -sleep       "0.01"            "0.01"        "[seconds to wait before checking for all MPI tile]" \
+  -echo_cmd    "/bin/echo"       "/bin/echo"   "[path to 'echo'  command (default '/bin/echo')]" \
+  -date_cmd    "/bin/date"       "/bin/date"   "[path to 'date'  command (default '/bin/date')]" \
+  -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
+  ++ $arguments`
+
+${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier starting for child=${child}
+${echo_cmd} ${workdir} ${id} ${child} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) > ${workdir}/mpibarrier.${id}.${child}
+
+SECONDS=0
+
+let nprocs=npex*npey
+
+## for child == master, then check if all the tiles have created the file '${workdir}/mpibarrier.${id}.${child}'
+if [ "${child}" = "${master}" ]; then
+    iteration=1
+    while [ 1 ]; do
+        allmpitilesdone=true
+        thischild=0
+        while [ "${thischild}" -lt "${nprocs}" ]; do
+            if [ ! -f ${workdir}/mpibarrier.${id}.${thischild} ]; then
+                allmpitilesdone=false
+                break
+            fi
+            let thischild=thischild+1
+        done
+        if [ "${allmpitilesdone}" = true ]; then
+            ${echo_cmd} ${workdir} ${id} ${child} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) > ${workdir}/mpibarrier.${id}.all_done
+            break
+        else
+            ${sleep_cmd} ${sleep}
+            if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
+                ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
+            fi
+        fi
+        let iteration=iteration+1
+    done
+else
+    while [ ! -f ${workdir}/mpibarrier.${id}.all_done ]; do
+        ${sleep_cmd} ${sleep}
+        if [ "${MIDAS_MPI_BARRIER_VERBOSE}" = yes ]; then
+            ${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier child=${child} SECONDS=${SECONDS} for iteration ${iteration}
+        fi
+    done
+fi
+
+${echo_cmd} $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) midas.mpi_barrier done after ${SECONDS} seconds for child=${child}

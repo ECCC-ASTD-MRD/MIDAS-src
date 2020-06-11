@@ -133,48 +133,25 @@ The [CI](CI.md) has been configured to produce a SSM domain under
 ```
 automatically when a tag is pushed.
 
-## Create your SSM domain
+## Create your own SSM domain
 
-First, to build the SSM packages, one must compile all the programs using:
-```bash
-cd src/programs
-./compile_all_plat.sh
-```
-
-Then, SSM publication is done in two steps:
- * SSM packaging
- * publish packages in SSM domain
-
-### SSM packaging
-
-Then, SSM packaging is done with:
-```bash
-VERSION=$(../midas.version.sh | cut -c3-)
-## to set variables 'MACHINE_PPP' and 'MACHINE_SUPER'
-. maestro/suites/midas_system_tests/set_machine_list.dot
-cd ssm
-./package --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
-```
-
-You can specify `${SSM_PACKAGES}` to a directory where you want the packages to be copied. They will be used in the next step.
-
-### Publish packages in a SSM domain
-
-Then, SSM publish is done with:
-```bash
-cd ssm
-./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${TMPDIR} --domainpath ~/data_maestro/ords/SSM/midas/${VERSION}
-```
-Then you can use the SSM domain published with:
-```bash
-. ssmuse-sh -d ~/data_maestro/ords/SSM/midas/${VERSION}
-```
-
+You can create your own SSM domain using the script `ssm/domaingen`
+which takes two optional arguments:
+ 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
+   * default: `${HOME}/data_maestro/ords/SSM/midas`
+ 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
+   * default: `${DOMAIN_BASE}/packages`
 
 # Tools
 
 Several tools related to MIDAS are included in the codebase.  Those
 tools have a code separated from the main code in MIDAS.
+
+## `midas_scripts`
+
+Those are the helper scripts which launch MIDAS programs.
+
+Refer to the [`midas_scripts/README.md`](tools/midas_scripts/README.md) for more details.
 
 ## `midas.monitor`
 

@@ -1,0 +1,78 @@
+#!/bin/bash
+
+## Ce script fait le splitting des observations avant de lancer le
+## programme MIDAS qui a besoin des observations déjà splittées.  On
+## supporte les fichiers BURP et SQLite.
+
+set -ex
+
+CCLARGS=${CCLARGS:-cclargs_lite}
+
+arguments=$*
+eval `${CCLARGS} -D "" $0 \
+  -fasttmp       "no" "yes" "[Use or not the FASTTMP]"  \
+  -obsfile       "" "" "[input observation file]"  \
+  -obsdir        "" "" "[input observation directory for tiles that to do contain observations]" \
+  -obsoutput     "" "" "[output observation directory]" \
+  -x             "" "" "[tile number in x direction]" \
+  -y             "" "" "[tile number in y direction]" \
+  -npex          "" "" "[number of PE in x direction]" \
+  -npey          "" "" "[number of PE in y direction]" \
+  -minimize_copy     "" "" "['false' or the PE containing the observation file]" \
+  -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
+  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_ndigits  "4" "4" "[number of digits for file names of observations]" \
+  -splitobs_nomvar   "P0" "P0" "[nomvar of the field to be read to define the grid]" \
+  -splitobs_fstin    ""   ""   "[RPN standard file for grid definition]" \
+  -rm_cmd "/bin/rm" "/bin/rm" "[path to 'rm' command (default '/bin/rm')]" \
+  -mv_cmd "/bin/mv" "/bin/mv" "[path to 'mv' command (default '/bin/mv')]" \
+  -cp_cmd "/bin/cp" "/bin/cp" "[path to 'cp' command (default '/bin/cp')]" \
+  -echo_cmd "/bin/echo" "/bin/echo" "[path to 'echo' command (default '/bin/echo')]" \
+  -mkdir_cmd "/bin/mkdir" "/bin/mkdir" "[path to 'mkdir' command (default '/bin/mkdir')]" \
+  -sleep_cmd "/bin/sleep" "/bin/sleep" "[path to 'sleep' command (default '/bin/sleep')]" \
+  ++ $arguments`
+
+obsfile_x=${x}
+obsfile_y=${y}
+
+bobsfile=${obsfile##*/}
+if [ "${fasttmp}" = yes ]; then
+    if [ "${minimize_copy}" = false ]; then
+        source_obs_file=${obsoutput}/${bobsfile}
+        ${cp_cmd} ${obsfile} ${source_obs_file}
+    else
+        source_obs_file=${obsdir}/${bobsfile}
+        if [ "${MP_CHILD}" -eq "${minimize_copy}" ]; then
+            ${cp_cmd} ${obsfile} ${source_obs_file}.tmp
+            ${mv_cmd} ${source_obs_file}.tmp ${source_obs_file}
+        else
+            while [ ! -f "${source_obs_file}" ]; do
+                ${sleep_cmd} 0.1 || ${sleep_cmd} 1
+            done
+        fi
+    fi
+else
+    source_obs_file=${obsfile}
+fi
+
+if [ "${splitobs_mode}" = 'splitobs' ]; then
+    splitobs_args="-fstin ${splitobs_fstin} -nomvar ${splitobs_nomvar}"
+    splitobs_args="${splitobs_args} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}"
+elif [ "${splitobs_mode}" = 'round-robin' ]; then
+    splitobs_args="-round-robin -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}"
+elif [ "${splitobs_mode}"  != no ]; then
+    ${echo_cmd} "midas.launch: 'splitobs_mode' must be 'splitobs', 'round-robin' or 'no' and not '${splitobs_mode}'"
+    exit 1
+fi
+
+SECONDS=0
+${splitobs_pgm} -obsin ${source_obs_file} -obsout ${obsoutput}/${bobsfile} \
+      -x ${obsfile_x} -y ${obsfile_y} ${splitobs_args}
+${echo_cmd} "The splitting for file '${bobsfile}' took ${SECONDS} seconds."
+
+if [ "${fasttmp}" = yes ]; then
+    ## We do not erase the original file if we are in the mode where only the first tile of each node copies the file
+    if [ "${minimize_copy}" = false ]; then
+        ${rm_cmd} ${source_obs_file}
+    fi
+fi

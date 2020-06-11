@@ -25,7 +25,7 @@ def _make(b):
     global compiler
 
     if b.platform == "all":
-        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cp tools/findTrials/midas.findTrials ...; cd tools/monitor; make"
+        build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cp tools/findTrials/midas.findTrials tools/midas_scripts/midas.* ...; cd tools/monitor; make"
     else:
         build_info = "git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh"
 
@@ -63,8 +63,11 @@ def _install(b):
          mkdir -p ${INSTALL_DIR}
 
          ## install scripts to be published for 'all' platform
-         cp ${BH_MIDAS_TOP_LEVEL_DIR}/tools/findTrials/midas.findTrials ${INSTALL_DIR}/midas.findTrials_${MIDAS_VERSION}
-         ln -s midas.findTrials_${MIDAS_VERSION} ${INSTALL_DIR}/midas.findTrials
+         for script in ${BH_MIDAS_TOP_LEVEL_DIR}/tools/findTrials/midas.findTrials ${BH_MIDAS_TOP_LEVEL_DIR}/tools/midas_scripts/midas.*; do
+             bscript=$(basename ${script})
+             cp ${script} ${INSTALL_DIR}/${bscript}_${MIDAS_VERSION}
+             ln -s ${bscript}_${MIDAS_VERSION} ${INSTALL_DIR}/${bscript}
+         done
 
          ## The program 'midas.monitor' does not need to be compiled on a specific platform
          progname=monitor

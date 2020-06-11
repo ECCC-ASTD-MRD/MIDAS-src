@@ -1,0 +1,212 @@
+#!/bin/bash
+
+## Ce script est lancé par `midas.reunir_obs` et fait le rassemblage des
+## observations pour une seule famille.
+
+set -ex
+
+CCLARGS=${CCLARGS:-cclargs_lite}
+
+arguments=$*
+eval `${CCLARGS} -D "" $0 \
+  -obsin         "" "" "[input observation directory (where 'obsfiles_*.updated directories are)]"  \
+  -obsout        "" "" "[output observation directory]" \
+  -number_of_families_already_processed  "0"   "0" "[Number of families already process by a previous MPI run (default: 0)]" \
+  -families2process  ""   "" "[List of families extension to be processed]" \
+  -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
+  -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
+  -reunir_obs_fam    "uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov" "" "[list of observation families that 'reunir_obs' will have to process (default: 'uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov')]" \
+  -editbrp     "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
+  -reflex      "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
+  -rfiletype   "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
+  -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
+  -ramdiskpath "" "" "[path to RAMDisk]" \
+  -ls_cmd "/bin/ls" "/bin/ls" "[path to 'ls' command (default '/bin/ls')]" \
+  -rm_cmd "/bin/rm" "/bin/rm" "[path to 'rm' command (default '/bin/rm')]" \
+  -mv_cmd "/bin/mv" "/bin/mv" "[path to 'mv' command (default '/bin/mv')]" \
+  -cp_cmd "/bin/cp" "/bin/cp" "[path to 'cp' command (default '/bin/cp')]" \
+  -sed_cmd "/bin/sed" "/bin/sed" "[path to 'sed' command (default '/bin/sed')]" \
+  -echo_cmd "/bin/echo" "/bin/echo" "[path to 'echo' command (default '/bin/echo')]" \
+  -true_cmd "/bin/true" "/bin/true" "[path to 'true' command (default '/bin/true')]" \
+  -grep_cmd "/bin/grep" "/bin/grep" "[path to 'grep' command (default '/bin/grep')]" \
+  -mkdir_cmd "/bin/mkdir" "/bin/mkdir" "[path to 'mkdir' command (default '/bin/mkdir')]" \
+  -wc_cmd "/usr/bin/wc" "/usr/bin/wc" "[path to 'wc' command (default '/usr/bin/wc')]" \
+  -tr_cmd "/usr/bin/tr" "/usr/bin/tr" "[path to 'tr' command (default '/usr/bin/tr')]" \
+  -cut_cmd "/usr/bin/cut" "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
+  -printf_cmd "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
+  -xargs_cmd "/usr/bin/xargs" "/usr/bin/xargs" "[path to 'xargs' command (default '/usr/bin/xargs')]" \
+  -basename_cmd "/usr/bin/basename" "/usr/bin/basename" "[path to 'basename' command (default '/usr/bin/basename')]" \
+  -sqlite3_cmd "/usr/bin/sqlite3" "/usr/bin/sqlite3" "[path to 'sqlite3' command (default '/usr/bin/sqlite3')]" \
+  ++ $arguments`
+
+MP_CHILD=${MP_CHILD:-0}
+let base=number_of_families_already_processed+MP_CHILD || true
+
+number_of_families2process=$(${printf_cmd} "${families2process}" | ${wc_cmd} -w)
+if [ "${number_of_families2process}" -le "${MP_CHILD}" ]; then
+    ${echo_cmd} "No observation family to process with MP_CHILD=${MP_CHILD}"
+    exit 0
+fi
+
+number=0
+for fam in ${families2process}; do
+    [ "${number}" -eq "${base}" ] && break
+    let number=number+1
+done
+if [ "${number}" -eq "${number_of_families2process}" ]; then
+    ${echo_cmd} "No more family to process"
+    exit 0
+fi
+if [ -z "${fam}" ]; then
+    ${echo_cmd} "Did not find any family to process"
+    exit 1
+fi
+${echo_cmd} "fam=${fam} will be processed"
+
+files="$(${ls_cmd} -1 ${obsin}/${fam}.updated/* | ${grep_cmd} -v num_headers || ${true_cmd})"
+[ -z "${files}" ] && exit 0
+
+[ -f ${fam}.all.original ] && ${rm_cmd} -f ${fam}.all.original
+
+## On regroupe les fichiers ensemble avec 'reflex' qui ne peut prendre que 10 fichiers a la fois
+if [ "${fasttmp}" = yes ]; then
+    FASTTMP=${ramdiskpath}/reunir_obs_${fam}
+    [ -d "${FASTTMP}" ] && ${rm_cmd} -rf ${FASTTMP}
+    ${mkdir_cmd} ${FASTTMP}
+    ${cp_cmd} ${files} ${FASTTMP}
+    cd ${FASTTMP}
+    export TMPDIR=${FASTTMP}
+
+    ## decide if the obs file is a BURP file or a SQLite file
+    for file in ${files}; do
+        bfile=${file##*/}
+        filetype=$(${rfiletype} ${bfile}) || filetypestatus=$?
+        if [ "${filetypestatus}" = 6 ]; then
+            filetype=BURP
+        elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${bfile}: SQLite 3.x database"* ]]; then
+            filetype=SQLite
+        else
+            echo "The filetype cannot be determined for file '${PWD}/${bfile}'!!!"
+            exit 1
+        fi
+        ## Just check the first file because we assume that all the files
+        ## under the directory are of the same type.
+        break
+    done
+    if [ "${filetype}" = BURP ]; then
+        ${printf_cmd} "$(${echo_cmd} ${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -L1 ${basename_cmd} | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${fam}.all.original -ixent
+    elif [ "${filetype}" != SQLite ]; then
+        echo "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
+        exit 1
+    fi
+else
+    ## decide if the obs file is a BURP file or a SQLite file
+    for file in ${files}; do
+        bfile=${file##*/}
+        filetype=$(${rfiletype} ${file}) || filetypestatus=$?
+        if [ "${filetypestatus}" = 6 ]; then
+            filetype=BURP
+        elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${file}: SQLite 3.x database"* ]]; then
+            filetype=SQLite
+        else
+            echo "The filetype cannot be determined for file '${PWD}/${file}'!!!"
+            exit 1
+        fi
+        ## Just check the first file because we assume that all the files
+        ## under the directory are of the same type.
+        break
+    done
+    dfile=${file%/*}
+    if [ "${filetype}" = BURP ]; then
+        ${printf_cmd} "$(${echo_cmd} ${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${dfile}/${fam}.all.original -ixent
+    elif [ "${filetype}" != SQLite ]; then
+        echo "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
+        exit 1
+    fi
+    cd ${dfile}
+fi
+
+if [ "${filetype}" = BURP ]; then
+    ## On enleve tous les enregistrements resume pour n'en garder qu'un seul.
+    [ -f ${fam}.1resrec ] && ${rm_cmd} -f ${fam}.1resrec
+    ${editbrp} -s ${fam}.all.original -d ${fam}.1resrec -i<<EOF
+ exclure('>>*******')
+EOF
+    ${editbrp} -s ${fam}.all.original -d ${fam}.1resrec -c 1 -i<<EOF
+ desire('>>*******')
+EOF
+
+    __reunir_obs_fam__=$(${echo_cmd} ${reunir_obs_fam} | ${sed_cmd} 's/[ ,]/|/g')
+    if [ "${splitobs_mode}" = 'splitobs' ]; then
+        case "${fam}" in
+	    ${__reunir_obs_fam__})
+	        [ -f ${fam} ] && ${rm_cmd} -f ${fam}
+	        ${reunir_obs} -inburp ${fam}.1resrec -outburp ${fam}
+	        ;;
+	    *)
+	        ${mv_cmd} ${fam}.1resrec ${fam}
+	        ;;
+        esac
+    else
+        ${mv_cmd} ${fam}.1resrec ${fam}
+    fi
+elif [ "${filetype}" = SQLite ]; then
+    rdbout=${fam}
+    ## on copie le schema de la base de donnees
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
+
+    status=0
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE rdb4_schema' || status=1
+    if [ "${status}" -eq 0 ]; then
+        ${sqlite3_cmd} ${rdbout} <<EOF
+attach '${bfile}' as dbin;
+insert into rdb4_schema select * from dbin.rdb4_schema;
+detach dbin;
+EOF
+    fi
+
+    status=0
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE resume' || status=1
+    if [ "${status}" -eq 0 ]; then
+        ${sqlite3_cmd} ${rdbout} <<EOF
+attach '${bfile}' as dbin;
+insert into resume select * from dbin.resume;
+detach dbin;
+EOF
+    fi
+
+    cat  << EOF > TABLES_REUNIR
+PRAGMA journal_mode = OFF;
+PRAGMA  synchronous = OFF;
+EOF
+    for file in ${files}; do
+        ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'var.Abs'
+        COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -v ID_DATA)
+        COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
+
+        cat  << EOF >> TABLES_REUNIR
+
+attach '${file##*/}' as dbin;
+insert into header select * from dbin.header;
+insert into data ( ${COLUMNS_ON_ONE_LINE} ) select ${COLUMNS_ON_ONE_LINE} from dbin.data;
+detach dbin;
+EOF
+    done
+
+    ${sqlite3_cmd} ${rdbout} < TABLES_REUNIR
+    ${sqlite3_cmd} ${rdbout} <<EOF
+PRAGMA cache_size=1000000;
+PRAGMA  synchronous = OFF;
+PRAGMA journal_mode = OFF;
+CREATE INDEX if not exists idx1 ON DATA(ID_OBS, VCOORD,VARNO);
+EOF
+else
+    ${echo_cmd} "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
+    exit 1
+fi
+
+${cp_cmd} ${fam} ${obsout}
+cd ${MIDAS_WORKDIR}
+if [ "${fasttmp}" = yes ]; then
+    ${rm_cmd} -rf ${FASTTMP}
+fi

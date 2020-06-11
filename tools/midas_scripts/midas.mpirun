@@ -1,0 +1,82 @@
+#!/bin/ksh
+
+## Ce script est un wrapper autour de `r.run_in_parallel` pour rassembler
+## le code qui doit être exécuté avant de lancer le MPI.
+
+set -ex
+
+__midas_mpirun_msg__=$1
+shift
+__midas_mpirun_ssm__=$1
+shift
+__midas_mpirun_OMP_STACKSIZE__=$1
+shift
+## Cette variable doit inclure l'appel a 'r.run_in_parallel' comme par exemple
+##     ${TASK_BIN}/r.run_in_parallel -pgm ./midas.Abs -npex 10 -npey 10
+__midas_mpirun_call_program__=$@
+
+if [ -x ${SEQ_BIN}/nodelogger ]; then
+    __midas_mpirun_nodelogger__=${SEQ_BIN}/nodelogger
+else
+    __midas_mpirun_nodelogger__=$(which nodelogger || true)
+    if [ -z "${__midas_mpirun_nodelogger__}" ]; then
+	function nodelogger {
+	    echo $*
+	}
+	__midas_mpirun_nodelogger__=nodelogger
+    fi
+fi
+
+${__midas_mpirun_nodelogger__} -n $SEQ_NODE -s infox -m  "Launching program ${__midas_mpirun_msg__}"
+unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
+
+if [ -n "${OMP_STACKSIZE}" ]; then
+    __midas_mpirun_OMP_OLD_STACKSIZE__=${OMP_STACKSIZE}
+fi
+export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
+unset __midas_mpirun_OMP_STACKSIZE__
+
+if [ "${EC_ARCH}" = Linux_x86-64 ]; then
+    set +x
+    for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
+	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
+	. ssmuse-sh -d ${__midas_mpirun_ssmdomain__}
+    done
+    unset __midas_mpirun_ssmdomain__
+    set -x
+
+    echo "loading OMPI_MCA variables"
+    export OMPI_MCA_orte_tmpdir_base=/run/shm
+    export OMPI_MCA_btl_openib_if_include=mlx5_0
+elif [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
+    set +x
+    for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
+	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
+	. ssmuse-sh -d ${__midas_mpirun_ssmdomain__}
+    done
+    unset __midas_mpirun_ssmdomain__
+    set -x
+elif [ "${EC_ARCH}" = sles-11-amd64-64/PrgEnv-intel-5.2.82 -o "${EC_ARCH}" = sles-11-broadwell-64-xc40/PrgEnv-intel-5.2.82 ]; then
+    ## load 'dot-tools' compiled without any MPI libs on Cray
+    ## This will allow us to use 'cclargs' in MPI scripts.  It was
+    ## impossible before because 'cclargs' was using MPI and 'aprun'
+    ## can't launch two MPI binaries in the same call.
+    . ssmuse-sh -x comm/eccc/all/base/master/dot-tools_2.13-gcc_sles-11-amd64-64
+    export CCLARGS=$(which cclargs)
+elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
+    ## This allows us to save 7% of computation time without changing the results!
+    export TBB_MALLOC_USE_HUGE_PAGES=1
+else
+    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'AIX-powerpc7', 'Linux_x86-64', 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' and 'sles-11-amd64-64/PrgEnv-intel-5.2.82' are)"
+    exit 1
+fi
+
+${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose
+unset __midas_mpirun_call_program__
+
+if [ -n "${__midas_mpirun_OMP_OLD_STACKSIZE__}" ]; then
+    export OMP_STACKSIZE=${__midas_mpirun_OMP_OLD_STACKSIZE__}
+    unset __midas_mpirun_OMP_OLD_STACKSIZE__
+else
+    unset OMP_STACKSIZE
+fi
