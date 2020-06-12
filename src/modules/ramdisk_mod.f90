@@ -227,12 +227,14 @@ contains
     !          This function is very general, but was initially written to
     !          copy files from the disk to the ram disk
     !
+    !
     implicit none
     character(len=*) :: filein
     character(len=*) :: fileout
     integer :: status
 
-    integer :: ierr, unitin, unitout, numChar
+    integer :: ierr, unitin, unitout
+    integer :: numChar
     character :: bufferB
     integer, parameter :: bufferSizeKB = 1024
     character :: bufferKB(bufferSizeKB)
@@ -279,7 +281,14 @@ contains
       status = 0
     else
       status = -1
-      call utl_abort('ramdisk_mod copyFile: ERROR, zero bytes copied')
+      if (numChar == 0) then
+        call utl_abort('ramdisk_mod copyFile: ERROR, zero bytes copied')
+      else
+        ! Note: If 'numChar' becomes negative then it means it got bigger
+        !       than the maximum integer the 'integer' type and so the
+        !       variable 'numChar' wraps around and becomes negative.
+        call utl_abort('ramdisk_mod copyFile: ERROR, overflow detected since number of bytes copied is negative!')
+      end if
     end if
 
     call tmg_stop(170)
