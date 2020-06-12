@@ -85,7 +85,8 @@ contains
 
     logical            :: fileExists, noAbort, copyToRamDisk
     character(len=256) :: fileName2, subDirectory
-    integer            :: status, fileSize
+    integer            :: status
+    integer(8)         :: fileSize ! we use 8 byte integer to manage big file sizes
 
     if ( .not. initialized ) then
       call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
@@ -234,7 +235,7 @@ contains
     integer :: status
 
     integer :: ierr, unitin, unitout
-    integer :: numChar
+    integer(8) :: numChar
     character :: bufferB
     integer, parameter :: bufferSizeKB = 1024
     character :: bufferKB(bufferSizeKB)
