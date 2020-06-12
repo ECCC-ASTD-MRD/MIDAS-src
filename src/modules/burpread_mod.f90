@@ -1660,7 +1660,7 @@ CONTAINS
     REAL   , ALLOCATABLE   :: BCOR_SFC(:,:)
 
     INTEGER, ALLOCATABLE   :: MTVAL(:)
-    INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
+    INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
     REAL(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
@@ -2297,14 +2297,12 @@ CONTAINS
 !
             ALLOCATE(qi1val(nte))
             ALLOCATE(qi2val(nte))
-            ALLOCATE(qival(nte))
             ALLOCATE(mtval(nte))
             ALLOCATE(lsval(nte))
             ALLOCATE(haval(nte))
             ALLOCATE(gaval(nte))
             QI1VAL(:) = 0
             QI2VAL(:) = 0
-            QIVAL (:) = 0
             MTVAL (:) = 0
             LSVAL (:) = 0
             HAVAL (:) = 0
@@ -2331,11 +2329,6 @@ CONTAINS
                                           NT_IND   = k, &
                                           IOSTAT   = error)
               end do
-
-              do k = 1, nte
-                QIVAL(k) = QI2VAL(k)
-                if(QIVAL(k) < 0)  QIVAL(k) = QI1VAL(k)
-              enddo
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2023, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
@@ -2679,7 +2672,7 @@ CONTAINS
 !
 ! Ajoute qivals dans les argument de WRITE_QI
 
-                  if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
+                  if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QI1VAL(k),QI2VAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
                   if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
@@ -2775,7 +2768,7 @@ CONTAINS
 !
 ! Ajoute qivals dans les argument de WRITE_QI
 
-                  if (TRIM(FAMILYTYPE) == 'SW') call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
+                  if (TRIM(FAMILYTYPE) == 'SW') call WRITE_QI(obsdat,QI1VAL(k),QI2VAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
                   if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
@@ -2860,9 +2853,6 @@ CONTAINS
         end if
         if ( allocated(qi2val) ) then
           DEALLOCATE (qi2val)
-        end if
-        if ( allocated(qival) ) then
-          DEALLOCATE (qival)
         end if
         if ( allocated(mtval) ) then
           DEALLOCATE (mtval)
@@ -3200,16 +3190,17 @@ CONTAINS
 !!------------------------------------------------------------------------------------
 !!------------------------------------------------------------------------------------
 
-  SUBROUTINE WRITE_QI(obsdat, QIvalue, MTvalue, LSvalue, HAvalue, GAvalue)
+  SUBROUTINE WRITE_QI(obsdat, QI1value, QI2value, MTvalue, LSvalue, HAvalue, GAvalue)
 
     implicit none
     type (struct_obs), intent(inout) :: obsdat
-    INTEGER     ::  MTvalue, HAvalue, GAvalue, QIvalue, LSvalue
+    INTEGER     ::  MTvalue, HAvalue, GAvalue, QI1value, QI2value, LSvalue
     INTEGER     ::  NOBS
 
     NOBS = obs_numHeader(obsdat)
 
-    call obs_headSet_i(obsdat,OBS_SWQI,nobs,QIvalue)
+    call obs_headSet_i(obsdat,OBS_SWQ1,nobs,QI1value)
+    call obs_headSet_i(obsdat,OBS_SWQ2,nobs,QI2value)
     call obs_headSet_i(obsdat,OBS_SWMT,nobs,MTvalue)
     call obs_headSet_i(obsdat,OBS_SWLS,nobs,LSvalue)
     call obs_headSet_i(obsdat,OBS_SWGA,nobs,GAvalue)

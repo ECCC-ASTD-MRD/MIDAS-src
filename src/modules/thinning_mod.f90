@@ -40,7 +40,7 @@ module thinning_mod
   private
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
-  public :: thn_thinAircraft, thn_thinAladin
+  public :: thn_thinAircraft, thn_thinSatWinds, thn_thinAladin
 
   integer, external :: get_max_rss
 
@@ -86,6 +86,49 @@ contains
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
 
   end subroutine thn_thinAircraft
+
+  !--------------------------------------------------------------------------
+  ! thn_thinSatWinds
+  !--------------------------------------------------------------------------
+  subroutine thn_thinSatWinds(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    integer :: deltemps ! number of time bins between adjacent observations
+    integer :: deldist  ! minimal distance in km between adjacent observations
+
+    namelist /thin_satwinds/deltemps, deldist
+
+    ! Default values for namelist variables
+    deltemps = 6
+    deldist  = 200
+
+    ! Read the namelist for SatWinds observations (if it exists)
+    if (utl_isNamelistPresent('thin_satwinds','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error opening file flnml')
+      read(nulnam,nml=thin_satwinds,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_satwinds)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinSatWinds: Namelist block thin_satwinds is missing in the namelist.'
+      write(*,*) '                  The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_satwinds)
+    end if
+
+    call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
+
+  end subroutine thn_thinSatWinds
 
   !--------------------------------------------------------------------------
   ! thn_thinAladin
@@ -290,6 +333,23 @@ contains
 !_/
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
+  !--------------------------------------------------------------------------
+  ! thn_satWindsByDistance
+  !--------------------------------------------------------------------------
+  subroutine thn_satWindsByDistance(obsdat, familyType, deltemps, deldist)
+    !
+    ! :Purpose: Original method for thinning SatWinds data by the distance method.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: familyType
+    integer,          intent(in)    :: deltemps
+    integer,          intent(in)    :: deldist
+
+  end subroutine thn_satWindsByDistance
 
   !--------------------------------------------------------------------------
   ! thn_aircraftByBoxes

@@ -346,8 +346,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
-   integer, parameter, public :: OBS_SWQI= OBS_ROQF+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWMT= OBS_SWQI+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWQ1= OBS_ROQF+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWQ2= OBS_SWQ1+1! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWMT= OBS_SWQ2+1! QUALITY VALUES FOR SW (AMV) DATA
    integer, parameter, public :: OBS_SWLS= OBS_SWMT+1! QUALITY VALUES FOR SW (AMV) DATA
    integer, parameter, public :: OBS_SWGA= OBS_SWLS+1! QUALITY VALUES FOR SW (AMV) DATA
    integer, parameter, public :: OBS_SWHA= OBS_SWGA+1! QUALITY VALUES FOR SW (AMV) DATA
@@ -369,7 +370,7 @@ module ObsColumnNames_mod
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
-         'SWQI','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
+         'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS','ORI' /)
 
    !
@@ -1003,8 +1004,8 @@ contains
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+              OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=27,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1434,7 +1435,7 @@ module ObsSpaceData_mod
    public :: OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
-   public :: OBS_SWQI,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
+   public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
    public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
 
    !    real-header column numbers
