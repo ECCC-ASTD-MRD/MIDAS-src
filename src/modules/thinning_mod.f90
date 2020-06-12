@@ -349,7 +349,473 @@ contains
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
 
+    ! Local parameters:
+    integer, parameter :: n_satellites = 100
+    integer, parameter :: n_thin = 180
+    integer, parameter :: n_layers = 11
+    real(4), parameter :: layer(n_layers) = (/ 100000., 92500., 85000., 70000., &
+                                                50000., 40000., 30000., 25000., &
+                                                20000., 15000., 10000. /)
+
+    ! Locals:
+    integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIndex
+    integer :: countObs, countObsMpi, countObsMpiIn, nb_stnid, i_stnid, lenStnId, charIndex
+    integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
+    integer :: bkcount, nsize, n_select, n_select_same_bin, last_obs_check, n_obs_in
+    integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2, i_lat
+    integer :: headerIndexBeg, headerIndexEnd
+    real(4) :: minimum_thinning_distance, del_lat, del_lon, obsLat, lattri
+    real(4) :: distance_thin(n_thin)
+    real(8) :: obsLonInRad, obsLatInRad, obsLonInDegrees, obsLatInDegrees
+    real(8) :: obsStepIndex_r8, obsPressure, deltap, deltapmin
+    character(len=12)  :: stnId, stnid_found(n_satellites)
+    integer :: n_obs_satellite_in(n_satellites), n_obs_satellite_out(n_satellites)
+    integer :: n_obs_satellite_inMpi(n_satellites), n_obs_satellite_outMpi(n_satellites)
+    logical :: stnid_not_found
+    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
+    integer, allocatable :: quality(:), qualityMpi(:)
+    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
+    integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
+    integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
+    integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:), e_ordre(:), e_select(:)
+    logical, allocatable :: keep_obs(:), keep_obsMpi(:)
+
+    write(*,*) 'thn_satWindsByDistance: Starting'
+
+    numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max', 'grid', ierr)
+
+    ! Check if any observations to be treated
+    countObs = 0
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      countObs = countObs + 1
+    end do HEADER0
+
+    call rpn_comm_allReduce(countObs, countObsMpiIn, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsMpiIn == 0) then
+      write(*,*) 'thn_satWindsByDistance: no satwind observations present'
+      return
+    end if
+
+    write(*,*) 'thn_satWindsByDistance: number of obs initial = ', &
+               countObs, countObsMpiIn
+
+    minimum_thinning_distance = real(deldist)
+    write(*,*) 'Minimun thinning distance ',minimum_thinning_distance
+
+    ! Allocations:
+    allocate(keep_obs(numHeaderMaxMpi))
+    allocate(quality(numHeaderMaxMpi))
+    allocate(obsLatBurpFile(numHeaderMaxMpi))
+    allocate(obsLonBurpFile(numHeaderMaxMpi))
+    allocate(obsStepIndex(numHeaderMaxMpi))
+    allocate(obsLayerIndex(numHeaderMaxMpi))
+    allocate(obsMethod(numHeaderMaxMpi))
+    lenStnId = len(stnId)
+    allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
+
+    ! Initializations:
+    keep_obs(:) = .false.
+    quality(:) = 0
+    obsLatBurpFile(:) = 0
+    obsLonBurpFile(:) = 0
+    obsLayerIndex(:) = 0
+    obsStepIndex(:) = 0
+    obsMethod(:) = 0
+    stnIdInt(:,:) = 0
+    n_obs_satellite_in(:) = 0
+    n_obs_satellite_out(:) = 0
+
+    ! First pass through observations
+    nb_stnid = 0
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+
+      ! convert and store stnId as integer array
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+
+      ! build a list of station id's
+      if (nb_stnid < n_satellites ) then
+        stnid_not_found = .true.
+        if ( nb_stnid == 0) then
+          nb_stnid = nb_stnid + 1
+          stnid_found(nb_stnid) = stnid
+          i_stnid = nb_stnid
+        else
+          do stnIndex = 1, nb_stnid
+            if ( stnid_found(stnIndex) == stnid ) stnid_not_found=.false.
+            if ( stnid_found(stnIndex) == stnid ) i_stnid = stnIndex
+          end do
+          if ( stnid_not_found ) then
+            nb_stnid = nb_stnid + 1
+            stnid_found(nb_stnid) = stnid
+            i_stnid = nb_stnid
+          end if
+        end if
+        n_obs_satellite_in(i_stnid) = n_obs_satellite_in(i_stnid) + 1
+      else
+        call utl_abort('thn_satWindsByDistance: nb_stnid too large')
+      end if
+
+      ! get latitude and longitude
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      obsLonBurpFile(headerIndex) = nint(100.0*obsLonInDegrees)
+      obsLatBurpFile(headerIndex) = 9000 + nint(100.0*obsLatInDegrees)
+
+      ! get step bin
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
+
+      ! find layer (assumes 1 level only per headerIndex)
+      obsPressure = -1.0d0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+        
+        if (obsPressure <= 0.0d0) then
+          obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+          exit BODY1
+        end if
+      end do BODY1
+      deltapmin = abs( log(obsPressure) - log(layer(1)) )
+      obsLayerIndex(headerIndex) = 1
+      do layerIndex = 2, n_layers
+        deltap = abs( log(obsPressure) - log(layer(layerIndex)) )
+        if ( deltap < deltapmin ) then
+          deltapmin = deltap
+          obsLayerIndex(headerIndex) = layerIndex
+        end if
+      end do
+
+      ! set the observation quality based on QI1
+      quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+
+      ! find observation flags (assumes 1 level only per headerIndex)
+      uObsFlag = -1
+      vObsFlag = -1
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY2
+        obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        if (obsVarno == bufr_neuu) then
+          uObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        else if (obsVarno == bufr_nevv) then
+          vObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        end if
+      end do BODY2
+
+      ! modify quality based on flags
+      if (uObsFlag /= -1 .and. vObsFlag /= -1) then
+        if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) ) bkcount = bkcount + 1
+        if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) .or. &
+             btest(uObsFlag,18) .or. btest(vObsFlag,18) ) then
+          quality(headerIndex) = 0
+        end if
+      else
+        quality(headerIndex) = 0
+        !write(*,*) 'thn_satWindsByDistance: wind components missing ', headerIndex
+      end if
+
+      ! extract additional information
+      obsMethod(headerIndex) = obs_headElem_i(obsdat, OBS_SWMT, headerIndex)
+      
+    end do HEADER1
+
+    write(*,*) 'min/maxval quality = ', minval(quality(:)), maxval(quality(:))
+
+    ! Gather needed information from all MPI tasks
+    allocate(keep_obsMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(qualityMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLatBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLonBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLayerIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsMethodMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
+                            qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLatBurpFile,    nsize, 'mpi_integer',  &
+                            obsLatBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonBurpFile,    nsize, 'mpi_integer',  &
+                            obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
+                            obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLayerIndex,    nsize, 'mpi_integer',  &
+                            obsLayerIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsMethod,    nsize, 'mpi_integer',  &
+                            obsMethodMpi, nsize, 'mpi_integer', 'grid', ierr)
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
+    
+    ! Thinning procedure
+    allocate(e_ordre(numHeaderMaxMpi*mpi_nprocs))
+    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      e_ordre(headerIndex) = headerIndex
+    enddo
+    allocate(e_select(numHeaderMaxMpi*mpi_nprocs))
+    e_select(:) = 0
+
+    write(*,*) 'min/maxval quality = ', minval(qualityMpi(:)), maxval(qualityMpi(:))
+    call QsortC(qualityMpi,e_ordre)
+    write(*,*) 'min/maxval quality = ', minval(qualityMpi(:)), maxval(qualityMpi(:))
+
+    distance_thin(:) = minimum_thinning_distance
+
+    n_select       = 0
+    last_obs_check = 0
+    n_obs_in = numHeaderMaxMpi * mpi_nprocs
+    keep_obsMpi(:) = .false.
+
+    HEADER2: do obsIndex1 = 1, n_obs_in
+
+      if (qualityMpi(n_obs_in-obsIndex1+1) > 10) then
+
+        headerIndex1 = e_ordre(n_obs_in-obsIndex1+1)
+write(400,*) 'here1 ', obsIndex1, headerIndex1, qualityMpi(n_obs_in-obsIndex1+1)
+        ! On compte le nombre d'observations qui sont deja
+        ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
+        ! que l'observation consideree ici.
+        n_select_same_bin = 0
+        do obsIndex2 = 1, n_select
+          headerIndex2 = e_select(obsIndex2)
+          if ( (obsLayerIndexMpi(headerIndex1) == obsLayerIndexMpi(headerIndex2)) .and. &
+               (obsStepIndexMpi(headerIndex1) == obsStepIndexMpi(headerIndex2)) ) then
+            if ( (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
+                 (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
+              ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
+              cycle HEADER2
+            end if
+            n_select_same_bin = n_select_same_bin + 1
+          end if
+        end do
+write(500,*) 'n_select_same_bin=', obsIndex1, headerIndex1, n_select_same_bin, n_select
+
+        if ( n_select_same_bin >= 1 ) then
+
+          ! Calcule les distances entre la donnee courante et toutes celles choisies 
+          ! precedemment.
+          last_obs_check = 0
+          check_list: do obsIndex2 = 1, n_select
+            headerIndex2 = e_select(obsIndex2)
+            if ( all(stnIdIntMpi(:,headerIndex1) == stnIdIntMpi(:,headerIndex2)) .and. &
+                 (obsLayerIndexMpi(headerIndex1) == obsLayerIndexMpi(headerIndex2)) .and. &
+                 (abs( obsStepIndexMpi(headerIndex1) - &
+                       obsStepIndexMpi(headerIndex2) ) < deltemps) ) then
+              del_lat = abs( obsLatBurpFileMpi(headerIndex1) - &
+                             obsLatBurpFileMpi(headerIndex2) ) / 100.
+              del_lon = abs( obsLonBurpFileMpi(headerIndex1) - &
+                             obsLonBurpFileMpi(headerIndex2) ) / 100.
+              if(del_lon > 180.) del_lon = 360. - del_lon
+              obsLat = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+              lattri = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
+              i_lat = min(int(obsLatBurpFileMpi(headerIndex2)/100.) + 1, 180)
+              if ( dis_arc(del_lat,del_lon,obsLat,lattri) < distance_thin(i_lat) ) then
+                exit check_list
+              end if
+            end if
+            last_obs_check = obsIndex2
+          end do check_list
+
+          if (last_obs_check == n_select) then
+
+            ! On selectionne la donnee si toutes celles choisies sont au-dela
+            ! de distance_thin(i_lat). Cet evaluation est faite dan la boucle
+            ! 'check_list' precedante.
+            n_select = n_select + 1
+            e_select(n_select) = headerIndex1
+
+          end if
+
+        else
+
+          ! On selectionne la donnee s'il y en a aucune choisie dans les intervalles 
+          ! layer (o_dpr) et bin (o_tim).
+          n_select = n_select + 1
+          e_select(n_select) = headerIndex1
+write(600,*) 'select thi obs=', obsIndex1, headerIndex1, n_select
+
+        end if
+
+      end if
+
+    end do HEADER2
+
+    do obsIndex1 = 1, n_select
+      keep_obsMpi(e_select(obsIndex1)) = .true.
+    end do
+
+    ! Update local copy of keepObs from global mpi version
+    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    keep_obs(:) = keep_obsMpi(headerIndexBeg:headerIndexEnd)
+    
+    countObs = count(keep_obsMpi)
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
+               countObs, countObsMpi
+
+    ! modify the obs flags and count number of obs kept for each stnId
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER3: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER3
+
+      ! do not keep this obs: set bit 11 and jump to the next obs
+      if (.not. keep_obs(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY3: do 
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY3
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+        end do BODY3
+        cycle HEADER3
+      end if
+
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do stnIndex = 1, nb_stnid
+        if ( stnid_found(stnIndex) == stnid ) i_stnid = stnIndex
+      end do
+      n_obs_satellite_out(i_stnid) = n_obs_satellite_out(i_stnid) + 1
+    end do HEADER3
+
+    call rpn_comm_allReduce(n_obs_satellite_in, n_obs_satellite_inMpi, &
+                            n_satellites, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call rpn_comm_allReduce(n_obs_satellite_out, n_obs_satellite_outMpi, &
+                            n_satellites, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+
+    ! Print counts
+    write(*,*)
+    write(*,'(a70, i10)') " Number of obs in  = ", countObsMpiIn
+!    write(*,'(a70, i10)') " Total number of reject = ", tthcount
+    write(*,'(a70, i10)') " Number of obs out = ", countObsMpi
+    write(*,*)
+!    write(*,'(a70,4i10)') " Number of reject outside time window, BGCK, thinning, moin1 ", tcount,bkcount,tthcount-bkcount-tcount,n_moins1
+    write(*,*)
+    write(*,'(a70,i10)') 'Number of satellites found = ',nb_stnid
+    write(*,*)
+
+    write(*,'(a70,2a15)') 'Satellite', 'nb AMVs in'
+    write(*,*)
+    do i_stnid = 1, nb_stnid
+      write(*,'(a70,2i15)') stnid_found(i_stnid), n_obs_satellite_inMpi(i_stnid)
+    end do
+    write(*,*)
+    write(*,'(a70,2i10,f10.4)') 'Total number of obs in : ',sum(n_obs_satellite_inMpi)
+
+    write(*,*)
+    write(*,'(a70,2a15)') 'Satellite', 'nb AMVs out'
+    write(*,*)
+    do i_stnid = 1, nb_stnid
+      write(*,'(a70,2i15)') stnid_found(i_stnid), n_obs_satellite_outMpi(i_stnid)
+    end do
+    write(*,*)
+    write(*,'(a70,2i10,f10.4)') 'Total number of obs out : ',sum(n_obs_satellite_outMpi)
+
   end subroutine thn_satWindsByDistance
+
+  recursive subroutine QsortC(A,B)
+    implicit none
+
+    integer, intent(inout) :: A(:)
+    integer, intent(inout) :: B(:)
+    integer :: iq
+
+    if (size(A) > 1) then
+      call Partition(A,B,iq)
+      call QsortC(A(:iq-1),B(:iq-1))
+      call QsortC(A(iq:),B(iq:))
+    endif
+
+  end subroutine QsortC
+
+  subroutine Partition(A,B,marker)
+    implicit none
+
+    integer, intent(inout) :: A(:)
+    integer, intent(inout) :: B(:)
+    integer, intent(out) :: marker
+    integer :: i, j, tmpi
+    integer :: temp
+    integer :: x      ! pivot point
+
+    x = A(1)
+    i= 0
+    j= size(A) + 1
+
+    do
+      j = j-1
+      do
+        if (A(j) <= x) exit
+        j = j-1
+      end do
+      i = i+1
+      do
+        if (A(i) >= x) exit
+        i = i+1
+      end do
+      if (i < j) then
+        ! exchange A(i) and A(j)
+        temp = A(i)
+        A(i) = A(j)
+        A(j) = temp
+        tmpi = B(i)
+        B(i) = B(j)
+        B(j) = tmpi
+      elseif (i == j) then
+        marker = i+1
+        return
+      else
+        marker = i
+        return
+      endif
+    end do
+
+  end subroutine Partition
+
+  real function dis_arc ( del_lat, del_lon, lat1, lat2 )
+    implicit none
+
+    real, intent(in) :: del_lat, del_lon, lat1, lat2
+
+    real, parameter :: PI = 3.141592654
+    real, parameter :: RT = 6374.893
+    real :: lat1_r, lat2_r, del_lat_r, del_lon_r, term_a
+
+    lat1_r =    lat1*PI/180.
+    lat2_r =    lat2*PI/180.
+    del_lat_r = del_lat*PI/180.
+    del_lon_r = del_lon*PI/180.
+
+    term_a  = sin(del_lat_r/2)*sin(del_lat_r/2) + cos(lat1_r)*cos(lat2_r)*sin(del_lon_r/2)*sin(del_lon_r/2)
+    if(term_a < 0.0) term_a = 0.0
+    if(term_a > 1.0) term_a = 1.0
+
+    dis_arc = 2*RT*asin(sqrt(term_a))
+
+  end function dis_arc
 
   !--------------------------------------------------------------------------
   ! thn_aircraftByBoxes
@@ -725,7 +1191,7 @@ contains
     write(*,*)
     do stepIndex = 1, tim_nstepobs
       write(*,'(a50,2i10)')' Number of rejects for bin = ', stepIndex, rejectCountMpi(stepIndex)
-    enddo
+    end do
     write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi)
     write(*,*)
     write(*,'(a50,i10)') '====nb AIREP = ', aiTypeCountMpi(1)
@@ -769,7 +1235,7 @@ contains
                             obsTTPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
 
     STEP: do stepIndex = 1, tim_nstepobs
-      write (*,'(a50,i10)' ) ' Process bin number = ', stepIndex
+      write(*,'(a50,i10)' ) ' Process bin number = ', stepIndex
 
       handlesGrid(:,:,:) = -1
       minScoreGrid(:,:,:) = 1000000.
@@ -915,12 +1381,12 @@ contains
     deallocate(vvSumGrid)
     deallocate(ttSumGrid)
 
-    write (*,*)
-    write (*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCountMpi(:))
-    write (*,'(a50,i10)') " Number of obs out = ", count(keepObsMpi(:))
-    write (*,'(a50,i10)') " Number of obs not out = ", &
+    write(*,*)
+    write(*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCountMpi(:))
+    write(*,'(a50,i10)') " Number of obs out = ", count(keepObsMpi(:))
+    write(*,'(a50,i10)') " Number of obs not out = ", &
          sum(aiTypeCountMpi(:)) - count(keepObsMpi(:))
-    write (*,*)
+    write(*,*)
 
     ! Modify the flags for rejected observations
     do headerIndex = 1, numHeader

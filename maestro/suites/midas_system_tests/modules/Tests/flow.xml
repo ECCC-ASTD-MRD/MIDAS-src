@@ -196,6 +196,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>    
+    <SUBMITS sub_name="satwind"/>
+    <FAMILY  name="satwind">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>    
     <SUBMITS sub_name="thin_AL"/>
     <FAMILY  name="thin_AL">
       <SUBMITS sub_name="UnitTest"/>
