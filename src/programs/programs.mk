@@ -1,8 +1,8 @@
 
 #===| DOUBLE PRECISION |=========================
-PGM := var thinning seaIce randomPert obsSelection obsImpact oMinusF\
+PGM := var thinning randomPert obsSelection obsImpact oMinusF\
 			letkf genCoeff ensembleH ensManip diagHBHt diagBmatrix\
-			calcStats bgckMW advector adjointTest addIncrement\
+			calcStats bgckMW advector adjointTest\
 			ensPostProcess prepcma
 # TODO: automate that ^
 
@@ -17,10 +17,6 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 thinning.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random 
-
-#--------------------------------------
-seaIce.Abs: LIBAPPL = netcdff burp_module $(VGRID_LIBNAME) irc\
-		$(MPILIB) random
 
 #--------------------------------------
 randomPert.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
@@ -87,12 +83,6 @@ advector.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB)
 adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
-
-#--------------------------------------
-addIncrement.Abs: LIBAPPL = rttov_coef_io rttov_hdf\
-		rttov_parallel  rttov_main rttov_emis_atlas rttov_other\
-		$(HDF5_LIBS) f90sqlite udfsqlite burp_module $(VGRID_LIBNAME) irc\
-		$(MPILIB) random
 
 #--------------------------------------
 letkf.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel rttov_main\
