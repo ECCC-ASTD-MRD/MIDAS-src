@@ -12,6 +12,7 @@ echo "###########################"
 echo "... Preparing dependencies"
 echo "    > listing_depend"
 make depend DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_depend 2>&1
+copy_depend ${BACKEND} >> listing_depend 2>&1
 
 ##=========================================================
 ##  Compilation on backend (in the background)
