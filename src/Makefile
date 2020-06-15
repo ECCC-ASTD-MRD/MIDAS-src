@@ -127,10 +127,11 @@ endif
 
 
 ## TODO
-clean:	#> delete the build directory 
-	@echo "rm -rf $(DIR_BLD_ROOT)"
+clean:	#> delete the build directories (keep the installed programs) 
+	@echo "Delete all build directories in $(DIR_BLD_ROOT) except midas_abs?"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-	rm -rf $(DIR_BLD_ROOT) 
+		find $(DIR_BLD_ROOT)/ -mindepth 1 \
+		! -regex '$(DIR_BLD_ROOT)/midas_abs\(/.*\)?' -delete
 
 cleanabs: cleanobj #> delete all absolutes
 	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.Abs
@@ -306,7 +307,7 @@ _D_options=$(filter -D%,$(COMPF))
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
 
-%.Abs: 	#>link an absolute 
+%.Abs: 	#> link an absolute 
 	$(FC) $(COMPF) -O $(FOPTMIZ) \
 	$(addprefix -l, $(LIBAPPL) $(LIBSYS) $(LIBRMN)) $^ \
 	-o $@
@@ -363,9 +364,6 @@ $(DEP_ABS): $(DEP_OBJ)
 	$(V) echo "Generating executables dependencies > $@"
 	$(V) $(SRC_ROOT)/recursiveDep.py '$(notdir $(ABS))' -d $^ > $@
 
-copy_depend_backend: $(DEP_OBJ) $(DEP_ABS)	#> copy dependency files generated on frontend
-	$(V) source $(SRC_ROOT)/func.dot.sh && copy_depend ${BACKEND} &&\
-	echo "Dependency copied to backend build folder" 
 
 else
 $(DEP_OBJ) $(DEP_ABS) copy_depend_backend:

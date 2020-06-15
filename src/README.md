@@ -7,21 +7,48 @@ The present `README` **assumes you are in the `./src` directory**.
 I just want to build!
 ---------------------
 
-From `PPP[34]`, edit `./config.dot.sh`, then
+From `PPP[34]`, edit `./config.dot.sh`, modify `BACKEND`, `FRONTEND` and maybe 
+`DIR_BLD_ROOT` if need be, then
 ```
 > ./build.sh
+...
+makedepf90 unavailable on the system.
+loading makedepf90 from conda...
+###########################
+... Preparing dependencies
+    > listing_depend
+#####################################
+... Launching compilation on BACKEND
+    > listing_daley
+######################################
+... Launching compilation on FRONTEND
+    > listing_ppp
+=================== ord_soumet version 1.27 =================
+...
+######################################
+#
+#  MIDAS COMPILATION COMPLETED
+#
+#  > /home/mad001/data_maestro/ords/midas-bld
+#
+######################################
 ```
-It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or `Banting`) submitting jobs with the number of cores specified in `config.dot.sh`.
+It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or 
+`Banting`) submitting jobs with the number of cores specified in 
+`config.dot.sh` (8 seems to be optimal).
 
 Be aware that it is dependent on `makedepf90`, which [is installed but not *persistent* yet](https://gitlab.science.gc.ca/hpc_migrations/hpcr_upgrade_1/issues/980).
 It should be solved soon, but if you get an error, it could well be that.
+In the mean time, `makedepf90` is sourced using `conda` from `mad001` account
+(see `config.dot.sh`).
 
 
 
 
 Using `make`
 ------------
-If you want to have a more fine grained control, you can call `make` directly, I invite you to read its man pages (short and straight to the point).  
+If you want to have a more fine grained control, you can call `make` directly,
+I invite you to read its man pages (short and straight to the point).  
 
 You'll first need to source (and edit if you want) the compilation environment:
 ```
@@ -31,7 +58,34 @@ You'll first need to source (and edit if you want) the compilation environment:
 Then you're good to go!
 
 You can call make to build any *target*.
-A target may be an object file, a specific program or a label (or *phony* target such as `all`, `clean` or other label that are not a file *per se*), you can always use autocompletion by pressing `<TAB>`:
+```
+> make help
+USAGE:
+    source ./config.dot.sh
+    make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]
+OPTIONS:
+    consult make manual: man make
+TARGETS:
+    %.Abs                          link an absolute 
+    %.f90                          preprocess an ftn90 file
+    %.o                            compile an object 
+    all                            compile all programs 
+    clean                          delete the build directory 
+    cleanabs                       delete all absolutes
+    cleandep                       delete all dependency file
+    cleanobj                       delete all objects
+    depend                         generate all dependency files
+    diagrams                       build diagrams (not available yet)
+    doc                            build documentation (not available yet)
+    help                           print this help
+    install                        install all programs
+    ssm                            build SSM package (not available yet)
+```
+
+
+A target may be an object file, a specific program or a label (or *phony* 
+target such as `all`, `clean` or other label that are not a file *per se*), you
+can always use autocompletion by pressing `<TAB>`:
 ```
 > make <TAB>
 Display all 147 possibilities? (y or n) <y>
@@ -49,17 +103,20 @@ all                            mathphysconstants_mod.o
 > make var<TAB>
 var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
-If `<TAB>` does not work (or just show you `all` and `clean*`), it is probably because either you don't have `makedepf90` installed or did not `source ./config.dot.sh`.
+If `<TAB>` does not work (or just show you `all` and `clean*`), it is probably 
+because either you don't have `makedepf90` installed or did not 
+`source ./config.dot.sh`.
 Autocompletion does not work on the backends.
 
-When you ask `make` to build a target, it will determine everything that needs to be done to achieve that goal, for instance if want to build `var.Abs`:
+When you ask `make` to build a target, it will determine everything that needs
+to be done to achieve that goal, for instance if want to build `var.Abs`:
 ```
 > make var.Abs --dry-run
 Preprocessing codeprecision_mod.f90 inplace
 Preprocessing clib_interfaces_mod.f90 inplace
 Preprocessing rttov_interfaces_mod.f90 inplace
-Generating object dependencies > dep.real8.inc
-Generating executables dependencies > dep.real8.abs.inc
+Generating object dependencies > dep.obj.inc
+Generating executables dependencies > dep.abs.inc
 s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/clib_interfaces_mod.f90 -o clib_interfaces_mod.o > /dev/null 
 s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/utilities_mod.f90 -o utilities_mod.o > /dev/null 
 ...
@@ -71,18 +128,14 @@ The option `--dry-run` (or `-n`) only prints what it would be doing without actu
 
 
 Some frequently used phony targets are:
-* `all` : compile and install all programs on current architecture 
-  (in both `REAL` precisions, [see Multi-precision problematic below](#multi-precision-problematic))  
+* `help` : print a short synopsis and important targets
+* `all` : compile all programs on current architecture 
 * `info` : print information to stdout
-* `install` : install all compiled programs for both precisions  
+* `install` : install all compiled programs 
   Copy them in `${DIR_BLD_ROOT}/midas_abs/` and rename them with version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
-* `real4` : compile `REAL 4` programs (`obsIO.Abs` and `prepcma.Abs` for the EnKF)
-* `real8` : compile `REAL 8` programs (most MIDAS programs) 
 * `info` : print information to stdout
-* `install` : synonym for `all`
-* `install4` and `install8` : install only specific `REAL` precision programs
 * `clean` : remove all objects, programs, intermediate files, everything that was produced
   by `make`
 * `cleanabs` : remove all but installed programs in `${DIR_BLD_ROOT}/midas_abs`
@@ -100,13 +153,10 @@ A complete install is then
 make && make install
 ```
 launched from all platforms (what is done by `./build.sh`).
-
-To compile and install only single precision:
+Also, after the frontend dependencies have been generated, these will need to be copied to the backend build directory using **from the frontend**:
 ```
-make real4 && make install4
+./copy_depend_backend.sh
 ```
-(`make install` would fail)
-
 
 
 Calling make in parallel
@@ -166,62 +216,21 @@ s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/programs/var.f90 -o v
 s.f90 ... -o var.Abs
 ```
 
-One solution to that is to `touch`  **targets** (using `make --touch` or `-t`) , making them newer that the dependencies:
+One solution to that is to `touch`  **the intermediate targets** (using `make --touch` or `-t`) , making them newer that the dependencies:
 ```
-> make --touch var.Abs
+> make --touch varqc_mod.o minimization_mod.o var.o
 touch varqc_mod.o
 touch minimization_mod.o
 touch var.o
-touch var.Abs
-touch var.Abs
+touch varqc_mod.o
+touch minimization_mod.o
+touch var.o
 > make -n
 ...
-make[2]: Nothing to be done for 'absolutes'.
-...
+s.f90 ... -o var.Abs
 ```
+This has an anoying drawback, it creates empty files (here `varqc_mod.o`, `minimization_mod.o`, `var.o`) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
 
-
-
-Multi-precision problematic
----------------------------
-
-Two programs (`obsIO.Abs` and `prepcma.Abs` used in the EnKF) need to be compiled in single precision, `REAL 4`, while the others are compiled in `REAL 8`. **But, they all share the rest of the code base**, such that some objects need to be compiled in both precisions.
-
-In the former strategy, there is a separate compilation of every objects for each program and parallelization is done at that level.  The advantage is that there is no special care to be done with objects `REAL` precision.  On the down side, multiple copies of the exact same objects are recompiled and time is wasted.
-
-The strategy here is different.  In the build directory, the structure is:
-```
-./
-└── ${ORDENV_PLAT}
-    └── ${EC_ARCH}
-        ├── real4
-        └── real8
-```
-And all programs for a given `(${ORDENV_PLAT},${EC_ARCH})` and a given `REAL` precision will share their objects which are compiled in parallel.  So: much more efficient parallelization.
-
-If you just want to build `REAL 4`:
-```
-> make real4
-```
-and `make real8` to build only `REAL 8`; `make all` does both.
-
-If you want to build a single non-phony target, say `bmatrixhi_mod.o`, **you'll need to explicitely specify you are building with `REAL 4`** by passing `MIDAS_COMPILE_REAL_SINGLE=true` to `make`:
-```
-make bmatrixhi_mod.o MIDAS_COMPILE_REAL_SINGLE=true
-```
-otherwise, you'll get an error.
-This is necessary for the compilation to happen in the same directory (`.../real4/`) as the objects compiled with the same `REAL` precision.
-(remember that the object `bmatrixhi_mod.o` could also be compiled in `REAL 8`, so make cannot know which precision is wanted)
-
-However, I added an *ad hoc* fix for both simple precision programs, `obsIO.*` and `prepcma.*`, since these are always compiled in single precision, `make` will implicitely append `MIDAS_COMPILE_REAL_SINGLE=true` when called, such that
-```
-> make obsIO.Abs
-```
-is equivalent to 
-```
-> make obsIO.Abs MIDAS_COMPILE_REAL_SINGLE=true
-```
-Be careful however with that, it is preferable to append it explicitely, I could not garantee what would be the result of `make bmatrixhi_mod.o obsIO.Abs` for instance...
 
 
 
@@ -235,22 +244,23 @@ It is thought a better practice to find out about these dependencies automatical
 When `make` is called on a `clean` (or `cleandep`) state, it will determine its dependency trees using `makedepf90` and include it dynamically in the `Makefile` and then launch the build.
 
 `makedepf90` is not yet [permanently installed on the network yet](https://gitlab.science.gc.ca/hpc_migrations/hpcr_upgrade_1/issues/980), but is installed on `PPP4` head node and is available through conda([see #255](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/255#note_143881)) for those who would like to try out on interractive nodes (with `jobsubi`).
+It is loaded when sourcing `config.dot.sh`.
 
 Making only the dependencies: 
 ```
-> make depend DIR_BLD_ROOT=./compile                          
-> tree compile
-compile/
-└── ubuntu-18.04-skylake-64
-    └── intel-19.0.3.199
-        ├── real4
-        │   ├── dep.real4.abs.inc
-        │   └── dep.real4.inc
-        └── real8
-            ├── dep.real8.abs.inc
-            └── dep.real8.inc
+> make depend 
+> tree ../compiledir
+../compiledir
+└── v_3.5.2-133-g111551f_M
+    └── ubuntu-18.04-skylake-64
+        └── intel-19.0.3.199
+            ├── clib_interfaces_mod.f90
+            ├── codeprecision_mod.f90
+            ├── dep.abs.inc
+            ├── dep.obj.inc
+            └── rttov_interfaces_mod.f90
 ```
-And this is what it looks like inside of `dep.real4.inc`:
+And this is what it looks like inside of `dep.obj.inc`:
 ```make
 obstimeinterp_mod.o : obstimeinterp_mod.f90 obsspacedata_mod.o timecoord_mod.o utilities_mod.o mpivar_mod.o mpi_mod.o 
 thinning_mod.o : thinning_mod.f90 utilities_mod.o obsspacedata_mod.o bufr_mod.o codeprecision_mod.o 
@@ -258,28 +268,45 @@ increment_mod.o : increment_mod.f90 varnamelist_mod.o bmatrix_mod.o gridVariable
 ...
 bgckAtms.o : bgckAtms.f90 bgckmicrowave_mod.o
 ```
-`dep.real[48].inc` are generated by `makedepf90` and produce *superficial* dependencies, those needed to compile **objects**, but **not enough to link absolutes**.
+`dep.obj.inc` are generated by `makedepf90` and produce *superficial* dependencies, those needed to compile **objects**, but **not enough to link absolutes**.
 
 To proceed with linking we need the fully recursive dependencies.
-We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency files and deduce the fully recursive ones needed at link time; they are in `dep.real[48].abs.inc` files.
+We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency files and deduce the fully recursive ones needed at link time; they are in `dep.abs.inc` files.
 
-Notice also that dependencies are **only generated for the frontends** ([`makedepf90` is not available on the backends for now](https://gitlab.science.gc.ca/hpc_migrations/hpcr_upgrade_1/issues/980)).
-This is not a real problem since the dependencies are the same; we will create the relevant directory structure and copy the dependencies there.
-This is done in [`copy_depend_backend.sh`](./copy_depend_backend.sh) (and also [`build.sh`](./build.sh) that does the whole multiplateform compilation).
+### Building dependencies on the backends
+
+Backends don't have `makedepf90` yet and probably won't have it.
+But dependencies are the same, so build dependency files on the frontends first and copy them in the backend build directory.
+This is done using the script `./copy_depend_backend.sh` (called automatically in `./build.sh`).
+```
+> ./copy_depend_backend.sh 
+...
+> tree ../compiledir
+../compiledir
+└── v_3.5.2-133-g111551f_M
+    ├── sles-15-skylake-64-xc50
+    │   └── PrgEnv-intel-6.0.5
+    │       ├── clib_interfaces_mod.f90
+    │       ├── codeprecision_mod.f90
+    │       ├── dep.abs.inc
+    │       ├── dep.obj.inc
+    │       └── rttov_interfaces_mod.f90
+    └── ubuntu-18.04-skylake-64
+        └── intel-19.0.3.199
+            ├── clib_interfaces_mod.f90
+            ├── codeprecision_mod.f90
+            ├── dep.abs.inc
+            ├── dep.obj.inc
+            └── rttov_interfaces_mod.f90
+```
 
 This is all well, but there is (at least) one case where a user could make that strategy fail.  **Once dependencies are evaluated, they are considered static**.  That means that if after having compiled, someone modify a module's dependencies (adding a `use` statement somewhere) and want to use the incremental awesome feature of `make` it will most probably fail, because the dependencies won't be automatically updated.
 There is no simple way to do that in Fortran 2003 (it is possible using Fortran 2008 submodules, but that would require a lot of refactoring.)
 
-So if you find yourself in such a situation, rebuild explicitly the dependencies **before** rebuilding.
+So if you find yourself in such a situation, rebuild explicitly the dependencies **before** rebuilding, using `cleandep`
 ```
-> make cleandep depend DIR_BLD_ROOT=./compile
+> make cleandep [depend|all|...]
 ```
-
-### Building dependencies on the backends
-Backends don't have `makedepf90` yet and probably won't have it.
-But dependencies are the same, so to build dependency files you need to do it on the frontends and copy them at the right place.
-
-This is done automatically using the script `./copy_depend_backend.sh` (which call a the same bash function that `./build.sh` does).
 
 
 Adding a new program or changing external dependencies
@@ -289,15 +316,12 @@ In the previous solution, when a new program is added, two files needed to be ch
 * `compile_setup_${PGM}.sh`
 
 The first contains dependencies information and this is dealt with automatically ([see previous section](#automatic-dependencies)).
-The second one contain external libraries that are needed at link time by the program.
+The second one contain external libraries that are needed at link time by the programs.
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
-This file is separated in two sections, one for each `REAL` precision group of programs (all but two programs for the EnKF are double precisions, **no new program should be single precision**).
-Each programs need to be listed in `PGM_DBL`
-
-> If LETKF replaces EnKF, this whole two precisions thing is going to be removed and it is going to simplify the structure **a lot**.  Amongst other things, the `PGM_DBL` list will then be automatic, using `$(wildcard *.f90)`.
+Each program need to be listed in the `PGM` make variable.
 
 So **when a new program is added** or when **external libraries change for an existing program** two things need to be done in the `./programs/programs.mk` file:
-1. if needed, add the program name in the `PGM_DBL` list variable
+1. if needed, add the program name in the `PGM` list variable
 2. list all external libraries (previously in `compile_setup_${PGM}.sh`)
    as prerequisite of the absolute target, such as:
    ```
@@ -311,9 +335,10 @@ What is left to do
 
 Candies.  
 
+* `build.sh` autocompletion for passing make targets while conserving the 
+  multi-plateform build
 * automated `ssm` packaging
 * automated `doc` building and `diagrams`, etc.
-* some more control in the `build.sh` script
 
 But most of all... taking into account your input.  
 Don't hesitate to contact-me for your input or for some guidance: @mad001

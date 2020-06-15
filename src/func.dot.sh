@@ -13,7 +13,7 @@ function is_compilation_done_frontend {
             echo "Compilation on '${FRONTEND}' '${JOBNAME}' has finished."
             __listing=$(/bin/ls -t ${JOBNAME}.${FRONTEND}-*-$(hostname)-*.out | head -1)
             cat ${__listing}
-            rm ${__liisting}
+            rm ${__listing}
             break
         fi
         sleep 5
@@ -24,14 +24,14 @@ function is_compilation_done_frontend {
 function copy_depend {
     __target_machine=$1
 
+    __revnum=$(../midas.version.sh)
     __arch=$( \
         (echo 'echo EC_ARCH=${EC_ARCH}' | ssh ${__target_machine} bash --login )\
         2>/dev/null | grep EC_ARCH | cut -d= -f2)
-    for __prec in real4 real8
-    do
-        __target_dir=${DIR_BLD_ROOT}/${__arch}/${__prec}
-        [ -d ${__target_dir} ] || mkdir -p ${DIR_BLD_ROOT}/${__arch}/${__prec}
-        cp -p ${DIR_BLD_ROOT}/${EC_ARCH}/${__prec}/dep.${__prec}.* ${__target_dir}
-        cp -p ${DIR_BLD_ROOT}/${EC_ARCH}/${__prec}/*.f90 ${__target_dir}
-    done
+    __target_dir=${DIR_BLD_ROOT}/${__revnum}/${__arch}/
+    __src_dir=${DIR_BLD_ROOT}/${__revnum}/${EC_ARCH}
+    echo "Copy dependecies from ${__src_dir} to ${__target_machine}:${__target_dir}"
+    [ -d ${__target_dir} ] || mkdir -p ${__target_dir}
+    cp -p ${__src_dir}/dep.* ${__target_dir}
+    cp -p ${__src_dir}/*.f90 ${__target_dir}
 }
