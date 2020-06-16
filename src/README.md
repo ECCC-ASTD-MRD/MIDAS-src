@@ -216,20 +216,31 @@ s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/programs/var.f90 -o v
 s.f90 ... -o var.Abs
 ```
 
-One solution to that is to `touch`  **the intermediate targets** (using `make --touch` or `-t`) , making them newer that the dependencies:
+One solution to that is to first recompile the modified object (here 
+`varqc_mod.o`) and `touch`  **the other intermediate targets** (using
+`make --touch` or `-t`) , making them newer that the dependencies:
 ```
-> make --touch varqc_mod.o minimization_mod.o var.o
-touch varqc_mod.o
-touch minimization_mod.o
-touch var.o
-touch varqc_mod.o
-touch minimization_mod.o
-touch var.o
-> make -n
+> make varqc_mod.o
 ...
-s.f90 ... -o var.Abs
+> make -n | grep '^\-o'
+-o minimization_mod.o
+-o var.o
+-o var.Abs
+> make --touch minimization_mod.o var.o
+touch minimization_mod.o
+touch var.o
+touch minimization_mod.o
+touch var.o
+> make -n | grep '^\-o'
+-o var.Abs
 ```
-This has an anoying drawback, it creates empty files (here `varqc_mod.o`, `minimization_mod.o`, `var.o`) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
+Now we see that only the linking will be done.
+```
+> make
+...
+```
+This has an anoying drawback, it creates empty files (here `minimization_mod.o`, `var.o`m the `make --touch` targetd) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
+It is an issue we are working on.
 
 
 
