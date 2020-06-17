@@ -70,8 +70,16 @@ set -x
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
 ## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
-cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login
+status=0
+cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
 rm compile_job
+
+## if previous compilation aborted, then kill the compilation job
+if [ "${status}" -ne 0 ]; then
+    jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    echo "Compilation aborted!"
+    exit 1
+fi
 
 function is_compilation_done {
     set -e
