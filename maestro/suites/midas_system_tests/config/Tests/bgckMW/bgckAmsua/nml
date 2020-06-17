@@ -1,12 +1,12 @@
  &NAMBGCK
   instName = 'AMSUA'
-  mglg_file  = './fstmglg'
+  glmg_file  = './fstglmg'
   statsFile = './stats_amsua_assim'
   writeModelLsqTT = .true. 
   debug = .false.
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
-  writeTbValuesToFile = .false.	
+  writeEle25174 = .false.	
 /
  &NAMMWOBS
   reportNumMax = 500
@@ -249,19 +249,18 @@
    name_inst(5)='gmsim',
    name_inst(6)='mtsatim',
 /
-&NAMBIAS
+&NAMBIASSAT
     biasActive=.TRUE.,
     BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
     biasmode="apply",
     removeBiasCorrection=.false.
     refreshBiasCorrection=.false.
-    lmimicsatbcor=.true.
+    mimicsatbcor=.true.
     scanBiasCorLength=-1.d0
-    doRegression=.false.
     centerPredictors=.false.,
-    lweightedEstimate=.false.,
-    loutstats=.false.,
-    loutcoeffcov=.false.,
+    weightedEstimate=.false.,
+    outstats=.false.,
+    outcoeffcov=.false.,
     filterObs = .false.,
     cinst(1)="AMSUA"
     nbscan(1)=30

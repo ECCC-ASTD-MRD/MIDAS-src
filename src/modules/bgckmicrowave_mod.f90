@@ -3168,7 +3168,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, &
+  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, glmg_file, zlat, zlon, ilq, itt, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
@@ -3186,7 +3186,7 @@ contains
     !                                                         1 (assmilate)
     !                                                         2 (assimilate over open water only)
     real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
-    character(len=128), intent(in)   :: mglg_file
+    character(len=128), intent(in)   :: glmg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs
     real,    intent(in)              :: zlat(:)
@@ -3335,7 +3335,7 @@ contains
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL    
     !###############################################################################
     write(*,*) ' ==> mwbg_landIceMaskAtms: '
-    call mwbg_landIceMaskAtms(mglg_file, KNT, zlat, zlon, ilq, itt, &
+    call mwbg_landIceMaskAtms(glmg_file, KNT, zlat, zlon, ilq, itt, &
                               lsq, trn, waterobs)
 
     !###############################################################################
@@ -3655,7 +3655,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate 
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
+  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
 
     implicit none
 
@@ -3668,6 +3668,7 @@ contains
     !         Then Interpolate Those variables to observation location
     !Arguments: 
     character(*),       intent(in)   :: instName       ! Instrument Name
+    character(*),       intent(in)   :: glmg_file      ! mg and lg file
     real,               intent(in)   :: zlat(:)        ! Obseravtion Lats
     real,               intent(in)   :: zlon(:)        ! Observation Lons
     real, allocatable,  intent(out)  :: MGINTRP(:)     ! Glace de mer interpolees au pt d'obs.
@@ -3701,7 +3702,6 @@ contains
     character(len=4)         :: NOMVXX
     character(len=2)         :: TYPXX 
     character(len=1)         :: GRTYP
-    character(len=128)       :: fileGeoName 
     integer                  :: NLAT
     integer                  :: NLON
     integer, PARAMETER       :: MXLON = 5
@@ -3737,15 +3737,13 @@ contains
     ! STEP 1: READ MT, GL and MG from the FST FILE 
     debug = mwbg_debug 
     if (instName == 'ATMS') then
-      fileGeoName = './fstglmg'
       readGlaceMask = .False.
     else if (instName == 'AMSUA') then
-      fileGeoName = './fstglmg'
       readGlaceMask = .True.
     end if 
     if(ifFirstCall) then
       IUNGEO = 0 
-      IER = FNOM(IUNGEO,fileGeoName,'STD+RND+R/O',0)
+      IER = FNOM(IUNGEO,glmg_file,'STD+RND+R/O',0)
 
       ! 3) Lecture des champs geophysiques (MF/MX) du modele
       IER = FSTOUV(IUNGEO,'RND')
@@ -4343,7 +4341,7 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskAtms(mglg_file,npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
+  subroutine mwbg_landIceMaskAtms(glmg_file,npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -4390,12 +4388,12 @@ contains
     ! Version:      Date:      Comment:
     ! --------      -----      --------
     !   0.1       16/08/12     Original adapted code.      S. Macpherson  
-    !   0.2       01/03/14     Open mglg_file in R/O mode  S. Macpherson
+    !   0.2       01/03/14     Open glmg_file in R/O mode  S. Macpherson
     !
     !--------------------------------------------------------------------
     !  Variable Definitions
     !  --------------------
-    ! - mglg_file  : input  -  name of file holding model MG and LG (or GL) fields
+    ! - glmg_file  : input  -  name of file holding model MG and LG (or GL) fields
     ! - npts       : input  -  number of input obs pts in report
     ! - zlat       : input  -  array holding lat values for all obs pts in report
     ! - zlon       : input  -  array holding lon values for all obs pts in report
@@ -4433,7 +4431,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=128), intent(in) :: mglg_file
+    character(len=128), intent(in) :: glmg_file
 
     integer, intent(in)                   :: npts
     real,    intent(in)                   :: zlat(:)
@@ -4505,7 +4503,7 @@ contains
     ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
     
     ! Open FST file.
-    ier = fnom( iungeo,mglg_file,'STD+RND+R/O',0 )
+    ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
     ier = fstouv( iungeo,'RND' )
 
     ! Read MG field.
@@ -5529,7 +5527,6 @@ contains
     if (verbose) write(*,*) 'SENSOR, INSTRUMENT, IDTYP = ', sensor(1), instrument(1), idtyp
 
     HEADER: do headerIndex = numHeaderWritten + 1, numHeaderWritten + reportNumObs
-      write(*,*) 'Old numHeaderWritten = ', numHeaderWritten
       ! If terrain type sea ice (0), set landQualifier=2
       if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
 
@@ -5610,6 +5607,7 @@ contains
   end subroutine mwbg_setGlobalFlagBit
     
    
+
   !--------------------------------------------------------------------------
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------

@@ -105,7 +105,7 @@ program midas_bgckMW
   character(len=9)              :: instName                        ! instrument name
   character(len=1060)           :: burpFileNameIn                  ! burp input file name
   character(len=9)              :: ETIKRESU                        ! resume etiket name
-  character(len=128)            :: mglg_file                       ! glace de mer file
+  character(len=128)            :: glmg_file                       ! glace de mer file
   character(len=128)            :: statsFile                       ! stats error file
   real                          :: clwQcThreshold                  ! 
   logical                       :: allowStateDepSigmaObs           !
@@ -113,15 +113,15 @@ program midas_bgckMW
   logical                       :: RESETQC                         ! reset Qc flags option
   logical                       :: debug                           ! debug mode
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
-  logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
+  logical                       :: writeEle25174                   ! logical for writting ATMS 25174 ele
   integer                       :: numFileFound
   integer                       :: reportNumMax                    ! Max number of reports in file
   integer                       :: locationNumMax                  ! Max number of obs per report
   integer                       :: channelNumMax                   ! Max number of channel in report
 
-  namelist /nambgck/instName, mglg_file, statsFile, &
+  namelist /nambgck/instName, glmg_file, statsFile, &
                     writeModelLsqTT, clwQcThreshold, allowStateDepSigmaObs, &
-                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile
+                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeEle25174 
 
   namelist/nammwobs/reportNumMax, locationNumMax, channelNumMax
 
@@ -143,7 +143,7 @@ program midas_bgckMW
  
   ! default nambgck namelist values
   instName              = 'AMSUA'
-  mglg_file             = './fstglmg'
+  glmg_file             = './fstglmg'
   statsFile             = './stats_amsua_assim'  
   writeModelLsqTT       = .false.
   clwQcThreshold        = 0.3 
@@ -152,7 +152,7 @@ program midas_bgckMW
   debug                 = .false.
   RESETQC               = .false.
   ETIKRESU              = '>>BGCKALT'
-  writeTbValuesToFile   = .false.
+  writeEle25174   = .false.
 
   ! reading nambgck namelist
   nulnam = 0
@@ -224,7 +224,7 @@ program midas_bgckMW
     !###############################################################################
     ! STEP 0 ) Read TOV Observations into obsSpaceData
     !###############################################################################
-    write(*,*) ' ==> mwbg_getData: ', reportIndex
+    write(*,*) ' ==> mwbg_getData for report number : ', reportIndex
     call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle, azimuthAngle, solarZenithAngle,   &
                       landQualifierIndice, terrainTypeIndice, obsDate, obsTime,     &
                       obsLatitude, obsLongitude, obsTb, satScanPosition, sensor,    &
@@ -254,12 +254,10 @@ program midas_bgckMW
         cycle REPORTS
       end if
       ! fill array with number of location per report
-      write(*,*) 'Global Marqueur = ', obsGlobalMarker
       obsNumPerReport(reportIndex) = reportNumObs
       ! Increment total number of obs pts read
       nobs_tot = nobs_tot + reportNumObs
       ! Put vectors in ObsSpaceData
-      write(*,*) ' ==> mwbg_copyObsToObsSpace: '
       call mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel,         &
                                   satIdentifier, satZenithAngle, azimuthAngle,      &
                                   solarZenithAngle, landQualifierIndice,            &
@@ -306,7 +304,7 @@ program midas_bgckMW
   call tmg_stop(12)
   !
   ! set GlobalFlag (ele 55200) bit 11 - Enregistrement contient des donnees derivees d'entree
-   call mwbg_setGlobalFlagBit(obsSpaceData, 11)
+  call mwbg_setGlobalFlagBit(obsSpaceData, 11)
   ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
   !
   call tmg_start(11,'BIAS_COR')
@@ -322,6 +320,7 @@ program midas_bgckMW
   write(*,*) 'Apply bias correction to O-F'
   call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO")
   !
+  call bcs_finalize()
   call tmg_stop(11)
   ! QC LOOP
   !
@@ -332,11 +331,9 @@ program midas_bgckMW
   QCLoop: do 
     reportIndex = reportIndex + 1
     ifLastReport = reportIndex == lastReportIndex
-    write(*,*) 'repIndex = ', reportIndex
     if (listeOfGoodreport(reportIndex)) then
       if (.not. listeOfResumeReport(reportIndex)) then
         ! read burp arrays from ObspaceData Object
-        write(*,*) ' ==> mwbg_readObsFromObsSpace: '
         call mwbg_readObsFromObsSpace(instName, obsNumPerReport(reportIndex),       &
                                  satIdentifier, satZenithAngle,landQualifierIndice, & 
                                  terrainTypeIndice, obsLatitude, obsLongitude,      &
@@ -356,7 +353,7 @@ program midas_bgckMW
         ! STEP 2) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
         !###############################################################################
         write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
-        call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLatitude,            &
+        call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
                                                 obsLongitude, modelInterpTerrain,     &
                                                 modelInterpGroundIce, modelInterpSeaIce)
 
@@ -375,7 +372,7 @@ program midas_bgckMW
                               atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                               RESETQC, obsLatitude)
         else if (instName == 'ATMS') then
-          call mwbg_tovCheckAtms(TOVERRST, IUTILST,mglg_file, obsLatitude, obsLongitude,&
+          call mwbg_tovCheckAtms(TOVERRST, IUTILST,glmg_file, obsLatitude, obsLongitude,&
                               landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                               obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
                               obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
@@ -407,8 +404,7 @@ program midas_bgckMW
                            obsTbBiasCorr, obsChannels, ompTb, cloudLiquidWaterPath,        &
                            atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
                            globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
-                           obsFlags, writeTbValuesToFile, writeModelLsqTT)
-      write(*,*) 'Global Marqueur = ', obsGlobalMarker
+                           obsFlags, writeEle25174, writeModelLsqTT)
     end if
     if (ifLastReport) exit QCLoop
   end do QCLoop
