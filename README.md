@@ -153,6 +153,12 @@ Those are the helper scripts which launch MIDAS programs.
 
 Refer to the [`midas_scripts/README.md`](tools/midas_scripts/README.md) for more details.
 
+## `midas.splitobs`
+
+This program is used to split the observations according to the wanted strategy.
+
+Refer to the [`splitobs/README.md`](tools/splitobs/README.md) for more details.
+
 ## `midas.monitor`
 
 This program monitors a file to react to its content.
