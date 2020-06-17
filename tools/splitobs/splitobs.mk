@@ -11,6 +11,8 @@
 
 # export AFSISIO=${AFSISIO:-/home/binops/afsi/sio/env_ibm/afsisio}
 
+PGM ?= ./midas.splitobs_$(ORDENV_PLAT).Abs
+
 PROGRAM = splitobs
 SRC = splitobs.c fstdlib.c mainF.f
 
@@ -35,3 +37,6 @@ splitobs_libs_19: version.h $(SRC)
 
 version.h:
 	echo "#define  VERSION   \"$(VERSION)\"" > version.h; echo "#define  VERSION_SHA1   \"$(VERSION_SHA1)\"" >> version.h
+
+install: $(PROGRAM)_$(ORDENV_PLAT)
+	cp $(PROGRAM)_$(ORDENV_PLAT) $(PGM)
