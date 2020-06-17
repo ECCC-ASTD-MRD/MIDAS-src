@@ -56,6 +56,10 @@ export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
 cd ${codedir}
 echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
+
+cd ${toplevel}/tools/splitobs
+make install PGM=${toplevel}/compiledir/midas_abs/midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
+
 EOF
 
 #pbs_extra1='-Wblock=true'
