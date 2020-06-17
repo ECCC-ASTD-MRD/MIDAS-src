@@ -93,6 +93,11 @@ def _install(b):
              program=$(echo ${babsname} | cut -d_ -f1)
              ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
          done
+
+         ## install MIDAS tools with prefix 'midas.'
+         progname=midas.splitobs
+         cp ${BH_MIDAS_ABS}/${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs ${INSTALL_DIR}
+         ln -s ${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs ${INSTALL_DIR}/${progname}.Abs
         )""")
 
 if __name__ == "__main__":
