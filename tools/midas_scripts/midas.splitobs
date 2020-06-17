@@ -20,7 +20,7 @@ eval `${CCLARGS} -D "" $0 \
   -npey          "" "" "[number of PE in y direction]" \
   -minimize_copy     "" "" "['false' or the PE containing the observation file]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
-  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_pgm      "midas.splitobs.Abs" "midas.splitobs.Abs" "[program 'midas.splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
   -splitobs_ndigits  "4" "4" "[number of digits for file names of observations]" \
   -splitobs_nomvar   "P0" "P0" "[nomvar of the field to be read to define the grid]" \
   -splitobs_fstin    ""   ""   "[RPN standard file for grid definition]" \
