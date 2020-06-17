@@ -4349,9 +4349,10 @@ CONTAINS
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = -9999.0
     integer, external           :: mrfbfl
-    logical                     :: groupedData, foundFlags, foundObs, emptyReport
+    logical                     :: groupedData, foundFlags, foundObs, emptyReport, resumeReport
     logical                     :: debug = .false.
     character(len=2)            :: familyTypesToDo(4) = (/'AI','SW','TO','SC'/)
+    character(len=9)            :: stnid
     real(4)                     :: realBurpValue
 
     write(*,*)
@@ -4420,6 +4421,9 @@ CONTAINS
            iostat    = error)      
       if (error /= burp_noerr) call handle_error()
       
+      call burp_get_property(inputReport, stnid=stnid)
+      resumeReport = (stnid(1:2) == ">>")
+
       ! create and initialize a new report
       if (reportIndex == 1) then
         call burp_new(copyReport, alloc_space=nsize, iostat=error)
@@ -4549,7 +4553,7 @@ CONTAINS
              iostat = error)
 
         ! if any obs profiles are completely rejected, eliminate them
-        if (numReject > 0 .and. numObsProfiles2 == numObsProfiles) then
+        if (numObsProfiles2 == numObsProfiles) then
 
           newNumObsProfiles   = numObsProfiles2 - numReject
           if (debug) write(*,*) 'ReportIndex = ', reportIndex
@@ -4600,6 +4604,8 @@ CONTAINS
 
           end if
 
+        else
+          write(*,*) 'Not sure why we are here!', numObsProfiles2, numObsProfiles
         end if
 
         if (.not. emptyReport) then
@@ -4614,6 +4620,12 @@ CONTAINS
       call burp_delete_report(inputFile, inputReport, iostat=error)
       if (error /= burp_noerr) call handle_error()
       if (.not. emptyReport) then
+        ! for grouped data modify "elev" to new number of obs profiles
+        if (groupedData .and. .not.resumeReport) then
+          call burp_set_property(copyReport,             &
+                                 elev=newNumObsProfiles, &
+                                 iostat=error)
+        end if
         call burp_write_report(inputFile, copyReport, iostat=error)
         if (error /= burp_noerr) call handle_error()
       end if
