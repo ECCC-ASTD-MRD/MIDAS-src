@@ -70,12 +70,10 @@ def _install(b):
          done
 
          ## The program 'midas.monitor' does not need to be compiled on a specific platform
-         progname=monitor
-         absname=${BH_MIDAS_ABS}/midas.${progname}_${MIDAS_VERSION}.Abs
-         cp ${absname} ${INSTALL_DIR}
-         babsname=$(basename ${absname})
-         program=$(echo ${babsname} | cut -d_ -f1)
-         ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
+         progname=midas.monitor
+         absname=${progname}_${MIDAS_VERSION}.Abs
+         cp ${BH_MIDAS_ABS}/${absname} ${INSTALL_DIR}
+         ln -sf ${absname} ${INSTALL_DIR}/${program}.Abs
         )""")
     else:
         b.shell("""
@@ -87,11 +85,9 @@ def _install(b):
          ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
          for prog in ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/*.f90; do
              progname=$(basename ${prog} .f90)
-             absname=${BH_MIDAS_ABS}/midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
-             cp ${absname} ${INSTALL_DIR}
-             babsname=$(basename ${absname})
-             program=$(echo ${babsname} | cut -d_ -f1)
-             ln -sf ${babsname} ${INSTALL_DIR}/${program}.Abs
+             absname=midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
+             cp ${BH_MIDAS_ABS}/${absname} ${INSTALL_DIR}
+             ln -sf ${absname} ${INSTALL_DIR}/midas-${progname}.Abs
          done
 
          ## install MIDAS tools with prefix 'midas.'
