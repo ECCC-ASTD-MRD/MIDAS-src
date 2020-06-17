@@ -311,17 +311,17 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_get_codtyp('airs'))
+    call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                                'TO', codtyp_get_codtyp('airs'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_get_codtyp('iasi'))
+    call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                                'TO', codtyp_get_codtyp('iasi'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_get_codtyp('cris'))
+    call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                                'TO', codtyp_get_codtyp('cris'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_thinByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                               'TO', codtyp_get_codtyp('crisfsr'))
+    call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
+                                'TO', codtyp_get_codtyp('crisfsr'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinHyper
@@ -582,7 +582,7 @@ contains
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
-    call QsortC(qualityMpi,headerIndexSorted)
+    call thn_QsortC(qualityMpi,headerIndexSorted)
 
     keepObsMpi(:) = .false.
     call tmg_start(144,'bruteThinning')
@@ -648,7 +648,7 @@ contains
                 if(deltaLon > 180.) deltaLon = 360. - deltaLon
                 obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
                 obsLat2 = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
-                if ( dis_arc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+                if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
                   skipThisObs = .true.
                   exit OBSLOOP3
                 end if
@@ -785,9 +785,14 @@ contains
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
 
+    write(*,*) 'thn_satWindsByDistance: Finished'
+
   end subroutine thn_satWindsByDistance
 
-  recursive subroutine QsortC(A,B)
+  !--------------------------------------------------------------------------
+  ! thn_QsortC
+  !--------------------------------------------------------------------------
+  recursive subroutine thn_QsortC(A,B)
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -795,14 +800,17 @@ contains
     integer :: iq
 
     if (size(A) > 1) then
-      call Partition(A,B,iq)
-      call QsortC(A(:iq-1),B(:iq-1))
-      call QsortC(A(iq:),B(iq:))
+      call thn_QsortCpartition(A,B,iq)
+      call thn_QsortC(A(:iq-1),B(:iq-1))
+      call thn_QsortC(A(iq:),B(iq:))
     endif
 
-  end subroutine QsortC
+  end subroutine thn_QsortC
 
-  subroutine Partition(A,B,marker)
+  !--------------------------------------------------------------------------
+  ! thn_QsortCpartition
+  !--------------------------------------------------------------------------
+  subroutine thn_QsortCpartition(A,B,marker)
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -844,9 +852,12 @@ contains
       endif
     end do
 
-  end subroutine Partition
+  end subroutine thn_QsortCpartition
 
-  real function dis_arc( deltaLat, deltaLon, lat1, lat2 )
+  !--------------------------------------------------------------------------
+  ! thn_distanceArc
+  !--------------------------------------------------------------------------
+  real function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
     implicit none
 
     real, intent(in) :: deltaLat, deltaLon, lat1, lat2
@@ -865,9 +876,9 @@ contains
     if(term_a < 0.0) term_a = 0.0
     if(term_a > 1.0) term_a = 1.0
 
-    dis_arc = 2*RT*asin(sqrt(term_a))
+    thn_distanceArc = 2*RT*asin(sqrt(term_a))
 
-  end function dis_arc
+  end function thn_distanceArc
 
   !--------------------------------------------------------------------------
   ! thn_aircraftByBoxes
@@ -2677,11 +2688,11 @@ contains
   end subroutine thn_csrByLatLonBoxes
 
   !--------------------------------------------------------------------------
-  ! thn_thinByLatLonBoxes
+  ! thn_hyperByLatLonBoxes
   !--------------------------------------------------------------------------
-  subroutine thn_thinByLatLonBoxes(obsdat, removeUnCorrected, &
-                                   deltmax, deltax, deltrad,  &
-                                   familyType, codtyp)
+  subroutine thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, &
+                                    deltmax, deltax, deltrad,  &
+                                    familyType, codtyp)
     !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
@@ -2723,7 +2734,7 @@ contains
     integer :: obsLonBurpFile, obsLatBurpFile
     character(len=12) :: stnid
 
-    write(*,*) 'thn_thinByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
+    write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
 
     ! Initial setup
     numLat = nint( 2. * real(lat_length) / real(deltax) )
@@ -2877,7 +2888,7 @@ contains
     ! return if no observations for this instrument
     if (countHeader == 0) then
       call deallocLocals()
-      write(*,*) 'thn_thinByLatLonBoxes: no observations for this instrument'
+      write(*,*) 'thn_hyperByLatLonBoxes: no observations for this instrument'
       return
     end if
 
@@ -2990,7 +3001,7 @@ contains
 
     call deallocLocals()
 
-    write(*,*) 'thn_thinByLatLonBoxes: Finished'
+    write(*,*) 'thn_hyperByLatLonBoxes: Finished'
 
   contains
 
@@ -3011,7 +3022,7 @@ contains
       
     end subroutine deallocLocals
 
-  end subroutine thn_thinByLatLonBoxes
+  end subroutine thn_hyperByLatLonBoxes
 
   !--------------------------------------------------------------------------
   ! thn_separation
