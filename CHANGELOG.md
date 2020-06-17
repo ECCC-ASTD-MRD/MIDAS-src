@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix `ramdisk_mod.copyFile` when file size is bigger than maximum integer (#366 and !350)
  * Correction of bugs introduced during !323 preventing compilation and execution of system tests in debug mode (#365 and !348)
 
 ### Removed
