@@ -40,7 +40,7 @@ module thinning_mod
   private
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
-  public :: thn_thinAircraft, thn_thinSatWinds, thn_thinAladin
+  public :: thn_thinAircraft, thn_thinScat, thn_thinSatWinds, thn_thinAladin
 
   integer, external :: get_max_rss
 
@@ -219,6 +219,51 @@ contains
   end subroutine thn_thinCSR
 
   !--------------------------------------------------------------------------
+  ! thn_thinScat
+  !--------------------------------------------------------------------------
+  subroutine thn_thinScat(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    integer :: deltax     ! thinning (dimension of box sides) (in km)
+    integer :: deltmax    ! temporal thinning resolution (in minutes)
+
+    namelist /thin_scat/deltax, deltmax
+
+    ! Default namelist values
+    deltax = 100
+    deltmax = 90
+
+    ! Read the namelist for Scat observations (if it exists)
+    if (utl_isNamelistPresent('thin_scat','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinScat: Error opening file flnml')
+      read(nulnam,nml=thin_scat,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_scat)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinScat: Namelist block thin_scat is missing in the namelist.'
+      write(*,*) '              The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_scat)
+    end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine thn_thinScat
+
+  !--------------------------------------------------------------------------
   ! thn_thinTovs
   !--------------------------------------------------------------------------
   subroutine thn_thinTovs(obsdat)
@@ -368,7 +413,7 @@ contains
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
-    character(len=12)  :: stnId, stnid_list(numStnIdMax)
+    character(len=12)  :: stnId, stnidList(numStnIdMax)
     logical :: obsAlreadySameStep, skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
@@ -561,11 +606,11 @@ contains
       if (numStnId < numStnIdMax ) then
         stnIdIndexFound = -1
         do stnIdIndex = 1, numStnId
-          if ( stnid_list(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
+          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
         end do
         if ( stnIdIndexFound == -1 ) then
           numStnId = numStnId + 1
-          stnid_list(numStnId) = stnid
+          stnidList(numStnId) = stnid
           stnIdIndexFound = numStnId
         end if
         numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
@@ -588,7 +633,7 @@ contains
     call tmg_start(144,'bruteThinning')
     STNIDLOOP: do stnIdIndex = 1, numStnId
       write(*,*) 'thn_satWindsByDistance: applying thinning for: ', &
-                 trim(stnid_list(stnIdIndex))
+                 trim(stnidList(stnIdIndex))
 
       LAYERLOOP: do layerIndex = 1, numLayers
 
@@ -610,7 +655,7 @@ contains
           do charIndex = 1, lenStnId
             stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
           end do
-          if (stnid_list(stnIdIndex) /= stnId) cycle OBSLOOP1
+          if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
 
           ! On compte le nombre d'observations qui sont deja
           ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
@@ -724,7 +769,7 @@ contains
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
       stnIdIndexFound = -1
       do stnIdIndex = 1, numStnId
-        if (stnid_list(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
+        if (stnidList(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
       end do
       if (stnIdIndexFound == -1) call utl_abort('stnid not found in list')
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
@@ -750,7 +795,7 @@ contains
     write(*,'(a30,2a15)') 'Satellite', 'nb AMVs in'
     write(*,*)
     do stnIdIndex = 1, numStnId
-      write(*,'(a30,2i15)') stnid_list(stnIdIndex), numObsStnIdInMpi(stnIdIndex)
+      write(*,'(a30,2i15)') stnidList(stnIdIndex), numObsStnIdInMpi(stnIdIndex)
     end do
     write(*,*)
     write(*,'(a30,2i10,f10.4)') 'Total number of obs in : ',sum(numObsStnIdInMpi)
@@ -759,7 +804,7 @@ contains
     write(*,'(a30,2a15)') 'Satellite', 'nb AMVs out'
     write(*,*)
     do stnIdIndex = 1, numStnId
-      write(*,'(a30,2i15)') stnid_list(stnIdIndex), numObsStnIdOutMpi(stnIdIndex)
+      write(*,'(a30,2i15)') stnidList(stnIdIndex), numObsStnIdOutMpi(stnIdIndex)
     end do
     write(*,*)
     write(*,'(a30,2i10,f10.4)') 'Total number of obs out : ',sum(numObsStnIdOutMpi)
@@ -2245,6 +2290,460 @@ contains
     deallocate(allStnIdInt)
 
   end subroutine thn_removeRarsDuplicates
+
+  !--------------------------------------------------------------------------
+  ! thn_scatByLatLonBoxes
+  !--------------------------------------------------------------------------
+  subroutine thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
+    !
+    ! :Purpose: Only keep the observation closest to the center of each
+    !           lat-lon (and time) box for SCAT observations.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer, intent(in)             :: deltax
+    integer, intent(in)             :: deltmax
+
+    ! Locals parameters:
+    integer, parameter :: lat_length = 10000 ! Earth dimension parameters
+    integer, parameter :: lon_length = 40000 ! Earth dimension parameters
+    integer, parameter :: numStnIdMax = 100
+
+    ! Locals:
+    integer :: bodyIndex, charIndex, nsize, lenStnId
+    integer :: tcount, bkcount, tcountMpi, bkcountMpi
+    integer :: uObsFlag, vObsFlag, obsVarno, stnIdIndex, numStnId, stnIdIndexFound
+    integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
+    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi
+    integer :: headerIndexBeg, headerIndexEnd
+    integer :: countObs, countObsInMpi, countObsOutMpi
+    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
+    integer :: numObsStnIdOut(numStnIdMax)
+    integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
+    real(4) :: latInRadians, distance, obsLat, obsLon, gridLat, gridLon
+    real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
+    logical :: change
+    real(4), allocatable :: gridLats(:), gridLatsMid(:), gridLonsMid(:,:)
+    integer, allocatable :: headerIndexGrid(:,:,:), delMinutesGrid(:,:,:)
+    real(4), allocatable :: distanceGrid(:,:,:)
+    integer, allocatable :: obsLatIndex(:), obsLonIndex(:), obsStepIndex(:), numGridLons(:)
+    real(4), allocatable :: obsDistance(:)
+    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:), obsStepIndexMpi(:)
+    integer, allocatable :: obsDelMinutes(:), obsDelMinutesMpi(:)
+    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
+    real(4), allocatable :: obsDistanceMpi(:)
+    logical, allocatable :: valid(:), validMpi(:)
+    character(len=12)    :: stnId, stnidList(numStnIdMax)
+    character(len=12), allocatable :: stnIdGrid(:,:,:)
+
+    write(*,*) 'thn_scatByLatLonBoxes: Starting'
+
+    numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
+    write(*,*) 'thn_scatByLatLonBoxes: numHeader, numHeaderMaxMpi = ', &
+               numHeader, numHeaderMaxMpi
+
+    ! Check if we have any observations to process
+    allocate(valid(numHeaderMaxMpi))
+    valid(:) = .false.
+    call obs_set_current_header_list(obsdat,'SC')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      valid(headerIndex) = .true.
+    end do HEADER0
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_scatByLatLonBoxes: no observations for this instrument'
+      deallocate(valid)
+      return
+    end if
+
+    numLat = nint(2.*real(lat_length)/real(deltax))
+    numLon = nint(real(lon_length)/real(deltax))
+
+    write(*,*)
+    write(*,*) 'Number of horizontal boxes : ', numLon
+    write(*,*) 'Number of vertical boxes   : ', numLat
+    write(*,*) 'Number of temporal bins    : ', tim_nstepobs
+    write(*,*)
+
+    write(*,*) 'thn_scatByLatLonBoxes: countObs initial                   = ', &
+               countObs, countObsInMpi
+
+    ! Allocate arrays
+    allocate(gridLats(numLat))
+    allocate(gridLatsMid(numLat))
+    allocate(gridLonsMid(numLat,numLon))
+    allocate(numGridLons(numLat))
+    allocate(stnIdGrid(numLat,numLon,tim_nstepobs))
+    allocate(distanceGrid(numLat,numLon,tim_nstepobs))
+    allocate(headerIndexGrid(numLat,numLon,tim_nstepobs))
+    allocate(delMinutesGrid(numLat,numLon,tim_nstepobs))
+
+    allocate(obsLatIndex(numHeaderMaxMpi))
+    allocate(obsLonIndex(numHeaderMaxMpi))
+    allocate(obsStepIndex(numHeaderMaxMpi))
+    allocate(obsDistance(numHeaderMaxMpi))
+    allocate(obsDelMinutes(numHeaderMaxMpi))
+    lenStnId = len(stnId)
+    allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
+
+    ! Allocation for MPI gather
+    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDelMinutesMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+
+    stnIdInt(:,:)          = 0
+    gridLats(:)            = 0.
+    gridLatsMid(:)         = 0.
+    gridLonsMid(:,:)       = 0.
+    numGridLons(:)         = 0
+    stnIdGrid(:,:,:)       = ''
+    distanceGrid(:,:,:)    = -1.0
+    headerIndexGrid(:,:,:) = -1
+
+    tcount = 0
+    bkcount = 0
+
+    ! set spatial boxes properties
+
+    do latIndex = 1, numLat
+      gridLats(latIndex) = (latIndex*180./numLat) - 90.
+      gridLatsMid(latIndex) = gridLats(latIndex) - (90./numLat)
+      if (gridLats(latIndex) <= 0.0) then
+        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+      else
+        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+      endif
+      distance = LON_LENGTH * cos(latInRadians)
+      numGridLons(latIndex) = nint(distance/deltax)
+      do lonIndex = 1, numGridLons(latIndex)
+        gridLonsMid(latIndex,lonIndex) =  &
+             (lonIndex * 36000 /  numGridLons(latIndex)) -  &
+             (18000 / numGridLons(latIndex))
+        gridLonsMid(latIndex,lonIndex) = 0.01 * gridLonsMid(latIndex,lonIndex)
+      end do
+    end do
+    ! Initial pass through all observations
+    HEADER1: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER1
+
+      ! Station ID converted to integer array
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+
+      ! Obs lat-lon
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonBurpFile = nint(100.0*(obsLonInDegrees - 180.0))
+      if(obsLonBurpFile < 0) obsLonBurpFile = obsLonBurpFile + 36000
+      obsLatBurpFile = 9000+nint(100.0*obsLatInDegrees)
+
+      ! compute box indices
+      obsLat = (obsLatBurpFile - 9000.)/100.
+      do latIndex = 1, numLat
+        if ( obsLat <= (gridLats(latIndex) + 0.000001) ) then
+          obsLatIndex(headerIndex) = latIndex
+          exit
+        end if
+      end do
+
+      if (obsLonBurpFile >= 18000) then
+        obsLonBurpFile = obsLonBurpFile - 18000
+      else
+        obsLonBurpFile = obsLonBurpFile + 18000
+      end if
+      obsLonIndex(headerIndex) =  &
+           int( obsLonBurpFile /  &
+                (36000. / real(numGridLons(obsLatIndex(headerIndex)))) ) + 1
+      if ( obsLonIndex(headerIndex) > numGridLons(obsLatIndex(headerIndex)) ) then
+        obsLonIndex(headerIndex) = numGridLons(obsLatIndex(headerIndex))
+      end if
+
+      ! compute spatial distances
+      obsLat = (obsLatBurpFile - 9000.)/100.
+      obsLon = obsLonBurpFile/100.
+      obsDistance(headerIndex) =  100.0 * &
+           ( ((gridLatsMid(obsLatIndex(headerIndex))-obsLat))**2 +  &
+             ((gridLonsMid(obsLatIndex(headerIndex),obsLonIndex(headerIndex))-obsLon))**2)**0.5
+
+      ! calcul de la bin temporelle dans laquelle se trouve l'observation
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
+      obsDelMinutes(headerIndex) = nint( 60.0 * tim_dstepobs *  &
+           abs(real(obsStepIndex(headerIndex)) - obsStepIndex_r8) )
+
+      ! check time window
+      if ( obsDelMinutes(headerIndex) > deltmax ) then
+        tcount = tcount + 1
+        valid(headerIndex) = .false.
+      end if
+
+      ! find observation flags (assumes 1 level only per headerIndex)
+      uObsFlag = -1
+      vObsFlag = -1
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+        obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        if (obsVarno == bufr_neuu) then
+          uObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        else if (obsVarno == bufr_nevv) then
+          vObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        end if
+      end do BODY1
+
+      ! modify valid based on flags
+      if (uObsFlag /= -1 .and. vObsFlag /= -1) then
+        if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) .or. &
+             btest(uObsFlag,18) .or. btest(vObsFlag,18) ) then
+          bkcount = bkcount + 1
+          valid(headerIndex) = .false.
+        end if
+      else
+        valid(headerIndex) = .false.
+      end if
+
+    end do HEADER1
+
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_scatByLatLonBoxes: countObs after QC and time tests = ', &
+               countObs, countObsOutMpi
+
+    ! Gather data from all MPI tasks
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsLatIndex,    nsize, 'mpi_integer',  &
+                            obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonIndex,    nsize, 'mpi_integer',  &
+                            obsLonIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
+                            obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDelMinutes,    nsize, 'mpi_integer',  &
+                            obsDelMinutesMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
+                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
+
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
+
+    ! build a global list of stnId over all mpi tasks
+    numStnId = 0
+    HEADER2: do headerIndex = 1, numHeaderMaxMpi * mpi_nprocs
+      if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER2
+      if (.not.validMpi(headerIndex)) cycle HEADER2
+
+      ! Station ID converted back to character string
+      do charIndex = 1, lenStnId
+        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
+      end do
+
+      if (numStnId < numStnIdMax ) then
+        stnIdIndexFound = -1
+        do stnIdIndex = 1, numStnId
+          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
+        end do
+        if ( stnIdIndexFound == -1 ) then
+          numStnId = numStnId + 1
+          stnidList(numStnId) = stnid
+          stnIdIndexFound = numStnId
+        end if
+        numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
+      else
+        call utl_abort('thn_scatByLatLonBoxes: numStnId too large')
+      end if
+    end do HEADER2
+    
+    ! Apply thinning algorithm
+    HEADER3: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      if (.not. validMpi(headerIndex)) cycle HEADER3
+
+      change = .true.
+
+      latIndex  = obsLatIndexMpi(headerIndex)
+      lonIndex  = obsLonIndexMpi(headerIndex)
+      stepIndex = obsStepIndexMpi(headerIndex)
+
+      ! Station ID converted back to character string
+      do charIndex = 1, lenStnId
+        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
+      end do
+
+      if ( stnIdGrid(latIndex,lonIndex,stepIndex) /= '' ) then
+
+        ! This is an ASCAT observation
+        if (stnid == 'METOP') then
+
+          ! si l'obs retenue precedemment etait un ASCAT, on poursuit l'investigation
+          if ( stnid == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
+          
+            ! si la difference temporelle est plus grande que celle deja retenue
+            if ( obsDelMinutesMpi(headerIndex) >  &
+                 delMinutesGrid(latIndex,lonIndex,stepIndex) ) then
+              change = .false.
+            else
+              ! si la distance au centre de la boite est plus grande que celle retenue 
+              if ( (obsDelMinutesMpi(headerIndex) ==  &
+                    delMinutesGrid(latIndex,lonIndex,stepIndex)) .and. &
+                   (obsDistanceMpi(headerIndex) >=  &
+                    distanceGrid(latIndex,lonIndex,stepIndex)) ) then
+                change = .false.
+              end if                    
+            end if
+
+          else
+
+            ! si l'obs retenue precedemment etait autre que METOP
+            change = .true.
+
+          endif
+
+        else ! satellites autre que METOP
+
+          ! si l'obs retenue precedemment etait autre qu'un METOP, on poursuit l'investigation
+          if ( stnid == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
+                 
+            ! si la difference temporelle est plus grande que celle deja retenue, on ne retient pas l'obs
+            if ( obsDelMinutesMpi(headerIndex) >  &
+                 delMinutesGrid(latIndex,lonIndex,stepIndex) ) then
+              change = .false.
+            else
+              ! si la distance au centre de la boite est plus grande que celle retenue, on ne retient pas l'obs 
+              if ( (obsDelMinutesMpi(headerIndex) ==  &
+                    delMinutesGrid(latIndex,lonIndex,stepIndex)) .and. &
+                   (obsDistanceMpi(headerIndex) >=  &
+                    distanceGrid(latIndex,lonIndex,stepIndex)) ) then
+                change = .false.
+              end if
+            end if
+
+          else
+
+            ! si l'obs retenue precedemment etait un METOP
+            change = .false.
+
+          end if
+
+        end if ! METOP
+
+      end if
+
+      ! update list of data to save
+      if ( .not. change ) then
+        ! keep previously accepted obs, so reject current obs
+        validMpi(headerIndex) = .false.
+      else
+        ! reject previously accepted obs
+        if ( headerIndexGrid(latIndex,lonIndex,stepIndex) /= -1 ) then
+          validMpi(headerIndexGrid(latIndex,lonIndex,stepIndex)) = .false.
+        end if
+
+        ! keep current obs
+        validMpi(headerIndex) = .true.
+        headerIndexGrid(latIndex,lonIndex,stepIndex) = headerIndex
+        stnIdGrid(latIndex,lonIndex,stepIndex) = stnId
+        delMinutesGrid(latIndex,lonIndex,stepIndex) = obsDelMinutesMpi(headerIndex)
+        distanceGrid(latIndex,lonIndex,stepIndex) = obsDistanceMpi(headerIndex)
+      end if
+
+    end do HEADER3
+
+    ! update local copy of 'valid' array
+    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*) 'thn_scatByLatLonBoxes: countObs after choosing 1 per box  = ', &
+               countObs, countObsOutMpi
+
+    ! modify the observation flags in obsSpaceData
+    call obs_set_current_header_list(obsdat,'SC')
+    HEADER4: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER4
+     
+      if (.not. valid(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY4: do 
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY4
+        
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+
+        end do BODY4
+        cycle HEADER4
+      end if
+
+      ! count number of obs kept for each stnId
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      stnIdIndexFound = -1
+      do stnIdIndex = 1, numStnId
+        if (stnidList(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
+      end do
+      if (stnIdIndexFound == -1) call utl_abort('stnid not found in list')
+      numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
+    end do HEADER4
+
+    call rpn_comm_allReduce(numObsStnIdOut, numObsStnIdOutMpi, &
+                            numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call rpn_comm_allReduce(tcount, tcountMpi, 1, &
+                            'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call rpn_comm_allReduce(bkcount, bkcountMpi, 1, &
+                            'mpi_integer', 'mpi_sum', 'grid', ierr)
+
+    write(*,*)
+    write(*,'(a,i6)') ' Number of obs in input ', countObsInMpi
+    write(*,'(a,i6)') ' Number of obs in output ', countObsOutMpi
+    write(*,'(a,i6)') ' Number of obs not selected due to time ', tcountMpi
+    write(*,'(a,i6)') ' Number of obs not selected due to topo ', bkcountMpi
+    write(*,*)
+    
+    write(*,'(a40,i10)' ) 'Number of satellites found = ', numStnId
+    write(*,*)
+  
+    write(*,'(a40,2a15)' ) 'Satellite', 'nb SCAT in'
+    write(*,*)
+    do stnIdIndex = 1, numStnId
+      write(*,'(a40,2i15)') stnidList(stnIdIndex), numObsStnIdInMpi(stnIdIndex)
+    end do
+    write(*,*)
+    write(*,'(a40,2i10,f10.4)' ) 'Total number of obs in : ', sum(numObsStnIdInMpi(:))
+  
+    write(*,*)
+    write(*,'(a40,2a15)' ) 'Satellite', 'nb SCAT out'
+    write(*,*)
+    do stnIdIndex = 1, numStnId
+      write(*,'(a40,2i15)') stnidList(stnIdIndex), numObsStnIdOutMpi(stnIdIndex)
+    end do
+    write(*,*)
+    write(*,'(a40,2i10,f10.4)' ) 'Total number of obs out : ', sum(numObsStnIdOutMpi(:))
+
+  end subroutine thn_scatByLatLonBoxes
 
   !--------------------------------------------------------------------------
   ! thn_csrByLatLonBoxes

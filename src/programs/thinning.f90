@@ -92,6 +92,7 @@ program midas_thinning
   call thn_thinHyper(obsSpaceData)
   call thn_thinTovs(obsSpaceData)
   call thn_thinCSR(obsSpaceData)
+  call thn_thinScat(obsSpaceData)
   call thn_thinSatWinds(obsSpaceData)
   call thn_thinAircraft(obsSpaceData)
   call thn_thinAladin(obsSpaceData)
