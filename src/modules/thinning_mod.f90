@@ -2336,6 +2336,7 @@ contains
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
     real(4), allocatable :: obsDistanceMpi(:)
     logical, allocatable :: valid(:), validMpi(:)
+    character(len=5)     :: stnIdTrim
     character(len=12)    :: stnId, stnidList(numStnIdMax)
     character(len=12), allocatable :: stnIdGrid(:,:,:)
 
@@ -2404,7 +2405,6 @@ contains
     allocate(obsDelMinutesMpi(numHeaderMaxMpi*mpi_nprocs))
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
 
-    stnIdInt(:,:)          = 0
     gridLats(:)            = 0.
     gridLatsMid(:)         = 0.
     gridLonsMid(:,:)       = 0.
@@ -2417,7 +2417,6 @@ contains
     bkcount = 0
 
     ! set spatial boxes properties
-
     do latIndex = 1, numLat
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       gridLatsMid(latIndex) = gridLats(latIndex) - (90./numLat)
@@ -2435,9 +2434,56 @@ contains
         gridLonsMid(latIndex,lonIndex) = 0.01 * gridLonsMid(latIndex,lonIndex)
       end do
     end do
-    ! Initial pass through all observations
+
+    ! Station ID converted to integer array
+    stnIdInt(:,:) = 0
     HEADER1: do headerIndex = 1, numHeader
       if (.not. valid(headerIndex)) cycle HEADER1
+
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+    end do HEADER1
+
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
+
+    ! build a global list of stnId over all mpi tasks
+    numStnId = 0
+    numObsStnIdInMpi(:) = 0
+    HEADER2: do headerIndex = 1, numHeaderMaxMpi * mpi_nprocs
+      if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER2
+      if (.not.validMpi(headerIndex)) cycle HEADER2
+
+      ! Station ID converted back to character string
+      do charIndex = 1, lenStnId
+        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
+      end do
+
+      if (numStnId < numStnIdMax ) then
+        stnIdIndexFound = -1
+        do stnIdIndex = 1, numStnId
+          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
+        end do
+        if ( stnIdIndexFound == -1 ) then
+          numStnId = numStnId + 1
+          stnidList(numStnId) = stnid
+          stnIdIndexFound = numStnId
+        end if
+        numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
+      else
+        call utl_abort('thn_scatByLatLonBoxes: numStnId too large')
+      end if
+    end do HEADER2
+
+    ! Initial pass through all observations
+    HEADER3: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER3
 
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
@@ -2499,16 +2545,16 @@ contains
       uObsFlag = -1
       vObsFlag = -1
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY3: do 
         bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY1
+        if (bodyIndex < 0) exit BODY3
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
-        if (obsVarno == bufr_neuu) then
+        if (obsVarno == bufr_neus) then
           uObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-        else if (obsVarno == bufr_nevv) then
+        else if (obsVarno == bufr_nevs) then
           vObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         end if
-      end do BODY1
+      end do BODY3
 
       ! modify valid based on flags
       if (uObsFlag /= -1 .and. vObsFlag /= -1) then
@@ -2521,7 +2567,7 @@ contains
         valid(headerIndex) = .false.
       end if
 
-    end do HEADER1
+    end do HEADER3
 
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
@@ -2543,41 +2589,10 @@ contains
                             obsDelMinutesMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
                             obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
-
-    nsize = lenStnId * numHeaderMaxMpi
-    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
-                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
-
-    ! build a global list of stnId over all mpi tasks
-    numStnId = 0
-    HEADER2: do headerIndex = 1, numHeaderMaxMpi * mpi_nprocs
-      if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER2
-      if (.not.validMpi(headerIndex)) cycle HEADER2
-
-      ! Station ID converted back to character string
-      do charIndex = 1, lenStnId
-        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
-      end do
-
-      if (numStnId < numStnIdMax ) then
-        stnIdIndexFound = -1
-        do stnIdIndex = 1, numStnId
-          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
-        end do
-        if ( stnIdIndexFound == -1 ) then
-          numStnId = numStnId + 1
-          stnidList(numStnId) = stnid
-          stnIdIndexFound = numStnId
-        end if
-        numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
-      else
-        call utl_abort('thn_scatByLatLonBoxes: numStnId too large')
-      end if
-    end do HEADER2
     
     ! Apply thinning algorithm
-    HEADER3: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-      if (.not. validMpi(headerIndex)) cycle HEADER3
+    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      if (.not. validMpi(headerIndex)) cycle HEADER4
 
       change = .true.
 
@@ -2589,14 +2604,15 @@ contains
       do charIndex = 1, lenStnId
         stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
       end do
+      stnIdTrim = stnId(2:6)
 
       if ( stnIdGrid(latIndex,lonIndex,stepIndex) /= '' ) then
 
         ! This is an ASCAT observation
-        if (stnid == 'METOP') then
+        if (stnIdTrim == 'METOP') then
 
           ! si l'obs retenue precedemment etait un ASCAT, on poursuit l'investigation
-          if ( stnid == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
+          if ( stnIdTrim == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
           
             ! si la difference temporelle est plus grande que celle deja retenue
             if ( obsDelMinutesMpi(headerIndex) >  &
@@ -2622,7 +2638,7 @@ contains
         else ! satellites autre que METOP
 
           ! si l'obs retenue precedemment etait autre qu'un METOP, on poursuit l'investigation
-          if ( stnid == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
+          if ( stnIdTrim == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
                  
             ! si la difference temporelle est plus grande que celle deja retenue, on ne retient pas l'obs
             if ( obsDelMinutesMpi(headerIndex) >  &
@@ -2662,12 +2678,12 @@ contains
         ! keep current obs
         validMpi(headerIndex) = .true.
         headerIndexGrid(latIndex,lonIndex,stepIndex) = headerIndex
-        stnIdGrid(latIndex,lonIndex,stepIndex) = stnId
+        stnIdGrid(latIndex,lonIndex,stepIndex) = stnIdTrim
         delMinutesGrid(latIndex,lonIndex,stepIndex) = obsDelMinutesMpi(headerIndex)
         distanceGrid(latIndex,lonIndex,stepIndex) = obsDistanceMpi(headerIndex)
       end if
 
-    end do HEADER3
+    end do HEADER4
 
     ! update local copy of 'valid' array
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
@@ -2681,22 +2697,23 @@ contains
                countObs, countObsOutMpi
 
     ! modify the observation flags in obsSpaceData
+    numObsStnIdOut(:) = 0
     call obs_set_current_header_list(obsdat,'SC')
-    HEADER4: do
+    HEADER5: do
       headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER4
+      if (headerIndex < 0) exit HEADER5
      
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY4: do 
+        BODY5: do 
           bodyIndex = obs_getBodyIndex(obsdat)
-          if (bodyIndex < 0) exit BODY4
+          if (bodyIndex < 0) exit BODY5
         
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
-        end do BODY4
-        cycle HEADER4
+        end do BODY5
+        cycle HEADER5
       end if
 
       ! count number of obs kept for each stnId
@@ -2707,7 +2724,7 @@ contains
       end do
       if (stnIdIndexFound == -1) call utl_abort('stnid not found in list')
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
-    end do HEADER4
+    end do HEADER5
 
     call rpn_comm_allReduce(numObsStnIdOut, numObsStnIdOutMpi, &
                             numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)

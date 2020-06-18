@@ -191,13 +191,18 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="aircraft"/>
-    <FAMILY  name="aircraft">
+    <SUBMITS sub_name="scat"/>
+    <FAMILY  name="scat">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>    
     <SUBMITS sub_name="satwind"/>
     <FAMILY  name="satwind">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>    
+    <SUBMITS sub_name="aircraft"/>
+    <FAMILY  name="aircraft">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>    
