@@ -398,7 +398,7 @@ cat > ptopo_nml <<EOF
 EOF
 
 doCreateDiagnostics=1
-grep -sq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
