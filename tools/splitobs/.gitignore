@@ -6,7 +6,6 @@
 *~
 bgck.clipobs_*
 splitobs_*
-/data
 /work*
 version.h
 /clipobs_unittest.*.out
