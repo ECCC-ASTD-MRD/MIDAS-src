@@ -22,8 +22,11 @@ midas_build:
   script:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
+  only:
+    - master
+    - tags
   tags:
-    - jobsubi
+    - hpcr-u1
 
 monitor_build:
   stage: build
@@ -46,6 +49,14 @@ monitor_tests:
      - tags
    tags:
      - hpcr-u1
+
+splitobs_build:
+   stage: build
+   script:
+     - cd tools/splitobs
+     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+   tags:
+     - jobsubi
 
 splitobs_burp_tests:
    stage: test
