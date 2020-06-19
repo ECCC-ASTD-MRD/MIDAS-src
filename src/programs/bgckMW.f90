@@ -75,6 +75,9 @@ program midas_bgckMW
   integer, allocatable          :: obsGlobalMarker(:)                                 ! global marker
   integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)            ! channel use option for each sat.
   real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)           ! obs. error per channel for each sat
+  real                          :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
+  real                          :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
+  integer                       :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
   integer                       :: rejectionCodArray(mwbg_maxNumTest, &
                                                      mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
   !                                                                                                   per sat. per channl per test
@@ -207,7 +210,8 @@ program midas_bgckMW
   !#################################################################################
   ! Lecture des statistiques d'erreur totale pour les  TOVS 
   !#################################################################################
-  call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST)
+  call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST, &
+                         sigmaObsErr, clwThreshArr, useStateDepSigmaObs)
 
   ! Allocation of the arrays to use for ObsSpacedata 
   call utl_reAllocate(obsNumPerReport,reportNumMax)
@@ -362,7 +366,8 @@ program midas_bgckMW
         !###############################################################################
         write(*,*) ' ==> mwbg_tovCheck For: ', instName
         if (instName == 'AMSUA') then
-          call mwbg_tovCheckAmsua(TOVERRST, IUTILST, satIdentifier, landQualifierIndice,&
+          call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                               IUTILST, satIdentifier, landQualifierIndice,&
                               satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
                               ompTb, qcIndicator, reportNumChannel, reportNumObs,       &
                               satIndexObserrFile, globalQcIndicator,     &

@@ -979,8 +979,9 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                              MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
+                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clw_avg, &
+                                    MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full). Les observations, dont le residu (O-P) 
@@ -995,9 +996,14 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)                  ! rogue factor 
-    real,        intent(in)                :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)          !  erreur totale TOVs
+    real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)      ! rogue factor 
+    real,        intent(in)                :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)      !  erreur totale TOVs
+    integer,     intent(in)                :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat)  !  erreur totale TOVs
+    real,        intent(in)                :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat, 2) ! cloud threshold err
+    real,        intent(in)                :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat, 2) ! sigma obs  err
+    integer,     intent(in)                :: ktermer(KNT)              !
     real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
+    real,        intent(in)                :: clw_avg(KNT)                 ! cloud liquid water avg 
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1010,17 +1016,35 @@ contains
     integer                                :: testIndex
     integer                                :: INDXCAN 
     real                                   :: XCHECKVAL
+    real                                   :: clwThresh1 
+    real                                   :: clwThresh2
+    real                                   :: sigmaThresh1 
+    real                                   :: sigmaThresh2
+    real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
+    logical                                :: surfTypeIsWater
 
 
     testIndex = 14
     do nDataIndex=1,KNT
-
+      surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
       SFCREJCT = .FALSE.
       do nChannelIndex=1,KNO
         channelval = KCANO(nChannelIndex,nDataIndex)
         if ( channelval .NE. 20 ) then
-          XCHECKVAL = ROGUEFAC(channelval)*TOVERRST(channelval,KNOSAT) 
+          ! using state-dependent obs error only over water.
+          ! obs over sea-ice will be rejected in test 15.
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(nChannelIndex,channelval) /= 0 &
+                .and. surfTypeIsWater ) then
+            clwThresh1 = clwThreshArr(nChannelIndex,channelval,1)
+            clwThresh2 = clwThreshArr(nChannelIndex,channelval,2)
+            sigmaThresh1 = sigmaObsErr(nChannelIndex,channelval,1)
+            sigmaThresh2 = sigmaObsErr(nChannelIndex,channelval,2)
+            sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
+          else
+            sigmaObsErrUsed = TOVERRST(nChannelIndex,channelval)
+          end if
+          XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
               ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL     ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
@@ -1214,7 +1238,8 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
+  subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
@@ -1247,6 +1272,11 @@ contains
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
     real, intent(in)                       :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
+    real, intent(in)                       :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2)  ! 
+    real, intent(in)                       :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2)   ! 
+    integer, intent(in)                    :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
+
+
     integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
@@ -1484,8 +1514,9 @@ contains
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                              MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+    call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
+                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clw_avg, &
+                                    MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
@@ -2617,7 +2648,8 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_readStatTovs
   !--------------------------------------------------------------------------
-  subroutine mwbg_readStatTovs(statFileName, instName, satelliteId, IUTILST, TOVERRST)
+  subroutine mwbg_readStatTovs(statFileName, instName, satelliteId, IUTILST, TOVERRST, &
+                               sigmaObsErr, clwThreshArr, useStateDepSigmaObs)
     !:Purpose:       Lire les statistiques de l'erreur totale pour les TOVS.
     !
     implicit none
@@ -2629,34 +2661,39 @@ contains
     !                                                                      IUTILST = 0 (blacklisted)
     !                                                                      1 (assmilate)
     !                                                                      2 (assimilate over open water only)
-    real,                         intent(out) :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat) ! l'erreur totale des TOVS
+
+    real,                         intent(out) :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)    ! l'erreur totale des TOVS
+    real,                         intent(out) :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
+    real,                         intent(out) :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
+    integer,                      intent(out) :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
  
     !Locals
 
-    integer :: iunStat
+    integer :: iunStat,ILUTOV
     integer :: ier 
     integer :: ISTAT 
     integer :: fnom 
-    integer :: ICHN 
     integer :: satNumber 
     integer :: jpnsatIndex
     integer :: jpnchanIndex
     integer, parameter :: casesNum = 2
     integer :: satIndex 
     integer :: casesIndex 
-    integer :: INDX, IPOS
     integer :: alloc_status 
     integer :: NCHNA(mwbg_maxNumSat)
     integer :: MLISCHNA(mwbg_maxNumChan,mwbg_maxNumSat)
     real*8  :: tovErrorIn(mwbg_maxNumChan,2,mwbg_maxNumSat)
     real    :: tovErrorStatus(mwbg_maxNumChan,mwbg_maxNumSat)
     integer :: channelInNum(mwbg_maxNumSat)
+    integer :: ICHNIN(mwbg_maxNumChan,mwbg_maxNumSat) 
+    integer :: channelInNum2(mwbg_maxNumSat)
     integer :: identifSatId(mwbg_maxNumSat)
-    real*8 :: ZDUM
-    
+    real*8  :: ZDUM
+    integer :: NUMCHNIN2, ISATID2, JI, JL  
     character(132) :: CLDUM
-    character(17) :: CSATSTR
-
+    character(132) :: CSATID2
+    character(17) :: CSATSTR 
+    integer :: INUMSAT, INUMSAT2, INDX, IPOS
     character(12)  :: satelliteStatsType(casesNum)
 
     DATA satelliteStatsType     / 'Monitoring',  'Assimilation'  /  
@@ -2680,6 +2717,7 @@ contains
       channelInNum(jpnsatIndex) = 0
       identifSatId(jpnsatIndex) = 0
       do jpnchanIndex = 1, mwbg_maxNumChan
+        ICHNIN(jpnchanIndex,jpnsatIndex) = 0
         tovErrorIn(jpnchanIndex,1,jpnsatIndex) = 0.0
         tovErrorIn(jpnchanIndex,2,jpnsatIndex) = 0.0
         IUTILST (jpnchanIndex,jpnsatIndex) = 0
@@ -2716,7 +2754,6 @@ contains
 
     ! 5. Read the satellite identification, the number of channels,
     ! the observation errors and the utilization flags
-500  CONTINUE
 
     do jpnsatIndex = 1, satNumber
       read (iunStat,*,ERR=900)
@@ -2746,19 +2783,16 @@ contains
 
       ! Set errors to ERRBGCK column values
       do jpnchanIndex = 1, channelInNum(jpnsatIndex)
-        read (iunStat,*,ERR=900) ICHN, &
-                  tovErrorIn(ICHN,1,jpnsatIndex), &
-                  tovErrorIn(ICHN,2,jpnsatIndex), &
-                  IUTILST (ICHN,jpnsatIndex), ZDUM
-        TOVERRST(ICHN,jpnsatIndex) = tovErrorIn(ICHN,1,jpnsatIndex)
+        read (iunStat,*,ERR=900) ICHNIN(jpnchanIndex,jpnsatIndex), &
+                  tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),1,jpnsatIndex), &
+                  tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),2,jpnsatIndex), &
+                  IUTILST (ICHNIN(jpnchanIndex,jpnsatIndex),jpnsatIndex), ZDUM
+        TOVERRST(ICHNIN(jpnchanIndex,jpnsatIndex),jpnsatIndex) = tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),1,jpnsatIndex)
       end do
       read (iunStat,*,ERR=900)
     end do
 
-510  CONTINUE
     ! 6. Print error stats for assimilated channels
-
-600  CONTINUE
 
     write(*,'(//5X,"Total errors for TOVS data"/)') 
     do jpnsatIndex = 1, satNumber
@@ -2782,14 +2816,110 @@ contains
     end do
      
     ! 7. Close the file
-700  CONTINUE
-    ISTAT = FCLOS (iunStat)
-    ! .... not done here anymore, jh, august 2000
-    write(*,*) " SATID's = "
-    do jpnsatIndex = 1, satNumber
-      write(*,*) '  ', satelliteId(jpnsatIndex)
-    end do
 
+   ! read in the parameters to define the user-defined symmetric obs errors
+    if ( mwbg_allowStateDepSigmaObs ) then
+      IER = FNOM(ILUTOV,'stats_amsua_assim_symmetricObsErr','SEQ+FMT',0)
+
+      IF (IER < 0) THEN
+        WRITE (*,*) 'bgckMW: Problem opening TOVS total error statistics file: ', &
+                    'stats_amsua_assim_symmetricObsErr'
+        CALL ABORT()
+      END IF
+
+      WRITE(*,*) 'mwbg_readStatTovs: reading total error statistics required for ', &
+                'TOVS processing from stats_amsua_assim_symmetricObsErr'
+
+      ! Initialize
+      INUMSAT2 = 0
+      channelInNum2(:) = 0
+      NUMCHNIN2 = 0
+      ISATID2 = 0
+      sigmaObsErr(:,:,:) = 0.0
+      clwThreshArr(:,:,:) = 0.0
+      useStateDepSigmaObs(:,:) = 0
+
+      ! Print the file contents
+      WRITE(*,*) 'ASCII dump of stats_tovs file:'
+      DO JI = 1, 9999999
+        READ (ILUTOV,'(A)',ERR=900,END=500) CLDUM
+        WRITE(*,'(A)')   CLDUM
+      ENDDO
+500   CONTINUE
+
+      ! Read number of satellites
+      REWIND(ILUTOV)
+      READ (ILUTOV,*,ERR=900)
+      READ (ILUTOV,*,ERR=900) INUMSAT2
+      READ (ILUTOV,*,ERR=900)
+
+      if ( INUMSAT2 /= INUMSAT ) then
+        write(*,*) 'mwbg_readStatTovs: problem with INUMSAT2 in symmetricObsErr file!'
+        call abort()
+      end if
+
+      ! Read the satellite identification, the number of channels,
+      ! the observation errors and the utilization flags
+      DO JL = 1, INUMSAT2
+        READ (ILUTOV,*,ERR=900)
+        READ (ILUTOV,'(A)',ERR=900) CLDUM
+        CSATSTR = TRIM(ADJUSTL(CLDUM))
+
+        ! Get satellite (e.g. NOAA18) from satellite/instrument (e.g. NOAA18 AMSUA)
+        INDX = INDEX(CSATSTR,'AMSUA')
+        IF ( INDX .GT. 3 ) THEN
+          IF ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) THEN
+            CSATID2 = 'AQUA'
+          ELSE
+            IPOS = INDX-2
+            CSATID2 = CSATSTR(1:IPOS)
+          ENDIF
+        ELSE
+          WRITE (*,*) 'mwbg_readStatTovs: Non-AMSUA instrument found in symmetricObsErr file!'
+          WRITE (*,'(A)') CLDUM
+          CALL ABORT()
+        ENDIF
+
+        if ( CSATID2 /= satelliteId(JL) ) then
+          write(*,*) 'mwbg_readStatTovs: problem with CSATID2 in symmetricObsErr file!'
+          call abort()
+        end if
+
+        READ (ILUTOV,*,ERR=900)
+        READ (ILUTOV,*,ERR=900) ISATID2, NUMCHNIN2
+
+        if ( ISATID2 /= identifSatId(JL) .or. NUMCHNIN2 /= channelInNum(JL) ) then
+          write(*,*) 'mwbg_readStatTovs: problem with ISATID2, NUMCHNIN2 in symmetricObsErr file!'
+          call abort()
+        end if
+
+        DO JI = 1, 3
+          READ (ILUTOV,*,ERR=900)
+        ENDDO
+
+        ! Set errors to ERRBGCK column values
+        DO JI = 1, NUMCHNIN2
+          READ (ILUTOV,*,ERR=900) channelInNum2(JI), &
+                    clwThreshArr(channelInNum2(JI),JL,1), &
+                    clwThreshArr(channelInNum2(JI),JL,2), &
+                    sigmaObsErr(channelInNum2(JI),JL,1), &
+                    sigmaObsErr(channelInNum2(JI),JL,2), &
+                    useStateDepSigmaObs(channelInNum2(JI),JL)
+
+          if ( channelInNum2(JI) /= ICHNIN(JI,JL) ) then
+            write(*,*) 'mwbg_readStatTovs: problem with channelInNum2 in symmetricObsErr file!'
+            call abort()
+          end if
+        ENDDO
+        READ (ILUTOV,*,ERR=900)
+      ENDDO
+
+      ! Close the file
+      istat = fclos(ILUTOV)
+
+    end if
+
+    
     return
 
     ! Read error
@@ -3185,7 +3315,8 @@ contains
     !                                                         IUTILST = 0 (blacklisted)
     !                                                         1 (assmilate)
     !                                                         2 (assimilate over open water only)
-    real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
+
+    real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)      ! l'erreur totale des TOVS
     character(len=128), intent(in)   :: glmg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs

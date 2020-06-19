@@ -2420,7 +2420,7 @@ contains
              rttov_err_stat,                                   & ! out
              chanprof,                                         & ! in
              tvs_opts(sensorId),                               & ! in
-             tvs_profiles(sensorTovsIndexes(1:profileCount)),  & ! in
+             tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
              tvs_coefs(sensorId),                              & ! in
              transmission,                                     & ! inout
              radiancedata_d,                                   & ! inout

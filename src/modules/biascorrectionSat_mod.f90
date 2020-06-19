@@ -49,6 +49,7 @@ MODULE biasCorrectionSat_mod
   public :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias
   public :: bcs_removeOutliers, bcs_applyBiasCorrection
   public :: bcs_mimicSatbcor
+  public :: bcs_readConfig
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
