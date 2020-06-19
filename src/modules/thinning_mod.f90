@@ -154,8 +154,9 @@ contains
     integer :: deltemps     ! number of time bins between adjacent observations
     integer :: deldist      ! minimal distance in km between adjacent observations
     integer :: order_option ! code indicating type of ordering of observations
+    logical :: removeUncorrected ! remove obs that are not bias corrected (bit 6)
 
-    namelist /thin_gbgps/deltemps, deldist, order_option
+    namelist /thin_gbgps/deltemps, deldist, order_option, removeUncorrected
 
     ! return if no gb-gps obs
     if (.not. obs_famExist(obsdat,'GP')) return
@@ -164,6 +165,7 @@ contains
     deltemps     = 8
     deldist      = 50
     order_option = 1
+    removeUncorrected = .false.
 
     ! Read the namelist for GbGps observations (if it exists)
     if (utl_isNamelistPresent('thin_gbgps','./flnml')) then
@@ -181,7 +183,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
-    call thn_gbgpsByDistance(obsdat, deltemps, deldist, order_option)
+    call thn_gbgpsByDistance(obsdat, deltemps, deldist, order_option, removeUncorrected)
 
   end subroutine thn_thinGbGps
 
@@ -451,7 +453,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
-  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, order_option)
+  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, order_option, removeUncorrected)
     !
     ! :Purpose: Original method for thinning GB-GPS data by the distance method.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -463,6 +465,7 @@ contains
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
     integer,          intent(in)    :: order_option
+    logical,          intent(in)    :: removeUncorrected
 
     ! Local parameters:
     real(4), parameter :: znorm = 50.0 ! normalization factor for zdscores
@@ -502,9 +505,9 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max', 'grid', ierr)
+    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
 
     ! Check if any observations to be treated
     countObs = 0
@@ -558,6 +561,8 @@ contains
     allocate(obsSortValue(numHeaderMpi))
     allocate(e_ordre0(numHeaderMpi))
     allocate(e_ordre(numHeaderMpi))
+    allocate(headerIndexSorted(numHeaderMpi))
+    allocate(headerIndexSelected(numHeaderMpi))
     allocate(validMpi(numHeaderMaxMpi))
     allocate(valid(numHeaderMaxMpi))
 
@@ -635,8 +640,9 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
-        if (obsVarno == bufr_nefe) then
-          ferr = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+        if (obsVarno == bufr_nezd) then
+          ! convert units from m to mm
+          ferr = 1000.0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex)
         end if
         if (obsVarno == bufr_ztdscore) then
           ztdscore = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
@@ -646,15 +652,15 @@ contains
         end if
       end do BODY1
       if (ferr == -1.0) then
-        call utl_abort('thn_gbGpsByDistance: ztd formal error not found')
+        ferr = zfermis
       end if
       if (ztdscore == -1.0) then
-        call utl_abort('thn_gbGpsByDistance: ztdscore not found')
+        ztdscore = 999.0
       end if
       if (ztdObsFlag == -1) then
         call utl_abort('thn_gbGpsByDistance: ztd not found')
       end if
-
+write(*,*) 'ferr, ztdscore, ztdObsFlag = ', headerIndex, ferr, ztdscore, ztdObsFlag
       ! ZTD quality estimate using monitoring zdscore and the formal error
       zscore = 80*(ztdscore/znorm) + 20*(ferr/znormf)
     
@@ -682,14 +688,19 @@ contains
       ! ZTD O-P failed background/topography checks, ZTD is blacklisted, ZTD is not bias corrected
       if (       btest(ztdObsFlag,16) ) bgckCount = bgckCount + 1
       if (       btest(ztdObsFlag,8) )  blackListCount = blackListCount + 1
-      if ( .not. btest(ztdObsflag,6) )  unCorrectCount = unCorrectCount + 1
       if ( btest(ztdObsFlag,16) .or. btest(ztdObsFlag,18) .or. &
-           btest(ztdObsFlag,8) .or. .not.btest(ztdObsFlag,6) ) then
+           btest(ztdObsFlag,8) ) then
         quality(headerIndex) = 9999
+      end if
+      if (removeUncorrected) then
+        if ( .not. btest(ztdObsflag,6) ) then
+          unCorrectCount = unCorrectCount + 1
+          quality(headerIndex) = 9999
+        end if
       end if
 
     end do HEADER1
-
+write(*,*) 'after loop'
     ! Gather needed information from all MPI tasks
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
@@ -700,7 +711,7 @@ contains
                             obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
-
+write(*,*) 'after allgather'
     if (order_option > 1) then  ! pre-sort the obs or randomize the obs order
 
       do obsIndex1 = 1, numHeaderMpi
@@ -741,8 +752,9 @@ contains
       end do
 
     end if
-
+write(*,*) 'before sort'
     call thn_QsortC(qualityMpiSorted,e_ordre)
+write(*,*) 'after sort'
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
@@ -784,6 +796,7 @@ contains
       endif
 
     end do OBS_LOOP
+write(*,*) 'after obs_loop'
 
     do obsIndex1 = 1, numSelected
       obsIndex2 = headerIndexSelected(obsIndex1)
@@ -831,14 +844,14 @@ contains
                             'mpi_sum','grid',ierr)
 
     write(*,*)
-    write(*,'(a30,i10)') 'Number of input obs                  = ', countObsInMpi
-    write(*,'(a30,i10)') 'Total number of rejected/thinned obs = ', countObsInMpi - countObsOutMpi
-    write(*,'(a30,i10)') 'Number of output obs                 = ', countObsOutMpi
+    write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
+    write(*,'(a50,i10)') 'Total number of rejected/thinned obs = ', countObsInMpi - countObsOutMpi
+    write(*,'(a50,i10)') 'Number of output obs                 = ', countObsOutMpi
     write(*,*)
     write(*,*)
-    write(*,'(a30,i10)') 'Number of blacklisted obs            = ', blackListCountMpi
-    write(*,'(a30,i10)') 'Number of obs without bias correction= ', unCorrectCountMpi
-    write(*,'(a40,4i10)') 'Number of rejects outside time window, BGCK, thinning ', &
+    write(*,'(a50,i10)') 'Number of blacklisted obs            = ', blackListCountMpi
+    write(*,'(a50,i10)') 'Number of obs without bias correction= ', unCorrectCountMpi
+    write(*,'(a60,4i10)') 'Number of rejects outside time window, BGCK, thinning ', &
          badTimeCountMpi,bgckCountMpi,(countObsInMpi-countObsOutMpi-bgckCountMpi-badTimeCountMpi-blackListCountMpi-unCorrectCountMpi)
 
     write(*,*)
