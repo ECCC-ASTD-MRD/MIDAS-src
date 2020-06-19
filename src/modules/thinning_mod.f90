@@ -64,6 +64,9 @@ contains
 
     namelist /thin_aircraft/deltmax
 
+    ! return if no aircraft obs
+    if (.not. obs_famExist(obsdat,'AI')) return
+
     ! Default values for namelist variables
     deltmax = 90
 
@@ -106,6 +109,9 @@ contains
 
     namelist /thin_satwind/deltemps, deldist
 
+    ! return if no satwind obs
+    if (.not. obs_famExist(obsdat,'SW')) return
+
     ! Default values for namelist variables
     deltemps = 6
     deldist  = 200
@@ -147,6 +153,9 @@ contains
     integer :: keepNthVertical ! keep every nth vertical datum
 
     namelist /thin_aladin/keepNthVertical
+
+    ! return if no Aladin obs
+    if (.not. obs_famExist(obsdat,'AL')) return
 
     ! Default values for namelist variables
     keepNthVertical=-1
@@ -191,6 +200,9 @@ contains
     integer :: deltrad    ! radius around box center for chosen obs (in km)
 
     namelist /thin_csr/deltax, deltrad
+
+    ! return if no TOVS obs
+    if (.not. obs_famExist(obsdat,'TO')) return
 
     ! Default namelist values
     deltax  = 150
@@ -237,6 +249,9 @@ contains
 
     namelist /thin_scat/deltax, deltmax
 
+    ! return if no scat obs
+    if (.not. obs_famExist(obsdat,'SC')) return
+
     ! Default namelist values
     deltax = 100
     deltmax = 90
@@ -280,6 +295,9 @@ contains
     integer :: delta    ! 
 
     namelist /thin_tovs/delta
+
+    ! return if no TOVS obs
+    if (.not. obs_famExist(obsdat,'TO')) return
 
     ! Default namelist values
     delta = 100
@@ -332,6 +350,9 @@ contains
     integer :: deltax            ! thinning (dimension of box sides) (in km)
     integer :: deltrad           ! radius around box center for chosen obs (in km)
     namelist /thin_hyper/removeUnCorrected, deltmax, deltax, deltrad
+
+    ! return if no TOVS obs
+    if (.not. obs_famExist(obsdat,'TO')) return
 
     ! Default namelist values
     removeUnCorrected = .true.
@@ -424,9 +445,11 @@ contains
     integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    logical, allocatable :: keepObs(:), keepObsMpi(:), keepObsMpi2(:)
+    logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
+    write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -455,7 +478,7 @@ contains
     write(*,*) 'Minimun thinning distance ',thinDistance
 
     ! Allocations:
-    allocate(keepObs(numHeaderMaxMpi))
+    allocate(valid(numHeaderMaxMpi))
     allocate(quality(numHeaderMaxMpi))
     allocate(obsLatBurpFile(numHeaderMaxMpi))
     allocate(obsLonBurpFile(numHeaderMaxMpi))
@@ -466,7 +489,7 @@ contains
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
 
     ! Initializations:
-    keepObs(:) = .false.
+    valid(:) = .false.
     quality(:) = 0
     obsLatBurpFile(:) = 0
     obsLonBurpFile(:) = 0
@@ -566,8 +589,8 @@ contains
     end do HEADER1
 
     ! Gather needed information from all MPI tasks
-    allocate(keepObsMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(keepObsMpi2(numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi2(numHeaderMaxMpi*mpi_nprocs))
     allocate(qualityMpi(numHeaderMaxMpi*mpi_nprocs))
     allocate(obsLatBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
     allocate(obsLonBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
@@ -629,7 +652,7 @@ contains
 
     call thn_QsortC(qualityMpi,headerIndexSorted)
 
-    keepObsMpi(:) = .false.
+    validMpi(:) = .false.
     call tmg_start(144,'bruteThinning')
     STNIDLOOP: do stnIdIndex = 1, numStnId
       write(*,*) 'thn_satWindsByDistance: applying thinning for: ', &
@@ -723,26 +746,26 @@ contains
         end do OBSLOOP1
 
         do obsIndex1 = 1, numSelected
-          keepObsMpi(headerIndexSelected(obsIndex1)) = .true.
+          validMpi(headerIndexSelected(obsIndex1)) = .true.
         end do
       
       end do LAYERLOOP
     end do STNIDLOOP
     call tmg_stop(144)
 
-    ! communicate values of keepObsMpi computed on each mpi task
+    ! communicate values of validMpi computed on each mpi task
     call tmg_start(147,'reduceKeepObs')
     nsize = numHeaderMaxMpi * mpi_nprocs
-    call rpn_comm_allReduce(keepObsMpi, keepObsMpi2, nsize, 'mpi_logical', &
+    call rpn_comm_allReduce(validMpi, validMpi2, nsize, 'mpi_logical', &
                             'mpi_lor','grid',ierr)
     call tmg_stop(147)
 
-    ! Update local copy of keepObs from global mpi version
+    ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
-    keepObs(:) = keepObsMpi2(headerIndexBeg:headerIndexEnd)
+    valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
     
-    countObs = count(keepObs)
+    countObs = count(valid)
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
     write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
@@ -755,7 +778,7 @@ contains
       if (headerIndex < 0) exit HEADER3
 
       ! do not keep this obs: set bit 11 and jump to the next obs
-      if (.not. keepObs(headerIndex)) then
+      if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY3: do 
           bodyIndex = obs_getBodyIndex(obsdat)
@@ -810,7 +833,7 @@ contains
     write(*,'(a30,2i10,f10.4)') 'Total number of obs out : ',sum(numObsStnIdOutMpi)
 
     ! Deallocations:
-    deallocate(keepObs)
+    deallocate(valid)
     deallocate(quality)
     deallocate(obsLatBurpFile)
     deallocate(obsLonBurpFile)
@@ -818,8 +841,8 @@ contains
     deallocate(obsLayerIndex)
     deallocate(obsMethod)
     deallocate(stnIdInt)
-    deallocate(keepObsMpi)
-    deallocate(keepObsMpi2)
+    deallocate(validMpi)
+    deallocate(validMpi2)
     deallocate(qualityMpi)
     deallocate(obsLatBurpFileMpi)
     deallocate(obsLonBurpFileMpi)
@@ -830,7 +853,9 @@ contains
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
 
+    write(*,*)
     write(*,*) 'thn_satWindsByDistance: Finished'
+    write(*,*)
 
   end subroutine thn_satWindsByDistance
 
@@ -960,7 +985,7 @@ contains
     integer, allocatable :: rejectCount(:), rejectCountMpi(:)
     real(8), allocatable :: gridPressure(:,:,:,:)
     real(8), pointer     :: surfPressure(:,:,:,:)
-    logical, allocatable :: keepObs(:), keepObsMpi(:), isAircraft(:)
+    logical, allocatable :: valid(:), validMpi(:), isAircraft(:)
     integer, allocatable :: obsLatIndexVec(:), obsLonIndexVec(:)
     integer, allocatable :: obsTimeIndexVec(:), obsLevIndexVec(:)
     integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:)
@@ -984,15 +1009,17 @@ contains
     integer :: numlev
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
+    write(*,*)
     write(*,*) 'thn_aircraftByBoxes: Starting'
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
 
-    allocate(keepObs(numHeaderMaxMpi))
+    allocate(valid(numHeaderMaxMpi))
     allocate(isAircraft(numHeaderMaxMpi))
-    keepObs(:) = .false.
+    valid(:) = .false.
     aiTypeCount(:) = 0
 
     call obs_set_current_header_list(obsdat,trim(familyType))
@@ -1004,26 +1031,26 @@ contains
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if ( codtyp == codtyp_get_codtyp('airep') ) then
         aiTypeCount(1) = aiTypeCount(1) + 1
-        keepObs(headerIndex) = .true.
+        valid(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('amdar')  ) then
         aiTypeCount(2) = aiTypeCount(2) + 1
-        keepObs(headerIndex) = .true.
+        valid(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('acars') ) then
         aiTypeCount(3) = aiTypeCount(3) + 1
-        keepObs(headerIndex) = .true.
+        valid(headerIndex) = .true.
       else if ( codtyp == codtyp_get_codtyp('ads') ) then
         aiTypeCount(4) = aiTypeCount(4) + 1
-        keepObs(headerIndex) = .true.
+        valid(headerIndex) = .true.
       end if
     end do HEADER0
-    isAircraft(:) = keepObs(:)
+    isAircraft(:) = valid(:)
 
     ! Return if no aircraft obs to thin
-    allocate(keepObsMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(keepObs,    nsize, 'mpi_logical',  &
-                            keepObsMpi, nsize, 'mpi_logical', 'grid', ierr)
-    if (count(keepObsMpi(:)) == 0) then
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    if (count(validMpi(:)) == 0) then
       write(*,*) 'thn_aircraftByBoxes: no aircraft observations present'
       return
     end if
@@ -1031,7 +1058,7 @@ contains
     write(*,*) 'thn_aircraftByBoxes: numHeader, numHeaderMaxMpi = ', &
          numHeader, numHeaderMaxMpi
 
-    countObs = count(keepObs(:))
+    countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
     write(*,*) 'thn_aircraftByBoxes: number of obs initial = ', countObs, countObsMpi
@@ -1161,7 +1188,7 @@ contains
 
       ! check time window
       if ( delMinutes > deltmax ) then
-        keepObs(headerIndex) = .false.
+        valid(headerIndex) = .false.
         rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
       end if
 
@@ -1174,7 +1201,7 @@ contains
         
         if (obsPressure < 0.0d0) then
           obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
-          if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) keepObs(headerIndex) = .false.
+          if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) valid(headerIndex) = .false.
         end if
       end do BODY
 
@@ -1239,7 +1266,7 @@ contains
       ! eliminate records with nothing to assimilate
       if (ttMissing .and. huMissing .and. uuMissing .and. vvMissing) then
         rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
-        keepObs(headerIndex) = .false.
+        valid(headerIndex) = .false.
       end if
 
       if( uuMissing .or. vvMissing ) obsUVPresent(headerIndex) = .false.
@@ -1319,8 +1346,8 @@ contains
 
     ! Make all inputs to the following tests mpiglobal
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(keepObs,    nsize, 'mpi_logical',  &
-                            keepObsMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
     call rpn_comm_allgather(obsLatIndexVec, nsize, 'mpi_integer',  &
                             obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonIndexVec, nsize, 'mpi_integer',  &
@@ -1357,7 +1384,7 @@ contains
       ! Calcul des distances min et max du centre la boite des rapports 
       ! contenus dans les boites
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
@@ -1373,7 +1400,7 @@ contains
       ! Calcul des sommes de u, v et t des observations situees a une distance midDistance
       ! du centre de la boite
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
@@ -1414,7 +1441,7 @@ contains
       ! petit est retenu. S'il y a 2 rapports ou moins, le rapport le plus pres du centre
       ! de la boite est retenu.
       do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-        if( .not. keepObsMpi(headerIndex) ) cycle
+        if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
@@ -1436,36 +1463,36 @@ contains
 
             if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
               if ( score >= minScoreGrid(latIndex,lonIndex,levIndex) ) then
-                keepObsMpi(headerIndex) = .false.
+                validMpi(headerIndex) = .false.
               end if
             end if
           
-            if ( keepObsMpi(headerIndex) ) then
+            if ( validMpi(headerIndex) ) then
               if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
-                keepObsMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
+                validMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
               end if
               minScoreGrid(latIndex,lonIndex,levIndex) = score
-              keepObsMpi(headerIndex) = .true.
+              validMpi(headerIndex) = .true.
               handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
             end if
 
           else
-            keepObsMpi(headerIndex) = .false.
+            validMpi(headerIndex) = .false.
           end if
 
         else ! if(numObsGrid(latIndex,lonIndex,levIndex) < 3)
 
           if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
             if ( obsDistanceMpi(headerIndex) > minDistGrid(latIndex,lonIndex,levIndex) ) then
-              keepObsMpi(headerIndex) = .false.
+              validMpi(headerIndex) = .false.
             end if
           end if
 
-          if ( keepObsMpi(headerIndex) ) then
+          if ( validMpi(headerIndex) ) then
             if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
-              keepObsMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
+              validMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
             end if
-            keepObsMpi(headerIndex) = .true.
+            validMpi(headerIndex) = .true.
             handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
           end if
 
@@ -1475,10 +1502,10 @@ contains
 
     end do  STEP
 
-    ! Update local copy of keepObs from global mpi version
+    ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
-    keepObs(:) = keepObsMpi(headerIndexBeg:headerIndexEnd)
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     deallocate(handlesGrid)
     deallocate(minScoreGrid)
@@ -1491,9 +1518,9 @@ contains
 
     write(*,*)
     write(*,'(a50,i10)') " Number of obs in  = ", sum(aiTypeCountMpi(:))
-    write(*,'(a50,i10)') " Number of obs out = ", count(keepObsMpi(:))
+    write(*,'(a50,i10)') " Number of obs out = ", count(validMpi(:))
     write(*,'(a50,i10)') " Number of obs not out = ", &
-         sum(aiTypeCountMpi(:)) - count(keepObsMpi(:))
+         sum(aiTypeCountMpi(:)) - count(validMpi(:))
     write(*,*)
 
     ! Modify the flags for rejected observations
@@ -1501,7 +1528,7 @@ contains
       ! skip observation if we're not supposed to consider it
       if (.not. isAirCraft(headerIndex)) cycle
      
-      if (.not. keepObs(headerIndex)) then
+      if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY3: do 
           bodyIndex = obs_getBodyIndex(obsdat)
@@ -1515,9 +1542,9 @@ contains
     end do
 
     ! Deallocation
-    deallocate(keepObs)
+    deallocate(valid)
     deallocate(isAircraft)
-    deallocate(keepObsMpi)
+    deallocate(validMpi)
     deallocate(gridLat)
     deallocate(gridLon)
     deallocate(rejectCount)
@@ -1544,7 +1571,9 @@ contains
     deallocate(obsTTPresentMpi)
     deallocate(gridPressure)
 
+    write(*,*)
     write(*,*) 'thn_aircraftByBoxes: Finished'
+    write(*,*)
 
   end subroutine thn_aircraftByBoxes
 
@@ -1571,7 +1600,10 @@ contains
     integer :: countKeepN ! count to keep every Nth observation in the column
     integer :: newProfileId
 
+    write(*,*)
     write(*,*) 'thn_keepNthObs: Starting'
+    write(*,*)
+
     countKeepN=0
 
     ! Loop over all body indices (columns) of the family of interest and
@@ -1603,7 +1635,9 @@ contains
 
     end do BODY
 
+    write(*,*)
     write(*,*) 'thn_keepNthObs: Finished'
+    write(*,*)
 
   contains
     function new_column()
@@ -1649,11 +1683,11 @@ contains
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
     integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
-    integer :: loscan, hiscan, obsFlag, numObs, nsize, allMinLonBurpFile(mpi_nprocs)
+    integer :: loscan, hiscan, obsFlag, numObs, nsize, minLonBurpFileMpi(mpi_nprocs)
     integer :: procIndex, procIndexKeep, minLonBurpFile, countObs, countObsMpi
     integer :: countQc, countKept, countOther, countKeptMpi, countQcMpi, countGridPoints
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon, distance
-    real(4) :: obsLatInDegrees, obsLonInDegrees, minDistance, allMinDistance(mpi_nprocs)
+    real(4) :: obsLatInDegrees, obsLonInDegrees, minDistance, minDistanceMpi(mpi_nprocs)
     real(4) :: rejectRate, gridLat, gridLon
     real(4) :: percentTotal, percentQc, percentOther, percentKept
     real(8), allocatable :: stepObsIndex(:)
@@ -1664,14 +1698,16 @@ contains
     integer, allocatable :: headerIndexList(:), headerIndexList2(:), obsIndexGrid(:), obsIndexLink(:)
 
     ! Local parameters:
-    integer, parameter :: lat_length=10000
-    integer, parameter :: lon_length=40000
+    integer, parameter :: latLength=10000
+    integer, parameter :: lonLength=40000
     integer, parameter :: mxscanamsua=30
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
 
+    write(*,*)
     write(*,*) 'thn_tovsFilt: Starting, ', trim(codtyp_get_name(codtyp))
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -1711,8 +1747,8 @@ contains
     write(*,*) 'thn_tovsFilt: countObs after thn_removeRarsDuplicates = ', &
                countObs, countObsMpi
 
-    numLat = 2*lat_length/delta
-    numLon = lon_length/delta
+    numLat = 2*latLength/delta
+    numLon = lonLength/delta
 
     ! Allocations
     allocate(gridLats(numLat))
@@ -1752,7 +1788,7 @@ contains
     numGridLonsTotal = 0
     do latIndex = 1, numLat
       gridLats(latIndex)    = (latIndex*180./numLat) - 90.
-      distance              = lon_length * cos(gridLats(latIndex) * mpc_pi_r4 / 180.)
+      distance              = lonLength * cos(gridLats(latIndex) * mpc_pi_r4 / 180.)
       numGridLons(latIndex) = nint(distance/delta)
       numGridLons(latIndex) = max(numGridLons(latIndex),1)
       numGridLonsTotal      = numGridLonsTotal + numGridLons(latIndex)
@@ -1884,7 +1920,7 @@ contains
         obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
         obsLon = obsLonBurpFile(headerIndex) / 100.
         obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-             float(lat_length) / 90.
+             float(latLength) / 90.
       end if
     end do
 
@@ -1964,28 +2000,28 @@ contains
 
         ! Communicate the distance of chosen observation among all mpi tasks
         call rpn_comm_allgather(minDistance,    1, 'mpi_real4',  &
-                                allMinDistance, 1, 'mpi_real4', 'grid', ierr)
+                                minDistanceMpi, 1, 'mpi_real4', 'grid', ierr)
 
         ! Choose the closest to the center of the box among all mpi tasks
         minDistance = 1000000.
         do procIndex = 1, mpi_nprocs
-          if (allMinDistance(procIndex) < minDistance) then
-            minDistance = allMinDistance(procIndex)
+          if (minDistanceMpi(procIndex) < minDistance) then
+            minDistance = minDistanceMpi(procIndex)
             procIndexKeep = procIndex
           end if
         end do
 
         ! Adjust flags to only keep 1 observation among all mpi tasks
         if (minDistance < 1000000.) then
-          if ( count(allMinDistance(:) == minDistance) > 1 ) then
+          if ( count(minDistanceMpi(:) == minDistance) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             call rpn_comm_allgather(minLonBurpFile,    1, 'mpi_integer',  &
-                                    allMinLonBurpFile, 1, 'mpi_integer', 'grid', ierr)
+                                    minLonBurpFileMpi, 1, 'mpi_integer', 'grid', ierr)
             minLonBurpFile = 10000000
             do procIndex = 1, mpi_nprocs
-              if (allMinDistance(procIndex) == minDistance) then
-                if (allMinLonBurpFile(procIndex) < minLonBurpFile) then
-                  minLonBurpFile = allMinLonBurpFile(procIndex)
+              if (minDistanceMpi(procIndex) == minDistance) then
+                if (minLonBurpFileMpi(procIndex) < minLonBurpFile) then
+                  minLonBurpFile = minLonBurpFileMpi(procIndex)
                   procIndexKeep = procIndex
                 end if
               end if
@@ -2090,7 +2126,9 @@ contains
     deallocate(obsDistance)
     deallocate(stepObsIndex)
 
-    write(*,*) 'thn_tovsFilt: finished'
+    write(*,*)
+    write(*,*) 'thn_tovsFilt: Finished'
+    write(*,*)
 
   end subroutine thn_tovsFilt
 
@@ -2111,11 +2149,11 @@ contains
     real(4) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
     logical :: global1, global2
-    integer, allocatable :: centreOrig(:), allCentreOrig(:)
-    integer, allocatable :: obsFov(:), allObsFov(:)
-    integer, allocatable :: obsDateStamp(:), allObsDateStamp(:)
-    integer, allocatable :: stnIdInt(:,:), allStnIdInt(:,:)
-    logical, allocatable :: allValid(:)
+    integer, allocatable :: centreOrig(:), centreOrigMpi(:)
+    integer, allocatable :: obsFov(:), obsFovMpi(:)
+    integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
+    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
+    logical, allocatable :: validMpi(:)
     character(len=12)    :: stnId
     
     ! Locals related to kdtree2:
@@ -2126,7 +2164,7 @@ contains
     real(kdkind)                      :: maxRadius = 100.d6
     real(kdkind)                      :: refPosition(3)
     real(kdkind), allocatable         :: obsPosition3d(:,:)
-    real(kdkind), allocatable         :: allObsPosition3d(:,:)
+    real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
 
     ! Local parameters:
     integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
@@ -2140,17 +2178,17 @@ contains
 
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
-    allocate(allObsPosition3d(3,numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mpi_nprocs))
     allocate(centreOrig(numHeaderMaxMpi))
-    allocate(allCentreOrig(numHeaderMaxMpi*mpi_nprocs))
+    allocate(centreOrigMpi(numHeaderMaxMpi*mpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
-    allocate(allObsFov(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsFovMpi(numHeaderMaxMpi*mpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
-    allocate(allObsDateStamp(numHeaderMaxMpi*mpi_nprocs))
-    allocate(allValid(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDateStampMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
-    allocate(allStnIdInt(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
 
     ! Some initializations
     centreOrig(:) = 0
@@ -2189,28 +2227,28 @@ contains
 
     nsize = 3 * numHeaderMaxMpi
     call rpn_comm_allgather(obsPosition3d,    nsize, 'mpi_real8',  &
-                            allObsPosition3d, nsize, 'mpi_real8', 'grid', ierr)
+                            obsPosition3dMpi, nsize, 'mpi_real8', 'grid', ierr)
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            allValid, nsize, 'mpi_logical', 'grid', ierr)
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
     call rpn_comm_allgather(centreOrig,    nsize, 'mpi_integer',  &
-                            allCentreOrig, nsize, 'mpi_integer', 'grid', ierr)
+                            centreOrigMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
-                            allObsFov, nsize, 'mpi_integer', 'grid', ierr)
+                            obsFovMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDateStamp,    nsize, 'mpi_integer',  &
-                            allObsDateStamp, nsize, 'mpi_integer', 'grid', ierr)
+                            obsDateStampMpi, nsize, 'mpi_integer', 'grid', ierr)
     nsize = lenStnId * numHeaderMaxMpi
     call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
-                            allStnIdInt, nsize, 'mpi_integer', 'grid', ierr)
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
     nullify(tree)
 
-    tree => kdtree2_create(allObsPosition3d, sort=.true., rearrange=.true.)
+    tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
     HEADER1: do headerIndex1 = 1, mpi_nprocs*numHeaderMaxMpi
         
-      if ( .not. allValid(headerIndex1) ) cycle HEADER1
+      if ( .not. validMpi(headerIndex1) ) cycle HEADER1
 
       ! Find all obs within 10km
-      refPosition(:) = allObsPosition3d(:,headerIndex1)
+      refPosition(:) = obsPosition3dMpi(:,headerIndex1)
       call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch, &
                              nalloc=maxNumSearch, results=searchResults)
       if (numFoundSearch >= maxNumSearch) then
@@ -2224,19 +2262,19 @@ contains
       HEADER2: do resultIndex = 1, numFoundSearch
         headerIndex2 = searchResults(resultIndex)%idx
 
-        if ( .not. allValid(headerIndex2) ) cycle HEADER2
+        if ( .not. validMpi(headerIndex2) ) cycle HEADER2
 
         ! Certaines stations locales nous envoient 
         ! le mauvais numero d'orbite. On ne peut donc
         ! pas s'y fier.
         ! Il faut comparer le temps de la reception des
         ! donnees
-        if ( allCentreOrig(headerIndex1) /= allCentreOrig(headerIndex2) ) then
-          if ( allObsFov(headerIndex1) == allObsFov(headerIndex2) ) then
-            if ( all(allStnIdInt(:,headerIndex1) ==  allStnIdInt(:,headerIndex2)) ) then
+        if ( centreOrigMpi(headerIndex1) /= centreOrigMpi(headerIndex2) ) then
+          if ( obsFovMpi(headerIndex1) == obsFovMpi(headerIndex2) ) then
+            if ( all(stnIdIntMpi(:,headerIndex1) ==  stnIdIntMpi(:,headerIndex2)) ) then
             
               ! Difference (in hours) between obs time
-              call difdatr(allObsDateStamp(headerIndex1),allObsDateStamp(headerIndex2),dlhours)
+              call difdatr(obsDateStampMpi(headerIndex1),obsDateStampMpi(headerIndex2),dlhours)
 
               ! Si la difference est moins de 6 minutes,
               ! on peut avoir affaire a un rars
@@ -2244,21 +2282,21 @@ contains
               if ( abs(dlhours) <= 0.1 ) then
 
                 ! si l'element_i est global, on doit le garder et rejeter l'element_j
-                global1 = any(centreOrigGlobal(:) == allCentreOrig(headerIndex1))
+                global1 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex1))
                 if (global1) then 
-                  allValid(headerIndex2) = .false.
+                  validMpi(headerIndex2) = .false.
                 else
                   ! toutefois, ca ne signifie pas que l'element_j est un rars
                   ! VERIFIER SI LA STATION 2 EST RARS
-                  global2 = any(centreOrigGlobal(:) == allCentreOrig(headerIndex2))
+                  global2 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex2))
 
                   ! Si l'element_j est global, rejeter l'element_i
                   ! Si les 2 elements sont rars, garder le 1er
                   if (global2) then 
-                    allValid(headerIndex1) = .false.
+                    validMpi(headerIndex1) = .false.
                     cycle HEADER1
                   else
-                    allValid(headerIndex2) = .false.
+                    validMpi(headerIndex2) = .false.
                   end if
                 end if
 
@@ -2275,19 +2313,19 @@ contains
     ! update local copy of 'valid' array
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
-    valid(:) = allValid(headerIndexBeg:headerIndexEnd)
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     deallocate(obsPosition3d)
-    deallocate(allObsPosition3d)
+    deallocate(obsPosition3dMpi)
     deallocate(centreOrig)
-    deallocate(allCentreOrig)
+    deallocate(centreOrigMpi)
     deallocate(obsFov)
-    deallocate(allObsFov)
+    deallocate(obsFovMpi)
     deallocate(obsDateStamp)
-    deallocate(allObsDateStamp)
-    deallocate(allValid)
+    deallocate(obsDateStampMpi)
+    deallocate(validMpi)
     deallocate(stnIdInt)
-    deallocate(allStnIdInt)
+    deallocate(stnIdIntMpi)
 
   end subroutine thn_removeRarsDuplicates
 
@@ -2308,13 +2346,13 @@ contains
     integer, intent(in)             :: deltmax
 
     ! Locals parameters:
-    integer, parameter :: lat_length = 10000 ! Earth dimension parameters
-    integer, parameter :: lon_length = 40000 ! Earth dimension parameters
+    integer, parameter :: latLength = 10000 ! Earth dimension parameters
+    integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: numStnIdMax = 100
 
     ! Locals:
     integer :: bodyIndex, charIndex, nsize, lenStnId
-    integer :: tcount, bkcount, tcountMpi, bkcountMpi
+    integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
     integer :: uObsFlag, vObsFlag, obsVarno, stnIdIndex, numStnId, stnIdIndexFound
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
     integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi
@@ -2340,7 +2378,9 @@ contains
     character(len=12)    :: stnId, stnidList(numStnIdMax)
     character(len=12), allocatable :: stnIdGrid(:,:,:)
 
+    write(*,*)
     write(*,*) 'thn_scatByLatLonBoxes: Starting'
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -2366,8 +2406,8 @@ contains
       return
     end if
 
-    numLat = nint(2.*real(lat_length)/real(deltax))
-    numLon = nint(real(lon_length)/real(deltax))
+    numLat = nint(2.*real(latLength)/real(deltax))
+    numLon = nint(real(lonLength)/real(deltax))
 
     write(*,*)
     write(*,*) 'Number of horizontal boxes : ', numLon
@@ -2413,8 +2453,8 @@ contains
     distanceGrid(:,:,:)    = -1.0
     headerIndexGrid(:,:,:) = -1
 
-    tcount = 0
-    bkcount = 0
+    timeRejectCount = 0
+    flagRejectCount = 0
 
     ! set spatial boxes properties
     do latIndex = 1, numLat
@@ -2425,7 +2465,7 @@ contains
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
       endif
-      distance = LON_LENGTH * cos(latInRadians)
+      distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
       do lonIndex = 1, numGridLons(latIndex)
         gridLonsMid(latIndex,lonIndex) =  &
@@ -2537,7 +2577,7 @@ contains
 
       ! check time window
       if ( obsDelMinutes(headerIndex) > deltmax ) then
-        tcount = tcount + 1
+        timeRejectCount = timeRejectCount + 1
         valid(headerIndex) = .false.
       end if
 
@@ -2560,7 +2600,7 @@ contains
       if (uObsFlag /= -1 .and. vObsFlag /= -1) then
         if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) .or. &
              btest(uObsFlag,18) .or. btest(vObsFlag,18) ) then
-          bkcount = bkcount + 1
+          flagRejectCount = flagRejectCount + 1
           valid(headerIndex) = .false.
         end if
       else
@@ -2696,7 +2736,7 @@ contains
     write(*,*) 'thn_scatByLatLonBoxes: countObs after choosing 1 per box  = ', &
                countObs, countObsOutMpi
 
-    ! modify the observation flags in obsSpaceData
+    ! modify the observation flags in obsSpaceData and count obs for each stnId
     numObsStnIdOut(:) = 0
     call obs_set_current_header_list(obsdat,'SC')
     HEADER5: do
@@ -2728,16 +2768,16 @@ contains
 
     call rpn_comm_allReduce(numObsStnIdOut, numObsStnIdOutMpi, &
                             numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(tcount, tcountMpi, 1, &
+    call rpn_comm_allReduce(timeRejectCount, timeRejectCountMpi, 1, &
                             'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(bkcount, bkcountMpi, 1, &
+    call rpn_comm_allReduce(flagRejectCount, flagRejectCountMpi, 1, &
                             'mpi_integer', 'mpi_sum', 'grid', ierr)
 
     write(*,*)
     write(*,'(a,i6)') ' Number of obs in input ', countObsInMpi
     write(*,'(a,i6)') ' Number of obs in output ', countObsOutMpi
-    write(*,'(a,i6)') ' Number of obs not selected due to time ', tcountMpi
-    write(*,'(a,i6)') ' Number of obs not selected due to topo ', bkcountMpi
+    write(*,'(a,i6)') ' Number of obs not selected due to time ', timeRejectCountMpi
+    write(*,'(a,i6)') ' Number of obs not selected due to topo ', flagRejectCountMpi
     write(*,*)
     
     write(*,'(a40,i10)' ) 'Number of satellites found = ', numStnId
@@ -2760,6 +2800,36 @@ contains
     write(*,*)
     write(*,'(a40,2i10,f10.4)' ) 'Total number of obs out : ', sum(numObsStnIdOutMpi(:))
 
+    ! Deallocations:
+    deallocate(valid)
+    deallocate(gridLats)
+    deallocate(gridLatsMid)
+    deallocate(gridLonsMid)
+    deallocate(numGridLons)
+    deallocate(stnIdGrid)
+    deallocate(distanceGrid)
+    deallocate(headerIndexGrid)
+    deallocate(delMinutesGrid)
+
+    deallocate(obsLatIndex)
+    deallocate(obsLonIndex)
+    deallocate(obsStepIndex)
+    deallocate(obsDistance)
+    deallocate(obsDelMinutes)
+    deallocate(stnIdInt)
+
+    deallocate(validMpi)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexMpi)
+    deallocate(obsStepIndexMpi)
+    deallocate(obsDistanceMpi)
+    deallocate(obsDelMinutesMpi)
+    deallocate(stnIdIntMpi)
+
+    write(*,*)
+    write(*,*) 'thn_scatByLatLonBoxes: Finished'
+    write(*,*)
+
   end subroutine thn_scatByLatLonBoxes
 
   !--------------------------------------------------------------------------
@@ -2779,8 +2849,8 @@ contains
     integer, intent(in)             :: deltrad
 
     ! Locals parameters:
-    integer, parameter :: lat_length = 10000 ! Earth dimension parameters
-    integer, parameter :: lon_length = 40000 ! Earth dimension parameters
+    integer, parameter :: latLength = 10000 ! Earth dimension parameters
+    integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: maxNumChan = 15    ! nb max de canaux
 
     ! Locals:
@@ -2804,7 +2874,9 @@ contains
     character(len=12) :: stnId
     character(len=12), allocatable :: stnIdGrid(:,:,:)
 
+    write(*,*)
     write(*,*) 'thn_csrByLatLonBoxes: Starting'
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -2830,8 +2902,8 @@ contains
       return
     end if
 
-    numLat = nint(2.*real(lat_length)/real(deltax))
-    numLon = nint(real(lon_length)/real(deltax))
+    numLat = nint(2.*real(latLength)/real(deltax))
+    numLon = nint(real(lonLength)/real(deltax))
 
     write(*,*)
     write(*,*) 'Number of horizontal boxes : ', numLon
@@ -2879,7 +2951,7 @@ contains
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
       endif
-      distance = LON_LENGTH * cos(latInRadians)
+      distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
     end do
 
@@ -2919,7 +2991,7 @@ contains
 
       ! spatial separation
       obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-                                 lat_length / 90.
+                                 latLength / 90.
 
       ! calcul de la bin temporelle dans laquelle se trouve l'observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
@@ -3201,6 +3273,10 @@ contains
     deallocate(stnIdInt)
     deallocate(stnIdIntMpi)
 
+    write(*,*)
+    write(*,*) 'thn_csrByLatLonBoxes: Finished'
+    write(*,*)
+
   end subroutine thn_csrByLatLonBoxes
 
   !--------------------------------------------------------------------------
@@ -3234,27 +3310,27 @@ contains
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
     real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
-    integer, parameter :: lat_length = 10000
-    integer, parameter :: lon_length = 40000
+    integer, parameter :: latLength = 10000
+    integer, parameter :: lonLength = 40000
     real(4), allocatable :: gridLats(:)
     integer, allocatable :: numGridLons(:)
     integer, allocatable :: headerIndexKeep(:,:,:), numChannelsKeep(:,:,:)
-    integer, allocatable :: allHeaderIndex(:,:,:,:), allNumChannels(:,:,:,:)
-    integer, allocatable :: delMinutesKeep(:,:,:)
-    integer, allocatable :: allDelMinutes(:,:,:,:)
+    integer, allocatable :: headerIndexKeepMpi(:,:,:,:), numChannelsKeepMpi(:,:,:,:)
+    integer, allocatable :: delMinutesKeep(:,:,:), delMinutesKeepMpi(:,:,:,:)
     integer, allocatable :: procIndexKeep(:,:,:)
-    real(4), allocatable :: distanceKeep(:,:,:)
-    real(4), allocatable :: allDistance(:,:,:,:)
+    real(4), allocatable :: distanceKeep(:,:,:), distanceKeepMpi(:,:,:,:)
     logical, allocatable :: rejectThisHeader(:)
     logical :: keepThisObs
     integer :: obsLonBurpFile, obsLatBurpFile
     character(len=12) :: stnid
 
+    write(*,*)
     write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
+    write(*,*)
 
     ! Initial setup
-    numLat = nint( 2. * real(lat_length) / real(deltax) )
-    numLon = nint(      real(lon_length) / real(deltax) )
+    numLat = nint( 2. * real(latLength) / real(deltax) )
+    numLon = nint(      real(lonLength) / real(deltax) )
     allocate(headerIndexKeep(numLat,numLon,tim_nstepobs))
     allocate(numChannelsKeep(numLat,numLon,tim_nstepobs))
     allocate(distanceKeep(numLat,numLon,tim_nstepobs))
@@ -3268,10 +3344,10 @@ contains
     gridLats(:)              = 0.0
     numGridLons(:)                = 0
 
-    allocate(allHeaderIndex(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(allNumChannels(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(allDistance(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(allDelMinutes(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(headerIndexKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(numChannelsKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(distanceKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(delMinutesKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
     allocate(procIndexKeep(numLat,numLon,tim_nstepobs))
     procIndexKeep(:,:,:) = -1
 
@@ -3285,7 +3361,7 @@ contains
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
       end if
-      length = LON_LENGTH * cos(latInRadians)
+      length = lonLength * cos(latInRadians)
       numGridLons(latIndex)   = nint(length/deltax)
     end do
 
@@ -3410,14 +3486,14 @@ contains
 
     ! communicate results to all other mpi tasks
     nsize = numLat * numLon * tim_nstepobs
-    call rpn_comm_allgather(distanceKeep, nsize, 'mpi_real4',  &
-                            allDistance,  nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(delMinutesKeep, nsize, 'mpi_integer',  &
-                            allDelMinutes,  nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(numChannelsKeep, nsize, 'mpi_integer',  &
-                            allNumChannels,  nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(headerIndexKeep, nsize, 'mpi_integer',  &
-                            allheaderIndex,  nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(distanceKeep,     nsize, 'mpi_real4',  &
+                            distanceKeepMpi,  nsize, 'mpi_real4', 'grid', ierr)
+    call rpn_comm_allgather(delMinutesKeep,     nsize, 'mpi_integer',  &
+                            delMinutesKeepMpi,  nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(numChannelsKeep,     nsize, 'mpi_integer',  &
+                            numChannelsKeepMpi,  nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(headerIndexKeep,     nsize, 'mpi_integer',  &
+                            headerIndexKeepMpi,  nsize, 'mpi_integer', 'grid', ierr)
 
     ! reset arrays that store info about kept obs
     headerIndexKeep(:,:,:) = -1
@@ -3432,10 +3508,10 @@ contains
           ! Apply thinning criteria to results from all mpi tasks
           do procIndex = 1, mpi_nprocs
 
-            headerIndex = allHeaderIndex(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
-            distance    = allDistance(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
-            delMinutes  = allDelMinutes(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
-            numChannels = allNumChannels(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
+            headerIndex = headerIndexKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
+            distance    = distanceKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
+            delMinutes  = delMinutesKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
+            numChannels = numChannelsKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
             
             keepThisObs = .false.
 
@@ -3517,7 +3593,9 @@ contains
 
     call deallocLocals()
 
+    write(*,*)
     write(*,*) 'thn_hyperByLatLonBoxes: Finished'
+    write(*,*)
 
   contains
 
@@ -3530,10 +3608,10 @@ contains
       deallocate(delMinutesKeep)
       deallocate(gridLats)
       deallocate(numGridLons)
-      deallocate(allHeaderIndex)
-      deallocate(allNumChannels)
-      deallocate(allDistance)
-      deallocate(allDelMinutes)
+      deallocate(headerIndexKeepMpi)
+      deallocate(numChannelsKeepMpi)
+      deallocate(distanceKeepMpi)
+      deallocate(delMinutesKeepMpi)
       deallocate(procIndexKeep)
       
     end subroutine deallocLocals
