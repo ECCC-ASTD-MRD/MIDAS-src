@@ -65,6 +65,7 @@ splitobs_burp_tests:
      - export SPLITOBS=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
      - export WORKDIR=$HOME/data_maestro/$TRUE_HOST/midas/splitobs/work$$
      - ./unittest burp
+     - rm -rf ${WORKDIR}
    tags:
      - jobsubi
 
@@ -75,6 +76,7 @@ splitobs_rdb_tests:
      - export SPLITOBS=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
      - export WORKDIR=$HOME/data_maestro/$TRUE_HOST/midas/splitobs/work$$
      - ./unittest rdb
+     - rm -rf ${WORKDIR}
    tags:
      - jobsubi
 
