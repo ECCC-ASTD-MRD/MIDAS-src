@@ -1291,9 +1291,13 @@ function check_result {
     fi
 
     if [ "${method}" = fstcomp ]; then
-	${fstcomp} -ne -a ${file} -b ${file2} | tee fstcomp.list
-	cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
-AX      E-MOY" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+        [ -f file1.$$ ] && rm file1.$$
+        ln -s ${file}  file1.$$
+        [ -f file2.$$ ] && rm file2.$$
+        ln -s ${file2} file2.$$
+	${fstcomp} -ne -a file1.$$ -b file2.$$ | tee fstcomp.list
+	cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+        rm file1.$$ file2.$$
 	if [ -s fstcomp.list.grep ]; then
 	    return 1
 	fi
