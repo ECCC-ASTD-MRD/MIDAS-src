@@ -5,9 +5,9 @@ variables:
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
     ## JOBSUBI_ARGS: "-r ncores=1 -r memory=32000M -r wallclock=21600 -r tmpfs=8000 ppp4"
-    JOBSUBI_NCORES: 1
-    JOBSUBI_MEMORY: 4G
-    JOBSUBI_WALLCLOCK: 3600
+    JOBSUBI_NCORES: "1"
+    JOBSUBI_MEMORY: "4G"
+    JOBSUBI_WALLCLOCK: "3600"
 
 stages:
    - build
@@ -63,8 +63,8 @@ splitobs_build:
 
 splitobs_burp_tests:
    variables:
-    JOBSUBI_MEMORY: 32G
-    JOBSUBI_WALLCLOCK: 7200
+    JOBSUBI_MEMORY: "32G"
+    JOBSUBI_WALLCLOCK: "7200"
    stage: test
    script:
      - cd tools/splitobs
@@ -77,8 +77,8 @@ splitobs_burp_tests:
 
 splitobs_rdb_tests:
    variables:
-    JOBSUBI_MEMORY: 32G
-    JOBSUBI_WALLCLOCK: 7200
+    JOBSUBI_MEMORY: "32G"
+    JOBSUBI_WALLCLOCK: "7200"
    stage: test
    script:
      - cd tools/splitobs
