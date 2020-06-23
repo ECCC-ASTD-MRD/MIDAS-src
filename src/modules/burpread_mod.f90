@@ -4351,14 +4351,14 @@ CONTAINS
     integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport, resumeReport
     logical                     :: debug = .false.
-    character(len=2)            :: familyTypesToDo(4) = (/'AI','SW','TO','SC'/)
+    character(len=2)            :: familyTypesToDo(5) = (/'AI','SW','TO','SC','GP'/)
     character(len=9)            :: stnid
     real(4)                     :: realBurpValue
 
     write(*,*)
     write(*,*) 'brpr_burpClean: starting'
 
-    ! only apply for certain obs families for now, these are all grouped data
+    ! only apply for certain obs families for now
     if ( all( trim(familyType) /= familyTypesToDo(:) ) ) then
       write(*,*) 'brpr_burpClean: not applied to obs family = ', trim(familyType)
       return
@@ -4788,7 +4788,7 @@ CONTAINS
         offset = 256
       case('RO','TO')
         offset = 0
-      case('SF')
+      case('SF','GP')
         offset = 288
       end select
       isFlag = (btyp10 + offset == btyp10flg)
@@ -4822,7 +4822,7 @@ CONTAINS
         offset = 256
       case('RO','TO')
         offset = 0
-      case('SF')
+      case('SF','GP')
         offset = 288
       end select
       isObs = (btyp10 + offset == btyp10obs)
@@ -4859,6 +4859,9 @@ CONTAINS
     character(len=*) :: familyType
     integer, allocatable :: elementIds(:)
 
+    ! Locals:
+    integer :: elementIndex, elementCount
+
     if (allocated(elementIds)) deallocate(elementIds)
 
     select case(trim(familyType))
@@ -4868,11 +4871,28 @@ CONTAINS
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
 
-    case('SF','GP')
+    case('SF')
       call brpacma_nml('namburp_sfc', beSilent_opt=.true.)
       allocate(elementIds(nelems_sfc))
       elementIds(:) = blistelements_sfc(1:nelems_sfc)
 
+    case('GP')
+      call brpacma_nml('namburp_sfc', beSilent_opt=.true.)
+      ! do not include "formal error", since it was removed from obsSpaceData
+      if (any(liste_ele_gps(1:nelems_gps) == bufr_nefe)) then
+        allocate(elementIds(nelems_gps-1))
+        elementCount = 0
+        do elementIndex = 1, nelems_gps
+          if (liste_ele_gps(elementIndex) /= bufr_nefe) then
+            elementCount = elementCount + 1
+            elementIds(elementCount) = liste_ele_gps(elementIndex)
+          end if
+        end do
+      else
+        allocate(elementIds(nelems_gps))
+        elementIds(:) = liste_ele_gps(1:nelems_gps)
+      end if
+      
     case('GO','MI','TO')
       call brpacma_nml('namburp_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))

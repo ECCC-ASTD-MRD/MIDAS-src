@@ -1,7 +1,6 @@
  &thin_gbgps
    deltemps = 8
    deldist = 50
-   order_option = 1
 /
  &NAMTIME
    DSTEPOBS = 0.25d0

@@ -141,6 +141,8 @@ contains
   ! thn_thinGbGps
   !--------------------------------------------------------------------------
   subroutine thn_thinGbGps(obsdat)
+    ! :Purpose: Main thinning subroutine ground-based GPS obs.
+    !
     implicit none
 
     ! Arguments:
@@ -153,10 +155,9 @@ contains
     ! Namelist variables
     integer :: deltemps     ! number of time bins between adjacent observations
     integer :: deldist      ! minimal distance in km between adjacent observations
-    integer :: order_option ! code indicating type of ordering of observations
     logical :: removeUncorrected ! remove obs that are not bias corrected (bit 6)
 
-    namelist /thin_gbgps/deltemps, deldist, order_option, removeUncorrected
+    namelist /thin_gbgps/deltemps, deldist, removeUncorrected
 
     ! return if no gb-gps obs
     if (.not. obs_famExist(obsdat,'GP')) return
@@ -164,7 +165,6 @@ contains
     ! Default values for namelist variables
     deltemps     = 8
     deldist      = 50
-    order_option = 1
     removeUncorrected = .false.
 
     ! Read the namelist for GbGps observations (if it exists)
@@ -183,7 +183,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
-    call thn_gbgpsByDistance(obsdat, deltemps, deldist, order_option, removeUncorrected)
+    call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
 
   end subroutine thn_thinGbGps
 
@@ -453,7 +453,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
-  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, order_option, removeUncorrected)
+  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
     !
     ! :Purpose: Original method for thinning GB-GPS data by the distance method.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -464,41 +464,32 @@ contains
     type(struct_obs), intent(inout) :: obsdat
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
-    integer,          intent(in)    :: order_option
     logical,          intent(in)    :: removeUncorrected
 
     ! Local parameters:
-    real(4), parameter :: znorm = 50.0 ! normalization factor for zdscores
+    real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
     character(len=3), parameter :: winpos='mid' ! Preference to obs close to middle of window
 
     ! Locals:
-    integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
-    integer :: countObs, countObsOutMpi, countObsInMpi, numStnId, stnIdIndexFound, lenStnId, charIndex
-    integer :: obsDate, obsTime, layerIndex, obsVarno, ztdObsFlag, obsFlag, nsize
+    integer :: ierr, numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: countObs, countObsOutMpi, countObsInMpi
+    integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag, nsize
     integer :: bgckCount, bgckCountMpi, blackListCount, blackListCountMpi
     integer :: unCorrectCount, unCorrectCountMpi, badTimeCount, badTimeCountMpi
-    integer :: numSelected, numHeaderMpi, min_nbbin, mid_bin
+    integer :: numSelected, middleStep
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
-    integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
+    integer :: headerIndexBeg, headerIndexEnd
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
-    real(4) :: obsPressure, znormf, zfermis, ferr, zscore, ztdscore
-    real(8) :: obsLonInDegrees, obsLatInDegrees
-    real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
+    real(4) :: normFormalErr, missingFormalErr, formalError, finalZtdScore, ztdScore
+    real(8) :: obsLonInDegrees, obsLatInDegrees, obsStepIndex_r8
     character(len=12)  :: stnId
-    logical :: obsAlreadySameStep, skipThisObs, lnoaa
-    integer, allocatable :: obsSortValue(:)
-    integer, allocatable :: quality(:), qualityMpi(:), qualityMpiSorted(:)
+    logical :: skipThisObs, thisStnIdNoaa
+    integer, allocatable :: quality(:), qualityMpi(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
     integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
-    integer, allocatable :: obsLonBurpFileMpiSorted(:), obsLatBurpFileMpiSorted(:)
-    integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:), obsStepIndexMpiSorted(:)
-    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    real(4), allocatable :: r_nums(:), r_scores(:)
+    integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
+    integer, allocatable :: headerIndexSelected(:), headerIndexSorted(:)
     logical, allocatable :: valid(:), validMpi(:)
-
-    ! to be replaced:
-    integer, allocatable :: e_select(:),e_ordre(:)
-    integer, allocatable :: e_ordre0(:)
 
     write(*,*)
     write(*,*) 'thn_gbGpsByDistance: Starting'
@@ -532,13 +523,13 @@ contains
     write(*,*)
     write(*,*) 'Minimun thinning distance ',thinDistance
 
-    mid_bin   = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
-                      tim_dstepobs) + 1
+    middleStep   = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
+                   tim_dstepobs) + 1
 
     write(*,*)
     write(*,*) 'Number of time bins                     = ', tim_nstepobs
     write(*,*) 'Minimum number of time bins between obs = ', deltemps
-    write(*,*) 'Central time bin                        = ', mid_bin
+    write(*,*) 'Central time bin                        = ', middleStep
     write(*,*)
 
     ! Allocations: 
@@ -546,51 +537,28 @@ contains
     allocate(obsLonBurpFile(numHeaderMaxMpi))
     allocate(obsStepIndex(numHeaderMaxMpi))
     allocate(quality(numHeaderMaxMpi))
-    allocate(e_select(numHeaderMaxMpi))
+    allocate(valid(numHeaderMaxMpi))
 
     allocate(obsLatBurpFileMpi(numHeaderMpi))
     allocate(obsLonBurpFileMpi(numHeaderMpi))
     allocate(obsStepIndexMpi(numHeaderMpi))
     allocate(qualityMpi(numHeaderMpi))
 
-    allocate(obsLatBurpFileMpiSorted(numHeaderMpi))
-    allocate(obsLonBurpFileMpiSorted(numHeaderMpi))
-    allocate(obsStepIndexMpiSorted(numHeaderMpi))
-    allocate(qualityMpiSorted(numHeaderMpi))
-
-    allocate(obsSortValue(numHeaderMpi))
-    allocate(e_ordre0(numHeaderMpi))
-    allocate(e_ordre(numHeaderMpi))
     allocate(headerIndexSorted(numHeaderMpi))
     allocate(headerIndexSelected(numHeaderMpi))
-    allocate(validMpi(numHeaderMaxMpi))
-    allocate(valid(numHeaderMaxMpi))
+    allocate(validMpi(numHeaderMpi))
 
     validMpi(:) = .false.
 
-    quality(:)  = 0
+    quality(:)  = 9999
     obsLatBurpFile(:)    = 0
     obsLonBurpFile(:)    = 0
     obsStepIndex(:)    = 0
 
-    qualityMpi(:)        = 0
+    qualityMpi(:)        = 9999
     obsLatBurpFileMpi(:) = 0
     obsLonBurpFileMpi(:) = 0
     obsStepIndexMpi(:)   = 0
-
-    qualityMpiSorted(:)        = 0
-    obsLatBurpFileMpiSorted(:) = 0
-    obsLonBurpFileMpiSorted(:) = 0
-    obsStepIndexMpiSorted(:)   = 0
-
-    e_select(:) = 0
-
-    if (order_option == 4) then
-      allocate(r_nums(numHeaderMaxMpi))
-      allocate(r_scores(numHeaderMaxMpi))
-      call random_number(r_nums)
-      r_scores = nint(r_nums*100)
-    end if
 
     badTimeCount = 0
     bgckCount = 0
@@ -598,7 +566,6 @@ contains
     unCorrectCount = 0
 
     ! First pass through observations
-    numStnId = 0
     call obs_set_current_header_list(obsdat,'GP')
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -612,6 +579,11 @@ contains
       obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
       obsLonBurpFile(headerIndex) = nint(100.0*obsLonInDegrees)
       obsLatBurpFile(headerIndex) = 9000 + nint(100.0*obsLatInDegrees)
+      if (obsLonBurpFile(headerIndex) >= 18000) then
+        obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) - 18000
+      else
+        obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 18000
+      endif
 
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
@@ -620,20 +592,20 @@ contains
                                obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
-      ! lnoaa==TRUE means obs has collocated GPS met (Psfc) observations
-      lnoaa = ((index(stnId,'FSL_') + index(stnId,'-NOAA') + index(stnId,'-UCAR')) > 0)
-      ! normalization factor (Units = mm) for ZTD formal error (ferr) 
-      if (lnoaa) then
-        znormf  = 15.0
-        zfermis =  7.0
+      ! thisStnIdNoaa==TRUE means obs has collocated GPS met (Psfc) observations
+      thisStnIdNoaa = ((index(stnId,'FSL_') + index(stnId,'-NOAA') + index(stnId,'-UCAR')) > 0)
+      ! normalization factor (Units = mm) for ZTD formal error (formalError) 
+      if (thisStnIdNoaa) then
+        normFormalErr  = 15.0
+        missingFormalErr =  7.0
       else
-        znormf  = 5.0
-        zfermis = 3.0
+        normFormalErr  = 5.0
+        missingFormalErr = 3.0
       endif
 
       ! get ztd flag and formal error value, element 15032
-      ferr = -1.0
-      ztdscore = -1.0
+      formalError = -1.0
+      ztdScore = -1.0
       ztdObsFlag = -1
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY1: do 
@@ -642,42 +614,42 @@ contains
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
         if (obsVarno == bufr_nezd) then
           ! convert units from m to mm
-          ferr = 1000.0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex)
+          formalError = 1000.0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex)
         end if
-        if (obsVarno == bufr_ztdscore) then
-          ztdscore = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+        if (obsVarno == bufr_ztdScore) then
+          ztdScore = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
         end if
         if (obsVarno == bufr_nezd) then
           ztdObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         end if
       end do BODY1
-      if (ferr == -1.0) then
-        ferr = zfermis
+      if (formalError == -1.0 .or. formalError == 1000.0*MPC_missingValue_R4) then
+        formalError = missingFormalErr
       end if
-      if (ztdscore == -1.0) then
-        ztdscore = 999.0
+      if (ztdScore == -1.0) then
+        ztdScore = 999.0
       end if
       if (ztdObsFlag == -1) then
         call utl_abort('thn_gbGpsByDistance: ztd not found')
       end if
-write(*,*) 'ferr, ztdscore, ztdObsFlag = ', headerIndex, ferr, ztdscore, ztdObsFlag
+
       ! ZTD quality estimate using monitoring zdscore and the formal error
-      zscore = 80*(ztdscore/znorm) + 20*(ferr/znormf)
+      finalZtdScore = 80*(ztdScore/normZtdScore) + 20*(formalError/normFormalErr)
     
       ! Give preference to FSL/UCAR ZTD observations (usually include collocated GPS met Psfc)
-      if (.not. lnoaa) zscore = zscore + 5.0
+      if (.not. thisStnIdNoaa) finalZtdScore = finalZtdScore + 5.0
     
       ! Give preference to obs near middle or end of the assimilation window
       if (winpos == 'mid') then
-        zscore = zscore + 25.0*float(abs(mid_bin-obsStepIndex(headerIndex))) / &
-                          float(mid_bin-1)
+        finalZtdScore = finalZtdScore + 25.0*float(abs(middleStep-obsStepIndex(headerIndex))) / &
+                        float(middleStep-1)
       else if (winpos == 'end') then
-        zscore = zscore + 25.0*float(tim_nstepobs-obsStepIndex(headerIndex)) / &
-                          float(tim_nstepobs-1)
+        finalZtdScore = finalZtdScore + 25.0*float(tim_nstepobs-obsStepIndex(headerIndex)) / &
+                        float(tim_nstepobs-1)
       end if
 
       ! Quality (lower is better), typical values 20->100, if no zdscore then > 1600
-      quality(headerIndex) = nint(zscore)
+      quality(headerIndex) = nint(finalZtdScore)
 
       ! obs is outside time window
       if(obsStepIndex(headerIndex) == -1.0d0) then
@@ -700,7 +672,7 @@ write(*,*) 'ferr, ztdscore, ztdObsFlag = ', headerIndex, ferr, ztdscore, ztdObsF
       end if
 
     end do HEADER1
-write(*,*) 'after loop'
+
     ! Gather needed information from all MPI tasks
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
@@ -711,73 +683,35 @@ write(*,*) 'after loop'
                             obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
-write(*,*) 'after allgather'
-    if (order_option > 1) then  ! pre-sort the obs or randomize the obs order
 
-      do obsIndex1 = 1, numHeaderMpi
-        e_ordre0(obsIndex1) = obsIndex1
-        e_ordre(obsIndex1)  = obsIndex1
-        if (order_option == 3) then      ! last to first bin
-          obsSortValue(obsIndex1) = tim_nstepobs - obsStepIndexMpi(obsIndex1 )+ 1
-        else if (order_option == 2) then ! first to last bin
-          obsSortValue(obsIndex1) = obsStepIndexMpi(obsIndex1)
-        else                             ! random order (order_option == 4)
-          obsSortValue(obsIndex1) = r_scores(obsIndex1)
-        end if
-      end do
+    do obsIndex1 = 1, numHeaderMpi
+      headerIndexSorted(obsIndex1)  = obsIndex1
+    end do
 
-      ! Sort the observations by time or a random score
-      call thn_QsortC(obsSortValue,e_ordre0)
-
-      ! Create new obs arrays
-
-      do obsIndex1 = 1, numHeaderMpi
-        obsIndex2 = e_ordre0(obsIndex1)
-        headerIndexSorted(obsIndex1) = obsIndex2
-        obsLatBurpFileMpiSorted(obsIndex1) = obsLatBurpFileMpi(obsIndex2)
-        obsLonBurpFileMpiSorted(obsIndex1) = obsLonBurpFileMpi(obsIndex2)
-        obsStepIndexMpiSorted(obsIndex1)   = obsStepIndexMpi(obsIndex2)
-        qualityMpiSorted(obsIndex1)        = qualityMpi(obsIndex2)
-      end do
-
-    else ! original order case
-
-      do obsIndex1 = 1, numHeaderMpi
-        e_ordre(obsIndex1)  = obsIndex1
-        headerIndexSorted(obsIndex1) = obsIndex1
-        obsLatBurpFileMpiSorted(obsIndex1) = obsLatBurpFileMpi(obsIndex1)
-        obsLonBurpFileMpiSorted(obsIndex1) = obsLonBurpFileMpi(obsIndex1)
-        obsStepIndexMpiSorted(obsIndex1)   = obsStepIndexMpi(obsIndex1)
-        qualityMpiSorted(obsIndex1)        = qualityMpi(obsIndex1)
-      end do
-
-    end if
-write(*,*) 'before sort'
-    call thn_QsortC(qualityMpiSorted,e_ordre)
-write(*,*) 'after sort'
+    call thn_QsortC(qualityMpi,headerIndexSorted)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
 
-      if ( qualityMpiSorted(obsIndex1) /= 9999 ) then
+      if ( qualityMpi(obsIndex1) /= 9999 ) then
 
-        headerIndex1 = e_ordre(obsIndex1)
-        
+        headerIndex1 = headerIndexSorted(obsIndex1)
+
         ! Check if any of the obs already selected are close in space/time to this obs
         ! If no, then keep (select) this obs        
         if( numSelected >= 1 ) then
           skipThisObs = .false.
           LOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
-            if ( abs(obsStepIndexMpiSorted(headerIndex1) -  &
-                     obsStepIndexMpiSorted(headerIndex2)) < deltemps  ) then
-              deltaLat = abs(obsLatBurpFileMpiSorted(headerIndex1) -  &
-                             obsLatBurpFileMpiSorted(headerIndex2))/100.
-              deltaLon = abs(obsLonBurpFileMpiSorted(headerIndex1) -  &
-                             obsLonBurpFileMpiSorted(headerIndex2))/100.
+            if ( abs(obsStepIndexMpi(headerIndex1) -  &
+                     obsStepIndexMpi(headerIndex2)) < deltemps  ) then
+              deltaLat = abs(obsLatBurpFileMpi(headerIndex1) -  &
+                             obsLatBurpFileMpi(headerIndex2))/100.
+              deltaLon = abs(obsLonBurpFileMpi(headerIndex1) -  &
+                             obsLonBurpFileMpi(headerIndex2))/100.
               if (deltaLon > 180.) deltaLon = 360. - deltaLon
-              obsLat1 = ((obsLatBurpFileMpiSorted(headerIndex1) - 9000)/100.)
-              obsLat2  = ((obsLatBurpFileMpiSorted(headerIndex2) - 9000)/100.)
+              obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+              obsLat2  = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
               if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
                 skipThisObs = .true.
                 exit LOOP2
@@ -787,7 +721,7 @@ write(*,*) 'after sort'
         else
           skipThisObs = .false.
         endif
-        
+
         if (.not. skipThisObs) then
           numSelected = numSelected + 1
           headerIndexSelected(numSelected) = headerIndex1
@@ -796,18 +730,17 @@ write(*,*) 'after sort'
       endif
 
     end do OBS_LOOP
-write(*,*) 'after obs_loop'
 
     do obsIndex1 = 1, numSelected
       obsIndex2 = headerIndexSelected(obsIndex1)
-      validMpi(headerIndexSorted(obsIndex2)) = .true.
+      validMpi(obsIndex2) = .true.
     end do
-    
+
     ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
-    
+
     countObs = count(valid)
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
@@ -852,7 +785,9 @@ write(*,*) 'after obs_loop'
     write(*,'(a50,i10)') 'Number of blacklisted obs            = ', blackListCountMpi
     write(*,'(a50,i10)') 'Number of obs without bias correction= ', unCorrectCountMpi
     write(*,'(a60,4i10)') 'Number of rejects outside time window, BGCK, thinning ', &
-         badTimeCountMpi,bgckCountMpi,(countObsInMpi-countObsOutMpi-bgckCountMpi-badTimeCountMpi-blackListCountMpi-unCorrectCountMpi)
+         badTimeCountMpi, bgckCountMpi, &
+         countObsInMpi - countObsOutMpi - &
+         bgckCountMpi - badTimeCountMpi - blackListCountMpi - unCorrectCountMpi
 
     write(*,*)
     write(*,*) 'thn_gbGpsByDistance: Finished'
@@ -885,10 +820,10 @@ write(*,*) 'after obs_loop'
 
     ! Locals:
     integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
-    integer :: countObs, countObsOutMpi, countObsInMpi, numStnId, stnIdIndexFound, lenStnId, charIndex
+    integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
     integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi, nsize
-    integer :: numSelected, numHeaderMpi
+    integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
@@ -1271,7 +1206,9 @@ write(*,*) 'after obs_loop'
     write(*,'(a30, i10)') ' Number of obs out = ', countObsOutMpi
     write(*,*)
     write(*,'(a30,4i10)') ' Number of rejects from bgck, thinned, missing obs ', &
-         bgckCountMpi, countObsInMpi-countObsOutMpi-bgckCountMpi-missingCountMpi, missingCountMpi
+         bgckCountMpi, &
+         countObsInMpi - countObsOutMpi - bgckCountMpi - missingCountMpi, &
+         missingCountMpi
     write(*,*)
     write(*,'(a30,i10)') 'Number of satellites found = ',numStnId
     write(*,*)
@@ -1763,8 +1700,10 @@ write(*,*) 'after obs_loop'
       deltaPress = abs(gridPressure(obsLonIndex,obsLatIndex,1,obsStepIndex) - obsPressure)
       obsLevIndex = 1
       do levIndex = 2, numLev
-        if ( abs(gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - obsPressure) < deltaPress ) then
-          deltaPress = abs(gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - obsPressure)
+        if ( abs(gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - obsPressure) < &
+             deltaPress ) then
+          deltaPress = abs( gridPressure(obsLonIndex,obsLatIndex,levIndex,obsStepIndex) - &
+                            obsPressure )
           obsLevIndex = levIndex
         end if
       end do
@@ -2156,7 +2095,8 @@ write(*,*) 'after obs_loop'
     logical, allocatable :: valid(:)
     integer, allocatable :: numGridLons(:), numObsGrid(:), obsGridIndex(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), numObsAssim(:)
-    integer, allocatable :: headerIndexList(:), headerIndexList2(:), obsIndexGrid(:), obsIndexLink(:)
+    integer, allocatable :: headerIndexList(:), headerIndexList2(:)
+    integer, allocatable :: obsIndexGrid(:), obsIndexLink(:)
 
     ! Local parameters:
     integer, parameter :: latLength=10000
@@ -3141,12 +3081,12 @@ write(*,*) 'after obs_loop'
           ! si l'obs retenue precedemment etait autre qu'un METOP, on poursuit l'investigation
           if ( stnIdTrim == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
                  
-            ! si la difference temporelle est plus grande que celle deja retenue, on ne retient pas l'obs
+            ! si la difference temporelle est plus grande que celle deja retenue, skip it
             if ( obsDelMinutesMpi(headerIndex) >  &
                  delMinutesGrid(latIndex,lonIndex,stepIndex) ) then
               change = .false.
             else
-              ! si la distance au centre de la boite est plus grande que celle retenue, on ne retient pas l'obs 
+              ! si la distance au centre de la boite est plus grande que celle retenue, skip it 
               if ( (obsDelMinutesMpi(headerIndex) ==  &
                     delMinutesGrid(latIndex,lonIndex,stepIndex)) .and. &
                    (obsDistanceMpi(headerIndex) >=  &
@@ -3372,7 +3312,8 @@ write(*,*) 'after obs_loop'
     write(*,*) 'Number of temporal bins    : ', tim_nstepobs
     write(*,*)
 
-    write(*,*) 'thn_csrByLatLonBoxes: countObs initial                   = ', countObs, countObsMpi
+    write(*,*) 'thn_csrByLatLonBoxes: countObs initial                   = ', &
+               countObs, countObsMpi
 
     ! Allocate arrays
     allocate(gridLats(numLat))
