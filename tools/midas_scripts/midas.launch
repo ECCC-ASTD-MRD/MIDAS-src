@@ -322,7 +322,6 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
     fi
 done
 
-ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
 # Acquire supplementary input files if provided
 if [ -n "${aux_input}" ]; then
@@ -454,6 +453,8 @@ done
 if [ -n "${observations}" ]; then
     observations_files="=-observations      ${observations_files}"
 fi
+
+ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
 ${midas_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_mpi} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
