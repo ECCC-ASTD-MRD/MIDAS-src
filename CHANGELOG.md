@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added the arguments `-analysis`, `-forecast_a` and `-forecast_b` to `tools/midas_scripts/midas.launch` (#369 and !351)
+   * The program `midas-obsImpact` needs them.
  * Incorporated in `tools/midas_scripts` all the helper scripts that was before in `oavar_scripts` (#364 and !349)
    * renamed them from `oavar.*` to `midas.*`
      * renamed `midas.var_mpi` to `midas.mpi` to remove any reference to the VAR program

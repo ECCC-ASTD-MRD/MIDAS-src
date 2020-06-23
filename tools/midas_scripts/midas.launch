@@ -26,6 +26,9 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -fallback_mode     "abort" "abort" "[fallback mode (default: 'abort')]" \
   -observations      ""   ""    "[observations files (a directory) (mandatory)]" \
   -trials            ""   ""    "[trial files (a file or a directory)]" \
+  -analysis          ""   ""    "[an analysis that will be put in 'forecasts/analysis']" \
+  -forecast_a        ""   ""    "[a forecast that will be put in 'forecasts/forecast_a']" \
+  -forecast_b        ""   ""    "[a forecast that will be put in 'forecasts/forecast_b']" \
   -preconin          "preconin" "preconin" "[path to the preconditionning file]" \
   -ensemble          "" "" "[directory to find the ensemble trials]" \
   -ensemble_trial    "" "" "[directory to find the ensemble trials]" \
@@ -322,7 +325,13 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
     fi
 done
 
-ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
+for argkey in analysis forecast_a forecast_b; do
+    eval key="\${${argkey}}"
+    if [ -n "${key}" ]; then
+        [ ! -d forecasts ] && mkdir forecasts
+        copyOrLink ${key} forecasts/${argkey}
+    fi
+done
 
 # Acquire supplementary input files if provided
 if [ -n "${aux_input}" ]; then
@@ -454,6 +463,8 @@ done
 if [ -n "${observations}" ]; then
     observations_files="=-observations      ${observations_files}"
 fi
+
+ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
 ${midas_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_mpi} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
