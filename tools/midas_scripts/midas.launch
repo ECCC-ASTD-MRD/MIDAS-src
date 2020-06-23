@@ -26,6 +26,8 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -fallback_mode     "abort" "abort" "[fallback mode (default: 'abort')]" \
   -observations      ""   ""    "[observations files (a directory) (mandatory)]" \
   -trials            ""   ""    "[trial files (a file or a directory)]" \
+  -analysis          ""   ""    "[an analysis file]" \
+  -forecasts         ""   ""    "[a directory containing one 24 hrs forecast and a 30 hrs forecast]" \
   -preconin          "preconin" "preconin" "[path to the preconditionning file]" \
   -ensemble          "" "" "[directory to find the ensemble trials]" \
   -ensemble_trial    "" "" "[directory to find the ensemble trials]" \
@@ -322,6 +324,17 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
     fi
 done
 
+if [ -n "${analysis}" ]; then
+    [ ! -d forecasts ] && mkdir forecasts
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Get Analysis"
+    copyOrLink ${analysis} forecasts/analysis
+fi
+if [ -n "${forecasts}" ]; then
+    [ ! -d forecasts ] && mkdir forecasts
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Get Forecasts"
+    copyOrLink ${forecasts}/${date}_024 forecasts/forecast_a
+    copyOrLink ${forecasts}/${date_trial}_030 forecasts/forecast_b
+fi
 
 # Acquire supplementary input files if provided
 if [ -n "${aux_input}" ]; then
