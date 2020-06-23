@@ -152,6 +152,7 @@ module tovs_nl_mod
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer tvs_numMWInstrumUsingCLW 
   logical tvs_mwInstrumUsingCLW_tl
+  real(8) :: tvs_cloudScaleFactor 
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
@@ -563,6 +564,7 @@ contains
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
     logical :: mwInstrumUsingCLW_tl
+    real(8) :: cloudScaleFactor 
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -570,7 +572,7 @@ contains
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
-    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid 
+    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
  
     !   1.1 Default values for namelist variables
 
@@ -592,6 +594,7 @@ contains
     mwInstrumUsingCLW_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
     regLimitExtrap = .false.
+    cloudScaleFactor = 0.5D0
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -617,6 +620,7 @@ contains
     tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
     tvs_doAzimuthCorrection(:) =  doAzimuthCorrection(:)
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
+    tvs_cloudScaleFactor = cloudScaleFactor 
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -2057,6 +2061,10 @@ contains
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+          if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
+            clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
+            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
+          end if
         end do
         
         if (  runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
