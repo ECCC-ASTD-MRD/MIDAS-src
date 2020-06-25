@@ -70,18 +70,6 @@ unittest () {
 
     echo "unittest() begins"
 
-    test_burp_regional_standard || return 1
-
-    echo "unittest() ends"
-} ## End of function 'unittest'
-
-
-unittest2 () {
-    set -e
-    [ -n "${SET_MX}" ] && ${SET_MX}
-
-    echo "unittest() begins"
-
     if [ "${TESTS2RUN}" = burp -o "${TESTS2RUN}" = all ]; then
 	test_burp_regional_standard || return 1
 	test_burp_regional_with_imax_imin_jmax_jmin || return 1
