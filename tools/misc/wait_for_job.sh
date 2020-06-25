@@ -20,7 +20,7 @@ while true; do
     status=0
     jobchk -c ${host} ${jobid} || status=$?
     if [ "${status}" -ne 0 ]; then
-        echo "The compilation on host '${host}' with job '${jobname}' has finished."
+        echo "The job '${jobid}' on host '${host}' with job '${jobname}' has finished."
         listing=$(/bin/ls -t ${jobname}.${host}-*-$(hostname)-*.out | head -1)
         if [ -f "${listing}" ]; then
             echo "======================================"
