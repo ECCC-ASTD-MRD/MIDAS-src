@@ -41,7 +41,7 @@ module thinning_mod
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinAircraft, thn_thinScat, thn_thinSatWinds, thn_thinAladin
-  public :: thn_thinGbGps
+  public :: thn_thinGbGps, thn_thinGpsRo
 
   integer, external :: get_max_rss
 
@@ -136,6 +136,58 @@ contains
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
 
   end subroutine thn_thinSatWinds
+
+  !--------------------------------------------------------------------------
+  ! thn_thinGpsRo
+  !--------------------------------------------------------------------------
+  subroutine thn_thinGpsRo(obsdat)
+    ! :Purpose: Main thinning subroutine GPS radio-occultation obs.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    real(8) :: heightMin     ! niveau a partir du quel on accepte les donnees
+    real(8) :: heightMax     ! niveau a partir du quel on rejette les donnees
+    real(8) :: heightSpacing ! epaisseur minimale entre deux niveaux
+    integer :: numLevSkip    ! skip this number of levels closest to surface
+
+    namelist /thin_gpsro/heightMin, heightMax, heightSpacing, numLevSkip
+
+    ! return if no gb-gps obs
+    if (.not. obs_famExist(obsdat,'RO')) return
+
+    ! Default values for namelist variables
+    heightMin     = 1000.0d0
+    heightMax     = 40000.0d0
+    heightSpacing = 750.0d0
+    numLevSkip    = 4
+
+    ! Read the namelist for GpsRo observations (if it exists)
+    if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error opening file flnml')
+      read(nulnam,nml=thin_gpsro,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_gpsro)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinGpsRo: Namelist block thin_gpsro is missing in the namelist.'
+      write(*,*) '               The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_gpsro)
+    end if
+
+    call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, numLevSkip)
+
+  end subroutine thn_thinGpsRo
 
   !--------------------------------------------------------------------------
   ! thn_thinGbGps
@@ -451,6 +503,133 @@ contains
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
   !--------------------------------------------------------------------------
+  ! thn_gpsroVertical
+  !--------------------------------------------------------------------------
+  subroutine thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, numLevSkip)
+    !
+    ! :Purpose: Original method for thinning GPSRO data by vertical distance.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    real(8),          intent(in)    :: heightMin
+    real(8),          intent(in)    :: heightMax
+    real(8),          intent(in)    :: heightSpacing
+    integer,          intent(in)    :: numLevSkip
+
+    ! Local parameters:
+    integer, parameter :: gpsroVarNo = BUFR_NERF
+
+    ! Locals:
+    integer :: countObs, countObsInMpi, headerIndex, bodyIndex, ierr
+    integer :: numLev, levIndex, obsVarNo, obsFlag
+    real(8) :: nextHeightMin
+    logical :: rejectObs
+    integer, allocatable :: bodyIndexList(:)
+    real(8), allocatable :: obsPressures(:)
+
+    write(*,*)
+    write(*,*) 'thn_gpsroVertical: Starting'
+    write(*,*)
+
+    ! Check if any observations to be treated
+    countObs = 0
+    call obs_set_current_header_list(obsdat,'RO')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      countObs = countObs + 1
+    end do HEADER0
+
+    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_gpsroVertical: no gpsro observations present'
+      return
+    end if
+
+    write(*,*) 'thn_gpsroVertical: number of obs initial = ', &
+               countObs, countObsInMpi
+
+    call obs_set_current_header_list(obsdat,'RO')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+
+      ! count number of levels for this profile
+      numLev = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+
+        obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        if (obsVarNo /= gpsroVarNo) cycle BODY1
+
+        numLev = numLev + 1
+
+      end do BODY1
+
+      allocate(obsPressures(numLev))
+      allocate(bodyIndexList(numLev))
+
+      ! extract altitudes for this profile
+      levIndex = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY2
+        
+        obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        if (obsVarNo /= gpsroVarNo) cycle BODY2
+
+        levIndex = levIndex + 1
+        obsPressures(levIndex) = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+        bodyIndexList(levIndex) = bodyIndex
+
+      end do BODY2
+
+      ! ensure altitudes are in ascending order
+      call thn_QsortReal8(obsPressures,bodyIndexList)
+
+      ! apply vertical thinning
+      nextHeightMin = heightMin
+      LEVELS: do levIndex = 1, numLev
+        
+        if ( levIndex <= numLevSkip ) then
+          rejectObs = .true.
+        else
+          if ( obsPressures(levIndex) >= nextHeightMin .and. &
+               obsPressures(levIndex) < heightMax ) then
+            nextHeightMin = obsPressures(levIndex) + heightSpacing
+            rejectObs = .false.
+          else
+            rejectObs = .true.
+          end if
+        end if
+
+        if (rejectObs) then
+          bodyIndex = bodyIndexList(levIndex)
+          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+        end if
+        
+      end do LEVELS
+
+      deallocate(obsPressures)
+      deallocate(bodyIndexList)
+
+    end do HEADER1
+
+    write(*,*)
+    write(*,*) 'thn_gpsroVertical: Finished'
+    write(*,*)
+
+  end subroutine thn_gpsroVertical
+
+  !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
   subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
@@ -688,7 +867,7 @@ contains
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortC(qualityMpi,headerIndexSorted)
+    call thn_QsortInt(qualityMpi,headerIndexSorted)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
@@ -1046,7 +1225,7 @@ contains
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
-    call thn_QsortC(qualityMpi,headerIndexSorted)
+    call thn_QsortInt(qualityMpi,headerIndexSorted)
 
     validMpi(:) = .false.
     call tmg_start(144,'bruteThinning')
@@ -1258,9 +1437,9 @@ contains
   end subroutine thn_satWindsByDistance
 
   !--------------------------------------------------------------------------
-  ! thn_QsortC
+  ! thn_QsortInt
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortC(A,B)
+  recursive subroutine thn_QsortInt(A,B)
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -1268,17 +1447,17 @@ contains
     integer :: iq
 
     if (size(A) > 1) then
-      call thn_QsortCpartition(A,B,iq)
-      call thn_QsortC(A(:iq-1),B(:iq-1))
-      call thn_QsortC(A(iq:),B(iq:))
+      call thn_QsortIntpartition(A,B,iq)
+      call thn_QsortInt(A(:iq-1),B(:iq-1))
+      call thn_QsortInt(A(iq:),B(iq:))
     endif
 
-  end subroutine thn_QsortC
+  end subroutine thn_QsortInt
 
   !--------------------------------------------------------------------------
-  ! thn_QsortCpartition
+  ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
-  subroutine thn_QsortCpartition(A,B,marker)
+  subroutine thn_QsortIntpartition(A,B,marker)
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -1311,16 +1490,81 @@ contains
         tmpi = B(i)
         B(i) = B(j)
         B(j) = tmpi
-      elseif (i == j) then
+      else if (i == j) then
         marker = i+1
         return
       else
         marker = i
         return
-      endif
+      end if
     end do
 
-  end subroutine thn_QsortCpartition
+  end subroutine thn_QsortIntpartition
+
+  !--------------------------------------------------------------------------
+  ! thn_QsortReal8
+  !--------------------------------------------------------------------------
+  recursive subroutine thn_QsortReal8(A,B)
+    implicit none
+
+    real(8), intent(inout) :: A(:)
+    integer, intent(inout) :: B(:)
+    integer :: iq
+
+    if (size(A) > 1) then
+      call thn_QsortReal8partition(A,B,iq)
+      call thn_QsortReal8(A(:iq-1),B(:iq-1))
+      call thn_QsortReal8(A(iq:),B(iq:))
+    endif
+
+  end subroutine thn_QsortReal8
+
+  !--------------------------------------------------------------------------
+  ! thn_QsortReal8partition
+  !--------------------------------------------------------------------------
+  subroutine thn_QsortReal8partition(A,B,marker)
+    implicit none
+
+    real(8), intent(inout) :: A(:)
+    integer, intent(inout) :: B(:)
+    integer, intent(out) :: marker
+    integer :: i, j, tmpi
+    real(8) :: temp
+    real(8) :: x      ! pivot point
+
+    x = A(1)
+    i= 0
+    j= size(A) + 1
+
+    do
+      j = j-1
+      do
+        if (A(j) <= x) exit
+        j = j-1
+      end do
+      i = i+1
+      do
+        if (A(i) >= x) exit
+        i = i+1
+      end do
+      if (i < j) then
+        ! exchange A(i) and A(j)
+        temp = A(i)
+        A(i) = A(j)
+        A(j) = temp
+        tmpi = B(i)
+        B(i) = B(j)
+        B(j) = tmpi
+      else if (i == j) then
+        marker = i+1
+        return
+      else
+        marker = i
+        return
+      end if
+    end do
+
+  end subroutine thn_QsortReal8partition
 
   !--------------------------------------------------------------------------
   ! thn_distanceArc
