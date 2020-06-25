@@ -16,11 +16,15 @@ jobid=${2}
 host=${3}
 sleep_interval=${4:-5}
 
+echo
+printf "\tWaiting for job '${jobid}' on host '${host}' with job '${jobname}' to finish\n"
+printf "\t...\n"
+
 while true; do
     status=0
     jobchk -c ${host} ${jobid} || status=$?
     if [ "${status}" -ne 0 ]; then
-        echo "The job '${jobid}' on host '${host}' with job '${jobname}' has finished."
+        printf "\tThe job '${jobid}' on host '${host}' with job '${jobname}' has finished.\n"
         listing=$(/bin/ls -t ${jobname}.${host}-*-$(hostname)-*.out | head -1)
         if [ -f "${listing}" ]; then
             echo "======================================"
