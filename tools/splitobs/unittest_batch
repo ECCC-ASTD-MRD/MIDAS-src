@@ -23,6 +23,8 @@ set -x
 
 HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-${TRUE_HOST}}
 
+toplevel=$(git rev-parse --show-toplevel)
+
 for test2run in ${TESTS2RUN}; do
     statusfile=${PWD}/status_${CI_BUILD_ID}
     cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
@@ -56,9 +58,10 @@ EOF
     jobid=$(ord_soumet ${TMPDIR}/splitobs_unittest_${test2run} -jn ${jobname} -mach ${HOST_TO_SUBMIT} -m 32G -w 240 -listing ${PWD} -cpus ${CPUS:-1})
     rm ${TMPDIR}/splitobs_unittest_${test2run}
 
-    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
+    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${HOST_TO_SUBMIT}
 
     if [ -f "${statusfile}" ]; then
+        rm ${statusfile}
         echo "Some test did abort!"
         exit 1
     else
