@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 set -e
 
@@ -11,7 +11,7 @@ else
 fi
 
 if [ "${TESTS2RUN}" != burp -a "${TESTS2RUN}" != rdb -a "${TESTS2RUN}" != all ]; then
-    echo "L'argument au script $0 ne peut etre que 'burp', 'rdb' ou 'all'"
+    echo "tools/splitobs/unittest_batch: L'argument au script $0 ne peut etre que 'burp', 'rdb' ou 'all'"
     exit 1
 fi
 
@@ -21,15 +21,17 @@ fi
 
 set -x
 
-HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-eccc-ppp4}
+HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-${TRUE_HOST}}
 
 for test2run in ${TESTS2RUN}; do
     cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
-#!/bin/ksh
+#!/bin/bash
+
+set -ex
 
 cd ${PWD}
 
-export WORKDIR=${HOME}/data/${HOST_TO_SUBMIT}/splitobs/work\$\$.\$(date +%Y%m%d%H%M%S%N)
+export WORKDIR=${WORKDIR:-${HOME}/data/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID}.\$(date +%Y%m%d%H%M%S%N)}
 export VERSION=$(git describe --dirty --always --tags || true)
 
 if [ -n "${SPLITOBS}" ]; then
@@ -46,7 +48,9 @@ EOF
     cat ${TMPDIR}/splitobs_unittest_${test2run}
     chmod +x ${TMPDIR}/splitobs_unittest_${test2run}
 
-    ord_soumet ${TMPDIR}/splitobs_unittest_${test2run} -mach ${HOST_TO_SUBMIT} -m 32G -w 240 -listing ${PWD} -cpus ${CPUS:-1}
+    jobname=splitobs_unittest_${test2run}
+    jobid=$(ord_soumet ${TMPDIR}/splitobs_unittest_${test2run} -jn ${jobname} -mach ${HOST_TO_SUBMIT} -m 32G -w 240 -listing ${PWD} -cpus ${CPUS:-1})
+    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
 
     rm ${TMPDIR}/splitobs_unittest_${test2run}
 done
