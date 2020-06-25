@@ -25,6 +25,8 @@ HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-${TRUE_HOST}}
 
 toplevel=$(git rev-parse --show-toplevel)
 
+SET_MX="set -ex"
+
 for test2run in ${TESTS2RUN}; do
     statusfile=${PWD}/status_${CI_BUILD_ID}
     cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
