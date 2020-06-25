@@ -156,9 +156,8 @@ contains
     real(8) :: heightMin     ! niveau a partir du quel on accepte les donnees
     real(8) :: heightMax     ! niveau a partir du quel on rejette les donnees
     real(8) :: heightSpacing ! epaisseur minimale entre deux niveaux
-    integer :: numLevSkip    ! skip this number of levels closest to surface
 
-    namelist /thin_gpsro/heightMin, heightMax, heightSpacing, numLevSkip
+    namelist /thin_gpsro/heightMin, heightMax, heightSpacing
 
     ! return if no gb-gps obs
     if (.not. obs_famExist(obsdat,'RO')) return
@@ -167,7 +166,6 @@ contains
     heightMin     = 1000.0d0
     heightMax     = 40000.0d0
     heightSpacing = 750.0d0
-    numLevSkip    = 4
 
     ! Read the namelist for GpsRo observations (if it exists)
     if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
@@ -185,7 +183,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
-    call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, numLevSkip)
+    call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing)
 
   end subroutine thn_thinGpsRo
 
@@ -505,7 +503,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_gpsroVertical
   !--------------------------------------------------------------------------
-  subroutine thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, numLevSkip)
+  subroutine thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing)
     !
     ! :Purpose: Original method for thinning GPSRO data by vertical distance.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -517,7 +515,6 @@ contains
     real(8),          intent(in)    :: heightMin
     real(8),          intent(in)    :: heightMax
     real(8),          intent(in)    :: heightSpacing
-    integer,          intent(in)    :: numLevSkip
 
     ! Local parameters:
     integer, parameter :: gpsroVarNo = BUFR_NERF
@@ -598,16 +595,12 @@ contains
       nextHeightMin = heightMin
       LEVELS: do levIndex = 1, numLev
         
-        if ( levIndex <= numLevSkip ) then
-          rejectObs = .true.
+        if ( obsPressures(levIndex) >= nextHeightMin .and. &
+             obsPressures(levIndex) < heightMax ) then
+          nextHeightMin = obsPressures(levIndex) + heightSpacing
+          rejectObs = .false.
         else
-          if ( obsPressures(levIndex) >= nextHeightMin .and. &
-               obsPressures(levIndex) < heightMax ) then
-            nextHeightMin = obsPressures(levIndex) + heightSpacing
-            rejectObs = .false.
-          else
-            rejectObs = .true.
-          end if
+          rejectObs = .true.
         end if
 
         if (rejectObs) then

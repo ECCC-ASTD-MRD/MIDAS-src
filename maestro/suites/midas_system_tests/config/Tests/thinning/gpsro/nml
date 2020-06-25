@@ -2,7 +2,6 @@
    heightMin     = 0.0d0
    heightMax     = 40000.0d0
    heightSpacing = 830.0d0
-   numLevskip    = 4
 /
  &NAMTIME
    DSTEPOBS = 0.25d0
