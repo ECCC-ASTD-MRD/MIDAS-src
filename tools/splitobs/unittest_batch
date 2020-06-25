@@ -46,6 +46,7 @@ fi
 echo test2run=${test2run}
 ./unittest ${test2run}
 
+rm -r \${WORKDIR}
 rm ${statusfile}
 EOF
 
