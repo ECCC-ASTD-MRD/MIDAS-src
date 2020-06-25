@@ -81,35 +81,8 @@ if [ "${status}" -ne 0 ]; then
     exit 1
 fi
 
-function is_compilation_done {
-    set -e
-    __is_compilation_done_host__=${1}
-
-    if [ "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_SUPER}" -o "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_PPP}" ]; then
-        # the jobname is cut with 15 characters by 'jobst'
-        jobstname=$(echo ${jobname} | cut -c-15)
-    else
-        jobstname=${jobname}
-    fi
-
-    while true; do
-        status=0
-        ## jobst -c ${__is_compilation_done_host__} | grep ${USER} | grep "${jobstname}" || status=1
-        jobchk -c ${__is_compilation_done_host__} ${jobid} || status=$?
-        if [ "${status}" -ne 0 ]; then
-            echo "The compilation on __is_compilation_done_host__ '${__is_compilation_done_host__}' with job '${jobname}' has finished."
-            listing=$(/bin/ls -t ${jobname}.${__is_compilation_done_host__}-*-$(hostname)-*.out | head -1)
-            cat ${listing}
-            rm ${listing}
-            break
-        fi
-        sleep 5
-    done
-    unset __is_compilation_done_host__
-}
-
 for host in ${COMPILING_MACHINE_PPP}; do
-    is_compilation_done ${host}
+    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
 done
 
 status=0
