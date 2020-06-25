@@ -49,15 +49,14 @@ monitor_tests:
    tags:
      - hpcr-u1
 
-splitobs_build:
-   stage: build
-   script:
-     - cd tools/splitobs
-     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
-   only:
-     - 362-incorporate-splitobs-in-midas-code-base
-   tags:
-     - hpcr-u1
+## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
+## splitobs_build:
+##    stage: build
+##    script:
+##      - cd tools/splitobs
+##      - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+##    tags:
+##      - hpcr-u1
 
 splitobs_burp_tests:
    stage: test
@@ -67,7 +66,6 @@ splitobs_burp_tests:
      - ./unittest_batch burp
    only:
      - tags
-     - 362-incorporate-splitobs-in-midas-code-base
    tags:
      - hpcr-u1
 
@@ -79,7 +77,6 @@ splitobs_rdb_tests:
      - ./unittest_batch rdb
    only:
      - tags
-     - 362-incorporate-splitobs-in-midas-code-base
    tags:
      - hpcr-u1
 
