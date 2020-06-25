@@ -42,7 +42,7 @@ export AFSISIO=${AFSISIO:-/home/smco502/env_${ORDENV_PLAT}}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
-SPLITOBS="time ${SPLITOBS}"
+#SPLITOBS="time ${SPLITOBS}"
 
 [ -d "${WORKDIR}" ] && rm -rf ${WORKDIR}
 mkdir -p ${WORKDIR}

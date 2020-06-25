@@ -54,7 +54,7 @@ monitor_tests:
 ##    stage: build
 ##    script:
 ##      - cd tools/splitobs
-##      - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+##      - make install PGM=$MIDAS_ABS/midas.splitobs_$(../../midas.version.sh).Abs
 ##    tags:
 ##      - hpcr-u1
 
@@ -62,7 +62,7 @@ splitobs_burp_tests:
    stage: test
    script:
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_$(../../midas.version.sh).Abs
      - ./unittest_batch burp
    only:
      - tags
@@ -73,7 +73,7 @@ splitobs_rdb_tests:
    stage: test
    script:
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_$(../../midas.version.sh).Abs
      - ./unittest_batch rdb
    only:
      - tags
