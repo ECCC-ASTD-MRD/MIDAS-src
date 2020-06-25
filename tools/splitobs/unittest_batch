@@ -36,7 +36,7 @@ set -ex
 
 cd ${PWD}
 
-export WORKDIR=${WORKDIR:-${HOME}/data/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID}.\$(date +%Y%m%d%H%M%S%N)}
+export WORKDIR=${WORKDIR:-${HOME}/data_maestro/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID}.\$(date +%Y%m%d%H%M%S%N)}
 export VERSION=$(git describe --dirty --always --tags || true)
 
 if [ -n "${SPLITOBS}" ]; then
