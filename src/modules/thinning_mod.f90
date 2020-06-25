@@ -525,7 +525,7 @@ contains
     real(8) :: nextHeightMin
     logical :: rejectObs
     integer, allocatable :: bodyIndexList(:)
-    real(8), allocatable :: obsPressures(:)
+    real(8), allocatable :: obsHeights(:)
 
     write(*,*)
     write(*,*) 'thn_gpsroVertical: Starting'
@@ -569,7 +569,7 @@ contains
 
       end do BODY1
 
-      allocate(obsPressures(numLev))
+      allocate(obsHeights(numLev))
       allocate(bodyIndexList(numLev))
 
       ! extract altitudes for this profile
@@ -583,21 +583,21 @@ contains
         if (obsVarNo /= gpsroVarNo) cycle BODY2
 
         levIndex = levIndex + 1
-        obsPressures(levIndex) = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+        obsHeights(levIndex) = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
         bodyIndexList(levIndex) = bodyIndex
 
       end do BODY2
 
       ! ensure altitudes are in ascending order
-      call thn_QsortReal8(obsPressures,bodyIndexList)
+      call thn_QsortReal8(obsHeights,bodyIndexList)
 
       ! apply vertical thinning
       nextHeightMin = heightMin
       LEVELS: do levIndex = 1, numLev
         
-        if ( obsPressures(levIndex) >= nextHeightMin .and. &
-             obsPressures(levIndex) < heightMax ) then
-          nextHeightMin = obsPressures(levIndex) + heightSpacing
+        if ( obsHeights(levIndex) >= nextHeightMin .and. &
+             obsHeights(levIndex) < heightMax ) then
+          nextHeightMin = obsHeights(levIndex) + heightSpacing
           rejectObs = .false.
         else
           rejectObs = .true.
@@ -611,7 +611,7 @@ contains
         
       end do LEVELS
 
-      deallocate(obsPressures)
+      deallocate(obsHeights)
       deallocate(bodyIndexList)
 
     end do HEADER1
