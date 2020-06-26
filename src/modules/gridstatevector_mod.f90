@@ -5574,12 +5574,13 @@ module gridStateVector_mod
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
     integer              :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
     integer, parameter   :: maxNumTrials = 100
-    integer              :: ni_file, nj_file, nk_file, dateStamp, varNameIndex
+    integer              :: ni_file, nj_file, nk_file, dateStamp, varNameIndex, numVarNamesToRead
     integer              :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
     character(len=2)     :: fileNumber
     character(len=512)   :: fileName
     logical              :: fileExists, allocHeightSfc
-    character(len=4), pointer :: varNamesToRead(:)
+    character(len=4), pointer     :: varNamesNeeded(:)
+    character(len=4), allocatable :: varNamesToRead(:)
     character(len=4)     :: varNameForDateStampSearch
 
     call tmg_start(150,'gsv_readTrials')
@@ -5590,24 +5591,41 @@ module gridStateVector_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
-    nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, stateVector_trial)
+    ! list of variables needed for trial statevector
+    nullify(varNamesNeeded)
+    call gsv_varNamesList(varNamesNeeded, stateVector_trial)
+    numVarNamesToRead = size(varNamesNeeded)
 
-    varNameForDateStampSearch = ' '
-    do varNameIndex = 1, size(varNamesToRead)
-      select case (trim(varNamesToRead(varNameIndex)))
+    ! count number of variables to actually read
+    do varNameIndex = 1, size(varNamesNeeded)
+      select case (trim(varNamesNeeded(varNameIndex)))
+      case ('Z_T','Z_M','P_T','P_M')
+        ! these are the variables that will not be read
+        numVarNamesToRead = numVarNamesToRead - 1
+      end select
+    end do
+    allocate(varNamesToRead(numVarNamesToRead))
+
+    ! list of variables to actually read
+    numVarNamesToRead = 0
+    do varNameIndex = 1, size(varNamesNeeded)
+      select case (trim(varNamesNeeded(varNameIndex)))
       case ('Z_T','Z_M','P_T','P_M')
         cycle
       case default
-        varNameForDateStampSearch = varNamesToRead(varNameIndex)
-        exit
+        numVarNamesToRead = numVarNamesToRead + 1
+        varNamesToRead(numVarNamesToRead) = varNamesNeeded(varNameIndex)
       end select
     end do
+    
+    varNameForDateStampSearch = varNamesToRead(1)
+    write(*,*) 'varNamesToRead:',varNamesToRead(:)
 
     ! warn if not enough mpi tasks
     if ( mpi_nprocs < stateVector_trial%numStep ) then
       write(*,*) 'gsv_readTrials: number of trial time steps, mpi tasks = ', stateVector_trial%numStep, mpi_nprocs
-      write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should be at least as large as number of trial time steps'
+      write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should '
+      write(*,*) '                be at least as large as number of trial time steps'
     end if
 
     allocHeightSfc = stateVector_trial%heightSfcPresent
@@ -5664,7 +5682,7 @@ module gridStateVector_mod
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                              allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
                              hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree,           &
-                             hExtrapolateDegree_opt=stateVector_trial%hExtrapolateDegree)
+                             hExtrapolateDegree_opt=stateVector_trial%hExtrapolateDegree, beSilent_opt=.false.)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
         end if
@@ -5929,12 +5947,14 @@ module gridStateVector_mod
     integer :: displs(mpi_nprocs), nsizes(mpi_nprocs)
     integer :: senddispls(mpi_nprocs), sendsizes(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), recvsizes(mpi_nprocs)
-    integer :: kIndex, procIndex, stepIndex, indexBeg, indexEnd
+    integer :: kIndex, kIndexIn, procIndex, stepIndex, indexBeg, indexEnd
     logical :: thisProcIsAsender(mpi_nprocs), allZero, allZero_mpiglobal
+    logical :: varMissing, varMissing_mpiglobal
     real(8), allocatable :: gd_send(:,:,:), gd_recv(:,:)
     real(4), allocatable :: gd_send_r4(:), gd_recv_3d_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
+    character(len=4) :: varName
 
     call rpn_comm_barrier('GRID',ierr)
 
@@ -6007,10 +6027,25 @@ module gridStateVector_mod
 
     kIndex_Loop: do kIndex = 1, stateVector_tiles%nk
 
+      ! check if the output variable exists in the input statevector
+      if ( stateVector_1step_r4%allocated ) then
+        varName = gsv_getVarnameFromK(stateVector_tiles,kIndex)
+        varMissing = .not. gsv_varExist(stateVector_1step_r4,varName)
+      else
+        varMissing = .true.
+      end if
+      call rpn_comm_allReduce(varMissing,varMissing_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+      if (varMissing_mpiglobal) cycle kIndex_Loop
+
+      if ( stateVector_1step_r4%allocated ) then
+        kIndexIn = gsv_getOffsetFromVarName(statevector_1step_r4,varName) + &
+                   gsv_getLevFromK(stateVector_tiles,kIndex)
+      end if
+write(*,*) 'kIndex = ', kIndex, kIndexIn
       ! determine if there is data to send for this kIndex
       if ( stateVector_1step_r4%allocated ) then
         call gsv_getField(stateVector_1step_r4,field_in_r4)
-        allZero = (maxval(abs(field_in_r4(:, :, kIndex, 1))) == 0.0D0)
+        allZero = (maxval(abs(field_in_r4(:, :, kIndexIn, 1))) == 0.0D0)
       else
         allZero = .true.
       end if
@@ -6033,7 +6068,7 @@ module gridStateVector_mod
             gd_send_r4(indexBeg:indexEnd) =  &
                  reshape( field_in_r4(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                                       stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                      kIndex, 1), (/ nsize /) )
+                                      kIndexIn, 1), (/ nsize /) )
           end do
         end do
         !$OMP END PARALLEL DO

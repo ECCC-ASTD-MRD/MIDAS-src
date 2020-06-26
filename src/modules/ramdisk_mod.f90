@@ -86,7 +86,6 @@ contains
     logical            :: fileExists, noAbort, copyToRamDisk
     character(len=256) :: fileName2, subDirectory
     integer            :: status
-    integer(8)         :: fileSize ! we use 8 byte integer to manage big file sizes
 
     if ( .not. initialized ) then
       call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
@@ -165,9 +164,7 @@ contains
           status = copyFile(trim(fileName2), trim(ram_disk_dir) // '/' // trim(fileName2))
 
           fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
-          fileSize = clib_size(trim(fullWorkingPath))
           write(*,*) 'ram_fullWorkingPath: file copied to ramdisk: ', trim(fullWorkingPath)
-          write(*,*) 'ram_fullWorkingPath: size of copied file = ', fileSize
         else
           fullWorkingPath = trim(fileName2)
           write(*,*) 'ram_fullWorkingPath: file left on disk, as requested: ', trim(fullWorkingPath)
