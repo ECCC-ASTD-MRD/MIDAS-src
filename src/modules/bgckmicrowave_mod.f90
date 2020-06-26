@@ -1037,13 +1037,13 @@ contains
           ! obs over sea-ice will be rejected in test 15.
           if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(nChannelIndex,KNOSAT) /= 0 &
                 .and. surfTypeIsWater ) then
-            clwThresh1 = clwThreshArr(nChannelIndex,KNOSAT,1)
-            clwThresh2 = clwThreshArr(nChannelIndex,KNOSAT,2)
-            sigmaThresh1 = sigmaObsErr(nChannelIndex,KNOSAT,1)
-            sigmaThresh2 = sigmaObsErr(nChannelIndex,KNOSAT,2)
+            clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
+            clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
+            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
+            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
             sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
           else
-            sigmaObsErrUsed = TOVERRST(nChannelIndex,KNOSAT)
+            sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
           end if
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
@@ -2722,6 +2722,7 @@ contains
         tovErrorIn(jpnchanIndex,2,jpnsatIndex) = 0.0
         IUTILST (jpnchanIndex,jpnsatIndex) = 0
         tovErrorStatus(jpnchanIndex,jpnsatIndex) = 0.0
+        TOVERRST(jpnchanIndex,jpnsatIndex) = 0.0
       end do
     end do
 
@@ -2791,8 +2792,10 @@ contains
       end do
       read (iunStat,*,ERR=900)
     end do
-
+510  CONTINUE
     ! 6. Print error stats for assimilated channels
+
+600  CONTINUE
 
     write(*,'(//5X,"Total errors for TOVS data"/)') 
     do jpnsatIndex = 1, satNumber
@@ -2816,8 +2819,9 @@ contains
     end do
      
     ! 7. Close the file
-
-   ! read in the parameters to define the user-defined symmetric obs errors
+700  CONTINUE
+    ISTAT = FCLOS (iunStat)
+    ! read in the parameters to define the user-defined symmetric obs errors
     if ( mwbg_allowStateDepSigmaObs ) then
       IER = FNOM(ILUTOV,'stats_amsua_assim_symmetricObsErr','SEQ+FMT',0)
 

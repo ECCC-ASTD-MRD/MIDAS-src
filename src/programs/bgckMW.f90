@@ -369,6 +369,7 @@ program midas_bgckMW
         !###############################################################################
         write(*,*) ' ==> mwbg_tovCheck For: ', instName
         if (instName == 'AMSUA') then
+          write(*,*) 'TOVERRST = ', TOVERRST
           call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                IUTILST, satIdentifier, landQualifierIndice,&
                               satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
