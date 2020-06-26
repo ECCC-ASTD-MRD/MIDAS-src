@@ -295,6 +295,10 @@ program midas_bgckMW
   call tvs_setupAlloc(obsSpaceData)
 
   !
+  ! set missing observation to not to assimilate
+  write(*,*) ' mwbg_setMissingObsToNotAssimilated: '
+  call mwbg_setMissingObsToNotAssimilated(obsSpaceData)
+  !
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   !
   call inn_setupBackgroundColumns(trlColumnOnTrlLev, obsSpaceData)
@@ -346,7 +350,6 @@ program midas_bgckMW
                                  obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
                                  obsFlags, reportNumObs,               &
                                  reportNumChannel, obsSpaceData)
-
         !###############################################################################
         ! STEP 1) trouver l'indice du satellite                                        !
         !###############################################################################

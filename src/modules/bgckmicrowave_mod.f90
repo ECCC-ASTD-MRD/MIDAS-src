@@ -53,6 +53,7 @@ module bgckmicrowave_mod
   public :: mwbg_copyObsToObsSpace
   public :: mwbg_readObsFromObsSpace
   public :: mwbg_setGlobalFlagBit
+  public :: mwbg_setMissingObsToNotAssimilated
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
   public :: mwbg_firstQcCheckAtms
@@ -1034,15 +1035,15 @@ contains
         if ( channelval .NE. 20 ) then
           ! using state-dependent obs error only over water.
           ! obs over sea-ice will be rejected in test 15.
-          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(nChannelIndex,channelval) /= 0 &
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(nChannelIndex,KNOSAT) /= 0 &
                 .and. surfTypeIsWater ) then
-            clwThresh1 = clwThreshArr(nChannelIndex,channelval,1)
-            clwThresh2 = clwThreshArr(nChannelIndex,channelval,2)
-            sigmaThresh1 = sigmaObsErr(nChannelIndex,channelval,1)
-            sigmaThresh2 = sigmaObsErr(nChannelIndex,channelval,2)
+            clwThresh1 = clwThreshArr(nChannelIndex,KNOSAT,1)
+            clwThresh2 = clwThreshArr(nChannelIndex,KNOSAT,2)
+            sigmaThresh1 = sigmaObsErr(nChannelIndex,KNOSAT,1)
+            sigmaThresh2 = sigmaObsErr(nChannelIndex,KNOSAT,2)
             sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
           else
-            sigmaObsErrUsed = TOVERRST(nChannelIndex,channelval)
+            sigmaObsErrUsed = TOVERRST(nChannelIndex,KNOSAT)
           end if
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
@@ -2253,7 +2254,7 @@ contains
         ! Create the block  Omp 9322
         ! 2- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
         write(*,*)'copy data bloc in blk_copy'
-        blk_copy = .clear.blk
+        !blk_copy = .clear.blk
         !-------------------------------------------------------------------------------------------------------
         ! Continue modification for Data Block
         write(*,*)'write ztb values'
@@ -2263,19 +2264,18 @@ contains
         write(*,*)'Modify bktyp and write'
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .true.)        
         !-------------------------------------------------------------------------------------------------------
+        blk_copy = .clear.blk
         ! back to Omp 9322
         ! 1- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
         write(*,*)'copy data bloc in blk_copy'
-        blk_copy = .clear.blk
         ! 2- Create the block 9322 from the new copied block
         call BURP_Set_Property(blk_copy,btyp=9322, bfam= 14, iostat=error)
         ! 3- copy channels and omp data into the new block
         call copyRealElementToBurpBlock(blk_copy, 12163, ompTb, "omp_Tb", my_nval, my_nt)
-        !call BURP_Convert_Block(blk_copy)
+        call BURP_Convert_Block(blk_copy)
         call copyIntegerElementToBurpBlock(blk_copy, eleChannel, obsChannels, "Channel_Number", my_nval, my_nt)
-        !call BURP_Convert_Block(blk_copy)
         ! 4- Modify bktyp and copy block to report
-        call modifyBurpBktypAndWriteReport(reportOut, blk_copy, my_bktyp+4, .true.)
+        call modifyBurpBktypAndWriteReport(reportOut, blk_copy, my_bktyp+4, .false.)
 
 
       ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
@@ -5737,6 +5737,33 @@ contains
 
   end subroutine mwbg_setGlobalFlagBit
     
+  !--------------------------------------------------------------------------
+  !  mwbg_setMissingObsToNotAssimilated
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_setMissingObsToNotAssimilated(obsSpaceData)
+    !:Purpose:        to set obs_ASS to not assimilated if obs is missing
+    implicit None
+
+    !Arguments
+    type(struct_obs),  intent(inout)  :: obsSpaceData         ! obspaceData Object
+
+    !local
+    integer                           :: bodyIndex
+
+    call obs_set_current_body_list(obsSpaceData) 
+    BODY: do 
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if ( bodyIndex < 0 ) exit BODY
+      if ( obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) == mwbg_realMissing) then
+        call obs_bodySet_r(obsSpaceData, OBS_VAR,bodyIndex, mpc_missingValue_r8)
+        call obs_bodySet_r(obsSpaceData, OBS_BCOR,bodyIndex, mpc_missingValue_r8)
+        call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+      end if 
+    end do BODY
+
+  end subroutine mwbg_setMissingObsToNotAssimilated
+    
    
 
   !--------------------------------------------------------------------------
@@ -5837,6 +5864,11 @@ contains
         obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
         ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
         obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
+        if(obsTb(bodyCompt) == MPC_missingValue_r8) then
+          obsTb(bodyCompt)         = mwbg_realMissing
+          ompTb(bodyCompt)         = mwbg_realMissing
+          obsTbBiasCorr(bodyCompt) = mwbg_realMissing
+        end if 
         obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
         obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
         obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
