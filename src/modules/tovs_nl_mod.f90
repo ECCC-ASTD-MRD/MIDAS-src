@@ -2207,6 +2207,8 @@ contains
     real(8), allocatable  :: surfem1(:)
     real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     integer              :: profileIndex2, tb1, tb2
+    integer :: istart, iend, bodyIndex, headerIndex
+    real(8) :: clearMwRaadiance
 
     if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2442,12 +2444,65 @@ contains
 
       else
 
+        ! run clear-sky RTTOV for AMSUA observation if there is at least one over ocean
+        if ( tvs_numMWInstrumUsingCLW /= 0        .and. &
+            tvs_opts(sensorId) % rt_mw % clw_data .and. &
+            any(tvs_profiles_nl(sensorTovsIndexes(1:profileCount)) % skin % surftype == surftype_sea) ) then
+
+          ! set the cloud profile in tvs_profiles_nl to zero
+          call updateCloudInTovsProfile(                            &
+                sensorTovsIndexes(1:profileCount),                  &
+                nRttovLevels,                                       &
+                mode='save',                                        &
+                beSilent=.true.)
+
+          ! run clear-sky RTTOV
+          call rttov_parallel_direct(                               &
+               rttov_err_stat,                                      & ! out
+               chanprof,                                            & ! in
+               tvs_opts(sensorId),                                  & ! in
+               tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
+               tvs_coefs(sensorId),                                 & ! in
+               transmission,                                        & ! inout
+               radiancedata_d,                                      & ! inout
+               calcemis=calcemis,                                   & ! in
+               emissivity=emissivity_local,                         & ! inout
+               nthreads=nthreads      )   
+
+          ! save the clear-sky radiances in obsSpaceData
+          do btIndex = 1, btCount
+            profileIndex = chanprof(btIndex)%prof
+            channelIndex = chanprof(btIndex)%chan
+            tovsIndex = sensorTovsIndexes(profileIndex)
+
+            clearMwRaadiance = radiancedata_d % bt(btIndex)
+
+            headerIndex = tvs_headerIndex(tovsIndex)
+            if ( headerIndex > 0 ) then
+              istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+              iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+              do bodyIndex = istart, iend
+                if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
+                  call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRaadiance)
+              end do
+            end if
+          end do
+
+          ! restore the cloud profiles in tvs_profiles_nl
+          call updateCloudInTovsProfile(                          &
+                sensorTovsIndexes(1:profileCount),                &
+                nRttovLevels,                                     &
+                mode='restore',                                   &
+                beSilent=.true.)
+
+        end if
+
         if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
-        
-        call rttov_parallel_direct(                            &
-             rttov_err_stat,                                   & ! out
-             chanprof,                                         & ! in
-             tvs_opts(sensorId),                               & ! in
+
+        call rttov_parallel_direct(                               &
+             rttov_err_stat,                                      & ! out
+             chanprof,                                            & ! in
+             tvs_opts(sensorId),                                  & ! in
              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
              tvs_coefs(sensorId),                              & ! in
              transmission,                                     & ! inout
@@ -4481,5 +4536,46 @@ contains
     end if
 
   end subroutine tvs_getLocalChannelIndexFromChannelNumber
+
+
+  subroutine updateCloudInTovsProfile(sensorTovsIndexes, nRttovLevels, mode, beSilent)
+    !
+    ! :Purpose: Modify the cloud in tovs_profile structure.
+    !
+    implicit none
+    
+    ! Arguments:
+    integer,      intent(in) :: sensorTovsIndexes(:)
+    integer,      intent(in) :: nRttovLevels
+    character(*), intent(in) :: mode         ! save or restore
+    logical,      intent(in) :: beSilent     ! flag to control verbosity
+
+    ! Locals:
+    integer :: profileIndex, profileCount 
+    real(8), allocatable, save :: cloudProfileToStore(:,:)
+
+    if ( .not. beSilent ) write(*,*) "Entering updateCloudInTovsProfile"
+    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    profileCount = size(sensorTovsIndexes)
+
+    if ( trim(mode) == 'save' ) then 
+      allocate(cloudProfileToStore(nRttovLevels,profileCount))
+
+      do profileIndex = 1, profileCount
+        cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = minClwValue 
+      end do
+
+    else if ( trim(mode) == 'restore' ) then 
+      do profileIndex = 1, profileCount
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = cloudProfileToStore(:,profileIndex)
+      end do
+
+      deallocate(cloudProfileToStore)
+
+    end if
+
+  end subroutine updateCloudInTovsProfile
 
 end module tovs_nl_mod
