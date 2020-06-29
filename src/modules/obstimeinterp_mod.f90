@@ -35,7 +35,7 @@ module obsTimeInterp_mod
   public :: struct_oti
 
   ! public procedures
-  public :: oti_setup, oti_initialized, oti_deallocate
+  public :: oti_setup, oti_deallocate
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal
   public :: oti_timeInterpWeightAllZero
@@ -43,25 +43,11 @@ module obsTimeInterp_mod
   type struct_oti
     real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for temporal interpolation to obs times
     real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
-    logical          :: initialized = .false.
   end type struct_oti
 
   integer, external :: get_max_rss
 
 contains
-
-  function oti_initialized( oti ) result( initialized_out )
-    !
-    implicit none
-  
-    ! Arguments:
-    type(struct_oti), pointer :: oti
-    logical                   :: initialized_out
-
-    initialized_out = oti%initialized
-
-  end function oti_initialized
-
 
   subroutine oti_timeBinning( obsSpaceData, nstepobs )
     !
@@ -179,7 +165,8 @@ contains
   end subroutine oti_timeBinning
 
 
-  subroutine oti_setup( oti, obsSpaceData, numStep, interpType_opt, flagObsOutside_opt )
+  subroutine oti_setup( oti, obsSpaceData, numStep, headerIndexBeg, headerIndexEnd, &
+                        interpType_opt, flagObsOutside_opt )
     !
     implicit none
 
@@ -187,10 +174,12 @@ contains
     type(struct_oti), pointer  :: oti
     type(struct_obs)           :: obsSpaceData
     integer                    :: numStep
+    integer                    :: headerIndexBeg
+    integer                    :: headerIndexEnd
     character(len=*), optional :: interpType_opt
     logical, optional          :: flagObsOutside_opt
 
-    ! locals
+    ! Locals:
     integer           :: headerIndex
     real(8)           :: stepObsIndex
 
@@ -207,9 +196,9 @@ contains
     end if
 
     if ( trim(interpType_opt) == 'LINEAR' .and. tim_fullyUseExtremeTimeBins) then
-      call utl_abort('oti_setup: LINEAR time interpolation is not compatible with tim_fullyUseExtremeTimeBins==.true.')
+      call utl_abort('oti_setup: LINEAR time interpolation is not compatible with ' // &
+                     'tim_fullyUseExtremeTimeBins==.true.')
     end if
-
 
     if (mpi_myid == 0) write(*,*) ' '
     if (mpi_myid == 0) write(*,*) '-------- Entering oti_setup ---------'
@@ -217,11 +206,10 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
 
-    if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
-    allocate(oti%timeInterpWeight(obs_numHeader(obsSpaceData),numStep))
+    allocate(oti%timeInterpWeight(headerIndexBeg:headerIndexEnd,numStep))
     oti%timeInterpWeight(:,:) = 0.0d0
 
-    do headerIndex = 1, obs_numHeader(obsSpaceData)
+    do headerIndex = headerIndexBeg, headerIndexEnd
 
       ! building floating point step index
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
@@ -256,10 +244,8 @@ contains
 
     end do
 
-    oti%initialized = .true.
-
     if ( present(flagObsOutside_opt) ) then
-      if (flagObsOutside_opt) call oti_flagObsOutsideWindow(oti, obsSpaceData)
+      if (flagObsOutside_opt) call oti_flagObsOutsideWindow(oti, obsSpaceData, headerIndexBeg, headerIndexEnd)
     end if
 
     ! also setup MPI global version of weights, needed for s2c_nl
@@ -280,7 +266,7 @@ contains
 
     if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
     if (associated(oti%timeInterpWeightMpiGlobal)) deallocate(oti%timeInterpWeightMpiGlobal)
-    oti%initialized = .false.
+    if (associated(oti)) deallocate(oti)
     nullify(oti)
 
   end subroutine oti_deallocate
@@ -303,7 +289,7 @@ contains
 
     numHeader = size(oti%timeInterpWeight,1)
     numStep = size(oti%timeInterpWeight,2)
-    write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader ; call flush(6)
+    write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader, numStep
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
@@ -314,7 +300,7 @@ contains
     ! copy over timeInterpWeight into a local array with same size for all mpi tasks
     allocate(timeInterpWeightMax(numHeaderMax,numStep))
     timeInterpWeightMax(:,:) = 0.0d0
-    timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(1:numHeader,1:numStep)
+    timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
     nsize = numHeaderMax * numStep 
     call rpn_comm_allgather(timeInterpWeightMax,           nsize, 'MPI_REAL8',  &
@@ -392,13 +378,15 @@ contains
   end function oti_timeInterpWeightAllZero
 
 
-  subroutine oti_flagObsOutsideWindow( oti, obsSpaceData )
+  subroutine oti_flagObsOutsideWindow( oti, obsSpaceData, headerIndexBeg, headerIndexEnd )
     !
     implicit none
 
     ! Arguments
     type(struct_oti), pointer :: oti
     type(struct_obs)          :: obsSpaceData
+    integer                   :: headerIndexBeg
+    integer                   :: headerIndexEnd
 
     ! locals
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
@@ -407,7 +395,7 @@ contains
       call utl_abort('oti_flagObsOutsideWindow: oti_setup must first be called')
     end if
 
-    do headerIndex = 1, obs_numheader(obsSpaceData)
+    do headerIndex = headerIndexBeg, headerIndexEnd
 
       if ( oti_timeInterpWeightAllZero(oti, headerIndex) ) then
         ! obs is outside of assimilation window
