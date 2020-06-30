@@ -870,7 +870,7 @@ contains
       do procIndex = 1, mpi_nprocs
         do kIndex = mykBeg, statevector%mykEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
-            do subGridIndex = 1, 2
+            do subGridIndex = 1, interpInfo%hco%numSubGrid
               if ( interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) /= -1 ) then
                 interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,kIndex) = numGridptTotal + 1
                 numGridptTotal = numGridptTotal + interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex)
@@ -1418,7 +1418,7 @@ contains
   ! s2c_nl
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
-                     dealloc_opt, moveObsAtPole_opt )
+                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
     !           the innovation vector).
@@ -1431,6 +1431,7 @@ contains
     type(struct_columnData)    :: column
     character(len=*)           :: timeInterpType
     character(len=*), optional :: varName_opt
+    integer, optional          :: numObsBatches_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
 
@@ -1526,10 +1527,13 @@ contains
     if ( obs_numHeader(obsSpaceData) > 0 ) allCols_ptr(:,:) = 0.0d0
 
     ! determine number of obs batches (to reduce memory usage)
-    if (dealloc) then
-      numObsBatches = 10
+    if (present(numObsBatches_opt)) then
+      numObsBatches = numObsBatches_opt
     else
       numObsBatches = 1
+    end if
+    if (.not. dealloc) then
+      numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
     end if
 
     OBSBATCH: do obsBatchIndex = 1, numObsBatches
