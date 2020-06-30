@@ -93,11 +93,12 @@ program midas_bgckMW
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
   logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
   logical                       :: doTestsAmsua(15)
+  logical                       ::useAveragedClwForQC
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile,
-                    doTestsAmsua 
+                    doTestsAmsua, useAveragedClwForQC 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -131,6 +132,7 @@ program midas_bgckMW
   ETIKRESU              = '>>BGCKALT'
   writeTbValuesToFile   = .false.
   doTestsAmsua(:)       = .true.
+  useAveragedClwForQC   = .false.
 
   ! reading namelist
   nulnam = 0
@@ -147,6 +149,13 @@ program midas_bgckMW
   mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
   mwbg_doTestsAmsua(:) = doTestsAmsua(:)
+  mwbg_useAveragedClwForQC = useAveragedClwForQC
+
+  if ( (      mwbg_allowStateDepSigmaObs .and. .not. mwbg_useAveragedClwForQC) .or. &
+       (.not. mwbg_allowStateDepSigmaObs .and.       mwbg_useAveragedClwForQC) ) then
+    write(*,*) 'Using state-dependant obs and averaged CLW for QC should be compatible and are not.'
+    call abort()
+  end if
 
   ! Initializations of counters (for total reports/locations in the file).
   n_bad_reps = 0

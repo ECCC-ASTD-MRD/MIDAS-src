@@ -48,6 +48,7 @@ module bgckmicrowave_mod
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
+  logical :: mwbg_useAveragedClwForQC 
   integer :: mwbg_maxNumChan
   integer :: mwbg_maxNumSat 
   integer :: mwbg_maxNumTest
@@ -768,7 +769,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, MISGRODY, MXCLWREJ, &
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -783,6 +784,7 @@ contains
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: CLW(KNT)                       ! cloud liquid water 
+    real,        intent(in)               :: clw_avg(KNT)                   ! averaged cloud liquid water 
     real,        intent(in)               :: MISGRODY                       ! MISGRODY
     integer,     intent(in)               :: MXCLWREJ                       ! cst 
     integer,     intent(in)               :: ICLWREJ(MXCLWREJ)              !
@@ -796,11 +798,18 @@ contains
     integer                               :: nChannelIndex
     integer                               :: testIndex
     integer                               :: INDXCAN 
+    real                                  :: clwUsedForQC
 
     testIndex = 12
     do nDataIndex=1,KNT
-      if ( CLW(nDataIndex) .NE.  MISGRODY  ) then
-        if ( CLW(nDataIndex) .GT. mwbg_clwQcThreshold   ) then
+      if ( mwbg_useAveragedClwForQC ) then
+        clwUsedForQC = clw_avg(nDataIndex)
+      else
+        clwUsedForQC = clw(nDataIndex)
+      end if
+
+      if ( clwUsedForQC .NE.  MISGRODY  ) then
+        if ( clwUsedForQC .GT. mwbg_clwQcThreshold   ) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN.NE.0 )  then
@@ -813,19 +822,19 @@ contains
           end do
           if ( mwbg_debug ) then
             write(*,*)STNID(2:9),'Grody cloud liquid water check', &
-                      ' REJECT. CLW= ',CLW(nDataIndex), ' SEUIL= ',mwbg_clwQcThreshold
+                      ' REJECT. CLW= ',clwUsedForQC, ' SEUIL= ',mwbg_clwQcThreshold
           end if
         end if
 
-        ! turn on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
-        if ( mwbg_allowStateDepSigmaObs .and. CLW(nDataIndex) > cloudyClwThreshold ) then
+        ! In all-sky mode, turn on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
+        if ( mwbg_allowStateDepSigmaObs .and. clwUsedForQC > cloudyClwThreshold ) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
           end do
           if ( mwbg_debug ) then
             write(*,*) STNID(2:9),' Grody cloud liquid water check', &
-                      ' cloud-affected obs. CLW= ',CLW(nDataIndex), ', threshold= ',cloudyClwThreshold 
+                      ' cloud-affected obs. CLW= ',clwUsedForQC, ', threshold= ',cloudyClwThreshold 
           end if
         end if
 
@@ -1418,7 +1427,7 @@ contains
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, MISGRODY, MXCLWREJ, &
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
