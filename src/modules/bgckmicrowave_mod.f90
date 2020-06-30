@@ -817,8 +817,8 @@ contains
           end if
         end if
 
-        ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
-        if ( mwbg_allowStateDepSigmaObs .and.  ( CLW(nDataIndex) > cloudyClwThreshold )) then
+        ! turn on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
+        if ( mwbg_allowStateDepSigmaObs .and. CLW(nDataIndex) > cloudyClwThreshold ) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
@@ -952,7 +952,7 @@ contains
         if ( channelval .NE. 20 ) then
           ! using state-dependent obs error only over water.
           ! obs over sea-ice will be rejected in test 15.
-          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(nChannelIndex,KNOSAT) /= 0 &
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(channelval,KNOSAT) /= 0 &
                 .and. surfTypeIsWater ) then
             clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
