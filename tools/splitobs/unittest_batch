@@ -26,7 +26,7 @@ HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-${TRUE_HOST}}
 toplevel=$(git rev-parse --show-toplevel)
 
 for test2run in ${TESTS2RUN}; do
-    statusfile=${PWD}/status_${CI_BUILD_ID}
+    statusfile=${PWD}/status_${CI_BUILD_ID:-${test2run}$$}
     cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
 #!/bin/bash
 
@@ -34,7 +34,7 @@ set -ex
 
 cd ${PWD}
 
-export WORKDIR=${WORKDIR:-${HOME}/data_maestro/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID}.\$(date +%Y%m%d%H%M%S%N)}
+export WORKDIR=${WORKDIR:-${HOME}/data_maestro/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID:-${test2run}$$}.\$(date +%Y%m%d%H%M%S%N)}
 export VERSION=$(git describe --dirty --always --tags || true)
 
 if [ -n "${SPLITOBS}" ]; then

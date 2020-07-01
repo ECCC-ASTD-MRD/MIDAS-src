@@ -12,3 +12,4 @@ version.h
 /splitobs_unittest.*.out
 /abs
 /.nfs*
+/status*
