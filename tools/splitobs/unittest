@@ -667,7 +667,7 @@ test_rdb_resume_schema_SAR () {
     done
 
     [ "${status}" -ne 0 ] && return 1
-    rm sarwinds sarwinds_*_*
+    rm sarwinds_*_*
 
     echo "test_rdb_resume_schema_SAR() ends"
 } ## End of function 'test_rdb_resume_schema_SAR'
