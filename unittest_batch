@@ -1,0 +1,53 @@
+#!/bin/ksh
+
+set -e
+
+if [ $# -eq 1 ]; then
+    TESTS2RUN=$1
+elif [ $# -eq 0 ]; then
+    TESTS2RUN=all
+else
+    TESTS2RUN=error
+fi
+
+if [ "${TESTS2RUN}" != burp -a "${TESTS2RUN}" != rdb -a "${TESTS2RUN}" != all ]; then
+    echo "L'argument au script $0 ne peut etre que 'burp', 'rdb' ou 'all'"
+    exit 1
+fi
+
+if [ "${TESTS2RUN}" = all ]; then
+    TESTS2RUN='burp rdb'
+fi
+
+set -x
+
+HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-eccc-ppp4}
+
+for test2run in ${TESTS2RUN}; do
+    cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
+#!/bin/ksh
+
+cd ${PWD}
+
+export WORKDIR=${HOME}/data/${HOST_TO_SUBMIT}/splitobs/work\$\$.\$(date +%Y%m%d%H%M%S%N)
+export VERSION=$(git describe --dirty --always --tags || true)
+
+if [ -n "${SPLITOBS}" ]; then
+   export SPLITOBS=${SPLITOBS}
+fi
+
+[ -n "${SET_MX}" ] && export SET_MX='${SET_MX}'
+
+echo test2run=${test2run}
+./unittest ${test2run}
+
+EOF
+
+    cat ${TMPDIR}/splitobs_unittest_${test2run}
+    chmod +x ${TMPDIR}/splitobs_unittest_${test2run}
+
+    ord_soumet ${TMPDIR}/splitobs_unittest_${test2run} -mach ${HOST_TO_SUBMIT} -m 32G -w 240 -listing ${PWD} -cpus ${CPUS:-1}
+
+    rm ${TMPDIR}/splitobs_unittest_${test2run}
+done
+
