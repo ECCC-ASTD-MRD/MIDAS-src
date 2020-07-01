@@ -155,7 +155,13 @@ Refer to the [`midas_scripts/README.md`](tools/midas_scripts/README.md) for more
 
 ## `midas.splitobs`
 
-This program is used to split the observations according to the wanted strategy.
+This program is used to split the observations into several files
+according to one of the following strategy:
+ * round-robin
+ * lat-lon tiles of a grid
+
+It can also select the observations that lies in a domain defined by a
+RPN grid.
 
 Refer to the [`splitobs/README.md`](tools/splitobs/README.md) for more details.
 

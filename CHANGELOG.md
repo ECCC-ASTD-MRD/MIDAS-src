@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Incorporated in `tools/splitobs` the program `midas.splitobs` (#362 and !352)
-   * extensive tests can be run with `tools/splitobs/unittest` (see [README`](tools/splitobs/README.md) for more details)
+   * extensive tests can be run with `tools/splitobs/unittest` (see [`README`](tools/splitobs/README.md) for more details)
+   * those tests will be run automatically by the CI system only when a tag is pushed
  * Added the arguments `-analysis`, `-forecast_a` and `-forecast_b` to `tools/midas_scripts/midas.launch` (#369 and !351)
    * The program `midas-obsImpact` needs them.
  * Incorporated in `tools/midas_scripts` all the helper scripts that was before in `oavar_scripts` (#364 and !349)

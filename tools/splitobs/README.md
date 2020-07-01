@@ -1,8 +1,11 @@
-Ce programme permet de sélectionner des observations qui sont dans un
-domaine LAM spécifié par une grille d'un fichier standard RPN.  De
-plus, il permet de splitter des observations pour les séparer en
-petits domaines géographiques réguliers par rapport à une grille
-définie par un champ dans un fichier standard.
+Ce programme permet:
+ * de sélectionner des observations qui sont dans un domaine LAM
+   spécifié par une grille d'un fichier standard RPN,
+ * de splitter des observations pour les séparer en petits domaines
+   géographiques réguliers par rapport à une grille définie par un champ
+   dans un fichier standard ou bien
+ * de séparer les observations en utilisant la technique round-robin
+   pour generer des fichiers d'a peu près la même grosseur.
 
 Les observations peuvent être données dans un fichier BURP ou bien une
 base de données SQLite.
@@ -15,6 +18,12 @@ l'option `-h` ou bien `--help` à l'appel du programme.
 Pour compiler, il suffit de faire:
 ```bash
 make splitobs_${ORDENV_PLAT}
+```
+
+Si vous êtes sur `ORDENV_PLAT=ubuntu-18.04-skylake-64`, vous pouvez
+simplement faire
+```bash
+make
 ```
 
 ## Tests unitaires
@@ -57,5 +66,5 @@ suivante:
 Comme pour `unittest`, on peut spécifier un programme avec la variable
 d'environnement `SPLITOBS` de même qu'une famille de tests avec
 l'argument `burp` ou `rdb`.  Par défaut, on lance les tests sur
-`eccc-ppp4`, mais on peut modifier cela avec la variable
+`${TRUE_HOST}`, mais on peut modifier cela avec la variable
 d'environnement `HOST_TO_SUBMIT`.
