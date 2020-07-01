@@ -1,3 +1,4 @@
 tools/monitor git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git master
 tools/findTrials git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git master
 tools/midas_scripts git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git master
+tools/splitobs git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git master
