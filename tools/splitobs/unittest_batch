@@ -1,0 +1,72 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -eq 1 ]; then
+    TESTS2RUN=$1
+elif [ $# -eq 0 ]; then
+    TESTS2RUN=all
+else
+    TESTS2RUN=error
+fi
+
+if [ "${TESTS2RUN}" != burp -a "${TESTS2RUN}" != rdb -a "${TESTS2RUN}" != all ]; then
+    echo "tools/splitobs/unittest_batch: L'argument au script $0 ne peut etre que 'burp', 'rdb' ou 'all'"
+    exit 1
+fi
+
+if [ "${TESTS2RUN}" = all ]; then
+    TESTS2RUN='burp rdb'
+fi
+
+set -x
+
+HOST_TO_SUBMIT=${HOST_TO_SUBMIT:-${TRUE_HOST}}
+
+toplevel=$(git rev-parse --show-toplevel)
+
+for test2run in ${TESTS2RUN}; do
+    statusfile=${PWD}/status_${CI_BUILD_ID:-${test2run}$$}
+    cat > ${TMPDIR}/splitobs_unittest_${test2run} <<EOF
+#!/bin/bash
+
+set -ex
+
+cd ${PWD}
+
+export WORKDIR=${WORKDIR:-${HOME}/data_maestro/${HOST_TO_SUBMIT}/splitobs/work_${CI_BUILD_ID:-${test2run}$$}.\$(date +%Y%m%d%H%M%S%N)}
+export VERSION=$(git describe --dirty --always --tags || true)
+
+if [ -n "${SPLITOBS}" ]; then
+   export SPLITOBS=${SPLITOBS}
+fi
+
+[ -n "${SET_MX}" ] && export SET_MX='${SET_MX}'
+
+echo test2run=${test2run}
+./unittest ${test2run}
+
+rm -r \${WORKDIR}
+rm ${statusfile}
+EOF
+
+    cat ${TMPDIR}/splitobs_unittest_${test2run}
+    chmod +x ${TMPDIR}/splitobs_unittest_${test2run}
+
+    touch ${statusfile}
+
+    jobname=splitobs_unittest_${test2run}
+    jobid=$(ord_soumet ${TMPDIR}/splitobs_unittest_${test2run} -jn ${jobname} -mach ${HOST_TO_SUBMIT} -m 32G -w 240 -listing ${PWD} -cpus ${CPUS:-1})
+    rm ${TMPDIR}/splitobs_unittest_${test2run}
+
+    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${HOST_TO_SUBMIT}
+
+    if [ -f "${statusfile}" ]; then
+        rm ${statusfile}
+        echo "Some test did abort!"
+        exit 1
+    else
+        echo "All the tests have been successfully run for '${test2run}'"
+    fi
+done
+

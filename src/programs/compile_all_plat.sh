@@ -56,6 +56,13 @@ export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
 cd ${codedir}
 echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
+
+cd ${toplevel}/tools/splitobs
+make
+if [ -n "${MIDAS_ABS}" ]; then
+    make install PGM=${MIDAS_ABS}/midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
+fi
+
 EOF
 
 #pbs_extra1='-Wblock=true'
@@ -66,38 +73,19 @@ set -x
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
 ## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
-cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login
+status=0
+cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
 rm compile_job
 
-function is_compilation_done {
-    set -e
-    __is_compilation_done_host__=${1}
-
-    if [ "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_SUPER}" -o "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_PPP}" ]; then
-        # the jobname is cut with 15 characters by 'jobst'
-        jobstname=$(echo ${jobname} | cut -c-15)
-    else
-        jobstname=${jobname}
-    fi
-
-    while true; do
-        status=0
-        ## jobst -c ${__is_compilation_done_host__} | grep ${USER} | grep "${jobstname}" || status=1
-        jobchk -c ${__is_compilation_done_host__} ${jobid} || status=$?
-        if [ "${status}" -ne 0 ]; then
-            echo "The compilation on __is_compilation_done_host__ '${__is_compilation_done_host__}' with job '${jobname}' has finished."
-            listing=$(/bin/ls -t ${jobname}.${__is_compilation_done_host__}-*-$(hostname)-*.out | head -1)
-            cat ${listing}
-            rm ${listing}
-            break
-        fi
-        sleep 5
-    done
-    unset __is_compilation_done_host__
-}
+## if previous compilation aborted, then kill the compilation job
+if [ "${status}" -ne 0 ]; then
+    jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    echo "Compilation aborted!"
+    exit 1
+fi
 
 for host in ${COMPILING_MACHINE_PPP}; do
-    is_compilation_done ${host}
+    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
 done
 
 status=0

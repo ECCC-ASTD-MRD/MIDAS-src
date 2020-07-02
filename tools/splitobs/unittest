@@ -1,0 +1,1729 @@
+#!/bin/ksh
+
+## Ce script a pour but d'implementer des tests unitaires pour 'splitobs'
+## Pour les executer, il suffit de faire la commande
+##      ./unittest
+## On peut choisir le programme de test avec la commande
+##      export SPLITOBS="Chemin vers un programme splitobs"
+
+set -e
+
+## cd /users/dor/arma/erv/data/ords/programs/bgck.clipobs
+
+if [ $# -eq 1 ]; then
+    TESTS2RUN=$1
+elif [ $# -eq 0 ]; then
+    TESTS2RUN=all
+else
+    TESTS2RUN=error
+fi
+
+if [ "${TESTS2RUN}" != burp -a "${TESTS2RUN}" != rdb -a "${TESTS2RUN}" != all ]; then
+    echo "L'argument au script $0 ne peut etre que 'burp', 'rdb' ou 'all'"
+    exit 1
+fi
+
+VERSION=${VERSION:-$(git describe --dirty)}
+SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
+INPUTS=${INPUTS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/grids}
+
+CMDA_UTILS_SSM_DOMAIN=${CMDA_UTILS_SSM_DOMAIN:-eccc/cmd/cmda/utils/19.5}
+RPN_UTILS_SSM_DOMAIN=${RPN_UTILS_SSM_DOMAIN:-eccc/mrd/rpn/utils/19.5}
+
+DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
+DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
+check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
+
+WORKDIR=${WORKDIR:-${PWD}/work}
+
+export AFSISIO=${AFSISIO:-/home/smco502/env_${ORDENV_PLAT}}
+
+echo "Using SPLITOBS=${SPLITOBS}"
+
+#SPLITOBS="time ${SPLITOBS}"
+
+[ -d "${WORKDIR}" ] && rm -rf ${WORKDIR}
+mkdir -p ${WORKDIR}
+cd ${WORKDIR}
+
+echo "Working directory is ${WORKDIR}"
+
+liburp=${liburp:-$(which liburp || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
+editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+reflex=${reflex:-$(which reflex || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
+burpdiff=${burpdiff:-$(which burpdiff || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
+burp2rdb=${burp2rdb:-$(which burp2rdb || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
+rdbgen=${rdbgen:-$(which rdbgen || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
+sqlite=${sqlite:-$(which d.sqlite || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
+sqlite3=${sqlite3:-$(which sqlite3)}
+fstcomp=${fstcomp:-$(which fstcomp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
+editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+
+#TMPDIR_OLD=${TMPDIR}
+#unset TMPDIR
+
+unittest () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "unittest() begins"
+
+    if [ "${TESTS2RUN}" = burp -o "${TESTS2RUN}" = all ]; then
+	test_burp_regional_standard || return 1
+	test_burp_regional_with_imax_imin_jmax_jmin || return 1
+	test_robustness_for_mrbcvt || return 1
+        ## The clipping should not change the result since we are using a global grid as clipping domain
+	test_burp_identity || return 1
+
+	test_burp_subdomains || return 1
+
+	test_burp_latbands || return 1
+
+	test_burp_round_robin || return 1
+
+        test_burp_cherrypick_roundrobin || return 1
+        test_burp_cherrypick_subdomains || return 1
+    fi
+
+    if [ "${TESTS2RUN}" = rdb -o "${TESTS2RUN}" = all ]; then
+        test_rdb_resume_schema_SAR || return 1
+        test_rdb_resume_schema_AL || return 1
+	test_rdb_dropindex || return 1
+	test_rdb_resume || return 1
+	test_rdb_round_robin || return 1
+	test_rdb_cherrypick_roundrobin || return 1
+	test_rdb_regional_standard || return 1
+	test_rdb_regional_global_with_imax_imin_jmax_jmin || return 1
+        ## The clipping should not change the result since we are using a global grid as clipping domain
+	test_rdb_identity || return 1
+    fi
+
+    test_check_result || return 1
+    test_find_family || return 1
+
+    echo "unittest() ends"
+    return 0
+
+    test_ascii_regional_standard || return 1
+    test_ascii_regional_global_with_imax_imin_jmax_jmin || return 1
+
+    test_burp_vertical_clipping || return 1
+    test_rdb_vertical_clipping || return 1
+    test_ascii_vertical_clipping || return 1
+
+    test_burp_horizontal_vertical || return 1
+    test_rdb_horizontal_vertical || return 1
+    test_ascii_horizontal_vertical || return 1
+
+    echo "unittest() ends"
+} ## End of function 'unittest'
+
+assert() {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    thisunittest=$1
+    shift 
+    
+    if "$@"; then
+	## echo "assert(): assertion passed for test ${thisunittest}"
+	printf "\033[0m\033[01;32massert(): assertion passed for test ${thisunittest}\n\033[0m"
+    else
+	errstr="assert(): assertion failed for test ${thisunittest}: $@"
+	printf "\033[0m\033[01;31m${errstr}\n\033[0m" >&2
+	return 1
+	## die "assert(): assertion failed for test ${thisunittest}: " "$@"
+    fi
+    ## debug "assert(): finished with test ${thisunittest}"
+} ## End of function 'assert'
+
+## Utilitaires pour imprimer des messages
+say() {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    __say_status=${2:-0}
+    echo "$1"
+
+    return ${__say_status}
+}
+
+
+test_run () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    # test 1
+    status=0
+    run 1 2 3 4 5 2> /dev/null || status=1 ## On teste le nombre d'arguments
+    assert "run test1" [ "${status}" -eq 1 ]
+    # test 2
+    status=0
+    run 1 2 3 4 5 6 7 2> /dev/null || status=1 ## On teste le nombre d'arguments
+    assert "run test2" [ "${status}" -eq 1 ]
+    # test3
+    if [ -n "${CACHEDIR}" ]; then
+	OLD_CACHEDIR=${CACHEDIR}
+	unset CACHEDIR
+    fi
+    status=0
+    run 1 2 3 4 5 6 2> /dev/null || status=1 ## On teste si la variable CACHEDIR n'est pas settee
+    assert "run test3" [ "${status}" -eq 1 ]
+    if [ -n "${OLD_CACHEDIR}" ]; then
+	CACHEDIR=${OLD_CACHEDIR}
+	unset OLD_CACHEDIR
+    fi
+    [ "${status}" -ne 0 ] && return 1
+
+    echo "test_run() ended"
+} ## End of function 'test_run'
+
+test_check_result () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_check_result() begins"
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua diff 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP diff (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua cmp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP cmp (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua liburp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP liburp (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua liburp-noresume 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP liburp-noresume (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua burp-SQL 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP burp-SQL (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua SQL 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP SQL (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_ua SQL-ignore_id_obs 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP SQL-ignore_id_obs (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_pr diff 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP diff (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_pr cmp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP cmp (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_pr liburp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP liburp (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_pr liburp-noresume 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP liburp-noresume (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/burp/2011070112_ua ${REFERENCE}/burp/2011070112_pr burp-SQL 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP burp-SQL (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/rdb/2011070112_ua ${REFERENCE}/rdb/2011070112_pr SQL 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP SQL (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${REFERENCE}/rdb/2011070112_ua ${REFERENCE}/rdb/2011070112_pr SQL-ignore_id_obs 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result BURP SQL-ignore_id_obs (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    status=0
+    check_result ${GRIDS}/reggrid ${GRIDS}/reggrid fstcomp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result fstcomp (status=${status})" [ "${status}" -eq 0 ] || return 1
+
+    status=0
+    check_result ${GRIDS}/reggrid ${GRIDS}/glbgrid fstcomp 1>> check_result.listing 2>&1 || status=$?
+    assert "test_check_result fstcomp (status=${status})" [ "${status}" -eq 1 ] || return 1
+
+    echo "test_check_result() ends"
+} ## End of function 'test_check_result'
+
+test_burp_regional_standard () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_regional_standard() begins"
+
+    for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do ## ua4d.resume
+	rm -f 2011070112_${fam}
+	status=0
+	program_status=0
+	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+	check_status=0
+	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	assert "test_burp_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam}
+    done
+
+    echo "test_burp_regional_standard() ends"
+} ## End of function 'test_burp_regional_standard'
+
+test_burp_regional_with_imax_imin_jmax_jmin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_regional_with_imax_imin_jmax_jmin() begins"
+
+    ## La grille 'regglbgrid' est la meme que 'reggrid' mais avec une extension de 2 points de grille pour chaque direction.  
+    for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	rm -f 2011070112_${fam}
+
+	status=0
+	program_status=0
+	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+	check_status=0
+	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam}
+    done
+
+    echo "test_burp_regional_with_imax_imin_jmax_jmin() ends"
+} ## End of function 'test_burp_regional_with_imax_imin_jmax_jmin'
+
+test_burp_identity () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_identity() begins"
+
+    for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	rm -f 2011070112_${fam}
+
+	status=0
+	program_status=0
+	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+	check_status=0
+	if [ "${fam}" = ua4d ]; then
+	    check_result ${REFERENCE}/burp/2011070112_${fam}.identity 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	else
+	    check_result ${INPUTS}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	fi
+	assert "test_burp_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam} 2011070112_${fam}.num_headers
+    done
+
+    echo "test_burp_identity() ends"
+} ## End of function 'test_burp_identity'
+
+test_rdb_identity () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_identity() begins"
+
+    for fam in ai ua sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	status=0
+	program_status=0
+	${SPLITOBS} -rdbin ${INPUTS}/rdb/2011070112_${fam} -rdbout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_rdb_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+	check_status=0
+	check_result ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	assert "test_rdb_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam}
+    done
+
+    echo "test_rdb_identity() ends"
+} ## End of function 'test_rdb_identity'
+
+test_robustness_for_mrbcvt () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_robustness_for_mrbcvt() begins"
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -burpin ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA -burpout 2011073100_ai -fstin ${GRIDS}/glbgrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_robustness_for_mrbcvt program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA 2011073100_ai ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_robustness_for_mrbcvt check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011073100_ai
+
+    echo "test_robustness_for_mrbcvt() ends"
+} ## End of function 'test_robustness_for_mrbcvt'
+
+test_rdb_regional_standard () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_regional_standard() begins"
+
+    for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	rm -f 2011070112_${fam}
+	typ=$(find_family ${fam} || return 1)
+	echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
+	${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
+
+	## add some column to database because some have been added since the reference has been created
+	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
+
+	status=0
+	program_status=0
+	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_rdb_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+	## add some column to UA database because some have been added since the reference has been created
+	sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
+
+	check_status=0
+	check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	assert "test_rdb_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
+    done
+
+    echo "test_rdb_regional_standard() ends"
+} ## End of function 'test_rdb_regional_standard'
+
+test_rdb_regional_global_with_imax_imin_jmax_jmin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_regional_global_with_imax_imin_jmax_jmin() begins"
+
+    for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	rm -f 2011070112_${fam}
+	typ=$(find_family ${fam} || return 1)
+	echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
+	${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
+
+	## add some column to UA database because some have been added since the reference has been created
+	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
+
+	status=0
+	program_status=0
+	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+	## add some column to UA database because some have been added since the reference has been created
+	sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
+
+	check_status=0
+	check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
+    done
+
+    echo "test_rdb_regional_global_with_imax_imin_jmax_jmin() ends"
+} ## End of function 'test_rdb_regional_global_with_imax_imin_jmax_jmin'
+
+
+test_rdb_round_robin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_round_robin() begins"
+
+    test_rdb_round_robin_ndigits=4
+    test_rdb_round_robin_npex=3
+    test_rdb_round_robin_npey=4
+
+    typeset -Z${test_rdb_round_robin_ndigits} procx procy
+
+    for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
+	status=0
+	program_status=0
+	${SPLITOBS} -round-robin -npex ${test_rdb_round_robin_npex} -npey ${test_rdb_round_robin_npey} -ndigits ${test_rdb_round_robin_ndigits} -obsin ${INPUTS}/rdb/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_rdb_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+        rdbsplit ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_output ${test_rdb_round_robin_npex} ${test_rdb_round_robin_npey} ${test_rdb_round_robin_ndigits} 1>> check_result.listing 2>&1
+
+        procx=1
+	while [ "${procx}" -le "${test_rdb_round_robin_npex}" ]; do
+            procy=1
+	    while [ "${procy}" -le "${test_rdb_round_robin_npey}" ]; do
+                check_status=0
+		check_result 2011070112_${fam}_output_${procx}_${procy} 2011070112_${fam}_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	        assert "test_rdb_round_robin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                let procy=procy+1
+            done
+            let procx=procx+1
+	done
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam}_*
+    done
+
+    unset test_rdb_round_robin_npex test_rdb_round_robin_npey test_rdb_round_robin_ndigits test_rdb_round_robin_number_of_process
+    echo "test_rdb_round_robin() ends"
+} ## End of function 'test_rdb_round_robin'
+
+
+test_rdb_cherrypick_roundrobin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_cherrypick_roundrobin() begins"
+
+    test_rdb_cherrypick_roundrobin_ndigits=4
+    test_rdb_cherrypick_roundrobin_npex=3
+    test_rdb_cherrypick_roundrobin_npey=4
+
+    typeset -Z${test_rdb_cherrypick_roundrobin_ndigits} procx procy
+
+    for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
+        filein=2011070112_${fam}
+
+	status=0
+	program_status=0
+	${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+            -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+            -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_rdb_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+        procx=1
+	while [ "${procx}" -le "${test_rdb_cherrypick_roundrobin_npex}" ]; do
+            procy=1
+	    while [ "${procy}" -le "${test_rdb_cherrypick_roundrobin_npey}" ]; do
+	        ${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+                    -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+                    -obsout ${filein}_cherrypick -x ${procx} -y ${procy} 1>> check_result.listing 2>&1 || program_status=$?
+	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+                nfiles=$(ls -1 ${filein}_cherrypick* | wc -l)
+                assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+                check_status=0
+		check_result ${filein}_${procx}_${procy} ${filein}_cherrypick_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                rm ${filein}_cherrypick_${procx}_${procy}
+                let procy=procy+1
+            done
+            let procx=procx+1
+	done
+
+	[ "${status}" -ne 0 ] && return 1
+	rm 2011070112_${fam}_*
+    done
+
+    unset test_rdb_cherrypick_roundrobin_npex test_rdb_cherrypick_roundrobin_npey test_rdb_cherrypick_roundrobin_ndigits procx procy
+    echo "test_rdb_cherrypick_roundrobin() ends"
+} ## End of function 'test_rdb_cherrypick_roundrobin'
+
+
+test_rdb_dropindex () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_dropindex() begins"
+
+    test_rdb_dropindex_ndigits=4
+    test_rdb_dropindex_npex=1
+    test_rdb_dropindex_npey=22
+
+    typeset -Z${test_rdb_dropindex_ndigits} procx procy
+
+    procx=${test_rdb_dropindex_npex}
+    procy=${test_rdb_dropindex_npey}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_dropindex_npex} -npey ${test_rdb_dropindex_npey} -ndigits ${test_rdb_dropindex_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_dropindex splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    check_status=0
+    fileout=obsal_${procx}_${procy}
+    check_result ${REFERENCE}/rdb/obsal_${procx}_${procy}_v2 ${fileout} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_dropindex fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm ${fileout}
+    unset fileout test_rdb_dropindex_ndigits test_rdb_dropindex_npex test_rdb_dropindex_npey procx procy
+
+    echo "test_rdb_dropindex() ends"
+} ## End of function 'test_rdb_dropindex'
+
+
+test_rdb_resume () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_resume() begins"
+
+    test_rdb_resume_ndigits=4
+    test_rdb_resume_npex=3
+    test_rdb_resume_npey=4
+
+    typeset -Z${test_rdb_resume_ndigits} procx procy
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    rdbsplit_resume ${INPUTS}/rdb/airs-resume.rdb airs_reference ${test_rdb_resume_npex} ${test_rdb_resume_npey} ${test_rdb_resume_ndigits} 1>> check_result.listing 2>&1
+
+    procx=1
+    while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
+        procy=1
+	while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+            check_status=0
+	    check_result airs_reference_${procx}_${procy} airs_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	    assert "test_rdb_resume splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            let procy=procy+1
+        done
+        let procx=procx+1
+    done
+
+    [ "${status}" -ne 0 ] && return 1
+    rm airs_*
+    unset test_rdb_resume_npex test_rdb_resume_npey test_rdb_resume_ndigits test_rdb_resume_number_of_process
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume clipping program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${INPUTS}/rdb/airs-resume.rdb airs_clipped ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_resume clipping check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm airs_clipped
+
+    echo "test_rdb_resume() ends"
+} ## End of function 'test_rdb_resume'
+
+
+test_rdb_resume_schema_SAR () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_resume_schema_SAR() begins"
+
+    test_rdb_resume_ndigits=4
+    test_rdb_resume_npex=3
+    test_rdb_resume_npey=4
+
+    typeset -Z${test_rdb_resume_ndigits} procx procy
+    procx=${test_rdb_resume_npex}
+    procy=${test_rdb_resume_npey}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume_schema_SAR splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
+        [ "$(echo 'select date from resume;' | sqlite3 sarwinds_${procx}_${procy})" = 2016080100 ] || status=1
+    assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'rdb4_schema table definition' (status=${check_status})" \
+        [ -n "$(echo '.schema' | sqlite3 sarwinds_${procx}_${procy} | grep -i 'CREATE TABLE rdb4_schema( schema  varchar(9) );')" ] || status=1
+    assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'select * in rdb4_schema' (status=${check_status})" \
+        [ "$(echo 'select * from rdb4_schema;' | sqlite3 sarwinds_${procx}_${procy})" = sf ] || status=1
+
+
+    assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'select time' (status=${check_status})" \
+        [ "$(echo 'select time from resume;' | sqlite3 sarwinds_${procx}_${procy})" = 0 ] || status=1
+    assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'resume table definition' (status=${check_status})" \
+        [ -n "$(echo '.schema' | sqlite3 sarwinds_${procx}_${procy} | grep -i 'CREATE TABLE resume(date integer , time integer , run varchar(9));')" ] || status=1
+
+    [ "${status}" -ne 0 ] && return 1
+    rm sarwinds_${procx}_${procy}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    procx=1
+    proxy=1
+    while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
+        while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+            check_status=0
+            check_result ${REFERENCE}/rdb/sarwinds/sarwinds_${procx}_${procy} sarwinds_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            let procy=procy+1
+        done
+        let procx=procx+1
+    done
+
+    [ "${status}" -ne 0 ] && return 1
+    rm sarwinds_*_*
+
+    echo "test_rdb_resume_schema_SAR() ends"
+} ## End of function 'test_rdb_resume_schema_SAR'
+
+
+test_rdb_resume_schema_AL () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_resume_schema_AL() begins"
+
+    test_rdb_resume_ndigits=4
+    test_rdb_resume_npex=3
+    test_rdb_resume_npey=4
+
+    typeset -Z${test_rdb_resume_ndigits} procx procy
+    procx=${test_rdb_resume_npex}
+    procy=${test_rdb_resume_npey}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_derialt -obsout obsal_derialt 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
+        [ "$(echo 'select date from resume;' | sqlite3 obsal_derialt_${procx}_${procy})" = 20151001 ] || status=1
+    assert "test_rdb_resume splitting procx=${procx} procy=${procy} 'rdb4_schema table definition' (status=${check_status})" \
+        [ -n "$(echo '.schema' | sqlite3 obsal_derialt_${procx}_${procy} | grep 'CREATE TABLE rdb4_schema( schema  varchar(9) );')" ] || status=1
+
+    assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} 'select time' (status=${check_status})" \
+        [ "$(echo 'select time from resume;' | sqlite3 obsal_derialt_${procx}_${procy})" = 21000000 ] || status=1
+    assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} 'resume table definition' (status=${check_status})" \
+        [ -n "$(echo '.schema' | sqlite3 obsal_derialt_${procx}_${procy} | grep 'CREATE TABLE resume(date integer , time integer , run varchar(9));')" ] || status=1
+
+    [ "${status}" -ne 0 ] && return 1
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_bgckalt -obsout obsal_bgckalt 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    check_status=0
+    check_result ${REFERENCE}/rdb/obsal_bgckalt_${procx}_${procy}_v2 obsal_bgckalt_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm obsal_derialt_${procx}_${procy} obsal_bgckalt_${procx}_${procy}
+
+    echo "test_rdb_resume_schema_AL() ends"
+} ## End of function 'test_rdb_resume_schema_AL'
+
+
+test_burp_subdomains () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_subdomains() begins"
+
+    ### Tests pour les AMSUB
+    fam=to_amsub
+    status=0
+    program_status=0
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.2_enrgs -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam}.2_enrgs program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${INPUTS}/burp/2011070112_${fam}.2_enrgs 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam}.2_enrgs check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm -f 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
+
+    ### Tests pour les UA
+    fam=ua
+    rm -f 2011070112_${fam}
+    
+    status=0
+    program_status=0
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.north 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} north check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.south 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} south check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
+    
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} east-west program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.east 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} east check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.west 2011070112_${fam}_0002_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} west check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0002_0001
+
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} world program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    assert "test_burp_subdomains fam=${fam} east file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.west 2011070112_${fam}_0002_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} west check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.north 2011070112_${fam}_0002_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} north check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.south 2011070112_${fam}_0002_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} south check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0002_0001 2011070112_${fam}_0002_0002 2011070112_${fam}_0001_0002
+
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world-res -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} world-res program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    assert "test_burp_subdomains fam=${fam} east-res file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.west-res 2011070112_${fam}_0002_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} west-res check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.north-res 2011070112_${fam}_0002_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} north-res check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}.south-res 2011070112_${fam}_0002_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} south-res check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0002_0001 2011070112_${fam}_0002_0002 2011070112_${fam}_0001_0002
+
+    ### Tests pour les UA4D
+    fam=ua4d.82099
+    rm -f 2011070112_${fam}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} north check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    assert "test_burp_subdomains fam=${fam} south check_result (status=${check_status})" [ ! -f 2011070112_${fam}_0001_0002 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0001_0001
+
+    ### Tests pour les UA4D
+    fam=ua4d
+    rm -f 2011070112_${fam}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0002 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} north check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_burp_subdomains fam=${fam} south check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
+
+    npex=1
+    npey=16
+    for fam in ai.EU3859.201102011524 ua.stnid.85586 ua ua4d ai sw sf pr sc ro to_amsub to_amsua csr ssmis airs iasi; do
+	for filein in 2011020118_${fam} 2011070112_${fam}; do
+	    if [ ! -f ${INPUTS}/burp/${filein} ]; then
+		continue
+	    fi
+	    rm -f ${filein}*
+
+	    status=0
+	    program_status=0
+	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	    assert "test_burp_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+	    for file in ${filein}_0001_[0-9][0-9][0-9][0-9]; do
+		${editbrp} -s ${file} -d ${filein} -n -i 0 1>> check_result.listing 2>&1
+	    done
+	    check_status=0
+	    if [[ "${fam}" = ua4d* ]]; then
+		echo ${burpdiff} ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
+		tty -s && read
+	    else
+		check_result ${INPUTS}/burp/${filein} ${filein} burp-SQL 1>> check_result.listing 2>&1 || check_status=$?
+		assert "test_burp_subdomains filein=${filein} recomposition check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+	    fi
+
+	    [ "${status}" -ne 0 ] && return 1
+	    rm ${filein}*
+	done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
+    done
+
+    echo "test_burp_subdomains() ends"
+} ## End of function 'test_burp_subdomains'
+
+
+test_burp_cherrypick_subdomains () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_cherrypick_subdomains() begins"
+
+    npex=1
+    npey=16
+    for fam in ua ua4d ai sw sf pr sc ro to_amsub to_amsua csr ssmis airs iasi; do
+	for filein in 2011020118_${fam} 2011070112_${fam}; do
+	    if [ ! -f ${INPUTS}/burp/${filein} ]; then
+		continue
+	    fi
+	    rm -f ${filein}*
+
+	    status=0
+	    program_status=0
+	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	    assert "test_burp_cherrypick_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+            typeset -Z4 i j
+            i=1
+            while [ "${i}" -le "${npex}" ]; do
+                j=1
+                while [ "${j}" -le "${npey}" ]; do
+                    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
+		        -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	            assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+                    if [ ! -f ${filein}_${i}_${j} ]; then
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} does not exists" [ ! -f ${filein}_cherrypick_${i}_${j} ] || status=$?
+                        rm -f ${filein}_cherrypick* 2>/dev/null
+                    else
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} exists" [ -f ${filein}_cherrypick_${i}_${j} ] || status=$?
+                        nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
+		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+		        check_result ${filein}_${i}_${j} ${filein}_cherrypick_${i}_${j} liburp 1>> check_result.listing 2>&1 || check_status=$?
+		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                        rm ${filein}_cherrypick*
+                    fi
+                    let j=j+1
+                done
+                let i=i+1
+            done
+            unset i j
+
+	    [ "${status}" -ne 0 ] && return 1
+	    rm ${filein}*
+	done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
+    done
+
+    echo "test_burp_cherrypick_subdomains() ends"
+} ## End of function 'test_burp_cherrypick_subdomains'
+
+test_burp_latbands () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_latbands() begins"
+
+    npex=1
+    npey=16
+    for filein in brpai brpairs brpcsr brpgp brpiasi brppr brpro brpsc brpsfc brpsw brpto_amsua brpto_amsub brpuan brpuas; do
+	rm -f ${filein}*
+
+	status=0
+	program_status=0
+	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -fstin /home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.8/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north \
+	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+	for fileout in ${filein}_*; do
+	    check_status=0
+	    if [[ "${fileout}" = *num_headers ]]; then
+		check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} diff 1>> check_result.listing 2>&1 || check_status=$?
+	    else
+		check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	    fi
+	    assert "test_burp_latbands filein=${filein} fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+	done
+	for fileref in ${REFERENCE}/burp/latbands/${filein}_*; do
+	    fileout=$(basename ${fileref})
+	    assert "test_burp_latbands file=${fileout} does exist" [ -f "${fileout}" ] || status=$?
+	done
+
+	[ "${status}" -ne 0 ] && return 1
+	rm ${filein}_*
+    done ## Fin du 'for filein in brpai brpairs brpcsr brpgp brpiasi brppr brpro brpsc brpsfc brpsw brpto_amsua brpto_amsub brpuan brpuas'
+
+    echo "test_burp_latbands() ends"
+} ## End of function 'test_burp_latbands'
+
+
+test_burp_cherrypick_roundrobin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_cherrypick_roundrobin() begins"
+
+    test_burp_cherrypick_roundrobin_ndigits=1
+    test_burp_cherrypick_roundrobin_npex=3
+    test_burp_cherrypick_roundrobin_npey=4
+
+    for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	status=0
+	program_status=0
+        filein=2011070112_${fam}
+
+	${SPLITOBS} -round-robin -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+            -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+        typeset -Z${test_burp_cherrypick_roundrobin_ndigits} i j
+        i=1
+        while [ "${i}" -le "${test_burp_cherrypick_roundrobin_npex}" ]; do
+            j=1
+            while [ "${j}" -le "${test_burp_cherrypick_roundrobin_npey}" ]; do
+                ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
+		    -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+                    -ndigits ${test_burp_cherrypick_roundrobin_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
+	        assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+                nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
+		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+		check_result ${filein}_${i}_${j} ${filein}_cherrypick_${i}_${j} liburp 1>> check_result.listing 2>&1 || check_status=$?
+		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                rm ${filein}_cherrypick*
+                let j=j+1
+            done
+            let i=i+1
+        done
+        unset i j
+
+	[ "${status}" -ne 0 ] && return 1
+	rm ${filein}_*
+    done
+
+    unset test_burp_cherrypick_roundrobin_npex test_burp_cherrypick_roundrobin_npey test_burp_cherrypick_roundrobin_ndigits
+    echo "test_burp_cherrypick_roundrobin() ends"
+} ## End of function 'test_burp_cherrypick_roundrobin'
+
+
+test_burp_round_robin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_round_robin() begins"
+
+    test_burp_round_robin_ndigits=4
+    test_burp_round_robin_npex=3
+    test_burp_round_robin_npey=4
+    let test_burp_round_robin_number_of_process=test_burp_round_robin_npex*test_burp_round_robin_npey
+
+    for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
+	status=0
+	program_status=0
+	${SPLITOBS} -round-robin -npex ${test_burp_round_robin_npex} -npey ${test_burp_round_robin_npey} -ndigits ${test_burp_round_robin_ndigits} -obsin ${INPUTS}/burp/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
+	assert "test_burp_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+	split_status=0
+	cp ${INPUTS}/burp/2011070112_${fam} ref_2011070112_${fam}
+	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=0
+
+	num=1
+	typeset -Z${test_burp_round_robin_ndigits} procx procy
+	while [ "${num}" -le "${test_burp_round_robin_number_of_process}" ]; do
+	    check_status=0
+	    procx=$(((num-1)/test_burp_round_robin_npey+1))
+	    procy=$(((num-1)%test_burp_round_robin_npey+1))
+	    check_result ref_2011070112_${fam}_${procx}_${procy} 2011070112_${fam}_${procx}_${procy} liburp-noresume 1>> check_result.listing 2>&1 || check_status=$?
+	    assert "test_burp_round_robin fam=${fam} num=${num} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+	    let num=num+1
+	done
+
+	[ "${status}" -ne 0 ] && return 1
+	rm -f 2011070112_${fam}_*_* ref_2011070112_${fam} ref_2011070112_${fam}_*_*
+    done
+
+    unset test_burp_round_robin_npex test_burp_round_robin_npey test_burp_round_robin_ndigits test_burp_round_robin_number_of_process
+    echo "test_burp_round_robin() ends"
+} ## End of function 'test_burp_round_robin'
+
+split_round_robin_with_reflex () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    burpfile=${1}
+    npex=${2}
+    npey=${3}
+    splitobs_ndigits=${4}
+
+    let nprocs=npex*npey
+    ## Puisque 'reflex' permet de splitter les fichiers jusqu'a un maximum de 980
+    if [ "${nprocs}" -gt 980 ]; then
+	say "We are not supporting mode than 980 MPI process when splitting with 'reflex'"
+	return 1
+    fi
+    bburpfile=$(basename ${burpfile})
+    ${editbrp} -s ${burpfile} -d ${bburpfile}.nores -i<<EOFBRP 1>> check_result.listing 2>&1
+ exclure('>>*******')
+EOFBRP
+    ${editbrp} -s ${burpfile} -d ${bburpfile}.res -c 1 -i<<EOFBRP 1>> check_result.listing 2>&1
+ desire('>>*******')
+EOFBRP
+    ${reflex} -ixent ${bburpfile}.nores -oxsrt ${bburpfile} -nsplit ${nprocs} 1>> check_result.listing 2>&1
+    for file in ${bburpfile}_*; do
+	${editbrp} -s ${bburpfile}.res -d ${file} -i 0 1>> check_result.listing 2>&1
+    done
+    rm ${bburpfile}.res ${bburpfile}.nores
+    ## Il faut convertir les fichiers avec les noms compatibles avec ceux que le 3dvar lira
+    ## Le fichier 'brptov_014' sera transforme en 'brptov_0001_0014'
+    typeset -Z3 proc=1
+    typeset -Z${splitobs_ndigits} procx=1
+    typeset -Z${splitobs_ndigits} procy=1
+    while [[ "${proc}" -le "${nprocs}" ]]; do
+	procx=$(((proc-1)/npey+1))
+	procy=$(((proc-1)%npey+1))
+	mv ${bburpfile}_${proc} ${bburpfile}_${procx}_${procy}
+	let proc=proc+1
+    done
+
+    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+} ## End of function 'split_round_robin_with_reflex'
+
+test_ascii_regional_standard () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_ascii_regional_standard() beginss"
+
+    echo "test_ascii_regional_standard() ends"
+} ## End of function 'test_ascii_regional_standard'
+
+test_ascii_regional_global_with_imax_imin_jmax_jmin () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_ascii_regional_global_with_imax_imin_jmax_jmin() begins"
+
+    echo "test_ascii_regional_global_with_imax_imin_jmax_jmin() ends"
+} ## End of function 'test_ascii_regional_global_with_imax_imin_jmax_jmin'
+
+test_burp_vertical_clipping () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_vertical_clipping() begins"
+
+    echo "test_burp_vertical_clipping() ends"
+} ## End of function 'test_burp_vertical_clipping'
+
+test_rdb_vertical_clipping () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_vertical_clipping() begins"
+
+    echo "test_rdb_vertical_clipping() ends"
+} ## End of function 'test_rdb_vertical_clipping'
+
+test_ascii_vertical_clipping () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_ascii_vertical_clipping() begins"
+
+    echo "test_ascii_vertical_clipping() ends"
+} ## End of function 'test_ascii_vertical_clipping'
+
+test_burp_horizontal_vertical () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_horizontal_vertical() begins"
+
+    echo "test_burp_horizontal_vertical() ends"
+} ## End of function 'test_burp_horizontal_vertical'
+
+test_rdb_horizontal_vertical () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_horizontal_vertical() begins"
+
+    echo "test_rdb_horizontal_vertical() ends"
+} ## End of function 'test_rdb_horizontal_vertical'
+
+test_ascii_horizontal_vertical () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_ascii_horizontal_vertical() begins"
+
+    echo "test_ascii_horizontal_vertical() ends"
+} ## End of function 'test_ascii_horizontal_vertical'
+
+
+##################################################################################################################
+##  Ce code est un exemple pour l'analyse et la comparaison du listing d'une execution.  
+##################################################################################################################
+##     status=0
+##     movarch ${CACHEDIR}/test12_movarch.dir darc 2011011918 2011011918 ${CACHEDIR} ${CACHEDIR}/movarch_results \
+## 	| tee ${CACHEDIR}/test_12_movarch_output.$$ || status=$?
+##     rm ${CACHEDIR}/test12_movarch.dir
+##     assert "movarch test12.2" [ "${status}" -eq 0 ] || status=$?
+##     check_remote_file_status=0
+##     ssh ${REMOTE_HOST} "[ -f ${REMOTE_DIR}/anlm_results/anlm/2011011918_000 ]" || check_remote_file_status=$?
+##     assert "movarch test12.3" [ "${check_remote_file_status}" -eq 0 ] || status=$?
+##     diff_status=0
+##     cat <<EOF | diff ${CACHEDIR}/test_12_movarch_output.$$ - || diff_status=1
+## __getdata__: movarch(): Executing 'ssh ${REMOTE_HOST} scp -q -oStrictHostKeyChecking=no -oBatchMode=yes -oNoneSwitch=yes -oNoneEnabled=yes ${REMOTE_DIR}/operation.analyses.glbhyb2/2011011918_000 ${REMOTE_HOST}:${REMOTE_DIR}/anlm_results/anlm/2011011918_000'
+## EOF
+##     assert "movarch test12.4" [ "${diff_status}" -eq 0 ] || status=$?
+
+test_find_family () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_find_family() begins"
+
+    status=0
+    find_family || status=$?
+    assert "test_find_family (status=${status})" [ "${status}" -ne 0 ]
+    status=0
+    find_family ua ai || status=$?
+    assert "test_find_family (status=${status})" [ "${status}" -ne 0 ]
+    status=0
+    find_family ua ai pr ro aie || status=$?
+    assert "test_find_family (status=${status})" [ "${status}" -ne 0 ]
+
+    for fam in ua ai sw sf pr ro csr airs iasi; do
+	status=0
+	__test_find_family_typ=$(find_family ${fam} || status=$?)
+	assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+	assert "test_find_family (fam=${fam})" [ "${__test_find_family_typ}" = ${fam} ]
+    done
+
+    ## amsua
+    status=0
+    __test_find_family_typ=$(find_family to_amsua || status=$?)
+    assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+    assert "test_find_family (typ=to_amsua)" [ "${__test_find_family_typ}" = amsua ]
+    ## amsub
+    status=0
+    __test_find_family_typ=$(find_family to_amsub || status=$?)
+    assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+    assert "test_find_family (typ=to_amsub)" [ "${__test_find_family_typ}" = amsub ]
+    ## ssmis
+    status=0
+    __test_find_family_typ=$(find_family ssmis || status=$?)
+    assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+    assert "test_find_family (typ=ssmi)" [ "${__test_find_family_typ}" = ssmi ]
+    ## scat
+    status=0
+    __test_find_family_typ=$(find_family sc || status=$?)
+    assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+    assert "test_find_family (typ=sc)" [ "${__test_find_family_typ}" = scat ]
+
+    echo "test_find_family() ends"
+} ## End of function 'test_find_family'
+
+
+function find_family {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    if [ $# -ne 1 ]; then
+	echo "The function 'find_family' needs one and only one argument but received '$@'"
+	return 1
+    fi
+    __find_family_fam=$(basename $1 | cut -d. -f3 | cut -d_ -f2-)
+    if [[ "${__find_family_fam}" = to_amsua* ]]; then
+	__find_family_typ=amsua
+    elif [[ "${__find_family_fam}" = to_amsub* ]]; then
+	__find_family_typ=amsub
+    elif [[ "${__find_family_fam}" = sc* ]]; then
+	__find_family_typ=scat
+    elif [[ "${__find_family_fam}" = ssmis* ]]; then
+	__find_family_typ=ssmi
+    else
+	__find_family_typ=$(echo ${__find_family_fam} | sed 's/_qc//')
+    fi
+    echo ${__find_family_typ}
+} ## End of function 'find_family'
+
+
+function check_result {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    if [ $# -ne 3 ]; then
+	echo "function 'check_result': must have 3 arguments (file1, file2 and method (may be 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'SQL', 'burp-SQL' or 'SQL-ignore_id_obs'"
+	return 1
+    fi
+
+    echo "Running 'check_result $@'"
+    file=$1
+    file2=$2
+    method=$3
+
+    not_validating=""
+
+    if [ ! -f "${file}" ]; then
+	echo "File ${file} not available!"
+	return 1
+    fi
+    if [ ! -f "${file2}" ]; then
+	echo "File ${file2} not available!"
+	return 1
+    fi
+
+    message="The files '${file}' and '${file2}' are validating"
+
+    __check_result_status=0
+    cmp ${file} ${file2} || __check_result_status=$?
+    if [ "${__check_result_status}" -eq 0 ]; then
+	echo "${message} with method 'cmp' before checking with method '${method}!"
+	return 0
+    fi
+
+    if [ "${method}" = fstcomp ]; then
+        [ -f file1.$$ ] && rm file1.$$
+        ln -s ${file}  file1.$$
+        [ -f file2.$$ ] && rm file2.$$
+        ln -s ${file2} file2.$$
+	${fstcomp} -ne -a file1.$$ -b file2.$$ | tee fstcomp.list
+	cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+        rm file1.$$ file2.$$
+	if [ -s fstcomp.list.grep ]; then
+	    return 1
+	fi
+	rm fstcomp.list fstcomp.list.grep
+    elif [ "${method}" = cmp ]; then
+	cmp ${file} ${file2} || return 1
+    elif [ "${method}" = diff ]; then
+	diff -h ${file} ${file2} || return 1
+    elif [ "${method}" = liburp ]; then
+	${liburp} -wide ${file}  > file1
+	${liburp} -wide ${file2} > file2
+	[[ ! -s file1 ]] && return 1
+	[[ ! -s file2 ]] && return 1
+	cmp file1 file2 || return 1
+	rm file1 file2
+    elif [ "${method}" = liburp-noresume ]; then
+	[[ -f file1.nores ]] && rm -f file1.nores
+	${editbrp} -s ${file}  -d file1.nores -i<<EOF
+ exclure('>>*******')
+EOF
+	[[ ! -f  file1.nores ]] && return 1
+	[[ -f file2.nores ]] && rm -f file2.nores
+	${editbrp} -s ${file2} -d file2.nores -i<<EOF
+ exclure('>>*******')
+EOF
+	[[ ! -f  file2.nores ]] && return 1
+	${liburp} -wide file1.nores > file1
+	${liburp} -wide file2.nores > file2
+	[[ ! -s file1 ]] && return 1
+	[[ ! -s file2 ]] && return 1
+	cmp file1 file2 || return 1
+	rm file1 file2 file1.nores file2.nores
+    elif [ "${method}" = burp-SQL ]; then
+	OLD_TMPDIR=${TMPDIR}
+	TMPDIR=${PWD}/tmpdir$$
+	mkdir -p ${TMPDIR}
+
+	typ=$(find_family ${file})
+	${burp2rdb} -in ${file}  -out file1.sql -type ${typ} || rm file1.sql
+	if [ ! -s file1.sql ]; then
+	    say "Problem with burp2rdb with file ${file}" 1 || return 1
+	    not_validating="problem"
+	else
+	    ${burp2rdb} -in ${file2} -out file2.sql -type ${typ} || rm file2.sql
+	    if [ ! -s file2.sql ]; then
+		say "Problem with burp2rdb with file ${file2}" 1 || return 1
+		not_validating="problem"
+	    else
+		case "${fam}" in
+		    amsua|amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
+		    *) satel_elem="" ;;
+		esac
+		cat > sqldir <<EOF
+PRAGMA temp_store = MEMORY;
+.nullvalue NULL;
+.mode tabs;
+select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+EOF
+
+		cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file1.sql) | sort -n > file1.sqllist || rm file1.sqllist
+		if [ ! -s file1.sqllist ]; then
+		    say "Problem with SQL request for file ${file}" 1 || return 1
+		    not_validating="problem"
+		else
+		    cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file2.sql) | sort -n > file2.sqllist || rm file2.sqllist
+		    if [ ! -s file2.sqllist ]; then
+			say "Problem with SQL request for file ${file2}" 1 || return 1
+			not_validating="problem"
+		    else
+			cmp file1.sqllist file2.sqllist || return 1
+			rm file1.sql file2.sql file1.sqllist file2.sqllist sqldir
+		    fi ## Fin du else pour le 'if [ ! -s file2.sqllist ]'
+		fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
+	    fi ## Fin du else pour le 'if [ ! -s file2.sql ]'
+	fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
+	TMPDIR=${OLD_TMPDIR}
+    elif [ "${method}" = SQL ]; then
+	OLD_TMPDIR=${TMPDIR}
+	TMPDIR=${PWD}/tmpdir$$
+	mkdir -p ${TMPDIR}
+
+	echo .dump | ${sqlite3} ${file}  > dumpall1
+	echo .dump | ${sqlite3} ${file2} > dumpall2
+	[[ ! -s dumpall1 ]] && return 1
+	[[ ! -s dumpall2 ]] && return 1
+
+	grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall1 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp1
+	grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall2 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp2
+	[[ ! -s dumptmp1 ]] && return 1
+	[[ ! -s dumptmp2 ]] && return 1
+
+	grep --text "^INSERT INTO " dumptmp1 > dump1
+	grep --text "^INSERT INTO " dumptmp2 > dump2
+	[[ ! -s dump1 ]] && return 1
+	[[ ! -s dump2 ]] && return 1
+
+	cmp dump1 dump2 || return 1
+	rm dump1 dump2 dumptmp1 dumptmp2 dumpall1 dumpall2
+
+	TMPDIR=${OLD_TMPDIR}
+        #mv -vi ${file} ${file}.original
+	#mv -vi ${file2} ${file}
+    elif [ "${method}" = SQL-ignore_id_obs ]; then
+	OLD_TMPDIR=${TMPDIR}
+	TMPDIR=${PWD}/tmpdir$$
+	mkdir -p ${TMPDIR}
+
+	echo .dump | ${sqlite3} ${file}  > dumpall1
+	echo .dump | ${sqlite3} ${file2} > dumpall2
+	[[ ! -s dumpall1 ]] && return 1
+	[[ ! -s dumpall2 ]] && return 1
+
+	grep -v 'INSERT INTO "sqlite_stat1"' dumpall1 > dump1
+	grep -v 'INSERT INTO "sqlite_stat1"' dumpall2 > dump2
+	[[ ! -s dump1 ]] && return 1
+	[[ ! -s dump2 ]] && return 1
+
+	sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump1 > dumptmp1
+	sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump2 > dumptmp2
+	[[ ! -s dumptmp1 ]] && return 1
+	[[ ! -s dumptmp2 ]] && return 1
+
+	cmp dumptmp1 dumptmp2 || return 1
+	rm dump1 dump2 dumpall1 dumpall2 dumptmp1 dumptmp2
+
+	TMPDIR=${OLD_TMPDIR}
+	#mv -vi ${file} ${file}.original
+	#mv -vi ${file2} ${file}
+    else
+	echo "In function check_result:  method=${method} is not one of the possibility"
+	echo "Please use 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'burp-SQL', 'SQL' or 'SQL-ignore_id_obs'"
+	return 1
+    fi
+
+    echo "${message} with method '${method}!"
+    return 0
+} ## Fin de la fonction 'check_result'
+
+function check_subdomains {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "Running 'check_subdomains $@'"
+
+    cat > sqldir <<EOF
+PRAGMA temp_store = MEMORY;
+.nullvalue NULL;
+.mode tabs;
+select lat,lon,date,time,omp,obsvalue,vcoord from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+EOF
+
+    npex=$1
+    shift
+    npey=$1
+    shift
+    typ=$1
+    shift
+
+    OLD_TMPDIR=${TMPDIR}
+    TMPDIR=${PWD}/tmpdir$$
+    mkdir -p ${TMPDIR}
+    for file in $*; do
+	${burp2rdb} -in ${file} -out file.sql -type ${typ} || rm file.sql
+	if [ ! -s file.sql ]; then
+	    say "Problem with burp2rdb with file ${file}" 1 || return 1
+	else
+	    cat sqldir | ${sqlite} -noheader file.sql > file.sqllist || rm file.sqllist
+	    if [ ! -s file.sqllist ]; then
+		say "Problem with SQL request for file ${file}" 1 || return 1
+	    else
+		jlatband=$(echo ${file} | rev | cut -d_ -f1 | rev)
+		ilonband=$(echo ${file} | rev | cut -d_ -f2 | rev)
+		${check_subdomains_tool} file.sqllist ${ilonband} ${jlatband} ${npex} ${npey} || return 1
+	    fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
+	fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
+    done ## Fin du 'for file in $*'
+
+    TMPDIR=${OLD_TMPDIR}
+
+    return 0
+} ## Fin de la fonction 'check_subdomains'
+
+function check_latlon_in_subdomain {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "Running 'check_latlon_in_subdomain $@'"
+
+    if [ $# -ne 5 ]; then
+	echo "function 'check_latlon_in_subdomain': must have 5 arguments "
+	echo "(file (output from SQL request), ilonband, jlatband, npex, npey"
+	return 1
+    fi
+
+    file=$1
+    ilonband=$2
+    jlatband=$3
+    npex=$4
+    npey=$5
+
+    while read line; do
+	if [ "${npey}" -ne 1 ]; then
+	    lat=$(echo ${line} | cut -d'|' -f1)
+	    lat180=$(echo "${lat}+90" | bc -l)
+	    thislatband=$(echo "${lat180}/(180./${npey})+1" | bc -l | cut -d. -f1)
+	    if [ "${jlatband}" -ne "${thislatband}" ]; then
+		echo "${line} gives wrong latband ${jlatband} instead of ${thislatband}"
+		return 1
+	    fi
+	elif [ "${jlatband}" -ne 1 ]; then
+	    echo "${line} gives wrong latband ${jlatband} instead of 1"
+	    return 1
+	fi
+
+	if [ "${npex}" -ne 1 ]; then
+	    lon=$(echo ${line} | cut -d'|' -f2)
+	    lon360=$(echo "(${lon}+360)%360" | bc -l)
+	    thislonband=$(echo "${lon360}/(360./${npex})+1" | bc -l | cut -d. -f1)
+	    if [ "${ilonband}" -ne "${thislonband}" ]; then
+		echo "${line} gives wrong lonband ${ilonband} instead of ${thislonband}"
+		return 1
+	    fi
+	elif [ "${ilonband}" -ne 1 ]; then
+	    echo "${line} gives wrong lonband ${ilonband} instead of 1"
+	    return 1
+	fi
+    done < ${file}
+
+    return 0
+} ## Fin de la fonction 'check_latlon_in_subdomain'
+
+function sqlite_add_column {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    __sqlite_add_column_fam__=${1}
+    if [ -z "${__sqlite_add_column_fam__}" ]; then
+	echo "Function sqlite_add_column: you must provide a family as first argument!"
+	unset __sqlite_add_column_fam__
+    fi
+
+    __sqlite_add_column_filein__=${2}
+
+    if [ ! -f "${__sqlite_add_column_filein__}" ]; then
+	echo "Function sqlite_add_column: the input file '${__sqlite_add_column_filein__}' does not exist (PWD=${PWD})!"
+	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__
+	return 1
+    fi
+
+    __sqlite_add_column_fileout__=${3}
+    if [ -f "${__sqlite_add_column_fileout__}" ]; then
+	echo "Function sqlite_add_column: the output file '${__sqlite_add_column_fileout__}' does exist (PWD=${PWD})!"
+	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__
+	return 1
+    fi
+
+    __sqlite_add_column_status__=0
+    cp ${__sqlite_add_column_filein__} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+    if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	echo "Function sqlite_add_column: cannot copy input file '${__sqlite_add_column_filein__}' in the output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	return 1
+    fi
+
+    if [ ! -w "${__sqlite_add_column_fileout__}" ]; then
+	__sqlite_add_column_status__=0
+	chmod u+w ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot change permission to allow user to write to '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+    fi
+
+    if [ "${__sqlite_add_column_fam__}" = ua ]; then
+        ## insert columns 'HLAT', 'HLON', 'TSONDE' and 'FSO' in 'data' table
+	__sqlite_add_column_status__=0
+	echo "alter table data add column HLAT real; alter table data add column HLON real; alter table data add column TSONDE test; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+
+       ## insert columns 'LAUNCH_TIME', 'SONDE_TYPE', 'TRACKING_TECHNIQUE' and 'RADIATION_CORRECTION' in 'header' table
+	__sqlite_add_column_status__=0
+	echo "alter table header add column LAUNCH_TIME integer; alter table header add column SONDE_TYPE integer; alter table header add column TRACKING_TECHNIQUE integer; alter table header add column RADIATION_CORRECTION real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+    elif [ "${__sqlite_add_column_fam__}" = airs ]; then
+        ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
+	__sqlite_add_column_status__=0
+	echo "alter table data add column FANION_QUAL_CAL integer; alter table data add column FANION_QUAL_FOV integer; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+    elif [ "${__sqlite_add_column_fam__}" = csr ]; then
+        ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
+	__sqlite_add_column_status__=0
+	echo "alter table data add column FSO real; alter table header add column azimuth real; alter table header add column solar_azimuth real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+    else
+        ## insert column 'FSO' in 'data' table
+	__sqlite_add_column_status__=0
+	echo "alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+    fi  ## Fin du 'elif [ "${__sqlite_add_column_fam__}" = ai ]'
+
+    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+
+    return 0
+} ## Fin de la fonction 'sqlite_add_column'
+
+
+function rdbsplit {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    rdbin=${1}
+    rdbout=${2}
+    npex=${3}
+    npey=${4}
+    splitobs_ndigits=${5}
+
+    let nprocs=npex*npey
+
+    typeset -Z${splitobs_ndigits} procx procy
+
+    procx=1
+    id=0
+    while [ "${procx}" -le "${npex}" ]; do
+        procy=1
+        while [ "${procy}" -le "${npey}" ]; do
+            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx}_${procy}
+            ${sqlite3} ${rdbout}_${procx}_${procy} <<EOF
+drop index idx1;
+
+PRAGMA journal_mode = OFF;
+PRAGMA  synchronous = OFF;
+
+attach '${rdbin}' as db1;
+
+insert into header select * from db1.header where id_obs % ${nprocs} = $id;
+insert into data   select * from db1.data   where id_obs % ${nprocs} = $id;
+EOF
+            let id=id+1
+            let procy=procy+1
+        done
+        let procx=procx+1
+    done
+
+    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+
+    return 0
+} ## Fin de la fonction 'rdbsplit'
+
+
+function rdbsplit_resume {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    rdbin=${1}
+    rdbout=${2}
+    npex=${3}
+    npey=${4}
+    splitobs_ndigits=${5}
+
+    DATE=$(${sqlite3}  ${rdbin} " select date  from  resume")
+    HEURE=$(${sqlite3} ${rdbin} " select time from  resume")
+    RUN=$(${sqlite3}   ${rdbin} " select run   from  resume")
+    TYPE=$(${sqlite3}  ${rdbin} " select schema  from  rdb4_schema")
+    RUN=$(echo ${RUN})
+    TYPE=$(echo ${TYPE})
+
+    typeset -Z${splitobs_ndigits} procx procy
+    let nprocs=npex*npey
+
+    procx=1
+    id=0
+    while [ "${procx}" -le "${npex}" ]; do
+        procy=1
+        while [ "${procy}" -le "${npey}" ]; do
+            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx}_${procy}
+            ${sqlite3} ${rdbout}_${procx}_${procy} <<EOF
+drop index idx1;
+
+PRAGMA journal_mode = OFF;
+PRAGMA  synchronous = OFF;
+
+attach '${rdbin}' as db1;
+
+insert into header select * from db1.header where id_obs % ${nprocs} = $id;
+insert into data   select * from db1.data   where id_obs % ${nprocs} = $id;
+
+CREATE TABLE rdb4_schema( schema  varchar(9) );
+insert into rdb4_schema values('${TYPE}');
+create table resume(date integer , time integer , run varchar(9)) ;
+insert into resume values("$DATE","$HEURE","$RUN") ;
+EOF
+            let id=id+1
+            let procy=procy+1
+        done
+        let procx=procx+1
+    done
+
+    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+
+    return 0
+} ## Fin de la fonction 'rdbsplit_resume'
+
+
+echo "Launching the unit tests version '${VERSION}'"
+unittest || return 1
+
+cd
+## [ -n "${WORKDIR}" ] && rm -rf ${WORKDIR}

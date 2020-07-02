@@ -16,7 +16,7 @@ eval `${CCLARGS}  -D "" $0 \
   -midas_mpi_barrier "" "midas.mpi_barrier" "[path to 'midas.mpi_barrier' script, default to none so no barrier, if '-midas_mpi_barrier' then 'midas.mpi_barrier' in the PATH]" \
   -midas_splitobs    "midas.splitobs" "midas.splitobs"   "[path to 'midas.splitobs' script]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
-  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_pgm      "midas.splitobs.Abs" "midas.splitobs.Abs" "[program 'midas.splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
   -splitobs_ndigits  "4"  "4" "[number of digits for file names of observations]" \
   -splitobs_fstin    ""   ""  "[value of '-fstin'  argument of 'splitobs.Abs']" \
   -splitobs_nomvar   ""   ""  "[value of '-nomvar' argument of 'splitobs.Abs']" \

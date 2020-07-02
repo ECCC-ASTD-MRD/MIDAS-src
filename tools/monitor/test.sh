@@ -50,38 +50,14 @@ EOF
 
 launch_monitor 2>&1 > monitor_stdout.txt | tee monitor_stderr.txt
 
+sort -u monitor_stderr.txt > monitor_stderr_sorted.txt
+
 diff_status=0
-cat <<EOF | diff - monitor_stderr.txt || diff_status=1
-Could only read 0 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
+cat <<EOF | diff - monitor_stderr_sorted.txt || diff_status=1
 Continue...
 Could only read 0 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 0 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 0 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 0 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
 Could only read 11 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 11 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 11 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 11 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 11 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
 Could only read 22 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 22 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 22 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 22 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
-Could only read 22 bytes out of 23 bytes in file 'VAR3D_STATUS.dot'
-Continue...
 EOF
 
 cat <<EOF | diff - monitor_stdout.txt || diff_status=1
@@ -93,6 +69,7 @@ EOF
 
 if [ "${diff_status}" -eq 0 ]; then
     echo "The 'midas.monitor.Abs' tests are successull!!!"
+    rm -f monitor_stdout.txt monitor_stderr.txt monitor_stderr_sorted.txt
 else
     echo "The 'midas.monitor.Abs' tests did not pass!!!"
     exit 1

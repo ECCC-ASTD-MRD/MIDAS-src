@@ -59,7 +59,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -mpi_ssm           ""    ""    "[SSM domains to load the MPI environment]" \
   -mpimode           "mpi" "mpi" "[]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
-  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_pgm      "midas.splitobs.Abs" "midas.splitobs.Abs" "[program 'midas.splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
   -splitobs_nomvar   "P0" "P0" "[nomvar of the field to be read to define the grid]" \
   -splitobs_ndigits  "4" "4" "[number of digits for file names of observations]" \
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
@@ -398,7 +398,7 @@ cat > ptopo_nml <<EOF
 EOF
 
 doCreateDiagnostics=1
-grep -sq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)

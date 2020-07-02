@@ -49,6 +49,37 @@ monitor_tests:
    tags:
      - hpcr-u1
 
+## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
+## splitobs_build:
+##    stage: build
+##    script:
+##      - cd tools/splitobs
+##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##    tags:
+##      - hpcr-u1
+
+splitobs_burp_tests:
+   stage: test
+   script:
+     - cd tools/splitobs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - ./unittest_batch burp
+   only:
+     - tags
+   tags:
+     - hpcr-u1
+
+splitobs_rdb_tests:
+   stage: test
+   script:
+     - cd tools/splitobs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - ./unittest_batch rdb
+   only:
+     - tags
+   tags:
+     - hpcr-u1
+
 midas_tests:
    stage: test
    script:
