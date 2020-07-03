@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Make diffusion operator B matrix mpi compatible (#355 and !354)
  * Reduce memory requirements for bgck and other programs (in s2c_nl) (#371 and !353)
    * also speed up burp update by using kdtree
  * Move background procedure from `var` to `obsSelection` program (#359 and !347)
