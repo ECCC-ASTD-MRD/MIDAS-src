@@ -4369,6 +4369,10 @@ contains
     end if
 
     chanIndx = index(idsat,chanNum)
+    if (chanIndx == -1) then
+      write(*,*) 'channel number requested = ', chanNum
+      call utl_abort('tvs_getChannelIndexFromChannelNumber: channel not found')
+    end if
 
   end subroutine tvs_getChannelIndexFromChannelNumber
 

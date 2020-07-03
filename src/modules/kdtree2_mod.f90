@@ -26,6 +26,7 @@ module kdtree2_precision_mod
 end module kdtree2_precision_mod
 
 module kdtree2_priority_queue_mod
+  use utilities_mod
   use kdtree2_precision_mod
   !
   ! maintain a priority queue (PQ) of data, pairs of 'priority/payload', 
@@ -210,8 +211,7 @@ bigloop:  do
     if (a%heap_size .gt. 0) then
        e = a%elems(1) 
     else
-       write (*,*) 'PQ_MAX: ERROR, heap_size < 1'
-       stop
+       call utl_abort('kdtree2_mod-PQ_MAX: ERROR, heap_size < 1')
     endif
     return
   end subroutine pq_max
@@ -222,8 +222,7 @@ bigloop:  do
     if (a%heap_size .gt. 0) then
        pq_maxpri = a%elems(1)%dis
     else
-       write (*,*) 'PQ_MAX_PRI: ERROR, heapsize < 1'
-       stop
+       call utl_abort('kdtrees_mod-PQ_MAX_PRI: ERROR, heapsize < 1')
     endif
     return
   end function pq_maxpri
@@ -250,8 +249,7 @@ bigloop:  do
        call heapify(a,1)
        return
     else
-       write (*,*) 'PQ_EXTRACT_MAX: error, attempted to pop non-positive PQ'
-       stop
+       call utl_abort('kdtree2_mod-PQ_EXTRACT_MAX: error, attempted to pop non-positive PQ')
     end if
     
   end subroutine pq_extract_max
@@ -418,8 +416,7 @@ bigloop:  do
     integer           :: i
 
     if ((i .lt. 1) .or. (i .gt. a%heap_size)) then
-       write (*,*) 'PQ_DELETE: error, attempt to remove out of bounds element.'
-       stop
+       call utl_abort('kdtree2_mod-PQ_DELETE: error, attempt to remove out of bounds element.')
     endif
 
     ! swap the item to be deleted with the last element
@@ -441,6 +438,7 @@ module kdtree2_mod
   !           locations (first used in LETKF to find all obs near an analysis grid point).
   !           Written by Matt Kennel.
   !
+  use utilities_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
   ! K-D tree routines in Fortran 90 by Matt Kennel.
@@ -616,7 +614,7 @@ contains
     end if
     mr%n = size(input_data,2)
 
-    if (mr%dimen > mr%n) then
+    if (mr%n < 1) then
        !  unlikely to be correct
        write (*,*) 'KD_TREE_TRANS: likely user error.'
        write (*,*) 'KD_TREE_TRANS: You passed in matrix with D=',mr%dimen
@@ -624,7 +622,7 @@ contains
        write (*,*) 'KD_TREE_TRANS: note, that new format is data(1:D,1:N)'
        write (*,*) 'KD_TREE_TRANS: with usually N >> D.   If N =approx= D, then a k-d tree'
        write (*,*) 'KD_TREE_TRANS: is not an appropriate data structure.'
-       stop
+       call utl_abort('kdtree2_create: supplied array has no data')
     end if
 
     call build_tree(mr)
@@ -1300,9 +1298,7 @@ contains
     integer, intent(in) :: n
 
     if (size(sr%results,1) .lt. n) then
-       write (*,*) 'KD_TREE_TRANS:  you did not provide enough storage for results(1:n)'
-       stop
-       return
+       call utl_abort('kdtrees_mod-validate_query_storage: not enough storage for results')
     endif
 
     return
