@@ -4780,15 +4780,21 @@ CONTAINS
     integer                     :: nbele, nvale, nte
     integer                     :: valIndex, tIndex, reportIndex, btyp, bfam, error
     integer                     :: indele, nsize, iun_burpin
-    integer                     :: ibfam, ival
+    integer                     :: ibfam, ival, nulnam
     real                        :: rval
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     integer                     :: icodele
+    integer                     :: icodeleRad
     integer                     :: icodeleMrq 
+    integer                     :: icodeleRadMrq 
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
+    logical                     :: addClearRadToBurp
+
+    namelist /NAMADDTOBURP/ addClearRadToBurp
+
     write(*,*) '-----------------------------------------------'
     write(*,*) '- begin brpr_addBiasCorrectionElement -'
     write(*,*) '-----------------------------------------------'
@@ -4796,6 +4802,7 @@ CONTAINS
     select case(familyType)
     case("TO")
       icodele = 12233
+      icodeleRad = 12164
       BTYP10obs = 289 !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
       BTYP10mrq = 481 !MRQ block 481 = 2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
     case("GP")
@@ -4807,6 +4814,18 @@ CONTAINS
     end select
 
     icodeleMrq =  200000 + icodele
+    if ( familyType == "TO" ) icodeleRadMrq = 200000 + icodeleRad
+
+    ! default values for namelist variables
+    addClearRadToBurp = .false.
+
+    ! read the namelist
+    nulnam = 0
+    error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam, nml=NAMADDTOBURP, iostat=error)
+    if ( error /= 0 ) call utl_abort('brpr_addRadianceBiasCorrectionElement: Error reading namelist')
+    write(*,nml=NAMADDTOBURP)
+    error = fclos(nulnam)
 
     ! initialisation
     ! --------------
@@ -4838,7 +4857,12 @@ CONTAINS
     call burp_get_property(inputFile, nrpts=nb_rpts, io_unit= iun_burpin)
 
     nsize = mrfmxl(iun_burpin)
-    nsize = 3 * nsize
+    if ( addClearRadToBurp ) then
+      nsize = 4 * nsize
+    else
+      nsize = 3 * nsize
+    end if
+
     write(*,*) "nsize= ", nsize
     write(*,*) 
     write(*,*) 'number of reports with observations in input file = ', nb_rpts - 1
@@ -4931,7 +4955,31 @@ CONTAINS
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.true., encode_block=.true., iostat=error)
 
-          else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block
+          ! Adding clear-sky radiance to data block for AMSUA
+          else if ( btyp == 9264 .and. bfam == 0 .and. addClearRadToBurp ) then 
+            
+            indele = burp_find_element(inputBlock, element=icodeleRad, iostat=error)
+
+            if ( indele <= 0 ) then
+              nbele = nbele + 1
+              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRad, IOSTAT = error)
+              do valIndex = 1,nvale
+                do tIndex = 1,nte
+                  call burp_set_tblval( inputBlock, &
+                       nele_ind = nbele,            &
+                       nval_ind = valIndex,         &
+                       nt_ind   = tIndex,           &
+                       tblval   = -1, iostat=error)
+                  if (error /= 0) call handle_error()
+                end do
+              end do
+            end if
+        
+            call burp_write_block(copyReport, block  = inputBlock,  &
+                 convert_block =.true., encode_block=.false., iostat=error)
+
+          else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block 
             indele = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
             if ( indele <= 0 ) then
               nbele = nbele + 1
@@ -4951,6 +4999,28 @@ CONTAINS
         
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.false., encode_block=.true.,iostat=error)
+
+          ! Adding clear-sky radiance to MRQ block for AMSUA
+          else if ( btyp == 15408 .and. bfam == 0 .and. addClearRadToBurp ) then     
+            indele = burp_find_element(inputBlock, element=icodeleRadMrq , iostat=error)
+            if ( indele <= 0 ) then
+              nbele = nbele + 1
+              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRadMrq, IOSTAT = error)
+              do valIndex = 1,nvale
+                do tIndex = 1, nte
+                  call burp_set_tblval( inputBlock, &
+                       nele_ind = nbele,            &
+                       nval_ind = valIndex,         &
+                       nt_ind   = tIndex,           &
+                       tblval   = 0, iostat=error)
+                  if (error /= 0) call handle_error()
+                end do
+              end do
+            end if
+        
+            call burp_write_block(copyReport, block  = inputBlock,  &
+                 convert_block =.true., encode_block=.false.,iostat=error)
 
           else !other blocks
 
