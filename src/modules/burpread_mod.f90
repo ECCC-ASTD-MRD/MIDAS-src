@@ -62,6 +62,8 @@ INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
 LOGICAL                :: READ_QI_GA_MT_SW
 
+logical, save          :: addClearRadToBurp
+
 
 CONTAINS
 
@@ -123,7 +125,7 @@ CONTAINS
     integer                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
     integer                :: IND_ELE,IND_VCOORD
     integer                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
-    integer                :: IND_LAT,IND_LON,IND_TIME,IND_BCOR,IND_BCOR_TT,IND_BCOR_HU
+    integer                :: IND_LAT,IND_LON,IND_TIME,IND_BCOR,IND_BCOR_TT,IND_BCOR_HU,IND_obsClear
 
     integer                :: vcord_type(10),SUM
     real                   :: ELEVFACT
@@ -142,7 +144,7 @@ CONTAINS
 
     integer                :: OBS_START,SAVE_OBS
     integer                :: IL_INDEX,IRLN,INLV,LK,VNM
-    real                   :: OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR
+    real                   :: OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR, obsClear
     integer                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS,ILEMZBCOR,ILEMTBCOR,ILEMHBCOR
 
     integer                :: BLOCK_LIST(NBLOC_LIST),bl
@@ -156,6 +158,7 @@ CONTAINS
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
     logical                :: FSOFound
+    logical                :: clearRadElementFound 
 
     ! ensure kdtrees object is null
     nullify(tree)
@@ -305,7 +308,7 @@ CONTAINS
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=16
-      CASE('GO','MI','TO')
+      CASE('GO','MI')
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
@@ -317,6 +320,34 @@ CONTAINS
         NELE=NELEMS
 
         NELE_INFO=23
+        WINDS=.FALSE.
+        ADDSIZE=600000
+      CASE('TO')
+        BURP_TYP='multi'
+        vcord_type(1)=5042
+        vcord_type(2)=2150
+        
+        LISTE_ELE(1:1) = (/12163/)
+        NELE=1
+
+        CALL BRPACMA_NML('namburp_tovsRad')
+        NELE=NELEMS
+
+        if ( addClearRadToBurp ) then
+          clearRadElementFound = .false.
+
+          elementLoop: do iele = 1, NELE
+            if ( BLISTELEMENTS(iele) == 12164 ) then
+              clearRadElementFound = .true.
+              exit elementLoop
+            end if
+          end do elementLoop
+
+          if ( .not. clearRadElementFound ) &
+            call utl_abort('brpr_updateBurp: element 12164 should be in namelist.')
+        end if
+
+        NELE_INFO=16
         WINDS=.FALSE.
         ADDSIZE=600000
       CASE('CH')
@@ -1295,6 +1326,11 @@ CONTAINS
                   else
                     BCOR = MPC_missingValue_R4
                   end if
+                  if ( obs_columnActive_RB(obsdat,OBS_VAR2) ) then
+                    obsClear = obs_bodyElem_r(obsdat,OBS_VAR2,LK)
+                  else
+                    obsClear = MPC_missingValue_R4
+                  end if
                   FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                   KOBSN= KOBSN + 1
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
@@ -1369,7 +1405,11 @@ CONTAINS
                       
                   if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
                        call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
-                      
+
+                  IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12164, IOSTAT=error)
+                  if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_VAR2) ) &
+                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
+
                   IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
                   call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
@@ -1573,6 +1613,7 @@ CONTAINS
          ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON,NELEMS_GPS,LISTE_ELE_GPS
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_TOVS_RAD/ NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
@@ -1598,6 +1639,9 @@ CONTAINS
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
+      CASE( 'namburp_tovsRad')
+        READ(NULNAM,NML=NAMBURP_FILTER_TOVS_RAD)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS_RAD)
       CASE( 'namburp_chm_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
@@ -4791,7 +4835,6 @@ CONTAINS
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
-    logical                     :: addClearRadToBurp
 
     namelist /NAMADDTOBURP/ addClearRadToBurp
 
