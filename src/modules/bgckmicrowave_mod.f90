@@ -1106,6 +1106,81 @@ contains
 
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
+
+  subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, PTBOMP, &
+                                              KMARQ, ICHECK, rejectionCodArray)
+    !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
+    !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
+
+    ! Arguments
+    integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
+    integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
+    integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
+    integer,     intent(in)                :: KNT                            ! nombre de tovs
+    character *9,intent(in)                :: STNID                          ! identificateur du satellite
+    integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
+    real,        intent(in)                :: PTBO(KNO,KNT)                  ! radiance o
+    real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
+    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(out)               :: rejectionCodArray(mwbg_maxNumTest,KNO,KNT)       ! cumul of reject element 
+    ! Locals
+    integer :: channelval
+    integer :: nDataIndex
+    integer :: nChannelIndex
+    integer :: testIndex
+    integer :: INDXCAN 
+    real :: BTcloudy
+    real :: simulatedCloudEffect
+    real :: observedCloudEffect
+    logical :: surfTypeIsWater 
+    logical :: rejectLowPeakingChannels
+
+    integer, dimension(2), parameter :: lowPeakingChannelsList = (/ 31, 32 /)
+
+    testIndex = 16
+    if ( .not. mwbg_allowStateDepSigmaObs ) return 
+
+    loopObs: do nDataIndex = 1, KNT
+      surfTypeIsWater = ( ktermer(jj) ==  1 )
+      if ( .not. surfTypeIsWater ) cycle loopObs
+
+      rejectLowPeakingChannels = .false.
+      loopChannel: do nChannelIndex = 1, KNO
+        channelval = KCANO(nChannelIndex,nDataIndex)
+        if ( channelval /= 32 ) cycle loopChannel
+
+        BTcloudy = PTBO(nChannelIndex,nDataIndex) - PTBOMP(nChannelIndex,nDataIndex)
+        simulatedCloudEffect = BTcloudy - btClear2D(nChannelIndex,nDataIndex)
+        observedCloudEffect = PTBO(nChannelIndex,nDataIndex) - PTBCOR(nChannelIndex,nDataIndex) - btClear2D(nChannelIndex,nDataIndex)
+        if ( simulatedCloudEffect < -0.5 .or. observedCloudEffect < -0.5 ) rejectLowPeakingChannels = .true.
+      end do loopChannel
+
+      ! reject channel 4-5
+      if ( rejectLowPeakingChannels ) then
+        do nChannelIndex = 1, KNO
+          channelval = KCANO(nChannelIndex,nDataIndex)
+          INDXCAN = ISRCHEQI(lowPeakingChannelsList,size(lowPeakingChannelsList),channelval)
+          if ( INDXCAN /= 0 )  then
+            ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
+            rejectionCodArray(testIndex,channelval,KNOSAT) = &
+                rejectionCodArray(testIndex,channelval,KNOSAT) + 1 
+          end if
+
+          if ( mwbg_debug ) then
+            write(*,*) STNID(2:9),' extreme scattering check reject: ', &
+                    ' obs location index = ', nChannelIndex, &
+                    ' channel = 1-5'
+          endif
+        end do
+      end if
+
+    end do loopObs
+
+  end subroutine amsuaTest16ExcludeExtremeScattering
+
   !--------------------------------------------------------------------------
   !  copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
@@ -1166,7 +1241,7 @@ contains
   !  mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
+                                IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
 
@@ -1214,6 +1289,7 @@ contains
     integer, intent(in)                    :: KNOSAT               ! numero de satellite (i.e. indice)
     integer, intent(inout)                 :: IMARQ(:)       ! marqueurs des radiances
     real, intent(in)                       :: ZO(:)          ! radiances
+    real, intent(in)                       :: btClear(:)     ! clear-sky radiances
     real, intent(in)                       :: ZCOR(:)        ! correction aux radiances
     real, intent(in)                       :: ZOMP(:)        ! residus (o-p)
     real, intent(in)                       :: MGINTRP(:)         ! masque terre/mer du modele
@@ -1248,6 +1324,7 @@ contains
     integer                                :: KMARQ   (KNO,KNT)
     integer                                :: KCANO   (KNO,KNT)
     real                                   :: PTBO    (KNO,KNT)
+    real                                   :: btClear2D(KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
@@ -1344,6 +1421,7 @@ contains
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     call copy1Dimto2DimRealArray(ZCOR, KNO, KNT, PTBCOR)
     call copy1Dimto2DimRealArray(ZO, KNO, KNT, PTBO)
+    call copy1Dimto2DimRealArray(btClear, KNO, KNT, btClear2D)
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
 
     ! Initialisation, la premiere fois seulement!
@@ -1454,6 +1532,11 @@ contains
     !  these unassimilated channels).
     call amsuaTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, IUTILST, &
                                               MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
+
+    ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
+    call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, PTBOMP, &
+                                              KMARQ, ICHECK, rejectionCodArray)
+
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
     !            =0, aucun rejet,

@@ -45,6 +45,7 @@ program midas_bgckMW
   integer, allocatable          :: landQualifierIndice(:)                             ! land qualifyer
   integer, allocatable          :: terrainTypeIndice(:)                               ! terrain type
   real,    allocatable          :: obsTemperatureBrillance(:)                         ! temperature de brillance
+  real,    allocatable          :: btClear(:)                                         ! clear-sky observed radiance
   real,    allocatable          :: ompTemperatureBrillance(:)                         ! o-p temperature de "
   real,    allocatable          :: biasCorr(:)                                        ! bias correction fo obsTemperatureBrillance
   integer, allocatable          :: satelliteScanPosition(:)                           ! scan position
@@ -92,13 +93,12 @@ program midas_bgckMW
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
   logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
-  logical                       :: doTestsAmsua(15)
-  logical                       ::useAveragedClwForQC
+  logical                       :: useAveragedClwForQC
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile,
-                    doTestsAmsua, useAveragedClwForQC 
+                    useAveragedClwForQC 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -131,7 +131,6 @@ program midas_bgckMW
   RESETQC               = .false.
   ETIKRESU              = '>>BGCKALT'
   writeTbValuesToFile   = .false.
-  doTestsAmsua(:)       = .true.
   useAveragedClwForQC   = .false.
 
   ! reading namelist
@@ -148,7 +147,6 @@ program midas_bgckMW
   mwbg_clwQcThreshold = clwQcThreshold 
   mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
-  mwbg_doTestsAmsua(:) = doTestsAmsua(:)
   mwbg_useAveragedClwForQC = useAveragedClwForQC
 
   if ( (      mwbg_allowStateDepSigmaObs .and. .not. mwbg_useAveragedClwForQC) .or. &
@@ -176,7 +174,7 @@ program midas_bgckMW
     !###############################################################################
     write(*,*) ' ==> mwbg_getData: '
     call mwbg_getData(burpFileNameIn, reportIndex, satellitenewInformationFlagifier, satelliteZenithAngle, landQualifierIndice, &
-                      terrainTypeIndice, obsLatitude, obsLongitude, obsTemperatureBrillance, biasCorr, ompTemperatureBrillance, &
+                      terrainTypeIndice, obsLatitude, obsLongitude, obsTemperatureBrillance, btClear, biasCorr, ompTemperatureBrillance, &
                       satelliteScanPosition, reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2, observationChannels, ompChannels, &
                       observationFlags, satelliteOrbitnewInformationFlagifier, obsGlobalMarker, resumeReport, ifLastReport, &
                       instName, burpFileSatId)
@@ -208,7 +206,7 @@ program midas_bgckMW
       write(*,*) ' ==> mwbg_tovCheck For: ', instName
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(TOVERRST, IUTILST, satellitenewInformationFlagifier, landQualifierIndice, &
-                                satelliteOrbitnewInformationFlagifier, observationChannels, ompChannels, obsTemperatureBrillance, &
+                                satelliteOrbitnewInformationFlagifier, observationChannels, ompChannels, obsTemperatureBrillance, btClear, &
                                 biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumObs, &
                                 mwbg_realMisg, satelliteIndexObserrorFile, globalQcIndicator, satelliteScanPosition, &
                                 modelInterpGroundIce, modelInterpTerrain, modelInterpSeaIce, terrainTypeIndice, satelliteZenithAngle, &
