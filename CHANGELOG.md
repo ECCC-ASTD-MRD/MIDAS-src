@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Reduce memory requirements for bgck and other programs (in s2c_nl) (#371 and !353)
+   * also speed up burp update by using kdtree
  * Move background procedure from `var` to `obsSelection` program (#359 and !347)
  * Improve documentation about SSM publishing for a single user (#363 and !346)
  * RTTOV radiative transfer performed directly on model levels - NOTE: results affected and not backward compatible (#253 and !323)

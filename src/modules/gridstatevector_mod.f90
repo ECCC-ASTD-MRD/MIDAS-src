@@ -5607,7 +5607,8 @@ module gridStateVector_mod
     ! warn if not enough mpi tasks
     if ( mpi_nprocs < stateVector_trial%numStep ) then
       write(*,*) 'gsv_readTrials: number of trial time steps, mpi tasks = ', stateVector_trial%numStep, mpi_nprocs
-      write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should be at least as large as number of trial time steps'
+      write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should '
+      write(*,*) '                be at least as large as number of trial time steps'
     end if
 
     allocHeightSfc = stateVector_trial%heightSfcPresent

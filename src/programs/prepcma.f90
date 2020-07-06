@@ -155,8 +155,12 @@ program midas_prepcma
   call tim_setDateStamp(dateStamp)
 
   !- Reject any observation outside the data assimilation window
-  if (rejectOutsideTimeWindow) call oti_setup( oti, obsSpaceData, numStep=1, flagObsOutside_opt=.true. )
-
+  if (rejectOutsideTimeWindow) then
+    call oti_setup( oti, obsSpaceData, numStep=1, &
+                    headerIndexBeg=1, headerIndexEnd=obs_numheader(obsSpaceData), &
+                    flagObsOutside_opt=.true. )
+  end if
+  
   !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
   if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 

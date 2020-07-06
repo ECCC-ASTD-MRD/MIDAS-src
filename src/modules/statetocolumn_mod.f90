@@ -228,6 +228,7 @@ contains
   ! s2c_setupInterpInfo
   !---------------------------------------------------------
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
+                                  headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
                                   inputStateVectorType )
     ! :Purpose: Setup all of the information needed to quickly
@@ -240,6 +241,8 @@ contains
     type(struct_interpInfo)    :: interpInfo
     type(struct_obs)           :: obsSpaceData
     type(struct_gsv), target   :: stateVector
+    integer                    :: headerIndexBeg
+    integer                    :: headerIndexEnd
     logical                    :: rejectOutsideObs
     character(len=*)           :: timeInterpType
     character(len=*)           :: inputStateVectorType
@@ -312,9 +315,10 @@ contains
     write(*,*) 's2c_setupInterpInfo: doSlantPath=', doSlantPath
 
     numStep = stateVector%numStep
-    numHeader = obs_numheader(obsSpaceData)
+    numHeader = headerIndexEnd - headerIndexBeg + 1
 
     call oti_setup(interpInfo%oti, obsSpaceData, numStep,  &
+                   headerIndexBeg, headerIndexEnd, &
                    interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
     if ((stateVector%heightSfcPresent) .and. ( mpi_myid == 0)) then
@@ -340,10 +344,12 @@ contains
     do stepIndex = 1, numStep
       numHeaderUsed = 0
 
-      header_loop1: do headerIndex = 1, numHeader
+      header_loop1: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if ( oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0 ) cycle header_loop1
+        if ( oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0 ) then
+          cycle header_loop1
+        end if
 
         numHeaderUsed = numHeaderUsed + 1
 
@@ -401,7 +407,7 @@ contains
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
-      do stepIndex = 1,numStep
+      do stepIndex = 1, numStep
         do procIndex = 1, mpi_nprocs
           allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
           allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
@@ -508,10 +514,12 @@ contains
 
       footprintRadiusVec_r4(:) = bilinearFootprint
 
-      header_loop2: do headerIndex = 1, numHeader
+      header_loop2: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if ( oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0 ) cycle header_loop2
+        if ( oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0 ) then
+          cycle header_loop2
+        end if
 
         numHeaderUsed = numHeaderUsed + 1
         headerIndexVec(numHeaderUsed,stepIndex) = headerIndex
@@ -772,20 +780,27 @@ contains
                             allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
-    numGridptTotal = 0
-    call tmg_start(173,'S2CNL_SETUPROTLL')
-    do kIndex = mykBeg, statevector%mykEnd
+    do procIndex = 1, mpi_nprocs
       do stepIndex = 1, numStep
-        do procIndex = 1, mpi_nprocs
-          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+        do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+          interpInfo%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) = allHeaderIndex(headerIndex,stepIndex,procIndex)
+        end do
+      end do
+    end do
 
-            interpInfo%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) = allHeaderIndex(headerIndex,stepIndex,procIndex)
+    call tmg_start(173,'S2CNL_SETUPROTLL')
+    do stepIndex = 1, numStep
+      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+      !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
+      do procIndex = 1, mpi_nprocs
+        do kIndex = mykBeg, statevector%mykEnd
+          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
             ! Compute the rotated lat/lon, needed for the winds
 
-            lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
+            lat_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
+            lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -812,48 +827,60 @@ contains
               if ( interpInfo%hco%rotated .and.  &
                    (gsv_varExist(varName='UU') .or.  &
                     gsv_varExist(varName='VV')) ) then
-                lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-                lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
+                lat = interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,kIndex)
+                lon = interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex)
                 call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
                                        subGridIndex,     & ! IN
                                        latRot, lonRot,   & ! OUT (radians)
                                        lat, lon,         & ! IN  (radians)
                                        'ToLatLonRot')      ! IN
-                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex) = latRot
-                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex) = lonRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex,headerIndex,kIndex) = latRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex,headerIndex,kIndex) = lonRot
               end if
 
             end do ! subGridForInterp
 
             ! Count total number of grid points for allocating interp depot
 
-            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+            footprintRadius_r4 = allFootprintRadius_r4(headerIndex,stepIndex,procIndex)
 
             call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
                                       stateVector, headerIndex, kIndex, stepIndex, &
                                       procIndex, numGridpt)
 
+            ! for now, just store the number of gridpts for each obs in depotIndexEnd
             if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
               ! indices for only 1 subgrid, other will have zeros
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex) = numGridptTotal + 1
-              numGridptTotal = numGridptTotal + numGridpt(subGridIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) = numGridpt(subGridIndex)
             else
               ! locations on both subGrids will be averaged
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(1, headerIndex, kIndex) = numGridptTotal + 1
-              numGridptTotal = numGridptTotal + numGridpt(1)
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1, headerIndex, kIndex) = numGridptTotal
-
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(2, headerIndex, kIndex) = numGridptTotal + 1
-              numGridptTotal = numGridptTotal + numGridpt(2)
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2, headerIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1,headerIndex,kIndex) = numGridpt(1)
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2,headerIndex,kIndex) = numGridpt(2)
             end if
 
           end do ! headerIndex
         end do ! kIndex
-      end do ! stepIndex
-    end do ! procIndex
+      end do ! procIndex
+      !$OMP END PARALLEL DO
+    end do ! stepIndex
     call tmg_stop(173)
+
+    numGridptTotal = 0
+    do stepIndex = 1, numStep
+      do procIndex = 1, mpi_nprocs
+        do kIndex = mykBeg, statevector%mykEnd
+          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+            do subGridIndex = 1, interpInfo%hco%numSubGrid
+              if ( interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) /= -1 ) then
+                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,kIndex) = numGridptTotal + 1
+                numGridptTotal = numGridptTotal + interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex)
+                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) = numGridptTotal
+              end if
+            end do ! subGridIndex
+          end do ! headerIndex
+        end do ! kIndex
+      end do ! procIndex
+    end do ! stepIndex
 
     deallocate(allHeaderIndex)
 
@@ -994,7 +1021,7 @@ contains
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad,  rejectOutsideObs, &
+                                1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
     end if
 
@@ -1227,17 +1254,17 @@ contains
     deallocate(varNames)
     call gsv_zero( statevector_VarsLevs )
 
-    if ( .not. interpInfo_tlad%initialized ) then
-      rejectOutsideObs = .false.
-      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad, rejectOutsideObs, &
-                                inputStateVectorType='ad' )
-    end if
-
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+
+    if ( .not. interpInfo_tlad%initialized ) then
+      rejectOutsideObs = .false.
+      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
+                                1, numHeader, timeInterpType_tlad, rejectOutsideObs, &
+                                inputStateVectorType='ad' )
+    end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
@@ -1391,7 +1418,7 @@ contains
   ! s2c_nl
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
-                     dealloc_opt, moveObsAtPole_opt )
+                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
     !           the innovation vector).
@@ -1404,20 +1431,21 @@ contains
     type(struct_columnData)    :: column
     character(len=*)           :: timeInterpType
     character(len=*), optional :: varName_opt
+    integer, optional          :: numObsBatches_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
 
     ! locals
     type(struct_gsv) :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
-    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
+    integer :: headerIndexBeg, headerIndexEnd, headerIndexEndMax, obsBatchIndex, numObsBatches
+    integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mpi_nprocs)
     integer :: kIndexHeightSfc
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:), ptr3d_UV_r4(:,:,:)
-    real(8), allocatable :: field2d(:,:), field2d_UV(:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -1480,9 +1508,6 @@ contains
     call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep
-    numHeader = obs_numheader(obsSpaceData)
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     if ( .not. interpInfo_nl%initialized ) then
       call tmg_start(165,'S2CNL_SETUPS')
@@ -1493,244 +1518,272 @@ contains
       ! Do not reject obs for global domain
       rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
       write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
-
-      ! compute and collect all obs grids onto all mpi tasks
-      call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType, rejectOutsideObs, &
-                                inputStateVectorType='nl' )
-      if ( mpi_myid == 0 ) then
-        do stepIndex = 1, numStep
-          write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
-                     stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
-        end do
-      end if
       call tmg_stop(165)
+
     end if
-
-    ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
-    cols_hint(:,:,:) = 0.0d0
-
-    ! arrays for sending/receiving time interpolated column for 1 level/variable
-    allocate(cols_send(numHeaderMax,mpi_nprocs))
-    cols_send(:,:) = 0.0d0
-
-    allocate(cols_recv(numHeaderMax,mpi_nprocs))
-    cols_recv(:,:) = 0.0d0
-
-    allocate(cols_send_1proc(numHeaderMax))
 
     ! set contents of column to zero (1 variable or all)
     allCols_ptr => col_getAllColumns(column,varName_opt)
-    if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
+    if ( obs_numHeader(obsSpaceData) > 0 ) allCols_ptr(:,:) = 0.0d0
 
-    call gsv_getField(stateVector_VarsLevs,ptr4d_r4)
+    ! determine number of obs batches (to reduce memory usage)
+    if (present(numObsBatches_opt)) then
+      numObsBatches = numObsBatches_opt
+    else
+      numObsBatches = 1
+    end if
+    if (.not. dealloc) then
+      numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
+    end if
 
-    allocate(field2d(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
-    allocate(field2d_UV(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
+    OBSBATCH: do obsBatchIndex = 1, numObsBatches
+      headerIndexBeg = 1 + (obsBatchIndex - 1) * (obs_numheader(obsSpaceData) / numObsBatches)
+      if (obsBatchIndex == numObsBatches) then
+        headerIndexEnd = obs_numheader(obsSpaceData)
+      else
+        headerIndexEnd = headerIndexBeg + (obs_numheader(obsSpaceData) / numObsBatches) - 1
+      end if
+      numHeader = headerIndexEnd - headerIndexBeg + 1
+      call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
+                              'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+      write(*,*) 's2c_nl: headerIndexBeg/End, numHeader = ',  &
+                 headerIndexBeg, headerIndexEnd, numHeader
+      call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
+                              allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
 
-    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+      if ( .not. interpInfo_nl%initialized ) then
+        call tmg_start(165,'S2CNL_SETUPS')
 
-    kCount = 0
-    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
-      kCount = kCount + 1
+        ! compute and collect all obs grids onto all mpi tasks
+        call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
+                                  headerIndexBeg, headerIndexEnd, &
+                                  timeInterpType, rejectOutsideObs, &
+                                  inputStateVectorType='nl' )
+        if ( mpi_myid == 0 ) then
+          do stepIndex = 1, numStep
+            write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
+                       stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
+          end do
+        end if
+        call tmg_stop(165)
+      end if
 
-      if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-        varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
+      ! arrays for interpolated column for 1 level/variable and each time step
+      allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
+      cols_hint(:,:,:) = 0.0d0
 
-        if ( varName == 'UU' .or. varName == 'VV' ) then
-          call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
+      ! arrays for sending/receiving time interpolated column for 1 level/variable
+      allocate(cols_send(numHeaderMax,mpi_nprocs))
+      cols_send(:,:) = 0.0d0
+
+      allocate(cols_recv(numHeaderMax,mpi_nprocs))
+      cols_recv(:,:) = 0.0d0
+
+      allocate(cols_send_1proc(numHeaderMax))
+
+      call gsv_getField(stateVector_VarsLevs,ptr4d_r4)
+
+      mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+
+      kCount = 0
+      k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+        kCount = kCount + 1
+
+        if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
+          varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
+
+          if ( varName == 'UU' .or. varName == 'VV' ) then
+            call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
+          end if
+
+          call tmg_start(166,'S2CNL_HINTERP')
+          step_loop: do stepIndex = 1, numStep
+            if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
+
+            ! interpolate to the columns destined for all procs for all steps and one lev/var
+            !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader)
+            do procIndex = 1, mpi_nprocs
+              yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
+              if ( yourNumHeader > 0 ) then
+                if ( varName == 'UU' ) then
+                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
+                                     ptr4d_r4(:,:,kIndex,stepIndex), ptr3d_UV_r4(:,:,stepIndex), &
+                                     interpInfo_nl, kindex, stepIndex, procIndex )
+                else if ( varName == 'VV' ) then
+                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
+                                     ptr3d_UV_r4(:,:,stepIndex), ptr4d_r4(:,:,kIndex,stepIndex), &
+                                     interpInfo_nl, kindex, stepIndex, procIndex )
+                else
+                  call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                    ptr4d_r4(:,:,kIndex,stepIndex),  &
+                                    interpInfo_nl, kindex, stepIndex, procIndex )
+                end if
+              end if
+            end do
+            !$OMP END PARALLEL DO
+
+          end do step_loop
+          call tmg_stop(166)
+
+          ! interpolate in time to the columns destined for all procs and one level/variable
+          do procIndex = 1, mpi_nprocs
+            cols_send_1proc(:) = 0.0d0
+            do stepIndex = 1, numStep
+              !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex, weight)
+              do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+                headerIndex = interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerUsedIndex)
+                headerIndex2 = headerIndex - allHeaderIndexBeg(procIndex) + 1
+                weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,  &
+                                                          headerIndex2,stepIndex,procIndex)
+                cols_send_1proc(headerIndex2) = cols_send_1proc(headerIndex2) + &
+                                                weight * cols_hint(headerUsedIndex,stepIndex,procIndex)
+              end do
+              !$OMP END PARALLEL DO
+            end do
+            cols_send(:,procIndex) = cols_send_1proc(:)
+          end do
+
+        else
+
+          ! this value of k does not exist on this mpi task
+          cols_send(:,:) = 0.0d0
+
+        end if ! if kIndex <= mykEnd
+
+        call tmg_start(160,'S2C_BARR')
+        call rpn_comm_barrier('GRID',ierr)
+        call tmg_stop(160)
+
+        ! mpi communication: alltoall for one level/variable
+        call tmg_start(172,'s2c_nl_allToAll')
+        nsize = numHeaderMax
+        if(mpi_nprocs > 1) then
+          call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
+                                 cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+        else
+          cols_recv(:,1) = cols_send(:,1)
+        end if
+        call tmg_stop(172)
+
+        ! reorganize ensemble of distributed columns
+        !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2)
+        proc_loop: do procIndex = 1, mpi_nprocs
+          kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
+          if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+          do headerIndex = 1, numHeader
+            headerIndex2 = headerIndex + headerIndexBeg - 1
+            allCols_ptr(kIndex2,headerIndex2) = cols_recv(headerIndex,procIndex)
+          end do
+        end do proc_loop
+        !$OMP END PARALLEL DO
+
+      end do k_loop
+
+      ! impose a lower limit on HU
+      if(col_varExist(column,'HU')) then
+        do headerIndex = headerIndexBeg, headerIndexEnd
+          column_ptr => col_getColumn(column,headerIndex,'HU')
+          column_ptr(:) = max(column_ptr(:),col_rhumin)
+        end do
+      end if
+
+      ! Interpolate surface height separately, only exists on mpi task 0
+      HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
+
+        if ( mpi_myid == 0 ) then
+          varName = 'GZ'
+          kIndexHeightSfc = 0    
+          step_loop_height: do stepIndex = 1, numStep
+
+            if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_height
+
+            ! interpolate to the columns destined for all procs for all steps and one lev/var
+            !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
+            do procIndex = 1, mpi_nprocs
+              yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
+              if ( yourNumHeader > 0 ) then
+                ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
+                call myezsint_r8_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                                     ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
+              end if
+            end do
+            !$OMP END PARALLEL DO
+
+          end do step_loop_height
+
+          ! interpolate in time to the columns destined for all procs and one level/variable
+          do procIndex = 1, mpi_nprocs
+            cols_send(:,procIndex) = 0.0d0
+            do stepIndex = 1, numStep
+              !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex)
+              do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+                headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
+                ! just copy, since surface height same for all time steps
+                headerIndex2 = headerIndex - allHeaderIndexBeg(procIndex) + 1
+                cols_send(headerIndex2,procIndex) = cols_hint(headerUsedIndex,stepIndex,procIndex)
+              end do
+              !$OMP END PARALLEL DO
+            end do
+          end do
+
         end if
 
-        call tmg_start(166,'S2CNL_HINTERP')
-        step_loop: do stepIndex = 1, numStep
-          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
-
-          ! copy over field
-          field2d(:,:) = real(ptr4d_r4(:,:,kIndex,stepIndex),8)
-          if ( varName == 'UU' .or. varName == 'VV' ) then
-            field2d_UV(:,:) = real(ptr3d_UV_r4(:,:,stepIndex),8)
-          end if
-
-          ! interpolate to the columns destined for all procs for all steps and one lev/var
-          !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader)
+        ! mpi communication: scatter data from task 0
+        nsize = numHeaderMax
+        if(mpi_nprocs > 1) then
+          allocate(displs(mpi_nprocs))
+          allocate(nsizes(mpi_nprocs))
           do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
-            if ( yourNumHeader > 0 ) then
-              if ( varName == 'UU' ) then
-                call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                   field2d, field2d_UV, interpInfo_nl, kindex, stepIndex, procIndex )
-              else if ( varName == 'VV' ) then
-                call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                   field2d_UV, field2d, interpInfo_nl, kindex, stepIndex, procIndex )
-              else
-                call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                  field2d, interpInfo_nl, kindex, stepIndex, procIndex )
-              end if
+            displs(procIndex) = (procIndex - 1) * nsize
+            nsizes(procIndex) = nsize
+          end do
+          call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
+                                 cols_recv, nsize, 'MPI_REAL8', &
+                                 0, 'GRID', ierr)
+          deallocate(displs)
+          deallocate(nsizes)
+
+        else
+          cols_recv(:,1) = cols_send(:,1)
+        end if
+
+        do headerIndex = headerIndexBeg, headerIndexEnd
+          headerIndex2 = headerIndex - headerIndexBeg + 1
+          call col_setHeightSfc(column, headerIndex, cols_recv(headerIndex2,1))
+        end do
+
+      end if HeightSfcPresent
+
+      deallocate(cols_hint)
+      deallocate(cols_send)
+      deallocate(cols_recv)
+      deallocate(cols_send_1proc)
+
+      if( dealloc ) then
+        deallocate(interpInfo_nl%interpWeightDepot)
+        deallocate(interpInfo_nl%latIndexDepot)
+        deallocate(interpInfo_nl%lonIndexDepot)
+        do stepIndex = 1, numStep
+          do procIndex = 1, mpi_nprocs
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+            if ( interpInfo_nl%hco%rotated ) then
+              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
+              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
             end if
           end do
-          !$OMP END PARALLEL DO
-
-        end do step_loop
-        call tmg_stop(166)
-
-        ! interpolate in time to the columns destined for all procs and one level/variable
-        do procIndex = 1, mpi_nprocs
-          cols_send_1proc(:) = 0.0d0
-          do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
-            do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
-              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,  &
-                                                        headerIndex,stepIndex,procIndex)
-              cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
-                            + weight * cols_hint(headerUsedIndex,stepIndex,procIndex)
-
-            end do
-            !$OMP END PARALLEL DO
-          end do
-          cols_send(:,procIndex) = cols_send_1proc(:)
         end do
+        deallocate(interpInfo_nl%stepProcData)
+        deallocate(interpInfo_nl%allNumHeaderUsed)
+        call oti_deallocate(interpInfo_nl%oti)
 
-      else
-
-        ! this value of k does not exist on this mpi task
-        cols_send(:,:) = 0.0d0
-
-      end if ! if kIndex <= mykEnd
-
-      call tmg_start(160,'S2C_BARR')
-      call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(160)
-
-      ! mpi communication: alltoall for one level/variable
-      call tmg_start(172,'s2c_nl_allToAll')
-      nsize = numHeaderMax
-      if(mpi_nprocs > 1) then
-        call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                               cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
-      else
-        cols_recv(:,1) = cols_send(:,1)
-      end if
-      call tmg_stop(172)
-
-      ! reorganize ensemble of distributed columns
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
-      proc_loop: do procIndex = 1, mpi_nprocs
-        kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
-        do headerIndex = 1, numHeader
-          allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
-        end do
-      end do proc_loop
-      !$OMP END PARALLEL DO
-
-    end do k_loop
-
-    ! Interpolate surface height separately, only exists on mpi task 0
-    HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
-
-      if ( mpi_myid == 0 ) then
-        varName = 'GZ'
-        kIndexHeightSfc = 0    
-        step_loop_height: do stepIndex = 1, numStep
-
-          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_height
-
-          ! interpolate to the columns destined for all procs for all steps and one lev/var
-          !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
-          do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
-            if ( yourNumHeader > 0 ) then
-              ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
-              call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
-
-            end if
-          end do
-          !$OMP END PARALLEL DO
-
-        end do step_loop_height
-
-        ! interpolate in time to the columns destined for all procs and one level/variable
-        do procIndex = 1, mpi_nprocs
-          cols_send(:,procIndex) = 0.0d0
-          do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
-            do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
-              ! just copy, since surface height same for all time steps
-              cols_send(headerIndex,procIndex) = cols_hint(headerUsedIndex,stepIndex,procIndex)
-            end do
-            !$OMP END PARALLEL DO
-          end do
-        end do
-
+        interpInfo_nl%initialized = .false.
       end if
 
-      ! mpi communication: scatter data from task 0
-      nsize = numHeaderMax
-      if(mpi_nprocs > 1) then
-        allocate(displs(mpi_nprocs))
-        allocate(nsizes(mpi_nprocs))
-        do procIndex = 1, mpi_nprocs
-          displs(procIndex) = (procIndex - 1) * nsize
-          nsizes(procIndex) = nsize
-        end do
-        call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
-                               cols_recv, nsize, 'MPI_REAL8', &
-                               0, 'GRID', ierr)
-        deallocate(displs)
-        deallocate(nsizes)
-
-      else
-        cols_recv(:,1) = cols_send(:,1)
-      end if
-
-      do headerIndex = 1, numHeader
-        call col_setHeightSfc(column, headerIndex, cols_recv(headerIndex,1))
-      end do
-
-    end if HeightSfcPresent
-
-    deallocate(field2d_UV)
-    deallocate(field2d)
-    deallocate(cols_hint)
-    deallocate(cols_send)
-    deallocate(cols_recv)
-    deallocate(cols_send_1proc)
-
-    if( dealloc ) then
-      deallocate(interpInfo_nl%interpWeightDepot)
-      deallocate(interpInfo_nl%latIndexDepot)
-      deallocate(interpInfo_nl%lonIndexDepot)
-      do stepIndex = 1, numStep
-        do procIndex = 1, mpi_nprocs
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-          if ( interpInfo_nl%hco%rotated ) then
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
-          end if
-        end do
-      end do
-      deallocate(interpInfo_nl%stepProcData)
-      deallocate(interpInfo_nl%allNumHeaderUsed)
-      call oti_deallocate(interpInfo_nl%oti)
-
-      interpInfo_nl%initialized = .false.
-    end if
-
-    ! impose a lower limit on HU
-    if(col_varExist(column,'HU')) then
-      do headerIndex = 1, numHeader
-        column_ptr => col_getColumn(column,headerIndex,'HU')
-        column_ptr(:) = max(column_ptr(:),col_rhumin)
-      end do
-    end if
+    end do OBSBATCH
 
     call gsv_deallocate( statevector_VarsLevs )
 
@@ -1745,6 +1798,57 @@ contains
   ! myezsint_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
   subroutine myezsint_nl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Scalar horizontal interpolation, replaces the
+    !           ezsint routine from rmnlib.
+    !
+    implicit none
+
+    ! arguments
+    real(8)                 :: column_out(:)
+    character(len=*)        :: varName
+    real(4)                 :: field_in(:,:)
+    type(struct_interpInfo) :: interpInfo
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
+
+    ! locals
+    integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
+    real(8) :: interpValue, weight
+
+    numColumn = size( column_out )
+
+    do headerIndex = 1, numColumn
+
+      ! Interpolate the model state to the obs point
+      interpValue = 0.0d0
+
+      do subGridIndex = 1, interpInfo%hco%numSubGrid
+
+        do gridptIndex =  &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
+
+          interpValue = interpValue + weight * real(field_in(lonIndex, latIndex),8)
+
+        end do
+
+      end do
+      column_out(headerIndex) = interpValue
+
+    end do
+
+  end subroutine myezsint_nl
+
+  ! -------------------------------------------------
+  ! myezsint_r8_nl: Scalar field horizontal interpolation
+  ! -------------------------------------------------
+  subroutine myezsint_r8_nl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -1790,7 +1894,7 @@ contains
 
     end do
 
-  end subroutine myezsint_nl
+  end subroutine myezsint_r8_nl
 
   ! -------------------------------------------------
   ! myezsint_tl: Scalar field horizontal interpolation
@@ -1906,8 +2010,8 @@ contains
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_in(:,:)
-    real(8)                 :: fieldVV_in(:,:)
+    real(4)                 :: fieldUU_in(:,:)
+    real(4)                 :: fieldVV_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
     integer                 :: procIndex
@@ -1945,9 +2049,9 @@ contains
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
           if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) +  &
-                      weight * fieldUU_in(lonIndex, latIndex)
+                      weight * real(fieldUU_in(lonIndex, latIndex),8)
           if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) +  &
-                      weight * fieldVV_in(lonIndex, latIndex)
+                      weight * real(fieldVV_in(lonIndex, latIndex),8)
 
         end do
         ! now rotate the wind vector

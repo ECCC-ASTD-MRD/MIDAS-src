@@ -273,7 +273,7 @@ contains
     end if
 
     call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
-                 moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
+                 moveObsAtPole_opt=.true., numObsBatches_opt=20, dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVectorTrial)
 
     if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'Z_T ') ) then
