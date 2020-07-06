@@ -1763,6 +1763,7 @@ contains
       if(igav == 1) itrn = 2
       if(imet >  3) imet = 3
       if(ihav /= 4) ihav = 1
+      ! Use the quality score qiv2, but if it is missing then use qiv1
       iqiv = iqiv2
       if(iqiv < 0) iqiv = iqiv1
 

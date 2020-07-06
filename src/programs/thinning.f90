@@ -16,12 +16,12 @@
 
 program midas_thinning
   !
-  ! :Purpose: Thinning1 program to reduce the number of observation data
+  ! :Purpose: Thinning program to reduce the number of observation data
   !
   ! :Method:  Set bit 11 of *flag* according to an observation-type-specific
   !           algorithm.  Then remove all observations from SQL and/or burp files
-  !           for which bit 11 is set. So far, only hyper-spectral IR, TOVS (amsua,
-  !           amsub/mhs and atms), and aladin wind data are treated.
+  !           for which bit 11 is set. So far, most NWP obs types except radiosonde
+  !           ssmis and surface are treated.
   !
   use ramDisk_mod
   use utilities_mod
