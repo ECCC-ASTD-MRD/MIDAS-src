@@ -4999,7 +4999,8 @@ CONTAINS
                  convert_block =.true., encode_block=.true., iostat=error)
 
           ! Adding clear-sky radiance to data block for AMSUA
-          else if ( btyp == 9264 .and. bfam == 0 .and. addClearRadToBurp ) then 
+          else if ( (btyp == 9248 .or. btyp == 9264) .and. bfam == 0 .and. &
+                        addClearRadToBurp ) then 
             
             indele = burp_find_element(inputBlock, element=icodeleRad, iostat=error)
 
@@ -5044,7 +5045,9 @@ CONTAINS
                  convert_block =.false., encode_block=.true.,iostat=error)
 
           ! Adding clear-sky radiance to MRQ block for AMSUA
-          else if ( btyp == 15408 .and. bfam == 0 .and. addClearRadToBurp ) then     
+          else if ( (btyp == 15392 .or. btyp == 15408 ) .and. bfam == 0 .and. &
+                        addClearRadToBurp ) then
+
             indele = burp_find_element(inputBlock, element=icodeleRadMrq , iostat=error)
             if ( indele <= 0 ) then
               nbele = nbele + 1
