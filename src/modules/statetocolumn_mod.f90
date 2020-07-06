@@ -91,6 +91,8 @@ module stateToColumn_mod
 
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
+  integer, parameter :: maxNumWrites = 50
+
   ! "special" values of the footprint radius
   real(4), parameter :: nearestNeighbourFootprint = -2.0
   real(4), parameter ::             lakeFootprint = -1.0
@@ -126,6 +128,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
+    integer, save :: numWrites = 0
 
     ! external functions
     integer :: gdllfxy
@@ -204,8 +207,13 @@ contains
         else
           ! The observation is outside the domain
           ! In LAM Analysis mode we must discard this observation
-          write(*,*) 'latlonChecksAnlGrid: Rejecting OBS outside the LAM ANALYSIS grid domain, ', headerIndex
-          write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+          numWrites = numWrites + 1
+          if (numWrites < maxNumWrites) then
+            write(*,*) 'latlonChecksAnlGrid: Rejecting OBS outside the LAM ANALYSIS grid domain, ', headerIndex
+            write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+          else if (numWrites == maxNumWrites) then
+            write(*,*) 'latlonChecksAnlGrid: More rejects, but reached maximum number of writes to the listing.'
+          end if
 
           idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
           idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata -1
@@ -914,6 +922,12 @@ contains
     !$OMP END PARALLEL DO
     call tmg_stop(175)
 
+    ! reject obs in obsSpaceData if any processor has zero weight
+    ! called when a mask exists to catch land contaminated ocean obs
+    if ( allocated(stateVector%hco%mask) ) then
+      call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
+    end if
+    
     deallocate(allFootprintRadius_r4)
     deallocate(allLonOneLev)
     deallocate(allLatOneLev)
@@ -2622,6 +2636,96 @@ contains
   end function s2c_getFootprintRadius
 
   !--------------------------------------------------------------------------
+  ! s2c_rejectZeroWeightObs
+  !--------------------------------------------------------------------------
+  subroutine s2c_rejectZeroWeightObs(interpInfo, obsSpaceData, mykBeg, mykEnd)
+    !
+    !:Purpose: To flag an observation in obsSpaceData as being rejected if
+    !          it has zero interpolation weight (usually because an ocean
+    !          obs is touching land) on any mpi task.
+    !
+    implicit none    
+
+    ! Arguments:
+    type(struct_interpInfo), intent(inout) :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    integer                , intent(in)    :: mykBeg
+    integer                , intent(in)    :: mykEnd
+
+    ! Locals:
+    integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, kIndex
+    integer :: numHeader, numHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
+    integer :: subGridIndex, gridptIndex, ierr, nsize
+    integer, save :: numWrites = 0
+    logical, allocatable :: allRejectObs(:,:), allRejectObsMpiGlobal(:,:)
+
+    write(*,*) 's2c_rejectZeroWeightObs: Starting'
+    call tmg_start(174,'S2C_rejectZeroWeightObs')
+
+    numHeader = obs_numheader(obsSpaceData)
+    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+
+    allocate(allRejectObs(numHeaderMax,mpi_nprocs))
+    allocate(allRejectObsMpiGlobal(numHeaderMax,mpi_nprocs))
+    allRejectObs(:,:) = .false.
+    allRejectObsMpiGlobal(:,:) = .false.
+
+    numStep = size(interpInfo%stepProcData(1,:))
+    do procIndex = 1, mpi_nprocs
+      do stepIndex = 1, numStep
+        do headerUsedIndex = 1, interpInfo%allNumHeaderUsed(stepIndex,procIndex)
+          headerIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerUsedIndex)
+          do kIndex = mykBeg, mykEnd
+            if (kIndex == mykBeg) allRejectObs(headerIndex,procIndex) = .true.
+            do subGridIndex = 1, interpInfo%hco%numSubGrid
+              do gridptIndex =  &
+                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerUsedIndex, kIndex), &
+                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerUsedIndex, kIndex)
+                if (interpInfo%interpWeightDepot(gridptIndex) > 0.0d0) then
+                  allRejectObs(headerIndex,procIndex) = .false.
+                end if
+              end do
+            end do
+          end do ! kIndex
+        end do ! headerUsedIndex
+      end do ! stepIndex
+    end do ! procIndex
+
+    ! do global communication of reject flags
+    nsize = numHeaderMax*mpi_nprocs
+    call rpn_comm_allreduce(allRejectObs,allRejectObsMpiGlobal,nsize,'MPI_LOGICAL','MPI_LOR','GRID',ierr)
+
+    ! modify obsSpaceData based on reject flags
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      if (allRejectObsMpiGlobal(headerIndex,mpi_myid+1)) then
+
+        numWrites = numWrites + 1
+        if (numWrites < maxNumWrites) then
+          write(*,*) 's2c_rejectZeroWeightObs: Rejecting OBS with zero weight, index ', headerIndex
+        else if (numWrites == maxNumWrites) then
+          write(*,*) 's2c_rejectZeroWeightObs: More rejects, but reached maximum number of writes to the listing.'
+        end if
+
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+        end do
+        call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
+                    ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+      end if
+    end do
+
+    deallocate(allRejectObs)
+    deallocate(allRejectObsMpiGlobal)
+
+    call tmg_stop(174)
+    write(*,*) 's2c_rejectZeroWeightObs: Finished'
+
+  end subroutine s2c_rejectZeroWeightObs
+
+  !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
   !--------------------------------------------------------------------------
   subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, &
@@ -2760,6 +2864,7 @@ contains
 
     do subGridForInterp = 1, numSubGridsForInterp
 
+      WeightVec(:) = 0
       gridptCount = 0
 
       ! Compute the 4 weights of the bilinear interpolation
@@ -2807,27 +2912,7 @@ contains
 
       weightsSum = sum(WeightVec(1:gridptCount))
       if ( weightsSum > 0.d0 ) then
-
         WeightVec(1:gridptCount) = WeightVec(1:gridptCount) / weightsSum
-
-      else
-
-        if ( procIndex == mpi_myid + 1 ) then
-
-          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
-
-          write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
-          write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
-          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
-          do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          end do
-          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
-       ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
-
-        end if
-
       end if
 
       ! divide weight by number of subGrids
@@ -3044,25 +3129,7 @@ contains
 
       end if ! not reject
 
-      if ( reject ) then
-
-        if ( procIndex == mpi_myid + 1 ) then
-
-          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
-
-          write(*,*) 's2c_setupFootprintInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
-          write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
-          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
-          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
-          do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          end do
-          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
-                             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
-
-        end if
-
-      else
+      if ( .not. reject ) then
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
@@ -3226,26 +3293,6 @@ contains
 
         numGridpt(subGridIndex) = gridptCount
 
-      else
-
-        if ( procIndex == mpi_myid + 1 ) then
-
-          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
-
-          write(*,*) 's2c_setupLakeInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
-          write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
-          write(*,*) ' grid index : ',lonIndexCentre, latIndexCentre
-          write(*,*) ' mask : ',stateVector%hco%mask(lonIndexCentre,latIndexCentre)
-          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
-          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
-          do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          end do
-          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
-                             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
-
-        end if
-
       end if ! not reject
 
     end do ! subGrid
@@ -3303,35 +3350,23 @@ contains
     if ( lonIndex < 1 .or. lonIndex > statevector%ni .or. &
          latIndex < 1 .or. latIndex > statevector%nj  ) then
 
-      if ( procIndex == mpi_myid + 1 ) then
-        
-        localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
+      write(*,*) 's2c_setupNearestNeighbor: observation out of bounds'
 
-        write(*,*) 's2c_setupNearestNeighbor: Rejecting OBS outside the grid domain, index ', localHeaderIndex
-        write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-        end do
-        call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
-             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
+    else
+
+      if ( allocated(interpInfo%interpWeightDepot) ) then
+      
+        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+
+        interpInfo%interpWeightDepot(depotIndex) = 1.d0
+        interpInfo%latIndexDepot    (depotIndex) = latIndex
+        interpInfo%lonIndexDepot    (depotIndex) = lonIndex
 
       end if
 
-    end if
-
-    if ( allocated(interpInfo%interpWeightDepot) ) then
-      
-      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-
-      interpInfo%interpWeightDepot(depotIndex) = 1.d0
-      interpInfo%latIndexDepot    (depotIndex) = latIndex
-      interpInfo%lonIndexDepot    (depotIndex) = lonIndex
+      numGridpt(subGridIndex) = 1
 
     end if
-
-    numGridpt(subGridIndex) = 1
 
   end subroutine s2c_setupNearestNeighbor
 

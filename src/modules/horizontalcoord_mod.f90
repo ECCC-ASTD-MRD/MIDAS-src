@@ -443,6 +443,7 @@ module HorizontalCoord_mod
                   dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
 
     if (key >= 0) then
+      write(*,*) 'hco_setupFromFile: reading in the 2D mask'
 
       !  Test if the dimensions are compatible with the grid
       if ( ni_t /= ni .or. nj_t /= nj ) then
