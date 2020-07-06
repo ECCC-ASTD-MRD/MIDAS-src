@@ -1238,23 +1238,27 @@ CONTAINS
                   convfact=1.
                   if (iele == 10194) convfact=1./RG
 
-                  refPosition(1) = vcoord
-                  refPosition(2) = iele
-                  call kdtree2_r_nearest(tp=tree,  &
-                                         qv=refPosition, r2=maxRadius, &
-                                         nfound=numFoundSearch,        &
-                                         nalloc=maxNumSearch,          &
-                                         results=searchResults)
-                  if (numFoundSearch == 0) cycle ELEMS
-                  if (numFoundSearch > 1) then
-                    write(*,*) 'vcoord, iele = ', vcoord, iele
-                    do resultIndex = 1, numFoundSearch
-                      write(*,*) 'ppp = ', PPPandVNM(1,searchResults(resultIndex)%idx)
-                      write(*,*) 'vnm = ', PPPandVNM(2,searchResults(resultIndex)%idx)
-                    end do
-                    write(*,*) 'brpr_updateBurp: multiple obs matches found, taking closest'
+                  if (INLV > 0) then
+                    refPosition(1) = vcoord
+                    refPosition(2) = iele
+                    call kdtree2_r_nearest(tp=tree,  &
+                                           qv=refPosition, r2=maxRadius, &
+                                           nfound=numFoundSearch,        &
+                                           nalloc=maxNumSearch,          &
+                                           results=searchResults)
+                    if (numFoundSearch == 0) cycle ELEMS
+                    if (numFoundSearch > 1) then
+                      write(*,*) 'vcoord, iele = ', vcoord, iele
+                      do resultIndex = 1, numFoundSearch
+                        write(*,*) 'ppp = ', PPPandVNM(1,searchResults(resultIndex)%idx)
+                        write(*,*) 'vnm = ', PPPandVNM(2,searchResults(resultIndex)%idx)
+                      end do
+                      write(*,*) 'brpr_updateBurp: multiple obs matches found, taking closest'
+                    end if
+                    lk = bodyIndexList(searchResults(1)%idx)
+                  else
+                    cycle ELEMS
                   end if
-                  lk = bodyIndexList(searchResults(1)%idx)
 
                   OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
                   OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
@@ -1278,109 +1282,7 @@ CONTAINS
                     OMA=OMA*convfact
                   end if
 
-                if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
-                if (OBSN > obs_numHeader(obsdat))  cycle
-                TIME=obs_headElem_i(obsdat,OBS_ETM,OBSN)
-                STID=obs_elem_c(obsdat,'STID',OBSN)
-                if ( STID /= stnid ) cycle
-
-                IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
-
-                if(HIPCS) then
-                  IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
-                  IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
-                endif
-
-                IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-                IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
-                convfact=1.
-                if (iele == 10194) convfact=1./RG
-
-                if (INLV > 0) then
-                  refPosition(1) = vcoord
-                  refPosition(2) = iele
-                  call kdtree2_r_nearest(tp=tree,  &
-                                         qv=refPosition, r2=maxRadius, &
-                                         nfound=numFoundSearch,        &
-                                         nalloc=maxNumSearch,          &
-                                         results=searchResults)
-                  if (numFoundSearch == 0) cycle ELEMS
-                  if (numFoundSearch > 1) then
-                    write(*,*) 'vcoord, iele = ', vcoord, iele
-                    do resultIndex = 1, numFoundSearch
-                      write(*,*) 'ppp = ', PPPandVNM(1,searchResults(resultIndex)%idx)
-                      write(*,*) 'vnm = ', PPPandVNM(2,searchResults(resultIndex)%idx)
-                    end do
-                    write(*,*) 'brpr_updateBurp: multiple obs matches found, taking closest'
-                  end if
-                  lk = bodyIndexList(searchResults(1)%idx)
-                else
-                  cycle ELEMS
-                end if
-
-                      OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
-                      OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
-                      OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
-                      OER=obs_bodyElem_r(obsdat,OBS_OER,LK)
-                      FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                      if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
-                        FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
-                      else
-                        FSO = MPC_missingValue_R4
-                      end if
-                      if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-                        BCOR = obs_bodyElem_r(obsdat,OBS_BCOR,LK)
-                      else
-                        BCOR = MPC_missingValue_R4
-                      end if
-                      FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
-                      KOBSN= KOBSN + 1
-                      IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
-                      if  ( OMA /= MPC_missingValue_R4 ) then
-                        OMA=OMA*convfact
-                      end if
-                      Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-
-                      if(HIPCS) then
-                        if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-                        if(iele == 12192) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-                      endif
-
-                      !if(trim(familytype) == 'TO' )print *,' bingo  stnid kk vnm ppp flg omp ',stnid,kk,vnm,ppp,flg,omp,oma
-                      SUM=SUM +1
-                      IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP, ELEMENT=iele, IOSTAT=error)
-                      if  ( OMP /= MPC_missingValue_R4 ) then
-                        OMP=OMP*convfact
-                      end if
-                      Call BURP_Set_Rval(  Block_OMP,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMP)
-
-                      if(HIPCS) then
-                        if(iele == 12001) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
-                        if(iele == 12192) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
-                      endif
-
-                      Call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
-
-                      if(HIPCS) then
-                        if(iele == 12001) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
-                        if(iele == 12192) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
-                      endif
-
-                      Call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
-
-                      if(HIPCS) then
-                        if(iele == 12001) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
-                        if(iele == 12192) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
-                      endif
-
-                      Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
-
-                      if(HIPCS) then
-                        if(iele == 12001) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
-                        if(iele == 12192) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
-                      endif
-
-                      IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
+                  Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
 
                   if(HIPCS) then
                     if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
@@ -1400,6 +1302,58 @@ CONTAINS
                     if(iele == 12192) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
                   endif
 
+                  Call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
+
+                  if(HIPCS) then
+                    if(iele == 12001) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
+                    if(iele == 12192) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
+                  endif
+
+                  Call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
+
+                  if(HIPCS) then
+                    if(iele == 12001) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
+                    if(iele == 12192) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
+                  endif
+
+                  Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
+
+                  if(HIPCS) then
+                    if(iele == 12001) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
+                    if(iele == 12192) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
+                  endif
+
+                  IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
+
+                  Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
+
+                  if(HIPCS) then
+                    if(iele == 12001) then
+                      IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212101, IOSTAT=error)
+                      Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
+                    endif
+                    if(iele == 12192) then
+                      IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212239, IOSTAT=error)
+                      Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
+                    endif
+                  endif
+
+                  IND_ele = -1
+                  if (iele == BUFR_NBT3) then
+                    IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
+                  elseif (iele == BUFR_NETT) then
+                    IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMTBCOR, IOSTAT=error)
+                  elseif (iele == BUFR_NEES) then
+                    IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMHBCOR, IOSTAT=error)
+                  end if
+                      
+                  if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
+                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
+                      
+                  IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
+
+                  Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
+                  
                   IF (HIRES .and. KOBSN > 0 ) THEN
                     STATUS=obs_headElem_i(obsdat,OBS_ST1,OBSN )
                     STATUS_HIRES=ior(STATUS_HIRES,STATUS)
