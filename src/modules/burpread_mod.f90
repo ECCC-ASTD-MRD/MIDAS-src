@@ -5010,18 +5010,18 @@ CONTAINS
               Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRad, IOSTAT = error)
               do valIndex = 1,nvale
                 do tIndex = 1,nte
-                  call burp_set_tblval( inputBlock, &
+                  call burp_set_Rval( inputBlock, &
                        nele_ind = nbele,            &
                        nval_ind = valIndex,         &
                        nt_ind   = tIndex,           &
-                       tblval   = -1, iostat=error)
+                       Rval = MPC_missingValue_R4, iostat=error)
                   if (error /= 0) call handle_error()
                 end do
               end do
             end if
         
             call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.false., iostat=error)
+                 convert_block =.true., encode_block=.true., iostat=error)
 
           else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block 
             indele = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
@@ -5066,7 +5066,7 @@ CONTAINS
             end if
         
             call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.false.,iostat=error)
+                 convert_block =.true., encode_block=.true.,iostat=error)
 
           else !other blocks
 
