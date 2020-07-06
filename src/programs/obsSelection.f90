@@ -176,15 +176,17 @@ program midas_obsSelection
   ! 3.2 Into the observation files
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
-  call obsf_writeFiles(obsSpaceData)
+  if (obs_famExist(obsSpaceData,'AL')) then
+    call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
+  else
+    ! NOTE: This is temporary, until all obs types incorporate thinning in MIDAS
+    call obsf_writeFiles(obsSpaceData)
+  end if
 
   !  Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
     call obsf_addCloudParametersAndEmissivity(obsSpaceData)
   end if
-
-  ! Delete the flagged observations, and make the files smaller
-  call obsf_thinFiles(obsSpaceData)
 
   !
   ! 4.  Ending

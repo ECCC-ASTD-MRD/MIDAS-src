@@ -1702,7 +1702,7 @@ contains
     type(struct_obs) :: obsSpaceData
 
     integer :: headerIndex,bodyIndex,ilyr,jlev
-    integer :: iass,ixtr,ivco,ivnm,iqiv,imet,ilsv,igav,ihav,itrn,J_SAT
+    integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -1749,19 +1749,23 @@ contains
       zoer = obs_bodyElem_r (obsSpaceData,OBS_OER,bodyIndex)
       headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
-      iqiv = obs_headElem_i (obsSpaceData,OBS_SWQI,headerIndex)
-      imet = obs_headElem_i (obsSpaceData,OBS_SWMT,headerIndex)
-      ilsv = obs_headElem_i (obsSpaceData,OBS_SWLS,headerIndex)
-      igav = obs_headElem_i (obsSpaceData,OBS_SWGA,headerIndex)
-      ihav = obs_headElem_i (obsSpaceData,OBS_SWHA,headerIndex)
-      zlat = obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-      zlon = obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+      iqiv1 = obs_headElem_i (obsSpaceData,OBS_SWQ1,headerIndex)
+      iqiv2 = obs_headElem_i (obsSpaceData,OBS_SWQ2,headerIndex)
+      imet =  obs_headElem_i (obsSpaceData,OBS_SWMT,headerIndex)
+      ilsv =  obs_headElem_i (obsSpaceData,OBS_SWLS,headerIndex)
+      igav =  obs_headElem_i (obsSpaceData,OBS_SWGA,headerIndex)
+      ihav =  obs_headElem_i (obsSpaceData,OBS_SWHA,headerIndex)
+      zlat =  obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+      zlon =  obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
       cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)
 
       itrn = ilsv
       if(igav == 1) itrn = 2
       if(imet >  3) imet = 3
       if(ihav /= 4) ihav = 1
+      ! Use the quality score qiv2, but if it is missing then use qiv1
+      iqiv = iqiv2
+      if(iqiv < 0) iqiv = iqiv1
 
       if(valeurs_defaut) then
         E_DRIFT  = 2.5

@@ -1420,6 +1420,7 @@ module gridStateVector_mod
     character(len=4) :: varName
     character(len=10) :: gsvCopyType 
     character(len=4), pointer :: varNamesList_in(:), varNamesList_out(:)
+    logical, parameter :: verbose=.false.
 
     if ( present(allowVarMismatch_opt) ) then
       allowVarMismatch = allowVarMismatch_opt
@@ -1484,8 +1485,10 @@ module gridStateVector_mod
       call utl_abort('gsv_copy: varMismatch and allowVarMismatch do not agree! Aborting.')
     end if
 
-    write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', timeMismatch=', timeMismatch, &
-               ', varMismatch=', varMismatch,', allowVarMismatch=', allowVarMismatch
+    if (verbose) then
+      write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', timeMismatch=', timeMismatch, &
+                 ', varMismatch=', varMismatch,', allowVarMismatch=', allowVarMismatch
+    end if
 
     ! build list of common variables and see if there is a mismatch
     allocate(varNameListCommon(vnl_numvarmax))

@@ -68,6 +68,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEZD        = 15031
  integer, parameter :: BUFR_NEFE        = 15032
  integer, parameter :: BUFR_NEZW        = 15035
+ integer, parameter :: BUFR_ZTDSCORE    = 40026
  integer, parameter :: BUFR_NEAZ        = 05021
  integer, parameter :: BUFR_NEAL        = 40030 ! aladin HLOS wind
  integer, parameter :: BUFR_NEDWDP      = 40032 ! derivative of HLOS wrt P
@@ -85,6 +86,7 @@ module bufr_mod
  integer, parameter :: bufr_logVis      = 50001 ! log(horizontal visibility)
  integer, parameter :: bufr_gust        = 11041
  integer, parameter :: bufr_riverFlow   = 23040
+ integer, parameter :: bufr_cloudInSeg  = 20081
 
  !
  ! Table C-14: (for Code Table 08046)

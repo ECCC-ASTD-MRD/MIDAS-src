@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added thinning algorithms for most obs types (#357 and !355)
  * Incorporated in `tools/splitobs` the program `midas.splitobs` (#362 and !352)
    * extensive tests can be run with `tools/splitobs/unittest` (see [`README`](tools/splitobs/README.md) for more details)
    * those tests will be run automatically by the CI system only when a tag is pushed

@@ -185,7 +185,7 @@ contains
     !
     !- Initialization and memory allocation for TOVS processing
     !
-    if (obs_famExist(obsSpaceData,'TO')) then
+    if (obs_famExist(obsSpaceData,'TO') .and. (trim(innovationMode) /= 'thinning')) then
       call tvs_setupAlloc(obsSpaceData)
       if (trim(innovationMode) == 'bgck' ) call irbg_setup()
       ! Initialize non diagonal observation error matrices
