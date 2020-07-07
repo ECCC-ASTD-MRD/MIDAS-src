@@ -115,6 +115,11 @@
   </FAMILY>
 
   <FAMILY  name="obsSelection">
+    <SUBMITS sub_name="BgckIasi"/>
+    <FAMILY  name="BgckIasi">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="conv"/>
     <FAMILY  name="conv">
       <SUBMITS sub_name="UnitTest"/>
@@ -130,11 +135,6 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="select_AL"/>
-    <FAMILY  name="select_AL">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
     <SUBMITS sub_name="hyperir"/>
     <FAMILY  name="hyperir">
       <SUBMITS sub_name="UnitTest"/>
@@ -142,6 +142,11 @@
     </FAMILY>
     <SUBMITS sub_name="bgckIasiwBcor"/>
     <FAMILY  name="bgckIasiwBcor">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="select_AL"/>
+    <FAMILY  name="select_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

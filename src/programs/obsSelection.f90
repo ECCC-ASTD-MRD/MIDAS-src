@@ -161,10 +161,29 @@ program midas_obsSelection
 
   end if
 
-  ! 2.3 Thinning1:  Set bit 11 of flag, one observation type at a time
+  ! 2.3 Write obs files after background check, but before thinning
+  call obsf_writeFiles(obsSpaceData)
+
+  ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+  end if
+
+  ! Copy the pre-thinning files into another directory
+  call obsf_copyObsDirectory('./obsBeforeThinning')
+
+  ! 2.4 Thinning:  Set bit 11 of flag, one observation type at a time
+  call thn_thinHyper(obsSpaceData)
+  call thn_thinTovs(obsSpaceData)
+  call thn_thinCSR(obsSpaceData)
+  call thn_thinScat(obsSpaceData)
+  call thn_thinSatWinds(obsSpaceData)
+  call thn_thinAircraft(obsSpaceData)
+  call thn_thinGbGps(obsSpaceData)
+  call thn_thinGpsRo(obsSpaceData)
   call thn_thinAladin(obsSpaceData)
 
-  ! 3 Write the results
+  ! 3 Write the final results
 
   ! 3.1 Into the listings
   write(*,*)
@@ -173,17 +192,13 @@ program midas_obsSelection
     call obs_prnthdr(obsSpaceData,headerIndex)
     call obs_prntbdy(obsSpaceData,headerIndex)
   end do
+
   ! 3.2 Into the observation files
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
-  if (obs_famExist(obsSpaceData,'AL')) then
-    call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
-  else
-    ! NOTE: This is temporary, until all obs types incorporate thinning in MIDAS
-    call obsf_writeFiles(obsSpaceData)
-  end if
+  call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
 
-  !  Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+  ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
     call obsf_addCloudParametersAndEmissivity(obsSpaceData)
   end if

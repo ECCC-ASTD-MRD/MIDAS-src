@@ -55,6 +55,41 @@ extract_family () {
     echo ${file2:3}
 }
 
+obsfile_y=$((1+MP_CHILD/SEQ_NPEX))
+obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
+
+## The numbering for files must contain 4 characters padded with '0'.
+obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
+obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
+
+if [ -d "obsBeforeThinning" ]; then
+    for prefix in brp obs sql dia; do
+        for file in ./obsBeforeThinning/${prefix}*_${obsfile_x}_${obsfile_y}; do
+            if [ -f "${file}" ]; then
+                if [[ "${file}" = *.num_headers ]]; then
+                    /bin/rm ${file}
+                    continue
+                fi
+                bfile=${file##*/}
+                fam=$(extract_family ${file})
+                if [ "${prefix}" = brp ]; then
+                    updated_dir=burpfiles_${fam}.beforeThinning
+                else
+                    updated_dir=${prefix}files_${fam}.beforeThinning
+                fi
+                while [ ! -d "${updated_dir}" ]; do
+                    if [ "${MP_CHILD}" -eq 0 ]; then
+                        /bin/mkdir "${updated_dir}"
+                        break
+                    fi
+                    /bin/sleep 1
+                done
+                /bin/mv ${file} ${updated_dir}/${bfile}
+            fi
+        done
+    done
+fi
+
 if [ "${fasttmp}" = yes ]; then
     for prefix in brp obs sql dia; do
         for file in ${FASTTMPDIR}/obs/${prefix}*; do
@@ -82,13 +117,6 @@ if [ "${fasttmp}" = yes ]; then
         done
     done
 else
-    obsfile_y=$((1+MP_CHILD/SEQ_NPEX))
-    obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
-
-    ## The numbering for files must contain 4 characters padded with '0'.
-    obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
-    obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
-
     for prefix in brp obs sql dia; do
         for file in ./obs/${prefix}*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then
