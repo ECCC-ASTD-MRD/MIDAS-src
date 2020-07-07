@@ -2481,10 +2481,9 @@ contains
             if ( headerIndex > 0 ) then
               istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
-              do bodyIndex = istart, iend
-                if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
-                  call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRaadiance)
-              end do
+              bodyIndex = channelIndex + istart - 1
+              if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
+                call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRaadiance)
             end if
           end do
 
