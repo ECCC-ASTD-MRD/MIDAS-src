@@ -1,3 +1,6 @@
+ &namObsSelection
+   doThinning = .true.
+/
  &NAMDIMO
    NMXOBS=10000,
    NDATAMX=6000000,

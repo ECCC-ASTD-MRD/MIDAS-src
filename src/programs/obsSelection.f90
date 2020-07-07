@@ -40,7 +40,7 @@ program midas_obsSelection
   use thinning_mod
   implicit none
 
-  integer :: datestamp, headerIndex, ierr
+  integer :: datestamp, headerIndex, ierr, nulnam
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
   type(struct_obs),       target :: obsSpaceData
@@ -48,7 +48,12 @@ program midas_obsSelection
   type(struct_vco), pointer      :: vco_anl => null()
   type(struct_hco), pointer      :: hco_core => null()
 
-  integer :: get_max_rss
+  integer :: get_max_rss, fnom, fclos
+
+  ! Namelist variables
+  logical :: doThinning ! Control whether or not thinning is done
+
+  namelist /namObsSelection/ doThinning
 
   write(*,*) ' -------------------------------------------------'
   write(*,*) ' ---  START OF MAIN PROGRAM midas-obsSelection ---'
@@ -61,6 +66,23 @@ program midas_obsSelection
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_OBSSELECTION' )
   call tmg_start(1,'MAIN')
+
+  !- 1.2 Read the namelist for obsSelection program (if it exists)
+  doThinning = .false.
+  if (utl_isNamelistPresent('namObsSelection','./flnml')) then
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
+    read(nulnam,nml=namObsSelection,iostat=ierr)
+    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
+    if (mpi_myid == 0) write(*,nml=namObsSelection)
+    ierr = fclos(nulnam)
+  else
+    write(*,*)
+    write(*,*) 'thn_thinAircraft: Namelist block namObsSelection is missing in the namelist.'
+    write(*,*) '                  The default value will be taken.'
+    if (mpi_myid == 0) write(*,nml=namObsSelection)
+  end if
 
   !
   !- Initialize the ram disk
@@ -161,27 +183,31 @@ program midas_obsSelection
 
   end if
 
-  ! 2.3 Write obs files after background check, but before thinning
-  call obsf_writeFiles(obsSpaceData)
+  if (doThinning) then
 
-  ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
-  if (obs_famExist(obsSpaceData,'TO')) then
-    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+    ! 2.3 Write obs files after background check, but before thinning
+    call obsf_writeFiles(obsSpaceData)
+
+    ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+    if (obs_famExist(obsSpaceData,'TO')) then
+      call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+    end if
+
+    ! Copy the pre-thinning files into another directory
+    call obsf_copyObsDirectory('./obsBeforeThinning')
+
+    ! 2.4 Thinning:  Set bit 11 of flag, one observation type at a time
+    call thn_thinHyper(obsSpaceData)
+    call thn_thinTovs(obsSpaceData)
+    call thn_thinCSR(obsSpaceData)
+    call thn_thinScat(obsSpaceData)
+    call thn_thinSatWinds(obsSpaceData)
+    call thn_thinAircraft(obsSpaceData)
+    call thn_thinGbGps(obsSpaceData)
+    call thn_thinGpsRo(obsSpaceData)
+    call thn_thinAladin(obsSpaceData)
+
   end if
-
-  ! Copy the pre-thinning files into another directory
-  call obsf_copyObsDirectory('./obsBeforeThinning')
-
-  ! 2.4 Thinning:  Set bit 11 of flag, one observation type at a time
-  call thn_thinHyper(obsSpaceData)
-  call thn_thinTovs(obsSpaceData)
-  call thn_thinCSR(obsSpaceData)
-  call thn_thinScat(obsSpaceData)
-  call thn_thinSatWinds(obsSpaceData)
-  call thn_thinAircraft(obsSpaceData)
-  call thn_thinGbGps(obsSpaceData)
-  call thn_thinGpsRo(obsSpaceData)
-  call thn_thinAladin(obsSpaceData)
 
   ! 3 Write the final results
 
@@ -196,7 +222,7 @@ program midas_obsSelection
   ! 3.2 Into the observation files
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
-  call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
+  call obsf_writeFiles(obsSpaceData, obsFileClean_opt=doThinning)
 
   ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
