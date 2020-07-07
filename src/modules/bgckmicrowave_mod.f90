@@ -1107,7 +1107,7 @@ contains
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
 
-  subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, PTBOMP, &
+  subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, btClear2D, PTBOMP, &
                                               KMARQ, ICHECK, rejectionCodArray)
     !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
@@ -1120,6 +1120,7 @@ contains
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: PTBO(KNO,KNT)                  ! radiance o
+    real,        intent(in)                :: btClear2D(KNO,KNT)             ! clear-radiance o
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
@@ -1152,8 +1153,10 @@ contains
 
         BTcloudy = PTBO(nChannelIndex,nDataIndex) - PTBOMP(nChannelIndex,nDataIndex)
         simulatedCloudEffect = BTcloudy - btClear2D(nChannelIndex,nDataIndex)
-        observedCloudEffect = PTBO(nChannelIndex,nDataIndex) - PTBCOR(nChannelIndex,nDataIndex) - btClear2D(nChannelIndex,nDataIndex)
+        observedCloudEffect = PTBO(nChannelIndex,nDataIndex) - btClear2D(nChannelIndex,nDataIndex)
         if ( simulatedCloudEffect < -0.5 .or. observedCloudEffect < -0.5 ) rejectLowPeakingChannels = .true.
+
+        exit loopChannel
       end do loopChannel
 
       ! reject channel 4-5
@@ -1534,7 +1537,7 @@ contains
                                               MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
-    call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, PTBOMP, &
+    call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, btClear2D, PTBOMP, &
                                               KMARQ, ICHECK, rejectionCodArray)
 
     !  Synthese de la controle de qualite au niveau de chaque point

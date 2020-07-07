@@ -1673,6 +1673,7 @@ contains
       real(8) :: clwFG
       real(8) :: deltaE1
       real(8) :: deltaE2
+      integer :: channelNumber
 
       clwObs = computeCLW(headerIndex,sensorIndex,mode='obs')
       clwFG = computeCLW(headerIndex,sensorIndex,mode='FG')
