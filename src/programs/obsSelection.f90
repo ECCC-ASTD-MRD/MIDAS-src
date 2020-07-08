@@ -79,8 +79,8 @@ program midas_obsSelection
     ierr = fclos(nulnam)
   else
     write(*,*)
-    write(*,*) 'thn_thinAircraft: Namelist block namObsSelection is missing in the namelist.'
-    write(*,*) '                  The default value will be taken.'
+    write(*,*) 'midas-obsSelection: Namelist block namObsSelection is missing in the namelist.'
+    write(*,*) '                    The default value will be taken.'
     if (mpi_myid == 0) write(*,nml=namObsSelection)
   end if
 
@@ -185,6 +185,9 @@ program midas_obsSelection
 
   if (doThinning) then
 
+    ! Copy original obs files into another directory
+    call obsf_copyObsDirectory('./obsOriginal',direction='TO')
+
     ! 2.3 Write obs files after background check, but before thinning
     call obsf_writeFiles(obsSpaceData)
 
@@ -194,7 +197,10 @@ program midas_obsSelection
     end if
 
     ! Copy the pre-thinning files into another directory
-    call obsf_copyObsDirectory('./obsBeforeThinning')
+    call obsf_copyObsDirectory('./obsBeforeThinning',direction='TO')
+
+    ! Copy original obs files back into usual directory
+    call obsf_copyObsDirectory('./obsOriginal',direction='FROM')
 
     ! 2.4 Thinning:  Set bit 11 of flag, one observation type at a time
     call thn_thinHyper(obsSpaceData)

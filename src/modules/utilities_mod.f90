@@ -2391,9 +2391,12 @@ contains
     call tmg_start(170,'CopyFile')
 
     unitin=10
-    open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', action='READ', access='STREAM')
+    open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
+         action='READ', access='STREAM')
+
     unitout=11
-    open(unit=unitout, file=trim(fileout), status='NEW', form='UNFORMATTED', action='WRITE', access='STREAM')
+    open(unit=unitout, file=trim(fileout), status='REPLACE', form='UNFORMATTED', &
+         action='WRITE', access='STREAM')
 
     numChar = 0
     do 

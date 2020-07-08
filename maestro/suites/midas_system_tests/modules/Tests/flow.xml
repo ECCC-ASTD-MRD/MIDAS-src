@@ -115,6 +115,11 @@
   </FAMILY>
 
   <FAMILY  name="obsSelection">
+    <SUBMITS sub_name="BgckConv"/>
+    <FAMILY  name="BgckConv">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
       <SUBMITS sub_name="UnitTest"/>
