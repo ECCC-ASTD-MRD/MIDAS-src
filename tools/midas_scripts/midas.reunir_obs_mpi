@@ -156,23 +156,23 @@ elif [ "${filetype}" = SQLite ]; then
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE rdb4_schema' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
 insert into rdb4_schema select * from dbin.rdb4_schema;
 detach dbin;
 EOF
+        ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE rdb4_schema' || status=1
     fi
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE resume' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
 insert into resume select * from dbin.resume;
 detach dbin;
 EOF
+        ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -sq 'CREATE TABLE resume' || status=1
     fi
 
     cat  << EOF > TABLES_REUNIR
