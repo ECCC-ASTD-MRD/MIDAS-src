@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added -i option to the grep command to the tool midas.reunir_obs_mpi so as to preserve the content of RESUME and RDB4_SCHEMA tables (#374 and !356)
  * Added thinning algorithms for most obs types (#357 and !355)
  * Incorporated in `tools/splitobs` the program `midas.splitobs` (#362 and !352)
    * extensive tests can be run with `tools/splitobs/unittest` (see [`README`](tools/splitobs/README.md) for more details)
