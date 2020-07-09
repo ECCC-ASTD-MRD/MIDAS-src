@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added -i option to the grep command to the tool midas.reunir_obs_mpi so as to preserve the content of RESUME and RDB4_SCHEMA tables (#374 and !356)
+ * Added thinning for most obs types in `obsSelection` program (#367 and !357)
  * Added thinning algorithms for most obs types (#357 and !355)
  * Incorporated in `tools/splitobs` the program `midas.splitobs` (#362 and !352)
    * extensive tests can be run with `tools/splitobs/unittest` (see [`README`](tools/splitobs/README.md) for more details)
@@ -36,8 +36,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix `ramdisk_mod.copyFile` when file size is bigger than maximum integer (#366 and !350)
- * Correction of bugs introduced during !323 preventing compilation and execution of system tests in debug mode (#365 and !348)
+ * Fixed midas.reunir_obs_mpi so as to preserve the content of RESUME and RDB4_SCHEMA tables (#374 and !356)
+ * Fixed `ramdisk_mod.copyFile` when file size is bigger than maximum integer (#366 and !350)
+ * Fixed bugs introduced during !323 preventing compilation and execution of system tests in debug mode (#365 and !348)
 
 ### Removed
 
