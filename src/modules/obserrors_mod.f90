@@ -1023,6 +1023,8 @@ contains
     real(8) :: clwThresh1, clwThresh2, clw_avg
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(8) :: sigmaObsBeforeInflation
+    real(8), parameter :: minRetrievableClwValue = 0.0D0
+    real(8), parameter :: maxRetrievableClwValue = 3.0D0
 
     logical :: ifirst, llok, surfTypeIsWater 
 
@@ -1093,6 +1095,14 @@ contains
                     sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                     sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
                     clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
+
+                    ! check to ensure CLW is retrieved and properly set
+                    if ( clw_avg < minRetrievableClwValue .or. &
+                        clw_avg > maxRetrievableClwValue ) then
+                      write(*,*) 'This observation should have been rejected in all-sky mode at background check!' 
+                      call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
+                    end if
+
                     sigmaObsBeforeInflation = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
                     if ( .not. any(inflateStateDepSigmaObs(:)) ) then 
                       sigmaObsErrUsed = sigmaObsBeforeInflation
@@ -1598,6 +1608,7 @@ contains
       integer :: idataEnd
       integer :: bodyIndex
       integer :: channelNumber
+      integer :: numChannelsFound 
       real(8) :: brightnessTempObs_corrected
       real(8) :: brightnessTempObs
       real(8) :: brightnessTempFistGuess
@@ -1608,17 +1619,22 @@ contains
       real(8) :: brightnessTempChannel2
       real(8) :: zenithAngleDegree
       real(8) :: zenithAngleRadian
-      real(8) :: a, b, c
+      real(8) :: minValue
+
+      minValue = 1.0D-30
 
       ! get ch1 and ch2 brightness temperatures
       idataBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
       idataEnd = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) + idataBeg - 1
 
+      numChannelsFound = 0
       loop_body: do bodyIndex = idataBeg, idataEnd
 
         channelNumber = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
         if ( channelNumber /= 1 .or. channelNumber /= 2 ) cycle loop_body
+
+        numChannelsFound = numChannelsFound + 1
 
         brightnessTempObs_corrected = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
         biasCorrection = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
@@ -1642,15 +1658,15 @@ contains
 
       end do loop_body
 
+      if ( numChannelsFound /= 2 ) call utl_abort('computeCLW: channel 1-2 not found.')
+
       ! use Grody retieval formula for CLW
       zenithAngleDegree = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
       zenithAngleRadian = zenithAngleDegree * MPC_RADIANS_PER_DEGREE_R8
-      a =  8.240D0 - (2.622D0 - 1.846D0 * cos(zenithAngleRadian)) * cos(zenithAngleRadian)
-      b =  0.754D0
-      c = -2.265D0
-      clw = a + b * log(285.0D0 - brightnessTempChannel1) + &
-                c * log(285.0D0 - brightnessTempChannel2)
-      clw = clw * cos(zenithAngleDegree)
+      clw = 8.240D0 - (2.622D0 - 1.846D0 * cos(zenithAngleRadian)) * cos(zenithAngleRadian) + & 
+            0.754D0 * log(max(285.0D0-brightnessTempChannel1,minValue)) + &
+            -2.265D0 * log(max(285.0D0-brightnessTempChannel2,minValue))
+      clw = clw * cos(zenithAngleRadian)
       clw = max(0.0D0,clw)
 
     end function computeCLW
@@ -1688,6 +1704,7 @@ contains
             (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
            abs(clwObs - clwFG) >= 0.005 )                                           &
         deltaE1 = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
+        deltaE1 = abs(deltaE1)  
 
       ! error inflation due to cloud liquid water difference
       deltaE2 = 0.0D0
