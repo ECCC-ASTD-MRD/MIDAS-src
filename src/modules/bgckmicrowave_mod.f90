@@ -769,7 +769,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, MISGRODY, MXCLWREJ, &
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -785,6 +785,7 @@ contains
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: CLW(KNT)                       ! cloud liquid water 
     real,        intent(in)               :: clw_avg(KNT)                   ! averaged cloud liquid water 
+    integer,     intent(in)               :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)               :: MISGRODY                       ! MISGRODY
     integer,     intent(in)               :: MXCLWREJ                       ! cst 
     integer,     intent(in)               :: ICLWREJ(MXCLWREJ)              !
@@ -799,6 +800,7 @@ contains
     integer                               :: testIndex
     integer                               :: INDXCAN 
     real                                  :: clwUsedForQC
+    logical                               :: surfTypeIsWater 
 
     testIndex = 12
     do nDataIndex=1,KNT
@@ -808,8 +810,10 @@ contains
         clwUsedForQC = clw(nDataIndex)
       end if
 
+      surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
+
       if ( clwUsedForQC .NE.  MISGRODY  ) then
-        if ( clwUsedForQC .GT. mwbg_clwQcThreshold   ) then
+        if ( clwUsedForQC .GT. mwbg_clwQcThreshold ) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN.NE.0 )  then
@@ -837,6 +841,23 @@ contains
                       ' cloud-affected obs. CLW= ',clwUsedForQC, ', threshold= ',cloudyClwThreshold 
           end if
         end if
+
+      ! Reject surface sensitive observations over water, in all-sky mode, 
+      ! if CLW is not retrieved, and is needed to define obs error.
+      else if ( mwbg_allowStateDepSigmaObs .and. surfTypeIsWater .and. &
+                clwUsedForQC == MISGRODY ) then
+
+        loopChannel: do nChannelIndex = 1, KNO
+          channelval = KCANO(nChannelIndex,nDataIndex)
+          INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,channelval)
+          if ( INDXCAN /= 0 .and. useStateDepSigmaObs(channelval,knosat) /= 0 ) then
+            ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
+            rejectionCodArray(testIndex,channelval,KNOSAT) = &
+                     rejectionCodArray(testIndex,channelval,KNOSAT)+ 1
+          end if
+        end do loopChannel
 
       end if
     end do
@@ -967,13 +988,20 @@ contains
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
             sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
             sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
-            sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
+            if ( clw_avg(nDataIndex) == MISGRODY ) then
+              sigmaObsErrUsed = MPC_missingValue_R4
+            else
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
+            end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
           end if
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clw_avg=MISGRODY
+          ! in all-sky mode), the observation is already rejected in test 12.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL     ) then
+              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL              .and. &
+              sigmaObsErrUsed /= MPC_missingValue_R4 ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
@@ -1147,17 +1175,17 @@ contains
       if ( .not. surfTypeIsWater ) cycle loopObs
 
       rejectLowPeakingChannels = .false.
-      loopChannel: do nChannelIndex = 1, KNO
+      loopChannel2: do nChannelIndex = 1, KNO
         channelval = KCANO(nChannelIndex,nDataIndex)
-        if ( channelval /= 32 ) cycle loopChannel
+        if ( channelval /= 32 ) cycle loopChannel2
 
         BTcloudy = PTBO(nChannelIndex,nDataIndex) - PTBOMP(nChannelIndex,nDataIndex)
         simulatedCloudEffect = BTcloudy - btClear2D(nChannelIndex,nDataIndex)
         observedCloudEffect = PTBO(nChannelIndex,nDataIndex) - btClear2D(nChannelIndex,nDataIndex)
         if ( simulatedCloudEffect < -0.5 .or. observedCloudEffect < -0.5 ) rejectLowPeakingChannels = .true.
 
-        exit loopChannel
-      end do loopChannel
+        exit loopChannel2
+      end do loopChannel2
 
       ! reject channel 4-5
       if ( rejectLowPeakingChannels ) then
@@ -1508,7 +1536,7 @@ contains
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, MISGRODY, MXCLWREJ, &
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
