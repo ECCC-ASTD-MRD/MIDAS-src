@@ -36,6 +36,7 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_getPositionXY
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
+  public :: utl_copyFile
 
   ! module interfaces
   ! -----------------
@@ -2361,5 +2362,85 @@ contains
     end do
     
   end subroutine utl_parseColumns
+
+  !--------------------------------------------------------------------------
+  ! utl_copyFile
+  !--------------------------------------------------------------------------
+  function utl_copyFile(filein, fileout) result(status)
+    !
+    !:Purpose: Copy the specified file to the new location and/or name
+    !          This function is very general, but was initially written to
+    !          copy files from the disk to the ram disk
+    !
+    !
+    implicit none
+    character(len=*) :: filein
+    character(len=*) :: fileout
+    integer :: status
+
+    integer :: ierr, unitin, unitout
+    integer(8) :: numChar
+    character :: bufferB
+    integer, parameter :: bufferSizeKB = 1024
+    character :: bufferKB(bufferSizeKB)
+    integer, parameter :: bufferSizeMB = 1024*1024
+    character :: bufferMB(bufferSizeMB)
+
+    write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
+
+    call tmg_start(170,'CopyFile')
+
+    unitin=10
+    open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
+         action='READ', access='STREAM')
+
+    unitout=11
+    open(unit=unitout, file=trim(fileout), status='REPLACE', form='UNFORMATTED', &
+         action='WRITE', access='STREAM')
+
+    numChar = 0
+    do 
+      read(unitin,iostat=ierr) bufferMB
+      if (ierr < 0) exit
+      numChar = numChar + bufferSizeMB
+      write(unitout) bufferMB
+    end do
+
+    do 
+      read(unitin,iostat=ierr,pos=numChar+1) bufferKB
+      if (ierr < 0) exit
+      numChar = numChar + bufferSizeKB
+      write(unitout) bufferKB
+    end do
+
+    do 
+      read(unitin,iostat=ierr,pos=numChar+1) bufferB
+      if (ierr < 0) exit
+      numChar = numChar + 1
+      write(unitout) bufferB
+    end do
+
+    write(*,*) 'utl_copyFile: copied ', numChar, ' bytes'
+
+    close(unit=unitin)
+    close(unit=unitout)
+
+    if (numChar > 0) then
+      status = 0
+    else
+      status = -1
+      if (numChar == 0) then
+        call utl_abort('utl_copyFile: ERROR, zero bytes copied')
+      else
+        ! Note: If 'numChar' becomes negative then it means it got bigger
+        !       than the maximum integer the 'integer' type and so the
+        !       variable 'numChar' wraps around and becomes negative.
+        call utl_abort('utl_copyFile: ERROR, overflow detected since number of bytes copied is negative!')
+      end if
+    end if
+
+    call tmg_stop(170)
+
+  end function utl_copyFile
 
 end module utilities_mod

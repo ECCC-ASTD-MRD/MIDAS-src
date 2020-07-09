@@ -40,6 +40,7 @@ module obsFiles_mod
   use obsVariableTransforms_mod
   use burpread_mod
   use biasCorrectionConv_mod
+  use clib_interfaces_mod
    
   implicit none
   save
@@ -51,7 +52,7 @@ module obsFiles_mod
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
-  public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName
+  public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
 
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
@@ -887,5 +888,67 @@ contains
     end do
 
   end subroutine obsf_addCloudParametersAndEmissivity
+
+  !--------------------------------------------------------------------------
+  ! obsf_copyObsDirectory
+  !--------------------------------------------------------------------------
+  subroutine obsf_copyObsDirectory(directoryInOut, direction)
+    !
+    ! :Purpose: Loop on observation files and copy each to and from
+    !           the specified directory
+    !
+    implicit none
+    ! Arguments:
+    character(len=*) :: directoryInOut
+    character(len=*) :: direction
+
+    ! Locals:
+    integer            :: status, fileIndex, baseNameIndexBeg
+    character(len=200) :: baseName, fullName
+
+    if (trim(direction) == 'TO') then
+      ! Copy files TO the specified directory
+
+      ! Create destination directory
+      if (mpi_myid == 0) status = clib_mkdir_r(trim(directoryInOut))
+      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+
+      ! If obs files not split and I am not task 0, then return
+      if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+      do fileIndex = 1, obsf_nfiles
+        fullName = trim( obsf_cfilnam(fileIndex) )
+        baseNameIndexBeg = index(fullName,'/',back=.true.)
+        baseName = fullName(baseNameIndexBeg+1:)
+        write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
+        status = utl_copyFile(fullName,trim(directoryInOut)//'/'//trim(baseName))
+      end do
+
+    else if (trim(direction) == 'FROM') then
+      ! Copy files FROM the specified directory
+
+      ! If obs files not split and I am not task 0, then return
+      if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+      do fileIndex = 1, obsf_nfiles
+        fullName = trim( obsf_cfilnam(fileIndex) )
+        baseNameIndexBeg = index(fullName,'/',back=.true.)
+        baseName = fullName(baseNameIndexBeg+1:)
+        write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
+        status = utl_copyFile(trim(directoryInOut)//'/'//trim(baseName),fullName)
+        status = clib_remove(trim(directoryInOut)//'/'//trim(baseName))
+      end do
+
+      ! Remove the directory
+      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+      if (mpi_myid == 0) status = clib_remove(trim(directoryInOut))
+      
+    else
+
+      call utl_abort('obsf_copyObsDirectory: invalid value for direction')
+
+    end if
+
+  end subroutine obsf_copyObsDirectory
 
 end module obsFiles_mod
