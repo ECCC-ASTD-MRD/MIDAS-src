@@ -40,12 +40,60 @@ module thinning_mod
   private
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
-  public :: thn_thinAircraft, thn_thinScat, thn_thinSatWinds, thn_thinAladin
-  public :: thn_thinGbGps, thn_thinGpsRo
+  public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
+  public :: thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
 
   integer, external :: get_max_rss
 
 contains
+
+  !--------------------------------------------------------------------------
+  ! thn_thinRaobs
+  !--------------------------------------------------------------------------
+  subroutine thn_thinRaobs(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    logical :: verticalThinningES !
+    logical :: ecmwfRejetsES      !
+    logical :: rejectTdZeroC      !
+
+    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES, rejectTdZeroC
+
+    ! return if no aircraft obs
+    if (.not. obs_famExist(obsdat,'UA')) return
+
+    ! Default values for namelist variables
+    verticalThinningES = .true.
+    ecmwfRejetsES = .true.
+    rejectTdZeroC = .true.
+
+    ! Read the namelist for Radiosonde observations (if it exists)
+    if (utl_isNamelistPresent('thin_raobs','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error opening file flnml')
+      read(nulnam,nml=thin_raobs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_raobs)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
+      write(*,*) '               The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_raobs)
+    end if
+
+    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+
+  end subroutine thn_thinRaobs
 
   !--------------------------------------------------------------------------
   ! thn_thinAircraft
@@ -621,6 +669,24 @@ contains
     write(*,*)
 
   end subroutine thn_gpsroVertical
+
+  !--------------------------------------------------------------------------
+  ! thn_radiosonde
+  !--------------------------------------------------------------------------
+  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+    !
+    ! :Purpose: Original method for thinning radiosonde data vertically.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    logical,          intent(in)    :: verticalThinningES
+    logical,          intent(in)    :: ecmwfRejetsES
+    logical,          intent(in)    :: rejectTdZeroC
+
+  end subroutine thn_radiosonde
 
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
