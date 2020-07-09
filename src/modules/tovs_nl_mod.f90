@@ -303,6 +303,11 @@ contains
             tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
             tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
           end if
+
+          if ( tvs_debug .and. mpi_myid == 0 .and. &
+                trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) &
+            write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
+                        tvs_satelliteName(nosensor), channelNumber, channelIndex
         end if
       end do BODY
     end do HEADER
@@ -368,6 +373,18 @@ contains
     end do
     
     deallocate(logicalBuffer)
+
+    if ( tvs_debug .and. mpi_myid == 0 ) then
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) "sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)"
+        write(*,*) sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)
+        write(*,*) "tvs_channelOffset(sensorIndex), tvs_nchan(sensorIndex)"
+        write(*,*) tvs_channelOffset(sensorIndex), tvs_nchan(sensorIndex)
+        write(*,*) "tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex)"
+        write(*,*) tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex)
+        write(*,*) 
+      end do
+    end if
 
     !  3. Initialize TOVS radiance transfer model
 
