@@ -686,6 +686,32 @@ contains
     logical,          intent(in)    :: ecmwfRejetsES
     logical,          intent(in)    :: rejectTdZeroC
 
+    ! Locals:
+    integer :: ierr, countObs, countObsInMpi, headerIndex
+
+    ! Check if any observations to be treated
+    countObs = 0
+    call obs_set_current_header_list(obsdat,'UA')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      countObs = countObs + 1
+      write(*,*) obs_headElem_i(obsdat, obs_rtp, headerIndex), &
+                 obs_headElem_i(obsdat, obs_lch, headerIndex), &
+                 obs_headElem_i(obsdat, obs_prfl, headerIndex)
+    end do HEADER0
+
+    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_radiosonde: no UA obs observations present'
+      return
+    end if
+
+    write(*,*) 'thn_radiosonde: number of obs initial = ', &
+               countObs, countObsInMpi
+
+
   end subroutine thn_radiosonde
 
   !--------------------------------------------------------------------------

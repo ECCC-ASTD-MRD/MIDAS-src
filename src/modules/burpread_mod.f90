@@ -1639,7 +1639,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    INTEGER                :: LISTE_INFO(20),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(22),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1670,7 +1670,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,1033/
+        013209,1033,2011,4197/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1705,6 +1705,7 @@ CONTAINS
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
+        NELE_INFO=22
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
@@ -2417,7 +2418,7 @@ CONTAINS
 
               else
                 RINFO(kl,1:nte)=MPC_missingValue_R4
-            end if
+              end if
 
             end do
 
@@ -2574,6 +2575,7 @@ CONTAINS
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
+                if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE),  OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA_SF)
                 IF (OBSN > 1 ) THEN
@@ -2582,6 +2584,14 @@ CONTAINS
                 ELSE
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
                 END IF
+
+                ! write info block to header (same values for all headers associated with report)
+                if (allocated(TRINFO))  then
+                  call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                else
+                  call missing_info(obsdat,liste_info,nele_info)
+                end if
+
               END IF
 
             END IF
@@ -2632,6 +2642,7 @@ CONTAINS
 
 
                   OBSN=obs_numHeader(obsdat)
+                  if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
                   IF (OBSN > 1 ) THEN
@@ -2642,6 +2653,14 @@ CONTAINS
                     call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
                     !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                   END IF
+
+                  ! write info block to header (same values for all headers associated with report)
+                  if (allocated(TRINFO))  then
+                    call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                  else
+                    call missing_info(obsdat,liste_info,nele_info)
+                  end if
+
                 END IF
 
               end do
@@ -3196,7 +3215,7 @@ CONTAINS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
-    INTEGER     ::   IFOV,ORIGIN_CENTRE
+    INTEGER     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
 
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
@@ -3213,6 +3232,8 @@ CONTAINS
     ID_SAT     = 0
     SENSOR     = 0
     ORIGIN_CENTRE = 0
+    RAOBSTYPE  = MPC_missingValue_INT
+    LAUNCHTIME = MPC_missingValue_INT
 
     IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
@@ -3337,6 +3358,10 @@ CONTAINS
           END IF
         CASE(13209)
           cloudLiquidWater = INFOV
+        CASE(2011)
+          raobsType = nint(infov)
+        CASE(4197)
+          launchTime = nint(infov)
       END SELECT
     end do
 
@@ -3381,6 +3406,8 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
+    if ( obs_columnActive_IH(obsdat,OBS_RTP) ) call obs_headSet_i(obsdat,OBS_RTP,nobs,raobsType)
+    if ( obs_columnActive_IH(obsdat,OBS_LCH) ) call obs_headSet_i(obsdat,OBS_LCH,nobs,launchTime)
     if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,RCLOUD_COVER )
     if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,RSOLAR_ZENITH )
     if ( obs_columnActive_RH(obsdat,OBS_SAZ) ) call obs_headSet_r(obsdat,OBS_SAZ,nobs,RSOLAR_AZIMUTH )
@@ -3396,6 +3423,42 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
 
   END SUBROUTINE  WRITE_INFO
+
+!!------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------
+
+  subroutine missing_info(obsdat,liste_info,nele_info)
+    implicit none
+    type (struct_obs), intent(inout) :: obsdat
+    integer     ::   nele_info
+    integer     ::   liste_info(nele_info)
+
+    integer :: nobs
+
+    nobs = obs_numHeader(obsdat)
+
+    if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_ORI) ) call obs_headSet_i(obsdat,OBS_ORI,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_TEC) ) call obs_headSet_i(obsdat,OBS_TEC,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_RTP) ) call obs_headSet_i(obsdat,OBS_RTP,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_LCH) ) call obs_headSet_i(obsdat,OBS_LCH,nobs,mpc_missingValue_int)
+
+    if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SAZ) ) call obs_headSet_r(obsdat,OBS_SAZ,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SZA) ) call obs_headSet_r(obsdat,OBS_SZA,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,obs_missingValue_r)
+
+  end subroutine  missing_info
 
 
   INTEGER  FUNCTION FIND_INDEX(LIST,ELEMENT)
