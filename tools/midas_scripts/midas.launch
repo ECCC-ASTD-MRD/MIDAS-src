@@ -538,7 +538,14 @@ else
     mv -f flnml ..                   || true
     if [ -d obsfiles_final ]; then
         for obsfile in obsfiles_final/*; do
-            mv -f ${obsfile} ../$(basename ${obsfile} | sed 's/files_//') || true
+            if [ -f "${obsfile}" ]; then
+                mv -f ${obsfile} ../$(basename ${obsfile} | sed 's/files_//') || true
+            elif [ -d "${obsfile}" ]; then
+                filetype=$(basename ${obsfile} | cut -d_ -f2-)
+                for tobsfile in ${obsfile}/*; do
+                    mv -f ${tobsfile} ../$(basename ${tobsfile} | sed 's/files_//')_${filetype} || true
+                done
+            fi
         done
     fi
     mv -f pm1q ..                    || true

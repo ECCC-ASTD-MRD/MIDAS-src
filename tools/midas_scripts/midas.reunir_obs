@@ -33,7 +33,7 @@ if [ "${splitobs_mode}" = 'splitobs' ]; then
 fi
 
 ## La liste des familles est celle des repertoires '*files_*.updated'
-families2process=$(/bin/ls -1d *files_*.updated | xargs -L1 basename | sed "s/\.updated$//")
+families2process=$(/bin/ls -1d *files_*.updated *files_*.beforeThinning)
 number_of_families2process=$(printf "${families2process}" | wc -w)
 
 [ ! -d "${obsout}" ] && mkdir ${obsout}
