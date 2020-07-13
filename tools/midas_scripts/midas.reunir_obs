@@ -11,6 +11,7 @@ eval `cclargs_lite -D "" $0 \
   -midas_reunir_obs_mpi "midas.reunir_obs_mpi" "midas.reunir_obs_mpi" "[path to script 'midas.reunir_obs_mpi]" \
   -obsin         "" "" "[input observation directory (where '*files_*.updated' directories are)]"  \
   -obsout        "" "" "[output observation directory]" \
+  -dirext2process    "" "" "[extensions to directories to process (default: '.updated' and '.beforeThinning')]"\
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
   -reunir_obs_fam    "uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov" "" "[list of observation families that 'reunir_obs' will have to process (default: 'uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov')]" \
   -editbrp           "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
@@ -32,9 +33,22 @@ if [ "${splitobs_mode}" = 'splitobs' ]; then
     ${nodelogger} -n $SEQ_NODE -s infox -m "Regrouping the observations with program ${reunir_obs}"
 fi
 
-## La liste des familles est celle des repertoires '*files_*.updated'
-families2process=$(/bin/ls -1d *files_*.updated *files_*.beforeThinning)
+## La liste des repertoires a travailler
+for ext in ${dirext2process}; do
+    files=$(/bin/ls -1d *files_*${ext})
+    [ -z "${files}" ] && continue
+    if [ -n "${families2process}" ]; then
+        families2process="${families2process} ${files}"
+    else
+        families2process=${files}
+    fi
+done
+
 number_of_families2process=$(printf "${families2process}" | wc -w)
+if [ "${number_of_families2process}" -le 0 ]; then
+    echo "No files to process!"
+    exit 1
+fi
 
 [ ! -d "${obsout}" ] && mkdir ${obsout}
 
