@@ -13,19 +13,19 @@ eval `cclargs_lite -D "" $0 \
   -obsout        "" "" "[output observation directory]" \
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
   -reunir_obs_fam    "uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov" "" "[list of observation families that 'reunir_obs' will have to process (default: 'uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov')]" \
-  -editbrp     "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
-  -reflex      "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
-  -rfiletype   "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
-  -run_in_parallel  "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
+  -editbrp           "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
+  -reflex            "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
+  -rfiletype         "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
+  -run_in_parallel   "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
   -midas_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
   -npex              "1"   "1"   "[number of MPI tiles in the x direction (default to 1]" \
   -npey              "1"   "1"   "[number of MPI tiles in the y direction (default to 1]" \
   -omp_stacksize     "2G"  "2G"  "[set the variable OMP_STACKSIZE to that number]" \
   -mpi_ssm           ""    ""    "[SSM domains to load the MPI environment]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
-  -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
-  -ramdiskpath "" "" "[path to RAMDisk]" \
-  -nodelogger   "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
+  -fasttmp           "no" "yes" "[Using the FASTTMP technology]" \
+  -ramdiskpath       "" "" "[path to RAMDisk]" \
+  -nodelogger        "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
   ++ $arguments`
 
 if [ "${splitobs_mode}" = 'splitobs' ]; then
@@ -44,34 +44,34 @@ while [ "${base}" -lt "${number_of_families2process}" ]; do
     ${midas_mpirun} "Launching reunir_obs with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_reunir_obs_mpi} \
         -nompi pseudo_mpi -npex ${nprocs} -tmpdir ${PWD}/reunirobs_mpi_tmpdir_${base} \
         -args                                                                         \
-             =-obsin  ${obsin}                                                        \
-             =-obsout ${obsout}                                                       \
+             =-obsin              ${obsin}                                            \
+             =-obsout             ${obsout}                                           \
              =-number_of_families_already_processed ${base}                           \
-             =-fasttmp ${fasttmp}                                                     \
-             =-ramdiskpath ${ramdiskpath}                                             \
-             =-splitobs_mode ${splitobs_mode}                                         \
-             =-families2process ${families2process}                                   \
-             =-reunir_obs ${reunir_obs}                                               \
-             =-reunir_obs_fam ${reunir_obs_fam}                                       \
-             =-reflex ${reflex}                                                       \
-             =-editbrp ${editbrp}                                                     \
-             =-rfiletype ${rfiletype}                                                 \
-             =-ls_cmd $(which ls)                                                     \
-             =-rm_cmd $(which rm)                                                     \
-             =-mv_cmd $(which mv)                                                     \
-             =-cp_cmd $(which cp)                                                     \
-             =-sed_cmd $(which sed)                                                   \
-             =-grep_cmd $(which grep)                                                 \
-             =-echo_cmd $(which echo)                                                 \
-             =-true_cmd $(which true)                                                 \
-             =-tr_cmd $(which tr)                                                     \
-             =-wc_cmd $(which wc)                                                     \
-             =-cut_cmd $(which cut)                                                   \
-             =-mkdir_cmd $(which mkdir)                                               \
-             =-xargs_cmd $(which xargs)                                               \
-             =-printf_cmd $(which printf)                                             \
-             =-sqlite3_cmd $(which sqlite3)                                           \
-             =-basename_cmd $(which basename)
+             =-fasttmp            ${fasttmp}                                          \
+             =-ramdiskpath        ${ramdiskpath}                                      \
+             =-splitobs_mode      ${splitobs_mode}                                    \
+             =-families2process   ${families2process}                                 \
+             =-reunir_obs         ${reunir_obs}                                       \
+             =-reunir_obs_fam     ${reunir_obs_fam}                                   \
+             =-reflex             ${reflex}                                           \
+             =-editbrp            ${editbrp}                                          \
+             =-rfiletype          ${rfiletype}                                        \
+             =-ls_cmd             $(which ls)                                         \
+             =-rm_cmd             $(which rm)                                         \
+             =-mv_cmd             $(which mv)                                         \
+             =-cp_cmd             $(which cp)                                         \
+             =-sed_cmd            $(which sed)                                        \
+             =-grep_cmd           $(which grep)                                       \
+             =-echo_cmd           $(which echo)                                       \
+             =-true_cmd           $(which true)                                       \
+             =-tr_cmd             $(which tr)                                         \
+             =-wc_cmd             $(which wc)                                         \
+             =-cut_cmd            $(which cut)                                        \
+             =-mkdir_cmd          $(which mkdir)                                      \
+             =-xargs_cmd          $(which xargs)                                      \
+             =-printf_cmd         $(which printf)                                     \
+             =-sqlite3_cmd        $(which sqlite3)                                    \
+             =-basename_cmd       $(which basename)
 
     let base=base+${nprocs}
 done
