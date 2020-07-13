@@ -616,7 +616,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
    integer, parameter, public :: OBS_ROLA= OBS_OMPE+1 ! individual obs latitude
    integer, parameter, public :: OBS_ROLO= OBS_ROLA+1 ! individual obs longitude
-   integer, parameter, public :: OBS_VAR2= OBS_ROLO+1 ! clear-sky MW observation
+   integer, parameter, public :: OBS_VAR2= OBS_ROLO+1 ! clear-sky simulated observation
 
    ! the number of real body variables defined just above
    integer, parameter :: NBDY_REAL_END = OBS_VAR2

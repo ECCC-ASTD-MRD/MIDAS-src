@@ -1611,17 +1611,23 @@ contains
       integer :: numChannelsFound 
       real(8) :: brightnessTempObs_corrected
       real(8) :: brightnessTempObs
+      real(8) :: innovation 
       real(8) :: brightnessTempFistGuess
       real(8) :: biasCorrection
-      real(8) :: innovation
-      real(8) :: brightnessTemp
-      real(8) :: brightnessTempChannel1
-      real(8) :: brightnessTempChannel2
+      real(8) :: brightnessTemp(2)
       real(8) :: zenithAngleDegree
       real(8) :: zenithAngleRadian
       real(8) :: minValue
+      logical, save :: first = .true.
 
       minValue = 1.0D-30
+      brightnessTemp(:) = 0.0D0
+
+      if ( first ) then 
+        write(*,*) 'print first header in computeCLW:'
+        write(*,*) 'mode, channelNumber, brightnessTempObs, &
+                        brightnessTempFistGuess, biasCorrection'
+      end if
 
       ! get ch1 and ch2 brightness temperatures
       idataBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
@@ -1632,7 +1638,7 @@ contains
 
         channelNumber = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-        if ( channelNumber /= 1 .or. channelNumber /= 2 ) cycle loop_body
+        if ( channelNumber /= 1 .and. channelNumber /= 2 ) cycle loop_body
 
         numChannelsFound = numChannelsFound + 1
 
@@ -1643,18 +1649,15 @@ contains
         brightnessTempFistGuess = brightnessTempObs_corrected - innovation
 
         if ( trim(mode) == 'obs' ) then
-          brightnessTemp = brightnessTempObs
+          brightnessTemp(channelNumber) = brightnessTempObs
         else if ( trim(mode) == 'FG' ) then
-          brightnessTemp = brightnessTempFistGuess
+          brightnessTemp(channelNumber) = brightnessTempFistGuess
         else
-          call utl_abort('computeCLW')
+          call utl_abort('computeCLW: mode is not correct.')
         end if
 
-        if ( channelNumber == 1 ) then
-          brightnessTempChannel1 = brightnessTemp
-        else if ( channelNumber == 2 ) then
-          brightnessTempChannel2 = brightnessTemp
-        end if
+        if ( first ) write(*,*) mode, channelNumber, brightnessTempObs, &
+                        brightnessTempFistGuess, biasCorrection
 
       end do loop_body
 
@@ -1664,10 +1667,17 @@ contains
       zenithAngleDegree = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
       zenithAngleRadian = zenithAngleDegree * MPC_RADIANS_PER_DEGREE_R8
       clw = 8.240D0 - (2.622D0 - 1.846D0 * cos(zenithAngleRadian)) * cos(zenithAngleRadian) + & 
-            0.754D0 * log(max(285.0D0-brightnessTempChannel1,minValue)) + &
-            -2.265D0 * log(max(285.0D0-brightnessTempChannel2,minValue))
+            0.754D0 * log(max(285.0D0-brightnessTemp(1),minValue)) + &
+            -2.265D0 * log(max(285.0D0-brightnessTemp(2),minValue))
       clw = clw * cos(zenithAngleRadian)
       clw = max(0.0D0,clw)
+
+      if ( first ) then
+        write(*,*) 'zenithAngleDegree, zenithAngleRadian, clw'
+        write(*,*) zenithAngleDegree, zenithAngleRadian, clw
+      end if
+
+      if ( first .and. trim(mode) == 'FG' ) first = .false.
 
     end function computeCLW
 

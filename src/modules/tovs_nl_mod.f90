@@ -2225,7 +2225,7 @@ contains
     real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     integer              :: profileIndex2, tb1, tb2
     integer :: istart, iend, bodyIndex, headerIndex
-    real(8) :: clearMwRaadiance
+    real(8) :: clearMwRadiance
 
     if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2461,10 +2461,10 @@ contains
 
       else
 
-        ! run clear-sky RTTOV for AMSUA observation if there is at least one over ocean
+        ! run clear-sky RTTOV, save the radiances in OBS_VAR2 of obsSpaceData 
         if ( tvs_numMWInstrumUsingCLW /= 0        .and. &
             tvs_opts(sensorId) % rt_mw % clw_data .and. &
-            any(tvs_profiles_nl(sensorTovsIndexes(1:profileCount)) % skin % surftype == surftype_sea) ) then
+            obs_columnActive_RB(obsSpaceData, OBS_VAR2) ) then
 
           ! set the cloud profile in tvs_profiles_nl to zero
           call updateCloudInTovsProfile(                            &
@@ -2486,13 +2486,13 @@ contains
                emissivity=emissivity_local,                         & ! inout
                nthreads=nthreads      )   
 
-          ! save the clear-sky radiances in obsSpaceData
+          ! save in obsSpaceData
           do btIndex = 1, btCount
             profileIndex = chanprof(btIndex)%prof
             channelIndex = chanprof(btIndex)%chan
             tovsIndex = sensorTovsIndexes(profileIndex)
 
-            clearMwRaadiance = radiancedata_d % bt(btIndex)
+            clearMwRadiance = radiancedata_d % bt(btIndex)
 
             headerIndex = tvs_headerIndex(tovsIndex)
             if ( headerIndex > 0 ) then
@@ -2500,7 +2500,7 @@ contains
               iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
               bodyIndex = channelIndex + istart - 1
               if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
-                call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRaadiance)
+                call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRadiance)
             end if
           end do
 
