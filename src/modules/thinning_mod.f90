@@ -81,7 +81,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error opening file flnml')
       read(nulnam,nml=thin_raobs,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mpi_myid == 0) write(*,nml=thin_raobs)
       ierr = fclos(nulnam)
     else
@@ -125,7 +125,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
       read(nulnam,nml=thin_aircraft,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
       if (mpi_myid == 0) write(*,nml=thin_aircraft)
       ierr = fclos(nulnam)
     else
@@ -171,7 +171,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error opening file flnml')
       read(nulnam,nml=thin_satwind,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mpi_myid == 0) write(*,nml=thin_satwind)
       ierr = fclos(nulnam)
     else
@@ -221,7 +221,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error opening file flnml')
       read(nulnam,nml=thin_gpsro,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
       if (mpi_myid == 0) write(*,nml=thin_gpsro)
       ierr = fclos(nulnam)
     else
@@ -271,7 +271,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error opening file flnml')
       read(nulnam,nml=thin_gbgps,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mpi_myid == 0) write(*,nml=thin_gbgps)
       ierr = fclos(nulnam)
     else
@@ -315,7 +315,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinAladin: Error opening file flnml')
       read(nulnam,nml=thin_aladin,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading thin_aladin namelist')
       if (mpi_myid == 0) write(*,nml=thin_aladin)
       ierr = fclos(nulnam)
     else
@@ -363,7 +363,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinCSR: Error opening file flnml')
       read(nulnam,nml=thin_csr,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading thin_csr namelist')
       if (mpi_myid == 0) write(*,nml=thin_csr)
       ierr = fclos(nulnam)
     else
@@ -411,7 +411,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinScat: Error opening file flnml')
       read(nulnam,nml=thin_scat,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading thin_scat namelist')
       if (mpi_myid == 0) write(*,nml=thin_scat)
       ierr = fclos(nulnam)
     else
@@ -457,7 +457,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
       read(nulnam,nml=thin_tovs,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading thin_tovs namelist')
       if (mpi_myid == 0) write(*,nml=thin_tovs)
       ierr = fclos(nulnam)
     else
@@ -515,7 +515,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
       read(nulnam,nml=thin_hyper,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading thin_hyper namelist')
       if (mpi_myid == 0) write(*,nml=thin_hyper)
       ierr = fclos(nulnam)
     else
@@ -689,19 +689,39 @@ contains
     logical,          intent(in)    :: rejectTdZeroC
 
     ! Locals:
+    type(struct_hco), pointer :: hco_sfc
+    type(struct_vco), pointer :: vco_sfc
+    type(struct_gsv)          :: stateVectorPsfc
+    integer :: nulnam, fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
+
     integer :: ierr, countObs, countObsInMpi, countLevel
     integer :: nbstn, nbstnMpi, countProfile, lastProfileIndex
-    integer :: profileIndex, headerIndex, bodyIndex, levIndex, obsFlag
-    real(4) :: obsValue, obsOmp
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex
+    integer :: ig1obs, ig2obs, ig3obs, ig4obs, lalo
+    integer :: obsFlag
+    real(4) :: obsValue, obsOmp, obsStepIndex
+    real(4) :: zig1, zig2, zig3, zig4, zpresa, zpresb
+    real(8) :: obsStepIndex_r8
     integer, allocatable :: niv_stn(:), stn_type(:), date(:), temps(:)
     integer, allocatable :: date_ini(:), temps_ini(:), temps_lch(:), flgs_h(:)
-    integer, allocatable :: flgs_t(:,:),flgs_o(:,:)
-    real,    allocatable :: lat_stn(:), lon_stn(:), vlev(:)
-    real,    allocatable :: obsv(:,:), ombv(:,:), mod_pp(:,:)
+    integer, allocatable :: flgs_t(:,:), flgs_o(:,:)
+    real(4), allocatable :: lat_stn(:), lon_stn(:), int_surf(:,:)
+    real(4), allocatable :: obsv(:,:), ombv(:,:), mod_pp(:,:)
+    real(4), pointer     :: surfPressure(:,:,:,:)
     character(len=9), allocatable :: ids_stn(:)
+    character(len=20) :: trlmFileName
+    character(len=2)  :: fileNumber
 
     ! Local parameters:
-    integer, parameter :: nbvar=5, nbtrj=3, nbmod=300
+    integer, parameter :: nbvar=5, nbtrj=2, nbmod=300
+
+    ! Namelist variables:
+    real(8) :: rprefinc
+    real(8) :: rptopinc
+    real(8) :: rcoefinc
+    real(4) :: vlev(nbmod)
+    integer :: numlev
+    namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     ! Check if any observations to be treated and count number of "profiles"
     countObs = 0
@@ -828,11 +848,88 @@ contains
           flgs_o(4,niv_stn(countProfile+1)) = obsFlag
           obsv(4,niv_stn(countProfile+1))   = obsValue
           ombv(4,niv_stn(countProfile+1))   = obsOmp
+        case (4015)
+          flgs_t(1,niv_stn(countProfile+1)) = obsFlag
+        case (5001)
+          flgs_t(2,niv_stn(countProfile+1)) = obsFlag
         end select
         obsv(5,niv_stn(countProfile+1)) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
       end do BODY0
 
     end do HEADER1
+
+    ! Default namelist values
+    numlev = 80
+    vlev(:) = -1
+    rprefinc = 0.0d0
+    rptopinc = 0.0d0
+    rcoefinc = 0.0d0
+    ! Read the namelist defining the vertical levels
+    if (utl_isNamelistPresent('namgem','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
+      read(nulnam,nml=namgem,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
+      write(*,nml=namgem)
+      ierr = fclos(nulnam)
+    else
+      call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
+    end if
+
+    ! Read the trial surface pressure
+    nullify(vco_sfc)
+    nullify(hco_sfc)
+    trlmFileName = './trlm_01'
+    call vco_setupFromFile(vco_sfc, trlmFileName)
+    call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
+    call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_sfc, vco_sfc, &
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
+                       dataKind_opt=4, varNames_opt=(/'P0'/), &
+                       hInterpolateDegree_opt='LINEAR' )
+    do stepIndex = 1, tim_nstepobs
+      write(fileNumber,'(I2.2)') stepIndex
+      trlmFileName = './trlm_' // trim(fileNumber)
+      call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true. )
+    end do
+    call gsv_getField(stateVectorPsfc,surfPressure)
+
+    ! Setup the interpolation to obs locations of surface pressure
+    zig1 = 0.0
+    zig2 = 0.0
+    zig3 = 1.0
+    zig4 = 1.0
+    ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
+    call cxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
+    lalo = ezgdef(nbstn,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,lon_stn,lat_stn)
+    ierr = ezdefset(lalo,hco_sfc%ezScintId)
+
+    ! Do the interpolation of surface pressure to obs locations
+    allocate(int_surf(nbstn,tim_nstepobs))
+    do stepIndex = 1, tim_nstepobs
+      ierr = ezsint(int_surf(:,stepIndex),surfPressure(:,:,1,stepIndex))
+      write(*,*) 'int_surf = ', stepIndex, minval(int_surf(:,stepIndex)), maxval(int_surf(:,stepIndex))
+    end do
+    call gsv_deallocate( stateVectorPsfc )
+
+    ! Compute pressure profile at each obs location
+    do countProfile = 1, nbstn
+
+      ! Calculate the stepIndex corresponding to the launch time
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               date_ini(countProfile), temps_ini(countProfile), tim_nstepobs)
+      obsStepIndex = nint(obsStepIndex_r8)
+
+      ! Calculate pressure levels for each station based on GEM3 vertical coordinate
+      do levIndex  = 1, numLev
+        zpresb = ((vlev(levIndex) - rptopinc/rprefinc) / (1.0-rptopinc/rprefinc))**rcoefinc
+        zpresa = rprefinc * (vlev(levIndex)-zpresb)
+        mod_pp(countProfile,levIndex) = zpresa + zpresb*int_surf(obsStepIndex,countProfile)
+      enddo
+
+      write(*,*) 'mod_pp = ', obsStepIndex, mod_pp(countProfile,23)
+    enddo
 
     ! Write out the array contents
     write(*,*) 'niv_stn   = ', niv_stn(:)
@@ -1957,7 +2054,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
       write(*,nml=namgem)
       ierr = fclos(nulnam)
     else

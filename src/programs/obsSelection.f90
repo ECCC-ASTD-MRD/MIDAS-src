@@ -18,7 +18,7 @@ program midas_obsSelection
   !
   ! :Purpose: Main program for O-F computations, background check, and thinning
   !
-  !           (O-F => Observation minus Forecast)
+  !           (O-F => Observation minus Forecast, i.e. y-H(x))
   !
   use ramDisk_mod
   use mpi_mod
@@ -206,6 +206,7 @@ program midas_obsSelection
     call thn_thinHyper(obsSpaceData)
     call thn_thinTovs(obsSpaceData)
     call thn_thinCSR(obsSpaceData)
+    call thn_thinRaobs(obsSpaceData)
     call thn_thinScat(obsSpaceData)
     call thn_thinSatWinds(obsSpaceData)
     call thn_thinAircraft(obsSpaceData)
