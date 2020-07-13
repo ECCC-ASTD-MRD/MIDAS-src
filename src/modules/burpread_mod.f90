@@ -1999,7 +1999,7 @@ CONTAINS
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
         IF ( stnid(1:2) == ">>" ) cycle
-
+write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
 
         !  LOOP ON BLOCKS
 
@@ -2576,6 +2576,8 @@ CONTAINS
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
                 if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE),  OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA_SF)
                 IF (OBSN > 1 ) THEN
@@ -2640,9 +2642,10 @@ CONTAINS
 
                   if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
-
                   OBSN=obs_numHeader(obsdat)
                   if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                  if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                  if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
                   IF (OBSN > 1 ) THEN
@@ -2698,6 +2701,9 @@ CONTAINS
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
+                if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV ,OBSN,NDATA_SF)
                 IF (OBSN  > 1 ) THEN

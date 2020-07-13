@@ -676,6 +676,8 @@ contains
   subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
     !
     ! :Purpose: Original method for thinning radiosonde data vertically.
+    !           We assume that each vertical level is stored in obsSpaceData
+    !           with a separate headerIndex. That is, the 4D representation.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
     !
     implicit none
@@ -687,18 +689,40 @@ contains
     logical,          intent(in)    :: rejectTdZeroC
 
     ! Locals:
-    integer :: ierr, countObs, countObsInMpi, headerIndex
+    integer :: ierr, countObs, countObsInMpi, countLevel
+    integer :: nbstn, nbstnMpi, countProfile, lastProfileIndex
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, obsFlag
+    real(4) :: obsValue, obsOmp
+    integer, allocatable :: niv_stn(:), stn_type(:), date(:), temps(:)
+    integer, allocatable :: date_ini(:), temps_ini(:), temps_lch(:), flgs_h(:)
+    integer, allocatable :: flgs_t(:,:),flgs_o(:,:)
+    real,    allocatable :: lat_stn(:), lon_stn(:), vlev(:)
+    real,    allocatable :: obsv(:,:), ombv(:,:), mod_pp(:,:)
+    character(len=9), allocatable :: ids_stn(:)
 
-    ! Check if any observations to be treated
+    ! Local parameters:
+    integer, parameter :: nbvar=5, nbtrj=3, nbmod=300
+
+    ! Check if any observations to be treated and count number of "profiles"
     countObs = 0
+    nbstn = 0
+    lastProfileIndex = -1
     call obs_set_current_header_list(obsdat,'UA')
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER0
       countObs = countObs + 1
+
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      if (profileIndex /= lastProfileIndex) then
+        lastProfileIndex = profileIndex
+        nbstn = nbstn + 1
+      end if
+
       write(*,*) obs_headElem_i(obsdat, obs_rtp, headerIndex), &
                  obs_headElem_i(obsdat, obs_lch, headerIndex), &
-                 obs_headElem_i(obsdat, obs_prfl, headerIndex)
+                 profileIndex
+
     end do HEADER0
 
     call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
@@ -708,9 +732,135 @@ contains
       return
     end if
 
+    call rpn_comm_allReduce(nbstn, nbstnMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+
     write(*,*) 'thn_radiosonde: number of obs initial = ', &
                countObs, countObsInMpi
+    write(*,*) 'thn_radiosonde: number of profiles    = ', &
+               nbstn, nbstnMpi
 
+    ! Allocate some quanitities needed for each profile
+    allocate(niv_stn(nbstn+1))
+    allocate(stn_type(nbstn))
+    allocate(date(nbstn))
+    allocate(temps(nbstn))
+    allocate(date_ini(nbstn))
+    allocate(temps_ini(nbstn))
+    allocate(temps_lch(nbstn))
+    allocate(flgs_h(nbstn))
+    allocate(lat_stn(nbstn))
+    allocate(lon_stn(nbstn))
+    allocate(ids_stn(nbstn))
+    allocate(mod_pp(nbstn,nbmod))
+    allocate(flgs_t(nbtrj,countObs))
+    allocate(flgs_o(nbvar,countObs))
+    allocate(obsv(nbvar,countObs))
+    allocate(ombv(nbvar,countObs))
+    niv_stn(:) = 0
+    date_ini(:) = -1
+    flgs_t(:,:) = -1
+    flgs_o(:,:) = 0
+    obsv(:,:) = -999.0
+    ombv(:,:) = -999.0
+
+    ! Fill in the arrays for each profile
+    countProfile = 0
+    lastProfileIndex = -1
+    call obs_set_current_header_list(obsdat,'UA')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+      countObs = countObs + 1
+
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      if (profileIndex /= lastProfileIndex) then
+        lastProfileIndex = profileIndex
+        countProfile = countProfile + 1
+        countLevel = 0
+      end if
+
+      countLevel = countLevel + 1
+      niv_stn(countProfile+1) = niv_stn(countProfile) + countLevel
+
+      ! Get some information from the first header in this profile
+      if (countLevel == 1) then
+        date_ini(countProfile)  = obs_headElem_i(obsdat,obs_dat,headerIndex)
+        temps_ini(countProfile) = obs_headElem_i(obsdat,obs_etm,headerIndex)
+        lat_stn(countProfile)   = obs_headElem_r(obsdat,obs_lat,headerIndex) * &
+                                  MPC_DEGREES_PER_RADIAN_R8
+        lon_stn(countProfile)   = obs_headElem_r(obsdat,obs_lon,headerIndex) * &
+                                  MPC_DEGREES_PER_RADIAN_R8
+        lat_stn(countProfile)   = 0.01*nint(100.0*lat_stn(countProfile))
+        lon_stn(countProfile)   = 0.01*nint(100.0*lon_stn(countProfile))
+      end if
+      date(countProfile)      = obs_headElem_i(obsdat,obs_hdd,headerIndex)
+      temps(countProfile)     = obs_headElem_i(obsdat,obs_hdt,headerIndex)
+      temps_lch(countProfile) = obs_headElem_i(obsdat,obs_lch,headerIndex)
+      stn_type(countProfile)  = obs_headElem_i(obsdat,obs_rtp,headerIndex)
+      flgs_h(countProfile)    = obs_headElem_i(obsdat,obs_st1,headerIndex)
+      ids_stn(countProfile)   = obs_elem_c(obsdat,'STID',headerIndex)
+
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY0: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY0
+
+        obsFlag  = obs_bodyElem_i(obsdat,obs_flg,bodyIndex)
+        obsValue = obs_bodyElem_r(obsdat,obs_var,bodyIndex)
+        obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_nedd)
+          flgs_o(1,niv_stn(countProfile+1)) = obsFlag
+          obsv(1,niv_stn(countProfile+1))   = obsValue
+        case (bufr_neuu)
+          ombv(1,niv_stn(countProfile+1))   = obsOmp
+        case (bufr_neff)
+          flgs_o(2,niv_stn(countProfile+1)) = obsFlag
+          obsv(2,niv_stn(countProfile+1))   = obsValue
+        case (bufr_nevv)
+          ombv(2,niv_stn(countProfile+1))   = obsOmp
+        case (bufr_nett)
+          flgs_o(3,niv_stn(countProfile+1)) = obsFlag
+          obsv(3,niv_stn(countProfile+1))   = obsValue
+          ombv(3,niv_stn(countProfile+1))   = obsOmp
+        case (bufr_nees)
+          flgs_o(4,niv_stn(countProfile+1)) = obsFlag
+          obsv(4,niv_stn(countProfile+1))   = obsValue
+          ombv(4,niv_stn(countProfile+1))   = obsOmp
+        end select
+        obsv(5,niv_stn(countProfile+1)) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+      end do BODY0
+
+    end do HEADER1
+
+    ! Write out the array contents
+    write(*,*) 'niv_stn   = ', niv_stn(:)
+    write(*,*) 'ids_stn   = ', ids_stn(:)
+    write(*,*) 'stn_type  = ', stn_type(:)
+    write(*,*) 'date_ini  = ', date_ini(:)
+    write(*,*) 'temps_ini = ', temps_ini(:)
+    write(*,*) 'date      = ', date(:)
+    write(*,*) 'temps     = ', temps(:)
+    write(*,*) 'temps_lch = ', temps_lch(:)
+    write(*,*) 'flgs_h    = ', flgs_h(:)
+    write(*,*) 'lat_stn   = ', lat_stn(:)
+    write(*,*) 'lon_stn   = ', lon_stn(:)
+    write(*,*) 'flgs_o(1) = ', flgs_o(1,:)
+    write(*,*) 'flgs_o(2) = ', flgs_o(2,:)
+    write(*,*) 'flgs_o(3) = ', flgs_o(3,:)
+    write(*,*) 'flgs_o(4) = ', flgs_o(4,:)
+    write(*,*) 'obsv(1)   = ', obsv(1,:)
+    write(*,*) 'obsv(2)   = ', obsv(2,:)
+    write(*,*) 'obsv(3)   = ', obsv(3,:)
+    write(*,*) 'obsv(4)   = ', obsv(4,:)
+    write(*,*) 'obsv(5)   = ', obsv(5,:)
+    write(*,*) 'ombv(1)   = ', ombv(1,:)
+    write(*,*) 'ombv(2)   = ', ombv(2,:)
+    write(*,*) 'ombv(3)   = ', ombv(3,:)
+    write(*,*) 'ombv(4)   = ', ombv(4,:)
+
+    ! Deallocate arrays
 
   end subroutine thn_radiosonde
 
