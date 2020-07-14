@@ -124,7 +124,10 @@ typedef struct {
 /*****************************************************/
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
+static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns);
+
 int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
+int sqlite_get_tables_with_id_obs(char* obsin, char* table_list);
 
 int    getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 
@@ -458,12 +461,22 @@ int f77name(splitobs)(int argc, char** argv) {
 
   if ( filetype == WKF_SQLite ) {  /* Alors on traite une base de donnees SQL */
     char sqlreq_resume[MAXSTR];
+    char table_list[MAXSTR];
 
     /**********************************************************
      * Cette partie a pour but de manipuler la base de donnees SQL
      * et d'en creer une nouvelle qui ne contient que les observations a
      * l'interieur du domaine defini par la grille donnee plus haut.  
      **********************************************************/
+
+    strcpy(table_list,"");
+    status = sqlite_get_tables_with_id_obs(opt.obsin, table_list);
+    if( status != OK ) {
+      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_id_obs pour le fichier '%s'\n", status, opt.obsin);
+
+      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+    }
+    printf("Fonction main: table_list = '%s'\n", table_list);
 
     status = sqlite_add_resume_request(opt.obsin,sqlreq_resume,"dbin");
     if( status != OK ) {
@@ -2462,6 +2475,150 @@ static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_
   // printf("sqlite_check_resume_callback: is_resume_and_rdb4_schema_present_in_DB = %d\n", is_resume_and_rdb4_schema_present_in_DB);
   *is_resume_and_rdb4_schema_present_in_DB_ptr += is_resume_and_rdb4_schema_present_in_DB;
   // printf("sqlite_check_resume_callback: is_resume_and_rdb4_schema_present_in_DB_ptr = %d\n", *is_resume_and_rdb4_schema_present_in_DB_ptr);
+
+  return 0;
+}
+
+
+  /***************************************************************************
+   * fonction: sqlite_get_tables_with_id_obs
+   *
+   * Trouve les tables qui contiennent une colonne 'id_obs'
+   *
+   ***************************************************************************/
+int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
+  int status;
+  char *ErrMsg;
+  sqlite3 *sqldbin;
+
+  /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
+  /* On ouvre le fichier d'input */
+  status = sqlite3_open(obsin,&sqldbin);
+  if ( status != SQLITE_OK ) {
+    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
+
+    status = sqlite3_close(sqldbin);
+    if( status != SQLITE_OK )
+      fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+
+    return NOT_OK;
+  } /* Fin du 'if ( status != SQLITE_OK )' */
+
+  strcpy(table_list,"");
+
+  /* Execution de la requete SQL sur la base de donnees */
+  status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_check_tables_with_id_obs_callback, table_list, &ErrMsg);
+  if( status != SQLITE_OK ) {
+    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+    sqlite3_free(ErrMsg);
+
+    return NOT_OK;
+  } /* Fin du 'if ( status != SQLITE_OK )' */
+
+
+  status = sqlite3_close(sqldbin);
+  if( status != SQLITE_OK ) {
+    fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+
+    return NOT_OK;
+  }
+
+  return OK;
+}
+
+
+  /***************************************************************************
+   * fonction: sqlite_check_tables_with_id_obs_callback
+   *
+   * Cette fonction sert de 'callback' pour la requete executee par 'sqlite3_exec'.
+   *    On veut savoir si elle contient les tables 'rdb4_schema' et 'resume'
+   *
+   ***************************************************************************/
+static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns) {
+  int idx, isTypeTable, foundID_OBS;
+  char table_name[MAXSTR];
+
+  printf("Dans la fonction 'sqlite_check_tables_with_id_obs_callback'\n");
+  printf("sqlite_check_tables_with_id_obs_callback: input table_list = '%s'\n", (char*) table_list);
+  printf("sqlite_check_tables_with_id_obs_callback: There are %d column(s)\n", count);
+
+  isTypeTable = 0;
+  for (idx = 0; idx < count; idx++) {
+    printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]);
+    if (strcasecmp(columns[idx],"type")==0)
+      if (strcasecmp(data[idx],"table")==0)
+        isTypeTable = 1;
+  }
+
+  printf("sqlite_check_tables_with_id_obs_callback: isTypeTable = %d\n", isTypeTable);
+  if (isTypeTable == 0) return 0;
+
+  strcpy(table_name,"");
+  foundID_OBS=0;
+  for (idx = 0; idx < count; idx++) {
+    printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]);
+    if (strcasecmp(columns[idx],"tbl_name")==0)
+      strcpy(table_name,data[idx]);
+    else if(strcasecmp(columns[idx],"sql")==0) {
+      // Ici, on regarde si 'id_obs' est contenu dans 'data[idx]' qui est de la forme:
+      //       CREATE TABLE DATA (
+      //       ID_DATA integer primary key   ,
+      //       ID_OBS integer,
+      //       BURP_BTYP integer,
+      //       VCOORD integer,
+      //       VARNO integer,
+      //       VCOORD_TYPE integer,
+      //       OBSVALUE real,
+      //       BIAS_CORR real,
+      //       SURF_EMISS real,
+      //       CLOUD_EMISS real,
+      //       FLAG integer,
+      //       OMP real,
+      //       OMA real,
+      //       OBS_ERROR real,
+      //       FG_ERROR real,
+      //       TEMP_RAD_LOG10 real,
+      //       CHAN_QC_FLAG integer,
+      //       FSO real
+      //       )
+
+      regex_t regex;
+      char regex_errbuf[MAXSTR];
+      int regex_err;
+
+      regex_err = regcomp(&regex, "id_obs", REG_ICASE);
+      if (regex_err!=0) {
+	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+        fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: cannot compile regular expression '%s': error '%s'", "id_obs", regex_errbuf);
+        return 1;
+      }
+      regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
+      if (regex_err!=0) {
+	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+        regfree(&regex);
+	fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
+        return 1;
+      }
+      // This means that there was a match
+      foundID_OBS=1;
+      regfree(&regex);
+    }
+  }
+  printf("sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d\n", foundID_OBS);
+
+  if (foundID_OBS) {
+    if (strlen(table_name)>0) {
+      if (strlen((char*) table_list)>0) {
+        strcat((char*) table_list, " ");
+      }
+      strcat((char*) table_list, table_name);
+    }
+    else {
+      fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d but table_name is empty", foundID_OBS);
+      return 1;
+    }
+  }
+  printf("sqlite_check_tables_with_id_obs_callback: output table_list = '%s'\n", (char*) table_list);
 
   return 0;
 }
