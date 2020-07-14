@@ -28,6 +28,7 @@ module costfunction_mod
   use codeprecision_mod
   use MathPhysConstants_mod
   use utilities_mod
+  use obserrors_mod
 
   implicit none
 
@@ -302,6 +303,8 @@ contains
                obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex), -zdtb
         end if
         call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
+
+        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs)
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 

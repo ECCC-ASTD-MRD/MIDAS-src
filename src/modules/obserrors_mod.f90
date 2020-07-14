@@ -42,7 +42,7 @@ module obsErrors_mod
 
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr
+  public :: oer_setInterchanCorr, oer_computeInflatedStateDepSigmaObs
 
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
@@ -54,13 +54,13 @@ module obsErrors_mod
   real(8) :: clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  integer :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
  ! Temporary arrays for QC purpose
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: oer_clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  integer :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -344,7 +344,7 @@ contains
     sigmaObsErrInput(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
     IUTILST(:,:) = 0
-    useStateDepSigmaObs(:,:) = 0
+    useStateDepSigmaObs(:,:) = .false.
     useStateDepSigmaObsInput(:,:) = 0
 
     IPLATFORM(:) = 0
@@ -492,7 +492,8 @@ contains
               if ( allowStateDepSigmaObs ) then
                 clwThreshArr(JI,JL,:) = clwThreshArrInput(JI,JM,:)
                 sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
-                useStateDepSigmaObs(JI,JL) = useStateDepSigmaObsInput(JI,JM)
+                useStateDepSigmaObs(JI,JL) = &
+                        ( useStateDepSigmaObsInput(JI,JM) == 1 )
 
                 ! inflate the sigmaObsErr in analysis mode
                 if ( obsErrorColumnIndex == analysisColumnIndex ) then
@@ -539,10 +540,10 @@ contains
       do JL = 1, tvs_nsensors
         write(*,'(A,I2,4(A))') 'SENSOR #', JL, ', Platform: ', tvs_satelliteName(JL), &
                                 ', Instrument: ',tvs_instrumentName(JL)
-        if ( allowStateDepSigmaObs .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)==1) ) then
+        if ( allowStateDepSigmaObs .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)) ) then
           write(*,'(A,5(2X,A8))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','use'
           do JI = 1, NUMCHN(JL)
-            write(*,'(I7,4(2X,F8.4),(2X,I8))') ICHN(JI,JL), &
+            write(*,'(I7,4(2X,F8.4),(2X,L8))') ICHN(JI,JL), &
               clwThreshArr(ICHN(JI,JL),JL,1), clwThreshArr(ICHN(JI,JL),JL,2), &
               sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
@@ -1022,7 +1023,6 @@ contains
     real(8) :: obsValue, obsStdDevError
     real(8) :: clwThresh1, clwThresh2, clw_avg
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
-    real(8) :: sigmaObsBeforeInflation
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
 
@@ -1087,8 +1087,8 @@ contains
                      instrum   == tvs_instruments(sensorIndex)      ) then
 
                   ! decide whether or not use the state dependent sigmaObsErrUsed for OBS_OER
-                  if ( allowStateDepSigmaObs                                .and. &
-                       useStateDepSigmaObs(channelNumber,sensorIndex) /= 0  .and. &
+                  if ( allowStateDepSigmaObs                          .and. &
+                       useStateDepSigmaObs(channelNumber,sensorIndex) .and. &
                        surfTypeIsWater ) then
                     clwThresh1 = clwThreshArr(channelNumber,sensorIndex,1)
                     clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
@@ -1103,12 +1103,7 @@ contains
                       call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
                     end if
 
-                    sigmaObsBeforeInflation = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
-                    if ( .not. any(inflateStateDepSigmaObs(:)) ) then 
-                      sigmaObsErrUsed = sigmaObsBeforeInflation
-                    else
-                      sigmaObsErrUsed = computeInflatedStateDepSigmaObs(headerIndex,bodyIndex,sensorIndex,sigmaObsBeforeInflation)
-                    end if
+                    sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
                   else
                     sigmaObsErrUsed = TOVERRST( channelNumber, sensorIndex )
                   end if
@@ -1591,7 +1586,70 @@ contains
 
     end function calcStateDepObsErr
 
-    function computeCLW(headerIndex,sensorIndex,mode) result(clw)
+  end subroutine oer_fillObsErrors
+
+  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs)
+    !
+    ! :Purpose: Update OBS_OER with inflated state dependant observation error
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer,          intent(in)    :: headerIndex
+    integer,          intent(in)    :: bodyIndex
+    integer,          intent(in)    :: sensorIndex
+    integer,          intent(in)    :: dest_obs  ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
+
+    ! Locals:
+    integer :: channelNumber_withOffset
+    integer :: channelNumber
+    logical :: surfTypeIsWater 
+    real(8) :: clwObs
+    real(8) :: clwFG
+    real(8) :: deltaE1
+    real(8) :: deltaE2
+    real(8) :: sigmaObsBeforeInflation
+    real(8) :: sigmaObsAfterInflation
+
+    channelNumber_withOffset = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex) )
+    channelNumber = channelNumber_withOffset - tvs_channelOffset(sensorIndex)
+
+    surfTypeIsWater = ( obs_headElem_i( obsSpaceData, OBS_OFL, headerIndex ) == surftype_sea )
+
+    if ( .not. allowStateDepSigmaObs .or. &
+         .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
+         .not. surfTypeIsWater .or. &
+         .not. any(inflateStateDepSigmaObs(:)) ) return
+
+    clwObs = computeCLW(headerIndex, sensorIndex, dest_obs, mode='obs')
+    clwFG = computeCLW(headerIndex, sensorIndex, dest_obs, mode='FG')
+
+    sigmaObsBeforeInflation = obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
+
+    ! error inflation for cloud placement 
+    deltaE1 = 0.0D0
+    if ( inflateStateDepSigmaObs(1)                                         .and. &
+         ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
+          (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
+         abs(clwObs - clwFG) >= 0.005 )                                           &
+      deltaE1 = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
+      deltaE1 = abs(deltaE1)  
+
+    ! error inflation due to cloud liquid water difference
+    deltaE2 = 0.0D0
+    if ( inflateStateDepSigmaObs(2) )                                  &
+      deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
+                      sigmaObsBeforeInflation
+
+    sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
+                              (deltaE1 + deltaE2) ** 2)
+
+    call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation )
+
+  contains
+
+    function computeCLW(headerIndex, sensorIndex, dest_obs, mode) result(clw)
       !
       ! :Purpose: Compute cloud liquid water from either observation of first guess
       !
@@ -1600,6 +1658,7 @@ contains
       ! Arguments:
       integer      :: headerIndex
       integer      :: sensorIndex
+      integer      :: dest_obs  ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
       character(*) :: mode
       real(8)      :: clw
 
@@ -1624,9 +1683,10 @@ contains
       brightnessTemp(:) = 0.0D0
 
       if ( first ) then 
-        write(*,*) 'print first header in computeCLW:'
-        write(*,*) 'mode, channelNumber, brightnessTempObs, &
-                        brightnessTempFistGuess, biasCorrection'
+        write(*,*) 'computeCLW: printing first header:'
+        write(*,*) 'computeCLW: mode, channelNumber, brightnessTempObs_corrected, & 
+                        biasCorrection, brightnessTempObs, innovation, &
+                        brightnessTempFistGuess '
       end if
 
       ! get ch1 and ch2 brightness temperatures
@@ -1642,11 +1702,11 @@ contains
 
         numChannelsFound = numChannelsFound + 1
 
-        brightnessTempObs_corrected = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-        biasCorrection = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
-        brightnessTempObs = brightnessTempObs_corrected - biasCorrection
-        innovation = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
-        brightnessTempFistGuess = brightnessTempObs_corrected - innovation
+        brightnessTempObs_corrected = obs_bodyElem_r( obsSpaceData, OBS_VAR , bodyIndex )
+        biasCorrection              = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
+        brightnessTempObs           = brightnessTempObs_corrected - biasCorrection
+        innovation                  = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
+        brightnessTempFistGuess     = brightnessTempObs_corrected - innovation
 
         if ( trim(mode) == 'obs' ) then
           brightnessTemp(channelNumber) = brightnessTempObs
@@ -1656,8 +1716,9 @@ contains
           call utl_abort('computeCLW: mode is not correct.')
         end if
 
-        if ( first ) write(*,*) mode, channelNumber, brightnessTempObs, &
-                        brightnessTempFistGuess, biasCorrection
+        if ( first ) write(*,*) mode, channelNumber, brightnessTempObs_corrected, & 
+                        biasCorrection, brightnessTempObs, innovation, &
+                        brightnessTempFistGuess
 
       end do loop_body
 
@@ -1673,7 +1734,7 @@ contains
       clw = max(0.0D0,clw)
 
       if ( first ) then
-        write(*,*) 'zenithAngleDegree, zenithAngleRadian, clw'
+        write(*,*) 'computeCLW: zenithAngleDegree, zenithAngleRadian, clw'
         write(*,*) zenithAngleDegree, zenithAngleRadian, clw
       end if
 
@@ -1681,53 +1742,7 @@ contains
 
     end function computeCLW
 
-    function computeInflatedStateDepSigmaObs(headerIndex,bodyIndex,sensorIndex,sigmaObsBeforeInflation) result(sigmaObsAfterInflation)
-      !
-      ! :Purpose: Compute inflated state dependant observation error
-      !
-      implicit none
-
-      ! Arguments:
-      integer      :: headerIndex
-      integer      :: bodyIndex
-      integer      :: sensorIndex
-      real(8)      :: sigmaObsBeforeInflation
-      real(8)      :: sigmaObsAfterInflation
-
-      ! Locals:
-      real(8) :: clwObs
-      real(8) :: clwFG
-      real(8) :: deltaE1
-      real(8) :: deltaE2
-      integer :: channelNumber
-
-      clwObs = computeCLW(headerIndex,sensorIndex,mode='obs')
-      clwFG = computeCLW(headerIndex,sensorIndex,mode='FG')
-
-      channelNumber = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
-      channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-
-      ! error inflation for cloud placement 
-      deltaE1 = 0.0D0
-      if ( inflateStateDepSigmaObs(1)                                         .and. &
-           ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
-            (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
-           abs(clwObs - clwFG) >= 0.005 )                                           &
-        deltaE1 = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
-        deltaE1 = abs(deltaE1)  
-
-      ! error inflation due to cloud liquid water difference
-      deltaE2 = 0.0D0
-      if ( inflateStateDepSigmaObs(2) )                                  &
-        deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
-                        sigmaObsBeforeInflation
-
-      sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
-                                (deltaE1 + deltaE2) ** 2)
-
-    end function computeInflatedStateDepSigmaObs
-
-  end subroutine oer_fillObsErrors
+  end subroutine oer_computeInflatedStateDepSigmaObs
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW

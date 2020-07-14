@@ -769,7 +769,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, ktermer, MISGRODY, MXCLWREJ, &
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -785,6 +785,7 @@ contains
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: CLW(KNT)                       ! cloud liquid water 
     real,        intent(in)               :: clw_avg(KNT)                   ! averaged cloud liquid water 
+    logical,     intent(in)               :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     integer,     intent(in)               :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)               :: MISGRODY                       ! MISGRODY
     integer,     intent(in)               :: MXCLWREJ                       ! cst 
@@ -850,7 +851,7 @@ contains
         loopChannel: do nChannelIndex = 1, KNO
           channelval = KCANO(nChannelIndex,nDataIndex)
           INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,channelval)
-          if ( INDXCAN /= 0 .and. useStateDepSigmaObs(channelval,knosat) /= 0 ) then
+          if ( INDXCAN /= 0 .and. useStateDepSigmaObs(channelval,knosat) ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
@@ -947,7 +948,7 @@ contains
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)      ! rogue factor 
     real(8),     intent(in)                :: TOVERRST(:,:)      !  erreur totale TOVs
-    integer,     intent(in)                :: useStateDepSigmaObs(:,:)  !  erreur totale TOVs
+    logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     real(8),     intent(in)                :: clwThreshArr(:,:,:) ! cloud threshold err
     real(8),     intent(in)                :: sigmaObsErr(:,:,:) ! sigma obs  err
     integer,     intent(in)                :: ktermer(KNT)              !
@@ -982,7 +983,7 @@ contains
         if ( channelval .NE. 20 ) then
           ! using state-dependent obs error only over water.
           ! obs over sea-ice will be rejected in test 15.
-          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(channelval,KNOSAT) /= 0 &
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(channelval,KNOSAT) &
                 .and. surfTypeIsWater ) then
             clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
@@ -1306,7 +1307,7 @@ contains
     real(8), intent(in)                    :: TOVERRST(:,:)            ! l'erreur totale des TOVS
     real(8), intent(in)                    :: clwThreshArr(:,:,:)       ! 
     real(8), intent(in)                    :: sigmaObsErr(:,:,:)        ! 
-    integer, intent(in)                    :: useStateDepSigmaObs(:,:)     !
+    logical, intent(in)                    :: useStateDepSigmaObs(:,:)  ! if using state dependent obs error
 
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
@@ -1536,7 +1537,7 @@ contains
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, ktermer, MISGRODY, MXCLWREJ, &
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
