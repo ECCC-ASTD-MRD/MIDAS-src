@@ -1588,7 +1588,7 @@ contains
 
   end subroutine oer_fillObsErrors
 
-  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs)
+  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error
     !
@@ -1600,6 +1600,7 @@ contains
     integer,          intent(in)    :: bodyIndex
     integer,          intent(in)    :: sensorIndex
     integer,          intent(in)    :: dest_obs  ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
+    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals:
     integer :: channelNumber_withOffset
@@ -1611,6 +1612,14 @@ contains
     real(8) :: deltaE2
     real(8) :: sigmaObsBeforeInflation
     real(8) :: sigmaObsAfterInflation
+    real(8) :: clw_avg
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
 
     channelNumber_withOffset = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex) )
     channelNumber = channelNumber_withOffset - tvs_channelOffset(sensorIndex)
@@ -1622,8 +1631,21 @@ contains
          .not. surfTypeIsWater .or. &
          .not. any(inflateStateDepSigmaObs(:)) ) return
 
-    clwObs = computeCLW(headerIndex, sensorIndex, dest_obs, mode='obs')
-    clwFG = computeCLW(headerIndex, sensorIndex, dest_obs, mode='FG')
+    if ( .not. beSilent ) & 
+      write(*,*) 'oer_computeInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
+                        ', sensorIndex=', sensorIndex, &
+                        ', chan_noOff=', channelNumber_withOffset, &
+                        ', chan_no=', channelNumber
+
+    clwObs = computeCLW(headerIndex, sensorIndex, mode='obs', beSilent_opt=beSilent)
+    clwFG = computeCLW(headerIndex, sensorIndex, mode='FG', beSilent_opt=beSilent)
+    ! comapre the average CLW computed here and available in obsSpaceData
+    if ( .not. beSilent ) then 
+      clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
+      write(*,*) 'oer_computeInflatedStateDepSigmaObs: ', &
+                'computed clw_avg=', 0.5D0 * (clwObs + clwFG), &
+                ', clw_avg in ObsSpaceData=', clw_avg                   
+    end if
 
     sigmaObsBeforeInflation = obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
 
@@ -1645,49 +1667,55 @@ contains
     sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
                               (deltaE1 + deltaE2) ** 2)
 
+    if ( .not. beSilent ) & 
+      write(*,*) 'oer_computeInflatedStateDepSigmaObs: sigmaObs=', &
+          sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
+
     call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation )
 
   contains
 
-    function computeCLW(headerIndex, sensorIndex, dest_obs, mode) result(clw)
+    function computeCLW(headerIndex, sensorIndex, mode, beSilent_opt) result(clw)
       !
       ! :Purpose: Compute cloud liquid water from either observation of first guess
       !
       implicit none
 
       ! Arguments:
-      integer      :: headerIndex
-      integer      :: sensorIndex
-      integer      :: dest_obs  ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
-      character(*) :: mode
-      real(8)      :: clw
+      integer, intent(in)               :: headerIndex
+      integer, intent(in)               :: sensorIndex
+      character(*), intent(in)          :: mode
+      logical, intent(in), optional     :: beSilent_opt
+      real(8)                           :: clw
 
       ! Locals:
+      integer :: tovsIndex 
       integer :: idataBeg
       integer :: idataEnd
       integer :: bodyIndex
       integer :: channelNumber
+      integer :: channelIndex 
       integer :: numChannelsFound 
       real(8) :: brightnessTempObs_corrected
       real(8) :: brightnessTempObs
-      real(8) :: innovation 
       real(8) :: brightnessTempFistGuess
       real(8) :: biasCorrection
       real(8) :: brightnessTemp(2)
       real(8) :: zenithAngleDegree
       real(8) :: zenithAngleRadian
       real(8) :: minValue
-      logical, save :: first = .true.
+      logical :: beSilent
+
+      if ( present(beSilent_opt) ) then
+        beSilent = beSilent_opt
+      else
+        beSilent = .true.
+      end if
 
       minValue = 1.0D-30
       brightnessTemp(:) = 0.0D0
 
-      if ( first ) then 
-        write(*,*) 'computeCLW: printing first header:'
-        write(*,*) 'computeCLW: mode, channelNumber, brightnessTempObs_corrected, & 
-                        biasCorrection, brightnessTempObs, innovation, &
-                        brightnessTempFistGuess '
-      end if
+      tovsIndex = tvs_tovsIndex(headerIndex)
 
       ! get ch1 and ch2 brightness temperatures
       idataBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
@@ -1697,16 +1725,17 @@ contains
       loop_body: do bodyIndex = idataBeg, idataEnd
 
         channelNumber = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
+        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+        channelIndex = channelNumber
         if ( channelNumber /= 1 .and. channelNumber /= 2 ) cycle loop_body
 
         numChannelsFound = numChannelsFound + 1
 
         brightnessTempObs_corrected = obs_bodyElem_r( obsSpaceData, OBS_VAR , bodyIndex )
-        biasCorrection              = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
-        brightnessTempObs           = brightnessTempObs_corrected - biasCorrection
-        innovation                  = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
-        brightnessTempFistGuess     = brightnessTempObs_corrected - innovation
+        biasCorrection = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
+        brightnessTempObs = brightnessTempObs_corrected - biasCorrection
+        brightnessTempFistGuess = tvs_radiance (tovsIndex) % bt(channelIndex)
 
         if ( trim(mode) == 'obs' ) then
           brightnessTemp(channelNumber) = brightnessTempObs
@@ -1716,9 +1745,15 @@ contains
           call utl_abort('computeCLW: mode is not correct.')
         end if
 
-        if ( first ) write(*,*) mode, channelNumber, brightnessTempObs_corrected, & 
-                        biasCorrection, brightnessTempObs, innovation, &
-                        brightnessTempFistGuess
+        if ( .not. beSilent ) & 
+          write(*,*) 'computeCLW: mode=', mode, &
+                        ', chan_no=', channelNumber, &
+                        ', chan_index=', channelIndex, &
+                        ', btObs_corr=',brightnessTempObs_corrected, &
+                        ', bcorr=', biasCorrection, &
+                        ', btObs=', brightnessTempObs, &
+                        ', btFG=', brightnessTempFistGuess, &
+                        ', bt(chan_no)=', brightnessTemp(channelNumber)
 
       end do loop_body
 
@@ -1731,14 +1766,13 @@ contains
             0.754D0 * log(max(285.0D0-brightnessTemp(1),minValue)) + &
             -2.265D0 * log(max(285.0D0-brightnessTemp(2),minValue))
       clw = clw * cos(zenithAngleRadian)
-      clw = max(0.0D0,clw)
+      clw = clw - 0.03D0
+      clw = min(3.0D0,max(0.0D0,clw))
 
-      if ( first ) then
-        write(*,*) 'computeCLW: zenithAngleDegree, zenithAngleRadian, clw'
-        write(*,*) zenithAngleDegree, zenithAngleRadian, clw
-      end if
-
-      if ( first .and. trim(mode) == 'FG' ) first = .false.
+      if ( .not. beSilent ) &
+        write(*,*) 'computeCLW: zenith=', zenithAngleDegree, &
+                        ', zenith_radian=', zenithAngleRadian, &
+                        ', clw=', clw
 
     end function computeCLW
 

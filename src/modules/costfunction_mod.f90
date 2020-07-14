@@ -304,7 +304,7 @@ contains
         end if
         call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
 
-        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs)
+        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs, beSilent_opt=.false.)
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
