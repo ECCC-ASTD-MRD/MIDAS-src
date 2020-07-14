@@ -510,10 +510,18 @@ if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
             mv $(basename ${obsfile}) obsfiles_final
         done
     else
+
+        dirext2process=.updated
+        doThinning=1
+        grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
+        if [ "${dothinning}" -eq 1 ]; then
+            dirext2process="${dirext2process} .beforeThinning"
+        fi
+
         ${midas_reunir_obs} -midas_reunir_obs_mpi ${midas_reunir_obs_mpi} \
             -obsin            ${PWD}                                      \
             -obsout           ${PWD}/obsfiles_final                       \
-            -dirext2process   .updated .beforeThinning                    \
+            -dirext2process   ${dirext2process}                           \
             -reunir_obs       ${reunir_obs}                               \
             -reunir_obs_fam   ${reunir_obs_fam}                           \
             -splitobs_mode    ${splitobs_mode}                            \
