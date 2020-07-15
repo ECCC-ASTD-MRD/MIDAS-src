@@ -73,7 +73,8 @@ program midas_bgckMW
   !                                                                >0, rejet d'au moins un canal
   integer, allocatable          :: newInformationFlag(:)                        ! ATMS Information flag (newInformationFlag) values (new BURP element 
   !                                                                  025174 in header). FOR AMSUA just fill with zeros 
-  real,    allocatable          :: cloudLiquidWaterPath(:)                          ! cloud liquid water. NB: for AMSUA, cloudLiquidWaterPath=0.5(model_cloudLiquidWaterPath + obs_cloudLiquidWaterPath)
+  real,    allocatable          :: cloudLiquidWaterPathObs(:)                       ! cloud liquid water path from observation.
+  real,    allocatable          :: cloudLiquidWaterPathFG(:)                        ! cloud liquid water path from background.
   real,    allocatable          :: atmScatteringIndex(:)                        ! scattering index
   integer, external             :: exdb, exfin, fnom, fclos
   integer                       :: ier, istat, nulnam
@@ -210,7 +211,7 @@ program midas_bgckMW
                                 biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumObs, &
                                 mwbg_realMisg, satelliteIndexObserrorFile, globalQcIndicator, satelliteScanPosition, &
                                 modelInterpGroundIce, modelInterpTerrain, modelInterpSeaIce, terrainTypeIndice, satelliteZenithAngle, &
-                                observationFlags, newInformationFlag, cloudLiquidWaterPath, atmScatteringIndex, rejectionCodArray, &
+                                observationFlags, newInformationFlag, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, atmScatteringIndex, rejectionCodArray, &
                                 burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, obsLatitude, obsLongitude, landQualifierIndice, terrainTypeIndice, &
@@ -218,7 +219,7 @@ program midas_bgckMW
                                satelliteOrbitnewInformationFlagifier, observationChannels, ompChannels, obsTemperatureBrillance, &
                                biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumChannel, &
                                reportNumObs, mwbg_realMisg, satelliteIndexObserrorFile, newInformationFlag, globalQcIndicator, &
-                               satelliteScanPosition, modelInterpTerrain, obsGlobalMarker, observationFlags, cloudLiquidWaterPath, &
+                               satelliteScanPosition, modelInterpTerrain, obsGlobalMarker, observationFlags, cloudLiquidWaterPathObs, &
                                atmScatteringIndex, rejectionCodArray, rejectionCodArray2, burpFileSatId, RESETQC, ifLastReport)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
@@ -238,7 +239,7 @@ program midas_bgckMW
     ! STEP 7) Update the burpfile out burpFileNameIn
     !###############################################################################
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
-    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPath, atmScatteringIndex, &
+    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, atmScatteringIndex, &
                          newInformationFlag, obsGlobalMarker, RESETQC, globalQcIndicator, landQualifierIndice, terrainTypeIndice, &
                          observationFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174, burpFileNameout)
 

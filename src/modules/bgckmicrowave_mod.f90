@@ -769,7 +769,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -783,8 +783,8 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
-    real,        intent(in)               :: CLW(KNT)                       ! cloud liquid water 
-    real,        intent(in)               :: clw_avg(KNT)                   ! averaged cloud liquid water 
+    real,        intent(in)               :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
+    real,        intent(in)               :: clwFG(KNT)                     ! retrieved cloud liquid water from background
     logical,     intent(in)               :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     integer,     intent(in)               :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)               :: MISGRODY                       ! MISGRODY
@@ -801,14 +801,16 @@ contains
     integer                               :: testIndex
     integer                               :: INDXCAN 
     real                                  :: clwUsedForQC
+    real                                  :: clwObsFGaveraged
     logical                               :: surfTypeIsWater 
 
     testIndex = 12
     do nDataIndex=1,KNT
       if ( mwbg_useAveragedClwForQC ) then
-        clwUsedForQC = clw_avg(nDataIndex)
+        clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
+        clwUsedForQC = clwObsFGaveraged
       else
-        clwUsedForQC = clw(nDataIndex)
+        clwUsedForQC = clwObs(nDataIndex)
       end if
 
       surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
@@ -930,7 +932,7 @@ contains
   !  amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
-                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clw_avg, &
+                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
                                     MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
@@ -952,8 +954,9 @@ contains
     real(8),     intent(in)                :: clwThreshArr(:,:,:) ! cloud threshold err
     real(8),     intent(in)                :: sigmaObsErr(:,:,:) ! sigma obs  err
     integer,     intent(in)                :: ktermer(KNT)              !
+    real,        intent(in)                :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
+    real,        intent(in)                :: clwFG(KNT)                     ! retrieved cloud liquid water from background
     real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
-    real,        intent(in)                :: clw_avg(KNT)                 ! cloud liquid water avg 
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -973,6 +976,7 @@ contains
     real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
     logical                                :: surfTypeIsWater
+    real                                   :: clwObsFGaveraged 
 
     testIndex = 14
     do nDataIndex=1,KNT
@@ -989,15 +993,16 @@ contains
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
             sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
             sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
-            if ( clw_avg(nDataIndex) == MISGRODY ) then
+            clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
+            if ( clwObsFGaveraged == MISGRODY ) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
-              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(nDataIndex))
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clwObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
           end if
-          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clw_avg=MISGRODY
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObsFGaveraged=MISGRODY
           ! in all-sky mode), the observation is already rejected in test 12.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
@@ -1275,7 +1280,7 @@ contains
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                 IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
+                                globMarq, IMARQ, ident, clwObs, clwFG, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1334,8 +1339,8 @@ contains
     integer, allocatable, intent(out)      :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
     !                                                                 =0, ok,
     !                                                                 >0, rejet,
-    real, allocatable,  intent(out)        :: clw_avg(:)            ! Averaged (Background + obs)retrieved cloud liquid water, 
-    !                                                                 from observation and background
+    real, allocatable, intent(out)         :: clwObs(:)            ! retrieved cloud liquid water from observation 
+    real, allocatable, intent(out)         :: clwFG(:)             ! retrieved cloud liquid water from background 
     real, allocatable, intent(out)         :: scatw(:)              ! scattering index over water
 
     integer, allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
@@ -1362,7 +1367,8 @@ contains
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
+    real, allocatable                      :: clwObs(:)             ! obs retrieved cloud liquid water
+    real, allocatable                      :: clwFG(:)              ! background retrieved cloud liquid water
     integer                                :: MAXVAL
     integer                                :: JI
     integer                                :: JJ
@@ -1440,9 +1446,9 @@ contains
                     250., 260., 260., 270., 280., 290., 330./)  
 
     ! Allocation
-    call utl_reAllocate(clw_avg, KNT)
-    call utl_reAllocate(clw,     KNT)
-    call utl_reAllocate(scatw,   KNT)
+    call allocate1DRealArray(clwObs,  KNT)
+    call allocate1DRealArray(clwFG,   KNT)
+    call allocate1DRealArray(scatw,   KNT)
 
     call utl_reAllocate(kchkprf, KNT)
     call utl_reAllocate(ident, KNT)
@@ -1475,7 +1481,7 @@ contains
 
     call grody (err, knt, tb23, tb31, tb50, tb53, tb89, &
                 tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
-                satzen, zlat, ktermer, ice, tpw, clw, clw_avg, &
+                satzen, zlat, ktermer, ice, tpw, clwObs, clwFG, &
                 rain, snow, scatl, scatw)   
 
     ! 10) test 10: RTTOV reject check (single)
@@ -1537,7 +1543,7 @@ contains
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, clw_avg, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
@@ -1548,7 +1554,7 @@ contains
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
-                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clw_avg, &
+                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
                                     MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
@@ -1873,7 +1879,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, &
                    tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
-                   pangl, plat, ilansea, ice, tpw, clw, clw_avg, &
+                   pangl, plat, ilansea, ice, tpw, clwObs, clwFG, &
                    rain, snow, scatl, scatw)
     !OBJET          Compute the following parameters using 5 AMSU-A
     !               channels:
@@ -1909,9 +1915,8 @@ contains
     !               - ilansea - input  -  land/sea indicator (0=land;1=ocean)
     !               - ice     - output -  sea ice concentration (0-100%)
     !               - tpw     - output -  total precipitable water (0-70mm)
-    !               - clw     - output -  cloud liquid water (0-3mm)
-    !               - clw_avg - output -  averaged cloud liquid water from obs and 
-    !                                   background (0-3mm)
+    !               - clwObs  - output -  retrieved cloud liquid water from observation (0-3mm)
+    !               - clwFG   - output -  retrieved cloud liquid water from background (0-3mm)
     !               - rain    - output -  rain identification (0=no rain; 1=rain)
     !               - snow    - output -  snow cover and glacial ice identification: 
     !                                   (0=no snow; 1=snow; 2=glacial ice)
@@ -1950,9 +1955,8 @@ contains
     real plat  (:)
     real ice   (:)
     real tpw   (:)
-    real clw   (:)
-    real clw_P
-    real clw_avg(:)
+    real clwObs(:)
+    real clwFG (:)
     real scatl (:)
     real scatw (:)
 
@@ -1963,8 +1967,8 @@ contains
     do i = 1, ni
       ice  (i) = zmisgLocal
       tpw  (i) = zmisgLocal
-      clw  (i) = zmisgLocal
-      clw_avg(i) = zmisgLocal
+      clwObs(i) = zmisgLocal
+      clwFG(i) = zmisgLocal
       scatl(i) = zmisgLocal
       scatw(i) = zmisgLocal
       rain (i) = nint(zmisgLocal)
@@ -2067,31 +2071,28 @@ contains
             tpw(i) = min(70.,max(0.,tpw(i)))   ! jh     
           end if
 
-          !3.3) Cloud liquid water from obs (clw) and background state (clw_P):
+          !3.3) Cloud liquid water from obs (clwObs) and background state (clwFG):
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
               df1    .gt.  0.0        ) then  
-            clw(i) = zmisgLocal
-            clw_avg(i) = zmisgLocal
+            clwObs(i) = zmisgLocal
+            clwFG(i) = zmisgLocal
           else
             a =  8.240 - (2.622 - 1.846*cosz)*cosz
             b =  0.754
             c = -2.265
-            clw(i) = a + b*log(dif285t23) & 
+            clwObs(i) = a + b*log(dif285t23) & 
                       + c*log(dif285t31)
-            clw(i) = clw(i)*cosz           ! theoretical cloud liquid water (0-3mm)
-            clw(i) = clw(i) - 0.03         ! corrected   cloud liquid water 
-            clw(i) = min(3.,max(0.,clw(i)))   ! jh       
+            clwObs(i) = clwObs(i)*cosz           ! theoretical cloud liquid water (0-3mm)
+            clwObs(i) = clwObs(i) - 0.03         ! corrected   cloud liquid water 
+            clwObs(i) = min(3.,max(0.,clwObs(i)))   ! jh       
 
-            clw_P = a + b*log(dif285t23_P) & 
+            clwFG(i) = a + b*log(dif285t23_P) & 
                       + c*log(dif285t31_P)
-            clw_P = clw_P*cosz           ! theoretical cloud liquid water (0-3mm)
-            clw_P = clw_P - 0.03         ! corrected   cloud liquid water 
-            clw_P = min(3.,max(0.,clw_P))   ! jh       
-
-            ! averaged CLW from observation and background
-            clw_avg(i) = 0.5 * (clw(i) + clw_P)
-          end if
+            clwFG(i) = clwFG(i)*cosz           ! theoretical cloud liquid water (0-3mm)
+            clwFG(i) = clwFG(i) - 0.03         ! corrected   cloud liquid water 
+            clwFG(i) = min(3.,max(0.,clwFG(i)))   ! jh       
+          endif
 
           !3.4) Ocean rain: 0=no rain; 1=rain.
           ! identify and remove sea ice
@@ -2099,7 +2100,7 @@ contains
               df1    .gt.  0.0        ) then  
             rain(i) = nint(zmisgLocal)
           else                                   ! remove non-precipitating clouds
-            if ( clw(i) .gt. 0.3 .or. &
+            if ( clwObs(i) .gt. 0.3 .or. &
                 siw    .gt. 9.0      ) then 
               rain(i) = 1
             else
@@ -2187,8 +2188,8 @@ contains
                   ilansea(i) = ', &
                   i,tb23(i),tb31(i),tb50(i),tb89(i),pangl(i),plat(i), &
                   ilansea(i)
-        print *, 'GRODY: ier(i),ice(i),tpw(i),clw(i),clw_avg(i),rain(i),snow(i)=', &
-                  ier(i),ice(i),tpw(i),clw(i),clw_avg(i),rain(i),snow(i)
+        print *, 'GRODY: ier(i),ice(i),tpw(i),clwObs(i),clwFG(i),rain(i),snow(i)=', &
+                  ier(i),ice(i),tpw(i),clwObs(i),clwFG(i),rain(i),snow(i)
       end if
 
     end do
