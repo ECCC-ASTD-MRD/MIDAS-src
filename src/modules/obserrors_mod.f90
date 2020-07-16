@@ -1021,7 +1021,7 @@ contains
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError
-    real(8) :: clwThresh1, clwThresh2, clw_avg
+    real(8) :: clwThresh1, clwThresh2, clw_avg, clwObs, clwFG
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
@@ -1094,12 +1094,16 @@ contains
                     clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
                     sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                     sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
-                    clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
+                    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLW1, headerIndex )
+                    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLW2, headerIndex )
+                    clw_avg = 0.5D0 * (clwObs + clwFG)
 
                     ! check to ensure CLW is retrieved and properly set
                     if ( clw_avg < minRetrievableClwValue .or. &
                         clw_avg > maxRetrievableClwValue ) then
                       write(*,*) 'This observation should have been rejected in all-sky mode at background check!' 
+                      write(*,*) 'oer_fillObsErrors: clwObs=', clwObs, &
+                                ', clwFG=', clwFG
                       call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
                     end if
 
@@ -1610,9 +1614,9 @@ contains
     real(8) :: clwFG
     real(8) :: deltaE1
     real(8) :: deltaE2
+    real(8) :: ompValue
     real(8) :: sigmaObsBeforeInflation
     real(8) :: sigmaObsAfterInflation
-    real(8) :: clw_avg
     logical :: beSilent
 
     if ( present(beSilent_opt) ) then
@@ -1637,17 +1641,11 @@ contains
                         ', chan_noOff=', channelNumber_withOffset, &
                         ', chan_no=', channelNumber
 
-    clwObs = computeCLW(headerIndex, sensorIndex, mode='obs', beSilent_opt=beSilent)
-    clwFG = computeCLW(headerIndex, sensorIndex, mode='FG', beSilent_opt=beSilent)
-    ! comapre the average CLW computed here and available in obsSpaceData
-    if ( .not. beSilent ) then 
-      clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
-      write(*,*) 'oer_computeInflatedStateDepSigmaObs: ', &
-                'computed clw_avg=', 0.5D0 * (clwObs + clwFG), &
-                ', clw_avg in ObsSpaceData=', clw_avg                   
-    end if
+    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLW1, headerIndex )
+    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLW2, headerIndex )
 
     sigmaObsBeforeInflation = obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
+    ompValue                = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
 
     ! error inflation for cloud placement 
     deltaE1 = 0.0D0
@@ -1655,8 +1653,7 @@ contains
          ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
           (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
          abs(clwObs - clwFG) >= 0.005 )                                           &
-      deltaE1 = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
-      deltaE1 = abs(deltaE1)  
+      deltaE1 = abs(ompValue)
 
     ! error inflation due to cloud liquid water difference
     deltaE2 = 0.0D0
@@ -1667,114 +1664,16 @@ contains
     sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
                               (deltaE1 + deltaE2) ** 2)
 
-    if ( .not. beSilent ) & 
+    if ( .not. beSilent ) then
+      write(*,*) 'oer_computeInflatedStateDepSigmaObs: clwObs=', clwObs, &
+                        ', clwFG=', clwFG, ', OMP=', ompValue
+      write(*,*) 'oer_computeInflatedStateDepSigmaObs: deltaE1=', deltaE1, &
+                        ', deltaE2=', deltaE2
       write(*,*) 'oer_computeInflatedStateDepSigmaObs: sigmaObs=', &
           sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
+    end if
 
     call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation )
-
-  contains
-
-    function computeCLW(headerIndex, sensorIndex, mode, beSilent_opt) result(clw)
-      !
-      ! :Purpose: Compute cloud liquid water from either observation of first guess
-      !
-      implicit none
-
-      ! Arguments:
-      integer, intent(in)               :: headerIndex
-      integer, intent(in)               :: sensorIndex
-      character(*), intent(in)          :: mode
-      logical, intent(in), optional     :: beSilent_opt
-      real(8)                           :: clw
-
-      ! Locals:
-      integer :: tovsIndex 
-      integer :: idataBeg
-      integer :: idataEnd
-      integer :: bodyIndex
-      integer :: channelNumber
-      integer :: channelIndex 
-      integer :: numChannelsFound 
-      real(8) :: brightnessTempObs_corrected
-      real(8) :: brightnessTempObs
-      real(8) :: brightnessTempFistGuess
-      real(8) :: biasCorrection
-      real(8) :: brightnessTemp(2)
-      real(8) :: zenithAngleDegree
-      real(8) :: zenithAngleRadian
-      real(8) :: minValue
-      logical :: beSilent
-
-      if ( present(beSilent_opt) ) then
-        beSilent = beSilent_opt
-      else
-        beSilent = .true.
-      end if
-
-      minValue = 1.0D-30
-      brightnessTemp(:) = 0.0D0
-
-      tovsIndex = tvs_tovsIndex(headerIndex)
-
-      ! get ch1 and ch2 brightness temperatures
-      idataBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-      idataEnd = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) + idataBeg - 1
-
-      numChannelsFound = 0
-      loop_body: do bodyIndex = idataBeg, idataEnd
-
-        channelNumber = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
-        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
-        channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-        channelIndex = channelNumber
-        if ( channelNumber /= 1 .and. channelNumber /= 2 ) cycle loop_body
-
-        numChannelsFound = numChannelsFound + 1
-
-        brightnessTempObs_corrected = obs_bodyElem_r( obsSpaceData, OBS_VAR , bodyIndex )
-        biasCorrection = obs_bodyElem_r( obsSpaceData, OBS_BCOR, bodyIndex )
-        brightnessTempObs = brightnessTempObs_corrected - biasCorrection
-        brightnessTempFistGuess = tvs_radiance (tovsIndex) % bt(channelIndex)
-
-        if ( trim(mode) == 'obs' ) then
-          brightnessTemp(channelNumber) = brightnessTempObs
-        else if ( trim(mode) == 'FG' ) then
-          brightnessTemp(channelNumber) = brightnessTempFistGuess
-        else
-          call utl_abort('computeCLW: mode is not correct.')
-        end if
-
-        if ( .not. beSilent ) & 
-          write(*,*) 'computeCLW: mode=', mode, &
-                        ', chan_no=', channelNumber, &
-                        ', chan_index=', channelIndex, &
-                        ', btObs_corr=',brightnessTempObs_corrected, &
-                        ', bcorr=', biasCorrection, &
-                        ', btObs=', brightnessTempObs, &
-                        ', btFG=', brightnessTempFistGuess, &
-                        ', bt(chan_no)=', brightnessTemp(channelNumber)
-
-      end do loop_body
-
-      if ( numChannelsFound /= 2 ) call utl_abort('computeCLW: channel 1-2 not found.')
-
-      ! use Grody retieval formula for CLW
-      zenithAngleDegree = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
-      zenithAngleRadian = zenithAngleDegree * MPC_RADIANS_PER_DEGREE_R8
-      clw = 8.240D0 - (2.622D0 - 1.846D0 * cos(zenithAngleRadian)) * cos(zenithAngleRadian) + & 
-            0.754D0 * log(max(285.0D0-brightnessTemp(1),minValue)) + &
-            -2.265D0 * log(max(285.0D0-brightnessTemp(2),minValue))
-      clw = clw * cos(zenithAngleRadian)
-      clw = clw - 0.03D0
-      clw = min(3.0D0,max(0.0D0,clw))
-
-      if ( .not. beSilent ) &
-        write(*,*) 'computeCLW: zenith=', zenithAngleDegree, &
-                        ', zenith_radian=', zenithAngleRadian, &
-                        ', clw=', clw
-
-    end function computeCLW
 
   end subroutine oer_computeInflatedStateDepSigmaObs
 

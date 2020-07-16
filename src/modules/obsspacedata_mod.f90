@@ -523,9 +523,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SZA   = OBS_SUN  +1 ! satellite zenith angle
    integer, parameter, public :: OBS_AZA   = OBS_SZA  +1 ! satellite azimuthal angle
    integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
-   integer, parameter, public :: OBS_CLW   = OBS_SAZ  +1 ! cloud liquid water retrieval
-   integer, parameter, public :: OBS_MWS   = OBS_CLW  +1 ! model wind speed (in ASCAT data)
-   integer, parameter, public :: OBS_SCAT   = OBS_MWS  +1! atmospheric scatering index
+   integer, parameter, public :: OBS_CLW1  = OBS_SAZ  +1 ! cloud liquid water retrieved from observation
+   integer, parameter, public :: OBS_CLW2  = OBS_CLW1 +1 ! cloud liquid water retrieved from background
+   integer, parameter, public :: OBS_MWS   = OBS_CLW2 +1 ! model wind speed (in ASCAT data)
+   integer, parameter, public :: OBS_SCAT  = OBS_MWS  +1 ! atmospheric scatering index
 
    ! the last column index for real header variables defined just above
    integer, parameter :: NHDR_REAL_END = OBS_SCAT
@@ -554,7 +555,7 @@ module ObsColumnNames_mod
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
-        'CLW ','MWS ','SCAT '/)
+        'CLW1','CLW2','MWS ','SCAT'/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1478,7 +1479,7 @@ module ObsSpaceData_mod
    public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
-   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW, OBS_MWS
+   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW1, OBS_CLW2, OBS_MWS
    public :: OBS_SCAT
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR

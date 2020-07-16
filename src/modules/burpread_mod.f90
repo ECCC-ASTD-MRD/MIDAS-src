@@ -1728,7 +1728,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(26),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(27),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1760,7 +1760,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,1033,2011,4197,5040,33078,33079,33080/
+        013209,013109,1033,2011,4197,5040,33078,33079,33080/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1889,7 +1889,7 @@ CONTAINS
         call BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=24
+        NELE_INFO=25
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -3467,7 +3467,7 @@ CONTAINS
     real        ::   RORBIT
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     real        ::   RFOV
-    REAL(pre_obsReal) ::   cloudLiquidWater
+    REAL(pre_obsReal) ::   cloudLiquidWaterObs, cloudLiquidWaterFG
 
     NOBS=obs_numHeader(obsdat)
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
@@ -3501,7 +3501,8 @@ CONTAINS
     RSOLAR_ZENITH = real(MPC_missingValue_R8,pre_obsReal)
     RZENITH = 90.
     RAZIMUTH = 0.
-    cloudLiquidWater = real(MPC_missingValue_R8,pre_obsReal)
+    cloudLiquidWaterObs = real(MPC_missingValue_R8,pre_obsReal)
+    cloudLiquidWaterFG = real(MPC_missingValue_R8,pre_obsReal)
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3635,7 +3636,9 @@ CONTAINS
              END IF
           END IF
         CASE(13209)
-          cloudLiquidWater = INFOV
+          cloudLiquidWaterObs = INFOV
+        CASE(13109)
+          cloudLiquidWaterFG = INFOV
         CASE(2011)
           raobsType = nint(infov)
         CASE(4197)
@@ -3698,7 +3701,8 @@ CONTAINS
     else
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
-    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW1) ) call obs_headSet_r(obsdat,OBS_CLW1,nobs,cloudLiquidWaterObs)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW2) ) call obs_headSet_r(obsdat,OBS_CLW2,nobs,cloudLiquidWaterFG)
 
   END SUBROUTINE  writeInfo
 
