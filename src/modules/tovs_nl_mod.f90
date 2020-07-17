@@ -2207,7 +2207,7 @@ contains
     integer, external :: omp_get_num_threads
     integer :: nthreads,max_nthreads
     integer :: sensorId, tovsIndex
-    integer :: channelIndex
+    integer :: channelIndex, channelIndexFound, channelNumber
     integer :: profileCount
     integer :: profileIndex, levelIndex, jj, btIndex
     integer :: instrum
@@ -2226,6 +2226,7 @@ contains
     integer              :: profileIndex2, tb1, tb2
     integer :: istart, iend, bodyIndex, headerIndex
     real(8) :: clearMwRadiance
+    logical :: ifBodyIndexFound
 
     if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2498,7 +2499,21 @@ contains
             if ( headerIndex > 0 ) then
               istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
-              bodyIndex = channelIndex + istart - 1
+
+              ifBodyIndexFound = .false.
+              loopClearSky: do bodyIndex = istart, iend
+                channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+                channelNumber = channelNumber - tvs_channelOffset(sensorId)
+                channelIndexFound = utl_findArrayIndex(tvs_ichan(:,sensorId),tvs_nchan(sensorId),channelNumber)
+                if ( channelIndex == channelIndexFound ) then
+                  ifBodyIndexFound = .true.
+                  exit loopClearSky
+                end if
+              end do loopClearSky
+
+              if ( .not. ifBodyIndexFound ) &
+                          call utl_abort('tvs_rttov: bodyIndex not found.')
+
               if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
                 call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRadiance)
             end if
