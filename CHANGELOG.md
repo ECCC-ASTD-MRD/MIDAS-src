@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+  * Improve efficiency of burp file update (#377 and !358)
   * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
     with `code-tools/01.3` (#275 and !257)
 

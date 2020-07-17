@@ -30,6 +30,7 @@ use MathPhysConstants_mod
 use earthconstants_mod
 use utilities_mod
 use obsUtil_mod
+use kdtree2_mod
 
 implicit none
 save
@@ -132,6 +133,16 @@ CONTAINS
     INTEGER                :: FILENUMB,LNMX
     type (struct_obs), intent(inout) :: obsdat
 
+    ! Locals:
+    type(kdtree2), pointer            :: tree
+    integer, parameter                :: maxNumSearch = 100
+    integer                           :: numFoundSearch, bodyCount, resultIndex
+    type(kdtree2_result)              :: searchResults(maxNumSearch)
+    real(kdkind)                      :: maxRadius = 0.000001d0
+    real(kdkind)                      :: refPosition(2)
+    real(kdkind), allocatable         :: PPPandVNM(:,:)
+    integer, allocatable              :: bodyIndexList(:)
+
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN,BLOCK_OMA,BLOCK_OMP,BLOCK_OER,BLOCK_FGE,BLOCK_FLG,BLOCK_FSO
@@ -189,6 +200,9 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
         33062,33039,10035,10036,08046,5043/
+
+    ! ensure kdtrees object is null
+    nullify(tree)
 
     STATUS_HIRES = 0
     FAMILYTYPE2= 'SCRAP'
@@ -1071,6 +1085,26 @@ CONTAINS
 
               levels: do j=1,nvale
 
+                if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
+                IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
+                INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
+
+                if ((j == 1 .or. HIRES) .and. INLV > 0) then
+                  if (allocated(PPPandVNM))     deallocate(PPPandVNM)
+                  if (allocated(bodyIndexList)) deallocate(bodyIndexList)
+                  allocate(PPPandVNM(2,INLV))
+                  allocate(bodyIndexList(INLV))
+                  bodyCount = 0
+                  do LK = IRLN, IRLN+INLV-1
+                    bodyCount = bodyCount + 1
+                    PPPandVNM(1,bodyCount) = obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
+                    PPPandVNM(2,bodyCount) = real(obs_bodyElem_i(obsdat,OBS_VNM,LK),8)
+                    bodyIndexList(bodyCount) = lk
+                  end do
+                  if (associated(tree)) call kdtree2_destroy(tree)
+                  tree => kdtree2_create(PPPandVNM, sort=.true., rearrange=.true.)
+                end if
+
                 !pikpik
                 if(HIRES) KOBSN=0
                 !pikpik
@@ -1149,8 +1183,6 @@ CONTAINS
 
                   if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
                   if (OBSN > obs_numHeader(obsdat))  cycle
-                  IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
-                  INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
                   TIME=obs_headElem_i(obsdat,OBS_ETM,OBSN)
                   STID=obs_elem_c(obsdat,'STID',OBSN)
                   if ( STID /= stnid ) cycle
@@ -1166,11 +1198,29 @@ CONTAINS
                   IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
                   convfact=1.
                   if (iele == 10194) convfact=1./RG
-                  do LK=IRLN,IRLN+INLV-1
-                    ASSIM=obs_bodyElem_i(obsdat,OBS_ASS,LK)
-                    VNM  =obs_bodyElem_i(obsdat,OBS_VNM,LK)
-                    PPP  =obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
-                    if( abs( VCOORD -  PPP) < .01  .and.  VNM == iele  ) then 
+
+                  if (INLV > 0) then
+                    refPosition(1) = vcoord
+                    refPosition(2) = iele
+                    call kdtree2_r_nearest(tp=tree,  &
+                                           qv=refPosition, r2=maxRadius, &
+                                           nfound=numFoundSearch,        &
+                                           nalloc=maxNumSearch,          &
+                                           results=searchResults)
+                    if (numFoundSearch == 0) cycle ELEMS
+                    if (numFoundSearch > 1) then
+                      write(*,*) 'vcoord, iele = ', vcoord, iele
+                      do resultIndex = 1, numFoundSearch
+                        write(*,*) 'ppp = ', PPPandVNM(1,searchResults(resultIndex)%idx)
+                        write(*,*) 'vnm = ', PPPandVNM(2,searchResults(resultIndex)%idx)
+                      end do
+                      write(*,*) 'brpr_updateBurp: multiple obs matches found, taking closest'
+                    end if
+                    lk = bodyIndexList(searchResults(1)%idx)
+                  else
+                    cycle ELEMS
+                  end if
+
                       OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
                       OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
                       OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
@@ -1245,11 +1295,6 @@ CONTAINS
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
-
-                      EXIT
-
-                    end if
-                  end do 
 
                   IF (HIRES .and. KOBSN > 0 ) THEN
                     STATUS=obs_headElem_i(obsdat,OBS_ST1,OBSN )
@@ -1408,6 +1453,9 @@ CONTAINS
     Call BURP_Free(Block_OBS_MUL_CP ,IOSTAT=error)
     Call BURP_Free(Block_OBS_SFC_CP ,IOSTAT=error)
     Call BURP_Free(File_in,      IOSTAT=error)
+    if (associated(tree)) call kdtree2_destroy(tree)
+    if (allocated(PPPandVNM)) deallocate(PPPandVNM)
+    if (allocated(bodyIndexList)) deallocate(bodyIndexList)
 
     write(*,*) ' BURPFILE  UPDATED SUM = ',trim(brp_file),SUM
 
