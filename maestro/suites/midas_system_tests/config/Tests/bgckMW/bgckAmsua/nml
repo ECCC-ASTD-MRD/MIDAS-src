@@ -7,6 +7,9 @@
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
   writeEle25174 = .false.	
+  maxNumSat             = 9
+  maxNumChan            = 42
+  maxNumTest            = 15
 /
  &NAMMWOBS
   reportNumMax = 500

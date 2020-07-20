@@ -70,12 +70,10 @@ module bgckmicrowave_mod
   public :: mwbg_useUnbiasedObsForClw 
   public :: mwbg_allowStateDepSigmaObs
   public :: mwbg_maxNumChan
-  !
   public :: mwbg_maxNumSat
   public :: mwbg_maxNumTest
   public :: mwbg_maxNumObs
   public :: mwbg_maxScanAngle
-  public :: mwbg_atmsMaxNumChan
   public :: mwbg_realMissing
   public :: mwbg_intMissing
 
@@ -83,12 +81,11 @@ module bgckmicrowave_mod
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
+  integer :: mwbg_maxNumChan
+  integer :: mwbg_maxNumSat 
+  integer :: mwbg_maxNumTest
 
-  integer, parameter :: mwbg_maxNumChan = 50
-  integer, parameter :: mwbg_maxNumSat = 9
-  integer, parameter :: mwbg_maxNumTest = 15
   integer, PARAMETER :: mwbg_maxNumObs = 3000
-  integer, parameter :: mwbg_atmsMaxNumChan=22
   integer, parameter :: mwbg_maxScanAngle=96
   !real,    parameter :: mwbg_realMissing=9.9e09 
   real,    parameter :: mwbg_realMissing=-99. 
@@ -900,7 +897,7 @@ contains
         end if
 
         ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
-        if ( CLW(nDataIndex) > cloudyClwThreshold ) then
+        if ( mwbg_allowStateDepSigmaObs .and.  ( CLW(nDataIndex) > cloudyClwThreshold )) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
@@ -1379,34 +1376,32 @@ contains
     logical, save                          :: LLFIRST
 
 
-    data  LLFIRST / .TRUE. /
-    data  EPSILON / 0.01   /
-    data  MISGRODY / -99.     /
-    !      data  ROGUEFAC/ 3.0    / changed, jh, from 3 to 4, jan 2001
-    !      data  ROGUEFAC/ 4.0    /
-    data  ROGUEFAC / 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
+    LLFIRST = .TRUE.
+    EPSILON = 0.01
+    MISGRODY = -99.
+    ROGUEFAC(:) =(/ 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, 2.0, 2.0, &
                      3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
-                     4.0, 2.0/
-    data  ICLWREJ  / 28, 29, 30, 31, 32, 42 /
-    data  ISFCREJ  / 28, 29, 30, 31, 32, 42 /
-    data  ISCATREJ / 28, 29, 30, 31, 32, 33, 42 /
-    data  ISFCREJ2 / 28, 29, 30, 42 /
+                     4.0, 2.0/)
+    ICLWREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
+    ISFCREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
+    ISCATREJ(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
+    ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
                    
-    data GROSSMIN / 200., 190., 190., 180., 180., 180., 170., &
+    GROSSMIN(:) = (/ 200., 190., 190., 180., 180., 180., 170., &
                     170., 180., 170., 170., 170., 180., 180., &
                     180., 180., 170., 180., 180., 000., 120., &
                     190., 180., 180., 180., 190., 200., 120., &
                     120., 160., 190., 190., 200., 190., 180., &
-                    180., 180., 180., 190., 190., 200., 130./
+                    180., 180., 180., 190., 190., 200., 130./)
 
-    data GROSSMAX / 270., 250., 250., 250., 260., 280., 290., &
+    GROSSMAX(:) = (/ 270., 250., 250., 250., 260., 280., 290., &
                     320., 300., 320., 300., 280., 320., 300., &
                     290., 280., 330., 350., 350., 000., 310., &
                     300., 250., 250., 270., 280., 290., 310., &
                     310., 310., 300., 300., 260., 250., 250., &
-                    250., 260., 260., 270., 280., 290., 330./  
+                    250., 260., 260., 270., 280., 290., 330./)  
 
     ! Allocation
     call utl_reAllocate(clw_avg, KNT)
@@ -1561,7 +1556,7 @@ contains
     !###############################################################################
     write(*,*) ' ==> setTerrainTypeToSeaIce : '
     call setTerrainTypeToSeaIce(GLINTRP, KTERMER, ITERRAIN)
-    
+
   end subroutine mwbg_tovCheckAmsua
 
   !--------------------------------------------------------------------------
@@ -1593,18 +1588,20 @@ contains
     integer                                :: JK
     integer                                :: INTOTOBS
     integer                                :: INTOTACC
-    integer, save                          :: INTOT(mwbg_maxNumSat)
-    integer, save                          :: INTOTRJF(mwbg_maxNumSat)
-    integer, save                          :: INTOTRJP(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOT(:)!INTOT(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOTRJF(:)!INTOTRJF(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOTRJP(:)!INTOTRJP(mwbg_maxNumSat)
     integer                                :: KCANO(KNO,KNT)                      ! canaux des observations
 
 
     logical, save                          :: LLFIRST = .True.
     logical                                :: FULLREJCT
     logical                                :: FULLACCPT
-
     ! Initialize
     if ( LLFIRST ) then
+      call utl_reallocate(INTOT, mwbg_maxNumSat)
+      call utl_reallocate(INTOTRJF, mwbg_maxNumSat)
+      call utl_reallocate(INTOTRJP, mwbg_maxNumSat)
       do JJ = 1, mwbg_maxNumSat
         INTOTRJF(JJ) = 0
         INTOTRJP(JJ) = 0
@@ -1687,6 +1684,7 @@ contains
              write(*,'(3X,I2,t10,"|",15I7)') JJ,(rejectionCodArray(JI,JJ,JK), &
                                       JI=1,mwbg_maxNumTest)
           end do
+          write(*,'(1x,114("-"))')
           print *, ' '
           print *, ' '
           print *, ' -----------------------------------------------------'
@@ -2152,7 +2150,7 @@ contains
       Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
       nsize = MRFMXL(iun_burpin)
       ! Add nsize to report size to accomodate modified (larger) data blocks
-      nsize = nsize*15
+      nsize = nsize*10
       ! Create new report (reportOut) to contain modified blocks from reportIn
       Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
       if (error /= burp_noerr) call burpErrorHistory(file_in, reportOut)
@@ -2184,7 +2182,7 @@ contains
       return 
     end if  
     
-    Call BURP_Init(blk, B2=blk_copy, iostat=error)
+    Call BURP_Init(blk, B2 = blk_copy, iostat=error)
 
     ! Read and modify the blocks in rpt and add them to reportOut
     ref_blk = 0
@@ -2253,8 +2251,6 @@ contains
         call addRealElementBurpBlock(blk, 12233, obsTbBiasCorr, my_nval, my_nt, my_nele+1)
         ! Create the block  Omp 9322
         ! 2- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
-        write(*,*)'copy data bloc in blk_copy'
-        !blk_copy = .clear.blk
         !-------------------------------------------------------------------------------------------------------
         ! Continue modification for Data Block
         write(*,*)'write ztb values'
@@ -2264,6 +2260,10 @@ contains
         write(*,*)'Modify bktyp and write'
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .true.)        
         !-------------------------------------------------------------------------------------------------------
+        ! This Init prevents abort that is happening during the blc_copy = .clear.blk
+        write(*,*)'my_nval = ',my_nval
+        write(*,*)'my_nt   = ',my_nt
+        write(*,*)'ztb = ', ztb
         blk_copy = .clear.blk
         ! back to Omp 9322
         ! 1- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
@@ -2290,12 +2290,9 @@ contains
         tempIntegerArray(:) = 0        
         call addIntegerElementBurpBlock(blk, 212233, tempIntegerArray, my_nval, my_nt, my_nele+1)
         ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
-        write(*,*) 'START Remplacer le bloc et modifier le bktyp pour signifier vu par AO'
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .false.)        
-        write(*,*) 'END Remplacer le bloc et modifier le bktyp pour signifier vu par AO'
       ! From now Dont copy these OTHER BLOCK my_btyp == 9712 .or. my_btyp == 15361 
       else if (my_btyp == 9217 .or. my_btyp == 15361) then
-        write(*,*) 'BTYP = ', my_btyp , ': We will not copy these blocks'
         cycle BLOCKS
       ! Copy the rest of the reportIn to reportOut
       else
@@ -2315,6 +2312,7 @@ contains
       Call BURP_Free(File_in,iostat=error)
       Call BURP_Free(reportIn, R2 = reportOut,iostat=error)
     end if 
+
 
   end subroutine mwbg_updateBurp
 
@@ -3181,7 +3179,8 @@ contains
                      ' OBS = ',nDataIndex, &
                      ' CHANNEL= ',KCANO(nChannelIndex,nDataIndex), &
                      ' CHECK VALUE= ',XCHECKVAL, &
-                     ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex)
+                     ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex), &
+                     ' TOVERRST= ',TOVERRST(channelval,KNOSAT)
             end if
             if ( channelval .EQ. 1 .OR. &
                 channelval .EQ. 2 .OR. &
@@ -3366,7 +3365,7 @@ contains
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
     logical                          :: reportHasMissingTb   ! true if Tb(ztb) are set to missing_value
-    logical, allocatable             :: lqc(:,:)             ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
+    logical, allocatable             :: lqc(:,:)             ! dim(nt,mwbg_maxNumChan), lqc = .false. on input
     logical, allocatable             :: cloudobs(:)
     logical, allocatable             :: iwvreject(:)
     logical, allocatable             :: precipobs(:)
@@ -3421,17 +3420,17 @@ contains
     integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing 
     !                                                                     over water due bad data 
 
-    DATA  LLFIRST / .TRUE. /
+    LLFIRST = .true.
 
-    DATA  ROGUEFAC / 2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
+    ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
-                    2.0, 4.0, 4.0, 4.0, 4.0, 4.0 /
+                    2.0, 4.0, 4.0, 4.0, 4.0, 4.0/)
 
     ! Channel sets for rejection in test 9 
     ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
-    DATA  ISFCREJ    / 1, 2, 3, 4, 5, 6, 16, 17 /
+    ISFCREJ(:) = (/1, 2, 3, 4, 5, 6, 16, 17/)
     !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
-    DATA  ICH2OMPREJ / 17, 18, 19, 20, 21, 22 /
+    ICH2OMPREJ(:) = (/17, 18, 19, 20, 21, 22/)
 
     !  Data for TOPOGRAPHY CHECK
     !   Channel AMSUA-6 (atms ch 7) is rejected for topography  >  250m.
@@ -3439,12 +3438,12 @@ contains
     !   Channel AMSUB-3 (atms ch 22) is rejected for topography > 2500m.
     !                    atms ch 21  is rejected for topography > 2250m.
     !   Channel AMSUB-4 (atms ch 20) is rejected for topography > 2000m.
-    DATA ICHTOPO  /     7,     8,    20,    21,    22  /
-    DATA ZCRIT    /   250., 2000., 2000., 2250., 2500. /
+    ICHTOPO(:) = (/7, 8, 20, 21, 22/)
+    ZCRIT(:) = (/250., 2000., 2000., 2250., 2500./)
 
     !  Test selection (0=skip test, 1=do test)
     !             1  2  3  4  5 
-    DATA ITEST  / 1, 1, 1, 1, 1 /
+    ITEST(:) = (/1, 1, 1, 1, 1/)
        
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3486,7 +3485,7 @@ contains
     end if
 
     !###############################################################################
-    ! STEP 3 ) Preliminary QC checks --> set lqc(nt,mwbg_atmsMaxNumChan)=.true. 
+    ! STEP 3 ) Preliminary QC checks --> set lqc(nt,mwbg_maxNumChan)=.true. 
     !          for data that fail QC     
     !###############################################################################
 
@@ -3498,7 +3497,7 @@ contains
     if ( reportHasMissingTb ) numReportWithMissigTb = numReportWithMissigTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,KNT
-      if ( COUNT(lqc(kk,:)) == mwbg_atmsMaxNumChan ) grossrej(kk) = .true.
+      if ( COUNT(lqc(kk,:)) == mwbg_maxNumChan ) grossrej(kk) = .true.
     end do
 
     !###############################################################################
@@ -3756,11 +3755,8 @@ contains
     ! if no observations STOP
     if ( nobs_tot == 0 ) call burpErrorHistory(File_in, Rpt_in)
 
-    write(*,*) 'before free(rpt_in)'
     call burp_free(Rpt_in)
-    write(*,*) 'before free(file_in)'
     call burp_free(File_in)
-    write(*,*) 'after free(file_in)'
 
   end subroutine  getBurpReportAdresses
 
@@ -4254,7 +4250,7 @@ contains
 
     ! NOTE:  reportIndex = report number (from MAIN program) **** do NOT MODifY ****
     !       kk = variable for loops over locations (nt)
-    !        j = variable for loops over nval (nval = 1 or mwbg_atmsMaxNumChan)
+    !        j = variable for loops over nval (nval = 1 or mwbg_maxNumChan)
     !Arguments:
     !
     character(len=90),    intent(in)     :: burpFileNameIn
@@ -4363,11 +4359,12 @@ contains
       resumeReport = .false.
       STNID = trim(idStn0) 
     end if
-    
-    !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = mwbg_atmsMaxNumChan)
+     write(*,*)'reading ... TB ' 
+    !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = mwbg_maxNumChan)
     call readBurpReal (reportIndex, reportIn, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
                        burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
     if (all(ztb(:) == mpc_missingValue_r4)) then
+      write(*,*) 'ABORT because TB missing'
       return
     end if
     nvalOut = burpChannelNum    ! set nvalOut (#channels) for MAIN program
@@ -4377,44 +4374,61 @@ contains
     call readBurpInteger (reportIndex, reportIn, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
+    write(*,*)'reading ... DATE ' 
     !  Get the date,time,lat,lon from time/location block    BTYP = 5120  (also get nt)
     call readBurpInteger(reportIndex, reportIn, (/5120/), 0, 4208, error, obsDate, 'DATE', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ...TIME ' 
     call readBurpInteger(reportIndex, reportIn, (/5120/), 0, 4197, error, obsTime, 'TIME', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ... LAT ' 
     call readBurpReal(reportIndex, reportIn, (/5120/), 0, 5002, error, zlat, 'LAT', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ... LON ' 
     call readBurpReal(reportIndex, reportIn, (/5120/), 0, 6002, error, zlon, 'LON', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
+    write(*,*)'reading ... Sat_Identifier ' 
     !  Get info elements from the INFO block   BTYP = 3072
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 1007, error, ISAT, 'Sat_Identifier', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+     write(*,*)'reading ...  Orbit_Number' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 5040, error, IORBIT, 'Orbit_Number', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+     write(*,*)'reading ...  Zenith_Angle' 
     call readBurpReal(reportIndex, reportIn, (/3072/), 0, 7024, error, ZENITH, 'Zenith_Angle', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+     write(*,*)'reading ...  Azimuth_Angle' 
     call readBurpReal(reportIndex, reportIn, (/3072/), 0, 5021, error, AZIMUTH, 'Azimuth_Angle', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ... SolarZen_Angle ' 
     call readBurpReal(reportIndex, reportIn, (/3072/), 0, 7025, error, solarZenith, 'SolarZen_Angle', &
                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ...  LandSea_Qualifier' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 8012, error, ILQ, 'LandSea_Qualifier', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ...  Terrain_Type' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 13039, error, ITT, 'Terrain_Type', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ...  Scan_Position' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 5043, error, SCANPOS, 'Scan_Position', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    write(*,*)'reading ...  Sensor' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 2048, error, SENSOR, 'Sensor', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .False.) 
+    write(*,*)'reading ... Instrument ' 
     call readBurpInteger(reportIndex, reportIn, (/3072/), 0, 2019, error, instrument, 'Instrument', &
                          burpLocationNum, burpChannelNum, abortIfMissing = .False.) 
 
     !  Get info elements 33078 33079 33080 if needed
     if (all(eleQcFlag1(:) /= -1)) then
+    ! write(*,*)'reading ... Geoloc_Quality_QcFlag ' 
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(1), error, qcflag1FirstColomn, 'Geoloc_Quality_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+      write(*,*)'reading ... Granule_Level_QcFlag ' 
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(2), error, qcflag1SecondColomn, 'Granule_Level_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+      write(*,*)'reading ... Scan_Level_QcFlag ' 
       call readBurpInteger(reportIndex, reportIn, (/3072/), 0, eleQcFlag1(3), error, qcflag1ThirdColomn, 'Scan_Level_QcFlag', &
                            burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
       if(allocated(qcflag1)) deallocate(qcflag1)
@@ -4423,19 +4437,24 @@ contains
       qcflag1(:,2) = qcflag1SecondColomn
       qcflag1(:,3) = qcflag1ThirdColomn
     else
+      write(*,*)'Allocate missing to ... Geoloc_Quality_QcFlag ' 
       if(allocated(qcflag1)) deallocate(qcflag1)
       allocate(qcflag1(ntOut,3))
       qcflag1(:,:) = mpc_missingValue_INT
     end if
 
-    !  Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
+     write(*,*)'reading ... FLAGs ' 
+    !  Bloc marqueurs multi niveaugggx de radiances: bloc 15362, 15392, 15408.
     call readBurpInteger (reportIndex, reportIn, (/15362,15392,15408/), 0, 212163, error, IMARQ, 'IMARQ', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
 
     !  Bloc info 3d: bloc 5120.
+     write(*,*)'reading ... global FLAGs ' 
+    !  Bloc marqueurs multi niveaugggx de radiances: bloc 15362, 15392, 15408.
     call readBurpInteger (reportIndex, reportIn, (/5120/), 0, 55200, error, globMarq, 'Marqueurs_Gobaux', &
                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
 
+    write(*,*)'END of getData for record number ', reportIndex
     if (reportIndex == nb_rpts) then
       write(*,*) "mwbg_getData: last report, closing File"
       Call BURP_Free(File_in,iostat=error)
@@ -4782,7 +4801,7 @@ contains
     indx1 = 1
     do ii = 1, npts
 
-      indx2 = ii*mwbg_atmsMaxNumChan
+      indx2 = ii*mwbg_maxNumChan
       if ( all( ztb(indx1:indx2) > 50.0 ) .and. all( ztb(indx1:indx2) < 380.0 ) ) then
         grossrej(ii) = .false.
       end if
@@ -4799,7 +4818,7 @@ contains
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
                                    ican, reportHasMissingTb)
     !  This routine performs basic quality control checks on the data. It sets array
-    !  lqc(nt,mwbg_atmsMaxNumChan) elements to .true. to flag data with failed checks.
+    !  lqc(nt,mwbg_maxNumChan) elements to .true. to flag data with failed checks.
     !
     !  The 7 QC checks are:
     !                 - 1) Invalid land/sea qualifier or terrain type,
@@ -4814,7 +4833,7 @@ contains
     !                 - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 
     !
-    !  In most cases, lqc(ii,mwbg_atmsMaxNumChan) is set to .true. for all channels at point ii
+    !  In most cases, lqc(ii,mwbg_maxNumChan) is set to .true. for all channels at point ii
     !  if the check detects a problem. In addition, Tb (ztb) is set to missing_value 
     !  for checks 3 and 4 fails.
     implicit none
@@ -4837,7 +4856,7 @@ contains
     real,                 intent(inout)             :: ztb(:)
     real,                 intent(inout)             :: zenith(:)
     logical,              intent(out)               :: reportHasMissingTb ! true if Tb(ztb) are set to missing_value
-    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
+    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,mwbg_maxNumChan), lqc = .false. on input
 
     ! Locals
     integer :: ii, jj, indx1, icount
@@ -4849,8 +4868,8 @@ contains
     ! Global rejection checks
 
     ! Check if number of channels is correct
-    if ( nval /= mwbg_atmsMaxNumChan ) then
-      write(*,*) 'WARNING: Number of channels (',nval, ') is not equal to mwbg_atmsMaxNumChan (', mwbg_atmsMaxNumChan,')'
+    if ( nval /= mwbg_maxNumChan ) then
+      write(*,*) 'WARNING: Number of channels (',nval, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
       lqc(:,:) = .true.  ! flag all data in report as bad
       return
@@ -4860,15 +4879,15 @@ contains
     indx1 = 1
     fail = .false.
     do ii = 1,nt
-      do jj = 1,mwbg_atmsMaxNumChan
+      do jj = 1,mwbg_maxNumChan
         if ( ican(indx1+jj-1) /= jj ) fail = .true.
       end do
-      indx1 = indx1 + mwbg_atmsMaxNumChan
+      indx1 = indx1 + mwbg_maxNumChan
     end do
     if ( fail ) then
       write(*,*) 'WARNING: Bad channel number(s) detected!'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
-      write(*,*) '  ican(nt*mwbg_atmsMaxNumChan) array = ', ican(:)
+      write(*,*) '  ican(nt*mwbg_maxNumChan) array = ', ican(:)
       lqc(:,:) = .true.  ! flag all data in report as bad
       return
     end if
@@ -4926,13 +4945,13 @@ contains
         zenith(ii) = mwbg_realMissing
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_atmsMaxNumChan
+      do jj = 1,mwbg_maxNumChan
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_atmsMaxNumChan
+      indx1 = indx1 + mwbg_maxNumChan
     end do
 
     ! 4) Lat,lon check
@@ -4948,13 +4967,13 @@ contains
         icount =  icount + 1
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_atmsMaxNumChan
+      do jj = 1,mwbg_maxNumChan
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_atmsMaxNumChan
+      indx1 = indx1 + mwbg_maxNumChan
     end do
     if ( icount > 0 ) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
 
@@ -4967,13 +4986,13 @@ contains
         icount =  icount + 1
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_atmsMaxNumChan
+      do jj = 1,mwbg_maxNumChan
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_atmsMaxNumChan
+      indx1 = indx1 + mwbg_maxNumChan
     end do
     if ( icount > 0 ) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
 
@@ -5008,7 +5027,7 @@ contains
         fail1 = .true.
         if ( grossrej(ii) ) write(*,*) ' NOTE: grossrej is also true for this point!'
       end if
-      do jj = 1,mwbg_atmsMaxNumChan
+      do jj = 1,mwbg_maxNumChan
         fail2 = .false.
         if ( qcflag2(indx1+jj-1) >= 4 ) then
           !write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 = ', qcflag2(indx1+jj-1)
@@ -5020,10 +5039,10 @@ contains
         if ( fail2 .or. fail1 ) lqc(ii,jj) = .true.
       end do
       if ( fail ) write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 >= 4 for one or more channels! lat, lon = ', zlat(ii), zlon(ii)
-      indx1 = indx1 + mwbg_atmsMaxNumChan
+      indx1 = indx1 + mwbg_maxNumChan
     end do
      
-    write(*,*) 'mwbg_firstQcCheckAtms: Total number of data processed in this box = ', nt*mwbg_atmsMaxNumChan
+    write(*,*) 'mwbg_firstQcCheckAtms: Total number of data processed in this box = ', nt*mwbg_maxNumChan
     write(*,*) '         Total number of data flagged in this box   = ', COUNT(lqc)
     write(*,*) ' '
 
@@ -5148,7 +5167,7 @@ contains
 
     indx1 = 1
     do ii = 1, ni
-      indx2 = ii*mwbg_atmsMaxNumChan
+      indx2 = ii*mwbg_maxNumChan
       tb23(ii)      = ztbcor(indx1)
       bcor23(ii)    = biasCorr(indx1)
       tb31(ii)      = ztbcor(indx1+1)
@@ -5337,7 +5356,7 @@ contains
 
     indx1 = 1
     do ii = 1, nt
-      indx2 = ii*mwbg_atmsMaxNumChan
+      indx2 = ii*mwbg_maxNumChan
       ztb_amsub3(ii) = ztbcor(indx1+21)
       bcor_amsub3(ii) = biasCorr(indx1+21)
       ztb_amsub5(ii) = ztbcor(indx1+17)
@@ -5352,7 +5371,7 @@ contains
     riwv = -99.0
     indx1 = 1
     do ii = 1, nt
-      indx2 = ii*mwbg_atmsMaxNumChan
+      indx2 = ii*mwbg_maxNumChan
       if (.not.grossrej(ii)) then
         if ( useUnbiasedObsForClw ) then
           ztb183(1) = ztbcor(indx1+17)
@@ -5713,6 +5732,7 @@ contains
       if (verbose) then
         write(*,*) 'headerIndex, ity, ins, sat, sza, aza, sun, ofl, dat, etm, lat, lon = ', headerIndex, idtyp, instrument(1), satIdentifier(headerCompt), satZenithAngle(headerCompt), azimuthAngle(headerCompt), solarZenithAngle(headerCompt), landQualifierIndice(headerCompt), obsDate(headerCompt), obsTime(headerCompt), obsLatitude(headerCompt), obsLongitude(headerCompt)
       end if
+
       numBodyWritten = numBodyWritten + reportNumChannel
       headerCompt = headerCompt + 1
     end do HEADER
@@ -5881,6 +5901,7 @@ contains
 
       ! Convert lat/lon to degrees
       obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+      if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
       obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
 
       headerCompt = headerCompt + 1

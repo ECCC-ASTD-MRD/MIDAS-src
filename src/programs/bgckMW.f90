@@ -73,16 +73,14 @@ program midas_bgckMW
   integer, allocatable          :: obsFlags(:)                                        ! obs. flag
   integer, allocatable          :: satOrbit(:)                                        ! orbit
   integer, allocatable          :: obsGlobalMarker(:)                                 ! global marker
-  integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)            ! channel use option for each sat.
-  real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)           ! obs. error per channel for each sat
-  real                          :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
-  real                          :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
-  integer                       :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
-  integer                       :: rejectionCodArray(mwbg_maxNumTest, &
-                                                     mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
-  !                                                                                                   per sat. per channl per test
-  integer                       :: rejectionCodArray2(mwbg_maxNumTest, &
-                                                      mwbg_maxNumChan,mwbg_maxNumSat) ! number of rejection per 
+  integer, allocatable          :: IUTILST(:,:)            ! channel use option for each sat.
+  real,    allocatable          :: TOVERRST(:,:)          ! obs. error per channel for each sat
+  real,    allocatable          :: sigmaObsErr(:,:,:) ! 
+  real,    allocatable          :: clwThreshArr(:,:,:) ! 
+  integer, allocatable          :: useStateDepSigmaObs(:,:) !
+  integer, allocatable          :: rejectionCodArray(:,:,:)  ! number of rejection 
+                                                             !  per sat. per channl per test
+  integer, allocatable          :: rejectionCodArray2(:,:,:) ! number of rejection per 
   !                                                                                                   sat. per channl per test
   !                                                                                                   for ATMS 2nd category of tests
   integer, allocatable          :: qcIndicator(:,:)                                   ! indicateur controle de qualite tovs par canal 
@@ -121,10 +119,14 @@ program midas_bgckMW
   integer                       :: reportNumMax                    ! Max number of reports in file
   integer                       :: locationNumMax                  ! Max number of obs per report
   integer                       :: channelNumMax                   ! Max number of channel in report
+  integer                       :: maxNumSat
+  integer                       :: maxNumChan
+  integer                       :: MaxNumTest
 
   namelist /nambgck/instName, glmg_file, statsFile, &
                     writeModelLsqTT, clwQcThreshold, allowStateDepSigmaObs, &
-                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeEle25174 
+                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeEle25174, &
+                    maxNumSat, maxNumChan, maxNumTest 
 
   namelist/nammwobs/reportNumMax, locationNumMax, channelNumMax
 
@@ -155,7 +157,10 @@ program midas_bgckMW
   debug                 = .false.
   RESETQC               = .false.
   ETIKRESU              = '>>BGCKALT'
-  writeEle25174   = .false.
+  writeEle25174         = .false.
+  maxNumSat             = 9
+  maxNumChan            = 42
+  maxNumTest            = 15
 
   ! reading nambgck namelist
   nulnam = 0
@@ -171,6 +176,18 @@ program midas_bgckMW
   mwbg_clwQcThreshold = clwQcThreshold 
   mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
+  mwbg_maxNumChan = maxNumChan
+  mwbg_maxNumSat  = maxNumSat
+  mwbg_maxNumTest = maxNumTest
+
+  ! Allocate some variables
+  call utl_reAllocate(IUTILST,mwbg_maxNumChan,mwbg_maxNumSat)
+  call utl_reAllocate(TOVERRST,mwbg_maxNumChan,mwbg_maxNumSat)    
+  call utl_reAllocate(sigmaObsErr,mwbg_maxNumChan,mwbg_maxNumSat,2)
+  call utl_reAllocate(clwThreshArr,mwbg_maxNumChan,mwbg_maxNumSat,2)
+  call utl_reAllocate(useStateDepSigmaObs,mwbg_maxNumChan,mwbg_maxNumSat)
+  call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
+  call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
 
   ! default nammwobs namelist
   reportNumMax = 1000
@@ -369,7 +386,6 @@ program midas_bgckMW
         !###############################################################################
         write(*,*) ' ==> mwbg_tovCheck For: ', instName
         if (instName == 'AMSUA') then
-          write(*,*) 'TOVERRST = ', TOVERRST
           call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                IUTILST, satIdentifier, landQualifierIndice,&
                               satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
