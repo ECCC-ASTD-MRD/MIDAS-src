@@ -114,7 +114,7 @@ module tovs_nl_mod
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
-  public :: tvs_getLocalChannelIndexFromChannelNumber, tvs_getGlobalChannelIndexFromChannelNumber
+  public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
@@ -4334,76 +4334,34 @@ contains
 
   end subroutine  tvs_printDetailledOmfStatistics
 
+
   !--------------------------------------------------------------------------
-  !  tvs_getGlobalChannelIndexFromChannelNumber
-  !--------------------------------------------------------------------------
-  subroutine tvs_getGlobalChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
-    !
-    ! :Purpose: to get global channel index from channel number
-    !
-    implicit none
-
-    !Arguments:
-    integer, intent(in)  :: idsat   ! Satellite index
-    integer, intent(out) :: chanIndx! Channel index
-    integer, intent(in)  :: chanNum ! Channel number
-
-    ! Locals:
-    logical, save              :: first =.true.
-    integer                    :: channelNumber, sensorIndex, channelIndex 
-    integer, allocatable, save :: index(:,:)
-
-    if (first) then
-      allocate( index(tvs_nsensors, tvs_maxChannelNumber ) )
-      index(:,:) = -1
-      do sensorIndex = 1, tvs_nsensors
-        channels:do channelNumber = 1,  tvs_maxChannelNumber
-          indexes: do channelIndex =1, tvs_nchanMpiGLobal(sensorIndex)
-            if ( channelNumber == tvs_ichanMpiGLobal(channelIndex,sensorIndex) ) then
-              index(sensorIndex,channelNumber) = channelIndex
-              exit indexes
-            end if
-          end do indexes
-        end do channels
-      end do
-      first = .false.
-    end if
-
-    chanIndx = index(idsat,chanNum)
-    if (chanIndx == -1) then
-      write(*,*) 'channel number requested = ', chanNum
-      call utl_abort('tvs_getGlobalChannelIndexFromChannelNumber: channel not found')
-    end if
-
-  end subroutine tvs_getGlobalChannelIndexFromChannelNumber
-
- !--------------------------------------------------------------------------
   !  tvs_getLocalChannelIndexFromChannelNumber
   !--------------------------------------------------------------------------
-  subroutine tvs_getLocalChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
+  subroutine tvs_getLocalChannelIndexFromChannelNumber(idsat,channelIndex_out,channelNumber_in)
     !
     ! :Purpose: to get local channel index from channel number
     !
     implicit none
 
     !Arguments:
-    integer, intent(in)  :: idsat   ! Satellite index
-    integer, intent(out) :: chanIndx! Channel index
-    integer, intent(in)  :: chanNum ! Channel number
+    integer, intent(in)  :: idsat            ! Satellite index
+    integer, intent(out) :: channelIndex_out ! Channel index
+    integer, intent(in)  :: channelNumber_in ! Channel number
 
     ! Locals:
     logical, save              :: first =.true.
     integer                    :: channelNumber, sensorIndex, channelIndex 
-    integer, allocatable, save :: index(:,:)
+    integer, allocatable, save :: savedChannelIndexes(:,:)
 
     if (first) then
-      allocate( index(tvs_nsensors, tvs_maxChannelNumber ) )
-      index(:,:) = -1
+      allocate( savedChannelIndexes(tvs_nsensors, tvs_maxChannelNumber ) )
+      savedChannelIndexes(:,:) = -1
       do sensorIndex = 1, tvs_nsensors
         channels:do channelNumber = 1,  tvs_maxChannelNumber
           indexes: do channelIndex =1, tvs_nchan(sensorIndex)
             if ( channelNumber == tvs_ichan(channelIndex,sensorIndex) ) then
-              index(sensorIndex,channelNumber) = channelIndex
+              savedChannelIndexes(sensorIndex,channelNumber) = channelIndex
               exit indexes
             end if
           end do indexes
@@ -4412,9 +4370,9 @@ contains
       first = .false.
     end if
 
-    chanIndx = index(idsat,chanNum)
-    if (chanIndx == -1) then
-      write(*,*) 'channel number requested = ', chanNum
+    channelIndex_out = savedChannelIndexes(idsat,channelNumber_in)
+    if (channelIndex_out == -1) then
+      write(*,*) 'channel number requested = ', channelNumber_in
       call utl_abort('tvs_getLocalChannelIndexFromChannelNumber: channel not found')
     end if
 
