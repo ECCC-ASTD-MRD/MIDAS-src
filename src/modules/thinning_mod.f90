@@ -693,7 +693,6 @@ contains
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
     integer :: nulnam, fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
-
     integer :: ierr, countObs, countObsInMpi, countLevel
     integer :: nbstn, nbstnMpi, countProfile, lastProfileIndex
     integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex
@@ -711,6 +710,7 @@ contains
     character(len=9), allocatable :: ids_stn(:)
     character(len=20) :: trlmFileName
     character(len=2)  :: fileNumber
+    logical :: upperAirObs
 
     ! Local parameters:
     integer, parameter :: nbvar=5, nbtrj=2, nbmod=300
@@ -731,6 +731,23 @@ contains
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER0
+
+      ! skip if this headerIndex doesn't contain upper air obs
+      upperAirObs = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY0: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY0
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu, bufr_nevv, bufr_nett, bufr_nees)
+          upperAirObs = .true.
+        end select
+      end do BODY0
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      write(*,*) 'upperAirObs = ', headerIndex, profileIndex, upperAirObs
+      if (.not. upperAirObs) cycle HEADER0
+
       countObs = countObs + 1
 
       profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
@@ -738,10 +755,6 @@ contains
         lastProfileIndex = profileIndex
         nbstn = nbstn + 1
       end if
-
-      write(*,*) obs_headElem_i(obsdat, obs_rtp, headerIndex), &
-                 obs_headElem_i(obsdat, obs_lch, headerIndex), &
-                 profileIndex
 
     end do HEADER0
 
@@ -785,12 +798,28 @@ contains
     ombv(:,:) = -999.0
 
     ! Fill in the arrays for each profile
+    countObs = 0
     countProfile = 0
     lastProfileIndex = -1
     call obs_set_current_header_list(obsdat,'UA')
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER1
+
+      ! skip if this headerIndex doesn't contain upper air obs
+      upperAirObs = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu, bufr_nevv, bufr_nett, bufr_nees)
+          upperAirObs = .true.
+        end select
+      end do BODY1
+      if (.not. upperAirObs) cycle HEADER1
+
       countObs = countObs + 1
 
       profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
@@ -802,6 +831,7 @@ contains
 
       countLevel = countLevel + 1
       niv_stn(countProfile+1) = niv_stn(countProfile) + countLevel
+      write(*,*) 'headerIndex, profileIndex = ', headerIndex, profileIndex, countObs, niv_stn(countProfile+1)
 
       ! Get some information from the first header in this profile
       if (countLevel == 1) then
@@ -822,39 +852,39 @@ contains
       ids_stn(countProfile)   = obs_elem_c(obsdat,'STID',headerIndex)
 
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY0: do 
+      BODY2: do 
         bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY0
+        if (bodyIndex < 0) exit BODY2
 
         obsFlag  = obs_bodyElem_i(obsdat,obs_flg,bodyIndex)
         obsValue = obs_bodyElem_r(obsdat,obs_var,bodyIndex)
         obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
         select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
         case (bufr_nedd)
-          flgs_o(1,niv_stn(countProfile+1)) = obsFlag
-          obsv(1,niv_stn(countProfile+1))   = obsValue
+          flgs_o(1,countObs) = obsFlag
+          obsv(1,countObs)   = obsValue
         case (bufr_neuu)
-          ombv(1,niv_stn(countProfile+1))   = obsOmp
+          ombv(1,countObs)   = obsOmp
         case (bufr_neff)
-          flgs_o(2,niv_stn(countProfile+1)) = obsFlag
-          obsv(2,niv_stn(countProfile+1))   = obsValue
+          flgs_o(2,countObs) = obsFlag
+          obsv(2,countObs)   = obsValue
         case (bufr_nevv)
-          ombv(2,niv_stn(countProfile+1))   = obsOmp
+          ombv(2,countObs)   = obsOmp
         case (bufr_nett)
-          flgs_o(3,niv_stn(countProfile+1)) = obsFlag
-          obsv(3,niv_stn(countProfile+1))   = obsValue
-          ombv(3,niv_stn(countProfile+1))   = obsOmp
+          flgs_o(3,countObs) = obsFlag
+          obsv(3,countObs)   = obsValue
+          ombv(3,countObs)   = obsOmp
         case (bufr_nees)
-          flgs_o(4,niv_stn(countProfile+1)) = obsFlag
-          obsv(4,niv_stn(countProfile+1))   = obsValue
-          ombv(4,niv_stn(countProfile+1))   = obsOmp
+          flgs_o(4,countObs) = obsFlag
+          obsv(4,countObs)   = obsValue
+          ombv(4,countObs)   = obsOmp
         case (4015)
-          flgs_t(1,niv_stn(countProfile+1)) = obsFlag
+          flgs_t(1,countObs) = obsFlag
         case (5001)
-          flgs_t(2,niv_stn(countProfile+1)) = obsFlag
+          flgs_t(2,countObs) = obsFlag
         end select
-        obsv(5,niv_stn(countProfile+1)) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
-      end do BODY0
+        obsv(5,countObs) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+      end do BODY2
 
     end do HEADER1
 
@@ -943,6 +973,8 @@ contains
     write(*,*) 'flgs_h    = ', flgs_h(:)
     write(*,*) 'lat_stn   = ', lat_stn(:)
     write(*,*) 'lon_stn   = ', lon_stn(:)
+    write(*,*) 'flgs_t(1) = ', flgs_t(1,:)
+    write(*,*) 'flgs_t(2) = ', flgs_t(2,:)
     write(*,*) 'flgs_o(1) = ', flgs_o(1,:)
     write(*,*) 'flgs_o(2) = ', flgs_o(2,:)
     write(*,*) 'flgs_o(3) = ', flgs_o(3,:)
@@ -956,6 +988,9 @@ contains
     write(*,*) 'ombv(2)   = ', ombv(2,:)
     write(*,*) 'ombv(3)   = ', ombv(3,:)
     write(*,*) 'ombv(4)   = ', ombv(4,:)
+
+
+
 
     ! Deallocate arrays
 

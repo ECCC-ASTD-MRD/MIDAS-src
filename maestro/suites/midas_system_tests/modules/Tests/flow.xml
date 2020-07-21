@@ -120,6 +120,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="radiosonde"/>
+    <FAMILY  name="radiosonde">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>    
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
       <SUBMITS sub_name="UnitTest"/>
@@ -223,11 +228,6 @@
     </FAMILY>    
     <SUBMITS sub_name="aircraft"/>
     <FAMILY  name="aircraft">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>    
-    <SUBMITS sub_name="radiosonde"/>
-    <FAMILY  name="radiosonde">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>    
