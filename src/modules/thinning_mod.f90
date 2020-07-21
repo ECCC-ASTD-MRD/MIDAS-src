@@ -693,7 +693,7 @@ contains
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
     integer :: nulnam, fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
-    integer :: ierr, countObs, countObsInMpi, countLevel
+    integer :: ierr, nltot, nltotMpi, levStnIndex, countLevel,nlev_max
     integer :: nbstn, nbstnMpi, countProfile, lastProfileIndex
     integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex
     integer :: ig1obs, ig2obs, ig3obs, ig4obs, lalo
@@ -712,6 +712,12 @@ contains
     character(len=2)  :: fileNumber
     logical :: upperAirObs
 
+    integer :: iniv,istn
+    integer :: countAcc_dd, countRej_dd, countAccMpi_dd, countRejMpi_dd
+    integer :: countAcc_ff, countRej_ff, countAccMpi_ff, countRejMpi_ff
+    integer :: countAcc_tt, countRej_tt, countAccMpi_tt, countRejMpi_tt
+    integer :: countAcc_es, countRej_es, countAccMpi_es, countRejMpi_es
+
     ! Local parameters:
     integer, parameter :: nbvar=5, nbtrj=2, nbmod=300
 
@@ -724,7 +730,7 @@ contains
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     ! Check if any observations to be treated and count number of "profiles"
-    countObs = 0
+    nltot = 0
     nbstn = 0
     lastProfileIndex = -1
     call obs_set_current_header_list(obsdat,'UA')
@@ -745,10 +751,9 @@ contains
         end select
       end do BODY0
       profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
-      write(*,*) 'upperAirObs = ', headerIndex, profileIndex, upperAirObs
       if (.not. upperAirObs) cycle HEADER0
 
-      countObs = countObs + 1
+      nltot = nltot + 1
 
       profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
       if (profileIndex /= lastProfileIndex) then
@@ -758,9 +763,9 @@ contains
 
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
+    call rpn_comm_allReduce(nltot, nltotMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-    if (countObsInMpi == 0) then
+    if (nltotMpi == 0) then
       write(*,*) 'thn_radiosonde: no UA obs observations present'
       return
     end if
@@ -769,7 +774,7 @@ contains
                             'mpi_sum','grid',ierr)
 
     write(*,*) 'thn_radiosonde: number of obs initial = ', &
-               countObs, countObsInMpi
+               nltot, nltotMpi
     write(*,*) 'thn_radiosonde: number of profiles    = ', &
                nbstn, nbstnMpi
 
@@ -786,10 +791,10 @@ contains
     allocate(lon_stn(nbstn))
     allocate(ids_stn(nbstn))
     allocate(mod_pp(nbstn,nbmod))
-    allocate(flgs_t(nbtrj,countObs))
-    allocate(flgs_o(nbvar,countObs))
-    allocate(obsv(nbvar,countObs))
-    allocate(ombv(nbvar,countObs))
+    allocate(flgs_t(nbtrj,nltot))
+    allocate(flgs_o(nbvar,nltot))
+    allocate(obsv(nbvar,nltot))
+    allocate(ombv(nbvar,nltot))
     niv_stn(:) = 0
     date_ini(:) = -1
     flgs_t(:,:) = -1
@@ -798,9 +803,10 @@ contains
     ombv(:,:) = -999.0
 
     ! Fill in the arrays for each profile
-    countObs = 0
+    levStnIndex = 0
     countProfile = 0
     lastProfileIndex = -1
+    nlev_max = -1
     call obs_set_current_header_list(obsdat,'UA')
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -820,7 +826,7 @@ contains
       end do BODY1
       if (.not. upperAirObs) cycle HEADER1
 
-      countObs = countObs + 1
+      levStnIndex = levStnIndex + 1
 
       profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
       if (profileIndex /= lastProfileIndex) then
@@ -831,7 +837,8 @@ contains
 
       countLevel = countLevel + 1
       niv_stn(countProfile+1) = niv_stn(countProfile) + countLevel
-      write(*,*) 'headerIndex, profileIndex = ', headerIndex, profileIndex, countObs, niv_stn(countProfile+1)
+
+      if (countLevel > nlev_max) nlev_max = countLevel
 
       ! Get some information from the first header in this profile
       if (countLevel == 1) then
@@ -861,29 +868,29 @@ contains
         obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
         select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
         case (bufr_nedd)
-          flgs_o(1,countObs) = obsFlag
-          obsv(1,countObs)   = obsValue
+          flgs_o(1,levStnIndex) = obsFlag
+          obsv(1,levStnIndex)   = obsValue
         case (bufr_neuu)
-          ombv(1,countObs)   = obsOmp
+          ombv(1,levStnIndex)   = obsOmp
         case (bufr_neff)
-          flgs_o(2,countObs) = obsFlag
-          obsv(2,countObs)   = obsValue
+          flgs_o(2,levStnIndex) = obsFlag
+          obsv(2,levStnIndex)   = obsValue
         case (bufr_nevv)
-          ombv(2,countObs)   = obsOmp
+          ombv(2,levStnIndex)   = obsOmp
         case (bufr_nett)
-          flgs_o(3,countObs) = obsFlag
-          obsv(3,countObs)   = obsValue
-          ombv(3,countObs)   = obsOmp
+          flgs_o(3,levStnIndex) = obsFlag
+          obsv(3,levStnIndex)   = obsValue
+          ombv(3,levStnIndex)   = obsOmp
         case (bufr_nees)
-          flgs_o(4,countObs) = obsFlag
-          obsv(4,countObs)   = obsValue
-          ombv(4,countObs)   = obsOmp
+          flgs_o(4,levStnIndex) = obsFlag
+          obsv(4,levStnIndex)   = obsValue
+          ombv(4,levStnIndex)   = obsOmp
         case (4015)
-          flgs_t(1,countObs) = obsFlag
+          flgs_t(1,levStnIndex) = obsFlag
         case (5001)
-          flgs_t(2,countObs) = obsFlag
+          flgs_t(2,levStnIndex) = obsFlag
         end select
-        obsv(5,countObs) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+        obsv(5,levStnIndex) = obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)*0.01
       end do BODY2
 
     end do HEADER1
@@ -901,7 +908,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
-      write(*,nml=namgem)
+      if (mpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else
       call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
@@ -939,7 +946,6 @@ contains
     allocate(int_surf(nbstn,tim_nstepobs))
     do stepIndex = 1, tim_nstepobs
       ierr = ezsint(int_surf(:,stepIndex),surfPressure(:,:,1,stepIndex))
-      write(*,*) 'int_surf = ', stepIndex, minval(int_surf(:,stepIndex)), maxval(int_surf(:,stepIndex))
     end do
     call gsv_deallocate( stateVectorPsfc )
 
@@ -955,47 +961,1085 @@ contains
       do levIndex  = 1, numLev
         zpresb = ((vlev(levIndex) - rptopinc/rprefinc) / (1.0-rptopinc/rprefinc))**rcoefinc
         zpresa = rprefinc * (vlev(levIndex)-zpresb)
-        mod_pp(countProfile,levIndex) = zpresa + zpresb*int_surf(obsStepIndex,countProfile)
-      enddo
+        mod_pp(countProfile,levIndex) = 0.01*(zpresa + zpresb*int_surf(countProfile,obsStepIndex))
+      end do
 
-      write(*,*) 'mod_pp = ', obsStepIndex, mod_pp(countProfile,23)
-    enddo
+    end do
 
-    ! Write out the array contents
-    write(*,*) 'niv_stn   = ', niv_stn(:)
-    write(*,*) 'ids_stn   = ', ids_stn(:)
-    write(*,*) 'stn_type  = ', stn_type(:)
-    write(*,*) 'date_ini  = ', date_ini(:)
-    write(*,*) 'temps_ini = ', temps_ini(:)
-    write(*,*) 'date      = ', date(:)
-    write(*,*) 'temps     = ', temps(:)
-    write(*,*) 'temps_lch = ', temps_lch(:)
-    write(*,*) 'flgs_h    = ', flgs_h(:)
-    write(*,*) 'lat_stn   = ', lat_stn(:)
-    write(*,*) 'lon_stn   = ', lon_stn(:)
-    write(*,*) 'flgs_t(1) = ', flgs_t(1,:)
-    write(*,*) 'flgs_t(2) = ', flgs_t(2,:)
-    write(*,*) 'flgs_o(1) = ', flgs_o(1,:)
-    write(*,*) 'flgs_o(2) = ', flgs_o(2,:)
-    write(*,*) 'flgs_o(3) = ', flgs_o(3,:)
-    write(*,*) 'flgs_o(4) = ', flgs_o(4,:)
-    write(*,*) 'obsv(1)   = ', obsv(1,:)
-    write(*,*) 'obsv(2)   = ', obsv(2,:)
-    write(*,*) 'obsv(3)   = ', obsv(3,:)
-    write(*,*) 'obsv(4)   = ', obsv(4,:)
-    write(*,*) 'obsv(5)   = ', obsv(5,:)
-    write(*,*) 'ombv(1)   = ', ombv(1,:)
-    write(*,*) 'ombv(2)   = ', ombv(2,:)
-    write(*,*) 'ombv(3)   = ', ombv(3,:)
-    write(*,*) 'ombv(4)   = ', ombv(4,:)
+    call check_duplicated_stations( ids_stn, niv_stn, lat_stn, lon_stn, date, &
+                                    flgs_t, flgs_o, obsv, ombv, temps_lch, flgs_h, &
+                                    nbvar, nltot, nbstn )
+    
+    call thinning_model( flgs_o, obsv, mod_pp, nbvar, numlev, nltot, &
+                         nbstn, nlev_max, niv_stn )
 
+    if( verticalThinningES ) then
+      call thinning_es( flgs_o, obsv, mod_pp, numlev, nltot, nbstn, nlev_max, niv_stn )
+    end if
 
+    if( ecmwfRejetsES ) then
+      call backlisting_ecmwf( flgs_o, obsv, ids_stn, stn_type, mod_pp, numlev, nltot, nbstn, niv_stn )
+    end if
 
+    countAcc_dd=0;  countRej_dd=0
+    countAcc_ff=0;  countRej_ff=0
+    countAcc_tt=0;  countRej_tt=0
+    countAcc_es=0;  countRej_es=0
+    do istn=1,nbstn
+      do iniv=niv_stn(istn)+1,niv_stn(istn+1)
+        if(btest(flgs_o(1,iniv),11)) then
+          countRej_dd = countRej_dd + 1
+        else
+          countAcc_dd = countAcc_dd + 1
+        end if
+        if(btest(flgs_o(2,iniv),11)) then
+          countRej_ff = countRej_ff + 1
+        else
+          countAcc_ff = countAcc_ff + 1
+        end if
+        if(btest(flgs_o(3,iniv),11)) then
+          countRej_tt = countRej_tt + 1
+        else
+          countAcc_tt = countAcc_tt + 1
+        end if
+        if(btest(flgs_o(4,iniv),11) .or. btest(flgs_o(4,iniv),8)) then
+          countRej_es = countRej_es + 1
+        else
+          countAcc_es = countAcc_es + 1
+        end if
+      end do
+    end do
+
+    call rpn_comm_allReduce(countRej_dd, countRejMpi_dd, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_ff, countRejMpi_ff, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_tt, countRejMpi_tt, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_es, countRejMpi_es, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_dd, countAccMpi_dd, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_ff, countAccMpi_ff, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_tt, countAccMpi_tt, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_es, countAccMpi_es, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+
+    write(*,*) 'DD Rej/Acc = ',countRejMpi_dd, countAccMpi_dd
+    write(*,*) 'FF Rej/Acc = ',countRejMpi_ff, countAccMpi_ff
+    write(*,*) 'TT Rej/Acc = ',countRejMpi_tt, countAccMpi_tt
+    write(*,*) 'ES Rej/Acc = ',countRejMpi_es, countAccMpi_es
 
     ! Deallocate arrays
 
   end subroutine thn_radiosonde
 
+  !---------------------------------------------------------------------
+  ! Following are several subroutines needed by thn_radiosonde
+  !---------------------------------------------------------------------
+
+  subroutine check_duplicated_stations ( ids_stn, niv_stn, lat_stn, lon_stn, date, &
+                                         flgs_t, flgs_o, obsv, ombv, temps_lch, flgs_h, &
+                                         nbvar, nltot, ntot_stn )
+    ! Purpose : Check duplicated stations and select the best TAC/BUFR profiles
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  June 2013
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) Decembre 2016
+    !
+    implicit none
+
+    integer,           intent(in)    :: nbvar, nltot, ntot_stn
+    integer,           intent(in)    :: date(:), temps_lch(:), flgs_h(:)
+    real,              intent(in)    :: lat_stn(:), lon_stn(:)
+    real,              intent(in)    :: obsv(:,:), ombv(:,:)
+    integer,           intent(in)    :: flgs_t(:,:)
+    integer,           intent(in)    :: flgs_o(:,:)
+    integer,           intent(inout) :: niv_stn(:)
+    character (len=9), intent(inout) :: ids_stn(:)
+
+    logical :: condition, same_profile, stnid_not_found
+    integer :: ilev, jlev, klev, istn, jstn, kstn, iele, iniv, nniv, grt_nval, pos_stn, duplicate, duplicate_total, select_ij 
+    integer :: ij_bufr, ij_tac, n_checked, nb_stnid, nb_same
+    integer, parameter :: max_nb_stnid  = 2000
+    character (len=9)  :: stnid_found(max_nb_stnid)
+    integer            :: stnid_numbr(max_nb_stnid)
+    integer :: n_choix(5), cloche(30), select_critere
+
+    n_choix(:) = 0
+    cloche(:) = 0
+
+    ! Check for duplication of TAC or BUFR profiles
+
+    duplicate_total = 0
+
+    do istn=1,ntot_stn
+
+      if( ids_stn(istn) /= 'NOT_VALID' ) then
+
+        grt_nval = niv_stn(istn+1) - niv_stn(istn) + 1
+        pos_stn = istn
+        duplicate = 0
+
+        ! Verify if there exists two records with the same stnid, date, temps, flgs in header.
+        ! Keep the one with the greatest number of vertical levels
+
+        do jstn=istn+1,ntot_stn
+
+          if( ids_stn(jstn) /= 'NOT_VALID' ) then
+
+            condition = ids_stn(jstn) == ids_stn(istn) .and. &
+                        date(jstn) == date(istn) .and. &
+                        temps_lch(jstn) == temps_lch(istn) .and. &
+                        lat_stn(jstn) == lat_stn(istn) .and. &
+                        lon_stn(jstn) == lon_stn(istn) .and. &
+                        flgs_h(jstn) == flgs_h(istn)
+
+            if( condition ) then
+              duplicate = duplicate + 1
+              if( (niv_stn(jstn+1) - niv_stn(jstn) + 1) > grt_nval ) then
+                grt_nval = niv_stn(jstn+1) - niv_stn(jstn) + 1
+                pos_stn  = jstn
+              end if
+            end if
+
+          end if
+
+        end do ! jstn
+
+        ! Invalid all duplicated station except the one with the greatest number of vertical levels
+
+        if(duplicate > 0) then
+          do jstn=istn,ntot_stn
+            if( ids_stn(jstn) /= 'NOT_VALID' .and. ids_stn(jstn) == ids_stn(istn) .and. pos_stn /= jstn ) then
+              write(*,'(2A20,I10,2F9.2,I10)') 'Station duplique ',ids_stn(jstn),niv_stn(jstn+1)-niv_stn(jstn), lat_stn(jstn), lon_stn(jstn), temps_lch(jstn)
+              ids_stn(jstn) = 'NOT_VALID'
+            end if
+          end do
+          duplicate_total = duplicate_total + duplicate
+        end if
+
+      end if
+
+    end do ! istn
+
+    ! Select best profile for collocated TAC or BUFR reports
+
+    if (mpi_myid == 0) open(unit=11, file='./selected_stations_tac_burf.txt', status='UNKNOWN')
+
+    n_checked = 0
+
+    do istn=1,ntot_stn
+
+      if( ids_stn(istn) /= 'NOT_VALID' ) then
+
+        do jstn=istn+1,ntot_stn
+
+          if( ids_stn(jstn) /= 'NOT_VALID' ) then
+
+            condition = (ids_stn(jstn) == ids_stn(istn)) .and. (btest(flgs_h(istn),23) .neqv. btest(flgs_h(jstn),23))
+
+            if( condition ) then
+
+              if(temps_lch(jstn) == temps_lch(istn)) then
+                same_profile = .true.
+              else
+                call check_if_same_profile(istn,jstn,flgs_h,flgs_o,obsv,niv_stn,nbvar,nltot,ids_stn,same_profile)
+              end if
+
+              if( same_profile ) then
+
+                n_checked  = n_checked + 1
+
+                call compare_profiles(istn,jstn,ids_stn,flgs_h,flgs_t,flgs_o,obsv,ombv,niv_stn,nbvar,nltot,cloche,select_critere,select_ij)
+
+                n_choix(select_critere) = n_choix(select_critere) + 1
+
+                ij_bufr = jstn
+                if(      btest(flgs_h(istn),23) ) ij_bufr = istn
+                ij_tac  = jstn
+                if( .not.btest(flgs_h(istn),23) ) ij_tac = istn
+
+                if (mpi_myid == 0) write(11,'(A9,2F10.3,3I10)') ids_stn(istn),lat_stn(istn),lon_stn(istn) &
+                     ,niv_stn(ij_bufr+1)-niv_stn(ij_bufr)+1, niv_stn(ij_tac+1)-niv_stn(ij_tac)+1,select_critere
+
+                if( select_ij == istn) ids_stn(jstn) = 'NOT_VALID'
+                if( select_ij == jstn) ids_stn(istn) = 'NOT_VALID'
+
+              end if ! same_profile
+
+            end if ! condition 
+
+          end if ! ids_stn(jstn) /= 'NOT_VALID'
+
+        end do ! jstn
+
+      end if ! ids_stn(istn) /= 'NOT_VALID' 
+
+    end do ! istn
+
+    write(*,*)
+    write(*,*)
+    write(*,'(a30,I10)') 'nb of total duplicates '  ,duplicate_total
+    write(*,'(a30,I10)') 'nb TAC vs BURF checked'   ,n_checked
+    write(*,'(a30,I10)') 'nb not selected'          ,n_choix(1)
+    write(*,'(a30,I10)') 'nb suspicious traj BUFR'  ,n_choix(2)
+    write(*,'(a30,I10)') 'nb Energy higher   BUFR'  ,n_choix(3)
+    write(*,'(a30,I10)') 'nb variables lower BUFR'  ,n_choix(4)
+    write(*,'(a30,I10)') 'nb TAC  selected'         ,n_choix(2) + n_choix(3) + n_choix(4)
+    write(*,'(a30,I10)') 'nb BUFR selected'         ,n_choix(5)
+    write(*,*)
+    write(*,*)
+
+    do iele=1,29
+      write(*,'(a15,f4.2,a3,f4.2,I5)') 'nb e ratio ',(iele/10.)-.05,' - ',(iele/10.)+.05,cloche(iele)
+    end do
+    write(*,*)
+    write(*,'(a30,I5)') 'nb of e_tot(2)) very small  ',cloche(30)
+    write(*,*)
+
+    if (mpi_myid == 0) close(unit=11)
+
+    ! Check whether there is still duplications
+
+    nb_stnid = 0
+
+    do istn=1,ntot_stn
+
+      if( ids_stn(istn) /= 'NOT_VALID' ) then
+
+        if (nb_stnid < max_nb_stnid ) then
+          stnid_not_found=.true.
+          if ( nb_stnid == 0) then
+            nb_stnid = nb_stnid + 1
+            stnid_found(nb_stnid) = ids_stn(istn)
+            stnid_numbr(nb_stnid) = istn
+          else
+            nb_same = 0
+            do jstn=1,nb_stnid
+              if ( stnid_found(jstn) == ids_stn(istn) ) then
+                stnid_not_found=.false.
+                nb_same = nb_same + 1
+                kstn = stnid_numbr(jstn)
+              end if
+            end do
+            if ( stnid_not_found ) then
+              nb_stnid = nb_stnid + 1
+              stnid_found(nb_stnid) = ids_stn(istn)
+              stnid_numbr(nb_stnid) = istn
+            else
+              write(*,*) 'Multi profiles found : ',ids_stn(istn),ids_stn(kstn),nb_same,istn,kstn,btest(flgs_h(istn),23),btest(flgs_h(kstn),23)
+              write(*,'(a30,2i10,2f10.2,i10)') 'date, lch, lat lon ',date(istn),temps_lch(istn),lat_stn(istn),lon_stn(istn),niv_stn(istn+1)-niv_stn(istn)+1
+              write(*,'(a30,2i10,2f10.2,i10)') 'date, lch, lat lon ',date(kstn),temps_lch(kstn),lat_stn(kstn),lon_stn(kstn),niv_stn(kstn+1)-niv_stn(kstn)+1
+              nniv = MIN(niv_stn(istn+1)-niv_stn(istn)+1,niv_stn(kstn+1)-niv_stn(kstn)+1)
+              do iniv=1,nniv
+                ilev = niv_stn(istn)+iniv
+                klev = niv_stn(kstn)+iniv
+              end do
+              write(*,*)
+
+            end if
+          end if
+        else
+          write(*,*) 'nb_stnid >= ',max_nb_stnid
+          call qqexit(1)
+        end if
+
+      end if
+
+    end do
+
+  end subroutine check_duplicated_stations
+
+  subroutine check_if_same_profile(istn,jstn,flgs_h,flgs_o,obsv,niv_stn,nbvar,nltot,ids_stn,same_profile)
+    ! Purpose : Check duplicated stations and select the best TAC/BUFR profiles
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  June 2013
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) Decembre 2016
+    ! Purpose:  
+    !        
+    implicit none
+
+    integer,           intent(in)    :: istn,jstn,nbvar,nltot
+    integer,           intent(in)    :: flgs_o(:,:)
+    real,              intent(in)    :: obsv(:,:)
+    integer,           intent(in)    :: niv_stn(:),flgs_h(:)
+    logical,           intent(out)   :: same_profile
+    character (len=9), intent(inout) :: ids_stn(:)
+
+    logical :: condition,debug_show_thinning_profiles
+    integer, parameter :: nlev_man = 16
+    integer :: ivar, iniv, ilev, lev_i, lev_j, n_sum
+    real    :: sum_val, min_del_p, min_del_p1, min_del_p2
+
+    ! Standard levels
+    real, dimension(nlev_man) :: man_levels
+    man_levels = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150.,100.,70.,50.,30.,20.,10./) 
+
+    sum_val = 0.0
+    n_sum   = 0
+
+    same_profile = .false.
+
+    do iniv=1,nlev_man
+
+      min_del_p1 = 1000.
+      do ilev=niv_stn(istn)+1,niv_stn(istn+1)
+        if( ABS(man_levels(iniv) - obsv(5,ilev)) < min_del_p1 ) then
+          lev_i = ilev
+          min_del_p1 = ABS(man_levels(iniv) - obsv(5,ilev))
+        end if
+      end do
+      min_del_p2 = 1000.
+      do ilev=niv_stn(jstn)+1,niv_stn(jstn+1)
+        if( ABS(man_levels(iniv) - obsv(5,ilev)) < min_del_p2 ) then
+          lev_j = ilev
+          min_del_p2 = ABS(man_levels(iniv) - obsv(5,ilev))
+        end if
+      end do
+
+      if( min_del_p1 < 1.0 .and. min_del_p2 < 1.0 ) then
+        do ivar=2,4,2
+
+          if ( obsv(ivar,lev_i) /= -999.0 .and. obsv(ivar,lev_j) /= -999.0 ) then
+            sum_val = sum_val + ABS(obsv(ivar,lev_i) - obsv(ivar,lev_j))
+            n_sum   = n_sum + 1
+          end if
+
+        end do
+
+      end if
+
+    end do !iniv
+
+    if( n_sum > 0 ) then
+      if(sum_val/n_sum < 0.5) same_profile = .true.
+    end if
+
+  end subroutine check_if_same_profile
+
+  subroutine compare_profiles(istn,jstn,ids_stn,flgs_h,flgs_t,flgs_o,obsv,ombv,niv_stn,nbvar,nltot,cloche,select_critere,select_ij)
+    ! Purpose : 
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  Decembre 2016
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) Decembre 2016
+    !
+    implicit none
+
+    integer,           intent(in)    :: istn,jstn,nbvar,nltot
+    integer,           intent(in)    :: flgs_t(:,:)
+    integer,           intent(in)    :: flgs_o(:,:)
+    real,              intent(in)    :: obsv(:,:),ombv(:,:)
+    integer,           intent(in)    :: niv_stn(:),flgs_h(:)
+    integer,           intent(inout) :: cloche(:)
+    integer,           intent(out)   :: select_critere,select_ij
+    character (len=9), intent(inout) :: ids_stn(:)
+
+    logical :: condition,tac_bufr,trajectoire_OK
+    integer :: iexp,ivar,iniv,ilev,iele,ijtt,ij_bufr,ij_tac,nb_time_f,nb_posi_f,nb_traj
+    integer :: nb_values(2)
+    real ::  p_bot,v_bot,d_pres,t_pres,d_ombv,e_norm,p_lo,p_hi
+    real ::  pourcent_traj_incorrect,factor_tolerance_NE
+    real ::  e_var(nbvar,2),e_tot(2),p_bas(nbvar,2),p_haut(nbvar,2),max_ombv(nbvar,2)
+
+    pourcent_traj_incorrect = 10.0
+    factor_tolerance_NE     =  1.4
+    iele = 1
+    max_ombv(:,:)  = 0.0
+    select_critere = 1
+
+    tac_bufr       = .true.
+    trajectoire_OK = .true.
+
+    if( btest(flgs_h(istn),23)      .and.      btest(flgs_h(jstn),23) ) tac_bufr = .false.
+    if( .not.btest(flgs_h(istn),23) .and. .not.btest(flgs_h(jstn),23) ) tac_bufr = .false.
+
+    if( tac_bufr ) then
+
+      ij_bufr = jstn
+      if(      btest(flgs_h(istn),23) ) ij_bufr = istn
+      ij_tac  = jstn
+      if( .not.btest(flgs_h(istn),23) ) ij_tac  = istn
+      select_ij = ij_tac
+
+      ! 1. Evalue si la trajectoire native est correct
+
+      if( btest(flgs_h(ij_bufr),14) ) then
+
+        nb_time_f = 0
+        nb_posi_f = 0
+        nb_traj   = niv_stn(ij_bufr+1) - niv_stn(ij_bufr) + 1
+
+        do iniv=niv_stn(ij_bufr)+1,niv_stn(ij_bufr+1)
+          if( btest(flgs_t(1,iniv),4) ) nb_time_f = nb_time_f + 1
+          if( btest(flgs_t(2,iniv),4) ) nb_posi_f = nb_posi_f + 1
+        end do
+
+        if(100.*nb_time_f/nb_traj > pourcent_traj_incorrect .or. 100.*nb_posi_f/nb_traj > pourcent_traj_incorrect) then
+          trajectoire_OK = .false.
+          select_ij = ij_tac
+          select_critere = 2
+          !    write(*,'(2a15,2f10.3,i10)') 'time posi ',ids_stn(ij_bufr),100.*nb_time_f/nb_traj,100.*nb_posi_f/nb_traj,nb_traj
+        end if
+
+      end if
+
+      if(trajectoire_OK) then
+
+        ! Cherche les pressions (bas et haut) des extrimites des profils (TAC et BUFR)
+
+        do iexp=1,2
+
+          if(iexp == 1) ijtt = ij_bufr
+          if(iexp == 2) ijtt = ij_tac
+
+          do ivar=1,3
+
+            p_bas(ivar,iexp) = 1000.0
+            do iniv=niv_stn(ijtt)+1,niv_stn(ijtt+1)
+              condition = ombv(ivar,iniv) /= -999.0 .and. &
+                   .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                   .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                   .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+              if( condition ) then
+                p_bas(ivar,iexp) = obsv(5,iniv)
+                exit
+              end if
+ 
+            end do
+            p_haut(ivar,iexp) = p_bas(ivar,iexp)
+ 
+            if(iniv < niv_stn(ijtt+1) ) then
+
+              do ilev=iniv+1,niv_stn(ijtt+1)
+
+                condition = ombv(ivar,ilev) /= -999.0 .and. &
+                     .not.btest(flgs_o(ivar,ilev),18) .and. .not.btest(flgs_o(ivar,ilev),16) .and. &
+                     .not.btest(flgs_o(ivar,ilev),9)  .and. .not.btest(flgs_o(ivar,ilev),8)  .and. &
+                     .not.btest(flgs_o(ivar,ilev),2)  .and. .not.btest(flgs_o(ivar,ilev),11)
+                if( condition ) then
+                  p_haut(ivar,iexp) = obsv(5,ilev)
+                end if
+
+              end do
+
+            end if
+
+          end do !ivar
+
+        end do !iexp
+
+        ! Calcul de la norme energie equivalente (NE)
+
+        do iexp=1,2
+
+          if(iexp == 1) ijtt = ij_bufr
+          if(iexp == 2) ijtt = ij_tac
+
+          nb_values(iexp) = 0
+
+          do ivar=1,3
+
+            p_lo =  p_bas(ivar,1)
+            if( p_lo > p_bas(ivar,2)  ) p_lo = p_bas(ivar,2)
+            p_hi =  p_haut(ivar,1)
+            if( p_hi < p_haut(ivar,2) ) p_hi = p_haut(ivar,2)
+
+            t_pres           = 0.0
+            e_norm           = 0.0
+            e_var(ivar,iexp) = 0.0
+
+            do iniv=niv_stn(ijtt)+1,niv_stn(ijtt+1)
+
+              condition = ombv(ivar,iniv) /= -999.0 .and. &
+                   .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                   .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                   .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+              if( condition ) then
+                nb_values(iexp) = nb_values(iexp) + 1
+                if( obsv(5,iniv) <= p_lo ) then
+                  p_bot = obsv(   5,iniv)
+                  v_bot = ombv(ivar,iniv)
+                  exit
+                end if
+              end if
+
+            end do
+
+            if(iniv < niv_stn(ijtt+1) ) then
+
+              do ilev=iniv+1,niv_stn(ijtt+1)
+
+                condition = ombv(ivar,ilev) /= -999.0 .and. &
+                     .not.btest(flgs_o(ivar,ilev),18) .and. .not.btest(flgs_o(ivar,ilev),16) .and. &
+                     .not.btest(flgs_o(ivar,ilev),9)  .and. .not.btest(flgs_o(ivar,ilev),8)  .and. &
+                     .not.btest(flgs_o(ivar,ilev),2)  .and. .not.btest(flgs_o(ivar,ilev),11)
+                if( condition ) then
+                  nb_values(iexp) = nb_values(iexp) + 1
+                  if( obsv(5,ilev) >= p_hi ) then
+                    d_pres = log(p_bot) - log(obsv(5,ilev))
+                    d_ombv = ( v_bot + ombv(ivar,ilev) ) / 2 
+                    e_norm = e_norm + d_pres * d_ombv**2
+                    t_pres = t_pres + d_pres
+                    p_bot  = obsv(   5,ilev)
+                    v_bot  = ombv(ivar,ilev)
+                    if( ABS(d_ombv) > max_ombv(ivar,iexp) ) max_ombv(ivar,iexp) =  ABS(d_ombv)
+                  end if
+                end if
+
+              end do
+
+            end if
+            if(t_pres > 0.) e_var(ivar,iexp) = e_norm/t_pres
+
+          end do !ivar
+
+          e_tot(iexp) = e_var(1,iexp) + e_var(2,iexp) + (1005./300.)*e_var(3,iexp)
+
+        end do !iexp
+
+        ! 2. Choisi le profil TAC (iexp == 2) si le nombre de niveaux ou il y a des donnees
+        !    est plus grand ou egal au nombre dans le profil BUFR (iexp == 1)
+
+        if ( nb_values(2) >= nb_values(1) ) then
+
+          select_ij      = ij_tac
+          select_critere = 4
+
+        else
+
+          ! 3. Choisi le profil BUFR si la norme energie equivalente du profil ne depasse pas 'factor_tolerance_NE'
+
+          if(ABS(e_tot(2)) > 1.e-6) iele = NINT(10.*e_tot(1)/e_tot(2)) + 1
+          if(iele > 30) iele = 30 
+
+          cloche(iele) = cloche(iele) + 1
+
+          if( e_tot(1) <= factor_tolerance_NE*e_tot(2) ) then
+
+            select_ij      = ij_bufr
+            select_critere = 5
+
+          else
+
+            select_ij      = ij_tac
+            select_critere = 3
+
+          end if
+
+        end if
+
+      end if ! trajectoire_OK
+
+    else
+
+      write(*,*) 'MEME TYPE DE FICHIER' 
+
+    end if !tac_bufr
+
+  end subroutine compare_profiles
+
+  subroutine thinning_model( flgs_o, obsv, mod_pp, nbvar, nblev, nltot, ntot_stn, nlev_max, niv_stn )
+    ! Purpose : 
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  June 2013
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) Decembre 2016
+    !
+    implicit none
+
+    integer,           intent(in)    :: nbvar, nblev, nltot, ntot_stn, nlev_max
+    integer,           intent(in)    :: niv_stn(:)
+    integer,           intent(inout) :: flgs_o(:,:)
+    real,              intent(in)    :: obsv(:,:)
+    real,              intent(in)    :: mod_pp(:,:)
+
+    logical :: condition,debug_show_thinning_profiles
+    integer :: istn,ilev,iniv,iman,ivar,ivar_dr,ivar_uv,ivar_pp,status
+    integer :: ielm,jelm,nbelm,niv_valide,grt_nbelm,srt_nbelm
+    real, dimension(16) :: man_levels
+    real                :: p_top,p_bot,del_p,del_pmin
+    integer, dimension(:), allocatable :: niv_elm, val_elm, elm_elm
+
+    ! Standard levels including 925 hPa
+    man_levels(1:16) = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150.,100.,70.,50.,30.,20.,10./) 
+
+    ivar_dr = 1
+    ivar_uv = 2
+    ivar_pp = 5
+    debug_show_thinning_profiles = .false.
+
+    allocate (  niv_elm(nlev_max), STAT=status )
+    allocate (  val_elm(nlev_max), STAT=status )
+    allocate (  elm_elm(nlev_max), STAT=status )
+
+    do istn=1,ntot_stn
+
+      ! If one flgs_o is set to 0 but not the other then make the flgs_os consistent
+      ! and flgs_o wind direction and module if one of these wind variables is missing
+
+      do iniv=niv_stn(istn)+1,niv_stn(istn+1)
+
+        if( flgs_o(ivar_dr,iniv) == 0  .and. flgs_o(ivar_uv,iniv) /= 0 ) flgs_o(ivar_dr,iniv) = flgs_o(ivar_uv,iniv)
+        if( flgs_o(ivar_dr,iniv) /= 0  .and. flgs_o(ivar_uv,iniv) == 0 ) flgs_o(ivar_uv,iniv) = flgs_o(ivar_dr,iniv)
+
+        if( (obsv(ivar_dr,iniv)  < 0. .and. obsv(ivar_uv,iniv) >= 0.) .or. &
+             (obsv(ivar_dr,iniv) >= 0. .and. obsv(ivar_uv,iniv)  < 0.) ) then
+          flgs_o(ivar_dr,iniv) = ibset(flgs_o(ivar_dr,iniv),11)
+          flgs_o(ivar_uv,iniv) = ibset(flgs_o(ivar_uv,iniv),11)
+        end if
+
+      end do
+
+      do ilev=1,nblev
+
+        ! Pressures at the bottom and top of the model layer
+
+        if(ilev == 1) then
+          p_top = mod_pp(istn,ilev)
+          p_bot = exp(0.5*alog(mod_pp(istn,ilev+1)*mod_pp(istn,ilev)))
+        else if(ilev == nblev) then
+          p_top = exp(0.5*alog(mod_pp(istn,ilev-1)*mod_pp(istn,ilev)))
+          p_bot = mod_pp(istn,ilev)
+        else
+          p_top = exp(0.5*alog(mod_pp(istn,ilev-1)*mod_pp(istn,ilev)))
+          p_bot = exp(0.5*alog(mod_pp(istn,ilev+1)*mod_pp(istn,ilev)))
+        end if
+
+        ! Select the observation levels between p_top and p_bot
+
+        nbelm = 0
+        do iniv=niv_stn(istn)+1,niv_stn(istn+1)
+
+          if(obsv(ivar_pp,iniv) > p_top  .and. obsv(ivar_pp,iniv) <= p_bot) then
+
+            nbelm = nbelm + 1
+            niv_elm(nbelm) = iniv
+            val_elm(nbelm) = 0
+
+            ! val_elm(nbelm) contains the number of valid observations at each level selected
+
+            do ivar=1,nbvar
+              condition = obsv(ivar,iniv) >= 0. .and. &
+                   .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                   .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                   .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+              if ( condition ) val_elm(nbelm) = val_elm(nbelm) + 1
+            end do
+
+          end if
+
+        end do ! iniv
+
+        if( nbelm > 0 ) then
+
+          ! Sort the observation levels by greatest numbers of valid observations
+
+          do ielm=1,nbelm
+            elm_elm(ielm) = ielm
+          end do
+          do ielm=1,nbelm
+            do jelm=ielm,nbelm
+              if( val_elm(jelm) > val_elm(ielm) ) then
+                srt_nbelm     = val_elm(ielm)
+                val_elm(ielm) = val_elm(jelm)
+                val_elm(jelm) = srt_nbelm
+                srt_nbelm     = elm_elm(ielm)
+                elm_elm(ielm) = elm_elm(jelm)
+                elm_elm(jelm) = srt_nbelm 
+              end if
+            end do
+          end do
+          grt_nbelm = 1
+          if( nbelm > 1 ) then
+            do ielm=2,nbelm
+              if(val_elm(ielm) == val_elm(1)) grt_nbelm = grt_nbelm + 1
+            end do
+          end if
+
+          do ivar=1,nbvar
+
+            niv_valide = 0
+
+            ! Rule #1 : get valid the observation at the standard level if one is found in the layer
+
+            do ielm=1,nbelm
+
+              iniv = niv_elm(ielm)
+
+              condition = obsv(ivar,iniv) >= 0. .and. &
+                   .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                   .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                   .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+
+              do iman=1,16
+                if(obsv(ivar_pp,iniv) == man_levels(iman) .and. condition ) niv_valide = iniv
+              end do
+
+            end do ! ielm
+
+            if( niv_valide == 0 ) then
+
+              ! Rule #2 : get the closest valid observation to the model level and most complete
+
+              del_pmin = p_bot - p_top
+              do ielm=1,grt_nbelm
+
+                iniv = niv_elm(elm_elm(ielm))
+
+                del_p = abs(obsv(ivar_pp,iniv) - mod_pp(istn,ilev))
+                condition = obsv(ivar,iniv) >= 0. .and. &
+                     .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                     .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                     .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+
+                if ( del_p < del_pmin .and. condition) then
+                  del_pmin = del_p
+                  niv_valide = iniv
+                end if
+
+              end do ! ielm
+
+            end if  ! niv_valide == 0
+
+            if( niv_valide == 0 ) then
+
+              ! Rule #3 : get the closest valid observation if not previously selected
+
+              del_pmin = p_bot - p_top
+              do ielm=1,nbelm
+
+                iniv = niv_elm(ielm)
+
+                del_p = abs(obsv(ivar_pp,iniv) - mod_pp(istn,ilev))
+                condition = obsv(ivar,iniv) >= 0. .and. &
+                     .not.btest(flgs_o(ivar,iniv),18) .and. .not.btest(flgs_o(ivar,iniv),16) .and. &
+                     .not.btest(flgs_o(ivar,iniv),9)  .and. .not.btest(flgs_o(ivar,iniv),8)  .and. &
+                     .not.btest(flgs_o(ivar,iniv),2)  .and. .not.btest(flgs_o(ivar,iniv),11)
+
+                if ( del_p < del_pmin .and. condition) then
+                  del_pmin = del_p
+                  niv_valide = iniv
+                end if
+
+              end do ! ielm
+
+            end if  ! niv_valide == 0
+
+            ! Apply thinning flgs_o to all observations except the one on level niv_valide
+
+            do ielm=1,nbelm
+
+              iniv = niv_elm(ielm)
+
+              if( iniv /= niv_valide .and. obsv(ivar,iniv) >= 0. ) flgs_o(ivar,iniv) = ibset(flgs_o(ivar,iniv),11)
+
+            end do
+
+          end do !ivar
+
+        end if !nbelm > 0
+
+      end do !ilev
+
+      ! Following lines for debugging purposes
+
+      if( debug_show_thinning_profiles ) then
+
+        ilev = nblev
+        p_bot = mod_pp(istn,ilev)
+        write (*,*) ' '
+        write (*,'(a40,I8,a40)') '      ==================== Station no. ',istn,' =============================='
+        write (*,*) ' '
+        write (*,'(a80,f10.2,i10)') 'lowest model layer-----------------------------------------------------------> ',p_bot,ilev
+        do while(obsv(ivar_pp,niv_stn(istn)+1) < p_bot)
+          ilev = ilev - 1
+          p_bot = exp(0.5*alog(mod_pp(istn,ilev+1)*mod_pp(istn,ilev)))
+        end do
+        if(ilev == nblev) ilev = nblev - 1
+
+        do iniv=niv_stn(istn)+1,niv_stn(istn+1)
+
+          p_bot = exp(0.5*alog(mod_pp(istn,ilev+1)*mod_pp(istn,ilev)))
+          do while(obsv(ivar_pp,iniv) < p_bot)
+            write (*,'(a80,f10.2,i10)') 'model layer------------------------------------------------------------------> ',p_bot,ilev
+            ilev = ilev - 1
+            p_bot = exp(0.5*alog(mod_pp(istn,ilev+1)*mod_pp(istn,ilev)))
+          end do
+          write (*,'(5f8.2,4i8)') obsv(ivar_pp,iniv),  obsv(1,iniv),  obsv(2,iniv),  obsv(3,iniv),  obsv(4,iniv) &
+               ,flgs_o(1,iniv),flgs_o(2,iniv),flgs_o(3,iniv),flgs_o(4,iniv)
+
+        end do
+
+      end if
+
+    end do !istn
+
+    deallocate ( niv_elm, val_elm, elm_elm, STAT=status )
+
+  end subroutine thinning_model
+
+  subroutine thinning_es( flgs_o, obsv, mod_pp, nblev, nltot, ntot_stn, nlev_max, niv_stn )
+    ! Purpose : Check duplicated stations and select the best TAC/BUFR profiles
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  June 2013
+    !
+    ! Revision: 1.1 E. Lapalme (ARMA) August 2014
+    !           Bugfix: replace nblev by nltot_es in second do loop
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) Decembre 2016
+    !
+    implicit none
+
+    integer,           intent(in)    :: nblev, nltot, ntot_stn, nlev_max
+    integer,           intent(in)    :: niv_stn(:)
+    integer,           intent(inout) :: flgs_o(:,:)
+    real,              intent(in)    :: obsv(:,:)
+    real,              intent(in)    :: mod_pp(:,:)
+
+    integer, parameter  :: nbniv_es = 42
+    logical :: condition
+    integer :: istn, ilev, iniv, ielm, ivar_es, ivar_pp, nbelm, niv_valide, status
+    real, dimension(nbniv_es) :: es_levels
+    real :: del_p, del_pmin, p_bot, p_top
+    integer, dimension(:), allocatable :: niv_elm
+
+    ! Selected pressure levels for additional thinning to humitidy observations
+
+    es_levels(1:nbniv_es) = (/ 1025.,1000.,975.,950.,925.,900.,875.,850.,825., &
+                               800.,775.,750.,725.,700.,675.,650.,625.,600.,575., &
+                               550.,525.,500.,475.,450.,425.,400.,375.,350.,325., &
+                               300.,275.,250.,225.,200.,175.,150.,100., 70., 50., &
+                               30., 20., 10./)
+
+    ivar_es = 4 ; ivar_pp = 5
+
+    allocate (  niv_elm(nlev_max), STAT=status )
+
+    do istn=1,ntot_stn
+
+      ! For each station, retain the nearest observations to selected pressure levels in es_levels
+
+      do ilev=1,nbniv_es
+
+        ! Pressures at the bottom and top of the ES layer
+
+        if(ilev == 1) then
+          p_bot = es_levels(ilev)
+          p_top = exp(0.5*alog(es_levels(ilev+1)*es_levels(ilev)))
+        else if(ilev == nbniv_es) then
+          p_bot = exp(0.5*alog(es_levels(ilev-1)*es_levels(ilev)))
+          p_top = es_levels(ilev)
+        else
+          p_bot = exp(0.5*alog(es_levels(ilev-1)*es_levels(ilev)))
+          p_top = exp(0.5*alog(es_levels(ilev+1)*es_levels(ilev)))
+        end if
+   
+        ! Select the levels between p_top and p_bot
+
+        nbelm = 0
+
+        do iniv=niv_stn(istn)+1,niv_stn(istn+1)
+
+          if(obsv(ivar_pp,iniv) > p_top  .and. obsv(ivar_pp,iniv) <= p_bot) then
+            nbelm  = nbelm + 1
+            niv_elm(nbelm) = iniv
+          end if
+
+        end do ! iniv
+
+        ! Get the closest valid observation to the selected pressure level
+
+        niv_valide = 0
+        del_pmin   = p_bot - p_top
+
+        do ielm=1,nbelm
+
+          iniv = niv_elm(ielm)
+
+          del_p = abs(obsv(ivar_pp,iniv) - es_levels(ilev))
+          condition = .not.btest(flgs_o(ivar_es,iniv),18) .and. .not.btest(flgs_o(ivar_es,iniv),16) .and. &
+               .not.btest(flgs_o(ivar_es,iniv),9)  .and. .not.btest(flgs_o(ivar_es,iniv),8)  .and. &
+               .not.btest(flgs_o(ivar_es,iniv),2)  .and. .not.btest(flgs_o(ivar_es,iniv),11) .and. &
+               obsv(ivar_es,iniv) >= 0.          .and. del_p < del_pmin
+
+          if ( condition ) then
+            del_pmin = del_p
+            niv_valide = iniv
+          end if
+
+        end do !ielm
+
+        ! Apply thinning flgs_o to all observations except the one selected with niv_valide
+
+        do ielm=1,nbelm
+
+          iniv = niv_elm(ielm)
+
+          if( iniv /= niv_valide .and. obsv(ivar_es,iniv) >= 0. ) flgs_o(ivar_es,iniv) = ibset(flgs_o(ivar_es,iniv),11)
+
+        end do
+
+      end do !ilev
+
+    end do !istn
+
+    deallocate ( niv_elm, STAT=status )
+
+  end subroutine thinning_es
+
+  subroutine backlisting_ecmwf( flgs_o, obsv, ids_stn, stn_type, mod_pp, nblev, nltot, ntot_stn, niv_stn )
+    ! Purpose :
+    !           
+    ! Version 2.0
+    !
+    ! Author: S. Laroche (ARMA)  June 2013
+    !
+    ! Revision: 2.0 S. Laroche (ARMA) February 2017
+    !              -Refonte du code pour la premiere mise en operation
+    !              -Mise a jour des types sondes RS92 et RS41 (type = 1)
+    !              -Retrait de la serie 80 et 90
+    !
+    implicit none
+
+    integer,           intent(in)    :: nblev, nltot, ntot_stn
+    integer,           intent(in)    :: niv_stn(:), stn_type(:)
+    integer,           intent(inout) :: flgs_o(:,:)
+    real,              intent(in)    :: obsv(:,:)
+    real,              intent(in)    :: mod_pp(:,:)
+    character (len=9), intent(in)    :: ids_stn(:)
+
+    logical :: condition_tt, condition_es, rejet_es
+    integer :: ierr, istn, ilev, iniv, ivar_es, ivar_tt, ivar_pp
+    integer :: type, n_type_0_p, n_type_0_t, n_type_1_p, n_type_1_t, n_es_total
+    integer :: n_type_0_pMpi, n_type_0_tMpi, n_type_1_pMpi, n_type_1_tMpi, n_es_totalMpi
+
+    n_type_0_p = 0 ;n_type_0_t = 0 ; n_type_1_p = 0 ; n_type_1_t = 0 ; n_es_total = 0
+
+    ivar_tt = 3 ; ivar_es = 4 ; ivar_pp = 5
+
+    do istn=1, ntot_stn
+
+      type   =  0
+
+      if ( stn_type(istn) /= -1 ) then
+
+        if ( stn_type(istn) == 14  .or.  &
+             stn_type(istn) == 24  .or.  &
+             stn_type(istn) == 41  .or.  &
+             stn_type(istn) == 42  .or.  &
+             stn_type(istn) == 52  .or.  &
+             stn_type(istn) == 79  .or.  &
+             stn_type(istn) == 80  .or.  &
+             stn_type(istn) == 81  .or.  &
+             stn_type(istn) == 83  .or.  &
+             stn_type(istn) == 141 .or.  &
+             stn_type(istn) == 142 ) then
+
+          type = 1
+
+        end if
+
+      end if
+
+      do iniv=niv_stn(istn)+1, niv_stn(istn+1)
+
+        condition_tt =  &
+             .not.btest(flgs_o(ivar_tt,iniv),18) .and. .not.btest(flgs_o(ivar_tt,iniv),16) .and. &
+             .not.btest(flgs_o(ivar_tt,iniv),9)  .and. .not.btest(flgs_o(ivar_tt,iniv),8)  .and. &
+             .not.btest(flgs_o(ivar_tt,iniv),2)  .and. .not.btest(flgs_o(ivar_tt,iniv),11) .and. &
+             obsv(ivar_tt,iniv) >= 0.0
+        condition_es =  &
+             .not.btest(flgs_o(ivar_es,iniv),18) .and. .not.btest(flgs_o(ivar_es,iniv),16) .and. &
+             .not.btest(flgs_o(ivar_es,iniv),9)  .and. .not.btest(flgs_o(ivar_es,iniv),8)  .and. &
+             .not.btest(flgs_o(ivar_es,iniv),2)  .and. .not.btest(flgs_o(ivar_es,iniv),11) .and. &
+             obsv(ivar_es,iniv) >= 0.0
+
+        if( condition_tt ) then
+
+          rejet_es = .false. 
+          if(condition_es) n_es_total = n_es_total + 1
+
+          if ( type == 0 ) then
+
+            if ( .not.rejet_es .and. obsv(ivar_pp,iniv) < 300.0 ) then
+              if(condition_es) n_type_0_p = n_type_0_p + 1
+              rejet_es = .true. 
+            end if
+            if ( .not.rejet_es .and. obsv(ivar_tt,iniv) < 233.15 ) then
+              if(condition_es) n_type_0_t = n_type_0_t + 1
+              rejet_es = .true. 
+            end if
+    
+          else if  ( type == 1 ) then
+
+            if ( .not.rejet_es .and. obsv(ivar_pp,iniv) < 100.0 ) then
+              if(condition_es) n_type_1_p = n_type_1_p + 1
+              rejet_es = .true. 
+            end if
+            if ( .not.rejet_es .and. obsv(ivar_tt,iniv) < 213.15 ) then
+              if(condition_es)  n_type_1_t = n_type_1_t + 1
+              rejet_es = .true. 
+            end if
+
+          end if
+
+          if( rejet_es ) flgs_o(ivar_es,iniv) = ibset(flgs_o(ivar_es,iniv),8)
+
+        else
+
+          flgs_o(ivar_es,iniv) = flgs_o(ivar_tt,iniv)
+
+        end if
+
+      end do !iniv
+
+    end do !istn
+
+    
+    call rpn_comm_allReduce(n_es_total, n_es_totalMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(n_type_0_p, n_type_0_pMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(n_type_0_t, n_type_0_tMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(n_type_1_p, n_type_1_pMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(n_type_1_t, n_type_1_tMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*)
+    write(*,*) ' Rejet des donnees ES inspire de ECMWF'
+    write(*,*)
+    write(*,'(a30,I10)') 'nb total donnees es        ',n_es_totalMpi
+    write(*,'(a30,I10)') 'nb rejet type 0 pression   ',n_type_0_pMpi
+    write(*,'(a30,I10)') 'nb rejet type 0 temperature',n_type_0_tMpi
+    write(*,'(a30,I10)') 'nb rejet type 1 pression   ',n_type_1_pMpi
+    write(*,'(a30,I10)') 'nb rejet type 1 temperature',n_type_1_tMpi
+    write(*,*)
+    if (n_es_totalMpi > 0) then
+      write(*,'(a30,I10,f10.2)') 'nb rejet total et %', &
+           n_type_0_pMpi+n_type_0_tMpi+n_type_1_pMpi+n_type_1_tMpi, &
+           100.0*(n_type_0_pMpi+n_type_0_tMpi+n_type_1_pMpi+n_type_1_tMpi)/n_es_totalMpi
+    end if
+    write(*,*)
+
+  end subroutine backlisting_ecmwf
+
+  
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
@@ -1129,7 +2173,7 @@ contains
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) - 18000
       else
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 18000
-      endif
+      end if
 
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
@@ -1147,7 +2191,7 @@ contains
       else
         normFormalErr  = 5.0
         missingFormalErr = 3.0
-      endif
+      end if
 
       ! get ztd flag and formal error value, element 15032
       formalError = -1.0
@@ -1201,7 +2245,7 @@ contains
       if(obsStepIndex(headerIndex) == -1.0d0) then
         badTimeCount = badTimeCount + 1
         quality(headerIndex) = 9999
-      endif
+      end if
 
       ! ZTD O-P failed background/topography checks, ZTD is blacklisted, ZTD is not bias corrected
       if (       btest(ztdObsFlag,16) ) bgckCount = bgckCount + 1
@@ -1261,19 +2305,19 @@ contains
               if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
                 skipThisObs = .true.
                 exit LOOP2
-              endif
-            endif
+              end if
+            end if
           end do LOOP2
         else
           skipThisObs = .false.
-        endif
+        end if
 
         if (.not. skipThisObs) then
           numSelected = numSelected + 1
           headerIndexSelected(numSelected) = headerIndex1
-        endif
+        end if
 
-      endif
+      end if
 
     end do OBS_LOOP
 
@@ -1588,7 +2632,7 @@ contains
     allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
     do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
       headerIndexSorted(headerIndex) = headerIndex
-    enddo
+    end do
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
@@ -1817,7 +2861,7 @@ contains
       call thn_QsortIntpartition(A,B,iq)
       call thn_QsortInt(A(:iq-1),B(:iq-1))
       call thn_QsortInt(A(iq:),B(iq:))
-    endif
+    end if
 
   end subroutine thn_QsortInt
 
@@ -1882,7 +2926,7 @@ contains
       call thn_QsortReal8partition(A,B,iq)
       call thn_QsortReal8(A(:iq-1),B(:iq-1))
       call thn_QsortReal8(A(iq:),B(iq:))
-    endif
+    end if
 
   end subroutine thn_QsortReal8
 
@@ -2090,7 +3134,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
-      write(*,nml=namgem)
+      if (mpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else
       call utl_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
@@ -3476,7 +4520,7 @@ contains
         latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
-      endif
+      end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
       do lonIndex = 1, numGridLons(latIndex)
@@ -3685,7 +4729,7 @@ contains
             ! si l'obs retenue precedemment etait autre que METOP
             change = .true.
 
-          endif
+          end if
 
         else ! satellites autre que METOP
 
@@ -3963,7 +5007,7 @@ contains
         latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
-      endif
+      end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
     end do
