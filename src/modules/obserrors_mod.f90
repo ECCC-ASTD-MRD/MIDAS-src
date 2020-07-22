@@ -1660,6 +1660,7 @@ contains
     if ( inflateStateDepSigmaObs(2) )                                  &
       deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
                       sigmaObsBeforeInflation
+      deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
     sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
                               (deltaE1 + deltaE2) ** 2)
