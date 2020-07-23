@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed channel indexing bug in hyperspectral IR background check (#379 and !359)
  * Fixed midas.reunir_obs_mpi so as to preserve the content of RESUME and RDB4_SCHEMA tables (#374 and !356)
  * Fixed `ramdisk_mod.copyFile` when file size is bigger than maximum integer (#366 and !350)
  * Fixed bugs introduced during !323 preventing compilation and execution of system tests in debug mode (#365 and !348)

@@ -573,7 +573,7 @@ contains
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max( 0,min( channelNumber,tvs_maxChannelNumber + 1 ) )
-            call tvs_getChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
+            call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
             nchannels = nchannels + 1
             channelIndexes(nchannels) = channelIndex
             btObsErr(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
@@ -660,8 +660,8 @@ contains
         cldflag = 0
         
         ! Reference for window channel
-        call tvs_getChannelIndexFromChannelNumber(id, iwindo, iwindow(qcid) )
-        call tvs_getChannelIndexFromChannelNumber(id, iwindo_alt, iwindow_alt(qcid) )
+        call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo, iwindow(qcid) )
+        call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo_alt, iwindow_alt(qcid) )
         ichref = iwindo
            
         if ( rejflag(iwindo,9) == 1 ) then
@@ -877,7 +877,7 @@ contains
         lev_start = 0
 
         do channelIndex = 1, nch_he
-          call tvs_getChannelIndexFromChannelNumber(id,ilist_HE(channelIndex),ilist1(qcid,channelIndex))
+          call tvs_getLocalChannelIndexFromChannelNumber(id,ilist_HE(channelIndex),ilist1(qcid,channelIndex))
         end do
 
         call cloud_top ( ptop_bt,ptop_rd,ntop_bt,ntop_rd, &
@@ -896,8 +896,8 @@ contains
         !  -- reference channel for co2-slicing
 
         do channelIndex = 1, nco2
-          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2(channelIndex), ilist2(qcid,channelIndex)  )
-          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2_pair(channelIndex), ilist2_pair(qcid,channelIndex)  )
+          call tvs_getLocalChannelIndexFromChannelNumber(id, ilist_co2(channelIndex), ilist2(qcid,channelIndex)  )
+          call tvs_getLocalChannelIndexFromChannelNumber(id, ilist_co2_pair(channelIndex), ilist2_pair(qcid,channelIndex)  )
         end do
 
         countChannels = 0
@@ -916,12 +916,12 @@ contains
         end if
 
         !   Equivalent height of selected window channel
-        call tvs_getChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,2))
+        call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,2))
         heff = ptop_rd( channelIndex )
 
               
         if (ichref == iwindo_alt) then
-          call tvs_getChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,3))
+          call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,3))
           heff = ptop_rd( channelIndex )
         end if
         !  Cloud top based on co2 slicing 
@@ -1011,7 +1011,7 @@ contains
 
         !     Further reasons to reject observations
 
-        call  tvs_getChannelIndexFromChannelNumber(id,ilist_sun,ichn_sun(qcid))
+        call  tvs_getLocalChannelIndexFromChannelNumber(id,ilist_sun,ichn_sun(qcid))
 
         do channelIndex = 1, nchn
 
@@ -1142,7 +1142,7 @@ contains
         do bodyIndex = bodyStart, bodyEnd
           channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
           channelNumber = max(0, min(channelNumber, tvs_maxChannelNumber + 1))
-          call tvs_getChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
+          call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
           call obs_bodySet_r(obsSpaceData,OBS_SEM,bodyIndex,emi_sfc(channelIndex))
           do bitIndex = 0, bitflag
             if ( rejflag(channelIndex,bitIndex) == 1 ) &
