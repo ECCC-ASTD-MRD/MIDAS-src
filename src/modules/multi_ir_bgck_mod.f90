@@ -97,6 +97,11 @@ module multi_ir_bgck_mod
 
   real(8) :: night_ang
 
+  ! cloud fraction threshold for CrIS cloud detection (from VIIRS cloud mask)
+  ! (subroutine irbg_doQualityControl)
+
+  real(8) ::  crisCloudFractionThreshold
+
   ! Highest flag in post files (value of N in 2^N)
 
   integer, parameter :: bitflag = 29
@@ -113,7 +118,7 @@ module multi_ir_bgck_mod
                                                                   4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
 
   namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair, ichn_sun
-  namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang
+  namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
 
   type(rttov_coefs) :: coefs_avhrr
 
@@ -154,6 +159,7 @@ contains
     integer, external :: fnom, fclos
 
     if (first) then
+      crisCloudFractionThreshold = -1.d0
       nulnam = 0
       ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
       read(nulnam, nml=NAMBGCKIR, iostat=ierr)
@@ -620,7 +626,7 @@ contains
           satelliteZenithAnglePresent = .true.
         end if
         clfr = 0.
-        if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
+        if (lairs .or. lcris) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
         sunZenithAngle = profiles(tvs_nobtov) % sunzenangle
         sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
@@ -749,6 +755,13 @@ contains
         cfsub = -1.d0
         if (lairs) then
           if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 .and. sunZenithAnglePresent) then
+            cldflag = 1
+            cfsub = 0.01d0 * clfr !conversion % -> 0-1
+          end if
+        end if
+        if (lcris) then
+          if ( cldflag == 0 .and. clfr >= 0.d0 .and. clfr > crisCloudFractionThreshold &
+               .and. crisCloudFractionThreshold >= 0.d0 ) then
             cldflag = 1
             cfsub = 0.01d0 * clfr !conversion % -> 0-1
           end if
@@ -2974,3 +2987,4 @@ contains
       
 
 end module multi_ir_bgck_mod
+
