@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added crisCloudFractionThreshold to namelist section NAMBGCKIR (#327 and !360)
+ * Added `crisCloudFractionThreshold` to namelist section `NAMBGCKIR` (#327 and !360)
  * Added thinning for most obs types in `obsSelection` program (#367 and !357)
  * Added thinning algorithms for most obs types (#357 and !355)
  * Incorporated in `tools/splitobs` the program `midas.splitobs` (#362 and !352)
