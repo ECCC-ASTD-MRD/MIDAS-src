@@ -441,15 +441,17 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    integer :: delta    ! 
+    integer :: delta    !
+    integer :: deltrad
 
-    namelist /thin_tovs/delta
+    namelist /thin_tovs/delta, deltrad
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
 
     ! Default namelist values
-    delta = 100
+    delta   = 100
+    deltrad = 75
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
@@ -468,14 +470,14 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsub'), &
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('atms'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('mwhs2'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinTovs
@@ -4024,12 +4026,13 @@ contains
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
-  subroutine thn_tovsFilt(obsdat, delta, codtyp, codtyp2_opt)
+  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer, intent(in)             :: delta
+    integer, intent(in)             :: deltrad
     integer, intent(in)             :: codtyp
     integer, optional, intent(in)   :: codtyp2_opt
 
@@ -4349,7 +4352,7 @@ contains
         do obsIndex = 1, numObs
           valid(headerIndexList2(obsIndex)) = .false.
         end do
-        if (numObs > 0 .and. minDistance <= 75. ) then
+        if (numObs > 0 .and. minDistance <= real(deltRad) ) then
           valid(headerIndexKeep) = .true.
         end if
 
