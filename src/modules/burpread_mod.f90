@@ -1621,6 +1621,7 @@ CONTAINS
     REAL(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
+    integer, allocatable   :: hiresTimeFlag(:,:), hiresLatFlag(:,:)
 
     REAL   , ALLOCATABLE   :: VCOORD  (:,:),  VCOORD_SFC(:)
     REAL   , ALLOCATABLE   :: VCORD   (:)
@@ -2004,7 +2005,6 @@ CONTAINS
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
         IF ( stnid(1:2) == ">>" ) cycle
-write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
 
         !  LOOP ON BLOCKS
 
@@ -2367,6 +2367,11 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
             QCFLAG (:,:,:)  = 0
             QCFLAGS(:,:)    = 0
 
+            allocate(hiresTimeFlag(nvale,nte))
+            allocate(hiresLatFlag(nvale,nte))
+            hiresTimeFlag(:,:) = 0
+            hiresLatFlag(:,:) = 0
+
             do IL = 1, NELE
 
               iele=LISTE_ELE(IL)
@@ -2391,6 +2396,34 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
               end do
 
             end do
+
+            ! read the hires time and latitude flags, needed for UA thinning procedure
+            IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=204015, IOSTAT=error)
+            if (IND_QCFLAG > 0) then
+              do k = 1, nte
+                do j = 1, nvale
+                  hiresTimeFlag(j,k)= BURP_Get_Tblval(Block_in, &
+                                  &   NELE_IND = IND_QCFLAG, &
+                                  &   NVAL_IND = j, &
+                                  &   NT_IND   = k, &
+                                  &   IOSTAT   = error)
+                  SUM = SUM +1
+                end do
+              end do
+            end if
+            IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=205001, IOSTAT=error)
+            if (IND_QCFLAG > 0) then
+              do k = 1, nte
+                do j = 1, nvale
+                  hiresLatFlag(j,k)= BURP_Get_Tblval(Block_in, &
+                                  &   NELE_IND = IND_QCFLAG, &
+                                  &   NVAL_IND = j, &
+                                  &   NT_IND   = k, &
+                                  &   IOSTAT   = error)
+                  SUM = SUM +1
+                end do
+              end do
+            end if
 
           end if
 
@@ -2655,8 +2688,10 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
 
                   OBSN=obs_numHeader(obsdat)
                   if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
-                  if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
-                  if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
+                  if (obs_columnActive_IH(obsdat,obs_hdd))  call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                  if (obs_columnActive_IH(obsdat,obs_hdt))  call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
+                  if (obs_columnActive_IH(obsdat,obs_tflg)) call obs_headSet_i(obsdat,OBS_TFLG,OBSN,hiresTimeFlag(jj,k))
+                  if (obs_columnActive_IH(obsdat,obs_lflg)) call obs_headSet_i(obsdat,OBS_LFLG,OBSN,hiresLatFlag(jj,k))
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
                   IF (OBSN > 1 ) THEN
@@ -2837,6 +2872,12 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
         end if
         if ( allocated(qcflag) ) then
           DEALLOCATE (qcflag,qcflags)
+        end if
+        if ( allocated(hiresTimeFlag) ) then
+          DEALLOCATE (hiresTimeFlag)
+        end if
+        if ( allocated(hiresLatFlag) ) then
+          DEALLOCATE (hiresLatFlag)
         end if
         if ( allocated(qi1val) ) then
           DEALLOCATE (qi1val)
@@ -4387,25 +4428,28 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
     ! Locals:
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
-    type(burp_block)            :: inputBlock
+    type(burp_block)            :: inputBlock, inputBlock2
     integer, allocatable        :: addresses(:), elementIdsRead(:), elementIdsBlock(:)
     integer, allocatable        :: flagValues(:,:,:)
     real(4), allocatable        :: obsValues(:,:,:)
-    logical, allocatable        :: rejectObs(:)
+    logical, allocatable        :: rejectObs(:,:)
     integer                     :: numReports, refBlock, intBurpValue
     integer                     :: numElem, numLevels, numObsProfiles, numElem2
-    integer                     :: numLevels2, numObsProfiles2, newNumObsProfiles
-    integer                     :: elemIndex, levelIndex, obsProfIndex, obsProfIndexGood
-    integer                     :: reportIndex, btyp, error
+    integer                     :: numLevels2, newNumLevels
+    integer                     :: numObsProfiles2, newNumObsProfiles
+    integer                     :: elemIndex, levelIndex, levelIndexGood
+    integer                     :: obsProfIndex, obsProfIndexGood
+    integer                     :: reportIndex, btyp, datyp, error
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = -9999.0
     integer, external           :: mrfbfl
-    logical                     :: groupedData, foundFlags, foundObs, emptyReport, resumeReport
-    logical                     :: debug = .false.
-    character(len=2)            :: familyTypesToDo(5) = (/'AI','SW','TO','SC','GP'/)
+    logical                     :: groupedData, foundFlags, foundObs, emptyReport
+    logical                     :: resumeReport, cleanLevels, checkBlock
+    character(len=2)            :: familyTypesToDo(6) = (/'AI','SW','TO','SC','GP','UA'/)
     character(len=9)            :: stnid
     real(4)                     :: realBurpValue
+    logical                     :: debug = .false.
 
     write(*,*)
     write(*,*) 'brpr_burpClean: starting'
@@ -4415,6 +4459,9 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
       write(*,*) 'brpr_burpClean: not applied to obs family = ', trim(familyType)
       return
     end if
+
+    ! for some obs types we will remove levels/channels, not just complete profiles
+    cleanLevels = (trim(familyType) == 'UA')
 
     ! obtain input burp file report addresses and number of reports
     call getBurpReportAddresses(inputFileName, addresses)
@@ -4434,6 +4481,8 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
     call burp_init(copyReport,iostat=error)
     if (error /= burp_noerr) call handle_error()
     call burp_init(inputBlock,iostat=error)
+    if (error /= burp_noerr) call handle_error()
+    call burp_init(inputBlock2,iostat=error)
     if (error /= burp_noerr) call handle_error()
 
     ! opening file
@@ -4458,6 +4507,16 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
 
     ! get list of element ids used for checking flags
     call getElementIdsRead(familyType, elementIdsRead)
+
+    ! ignore some elements that should have their flags checked
+    do elemIndex = 1, size(elementIdsRead)
+      if ( (elementIdsRead(elemIndex) == 4015) .or. &
+           (elementIdsRead(elemIndex) == 5001) .or. &
+           (elementIdsRead(elemIndex) == 6001) .or. &
+           (elementIdsRead(elemIndex) == 10194) ) then
+        elementIdsRead(elemIndex) = -1
+      end if
+    end do
     write(*,*) 'brpr_burpClean: Flags checked for these element IDs: ', elementIdsRead(:)
 
     numRejectTotal = 0 ! summed over entire file
@@ -4505,9 +4564,17 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
              btyp   = btyp,                & 
              iostat = error)
 
-        if (isFlagBlock(familyType, btyp)) then
+        ! only check "multi" blocks when cleanLevels is true
+        if (cleanLevels) then
+          checkBlock = btest(btyp,13)
+        else
+          checkBlock = .true.
+        end if
+          
+        if (isFlagBlock(familyType, btyp) .and. checkBlock) then
           foundFlags = .true.
           if (debug) write(*,*) 'Found a block with flags: ', reportIndex, familyType, btyp
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
           if (allocated(flagValues)) deallocate(flagValues)
           allocate(flagValues(numElem,numLevels,numObsProfiles))
           if (allocated(elementIdsBlock)) deallocate(elementIdsBlock)
@@ -4523,9 +4590,10 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
           end do
         end if
 
-        if (isObsBlock(familyType, btyp)) then
+        if (isObsBlock(familyType, btyp) .and. checkBlock) then
           foundObs = .true.
           if (debug) write(*,*) 'Found a block with obs: ', reportIndex, familyType, btyp
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
           if (allocated(obsValues)) deallocate(obsValues)
           allocate(obsValues(numElem,numLevels,numObsProfiles))
           do elemIndex = 1, numElem
@@ -4548,23 +4616,24 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
 
       else
 
+        if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
         ! determine which observations to keep
         if (allocated(rejectObs)) deallocate(rejectObs)
-        allocate(rejectObs(numObsProfiles))
-        rejectObs(:) = .true.
+        allocate(rejectObs(numLevels,numObsProfiles))
+        rejectObs(:,:) = .true.
         obsProfiles: do obsProfIndex = 1, numObsProfiles
           obsLevels: do levelIndex = 1, numLevels
             elements: do elemIndex = 1, numElem
-              ! skip this block element if it is not normally read
+              ! skip this element if it is not normally read
               if ( all(elementIdsBlock(elemIndex) /= (200000 + elementIdsRead(:))) ) cycle elements
 
-              ! if at least one observation in profile is 'good', then cannot reject
+              ! if at least one element in profile is 'good', then cannot reject
               if ( (.not.btest(flagValues(elemIndex,levelIndex,obsProfIndex),11)) .and.  &
                    (obsValues(elemIndex,levelIndex,obsProfIndex) /= missingValue) ) then
                 if (debug) write(*,*) 'found a GOOD    observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),   &
                      obsValues(elemIndex,levelIndex,obsProfIndex)
-                rejectObs(obsProfIndex) = .false.
+                rejectObs(levelIndex,obsProfIndex) = .false.
               else if (obsValues(elemIndex,levelIndex,obsProfIndex) == missingValue) then
                 if (debug) write(*,*) 'found a MISSING observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),  &
@@ -4576,9 +4645,16 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
               end if
 
             end do elements
+            if (cleanLevels) then
+              ! count number of individual rejected levels
+              if (rejectObs(levelIndex,obsProfIndex)) numReject = numReject + 1
+            end if
           end do obsLevels
-          if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(obsProfIndex)
-          if (rejectObs(obsProfIndex)) numReject = numReject + 1
+          if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(1,obsProfIndex)
+          if (.not. cleanLevels) then
+            ! count number of rejected complete profiles (all levels must be rejected)
+            if (all(rejectObs(:,obsProfIndex))) numReject = numReject + 1
+          end if
         end do obsProfiles
 
         numRejectTotal = numRejectTotal + numReject
@@ -4591,78 +4667,115 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
       blocks2: do
 
         refBlock = burp_find_block(inputReport, &
-             block       = inputBlock,          &
+             block       = inputBlock2,         &
              search_from = refBlock,            &
+             convert     = .false.,             &
              iostat      = error)
         if (error /= burp_noerr) call handle_error()
         if (refBlock < 0) exit blocks2
          
-        call burp_get_property(inputBlock, &
-             nele   = numElem2,            &
-             nval   = numLevels2,          &
-             nt     = numObsProfiles2,     &
-             btyp   = btyp,                &
+        call burp_get_property(inputBlock2, &
+             nele   = numElem2,             &
+             nval   = numLevels2,           &
+             nt     = numObsProfiles2,      &
+             btyp   = btyp,                 &
+             datyp  = datyp,                &
              iostat = error)
 
-        ! if any obs profiles are completely rejected, eliminate them
-        if (numObsProfiles2 == numObsProfiles) then
+        ! only modify "multi" blocks when cleanLevels is true
+        if (cleanLevels) then
+          checkBlock = btest(btyp,13)
+        else
+          checkBlock = .true.
+        end if
+          
+        if (checkBlock) then
 
-          newNumObsProfiles   = numObsProfiles2 - numReject
-          if (debug) write(*,*) 'ReportIndex = ', reportIndex
-          if (debug) write(*,*) 'Reducing the number of observation profiles from ', numObsProfiles2, ' to ', newNumObsProfiles
+          if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
+          if (cleanLevels) then
+            newNumLevels = numLevels2 - numReject
+            if (debug) write(*,*) 'ReportIndex = ', reportIndex
+            if (debug) write(*,*) 'Reducing the number of levels from ', numLevels2, ' to ', newNumLevels
 
-          if (newNumObsProfiles >= 1) then
+            if (newNumLevels >= 1) then
 
-            ! shuffle the data
-            obsProfIndexGood = 0
-            do obsProfIndex = 1, numObsProfiles2
-              if (rejectObs(obsProfIndex)) cycle
-              obsProfIndexGood = obsProfIndexGood + 1
-              do elemIndex = 1, numElem2
+              ! shuffle the data
+              do obsProfIndex = 1, numObsProfiles2
+                levelIndexGood = 0
                 do levelIndex = 1, numLevels2
-                  if (isObsBlock(familyType, btyp) .or. isInfoBlock(familyType, btyp)) then
-                    realBurpValue = burp_get_rval(inputBlock, nele_ind=elemIndex,  &
+                  if (rejectObs(levelIndex,obsProfIndex)) cycle
+                  levelIndexGood = levelIndexGood + 1
+                  do elemIndex = 1, numElem2
+                    intBurpValue = burp_get_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndex, iostat=error)
                     if (error /= burp_noerr) call handle_error()
-                    call burp_set_rval(inputBlock, nele_ind=elemIndex,  &
-                         nval_ind=levelIndex, nt_ind=obsProfIndexGood, rval=realBurpValue, iostat=error) 
+                    call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
+                         nval_ind=levelIndexGood, nt_ind=obsProfIndex, tblval=intBurpValue, iostat=error) 
                     if (error /= burp_noerr) call handle_error()
-                    if (debug .and. obsProfIndex /= obsProfIndexGood) then
-                      write(*,*) 'shuffling data: ', obsProfIndex, obsProfIndexGood, realBurpValue, reportIndex
+                    if (debug .and. levelIndex /= levelIndexGood) then
+                      write(*,*) 'shuffling data: ', elemIndex, levelIndex, levelIndexGood, intBurpValue, reportIndex
                     end if
-                  else
-                    intBurpValue = burp_get_tblval(inputBlock, nele_ind=elemIndex,  &
+                  end do
+                end do
+              end do
+
+              ! reduce the size of the block
+              call burp_reduce_block(inputBlock2, new_nval=newNumLevels, iostat=error)
+              if (error /= burp_noerr) call handle_error()
+
+            else ! newNumLevels < 1
+
+              if (debug) write(*,*) 'All observation levels rejected for this report: ', reportIndex
+              emptyReport = .true.
+
+            end if
+
+          else
+
+            newNumObsProfiles   = numObsProfiles2 - numReject
+            if (debug) write(*,*) 'ReportIndex = ', reportIndex
+            if (debug) write(*,*) 'Reducing the number of observation profiles from ', numObsProfiles2, ' to ', newNumObsProfiles
+
+            if (newNumObsProfiles >= 1) then
+
+              ! shuffle the data
+              obsProfIndexGood = 0
+              do obsProfIndex = 1, numObsProfiles2
+                if (all(rejectObs(:,obsProfIndex))) cycle ! all levels rejected
+                obsProfIndexGood = obsProfIndexGood + 1
+                do elemIndex = 1, numElem2
+                  do levelIndex = 1, numLevels2
+                    intBurpValue = burp_get_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndex, iostat=error)
                     if (error /= burp_noerr) call handle_error()
-                    call burp_set_tblval(inputBlock, nele_ind=elemIndex,  &
+                    call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndexGood, tblval=intBurpValue, iostat=error) 
                     if (error /= burp_noerr) call handle_error()
                     if (debug .and. obsProfIndex /= obsProfIndexGood) then
                       write(*,*) 'shuffling data: ', obsProfIndex, obsProfIndexGood, intBurpValue, reportIndex
                     end if
-                  end if
+                  end do
                 end do
               end do
-            end do
 
-            ! reduce the size of the block
-            call burp_reduce_block(inputBlock, new_nt=newNumObsProfiles, iostat=error)
-            if (error /= burp_noerr) call handle_error()
+              ! reduce the size of the block
+              call burp_reduce_block(inputBlock2, new_nt=newNumObsProfiles, iostat=error)
+              if (error /= burp_noerr) call handle_error()
 
-          else ! newNumObsProfiles < 1
+            else ! newNumObsProfiles < 1
 
-            if (debug) write(*,*) 'All observation profiles rejected for this report: ', reportIndex
-            emptyReport = .true.
+              if (debug) write(*,*) 'All observation profiles rejected for this report: ', reportIndex
+              emptyReport = .true.
 
-          end if
+            end if
 
-        else
-          write(*,*) 'Not sure why we are here!', numObsProfiles2, numObsProfiles
-        end if
+          end if ! cleanLevels
+
+        end if ! checkBlock
 
         if (.not. emptyReport) then
-          call burp_write_block(copyReport, block=inputBlock,  &
-               convert_block=(btyp/=5120), iostat=error)
+          call burp_write_block(copyReport, block=inputBlock2,  &
+               convert_block=.false., iostat=error)
           if (error /= burp_noerr) call handle_error()
         end if
 
@@ -4696,6 +4809,7 @@ write(*,*) 'header lat-lon = ', real(lati)*0.01-90.0, real(long)*0.01
     call burp_free(inputFile)
     call burp_free(inputReport,copyReport)
     call burp_free(inputBlock)
+    call burp_free(inputBlock2)
 
   contains
 

@@ -92,7 +92,6 @@ program midas_thinning
   call thn_thinHyper(obsSpaceData)
   call thn_thinTovs(obsSpaceData)
   call thn_thinCSR(obsSpaceData)
-  call thn_thinRaobs(obsSpaceData)
   call thn_thinScat(obsSpaceData)
   call thn_thinSatWinds(obsSpaceData)
   call thn_thinAircraft(obsSpaceData)
@@ -100,6 +99,14 @@ program midas_thinning
   call thn_thinGpsRo(obsSpaceData)
   call thn_thinAladin(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  if (obs_famExist( obsSpaceData, 'UA' )) then
+    write(*,*) 'midas-thinning: WARNING: radiosonde observations found in obsSpaceData!'
+    write(*,*) '                These observations cannot be thinned using the stand-alone'
+    write(*,*) '                MIDAS thinning program. Instead they should be thinned'
+    write(*,*) '                in combination with doing the background check in the'
+    write(*,*) '                obsSelection program.'
+  end if
 
   !- Update obs files and remove rejected obs (bit 11) from file (obsFileClean)
   call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
