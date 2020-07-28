@@ -119,7 +119,7 @@ module sqliteFiles_mod
 
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call sqlr_readSqlite_tov(obsdat, trim(familyType), trim(fileName), fileIndex )
+    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName), fileIndex )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
     if ( trim(familyType) == 'TO' ) then
@@ -150,6 +150,7 @@ module sqliteFiles_mod
       if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_BCOR) ) call obs_bodySet_r(obsdat, OBS_BCOR ,bodyIndex, missingValue )
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
