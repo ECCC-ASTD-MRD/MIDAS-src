@@ -51,11 +51,13 @@
    abortOnMpiImbalance = .false.
 /
  &NAMTOV
-   NSENSORS         =  2,
-   CSATID(1)        = 'METOP-1',
-   CINSTRUMENTID(1) = 'IASI',
+   NSENSORS         =  1,
+   CSATID(1)        = 'AQUA',
+   CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',
    CINSTRUMENTID(2) = 'IASI',
+   CSATID(3)        = 'METOP-1',
+   CINSTRUMENTID(3) = 'IASI',
    CSATID(3)        = 'AQUA',
    CINSTRUMENTID(3) = 'AIRS',
    CSATID(4)        = 'NPP',
@@ -406,13 +408,10 @@
   &NAMSQLiasi
   listElem='12163'
   numberElem=1
-  sqlExtraDat=' and obsvalue is not null '
-  sqlExtraHeader="  "
 /
   &NAMSQLairs
   listElem='12163'
   numberElem=1
-  sqlExtraDat=' and obsvalue is not null '
 /
   &NAMSQLUPDATE
   numberUpdateItems=2

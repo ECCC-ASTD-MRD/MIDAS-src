@@ -179,13 +179,23 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="hyperir"/>
-    <FAMILY  name="hyperir">
+    <SUBMITS sub_name="iasi"/>
+    <FAMILY  name="iasi">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="hyperir_sqlite"/>
-    <FAMILY  name="hyperir_sqlite">
+    <SUBMITS sub_name="airs"/>
+    <FAMILY  name="airs">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="iasi_sqlite"/>
+    <FAMILY  name="iasi_sqlite">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="airs_sqlite"/>
+    <FAMILY  name="airs_sqlite">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
