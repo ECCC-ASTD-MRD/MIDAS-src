@@ -399,6 +399,8 @@ EOF
 
 doCreateDiagnostics=1
 grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+doThinning=1
+grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
@@ -416,7 +418,10 @@ if [ -n "${observations}" ]; then
                 mkdir diafiles_${fam}.updated
             fi
         fi
-        if [ "${MIDAS_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
+        if [ "${doThinning}" -ne 0 ]; then
+            mkdir obsfiles_${fam}.beforeThinning
+        fi
+        if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
         fi
     done
@@ -512,9 +517,7 @@ if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
     else
 
         dirext2process=.updated
-        doThinning=1
-        grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
-        if [ "${dothinning}" -eq 1 ]; then
+        if [ "${doThinning}" -ne 0 ]; then
             dirext2process="${dirext2process} .beforeThinning"
         fi
 
