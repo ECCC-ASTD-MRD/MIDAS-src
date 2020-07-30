@@ -4508,12 +4508,9 @@ CONTAINS
     ! get list of element ids used for checking flags
     call getElementIdsRead(familyType, elementIdsRead)
 
-    ! ignore some elements that should have their flags checked
+    ! ignore some elements when checking the flags
     do elemIndex = 1, size(elementIdsRead)
-      if ( (elementIdsRead(elemIndex) == 4015) .or. &
-           (elementIdsRead(elemIndex) == 5001) .or. &
-           (elementIdsRead(elemIndex) == 6001) .or. &
-           (elementIdsRead(elemIndex) == 10194) ) then
+      if ( (elementIdsRead(elemIndex) == 10194) ) then
         elementIdsRead(elemIndex) = -1
       end if
     end do
