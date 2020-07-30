@@ -41,11 +41,63 @@ module thinning_mod
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
-  public :: thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
+  public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
 
   integer, external :: get_max_rss
 
 contains
+
+  !--------------------------------------------------------------------------
+  ! thn_thinSurface
+  !--------------------------------------------------------------------------
+  subroutine thn_thinSurface(obsdat)
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    logical :: doThinning   ! if false, we return immediately
+    real(8) :: step         ! time resolution (in hours)
+    integer :: deltmax      ! maximum time difference (in minutes)
+    logical :: useBlackList ! signal if blacklist file should be read and used
+
+    namelist /thin_surface/doThinning, step, deltmax, useBlackList
+    
+    ! return if no surface obs
+    if (.not. obs_famExist(obsdat,'SF')) return
+
+    ! Default values for namelist variables
+    doThinning = .false.
+    step    = 6.0d0
+    deltmax = 90
+    useBlackList = .true.
+
+    ! Read the namelist for Aircraft observations (if it exists)
+    if (utl_isNamelistPresent('thin_surface','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinSurface: Error opening file flnml')
+      read(nulnam,nml=thin_surface,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=thin_surface)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
+      write(*,*) '                  The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_surface)
+    end if
+
+    if (.not. doThinning) return
+
+    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
+
+  end subroutine thn_thinSurface
 
   !--------------------------------------------------------------------------
   ! thn_thinRaobs
@@ -567,6 +619,72 @@ contains
 !_/ called by any of the observation-type-specific thinning methods.
 !_/
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+
+  !--------------------------------------------------------------------------
+  ! thn_surfaceInTime
+  !--------------------------------------------------------------------------
+  subroutine thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
+    !
+    ! :Purpose: Original method for thinning surface data in time.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    real(8),          intent(in)    :: step
+    integer,          intent(in)    :: deltmax
+    logical,          intent(in)    :: useBlackList
+
+    ! Local parameters:
+    character(len=6), parameter :: blacklist_mode = 'normal' 
+    integer, parameter :: n_col_blacklist = 5 ! number of columns in blacklist file
+    integer, parameter :: n_ele_blacklist = 11 ! number of desired elements in list_ele_blacklist
+    integer, parameter :: list_ele_blacklist(n_ele_blacklist) = &
+    (/ 10004, 10004, 10051, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /)
+    integer, parameter :: list_col_blacklist(n_ele_blacklist) = &
+    (/     1,     2,     1,     2,     5,     5,     5,     5,     3,     4,     4 /)
+
+    ! Locals:
+    character(len=100) :: blklist = 'blacklist_sf'
+    integer :: ierr, istat, nulfile, n_row_blacklist
+    integer :: elemIndex, rowIndex, colIndex
+    character(len=9), allocatable :: arr_stnid(:), arr_stn_blacklist(:)
+    integer, allocatable :: mat_blacklist(:,:) ! blacklist data matrix
+    integer :: arr_work_blacklist(n_col_blacklist) ! blacklist work array
+
+    ! Read blacklist file
+    if (useBlackList) then
+      write(*,*) 'Opening blacklist file'
+      n_row_blacklist = 0
+      nulfile = 0
+      open (unit=nulfile, file=blklist, status='OLD', iostat=ierr)
+      if (ierr /= 0) then
+        write(*,*) 'Cannot open blacklist file ', trim(blklist)
+        call utl_abort('thn_surfaceInTime')
+      end if
+      read(nulfile, iostat=istat, fmt='(i6)') n_row_blacklist
+      write(*,*) 'thn_surfaceInTime: Number of stations in blacklist: ', n_row_blacklist
+
+      allocate(arr_stn_blacklist(n_row_blacklist))
+      allocate(mat_blacklist(n_row_blacklist, n_ele_blacklist))
+
+      do rowIndex = 1, n_row_blacklist
+        read(nulfile, iostat=istat, fmt='(x,a8,x,5(x,i1))') &
+             arr_stn_blacklist(rowIndex), &
+             (arr_work_blacklist(colIndex), colIndex = 1, n_col_blacklist)
+        do elemIndex = 1, n_ele_blacklist
+          if ((blacklist_mode == 'severe') .or. (arr_work_blacklist(list_col_blacklist(elemIndex)) .eq. 1)) then
+            mat_blacklist(rowIndex,elemIndex) = 1
+          end if
+        end do
+      end do
+      write(*,*) 'thn_surfaceInTime: Closing blacklist file'
+      write(*,*)
+      close (unit=nulfile)
+    end if
+
+  end subroutine thn_surfaceInTime
 
   !--------------------------------------------------------------------------
   ! thn_gpsroVertical
