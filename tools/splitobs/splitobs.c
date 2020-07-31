@@ -827,21 +827,7 @@ int f77name(splitobs)(int argc, char** argv) {
       // On ajoute la requete SQL pour copier les tables 'rdb4_schema' et 'resume'.
       strcat(requete_sql,sqlreq_resume);
 
-      // Ajouter les requetes pour les tables qui contiennent 'id_obs'
-      {
-        const char separator_char[2] = " ";
-        char sqlreqtmp[MAXSTR];
-        char *token;
-
-        /* get the first token */
-        token = strtok(table_list, separator_char);
-        /* walk through other tokens */
-        while( token != (char*) NULL ) {
-          sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
-          strcat(requete_sql,sqlreqtmp);
-          token = strtok((char*) NULL, separator_char);
-        }
-      } // On a termine d'ajouter les requetes pour les autres tables
+      append_id_obs_table_list_requests(requete_sql,table_list);
 
       strcat(requete_sql,"\ndetach dbin;");
 
@@ -968,8 +954,7 @@ int f77name(splitobs)(int argc, char** argv) {
 "PRAGMA  synchronous = OFF;\n"
 "attach '%s' as dbin; \n"
 "insert into header select * from dbin.header where id_obs %% %d = %d;\n"
-"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s"
-"\ndetach dbin;"
+"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s\n"
 /* "insert into header select * from dbin.header where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "insert into data   select * from dbin.data   where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "CREATE TABLE rdb4_schema( schema  varchar(9) );\n" */
@@ -977,6 +962,8 @@ int f77name(splitobs)(int argc, char** argv) {
 /* "create table resume(date integer , time integer , run varchar(9)) ;\n" */
 /* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
                   , opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
+          append_id_obs_table_list_requests(requete_sql,table_list);
+          strcat(requete_sql,"\ndetach dbin;");
 
           printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
           printf("%s\n", requete_sql);
@@ -2648,6 +2635,31 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
 
 
   /***************************************************************************
+   * fonction: append_id_obs_table_list_requests
+   *
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les
+   * tables supplementaires autres que 'header' et 'data' mais qui ont
+   * 'id_obs' comme colonne.
+   *
+   ***************************************************************************/
+void append_id_obs_table_list_requests(char* requete_sql, char* table_list) {
+  const char separator_char[2] = " ";
+  char sqlreqtmp[MAXSTR];
+  char *token;
+
+  /* get the first token */
+  token = strtok(table_list, separator_char);
+  /* walk through other tokens */
+  while( token != (char*) NULL ) {
+    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
+    strcat(requete_sql,sqlreqtmp);
+    token = strtok((char*) NULL, separator_char);
+  }
+  // On a termine d'ajouter les requetes pour les autres tables
+}
+
+
+/***************************************************************************
    * fonction: getGZ
    *
    * Cette fonction sert a aller chercher le champ GZ dans le fichier donne
