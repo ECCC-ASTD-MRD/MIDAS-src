@@ -51,6 +51,8 @@ contains
   ! thn_thinRaobs
   !--------------------------------------------------------------------------
   subroutine thn_thinRaobs(obsdat)
+    ! :Purpose: Main thinning subroutine Radiosonde obs.
+
     implicit none
 
     ! Arguments:
@@ -99,6 +101,8 @@ contains
   ! thn_thinAircraft
   !--------------------------------------------------------------------------
   subroutine thn_thinAircraft(obsdat)
+    ! :Purpose: Main thinning subroutine for aircraft obs.
+
     implicit none
 
     ! Arguments:
@@ -143,6 +147,8 @@ contains
   ! thn_thinSatWinds
   !--------------------------------------------------------------------------
   subroutine thn_thinSatWinds(obsdat)
+    ! :Purpose: Main thinning subroutine for satellite winds (AMVs).
+
     implicit none
 
     ! Arguments:
@@ -289,6 +295,8 @@ contains
   ! thn_thinAladin
   !--------------------------------------------------------------------------
   subroutine thn_thinAladin(obsdat)
+    ! :Purpose: Main thinning subroutine for Aladin winds obs.
+
     implicit none
 
     ! Arguments:
@@ -335,6 +343,8 @@ contains
   ! thn_thinCSR
   !--------------------------------------------------------------------------
   subroutine thn_thinCSR(obsdat)
+    ! :Purpose: Main thinning subroutine for geostationary radiances (CSR).
+
     implicit none
 
     ! Arguments:
@@ -383,6 +393,8 @@ contains
   ! thn_thinScat
   !--------------------------------------------------------------------------
   subroutine thn_thinScat(obsdat)
+    ! :Purpose: Main thinning subroutine for scatterometer winds.
+
     implicit none
 
     ! Arguments:
@@ -431,6 +443,8 @@ contains
   ! thn_thinTovs
   !--------------------------------------------------------------------------
   subroutine thn_thinTovs(obsdat)
+    ! :Purpose: Main thinning subroutine for AMSU and ATMS obs.
+
     implicit none
 
     ! Arguments:
@@ -486,6 +500,8 @@ contains
   ! thn_thinHyper
   !--------------------------------------------------------------------------
   subroutine thn_thinHyper(obsdat)
+    ! :Purpose: Main thinning subroutine for hyperspectral infrared radiances.
+
     implicit none
 
     ! Arguments:
@@ -3258,6 +3274,8 @@ contains
   ! thn_QsortInt
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortInt(A,B)
+    ! :Purpose: Quick sort algorithm for integer data.
+
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -3276,6 +3294,8 @@ contains
   ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
   subroutine thn_QsortIntpartition(A,B,marker)
+    ! :Purpose: Subroutine called in quick sort for integers.
+
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -3323,6 +3343,8 @@ contains
   ! thn_QsortReal8
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortReal8(A,B)
+    ! :Purpose: Quick sort algorithm for real8 data.
+
     implicit none
 
     real(8), intent(inout) :: A(:)
@@ -3341,6 +3363,8 @@ contains
   ! thn_QsortReal8partition
   !--------------------------------------------------------------------------
   subroutine thn_QsortReal8partition(A,B,marker)
+    ! :Purpose: Subroutine called for quick sort of real8 data.
+
     implicit none
 
     real(8), intent(inout) :: A(:)
@@ -3388,6 +3412,8 @@ contains
   ! thn_distanceArc
   !--------------------------------------------------------------------------
   real(4) function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
+    ! :Purpose: Compute arc distance.
+
     implicit none
 
     real(4), intent(in) :: deltaLat, deltaLon, lat1, lat2
@@ -4043,11 +4069,10 @@ contains
   ! thn_keepNthObs
   !--------------------------------------------------------------------------
   subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical)
-    !
     ! :Purpose: Of the observations in a column that have not already been
     !           rejected, keep every nth observation and throw out the rest.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -4103,11 +4128,11 @@ contains
 
   contains
     function new_column()
-      ! Determine whether the current observation begins a new vertical column
-      ! (Assume that observations are in chronological order)
+      ! :Purpose: Determine whether the current observation begins a new vertical column
+      !           (Assume that observations are in chronological order)
       !
-      ! Note:  This method has been written with aladin observations in mind.
-      !        It might be necessary to generalize the method.
+      ! :Note:  This method has been written with aladin observations in mind.
+      !         It might be necessary to generalize the method.
       implicit none
       logical :: new_column
 
@@ -4133,6 +4158,9 @@ contains
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
   subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
+    ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+
     implicit none
 
     ! Arguments:
@@ -4600,6 +4628,8 @@ contains
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
   subroutine thn_removeRarsDuplicates(obsdat, valid)
+    ! :Purpose: Remove duplicate TOVS observations due to RARS.
+
     implicit none
 
     ! Arguments:
@@ -4797,11 +4827,10 @@ contains
   ! thn_scatByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for SCAT observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -5300,11 +5329,10 @@ contains
   ! thn_csrByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for CSR observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -5750,11 +5778,10 @@ contains
   subroutine thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, &
                                     deltmax, deltax, deltrad,  &
                                     familyType, codtyp)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -6087,6 +6114,8 @@ contains
   ! thn_separation
   !--------------------------------------------------------------------------
   function thn_separation(xlon1,xlat1,xlon2,xlat2)
+    ! :Purpose: Compute the separation distance for some thinning algorithms.
+
     implicit none
 
     ! Arguments:

@@ -2633,9 +2633,9 @@ CONTAINS
 
                 ! write info block to header (same values for all headers associated with report)
                 if (allocated(TRINFO))  then
-                  call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                  call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
                 else
-                  call missing_info(obsdat,liste_info,nele_info)
+                  call setInfoToMissing(obsdat,liste_info,nele_info)
                 end if
 
               END IF
@@ -2705,9 +2705,9 @@ CONTAINS
 
                   ! write info block to header (same values for all headers associated with report)
                   if (allocated(TRINFO))  then
-                    call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                    call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
                   else
-                    call missing_info(obsdat,liste_info,nele_info)
+                    call setInfoToMissing(obsdat,liste_info,nele_info)
                   end if
 
                 END IF
@@ -2860,7 +2860,7 @@ CONTAINS
 
           if (allocated(TRINFO))  then
             IF ( NDATA > 0.or.NDATA_SF > 0 ) then
-              call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+              call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
             END IF
           end if
 
@@ -3253,28 +3253,29 @@ CONTAINS
     call obs_headSet_r(obsdat,OBS_AZA,nobs,azimuth)
   end subroutine write_al
 
-!!------------------------------------------------------------------------------------
-!!------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! writeInfo
+  !--------------------------------------------------------------------------
+  subroutine writeInfo(obsdat, FAMTYP, RINFO, LISTE_INFO, NELE_INFO)
+    ! :Purpose: Write values in obsSpaceData related to the info block
 
-  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
     implicit none
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-
-    REAL        ::      RINFO(NELE_INFO)
-
+    REAL        ::   RINFO(NELE_INFO)
     CHARACTER*2 ::   FAMTYP
-    REAL*4      ::   INFOV
     INTEGER     ::   NELE_INFO
     integer     ::   LISTE_INFO(NELE_INFO)
 
+    ! Locals:
+    REAL*4      ::   INFOV
     INTEGER     ::   CODTYP
-
     INTEGER     ::   IL,NOBS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
     INTEGER     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
-
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
@@ -3409,7 +3410,7 @@ CONTAINS
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT == MPC_missingValue_R4) THEN
-                call utl_abort('WRITE_INFO: Missing 08046 element for the CH family.')
+                call utl_abort('writeInfo: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
@@ -3480,17 +3481,23 @@ CONTAINS
     end if
     if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
 
-  END SUBROUTINE  WRITE_INFO
+  END SUBROUTINE  writeInfo
 
-!!------------------------------------------------------------------------------------
-!!------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! setInfoToMissing
+  !--------------------------------------------------------------------------
+  subroutine setInfoToMissing(obsdat,liste_info,nele_info)
+    ! :Purpose: Set the obsSpaceData column related to the info block with
+    !           missing values
 
-  subroutine missing_info(obsdat,liste_info,nele_info)
     implicit none
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     integer     ::   nele_info
     integer     ::   liste_info(nele_info)
 
+    ! Locals:
     integer :: nobs
 
     nobs = obs_numHeader(obsdat)
@@ -3516,9 +3523,11 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,obs_missingValue_r)
 
-  end subroutine  missing_info
+  end subroutine  setInfoToMissing
 
-
+  !--------------------------------------------------------------------------
+  ! find_index
+  !--------------------------------------------------------------------------
   INTEGER  FUNCTION FIND_INDEX(LIST,ELEMENT)
     implicit none
     INTEGER LIST(:)
@@ -3542,12 +3551,12 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
     integer, intent(in)              :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
     
-    ! Locals
+    ! Locals:
     type(BURP_FILE)        :: inputFile
     type(BURP_RPT)         :: inputReport,copyReport
     type(BURP_BLOCK)       :: inputBlock
