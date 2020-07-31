@@ -826,6 +826,23 @@ int f77name(splitobs)(int argc, char** argv) {
 
       // On ajoute la requete SQL pour copier les tables 'rdb4_schema' et 'resume'.
       strcat(requete_sql,sqlreq_resume);
+
+      // Ajouter les requetes pour les tables qui contiennent 'id_obs'
+      {
+        const char separator_char[2] = " ";
+        char sqlreqtmp[MAXSTR];
+        char *token;
+
+        /* get the first token */
+        token = strtok(table_list, separator_char);
+        /* walk through other tokens */
+        while( token != (char*) NULL ) {
+          sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
+          strcat(requete_sql,sqlreqtmp);
+          token = strtok((char*) NULL, separator_char);
+        }
+      } // On a termine d'ajouter les requetes pour les autres tables
+
       strcat(requete_sql,"\ndetach dbin;");
 
       printf("\n\nVoici la requete SQL effectuee sur la base de donnees:\n");
