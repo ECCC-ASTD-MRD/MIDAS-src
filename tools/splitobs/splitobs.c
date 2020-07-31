@@ -125,6 +125,7 @@ typedef struct {
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
 static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns);
+void append_id_obs_table_list_requests(char* requete_sql, char* table_list);
 
 int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
 int sqlite_get_tables_with_id_obs(char* obsin, char* table_list);
