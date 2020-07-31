@@ -208,9 +208,7 @@ fi
 if [[ "${fam}" = *.updated ]]; then
     ${cp_cmd} ${fam}.obs ${obsout}/$(${echo_cmd} ${fam} | ${sed_cmd} 's/\.updated$//')
 else
-    ext=$(echo ${fam} | ${cut_cmd} -d. -f2)
-    [ ! -d "${obsout}/${ext}" ] && ${mkdir_cmd} -p ${obsout}/${ext}
-    ${cp_cmd} ${fam}.obs ${obsout}/${ext}/$(${echo_cmd} ${fam} | ${sed_cmd} "s/\.${ext}\$//")
+    ${cp_cmd} ${fam}.obs ${obsout}/${fam}
 fi
 
 cd ${MIDAS_WORKDIR}
