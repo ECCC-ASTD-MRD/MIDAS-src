@@ -156,7 +156,7 @@ elif [ "${filetype}" = SQLite ]; then
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -i -sq 'CREATE TABLE rdb4_schema' || status=1
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE rdb4_schema' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
@@ -166,7 +166,7 @@ EOF
     fi
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -i -sq 'CREATE TABLE resume' || status=1
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE resume' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
