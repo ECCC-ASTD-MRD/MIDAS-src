@@ -2545,25 +2545,25 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
   int idx, isTypeTable, foundID_OBS;
   char table_name[MAXSTR];
 
-  printf("Dans la fonction 'sqlite_check_tables_with_id_obs_callback'\n");
-  printf("sqlite_check_tables_with_id_obs_callback: input table_list = '%s'\n", (char*) table_list);
-  printf("sqlite_check_tables_with_id_obs_callback: There are %d column(s)\n", count);
+  /* printf("Dans la fonction 'sqlite_check_tables_with_id_obs_callback'\n"); */
+  /* printf("sqlite_check_tables_with_id_obs_callback: input table_list = '%s'\n", (char*) table_list); */
+  /* printf("sqlite_check_tables_with_id_obs_callback: There are %d column(s)\n", count); */
 
   isTypeTable = 0;
   for (idx = 0; idx < count; idx++) {
-    printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]);
+    /* printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]); */
     if (strcasecmp(columns[idx],"type")==0)
       if (strcasecmp(data[idx],"table")==0)
         isTypeTable = 1;
   }
 
-  printf("sqlite_check_tables_with_id_obs_callback: isTypeTable = %d\n", isTypeTable);
+  /* printf("sqlite_check_tables_with_id_obs_callback: isTypeTable = %d\n", isTypeTable); */
   if (isTypeTable == 0) return 0;
 
   strcpy(table_name,"");
   foundID_OBS=0;
   for (idx = 0; idx < count; idx++) {
-    printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]);
+    /* printf("sqlite_check_tables_with_id_obs_callback: The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]); */
     if (strcasecmp(columns[idx],"tbl_name")==0)
       strcpy(table_name,data[idx]);
     else if(strcasecmp(columns[idx],"sql")==0) {
@@ -2617,7 +2617,7 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
       regfree(&regex);
     }
   }
-  printf("sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d table_name = '%s'\n", foundID_OBS, table_name);
+  /* printf("sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d table_name = '%s'\n", foundID_OBS, table_name); */
 
   if (foundID_OBS) {
     if (strlen(table_name)>0) {
@@ -2631,7 +2631,7 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
       return 1;
     }
   }
-  printf("sqlite_check_tables_with_id_obs_callback: output table_list = '%s'\n", (char*) table_list);
+  /* printf("sqlite_check_tables_with_id_obs_callback: output table_list = '%s'\n", (char*) table_list); */
 
   return 0;
 }
