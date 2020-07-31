@@ -36,7 +36,7 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_getPositionXY
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile
+  public :: utl_copyFile, utl_allReduce
 
   ! module interfaces
   ! -----------------
@@ -2442,5 +2442,27 @@ contains
     call tmg_stop(170)
 
   end function utl_copyFile
+
+  !--------------------------------------------------------------------------
+  ! utl_allReduce
+  !--------------------------------------------------------------------------
+  subroutine utl_allReduce(localGlobalValue)
+    ! :Purpose: Perform mpi_allReduce to sum integer values over all
+    !           mpi tasks and copy result back to same variable.
+
+    implicit none
+
+    ! Arguments:
+    integer, intent(inout) :: localGlobalValue
+
+    ! Locals:
+    integer :: localValue, globalValue, ierr
+
+    localValue = localGlobalValue
+    call rpn_comm_allReduce(localValue, globalValue, 1, 'mpi_integer', &
+                            'mpi_sum', 'grid', ierr)
+    localGlobalValue = globalValue
+    
+  end subroutine utl_allReduce
 
 end module utilities_mod
