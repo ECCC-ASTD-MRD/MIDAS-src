@@ -2610,18 +2610,24 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
         return 1;
       }
       regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
-      if (regex_err!=0) {
+      if (regex_err == 0) {
+        // This means that there was a match
+        foundID_OBS=1;
+      }
+      else if (regex_err == REG_NOMATCH) {
+        foundID_OBS=0;
+      }
+      else {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
         regfree(&regex);
 	fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
         return 1;
       }
-      // This means that there was a match
-      foundID_OBS=1;
+
       regfree(&regex);
     }
   }
-  printf("sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d\n", foundID_OBS);
+  printf("sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d table_name = '%s'\n", foundID_OBS, table_name);
 
   if (foundID_OBS) {
     if (strlen(table_name)>0) {
