@@ -2511,7 +2511,10 @@ int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
   strcpy(table_list,"");
 
   /* Execution de la requete SQL sur la base de donnees */
-  status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_check_tables_with_id_obs_callback, table_list, &ErrMsg);
+  /* Since the table 'header' and 'data' are already processed in the main */
+  /*   request, we must not process them again when adding tables which */
+  /*   contains a column 'id_obs'. */
+  status = sqlite3_exec(sqldbin, "select * from sqlite_master where lower(name) not in ('header','data');", sqlite_check_tables_with_id_obs_callback, table_list, &ErrMsg);
   if( status != SQLITE_OK ) {
     fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
     sqlite3_free(ErrMsg);
