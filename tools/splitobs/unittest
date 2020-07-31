@@ -742,8 +742,10 @@ test_rdb_avhrr () {
     assert "test_rdb_avhrr splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} 'rdb4_schema table definition' (status=${check_status})" \
         [ -n "$(echo '.schema' | sqlite3 obsiasi_${procx}_${procy} | grep -i 'CREATE TABLE avhrr')" ] || status=1
+    check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx}_${procy} obsiasi_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=1
     [ "${status}" -ne 0 ] && return 1
-    ls -al
+    rm obsiasi_${procx}_${procy}
 
     status=0
     program_status=0
