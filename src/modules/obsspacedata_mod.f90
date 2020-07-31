@@ -323,43 +323,49 @@ module ObsColumnNames_mod
    integer, parameter :: NHDR_INT_BEG = 101
    integer, parameter, public :: OBS_RLN = NHDR_INT_BEG ! report location
                                              ! unique(within obsdat), possibly
-   integer, parameter, public :: OBS_ONM = OBS_RLN+1 ! ordered, station id number
-   integer, parameter, public :: OBS_INS = OBS_ONM+1 ! instrument ID  
-   integer, parameter, public :: OBS_OTP = OBS_INS+1 ! observation Type (file index)
-   integer, parameter, public :: OBS_ITY = OBS_OTP+1 ! code: instrument & retrieval type
-   integer, parameter, public :: OBS_SAT = OBS_ITY+1 ! satellite code 
-   integer, parameter, public :: OBS_TEC = OBS_SAT+1 ! satellite processing technique
-   integer, parameter, public :: OBS_DAT = OBS_TEC+1 ! observation date YYYYMMD
-   integer, parameter, public :: OBS_ETM = OBS_DAT+1 ! observation time HHMM
-   integer, parameter, public :: OBS_NLV = OBS_ETM+1 ! number of data at this location
-   integer, parameter, public :: OBS_PAS = OBS_NLV+1 ! batch no. in sequential analysis
-   integer, parameter, public :: OBS_REG = OBS_PAS+1 ! region number in the batch
-   integer, parameter, public :: OBS_IP  = OBS_REG+1 ! number of mpi processors
-   integer, parameter, public :: OBS_IPF = OBS_IP+1  ! mpi task id for file
-   integer, parameter, public :: OBS_IPC = OBS_IPF+1 ! mpi task id for column/obsspacedata
-   integer, parameter, public :: OBS_IPT = OBS_IPC+1 ! mpi task id for latlontile
-   integer, parameter, public :: OBS_ST1 = OBS_IPT+1 ! header level status/rejection flag
-   integer, parameter, public :: OBS_IDO = OBS_ST1+1 ! (absolutely) unique station id no.
-   integer, parameter, public :: OBS_IDF = OBS_IDO+1 ! id. no. of observation-source file
-   integer, parameter, public :: OBS_GQF = OBS_IDF+1 ! iasi GQISFLAGQUAL
-   integer, parameter, public :: OBS_GQL = OBS_GQF+1 ! iasi GQISQUALINDEXLOC
-   integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
-   integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
-   integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
-   integer, parameter, public :: OBS_SWQ1= OBS_ROQF+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWQ2= OBS_SWQ1+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWMT= OBS_SWQ2+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWLS= OBS_SWMT+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWGA= OBS_SWLS+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_SWHA= OBS_SWGA+1! QUALITY VALUES FOR SW (AMV) DATA
-   integer, parameter, public :: OBS_CHM = OBS_SWHA+1! BUFR code (table 08046) of constituent type (for the CH family)
-   integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
-   integer, parameter, public :: OBS_PRFL= OBS_FOV+1   ! profile id. number
-   integer, parameter, public :: OBS_PHAS = OBS_PRFL+1 ! phase of flight
+   integer, parameter, public :: OBS_ONM = OBS_RLN+1  ! ordered, station id number
+   integer, parameter, public :: OBS_INS = OBS_ONM+1  ! instrument ID  
+   integer, parameter, public :: OBS_OTP = OBS_INS+1  ! observation Type (file index)
+   integer, parameter, public :: OBS_ITY = OBS_OTP+1  ! code: instrument & retrieval type
+   integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code 
+   integer, parameter, public :: OBS_TEC = OBS_SAT+1  ! satellite processing technique
+   integer, parameter, public :: OBS_DAT = OBS_TEC+1  ! observation date YYYYMMD
+   integer, parameter, public :: OBS_ETM = OBS_DAT+1  ! observation time HHMM
+   integer, parameter, public :: OBS_NLV = OBS_ETM+1  ! number of data at this location
+   integer, parameter, public :: OBS_PAS = OBS_NLV+1  ! batch no. in sequential analysis
+   integer, parameter, public :: OBS_REG = OBS_PAS+1  ! region number in the batch
+   integer, parameter, public :: OBS_IP  = OBS_REG+1  ! number of mpi processors
+   integer, parameter, public :: OBS_IPF = OBS_IP+1   ! mpi task id for file
+   integer, parameter, public :: OBS_IPC = OBS_IPF+1  ! mpi task id for column/obsspacedata
+   integer, parameter, public :: OBS_IPT = OBS_IPC+1  ! mpi task id for latlontile
+   integer, parameter, public :: OBS_ST1 = OBS_IPT+1  ! header level status/rejection flag
+   integer, parameter, public :: OBS_IDO = OBS_ST1+1  ! (absolutely) unique station id no.
+   integer, parameter, public :: OBS_IDF = OBS_IDO+1  ! id. no. of observation-source file
+   integer, parameter, public :: OBS_GQF = OBS_IDF+1  ! iasi GQISFLAGQUAL
+   integer, parameter, public :: OBS_GQL = OBS_GQF+1  ! iasi GQISQUALINDEXLOC
+   integer, parameter, public :: OBS_NCO2= OBS_GQL+1  ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
+   integer, parameter, public :: OBS_STYP= OBS_NCO2+1 ! surface type in obs file (0,1,2)
+   integer, parameter, public :: OBS_ROQF= OBS_STYP+1 ! QUALITY FLAGS FOR RADIO OCCULTATION DATA
+   integer, parameter, public :: OBS_SWQ1= OBS_ROQF+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWQ2= OBS_SWQ1+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWMT= OBS_SWQ2+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWLS= OBS_SWMT+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWGA= OBS_SWLS+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_SWHA= OBS_SWGA+1 ! QUALITY VALUES FOR SW (AMV) DATA
+   integer, parameter, public :: OBS_CHM = OBS_SWHA+1 ! BUFR code (table 08046) of constituent type (for the CH family)
+   integer, parameter, public :: OBS_FOV = OBS_CHM+1  ! field of view 
+   integer, parameter, public :: OBS_PRFL= OBS_FOV+1  ! profile id. number
+   integer, parameter, public :: OBS_PHAS= OBS_PRFL+1 ! phase of flight
    integer, parameter, public :: OBS_ORI = OBS_PHAS+1 ! originating centre code
+   integer, parameter, public :: OBS_LCH = OBS_ORI+1  ! launch time (hhmm)
+   integer, parameter, public :: OBS_RTP = OBS_LCH+1  ! radiosonde type code
+   integer, parameter, public :: OBS_HDD = OBS_RTP+1  ! date in burp header
+   integer, parameter, public :: OBS_HDT = OBS_HDD+1  ! time in burp header
+   integer, parameter, public :: OBS_TFLG= OBS_HDT+1  ! flag for hi-res time element
+   integer, parameter, public :: OBS_LFLG= OBS_TFLG+1 ! flag for hi-res lat element
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_ORI
+   integer, parameter :: NHDR_INT_END = OBS_LFLG
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -371,7 +377,7 @@ module ObsColumnNames_mod
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
-         'PRFL','PHAS','ORI' /)
+         'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG','LFLG' /)
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1437,6 +1443,7 @@ module ObsSpaceData_mod
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
    public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
+   public :: OBS_LCH, OBS_RTP, OBS_HDD, OBS_HDT, OBS_TFLG, OBS_LFLG
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ

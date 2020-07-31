@@ -40,17 +40,69 @@ module thinning_mod
   private
 
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
-  public :: thn_thinAircraft, thn_thinScat, thn_thinSatWinds, thn_thinAladin
-  public :: thn_thinGbGps, thn_thinGpsRo
+  public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
+  public :: thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
 
   integer, external :: get_max_rss
 
 contains
 
   !--------------------------------------------------------------------------
+  ! thn_thinRaobs
+  !--------------------------------------------------------------------------
+  subroutine thn_thinRaobs(obsdat)
+    ! :Purpose: Main thinning subroutine Radiosonde obs.
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    logical :: verticalThinningES !
+    logical :: ecmwfRejetsES      !
+    logical :: rejectTdZeroC      !
+
+    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES, rejectTdZeroC
+
+    ! return if no aircraft obs
+    if (.not. obs_famExist(obsdat,'UA')) return
+
+    ! Default values for namelist variables
+    verticalThinningES = .true.
+    ecmwfRejetsES = .true.
+    rejectTdZeroC = .true.
+
+    ! Read the namelist for Radiosonde observations (if it exists)
+    if (utl_isNamelistPresent('thin_raobs','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error opening file flnml')
+      read(nulnam,nml=thin_raobs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
+      if (mpi_myid == 0) write(*,nml=thin_raobs)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
+      write(*,*) '               The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=thin_raobs)
+    end if
+
+    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+
+  end subroutine thn_thinRaobs
+
+  !--------------------------------------------------------------------------
   ! thn_thinAircraft
   !--------------------------------------------------------------------------
   subroutine thn_thinAircraft(obsdat)
+    ! :Purpose: Main thinning subroutine for aircraft obs.
+
     implicit none
 
     ! Arguments:
@@ -77,7 +129,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
       read(nulnam,nml=thin_aircraft,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
       if (mpi_myid == 0) write(*,nml=thin_aircraft)
       ierr = fclos(nulnam)
     else
@@ -95,6 +147,8 @@ contains
   ! thn_thinSatWinds
   !--------------------------------------------------------------------------
   subroutine thn_thinSatWinds(obsdat)
+    ! :Purpose: Main thinning subroutine for satellite winds (AMVs).
+
     implicit none
 
     ! Arguments:
@@ -123,7 +177,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error opening file flnml')
       read(nulnam,nml=thin_satwind,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mpi_myid == 0) write(*,nml=thin_satwind)
       ierr = fclos(nulnam)
     else
@@ -173,7 +227,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error opening file flnml')
       read(nulnam,nml=thin_gpsro,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
       if (mpi_myid == 0) write(*,nml=thin_gpsro)
       ierr = fclos(nulnam)
     else
@@ -223,7 +277,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error opening file flnml')
       read(nulnam,nml=thin_gbgps,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mpi_myid == 0) write(*,nml=thin_gbgps)
       ierr = fclos(nulnam)
     else
@@ -241,6 +295,8 @@ contains
   ! thn_thinAladin
   !--------------------------------------------------------------------------
   subroutine thn_thinAladin(obsdat)
+    ! :Purpose: Main thinning subroutine for Aladin winds obs.
+
     implicit none
 
     ! Arguments:
@@ -267,7 +323,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinAladin: Error opening file flnml')
       read(nulnam,nml=thin_aladin,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading thin_aladin namelist')
       if (mpi_myid == 0) write(*,nml=thin_aladin)
       ierr = fclos(nulnam)
     else
@@ -287,6 +343,8 @@ contains
   ! thn_thinCSR
   !--------------------------------------------------------------------------
   subroutine thn_thinCSR(obsdat)
+    ! :Purpose: Main thinning subroutine for geostationary radiances (CSR).
+
     implicit none
 
     ! Arguments:
@@ -315,7 +373,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinCSR: Error opening file flnml')
       read(nulnam,nml=thin_csr,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading thin_csr namelist')
       if (mpi_myid == 0) write(*,nml=thin_csr)
       ierr = fclos(nulnam)
     else
@@ -335,6 +393,8 @@ contains
   ! thn_thinScat
   !--------------------------------------------------------------------------
   subroutine thn_thinScat(obsdat)
+    ! :Purpose: Main thinning subroutine for scatterometer winds.
+
     implicit none
 
     ! Arguments:
@@ -363,7 +423,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinScat: Error opening file flnml')
       read(nulnam,nml=thin_scat,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading thin_scat namelist')
       if (mpi_myid == 0) write(*,nml=thin_scat)
       ierr = fclos(nulnam)
     else
@@ -383,6 +443,8 @@ contains
   ! thn_thinTovs
   !--------------------------------------------------------------------------
   subroutine thn_thinTovs(obsdat)
+    ! :Purpose: Main thinning subroutine for AMSU and ATMS obs.
+
     implicit none
 
     ! Arguments:
@@ -393,15 +455,17 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    integer :: delta    ! 
+    integer :: delta    !
+    integer :: deltrad
 
-    namelist /thin_tovs/delta
+    namelist /thin_tovs/delta, deltrad
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
 
     ! Default namelist values
-    delta = 100
+    delta   = 100
+    deltrad = 75
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
@@ -409,7 +473,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
       read(nulnam,nml=thin_tovs,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading thin_tovs namelist')
       if (mpi_myid == 0) write(*,nml=thin_tovs)
       ierr = fclos(nulnam)
     else
@@ -420,14 +484,14 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('amsub'), &
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('atms'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, codtyp_get_codtyp('mwhs2'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinTovs
@@ -436,6 +500,8 @@ contains
   ! thn_thinHyper
   !--------------------------------------------------------------------------
   subroutine thn_thinHyper(obsdat)
+    ! :Purpose: Main thinning subroutine for hyperspectral infrared radiances.
+
     implicit none
 
     ! Arguments:
@@ -467,7 +533,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
       read(nulnam,nml=thin_hyper,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading namelist')
+      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading thin_hyper namelist')
       if (mpi_myid == 0) write(*,nml=thin_hyper)
       ierr = fclos(nulnam)
     else
@@ -623,6 +689,1779 @@ contains
   end subroutine thn_gpsroVertical
 
   !--------------------------------------------------------------------------
+  ! thn_radiosonde
+  !--------------------------------------------------------------------------
+  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+    !
+    ! :Purpose: Original method for thinning radiosonde data vertically.
+    !           We assume that each vertical level is stored in obsSpaceData
+    !           with a separate headerIndex. That is, the 4D representation.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    logical,          intent(in)    :: verticalThinningES
+    logical,          intent(in)    :: ecmwfRejetsES
+    logical,          intent(in)    :: rejectTdZeroC
+
+    ! Locals:
+    type(struct_hco), pointer :: hco_sfc
+    type(struct_vco), pointer :: vco_sfc
+    type(struct_gsv)          :: stateVectorPsfc
+    integer :: fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
+    integer :: ierr, nulnam, numLevStn, numLevStnMpi, countLevel, numLevStnMax
+    integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex
+    integer :: levStnIndex, levStnIndexMpi, obsFlag
+    integer :: ig1obs, ig2obs, ig3obs, ig4obs, obsGridID
+    real(4) :: obsValue, obsOmp, obsStepIndex
+    real(4) :: zig1, zig2, zig3, zig4, zpresa, zpresb
+    real(8) :: obsStepIndex_r8
+    integer, allocatable :: obsLevOffset(:), obsType(:), obsHeadDate(:), obsHeadTime(:)
+    integer, allocatable :: obsDate(:), obsTime(:), obsLaunchTime(:), stationFlags(:)
+    integer, allocatable :: trajFlags(:,:), obsFlags(:,:)
+    integer, allocatable :: obsLevOffsetMpi(:), obsHeadDateMpi(:)
+    integer, allocatable :: obsLaunchTimeMpi(:), stationFlagsMpi(:)
+    integer, allocatable :: trajFlagsMpi(:,:), obsFlagsMpi(:,:)
+    integer, allocatable :: procIndexes(:), procIndexesMpi(:)
+    real(4), allocatable :: obsLat(:), obsLon(:), surfPresInterp(:,:)
+    real(4), allocatable :: obsValues(:,:), oMinusB(:,:), presInterp(:,:)
+    real(4), allocatable :: obsLatMpi(:), obsLonMpi(:)
+    real(4), allocatable :: obsValuesMpi(:,:), oMinusBMpi(:,:)
+    real(4), pointer     :: surfPressure(:,:,:,:)
+    character(len=9), allocatable :: stnId(:), stnIdMpi(:)
+    character(len=20) :: trlmFileName
+    character(len=2)  :: fileNumber
+    logical :: upperAirObs
+    integer :: countAcc_dd, countRej_dd, countAccMpi_dd, countRejMpi_dd
+    integer :: countAcc_ff, countRej_ff, countAccMpi_ff, countRejMpi_ff
+    integer :: countAcc_tt, countRej_tt, countAccMpi_tt, countRejMpi_tt
+    integer :: countAcc_es, countRej_es, countAccMpi_es, countRejMpi_es
+
+    ! Local parameters:
+    integer, parameter :: numVars=5, numTraj=2, maxNumLev=300
+
+    ! Namelist variables:
+    real(8) :: rprefinc
+    real(8) :: rptopinc
+    real(8) :: rcoefinc
+    real(4) :: vlev(maxNumLev)
+    integer :: numlev
+    namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
+
+    ! Check if any observations to be treated and count number of "profiles"
+    numLevStn = 0
+    numStation = 0
+    lastProfileIndex = -1
+    call obs_set_current_header_list(obsdat,'UA')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+
+      ! skip if this headerIndex doesn't contain upper air obs
+      upperAirObs = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY0: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY0
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu, bufr_nevv, bufr_nett, bufr_nees)
+          upperAirObs = .true.
+        end select
+      end do BODY0
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      if (.not. upperAirObs) cycle HEADER0
+
+      numLevStn = numLevStn + 1
+
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      if (profileIndex /= lastProfileIndex) then
+        lastProfileIndex = profileIndex
+        numStation = numStation + 1
+      end if
+
+    end do HEADER0
+
+    call rpn_comm_allReduce(numLevStn, numLevStnMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (numLevStnMpi == 0) then
+      write(*,*) 'thn_radiosonde: no UA obs observations present'
+      return
+    end if
+
+    call rpn_comm_allReduce(numStation, numStationMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+
+    write(*,*) 'thn_radiosonde: number of obs initial = ', &
+               numLevStn, numLevStnMpi
+    write(*,*) 'thn_radiosonde: number of profiles    = ', &
+               numStation, numStationMpi
+
+    ! Allocate some quanitities needed for each profile
+    allocate(obsLevOffset(numStation+1))
+    allocate(obsType(numStation))
+    allocate(obsHeadDate(numStation))
+    allocate(obsHeadTime(numStation))
+    allocate(obsDate(numStation))
+    allocate(obsTime(numStation))
+    allocate(obsLaunchTime(numStation))
+    allocate(stationFlags(numStation))
+    allocate(obsLat(numStation))
+    allocate(obsLon(numStation))
+    allocate(stnId(numStation))
+    allocate(presInterp(numStation,maxNumLev))
+    allocate(trajFlags(numTraj,numLevStn))
+    allocate(obsFlags(numVars,numLevStn))
+    allocate(obsValues(numVars,numLevStn))
+    allocate(oMinusB(numVars,numLevStn))
+    obsLevOffset(:) = 0
+    obsDate(:) = -1
+    trajFlags(:,:) = -1
+    obsFlags(:,:) = 0
+    obsValues(:,:) = -999.0
+    oMinusB(:,:) = -999.0
+
+    ! Fill in the arrays for each profile
+    levStnIndex = 0
+    stationIndex = 0
+    lastProfileIndex = -1
+    numLevStnMax = -1
+    call obs_set_current_header_list(obsdat,'UA')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+
+      ! skip if this headerIndex doesn't contain upper air obs
+      upperAirObs = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu, bufr_nevv, bufr_nett, bufr_nees)
+          upperAirObs = .true.
+        end select
+      end do BODY1
+      if (.not. upperAirObs) cycle HEADER1
+
+      levStnIndex = levStnIndex + 1
+
+      profileIndex = obs_headElem_i(obsdat, obs_prfl, headerIndex)
+      if (profileIndex /= lastProfileIndex) then
+        lastProfileIndex = profileIndex
+        stationIndex = stationIndex + 1
+        countLevel = 0
+      end if
+
+      countLevel = countLevel + 1
+      obsLevOffset(stationIndex+1) = obsLevOffset(stationIndex) + countLevel
+
+      if (countLevel > numLevStnMax) numLevStnMax = countLevel
+
+      ! Get some information from the first header in this profile
+      if (countLevel == 1) then
+        obsDate(stationIndex)  = obs_headElem_i(obsdat,obs_dat,headerIndex)
+        obsTime(stationIndex)  = obs_headElem_i(obsdat,obs_etm,headerIndex)
+        obsLat(stationIndex)   = obs_headElem_r(obsdat,obs_lat,headerIndex) * &
+                                 MPC_DEGREES_PER_RADIAN_R8
+        obsLon(stationIndex)   = obs_headElem_r(obsdat,obs_lon,headerIndex) * &
+                                 MPC_DEGREES_PER_RADIAN_R8
+        obsLat(stationIndex)   = 0.01*nint(100.0*obsLat(stationIndex))
+        obsLon(stationIndex)   = 0.01*nint(100.0*obsLon(stationIndex))
+      end if
+      obsHeadDate(stationIndex)   = obs_headElem_i(obsdat,obs_hdd,headerIndex)
+      obsHeadTime(stationIndex)   = obs_headElem_i(obsdat,obs_hdt,headerIndex)
+      obsLaunchTime(stationIndex) = obs_headElem_i(obsdat,obs_lch,headerIndex)
+      if (obsLaunchTime(stationIndex) == mpc_missingValue_int) then
+        obsLaunchTime(stationIndex) = obsHeadTime(stationIndex)
+      end if
+      obsType(stationIndex)      = obs_headElem_i(obsdat,obs_rtp,headerIndex)
+      stationFlags(stationIndex) = obs_headElem_i(obsdat,obs_st1,headerIndex)
+      stnId(stationIndex)        = obs_elem_c(obsdat,'STID',headerIndex)
+
+      trajFlags(1,levStnIndex) = obs_headElem_i(obsdat,obs_tflg,headerIndex)
+      trajFlags(2,levStnIndex) = obs_headElem_i(obsdat,obs_lflg,headerIndex)
+
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY2
+
+        obsFlag  = obs_bodyElem_i(obsdat,obs_flg,bodyIndex)
+        obsValue = obs_bodyElem_r(obsdat,obs_var,bodyIndex)
+        obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_nedd)
+          obsFlags(1,levStnIndex)  = obsFlag
+          obsValues(1,levStnIndex) = obsValue
+        case (bufr_neuu)
+          oMinusB(1,levStnIndex)   = obsOmp
+        case (bufr_neff)
+          obsFlags(2,levStnIndex)  = obsFlag
+          obsValues(2,levStnIndex) = obsValue
+        case (bufr_nevv)
+          oMinusB(2,levStnIndex)   = obsOmp
+        case (bufr_nett)
+          obsFlags(3,levStnIndex)  = obsFlag
+          obsValues(3,levStnIndex) = obsValue
+          oMinusB(3,levStnIndex)   = obsOmp
+        case (bufr_nees)
+          obsFlags(4,levStnIndex)  = obsFlag
+          obsValues(4,levStnIndex) = obsValue
+          oMinusB(4,levStnIndex)   = obsOmp
+        end select
+        obsValues(5,levStnIndex) = 0.01 * obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+      end do BODY2
+
+    end do HEADER1
+
+    ! Default namelist values
+    numlev = 80
+    vlev(:) = -1
+    rprefinc = 0.0d0
+    rptopinc = 0.0d0
+    rcoefinc = 0.0d0
+    ! Read the namelist defining the vertical levels
+    if (utl_isNamelistPresent('namgem','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
+      read(nulnam,nml=namgem,iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
+      if (mpi_myid == 0) write(*,nml=namgem)
+      ierr = fclos(nulnam)
+    else
+      call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
+    end if
+
+    ! Read the trial surface pressure
+    nullify(vco_sfc)
+    nullify(hco_sfc)
+    trlmFileName = './trlm_01'
+    call vco_setupFromFile(vco_sfc, trlmFileName)
+    call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
+    call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_sfc, vco_sfc, &
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
+                       dataKind_opt=4, varNames_opt=(/'P0'/), &
+                       hInterpolateDegree_opt='LINEAR' )
+    do stepIndex = 1, tim_nstepobs
+      write(fileNumber,'(I2.2)') stepIndex
+      trlmFileName = './trlm_' // trim(fileNumber)
+      call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true. )
+    end do
+    call gsv_getField(stateVectorPsfc,surfPressure)
+
+    ! Setup the interpolation to obs locations of surface pressure
+    zig1 = 0.0
+    zig2 = 0.0
+    zig3 = 1.0
+    zig4 = 1.0
+    ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
+    call cxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
+    obsGridID = ezgdef(numStation,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,obsLon,obsLat)
+    ierr = ezdefset(obsGridID,hco_sfc%ezScintId)
+
+    ! Do the interpolation of surface pressure to obs locations
+    allocate(surfPresInterp(numStation,tim_nstepobs))
+    do stepIndex = 1, tim_nstepobs
+      ierr = ezsint(surfPresInterp(:,stepIndex),surfPressure(:,:,1,stepIndex))
+    end do
+    call gsv_deallocate(stateVectorPsfc)
+
+    ! Compute pressure profile at each obs location
+    do stationIndex = 1, numStation
+
+      ! Calculate the stepIndex corresponding to the launch time
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate(stationIndex), obsTime(stationIndex), tim_nstepobs)
+      obsStepIndex = nint(obsStepIndex_r8)
+
+      ! Calculate pressure levels for each station based on GEM3 vertical coordinate
+      do levIndex  = 1, numLev
+        zpresb = ((vlev(levIndex) - rptopinc/rprefinc) /  &
+                 (1.0-rptopinc/rprefinc))**rcoefinc
+        zpresa = rprefinc * (vlev(levIndex)-zpresb)
+        presInterp(stationIndex,levIndex) =  &
+             0.01 * (zpresa + zpresb*surfPresInterp(stationIndex,obsStepIndex))
+      end do
+
+    end do
+
+    ! communicate several arrays to all MPI tasks for raobs_check_duplicated_stations
+    allocate(obsLevOffsetMpi(numStationMpi+1))
+    allocate(obsHeadDateMpi(numStationMpi))
+    allocate(obsLaunchTimeMpi(numStationMpi))
+    allocate(stationFlagsMpi(numStationMpi))
+    allocate(obsLatMpi(numStationMpi))
+    allocate(obsLonMpi(numStationMpi))
+    allocate(trajFlagsMpi(numTraj,numLevStnMpi))
+    allocate(obsFlagsMpi(numVars,numLevStnMpi))
+    allocate(obsValuesMpi(numVars,numLevStnMpi))
+    allocate(oMinusBMpi(numVars,numLevStnMpi))
+    allocate(stnIdMpi(numStationMpi))
+
+    call intArrayToMpi(obsLevOffset, obsLevOffsetMpi, is_obsLevOffset_opt=.true.)
+    call intArrayToMpi(obsHeadDate, obsHeadDateMpi)
+    call intArrayToMpi(obsLaunchTime, obsLaunchTimeMpi)
+    call intArrayToMpi(stationFlags, stationFlagsMpi)
+    call realArrayToMpi(obsLat, obsLatMpi)
+    call realArrayToMpi(obsLon, obsLonMpi)
+    do varIndex = 1, numTraj
+      call intArrayToMpi(trajFlags(varIndex,:), trajFlagsMpi(varIndex,:))
+    end do
+    do varIndex = 1, numVars
+      call intArrayToMpi(obsFlags(varIndex,:), obsFlagsMpi(varIndex,:))
+      call realArrayToMpi(obsValues(varIndex,:), obsValuesMpi(varIndex,:))
+      call realArrayToMpi(oMinusB(varIndex,:), oMinusBMpi(varIndex,:))
+    end do
+    call stringArrayToMpi(stnId,stnIdMpi)
+
+    ! set stnIdMpi to 'NOT_VALID' for rejected duplicate stations
+    call raobs_check_duplicated_stations( stnIdMpi, obsLevOffsetMpi, obsLatMpi, obsLonMpi, &
+                                          obsHeadDateMpi, trajFlagsMpi, &
+                                          obsFlagsMpi, obsValuesMpi, oMinusBMpi, &
+                                          obsLaunchTimeMpi, stationFlagsMpi, &
+                                          numVars, numStationMpi )
+
+    ! modify obs flags based on stnIdMpi
+    do stationIndexMpi = 1, numStationMpi
+      if (stnIdMpi(stationIndexMpi) == 'NOT_VALID') then
+        do levStnIndex = obsLevOffsetMpi(stationIndexMpi)+1, &
+                         obsLevOffsetMpi(stationIndexMpi+1)
+          do varIndex = 1, numVars
+            obsFlagsMpi(varIndex,levStnIndex) =  &
+                 ibset(obsFlagsMpi(varIndex,levStnIndex),11)
+          end do
+        end do
+      end if
+    end do
+
+    ! copy global mpi flags to local copy
+    allocate(procIndexes(numStation))
+    allocate(procIndexesMpi(numStationMpi))
+    procIndexes(:) = mpi_myid
+    call intArrayToMpi(procIndexes, procIndexesMpi)
+    levStnIndex = 0
+    do stationIndexMpi = 1, numStationMpi
+      if (procIndexesMpi(stationIndexMpi) == mpi_myid) then
+        do levStnIndexMpi = obsLevOffsetMpi(stationIndexMpi)+1, &
+                            obsLevOffsetMpi(stationIndexMpi+1)
+          levStnIndex = levStnIndex + 1
+          obsFlags(:,levStnIndex) = obsFlagsMpi(:,levStnIndexMpi)
+        end do
+      end if
+    end do
+    deallocate(procIndexes)
+    deallocate(procIndexesMpi)
+
+    call raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numlev, numLevStn, &
+                               numStation, numLevStnMax, obsLevOffset )
+
+    if ( verticalThinningES ) then
+      call raobs_thinning_es( obsFlags, obsValues, numLevStn, numStation, &
+                              numLevStnMax, obsLevOffset )
+    end if
+
+    if ( ecmwfRejetsES ) then
+      call raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numLevStn, &
+                                     numStation, obsLevOffset )
+    end if
+
+    countAcc_dd=0;  countRej_dd=0
+    countAcc_ff=0;  countRej_ff=0
+    countAcc_tt=0;  countRej_tt=0
+    countAcc_es=0;  countRej_es=0
+    do stationIndex = 1, numStation
+      do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+        if (btest(obsFlags(1,levStnIndex),11)) then
+          countRej_dd = countRej_dd + 1
+        else
+          countAcc_dd = countAcc_dd + 1
+        end if
+        if (btest(obsFlags(2,levStnIndex),11)) then
+          countRej_ff = countRej_ff + 1
+        else
+          countAcc_ff = countAcc_ff + 1
+        end if
+        if (btest(obsFlags(3,levStnIndex),11)) then
+          countRej_tt = countRej_tt + 1
+        else
+          countAcc_tt = countAcc_tt + 1
+        end if
+        if (btest(obsFlags(4,levStnIndex),11) .or. btest(obsFlags(4,levStnIndex),8)) then
+          countRej_es = countRej_es + 1
+        else
+          countAcc_es = countAcc_es + 1
+        end if
+      end do
+    end do
+
+    call rpn_comm_allReduce(countRej_dd, countRejMpi_dd, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_ff, countRejMpi_ff, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_tt, countRejMpi_tt, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countRej_es, countRejMpi_es, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_dd, countAccMpi_dd, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_ff, countAccMpi_ff, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_tt, countAccMpi_tt, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countAcc_es, countAccMpi_es, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+
+    write(*,*) 'DD Rej/Acc = ',countRejMpi_dd, countAccMpi_dd
+    write(*,*) 'FF Rej/Acc = ',countRejMpi_ff, countAccMpi_ff
+    write(*,*) 'TT Rej/Acc = ',countRejMpi_tt, countAccMpi_tt
+    write(*,*) 'ES Rej/Acc = ',countRejMpi_es, countAccMpi_es
+
+    ! Replace obs flags in obsSpaceData with obsFlags
+    levStnIndex = 0
+    call obs_set_current_header_list(obsdat,'UA')
+    HEADER2: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER2
+
+      ! skip if this headerIndex doesn't contain upper air obs
+      upperAirObs = .false.
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY3: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY3
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu, bufr_nevv, bufr_nett, bufr_nees)
+          upperAirObs = .true.
+        end select
+      end do BODY3
+      if (.not. upperAirObs) cycle HEADER2
+
+      levStnIndex = levStnIndex + 1
+
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY4: do 
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY4
+
+        select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
+        case (bufr_neuu)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, obsFlags(1,levStnIndex))
+        case (bufr_nevv)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, obsFlags(2,levStnIndex))
+        case (bufr_nett)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, obsFlags(3,levStnIndex))
+        case (bufr_nees)
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, obsFlags(4,levStnIndex))
+        end select
+      end do BODY4
+
+    end do HEADER2
+
+    ! Deallocate arrays
+    deallocate(surfPresInterp)
+    deallocate(obsLevOffset)
+    deallocate(obsType)
+    deallocate(obsHeadDate)
+    deallocate(obsHeadTime)
+    deallocate(obsDate)
+    deallocate(obsTime)
+    deallocate(obsLaunchTime)
+    deallocate(stationFlags)
+    deallocate(obsLat)
+    deallocate(obsLon)
+    deallocate(stnId)
+    deallocate(presInterp)
+    deallocate(trajFlags)
+    deallocate(obsFlags)
+    deallocate(obsValues)
+    deallocate(oMinusB)
+    deallocate(obsLevOffsetMpi)
+    deallocate(obsHeadDateMpi)
+    deallocate(obsLaunchTimeMpi)
+    deallocate(stationFlagsMpi)
+    deallocate(obsLatMpi)
+    deallocate(obsLonMpi)
+    deallocate(trajFlagsMpi)
+    deallocate(obsFlagsMpi)
+    deallocate(obsValuesMpi)
+    deallocate(oMinusBMpi)
+    deallocate(stnIdMpi)
+
+  end subroutine thn_radiosonde
+
+  !---------------------------------------------------------------------
+  ! Following are several subroutines needed by thn_radiosonde
+  !---------------------------------------------------------------------
+
+  !--------------------------------------------------------------------------
+  ! stringArrayToMpi
+  !--------------------------------------------------------------------------
+  subroutine stringArrayToMpi(array, arrayMpi)
+    ! :Purpose: Do the equivalent of mpi_allgatherv for a string array
+    
+    implicit none
+    character(len=*) :: array(:)
+    character(len=*) :: arrayMpi(:)
+
+    integer :: ierr, procIndex, arrayIndex, charIndex, lenString
+    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    integer, allocatable :: stringInt(:), stringIntMpi(:)
+
+    nsize = size(array)
+    call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
+                             allnsize, 1, 'mpi_integer', &
+                             'GRID', ierr )
+    nsizeMpi = sum(allnsize(:))
+
+    allocate(stringInt(nsize))
+    allocate(stringIntMpi(nsizeMpi))
+
+    lenString = len(array(1))
+    do charIndex = 1, lenString
+      do arrayIndex = 1, nsize
+        stringInt(arrayIndex) = iachar(array(arrayIndex)(charIndex:charIndex))
+      end do
+
+      call intArrayToMpi(stringInt, stringIntMpi)
+
+      do arrayIndex = 1, nsizeMpi
+        arrayMpi(arrayIndex)(charIndex:charIndex) = achar(stringIntMpi(arrayIndex))
+      end do
+    end do
+
+    deallocate(stringInt)
+    deallocate(stringIntMpi)
+    
+  end subroutine stringArrayToMpi
+
+  !--------------------------------------------------------------------------
+  ! intArrayToMpi
+  !--------------------------------------------------------------------------
+  subroutine intArrayToMpi(array, arrayMpi, is_obsLevOffset_opt)
+    ! :Purpose: Do the equivalent of mpi_allgatherv for an integer array,
+    !           but with special treatment if array of obsLevOffset.
+
+    implicit none
+    integer :: array(:)
+    integer :: arrayMpi(:)
+    logical, optional :: is_obsLevOffset_opt
+
+    integer :: ierr, procIndex, arrayIndex
+    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    logical :: is_obsLevOffset
+    integer, allocatable :: numLevels(:), numLevelsMpi(:)
+
+    if (present(is_obsLevOffset_opt)) then
+      is_obsLevOffset = is_obsLevOffset_opt
+    else
+      is_obsLevOffset = .false.
+    end if
+
+    if (is_obsLevOffset) then
+
+      ! special treatment is requirement for the variable "obsLevOffset"
+
+      nsize = size(array) - 1
+      call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
+                               allnsize, 1, 'mpi_integer', &
+                               'GRID', ierr )
+      nsizeMpi = sum(allnsize(:))
+
+      if ( mpi_myid == 0 ) then
+        displs(1) = 0
+        do procIndex = 2, mpi_nprocs
+          displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
+        end do
+      else
+        displs(:) = 0
+      end if
+
+      allocate(numLevels(nsize))
+      allocate(numLevelsMpi(nsizeMpi))
+      do arrayIndex = 1, nsize
+        numLevels(arrayIndex) = array(arrayIndex+1) - array(arrayIndex)
+      end do
+      call rpn_comm_gatherv( numLevels   , nsize, 'mpi_integer', &
+                             numLevelsMpi, allnsize, displs, 'mpi_integer',  &
+                             0, 'GRID', ierr )
+
+      call rpn_comm_bcast(numLevelsMpi, nsizeMpi, 'mpi_integer',  &
+                          0, 'GRID', ierr)
+      arrayMpi(1) = 0
+      do arrayIndex = 1, nsizeMpi
+        arrayMpi(arrayIndex+1) = arrayMpi(arrayIndex) + numLevelsMpi(arrayIndex)
+      end do
+      deallocate(numLevels)
+      deallocate(numLevelsMpi)
+
+    else
+
+      nsize = size(array)
+      call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
+                               allnsize, 1, 'mpi_integer', &
+                               'GRID', ierr )
+      nsizeMpi = sum(allnsize(:))
+
+      if ( mpi_myid == 0 ) then
+        displs(1) = 0
+        do procIndex = 2, mpi_nprocs
+          displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
+        end do
+      else
+        displs(:) = 0
+      end if
+
+      call rpn_comm_gatherv( array   , nsize, 'mpi_integer', &
+                             arrayMpi, allnsize, displs, 'mpi_integer',  &
+                             0, 'GRID', ierr )
+
+      call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_integer',  &
+                          0, 'GRID', ierr)      
+    end if
+
+  end subroutine intArrayToMpi
+
+  !--------------------------------------------------------------------------
+  ! realArrayToMpi
+  !--------------------------------------------------------------------------
+  subroutine realArrayToMpi(array, arrayMpi)
+    ! :Purpose: Do the equivalent of mpi_allgatherv for a real array,
+
+    implicit none
+    real(4) :: array(:)
+    real(4) :: arrayMpi(:)
+
+    integer :: ierr, procIndex
+    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+
+    nsize = size(array)
+    call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
+                             allnsize, 1, 'mpi_integer', &
+                             'GRID', ierr )
+    nsizeMpi = sum(allnsize(:))
+
+    if ( mpi_myid == 0 ) then
+      displs(1) = 0
+      do procIndex = 2, mpi_nprocs
+        displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
+      end do
+    else
+      displs(:) = 0
+    end if
+    
+    call rpn_comm_gatherv( array   , nsize, 'mpi_real4', &
+                           arrayMpi, allnsize, displs, 'mpi_real4',  &
+                           0, 'GRID', ierr )
+
+    call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_real4',  &
+                        0, 'GRID', ierr)
+    
+  end subroutine realArrayToMpi
+
+  !--------------------------------------------------------------------------
+  ! raobs_check_duplicated_stations
+  !--------------------------------------------------------------------------
+  subroutine raobs_check_duplicated_stations ( stnId, obsLevOffset, obsLat, obsLon,  &
+                                               obsHeadDate, trajFlags, obsFlags, obsValues, &
+                                               oMinusB, obsLaunchTime, stationFlags, &
+                                               numVars, numStation )
+    ! :Purpose: Check duplicated stations and select the best TAC/BUFR profiles
+
+    implicit none
+
+    integer,           intent(in)    :: numVars, numStation
+    integer,           intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
+    real(4),           intent(in)    :: obsLat(:), obsLon(:)
+    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:)
+    integer,           intent(in)    :: trajFlags(:,:)
+    integer,           intent(in)    :: obsFlags(:,:)
+    integer,           intent(in)    :: obsLevOffset(:)
+    character (len=9), intent(inout) :: stnId(:)
+
+    logical :: condition, sameProfile, stnidNotFound
+    integer :: stationIndex, stationIndex2, stationIndex3, catIndex
+    integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex 
+    integer :: bufrStationIndex, tacStationIndex, numChecked, numStnid, numSame
+    integer, parameter :: maxNumStnid  = 5000
+    character (len=9)  :: stnidList(maxNumStnid)
+    integer            :: stationIndexList(maxNumStnid)
+    integer :: numCriteria(5), cloche(30), selectCriteria
+
+    numCriteria(:) = 0
+    cloche(:) = 0
+
+    ! Check for duplication of TAC or BUFR profiles
+
+    numDuplicateTotal = 0
+    do stationIndex = 1, numStation
+
+      if ( stnId(stationIndex) /= 'NOT_VALID' ) then
+
+        greaterNumVal = obsLevOffset(stationIndex+1) - obsLevOffset(stationIndex) + 1
+        selectStationIndex = stationIndex
+        numDuplicate = 0
+
+        ! Verify if there exists two records with the same stnid, date, time, flgs.
+        ! Keep the one with the greatest number of vertical levels
+        do stationIndex2 = stationIndex+1, numStation
+
+          if ( stnId(stationIndex2) /= 'NOT_VALID' ) then
+            condition = stnId(stationIndex2) == stnId(stationIndex) .and. &
+                        obsHeadDate(stationIndex2) == obsHeadDate(stationIndex) .and. &
+                        obsLaunchTime(stationIndex2) == obsLaunchTime(stationIndex) .and. &
+                        obsLat(stationIndex2) == obsLat(stationIndex) .and. &
+                        obsLon(stationIndex2) == obsLon(stationIndex) .and. &
+                        stationFlags(stationIndex2) == stationFlags(stationIndex)
+
+            if ( condition ) then
+              numDuplicate = numDuplicate + 1
+              if ( (obsLevOffset(stationIndex2+1) - obsLevOffset(stationIndex2) + 1) > &
+                  greaterNumVal ) then
+                greaterNumVal = obsLevOffset(stationIndex2+1) - &
+                                obsLevOffset(stationIndex2) + 1
+                selectStationIndex  = stationIndex2
+              end if
+            end if
+          end if
+
+        end do ! stationIndex2
+
+        ! Invalid all duplicated station except one with greatest number of levels
+        if (numDuplicate > 0) then
+          do stationIndex2 = stationIndex, numStation
+            if ( stnId(stationIndex2) /= 'NOT_VALID' .and. &
+                stnId(stationIndex2) == stnId(stationIndex) .and. &
+                selectStationIndex /= stationIndex2 ) then
+              write(*,'(2A20,I10,2F9.2,I10)') 'Station duplique ', stnId(stationIndex2), &
+                   obsLevOffset(stationIndex2+1)-obsLevOffset(stationIndex2), &
+                   obsLat(stationIndex2), obsLon(stationIndex2), &
+                   obsLaunchTime(stationIndex2)
+              stnId(stationIndex2) = 'NOT_VALID'
+            end if
+          end do
+          numDuplicateTotal = numDuplicateTotal + numDuplicate
+        end if
+
+      end if
+
+    end do ! stationIndex
+
+    ! Select best profile for collocated TAC or BUFR reports
+    if (mpi_myid == 0) then
+      open(unit=11, file='./selected_stations_tac_bufr.txt', status='UNKNOWN')
+    end if
+
+    numChecked = 0
+    do stationIndex = 1, numStation
+
+      if ( stnId(stationIndex) /= 'NOT_VALID' ) then
+
+        do stationIndex2 = stationIndex+1, numStation
+
+          if ( stnId(stationIndex2) /= 'NOT_VALID' ) then
+            condition = (stnId(stationIndex2) == stnId(stationIndex)) .and. &
+                        ( btest(stationFlags(stationIndex),23) .neqv. &
+                          btest(stationFlags(stationIndex2),23) )
+
+            if ( condition ) then
+
+              if (obsLaunchTime(stationIndex2) == obsLaunchTime(stationIndex)) then
+                sameProfile = .true.
+              else
+                call raobs_check_if_same_profile(stationIndex,stationIndex2, &
+                                                 obsValues,obsLevOffset,sameProfile)
+              end if
+
+              if ( sameProfile ) then
+
+                numChecked  = numChecked + 1
+
+                call raobs_compare_profiles(stationIndex, stationIndex2, &
+                                            stationFlags, trajFlags, obsFlags, obsValues, &
+                                            oMinusB, obsLevOffset, &
+                                            numVars, cloche, selectCriteria, &
+                                            selectStationIndex)
+
+                numCriteria(selectCriteria) = numCriteria(selectCriteria) + 1
+
+                bufrStationIndex = stationIndex2
+                if (      btest(stationFlags(stationIndex),23) ) bufrStationIndex = stationIndex
+                tacStationIndex  = stationIndex2
+                if ( .not.btest(stationFlags(stationIndex),23) ) tacStationIndex = stationIndex
+
+                if (mpi_myid == 0) write(11,'(A9,2F10.3,3I10)') stnId(stationIndex), &
+                     obsLat(stationIndex), obsLon(stationIndex), &
+                     obsLevOffset(bufrStationIndex+1)-obsLevOffset(bufrStationIndex)+1, &
+                     obsLevOffset(tacStationIndex+1)-obsLevOffset(tacStationIndex)+1, selectCriteria
+
+                if ( selectStationIndex == stationIndex) stnId(stationIndex2) = 'NOT_VALID'
+                if ( selectStationIndex == stationIndex2) stnId(stationIndex) = 'NOT_VALID'
+
+              end if ! sameProfile
+
+            end if ! condition 
+
+          end if ! stnId(stationIndex2) /= 'NOT_VALID'
+
+        end do ! stationIndex2
+
+      end if ! stnId(stationIndex) /= 'NOT_VALID' 
+
+    end do ! stationIndex
+
+    write(*,*)
+    write(*,*)
+    write(*,'(a30,I10)') 'nb of total duplicates '  ,numDuplicateTotal
+    write(*,'(a30,I10)') 'nb TAC vs BUFR checked'   ,numChecked
+    write(*,'(a30,I10)') 'nb not selected'          ,numCriteria(1)
+    write(*,'(a30,I10)') 'nb suspicious traj BUFR'  ,numCriteria(2)
+    write(*,'(a30,I10)') 'nb Energy higher   BUFR'  ,numCriteria(3)
+    write(*,'(a30,I10)') 'nb variables lower BUFR'  ,numCriteria(4)
+    write(*,'(a30,I10)') 'nb TAC  selected'         ,numCriteria(2) + &
+                                    numCriteria(3) + numCriteria(4)
+    write(*,'(a30,I10)') 'nb BUFR selected'         ,numCriteria(5)
+    write(*,*)
+    write(*,*)
+
+    do catIndex = 1, 29
+      write(*,'(a15,f4.2,a3,f4.2,I5)') 'nb e ratio ',(catIndex/10.)-.05,' - ', &
+                                       (catIndex/10.)+.05,cloche(catIndex)
+    end do
+    write(*,*)
+    write(*,'(a30,I5)') 'nb of energyTot(2)) very small  ',cloche(30)
+    write(*,*)
+
+    if (mpi_myid == 0) close(unit=11)
+
+    ! Check whether there is still duplications
+    numStnid = 0
+    do stationIndex = 1, numStation
+
+      if ( stnId(stationIndex) /= 'NOT_VALID' ) then
+
+        if (numStnid < maxNumStnid ) then
+          stnidNotFound=.true.
+          if ( numStnid == 0) then
+            numStnid = numStnid + 1
+            stnidList(numStnid) = stnId(stationIndex)
+            stationIndexList(numStnid) = stationIndex
+          else
+            numSame = 0
+            do stationIndex2 = 1, numStnid
+              if ( stnidList(stationIndex2) == stnId(stationIndex) ) then
+                stnidNotFound=.false.
+                numSame = numSame + 1
+                stationIndex3 = stationIndexList(stationIndex2)
+              end if
+            end do
+            if ( stnidNotFound ) then
+              numStnid = numStnid + 1
+              stnidList(numStnid) = stnId(stationIndex)
+              stationIndexList(numStnid) = stationIndex
+            else
+              write(*,*) 'Multi profiles found : ',stnId(stationIndex), &
+                   stnId(stationIndex3),numSame,stationIndex,stationIndex3, &
+                   btest(stationFlags(stationIndex),23),btest(stationFlags(stationIndex3),23)
+              write(*,'(a30,2i10,2f10.2,i10)') 'date, lch, lat lon ', &
+                   obsHeadDate(stationIndex),obsLaunchTime(stationIndex), &
+                   obsLat(stationIndex), obsLon(stationIndex), &
+                   obsLevOffset(stationIndex+1)-obsLevOffset(stationIndex)+1
+              write(*,'(a30,2i10,2f10.2,i10)') 'date, lch, lat lon ', &
+                   obsHeadDate(stationIndex3),obsLaunchTime(stationIndex3), &
+                   obsLat(stationIndex3), obsLon(stationIndex3), &
+                   obsLevOffset(stationIndex3+1)-obsLevOffset(stationIndex3)+1
+              write(*,*)
+
+            end if
+          end if
+        else
+          write(*,*) 'numStnid >= ',maxNumStnid
+          call utl_abort('raobs_check_duplicated_stations')
+        end if
+
+      end if
+
+    end do
+
+  end subroutine raobs_check_duplicated_stations
+
+  !--------------------------------------------------------------------------
+  ! raobs_check_if_same_profile
+  !--------------------------------------------------------------------------
+  subroutine raobs_check_if_same_profile( stationIndex, stationIndex2, &
+                                          obsValues, obsLevOffset, sameProfile )
+    ! :Purpose: Check if two raobs profiles are the same.
+
+    implicit none
+
+    integer, intent(in)    :: stationIndex, stationIndex2
+    real(4), intent(in)    :: obsValues(:,:)
+    integer, intent(in)    :: obsLevOffset(:)
+    logical, intent(out)   :: sameProfile
+
+    logical :: condition
+    integer :: varIndex, levIndex, levStnIndex, levStnIndex1, levStnIndex2, numSum
+    real(4) :: valSum, minDeltaP, minDeltaP1, minDeltaP2
+
+    ! Standard levels
+    integer, parameter :: numStdLevels = 16
+    real(4) :: standardLevels(numStdLevels)
+    standardLevels = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150., &
+                        100.,70.,50.,30.,20.,10./) 
+
+    valSum = 0.0
+    numSum   = 0
+
+    sameProfile = .false.
+
+    do levIndex = 1, numStdLevels
+
+      minDeltaP1 = 1000.
+      do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+        if ( abs(standardLevels(levIndex) - obsValues(5,levStnIndex)) < minDeltaP1 ) then
+          levStnIndex1 = levStnIndex
+          minDeltaP1 = abs(standardLevels(levIndex) - obsValues(5,levStnIndex))
+        end if
+      end do
+      minDeltaP2 = 1000.
+      do levStnIndex = obsLevOffset(stationIndex2)+1, obsLevOffset(stationIndex2+1)
+        if ( abs(standardLevels(levIndex) - obsValues(5,levStnIndex)) < minDeltaP2 ) then
+          levStnIndex2 = levStnIndex
+          minDeltaP2 = abs(standardLevels(levIndex) - obsValues(5,levStnIndex))
+        end if
+      end do
+
+      if ( minDeltaP1 < 1.0 .and. minDeltaP2 < 1.0 ) then
+        do varIndex = 2, 4, 2
+
+          if ( obsValues(varIndex,levStnIndex1) /= -999.0 .and. &
+               obsValues(varIndex,levStnIndex2) /= -999.0 ) then
+            valSum = valSum + abs(obsValues(varIndex,levStnIndex1) - &
+                                  obsValues(varIndex,levStnIndex2))
+            numSum = numSum + 1
+          end if
+
+        end do
+
+      end if
+
+    end do !levIndex
+
+    if (numSum > 0) then
+      if (valSum/numSum < 0.5) sameProfile = .true.
+    end if
+
+  end subroutine raobs_check_if_same_profile
+
+  !--------------------------------------------------------------------------
+  ! raobs_compare_profiles
+  !--------------------------------------------------------------------------
+  subroutine raobs_compare_profiles( stationIndex, stationIndex2, stationFlags, trajFlags, &
+                                     obsFlags, obsValues, oMinusB, obsLevOffset, numVars, &
+                                     cloche, selectCriteria, selectStationIndex )
+    ! :Purpose: Perform a comparison between two raobs profiles.
+
+    implicit none
+
+    integer,           intent(in)    :: stationIndex, stationIndex2, numVars
+    integer,           intent(in)    :: trajFlags(:,:)
+    integer,           intent(in)    :: obsFlags(:,:)
+    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:)
+    integer,           intent(in)    :: obsLevOffset(:), stationFlags(:)
+    integer,           intent(inout) :: cloche(:)
+    integer,           intent(out)   :: selectCriteria, selectStationIndex
+
+    logical :: condition, tacAndBufr, trajInfoOk
+    integer :: raobFormatIndex, varIndex, levStnIndex, levStnIndex2, catIndex
+    integer :: bufrStationIndex, tacStationIndex, countTimeFlag, countLatFlag, countTraj
+    integer :: countValues(2), thisStationIndex
+    real(4) :: presBottom, ombBottom, deltaPres, sumDeltaPres, oMinusBavg
+    real(4) :: sumEnergy, presLower, presUpper
+    real(4) :: percentTrajBad, toleranceFactor
+    real(4) :: sumEnergyVar(numVars,2), energyTot(2)
+    real(4) :: presLowerTacBufr(numVars,2), presUpperTacBufr(numVars,2)
+
+    percentTrajBad = 10.0
+    toleranceFactor     =  1.4
+    catIndex = 1
+    selectCriteria = 1
+
+    tacAndBufr       = .true.
+    trajInfoOk = .true.
+
+    if ( btest(stationFlags(stationIndex),23) .and. &
+         btest(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
+    if ( .not.btest(stationFlags(stationIndex),23) .and. &
+         .not.btest(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
+
+    if ( tacAndBufr ) then
+
+      bufrStationIndex = stationIndex2
+      if (      btest(stationFlags(stationIndex),23) ) bufrStationIndex = stationIndex
+      tacStationIndex  = stationIndex2
+      if ( .not.btest(stationFlags(stationIndex),23) ) tacStationIndex  = stationIndex
+      selectStationIndex = tacStationIndex
+
+      ! 1. Evalue si la trajectoire native est correct
+
+      if ( btest(stationFlags(bufrStationIndex),14) ) then
+
+        countTimeFlag = 0
+        countLatFlag = 0
+        countTraj = obsLevOffset(bufrStationIndex+1) - obsLevOffset(bufrStationIndex) + 1
+
+        do levStnIndex = obsLevOffset(bufrStationIndex)+1, obsLevOffset(bufrStationIndex+1)
+          if ( btest(trajFlags(1,levStnIndex),4) ) countTimeFlag = countTimeFlag + 1
+          if ( btest(trajFlags(2,levStnIndex),4) ) countLatFlag  = countLatFlag + 1
+        end do
+
+        if (100.*countTimeFlag/countTraj > percentTrajBad .or.  &
+            100.*countLatFlag/countTraj  > percentTrajBad) then
+          trajInfoOk = .false.
+          selectStationIndex = tacStationIndex
+          selectCriteria = 2
+        end if
+
+      end if
+
+      if (trajInfoOk) then
+
+        ! Cherche les pressions (bas et haut) des extremites des profils (TAC et BUFR)
+
+        do raobFormatIndex = 1, 2
+
+          if (raobFormatIndex == 1) thisStationIndex = bufrStationIndex
+          if (raobFormatIndex == 2) thisStationIndex = tacStationIndex
+
+          do varIndex = 1, 3
+
+            presLowerTacBufr(varIndex,raobFormatIndex) = 1000.0
+            do levStnIndex = obsLevOffset(thisStationIndex)+1, &
+                             obsLevOffset(thisStationIndex+1)
+              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),11)
+              if ( condition ) then
+                presLowerTacBufr(varIndex,raobFormatIndex) = obsValues(5,levStnIndex)
+                exit
+              end if
+ 
+            end do
+            presUpperTacBufr(varIndex,raobFormatIndex) = &
+                 presLowerTacBufr(varIndex,raobFormatIndex)
+ 
+            if (levStnIndex < obsLevOffset(thisStationIndex+1) ) then
+
+              do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
+
+                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),18) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),16) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),9)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),8)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),2)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),11)
+                if ( condition ) then
+                  presUpperTacBufr(varIndex,raobFormatIndex) = obsValues(5,levStnIndex2)
+                end if
+
+              end do
+
+            end if
+
+          end do !varIndex
+
+        end do !raobFormatIndex
+
+        ! Calcul de la norme energie equivalente (NE)
+
+        do raobFormatIndex = 1, 2
+
+          if (raobFormatIndex == 1) thisStationIndex = bufrStationIndex
+          if (raobFormatIndex == 2) thisStationIndex = tacStationIndex
+
+          countValues(raobFormatIndex) = 0
+
+          do varIndex = 1, 3
+
+            presLower =  presLowerTacBufr(varIndex,1)
+            if ( presLower > presLowerTacBufr(varIndex,2) ) then
+              presLower = presLowerTacBufr(varIndex,2)
+            end if
+            presUpper =  presUpperTacBufr(varIndex,1)
+            if ( presUpper < presUpperTacBufr(varIndex,2) ) then
+              presUpper = presUpperTacBufr(varIndex,2)
+            end if
+
+            sumDeltaPres = 0.0
+            sumEnergy = 0.0
+            sumEnergyVar(varIndex,raobFormatIndex) = 0.0
+
+            do levStnIndex = obsLevOffset(thisStationIndex)+1, &
+                             obsLevOffset(thisStationIndex+1)
+
+              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),11)
+
+              if ( condition ) then
+                countValues(raobFormatIndex) = countValues(raobFormatIndex) + 1
+                if ( obsValues(5,levStnIndex) <= presLower ) then
+                  presBottom = obsValues(   5,levStnIndex)
+                  ombBottom = oMinusB(varIndex,levStnIndex)
+                  exit
+                end if
+              end if
+
+            end do
+
+            if (levStnIndex < obsLevOffset(thisStationIndex+1) ) then
+
+              do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
+
+                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),18) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),16) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),9)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),8)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),2)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex2),11)
+                if ( condition ) then
+                  countValues(raobFormatIndex) = countValues(raobFormatIndex) + 1
+                  if ( obsValues(5,levStnIndex2) >= presUpper ) then
+                    deltaPres = log(presBottom) - log(obsValues(5,levStnIndex2))
+                    oMinusBavg = ( ombBottom + oMinusB(varIndex,levStnIndex2) ) / 2 
+                    sumEnergy = sumEnergy + deltaPres * oMinusBavg**2
+                    sumDeltaPres = sumDeltaPres + deltaPres
+                    presBottom = obsValues(   5,levStnIndex2)
+                    ombBottom = oMinusB(varIndex,levStnIndex2)
+                  end if
+                end if
+
+              end do
+
+            end if
+            if (sumDeltaPres > 0.) then
+              sumEnergyVar(varIndex,raobFormatIndex) = sumEnergy/sumDeltaPres
+            end if
+
+          end do ! varIndex
+
+          energyTot(raobFormatIndex) = sumEnergyVar(1,raobFormatIndex) + &
+                                       sumEnergyVar(2,raobFormatIndex) + &
+                                       (1005./300.)*sumEnergyVar(3,raobFormatIndex)
+
+        end do ! raobFormatIndex
+
+        ! 2. Choisi le profil TAC (raobFormatIndex==2) si le nombre de niveaux ou
+        !    il y a des donnees est plus grand ou egal au nombre dans le profil
+        !    BUFR (raobFormatIndex==1)
+
+        if ( countValues(2) >= countValues(1) ) then
+
+          selectStationIndex = tacStationIndex
+          selectCriteria = 4
+
+        else
+
+          ! 3. Choisi le profil BUFR si la norme energie equivalente du profil
+          !    ne depasse pas 'toleranceFactor'
+
+          if (abs(energyTot(2)) > 1.e-6) catIndex = nint(10.*energyTot(1)/energyTot(2)) + 1
+          if (catIndex > 30) catIndex = 30 
+
+          cloche(catIndex) = cloche(catIndex) + 1
+
+          if ( energyTot(1) <= toleranceFactor*energyTot(2) ) then
+
+            selectStationIndex = bufrStationIndex
+            selectCriteria = 5
+
+          else
+
+            selectStationIndex = tacStationIndex
+            selectCriteria = 3
+
+          end if
+
+        end if
+
+      end if ! trajInfoOk
+
+    else
+
+      write(*,*) 'MEME TYPE DE FICHIER' 
+
+    end if !tacAndBufr
+
+  end subroutine raobs_compare_profiles
+
+  !--------------------------------------------------------------------------
+  ! raobs_thinning_model
+  !--------------------------------------------------------------------------
+  subroutine raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numLev, &
+                                   numLevStn, numStation, numLevStnMax, obsLevOffset )
+    ! :Purpose: Perform raobs thinning by comparing with a set of model levels.
+
+    implicit none
+
+    integer,           intent(in)    :: numVars, numLev, numLevStn, numStation, numLevStnMax
+    integer,           intent(in)    :: obsLevOffset(:)
+    integer,           intent(inout) :: obsFlags(:,:)
+    real(4),           intent(in)    :: obsValues(:,:)
+    real(4),           intent(in)    :: presInterp(:,:)
+
+    logical :: condition, debug
+    integer :: stationIndex, levIndex, levStnIndex, stdLevelIndex, varIndex
+    integer :: varIndexDD, varIndexFF, varIndexPres
+    integer :: levSelectIndex, levSelectIndex2, numLevSelect, levStnIndexValid
+    integer :: numLevSelectBest, tempInt, status
+    real(4) :: presTop, presBottom, deltaPres, deltaPresMin
+    integer, allocatable :: levStnIndexList(:), numValidObs(:), listIndex(:)
+
+    ! Standard levels including 925 hPa
+    integer, parameter :: numStdLevels = 16
+    real(4) :: standardLevels(numStdLevels)
+    standardLevels(1:numStdLevels) = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150., &
+                                        100.,70.,50.,30.,20.,10./) 
+
+    varIndexDD = 1
+    varIndexFF = 2
+    varIndexPres = 5
+    debug = .false.
+
+    allocate(levStnIndexList(numLevStnMax))
+    allocate(numValidObs(numLevStnMax))
+    allocate(listIndex(numLevStnMax))
+
+    do stationIndex = 1, numStation
+
+      ! If one obsFlags is set to 0 but not the other then make the obsFlagss consistent
+      ! and obsFlags wind direction and module if one of these wind variables is missing
+
+      do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+
+        if ( obsFlags(varIndexDD,levStnIndex) == 0  .and. &
+             obsFlags(varIndexFF,levStnIndex) /= 0 ) then
+          obsFlags(varIndexDD,levStnIndex) = obsFlags(varIndexFF,levStnIndex)
+        end if
+        if ( obsFlags(varIndexDD,levStnIndex) /= 0  .and. &
+             obsFlags(varIndexFF,levStnIndex) == 0 ) then
+          obsFlags(varIndexFF,levStnIndex) = obsFlags(varIndexDD,levStnIndex)
+        end if
+
+        if ( (obsValues(varIndexDD,levStnIndex)  < 0. .and. &
+              obsValues(varIndexFF,levStnIndex) >= 0.) .or. &
+             (obsValues(varIndexDD,levStnIndex) >= 0. .and. &
+              obsValues(varIndexFF,levStnIndex)  < 0.) ) then
+          obsFlags(varIndexDD,levStnIndex) = ibset(obsFlags(varIndexDD,levStnIndex),11)
+          obsFlags(varIndexFF,levStnIndex) = ibset(obsFlags(varIndexFF,levStnIndex),11)
+        end if
+
+      end do
+
+      do levIndex = 1, numLev
+
+        ! Pressures at the bottom and top of the model layer
+
+        if (levIndex == 1) then
+          presTop = presInterp(stationIndex,levIndex)
+          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+                       presInterp(stationIndex,levIndex)) )
+        else if (levIndex == numLev) then
+          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+                       presInterp(stationIndex,levIndex)) )
+          presBottom = presInterp(stationIndex,levIndex)
+        else
+          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+                       presInterp(stationIndex,levIndex)) )
+          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+                       presInterp(stationIndex,levIndex)) )
+        end if
+
+        ! Select the observation levels between presTop and presBottom
+
+        numLevSelect = 0
+        do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+
+          if (obsValues(varIndexPres,levStnIndex) > presTop  .and. &
+              obsValues(varIndexPres,levStnIndex) <= presBottom) then
+
+            numLevSelect = numLevSelect + 1
+            levStnIndexList(numLevSelect) = levStnIndex
+            numValidObs(numLevSelect) = 0
+
+            ! numValidObs(numLevSelect) contains number of valid obs at each level selected
+
+            do varIndex = 1, numVars
+              condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),11)
+              if ( condition ) numValidObs(numLevSelect) = numValidObs(numLevSelect) + 1
+            end do
+
+          end if
+
+        end do ! levStnIndex
+
+        if ( numLevSelect > 0 ) then
+
+          ! Sort the observation levels by greatest numbers of valid observations
+
+          do levSelectIndex = 1, numLevSelect
+            listIndex(levSelectIndex) = levSelectIndex
+          end do
+          do levSelectIndex = 1, numLevSelect
+            do levSelectIndex2 = levSelectIndex, numLevSelect
+              if ( numValidObs(levSelectIndex2) > numValidObs(levSelectIndex) ) then
+                tempInt     = numValidObs(levSelectIndex)
+                numValidObs(levSelectIndex) = numValidObs(levSelectIndex2)
+                numValidObs(levSelectIndex2) = tempInt
+                tempInt     = listIndex(levSelectIndex)
+                listIndex(levSelectIndex) = listIndex(levSelectIndex2)
+                listIndex(levSelectIndex2) = tempInt 
+              end if
+            end do
+          end do
+          numLevSelectBest = 1
+          if ( numLevSelect > 1 ) then
+            do levSelectIndex = 2, numLevSelect
+              if (numValidObs(levSelectIndex) == numValidObs(1)) then
+                numLevSelectBest = numLevSelectBest + 1
+              end if
+            end do
+          end if
+
+          do varIndex = 1, numVars
+
+            levStnIndexValid = 0
+
+            ! Rule #1 : get valid the observation at the standard level if one
+            !           is found in the layer
+
+            do levSelectIndex = 1, numLevSelect
+
+              levStnIndex = levStnIndexList(levSelectIndex)
+
+              condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                   .not.btest(obsFlags(varIndex,levStnIndex),11)
+
+              do stdLevelIndex = 1, numStdLevels
+                if ( (obsValues(varIndexPres,levStnIndex) == &
+                      standardLevels(stdLevelIndex)) .and. &
+                     condition ) then
+                  levStnIndexValid = levStnIndex
+                end if
+              end do
+
+            end do ! levSelectIndex
+
+            if ( levStnIndexValid == 0 ) then
+
+              ! Rule #2 : get the closest valid observation to the model level
+              !           and most complete
+
+              deltaPresMin = presBottom - presTop
+              do levSelectIndex = 1, numLevSelectBest
+
+                levStnIndex = levStnIndexList(listIndex(levSelectIndex))
+
+                deltaPres = abs(obsValues(varIndexPres,levStnIndex) - &
+                                presInterp(stationIndex,levIndex))
+                condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),11)
+
+                if ( deltaPres < deltaPresMin .and. condition) then
+                  deltaPresMin = deltaPres
+                  levStnIndexValid = levStnIndex
+                end if
+
+              end do ! levSelectIndex
+
+            end if  ! levStnIndexValid == 0
+
+            if ( levStnIndexValid == 0 ) then
+
+              ! Rule #3 : get the closest valid observation if not previously selected
+
+              deltaPresMin = presBottom - presTop
+              do levSelectIndex = 1, numLevSelect
+
+                levStnIndex = levStnIndexList(levSelectIndex)
+
+                deltaPres = abs(obsValues(varIndexPres,levStnIndex) - &
+                                presInterp(stationIndex,levIndex))
+                condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),18) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),16) .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),9)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),8)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),2)  .and. &
+                     .not.btest(obsFlags(varIndex,levStnIndex),11)
+
+                if ( deltaPres < deltaPresMin .and. condition) then
+                  deltaPresMin = deltaPres
+                  levStnIndexValid = levStnIndex
+                end if
+
+              end do ! levSelectIndex
+
+            end if  ! levStnIndexValid == 0
+
+            ! Apply thinning obsFlags to all obs except the one on level levStnIndexValid
+
+            do levSelectIndex = 1, numLevSelect
+
+              levStnIndex = levStnIndexList(levSelectIndex)
+
+              if ( levStnIndex /= levStnIndexValid .and. &
+                   obsValues(varIndex,levStnIndex) >= 0. ) then
+                obsFlags(varIndex,levStnIndex) = ibset(obsFlags(varIndex,levStnIndex),11)
+              end if
+
+            end do
+
+          end do !varIndex
+
+        end if !numLevSelect > 0
+
+      end do !levIndex
+
+      ! Following lines for debugging purposes
+
+      if ( debug ) then
+
+        levIndex = numLev
+        presBottom = presInterp(stationIndex,levIndex)
+        write (*,*) ' '
+        write (*,'(a40,I8,a40)') '      ==================== Station no. ', &
+             stationIndex,' =============================='
+        write (*,*) ' '
+        write (*,'(a80,f10.2,i10)') 'lowest model layer-------------> ',presBottom,levIndex
+        do while(obsValues(varIndexPres,obsLevOffset(stationIndex)+1) < presBottom)
+          levIndex = levIndex - 1
+          presBottom = exp(0.5 * alog(presInterp(stationIndex,levIndex+1) * &
+                           presInterp(stationIndex,levIndex)))
+        end do
+        if (levIndex == numLev) levIndex = numLev - 1
+
+        do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+
+          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+                       presInterp(stationIndex,levIndex)) )
+          do while(obsValues(varIndexPres,levStnIndex) < presBottom)
+            write (*,'(a80,f10.2,i10)') 'model layer---------------> ',presBottom,levIndex
+            levIndex = levIndex - 1
+            presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+                         presInterp(stationIndex,levIndex)) )
+          end do
+          write (*,'(5f8.2,4i8)') obsValues(varIndexPres,levStnIndex), &
+               obsValues(1,levStnIndex), obsValues(2,levStnIndex), &
+               obsValues(3,levStnIndex), obsValues(4,levStnIndex), &
+               obsFlags(1,levStnIndex), obsFlags(2,levStnIndex), &
+               obsFlags(3,levStnIndex), obsFlags(4,levStnIndex)
+
+        end do
+
+      end if
+
+    end do !stationIndex
+
+    deallocate(levStnIndexList, numValidObs, listIndex)
+
+  end subroutine raobs_thinning_model
+
+  !--------------------------------------------------------------------------
+  ! raobs_thinning_es
+  !--------------------------------------------------------------------------
+  subroutine raobs_thinning_es( obsFlags, obsValues, numLevStn, numStation, &
+                                numLevStnMax, obsLevOffset )
+    ! :Purpose: Perform thinning of T-Td raobs observations.
+
+    implicit none
+
+    integer,           intent(in)    :: numLevStn, numStation, numLevStnMax
+    integer,           intent(in)    :: obsLevOffset(:)
+    integer,           intent(inout) :: obsFlags(:,:)
+    real(4),           intent(in)    :: obsValues(:,:)
+
+    integer, parameter  :: numLevES = 42
+    logical :: condition
+    integer :: stationIndex, levIndex, levStnIndex, levSelectIndex, varIndexES, varIndexPres
+    integer :: numLevSelect, levStnIndexValid
+    real(4) :: levelsES(numLevES), deltaPres, deltaPresMin, presBottom, presTop
+    integer, allocatable :: levStnIndexList(:)
+
+    ! Selected pressure levels for additional thinning to humitidy observations
+
+    levelsES(1:numLevES) = (/ 1025.,1000.,975.,950.,925.,900.,875.,850.,825., &
+                              800.,775.,750.,725.,700.,675.,650.,625.,600.,575., &
+                              550.,525.,500.,475.,450.,425.,400.,375.,350.,325., &
+                              300.,275.,250.,225.,200.,175.,150.,100., 70., 50., &
+                              30., 20., 10./)
+
+    varIndexES = 4
+    varIndexPres = 5
+
+    allocate(levStnIndexList(numLevStnMax))
+
+    do stationIndex = 1, numStation
+
+      ! Retain nearest observations to selected pressure levels in levelsES
+
+      do levIndex = 1, numLevES
+
+        ! Pressures at the bottom and top of the ES layer
+
+        if (levIndex == 1) then
+          presBottom = levelsES(levIndex)
+          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+        else if (levIndex == numLevES) then
+          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
+          presTop = levelsES(levIndex)
+        else
+          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
+          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+        end if
+   
+        ! Select the levels between presTop and presBottom
+
+        numLevSelect = 0
+
+        do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+
+          if ( obsValues(varIndexPres,levStnIndex) > presTop .and. &
+               obsValues(varIndexPres,levStnIndex) <= presBottom ) then
+            numLevSelect  = numLevSelect + 1
+            levStnIndexList(numLevSelect) = levStnIndex
+          end if
+
+        end do ! levStnIndex
+
+        ! Get the closest valid observation to the selected pressure level
+
+        levStnIndexValid = 0
+        deltaPresMin = presBottom - presTop
+
+        do levSelectIndex = 1, numLevSelect
+
+          levStnIndex = levStnIndexList(levSelectIndex)
+
+          deltaPres = abs(obsValues(varIndexPres,levStnIndex) - levelsES(levIndex))
+          condition = .not.btest(obsFlags(varIndexES,levStnIndex),18) .and. &
+               .not.btest(obsFlags(varIndexES,levStnIndex),16) .and. &
+               .not.btest(obsFlags(varIndexES,levStnIndex),9)  .and. &
+               .not.btest(obsFlags(varIndexES,levStnIndex),8)  .and. &
+               .not.btest(obsFlags(varIndexES,levStnIndex),2)  .and. &
+               .not.btest(obsFlags(varIndexES,levStnIndex),11) .and. &
+               obsValues(varIndexES,levStnIndex) >= 0.         .and. &
+               deltaPres < deltaPresMin
+
+          if ( condition ) then
+            deltaPresMin = deltaPres
+            levStnIndexValid = levStnIndex
+          end if
+
+        end do !levSelectIndex
+
+        ! Apply thinning obsFlags to all obs except the one selected with levStnIndexValid
+
+        do levSelectIndex = 1, numLevSelect
+
+          levStnIndex = levStnIndexList(levSelectIndex)
+
+          if ( (levStnIndex /= levStnIndexValid) .and. &
+               (obsValues(varIndexES,levStnIndex) >= 0.) ) then
+            obsFlags(varIndexES,levStnIndex) = ibset(obsFlags(varIndexES,levStnIndex),11)
+          end if
+
+        end do
+
+      end do !levIndex
+
+    end do !stationIndex
+
+    deallocate(levStnIndexList)
+
+  end subroutine raobs_thinning_es
+
+  !--------------------------------------------------------------------------
+  ! raobs_blacklisting_ecmwf
+  !--------------------------------------------------------------------------
+  subroutine raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numLevStn, &
+                                       numStation, obsLevOffset )
+    ! :Purpose: Perform filtering of T-Td raobs observations based on
+    !           approach inspired by ECMWF approach
+
+    implicit none
+
+    integer, intent(in)    :: numLevStn, numStation
+    integer, intent(in)    :: obsLevOffset(:), obsType(:)
+    integer, intent(inout) :: obsFlags(:,:)
+    real(4), intent(in)    :: obsValues(:,:)
+
+    logical :: conditionTT, conditionES, rejectES
+    integer :: ierr, stationIndex, levStnIndex, varIndexES, varIndexTT, varIndexPres
+    integer :: type, countReject0p, countReject0t, countReject1p, countReject1t
+    integer :: countReject0pMpi, countReject0tMpi, countReject1pMpi, countReject1tMpi
+    integer :: countTotalES, countTotalESMpi
+
+    countReject0p = 0
+    countReject0t = 0
+    countReject1p = 0
+    countReject1t = 0
+    countTotalES = 0
+
+    varIndexTT = 3
+    varIndexES = 4
+    varIndexPres = 5
+
+    do stationIndex = 1, numStation
+      type = 0
+
+      if ( obsType(stationIndex) /= -1 ) then
+
+        if ( obsType(stationIndex) == 14  .or.  &
+             obsType(stationIndex) == 24  .or.  &
+             obsType(stationIndex) == 41  .or.  &
+             obsType(stationIndex) == 42  .or.  &
+             obsType(stationIndex) == 52  .or.  &
+             obsType(stationIndex) == 79  .or.  &
+             obsType(stationIndex) == 80  .or.  &
+             obsType(stationIndex) == 81  .or.  &
+             obsType(stationIndex) == 83  .or.  &
+             obsType(stationIndex) == 141 .or.  &
+             obsType(stationIndex) == 142 ) then
+
+          type = 1
+
+        end if
+
+      end if
+
+      do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
+
+        conditionTT =  &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),18) .and. &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),16) .and. &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),9)  .and. &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),8)  .and. &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),2)  .and. &
+             .not.btest(obsFlags(varIndexTT,levStnIndex),11) .and. &
+             obsValues(varIndexTT,levStnIndex) >= 0.0
+        conditionES =  &
+             .not.btest(obsFlags(varIndexES,levStnIndex),18) .and. &
+             .not.btest(obsFlags(varIndexES,levStnIndex),16) .and. &
+             .not.btest(obsFlags(varIndexES,levStnIndex),9)  .and. &
+             .not.btest(obsFlags(varIndexES,levStnIndex),8)  .and. &
+             .not.btest(obsFlags(varIndexES,levStnIndex),2)  .and. &
+             .not.btest(obsFlags(varIndexES,levStnIndex),11) .and. &
+             obsValues(varIndexES,levStnIndex) >= 0.0
+
+        if ( conditionTT ) then
+
+          rejectES = .false. 
+          if (conditionES) countTotalES = countTotalES + 1
+
+          if ( type == 0 ) then
+
+            if ( .not.rejectES .and. obsValues(varIndexPres,levStnIndex) < 300.0 ) then
+              if (conditionES) countReject0p = countReject0p + 1
+              rejectES = .true. 
+            end if
+            if ( .not.rejectES .and. obsValues(varIndexTT,levStnIndex) < 233.15 ) then
+              if (conditionES) countReject0t = countReject0t + 1
+              rejectES = .true. 
+            end if
+    
+          else if  ( type == 1 ) then
+
+            if ( .not.rejectES .and. obsValues(varIndexPres,levStnIndex) < 100.0 ) then
+              if (conditionES) countReject1p = countReject1p + 1
+              rejectES = .true. 
+            end if
+            if ( .not.rejectES .and. obsValues(varIndexTT,levStnIndex) < 213.15 ) then
+              if (conditionES)  countReject1t = countReject1t + 1
+              rejectES = .true. 
+            end if
+
+          end if
+
+          if ( rejectES ) then
+            obsFlags(varIndexES,levStnIndex) = ibset(obsFlags(varIndexES,levStnIndex),8)
+          end if
+
+        else
+
+          obsFlags(varIndexES,levStnIndex) = obsFlags(varIndexTT,levStnIndex)
+
+        end if
+
+      end do !levStnIndex
+
+    end do !stationIndex
+
+    
+    call rpn_comm_allReduce(countTotalES, countTotalESMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countReject0p, countReject0pMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countReject0t, countReject0tMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countReject1p, countReject1pMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countReject1t, countReject1tMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*)
+    write(*,*) ' Rejet des donnees ES inspire de ECMWF'
+    write(*,*)
+    write(*,'(a30,I10)') 'nb total donnees es        ',countTotalESMpi
+    write(*,'(a30,I10)') 'nb rejet type 0 pression   ',countReject0pMpi
+    write(*,'(a30,I10)') 'nb rejet type 0 temperature',countReject0tMpi
+    write(*,'(a30,I10)') 'nb rejet type 1 pression   ',countReject1pMpi
+    write(*,'(a30,I10)') 'nb rejet type 1 temperature',countReject1tMpi
+    write(*,*)
+    if (countTotalESMpi > 0) then
+      write(*,'(a30,I10,f10.2)') 'nb rejet total et %', &
+           countReject0pMpi + countReject0tMpi + countReject1pMpi + countReject1tMpi, &
+           100.0 * (countReject0pMpi + countReject0tMpi + countReject1pMpi + &
+                    countReject1tMpi) / countTotalESMpi
+    end if
+    write(*,*)
+
+  end subroutine raobs_blacklisting_ecmwf
+  
+  !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
   subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
@@ -755,7 +2594,7 @@ contains
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) - 18000
       else
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 18000
-      endif
+      end if
 
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
@@ -773,7 +2612,7 @@ contains
       else
         normFormalErr  = 5.0
         missingFormalErr = 3.0
-      endif
+      end if
 
       ! get ztd flag and formal error value, element 15032
       formalError = -1.0
@@ -827,7 +2666,7 @@ contains
       if(obsStepIndex(headerIndex) == -1.0d0) then
         badTimeCount = badTimeCount + 1
         quality(headerIndex) = 9999
-      endif
+      end if
 
       ! ZTD O-P failed background/topography checks, ZTD is blacklisted, ZTD is not bias corrected
       if (       btest(ztdObsFlag,16) ) bgckCount = bgckCount + 1
@@ -887,19 +2726,19 @@ contains
               if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
                 skipThisObs = .true.
                 exit LOOP2
-              endif
-            endif
+              end if
+            end if
           end do LOOP2
         else
           skipThisObs = .false.
-        endif
+        end if
 
         if (.not. skipThisObs) then
           numSelected = numSelected + 1
           headerIndexSelected(numSelected) = headerIndex1
-        endif
+        end if
 
-      endif
+      end if
 
     end do OBS_LOOP
 
@@ -1214,7 +3053,7 @@ contains
     allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
     do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
       headerIndexSorted(headerIndex) = headerIndex
-    enddo
+    end do
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
@@ -1370,6 +3209,8 @@ contains
                             numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)
     call rpn_comm_allReduce(bgckCount, bgckCountMpi, 1, &
                             'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call rpn_comm_allReduce(missingCount, missingCountMpi, 1, &
+                            'mpi_integer', 'mpi_sum', 'grid', ierr)
 
     ! Print counts
     write(*,*)
@@ -1433,6 +3274,8 @@ contains
   ! thn_QsortInt
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortInt(A,B)
+    ! :Purpose: Quick sort algorithm for integer data.
+
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -1443,7 +3286,7 @@ contains
       call thn_QsortIntpartition(A,B,iq)
       call thn_QsortInt(A(:iq-1),B(:iq-1))
       call thn_QsortInt(A(iq:),B(iq:))
-    endif
+    end if
 
   end subroutine thn_QsortInt
 
@@ -1451,6 +3294,8 @@ contains
   ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
   subroutine thn_QsortIntpartition(A,B,marker)
+    ! :Purpose: Subroutine called in quick sort for integers.
+
     implicit none
 
     integer, intent(inout) :: A(:)
@@ -1498,6 +3343,8 @@ contains
   ! thn_QsortReal8
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortReal8(A,B)
+    ! :Purpose: Quick sort algorithm for real8 data.
+
     implicit none
 
     real(8), intent(inout) :: A(:)
@@ -1508,7 +3355,7 @@ contains
       call thn_QsortReal8partition(A,B,iq)
       call thn_QsortReal8(A(:iq-1),B(:iq-1))
       call thn_QsortReal8(A(iq:),B(iq:))
-    endif
+    end if
 
   end subroutine thn_QsortReal8
 
@@ -1516,6 +3363,8 @@ contains
   ! thn_QsortReal8partition
   !--------------------------------------------------------------------------
   subroutine thn_QsortReal8partition(A,B,marker)
+    ! :Purpose: Subroutine called for quick sort of real8 data.
+
     implicit none
 
     real(8), intent(inout) :: A(:)
@@ -1562,14 +3411,16 @@ contains
   !--------------------------------------------------------------------------
   ! thn_distanceArc
   !--------------------------------------------------------------------------
-  real function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
+  real(4) function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
+    ! :Purpose: Compute arc distance.
+
     implicit none
 
-    real, intent(in) :: deltaLat, deltaLon, lat1, lat2
+    real(4), intent(in) :: deltaLat, deltaLon, lat1, lat2
 
-    real, parameter :: PI = 3.141592654
-    real, parameter :: RT = 6374.893
-    real :: lat1_r, lat2_r, deltaLat_r, deltaLon_r, term_a
+    real(4), parameter :: PI = 3.141592654
+    real(4), parameter :: RT = 6374.893
+    real(4) :: lat1_r, lat2_r, deltaLat_r, deltaLon_r, term_a
 
     lat1_r = lat1*PI/180.
     lat2_r = lat2*PI/180.
@@ -1715,8 +3566,8 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namelist')
-      write(*,nml=namgem)
+      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
+      if (mpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else
       call utl_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
@@ -2218,11 +4069,10 @@ contains
   ! thn_keepNthObs
   !--------------------------------------------------------------------------
   subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical)
-    !
     ! :Purpose: Of the observations in a column that have not already been
     !           rejected, keep every nth observation and throw out the rest.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -2278,11 +4128,11 @@ contains
 
   contains
     function new_column()
-      ! Determine whether the current observation begins a new vertical column
-      ! (Assume that observations are in chronological order)
+      ! :Purpose: Determine whether the current observation begins a new vertical column
+      !           (Assume that observations are in chronological order)
       !
-      ! Note:  This method has been written with aladin observations in mind.
-      !        It might be necessary to generalize the method.
+      ! :Note:  This method has been written with aladin observations in mind.
+      !         It might be necessary to generalize the method.
       implicit none
       logical :: new_column
 
@@ -2307,12 +4157,16 @@ contains
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
-  subroutine thn_tovsFilt(obsdat, delta, codtyp, codtyp2_opt)
+  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
+    ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer, intent(in)             :: delta
+    integer, intent(in)             :: deltrad
     integer, intent(in)             :: codtyp
     integer, optional, intent(in)   :: codtyp2_opt
 
@@ -2632,7 +4486,7 @@ contains
         do obsIndex = 1, numObs
           valid(headerIndexList2(obsIndex)) = .false.
         end do
-        if (numObs > 0 .and. minDistance <= 75. ) then
+        if (numObs > 0 .and. minDistance <= real(deltRad) ) then
           valid(headerIndexKeep) = .true.
         end if
 
@@ -2774,6 +4628,8 @@ contains
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
   subroutine thn_removeRarsDuplicates(obsdat, valid)
+    ! :Purpose: Remove duplicate TOVS observations due to RARS.
+
     implicit none
 
     ! Arguments:
@@ -2971,11 +4827,10 @@ contains
   ! thn_scatByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for SCAT observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -3102,7 +4957,7 @@ contains
         latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
-      endif
+      end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
       do lonIndex = 1, numGridLons(latIndex)
@@ -3311,7 +5166,7 @@ contains
             ! si l'obs retenue precedemment etait autre que METOP
             change = .true.
 
-          endif
+          end if
 
         else ! satellites autre que METOP
 
@@ -3474,11 +5329,10 @@ contains
   ! thn_csrByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for CSR observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -3589,7 +5443,7 @@ contains
         latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
       else
         latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
-      endif
+      end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
     end do
@@ -3924,11 +5778,10 @@ contains
   subroutine thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, &
                                     deltmax, deltax, deltrad,  &
                                     familyType, codtyp)
-    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
+
     implicit none
 
     ! Arguments:
@@ -4261,6 +6114,8 @@ contains
   ! thn_separation
   !--------------------------------------------------------------------------
   function thn_separation(xlon1,xlat1,xlon2,xlat2)
+    ! :Purpose: Compute the separation distance for some thinning algorithms.
+
     implicit none
 
     ! Arguments:

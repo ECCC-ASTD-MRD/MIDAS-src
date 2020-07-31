@@ -58,7 +58,8 @@ CHARACTER *3           :: BITEMLIST(20)
 CHARACTER *7           :: TYPE_RESUME = 'UNKNOWN'
 
 INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
-LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
+LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
+LOGICAL                :: READ_QI_GA_MT_SW
 
 
 CONTAINS
@@ -175,6 +176,7 @@ CONTAINS
     BNBITSON=0
     ENFORCE_CLASSIC_SONDES=.false.
     UA_HIGH_PRECISION_TT_ES=.false.
+    UA_FLAG_HIGH_PRECISION_TT_ES=.false.
     ADDSIZE=100000
     LNMX=100000
     LISTE_ELE_SFC(:)=-1
@@ -1530,7 +1532,8 @@ CONTAINS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
 
-    NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON,ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
+    NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON, &
+         ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON,NELEMS_GPS,LISTE_ELE_GPS
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
@@ -1618,6 +1621,7 @@ CONTAINS
     REAL(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
+    integer, allocatable   :: hiresTimeFlag(:,:), hiresLatFlag(:,:)
 
     REAL   , ALLOCATABLE   :: VCOORD  (:,:),  VCOORD_SFC(:)
     REAL   , ALLOCATABLE   :: VCORD   (:)
@@ -1639,7 +1643,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    INTEGER                :: LISTE_INFO(20),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(22),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1670,7 +1674,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,1033/
+        013209,1033,2011,4197/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1685,6 +1689,8 @@ CONTAINS
     ILEMTBCOR=12204 ! bcor element for altitude TT observations
     ILEMHBCOR=99999 ! bcor element for altitude ES observations (doesn't exist yet)
     ENFORCE_CLASSIC_SONDES=.false.
+    UA_HIGH_PRECISION_TT_ES=.false.
+    UA_FLAG_HIGH_PRECISION_TT_ES=.false.
     READ_QI_GA_MT_SW=.false.
     UNI_FAMILYTYPE = 'SF'
     LISTE_ELE_SFC(:)=-1
@@ -1705,6 +1711,7 @@ CONTAINS
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
+        NELE_INFO=22
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
@@ -1998,7 +2005,6 @@ CONTAINS
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
         IF ( stnid(1:2) == ">>" ) cycle
-
 
         !  LOOP ON BLOCKS
 
@@ -2361,12 +2367,23 @@ CONTAINS
             QCFLAG (:,:,:)  = 0
             QCFLAGS(:,:)    = 0
 
+            allocate(hiresTimeFlag(nvale,nte))
+            allocate(hiresLatFlag(nvale,nte))
+            hiresTimeFlag(:,:) = 0
+            hiresLatFlag(:,:) = 0
+
             do IL = 1, NELE
 
               iele=LISTE_ELE(IL)
 
               IND_QCFLAG  = BURP_Find_Element(Block_in, ELEMENT=200000+iele, IOSTAT=error)
               if (IND_QCFLAG <= 0 ) cycle
+
+              if (UA_FLAG_HIGH_PRECISION_TT_ES) then
+                if(HIPCS .and. iele == 12001) IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=212101, IOSTAT=error)
+                if(HIPCS .and. iele == 12192) IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=212239, IOSTAT=error)
+              end if
+
               do k = 1, nte
                 do j = 1, nvale
                   QCFLAG(IL,j,k)= BURP_Get_Tblval(Block_in, &
@@ -2379,6 +2396,34 @@ CONTAINS
               end do
 
             end do
+
+            ! read the hires time and latitude flags, needed for UA thinning procedure
+            IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=204015, IOSTAT=error)
+            if (IND_QCFLAG > 0) then
+              do k = 1, nte
+                do j = 1, nvale
+                  hiresTimeFlag(j,k)= BURP_Get_Tblval(Block_in, &
+                                  &   NELE_IND = IND_QCFLAG, &
+                                  &   NVAL_IND = j, &
+                                  &   NT_IND   = k, &
+                                  &   IOSTAT   = error)
+                  SUM = SUM +1
+                end do
+              end do
+            end if
+            IND_QCFLAG = BURP_Find_Element(Block_in, ELEMENT=205001, IOSTAT=error)
+            if (IND_QCFLAG > 0) then
+              do k = 1, nte
+                do j = 1, nvale
+                  hiresLatFlag(j,k)= BURP_Get_Tblval(Block_in, &
+                                  &   NELE_IND = IND_QCFLAG, &
+                                  &   NVAL_IND = j, &
+                                  &   NT_IND   = k, &
+                                  &   IOSTAT   = error)
+                  SUM = SUM +1
+                end do
+              end do
+            end if
 
           end if
 
@@ -2417,7 +2462,7 @@ CONTAINS
 
               else
                 RINFO(kl,1:nte)=MPC_missingValue_R4
-            end if
+              end if
 
             end do
 
@@ -2574,6 +2619,9 @@ CONTAINS
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
+                if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE),  OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA_SF)
                 IF (OBSN > 1 ) THEN
@@ -2582,6 +2630,14 @@ CONTAINS
                 ELSE
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
                 END IF
+
+                ! write info block to header (same values for all headers associated with report)
+                if (allocated(TRINFO))  then
+                  call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                else
+                  call setInfoToMissing(obsdat,liste_info,nele_info)
+                end if
+
               END IF
 
             END IF
@@ -2630,8 +2686,12 @@ CONTAINS
 
                   if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
-
                   OBSN=obs_numHeader(obsdat)
+                  if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                  if (obs_columnActive_IH(obsdat,obs_hdd))  call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                  if (obs_columnActive_IH(obsdat,obs_hdt))  call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
+                  if (obs_columnActive_IH(obsdat,obs_tflg)) call obs_headSet_i(obsdat,OBS_TFLG,OBSN,hiresTimeFlag(jj,k))
+                  if (obs_columnActive_IH(obsdat,obs_lflg)) call obs_headSet_i(obsdat,OBS_LFLG,OBSN,hiresLatFlag(jj,k))
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
                   IF (OBSN > 1 ) THEN
@@ -2642,6 +2702,14 @@ CONTAINS
                     call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
                     !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                   END IF
+
+                  ! write info block to header (same values for all headers associated with report)
+                  if (allocated(TRINFO))  then
+                    call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+                  else
+                    call setInfoToMissing(obsdat,liste_info,nele_info)
+                  end if
+
                 END IF
 
               end do
@@ -2679,6 +2747,9 @@ CONTAINS
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
+                if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
+                if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
+                if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV ,OBSN,NDATA_SF)
                 IF (OBSN  > 1 ) THEN
@@ -2789,7 +2860,7 @@ CONTAINS
 
           if (allocated(TRINFO))  then
             IF ( NDATA > 0.or.NDATA_SF > 0 ) then
-              call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+              call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
             END IF
           end if
 
@@ -2801,6 +2872,12 @@ CONTAINS
         end if
         if ( allocated(qcflag) ) then
           DEALLOCATE (qcflag,qcflags)
+        end if
+        if ( allocated(hiresTimeFlag) ) then
+          DEALLOCATE (hiresTimeFlag)
+        end if
+        if ( allocated(hiresLatFlag) ) then
+          DEALLOCATE (hiresLatFlag)
         end if
         if ( allocated(qi1val) ) then
           DEALLOCATE (qi1val)
@@ -3176,28 +3253,29 @@ CONTAINS
     call obs_headSet_r(obsdat,OBS_AZA,nobs,azimuth)
   end subroutine write_al
 
-!!------------------------------------------------------------------------------------
-!!------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! writeInfo
+  !--------------------------------------------------------------------------
+  subroutine writeInfo(obsdat, FAMTYP, RINFO, LISTE_INFO, NELE_INFO)
+    ! :Purpose: Write values in obsSpaceData related to the info block
 
-  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
     implicit none
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-
-    REAL        ::      RINFO(NELE_INFO)
-
+    REAL        ::   RINFO(NELE_INFO)
     CHARACTER*2 ::   FAMTYP
-    REAL*4      ::   INFOV
     INTEGER     ::   NELE_INFO
     integer     ::   LISTE_INFO(NELE_INFO)
 
+    ! Locals:
+    REAL*4      ::   INFOV
     INTEGER     ::   CODTYP
-
     INTEGER     ::   IL,NOBS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
-    INTEGER     ::   IFOV,ORIGIN_CENTRE
-
+    INTEGER     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
@@ -3213,6 +3291,8 @@ CONTAINS
     ID_SAT     = 0
     SENSOR     = 0
     ORIGIN_CENTRE = 0
+    RAOBSTYPE  = MPC_missingValue_INT
+    LAUNCHTIME = MPC_missingValue_INT
 
     IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
@@ -3330,13 +3410,17 @@ CONTAINS
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT == MPC_missingValue_R4) THEN
-                call utl_abort('WRITE_INFO: Missing 08046 element for the CH family.')
+                call utl_abort('writeInfo: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
           END IF
         CASE(13209)
           cloudLiquidWater = INFOV
+        CASE(2011)
+          raobsType = nint(infov)
+        CASE(4197)
+          launchTime = nint(infov)
       END SELECT
     end do
 
@@ -3381,6 +3465,8 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
+    if ( obs_columnActive_IH(obsdat,OBS_RTP) ) call obs_headSet_i(obsdat,OBS_RTP,nobs,raobsType)
+    if ( obs_columnActive_IH(obsdat,OBS_LCH) ) call obs_headSet_i(obsdat,OBS_LCH,nobs,launchTime)
     if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,RCLOUD_COVER )
     if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,RSOLAR_ZENITH )
     if ( obs_columnActive_RH(obsdat,OBS_SAZ) ) call obs_headSet_r(obsdat,OBS_SAZ,nobs,RSOLAR_AZIMUTH )
@@ -3395,9 +3481,53 @@ CONTAINS
     end if
     if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
 
-  END SUBROUTINE  WRITE_INFO
+  END SUBROUTINE  writeInfo
 
+  !--------------------------------------------------------------------------
+  ! setInfoToMissing
+  !--------------------------------------------------------------------------
+  subroutine setInfoToMissing(obsdat,liste_info,nele_info)
+    ! :Purpose: Set the obsSpaceData column related to the info block with
+    !           missing values
 
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsdat
+    integer     ::   nele_info
+    integer     ::   liste_info(nele_info)
+
+    ! Locals:
+    integer :: nobs
+
+    nobs = obs_numHeader(obsdat)
+
+    if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_ORI) ) call obs_headSet_i(obsdat,OBS_ORI,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_TEC) ) call obs_headSet_i(obsdat,OBS_TEC,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_RTP) ) call obs_headSet_i(obsdat,OBS_RTP,nobs,mpc_missingValue_int)
+    if ( obs_columnActive_IH(obsdat,OBS_LCH) ) call obs_headSet_i(obsdat,OBS_LCH,nobs,mpc_missingValue_int)
+
+    if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SAZ) ) call obs_headSet_r(obsdat,OBS_SAZ,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SZA) ) call obs_headSet_r(obsdat,OBS_SZA,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,obs_missingValue_r)
+
+  end subroutine  setInfoToMissing
+
+  !--------------------------------------------------------------------------
+  ! find_index
+  !--------------------------------------------------------------------------
   INTEGER  FUNCTION FIND_INDEX(LIST,ELEMENT)
     implicit none
     INTEGER LIST(:)
@@ -3421,12 +3551,12 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
     integer, intent(in)              :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
     
-    ! Locals
+    ! Locals:
     type(BURP_FILE)        :: inputFile
     type(BURP_RPT)         :: inputReport,copyReport
     type(BURP_BLOCK)       :: inputBlock
@@ -4307,25 +4437,28 @@ CONTAINS
     ! Locals:
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
-    type(burp_block)            :: inputBlock
+    type(burp_block)            :: inputBlock, inputBlock2
     integer, allocatable        :: addresses(:), elementIdsRead(:), elementIdsBlock(:)
     integer, allocatable        :: flagValues(:,:,:)
     real(4), allocatable        :: obsValues(:,:,:)
-    logical, allocatable        :: rejectObs(:)
+    logical, allocatable        :: rejectObs(:,:)
     integer                     :: numReports, refBlock, intBurpValue
     integer                     :: numElem, numLevels, numObsProfiles, numElem2
-    integer                     :: numLevels2, numObsProfiles2, newNumObsProfiles
-    integer                     :: elemIndex, levelIndex, obsProfIndex, obsProfIndexGood
-    integer                     :: reportIndex, btyp, error
+    integer                     :: numLevels2, newNumLevels
+    integer                     :: numObsProfiles2, newNumObsProfiles
+    integer                     :: elemIndex, levelIndex, levelIndexGood
+    integer                     :: obsProfIndex, obsProfIndexGood
+    integer                     :: reportIndex, btyp, datyp, error
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = -9999.0
     integer, external           :: mrfbfl
-    logical                     :: groupedData, foundFlags, foundObs, emptyReport, resumeReport
-    logical                     :: debug = .false.
-    character(len=2)            :: familyTypesToDo(5) = (/'AI','SW','TO','SC','GP'/)
+    logical                     :: groupedData, foundFlags, foundObs, emptyReport
+    logical                     :: resumeReport, cleanLevels, checkBlock
+    character(len=2)            :: familyTypesToDo(6) = (/'AI','SW','TO','SC','GP','UA'/)
     character(len=9)            :: stnid
     real(4)                     :: realBurpValue
+    logical                     :: debug = .false.
 
     write(*,*)
     write(*,*) 'brpr_burpClean: starting'
@@ -4335,6 +4468,9 @@ CONTAINS
       write(*,*) 'brpr_burpClean: not applied to obs family = ', trim(familyType)
       return
     end if
+
+    ! for some obs types we will remove levels/channels, not just complete profiles
+    cleanLevels = (trim(familyType) == 'UA')
 
     ! obtain input burp file report addresses and number of reports
     call getBurpReportAddresses(inputFileName, addresses)
@@ -4354,6 +4490,8 @@ CONTAINS
     call burp_init(copyReport,iostat=error)
     if (error /= burp_noerr) call handle_error()
     call burp_init(inputBlock,iostat=error)
+    if (error /= burp_noerr) call handle_error()
+    call burp_init(inputBlock2,iostat=error)
     if (error /= burp_noerr) call handle_error()
 
     ! opening file
@@ -4378,6 +4516,13 @@ CONTAINS
 
     ! get list of element ids used for checking flags
     call getElementIdsRead(familyType, elementIdsRead)
+
+    ! ignore some elements when checking the flags
+    do elemIndex = 1, size(elementIdsRead)
+      if ( (elementIdsRead(elemIndex) == 10194) ) then
+        elementIdsRead(elemIndex) = -1
+      end if
+    end do
     write(*,*) 'brpr_burpClean: Flags checked for these element IDs: ', elementIdsRead(:)
 
     numRejectTotal = 0 ! summed over entire file
@@ -4425,9 +4570,17 @@ CONTAINS
              btyp   = btyp,                & 
              iostat = error)
 
-        if (isFlagBlock(familyType, btyp)) then
+        ! only check "multi" blocks when cleanLevels is true
+        if (cleanLevels) then
+          checkBlock = btest(btyp,13)
+        else
+          checkBlock = .true.
+        end if
+          
+        if (isFlagBlock(familyType, btyp) .and. checkBlock) then
           foundFlags = .true.
           if (debug) write(*,*) 'Found a block with flags: ', reportIndex, familyType, btyp
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
           if (allocated(flagValues)) deallocate(flagValues)
           allocate(flagValues(numElem,numLevels,numObsProfiles))
           if (allocated(elementIdsBlock)) deallocate(elementIdsBlock)
@@ -4443,9 +4596,10 @@ CONTAINS
           end do
         end if
 
-        if (isObsBlock(familyType, btyp)) then
+        if (isObsBlock(familyType, btyp) .and. checkBlock) then
           foundObs = .true.
           if (debug) write(*,*) 'Found a block with obs: ', reportIndex, familyType, btyp
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
           if (allocated(obsValues)) deallocate(obsValues)
           allocate(obsValues(numElem,numLevels,numObsProfiles))
           do elemIndex = 1, numElem
@@ -4468,23 +4622,24 @@ CONTAINS
 
       else
 
+        if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
         ! determine which observations to keep
         if (allocated(rejectObs)) deallocate(rejectObs)
-        allocate(rejectObs(numObsProfiles))
-        rejectObs(:) = .true.
+        allocate(rejectObs(numLevels,numObsProfiles))
+        rejectObs(:,:) = .true.
         obsProfiles: do obsProfIndex = 1, numObsProfiles
           obsLevels: do levelIndex = 1, numLevels
             elements: do elemIndex = 1, numElem
-              ! skip this block element if it is not normally read
+              ! skip this element if it is not normally read
               if ( all(elementIdsBlock(elemIndex) /= (200000 + elementIdsRead(:))) ) cycle elements
 
-              ! if at least one observation in profile is 'good', then cannot reject
+              ! if at least one element in profile is 'good', then cannot reject
               if ( (.not.btest(flagValues(elemIndex,levelIndex,obsProfIndex),11)) .and.  &
                    (obsValues(elemIndex,levelIndex,obsProfIndex) /= missingValue) ) then
                 if (debug) write(*,*) 'found a GOOD    observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),   &
                      obsValues(elemIndex,levelIndex,obsProfIndex)
-                rejectObs(obsProfIndex) = .false.
+                rejectObs(levelIndex,obsProfIndex) = .false.
               else if (obsValues(elemIndex,levelIndex,obsProfIndex) == missingValue) then
                 if (debug) write(*,*) 'found a MISSING observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),  &
@@ -4496,9 +4651,16 @@ CONTAINS
               end if
 
             end do elements
+            if (cleanLevels) then
+              ! count number of individual rejected levels
+              if (rejectObs(levelIndex,obsProfIndex)) numReject = numReject + 1
+            end if
           end do obsLevels
-          if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(obsProfIndex)
-          if (rejectObs(obsProfIndex)) numReject = numReject + 1
+          if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(1,obsProfIndex)
+          if (.not. cleanLevels) then
+            ! count number of rejected complete profiles (all levels must be rejected)
+            if (all(rejectObs(:,obsProfIndex))) numReject = numReject + 1
+          end if
         end do obsProfiles
 
         numRejectTotal = numRejectTotal + numReject
@@ -4511,78 +4673,115 @@ CONTAINS
       blocks2: do
 
         refBlock = burp_find_block(inputReport, &
-             block       = inputBlock,          &
+             block       = inputBlock2,         &
              search_from = refBlock,            &
+             convert     = .false.,             &
              iostat      = error)
         if (error /= burp_noerr) call handle_error()
         if (refBlock < 0) exit blocks2
          
-        call burp_get_property(inputBlock, &
-             nele   = numElem2,            &
-             nval   = numLevels2,          &
-             nt     = numObsProfiles2,     &
-             btyp   = btyp,                &
+        call burp_get_property(inputBlock2, &
+             nele   = numElem2,             &
+             nval   = numLevels2,           &
+             nt     = numObsProfiles2,      &
+             btyp   = btyp,                 &
+             datyp  = datyp,                &
              iostat = error)
 
-        ! if any obs profiles are completely rejected, eliminate them
-        if (numObsProfiles2 == numObsProfiles) then
+        ! only modify "multi" blocks when cleanLevels is true
+        if (cleanLevels) then
+          checkBlock = btest(btyp,13)
+        else
+          checkBlock = .true.
+        end if
+          
+        if (checkBlock) then
 
-          newNumObsProfiles   = numObsProfiles2 - numReject
-          if (debug) write(*,*) 'ReportIndex = ', reportIndex
-          if (debug) write(*,*) 'Reducing the number of observation profiles from ', numObsProfiles2, ' to ', newNumObsProfiles
+          if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
+          if (cleanLevels) then
+            newNumLevels = numLevels2 - numReject
+            if (debug) write(*,*) 'ReportIndex = ', reportIndex
+            if (debug) write(*,*) 'Reducing the number of levels from ', numLevels2, ' to ', newNumLevels
 
-          if (newNumObsProfiles >= 1) then
+            if (newNumLevels >= 1) then
 
-            ! shuffle the data
-            obsProfIndexGood = 0
-            do obsProfIndex = 1, numObsProfiles2
-              if (rejectObs(obsProfIndex)) cycle
-              obsProfIndexGood = obsProfIndexGood + 1
-              do elemIndex = 1, numElem2
+              ! shuffle the data
+              do obsProfIndex = 1, numObsProfiles2
+                levelIndexGood = 0
                 do levelIndex = 1, numLevels2
-                  if (isObsBlock(familyType, btyp) .or. isInfoBlock(familyType, btyp)) then
-                    realBurpValue = burp_get_rval(inputBlock, nele_ind=elemIndex,  &
+                  if (rejectObs(levelIndex,obsProfIndex)) cycle
+                  levelIndexGood = levelIndexGood + 1
+                  do elemIndex = 1, numElem2
+                    intBurpValue = burp_get_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndex, iostat=error)
                     if (error /= burp_noerr) call handle_error()
-                    call burp_set_rval(inputBlock, nele_ind=elemIndex,  &
-                         nval_ind=levelIndex, nt_ind=obsProfIndexGood, rval=realBurpValue, iostat=error) 
+                    call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
+                         nval_ind=levelIndexGood, nt_ind=obsProfIndex, tblval=intBurpValue, iostat=error) 
                     if (error /= burp_noerr) call handle_error()
-                    if (debug .and. obsProfIndex /= obsProfIndexGood) then
-                      write(*,*) 'shuffling data: ', obsProfIndex, obsProfIndexGood, realBurpValue, reportIndex
+                    if (debug .and. levelIndex /= levelIndexGood) then
+                      write(*,*) 'shuffling data: ', elemIndex, levelIndex, levelIndexGood, intBurpValue, reportIndex
                     end if
-                  else
-                    intBurpValue = burp_get_tblval(inputBlock, nele_ind=elemIndex,  &
+                  end do
+                end do
+              end do
+
+              ! reduce the size of the block
+              call burp_reduce_block(inputBlock2, new_nval=newNumLevels, iostat=error)
+              if (error /= burp_noerr) call handle_error()
+
+            else ! newNumLevels < 1
+
+              if (debug) write(*,*) 'All observation levels rejected for this report: ', reportIndex
+              emptyReport = .true.
+
+            end if
+
+          else
+
+            newNumObsProfiles   = numObsProfiles2 - numReject
+            if (debug) write(*,*) 'ReportIndex = ', reportIndex
+            if (debug) write(*,*) 'Reducing the number of observation profiles from ', numObsProfiles2, ' to ', newNumObsProfiles
+
+            if (newNumObsProfiles >= 1) then
+
+              ! shuffle the data
+              obsProfIndexGood = 0
+              do obsProfIndex = 1, numObsProfiles2
+                if (all(rejectObs(:,obsProfIndex))) cycle ! all levels rejected
+                obsProfIndexGood = obsProfIndexGood + 1
+                do elemIndex = 1, numElem2
+                  do levelIndex = 1, numLevels2
+                    intBurpValue = burp_get_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndex, iostat=error)
                     if (error /= burp_noerr) call handle_error()
-                    call burp_set_tblval(inputBlock, nele_ind=elemIndex,  &
+                    call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndexGood, tblval=intBurpValue, iostat=error) 
                     if (error /= burp_noerr) call handle_error()
                     if (debug .and. obsProfIndex /= obsProfIndexGood) then
                       write(*,*) 'shuffling data: ', obsProfIndex, obsProfIndexGood, intBurpValue, reportIndex
                     end if
-                  end if
+                  end do
                 end do
               end do
-            end do
 
-            ! reduce the size of the block
-            call burp_reduce_block(inputBlock, new_nt=newNumObsProfiles, iostat=error)
-            if (error /= burp_noerr) call handle_error()
+              ! reduce the size of the block
+              call burp_reduce_block(inputBlock2, new_nt=newNumObsProfiles, iostat=error)
+              if (error /= burp_noerr) call handle_error()
 
-          else ! newNumObsProfiles < 1
+            else ! newNumObsProfiles < 1
 
-            if (debug) write(*,*) 'All observation profiles rejected for this report: ', reportIndex
-            emptyReport = .true.
+              if (debug) write(*,*) 'All observation profiles rejected for this report: ', reportIndex
+              emptyReport = .true.
 
-          end if
+            end if
 
-        else
-          write(*,*) 'Not sure why we are here!', numObsProfiles2, numObsProfiles
-        end if
+          end if ! cleanLevels
+
+        end if ! checkBlock
 
         if (.not. emptyReport) then
-          call burp_write_block(copyReport, block=inputBlock,  &
-               convert_block=(btyp/=5120), iostat=error)
+          call burp_write_block(copyReport, block=inputBlock2,  &
+               convert_block=.false., iostat=error)
           if (error /= burp_noerr) call handle_error()
         end if
 
@@ -4616,6 +4815,7 @@ CONTAINS
     call burp_free(inputFile)
     call burp_free(inputReport,copyReport)
     call burp_free(inputBlock)
+    call burp_free(inputBlock2)
 
   contains
 
