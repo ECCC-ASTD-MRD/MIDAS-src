@@ -2648,11 +2648,13 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
    ***************************************************************************/
 void append_id_obs_table_list_requests(char* requete_sql, char* table_list) {
   const char separator_char[2] = " ";
-  char sqlreqtmp[MAXSTR];
+  char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
 
+  // Make a copy of 'table_list' input string because 'strtok' is changing in place that string
+  strcpy(table_list_tmp,table_list);
   /* get the first token */
-  token = strtok(table_list, separator_char);
+  token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
     sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
