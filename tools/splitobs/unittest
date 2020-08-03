@@ -738,10 +738,12 @@ test_rdb_avhrr () {
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -x ${test_rdb_avhrr_npex} -y ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
-
     assert "test_rdb_avhrr splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    [ "${status}" -ne 0 ] && return 1
+
     assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} 'schema')" \
         [ -n "$(echo '.schema' | sqlite3 obsiasi_${procx}_${procy} | grep -i 'CREATE TABLE avhrr')" ] || status=1
+    check_status=0
     check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx}_${procy} obsiasi_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
     assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=1
     [ "${status}" -ne 0 ] && return 1
@@ -751,11 +753,12 @@ test_rdb_avhrr () {
     program_status=0
     ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_rdb_avhrr splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    [ "${status}" -ne 0 ] && return 1
 
     procx=1
-    proxy=1
-    while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
-        while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+    procy=1
+    while [ "${procx}" -le "${test_rdb_avhrr_npex}" ]; do
+        while [ "${procy}" -le "${test_rdb_avhrr_npey}" ]; do
             check_status=0
             check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx}_${procy} obsiasi_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
             assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
