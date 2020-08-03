@@ -955,16 +955,16 @@ int f77name(splitobs)(int argc, char** argv) {
 "PRAGMA  synchronous = OFF;\n"
 "attach '%s' as dbin; \n"
 "insert into header select * from dbin.header where id_obs %% %d = %d;\n"
-"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s\n"
+"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s\n",
 /* "insert into header select * from dbin.header where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "insert into data   select * from dbin.data   where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "CREATE TABLE rdb4_schema( schema  varchar(9) );\n" */
 /* "insert into rdb4_schema values('${TYPE}');\n" */
 /* "create table resume(date integer , time integer , run varchar(9)) ;\n" */
 /* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
-                  , opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
+                  opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
           append_id_obs_table_list_requests(requete_sql,table_list);
-          strcat(requete_sql,"\ndetach dbin;");
+          strcat(requete_sql,"detach dbin;");
 
           printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
           printf("%s\n", requete_sql);
