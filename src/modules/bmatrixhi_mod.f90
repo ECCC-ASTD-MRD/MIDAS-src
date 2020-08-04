@@ -213,9 +213,12 @@ CONTAINS
                gsv_varExist(varName='UU') .and.  &
                gsv_varExist(varName='VV') .and.  &
                (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
-               gsv_varExist(varName='P0') .and.  &
-               gsv_varExist(varName='TG')) ) then
-       call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
+               gsv_varExist(varName='P0')) ) then
+      call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
+    end if
+    if (.not. gsv_varExist(varName='TG')) then
+      write(*,*) 'bmatrixHI: WARNING: The TG field is missing. This must be present when assimilating'
+      write(*,*) '                    radiance observations'
     end if
 
     do jlev = 1, max(nLev_M,nLev_T)

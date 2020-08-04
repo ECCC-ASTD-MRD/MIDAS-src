@@ -1,13 +1,22 @@
-  &namEnsPostProc
+ &namEnsPostProc
    nEns                  = 20
    readTrlEnsemble       = .false.
    readAnlEnsemble       = .true.
 /
-  &namEnsPostProcModule
+ &namEnsPostProcModule
    weightRecenter           = 1.0D0
-   huLimitsBeforeRecenter   = .false.
+   alphaRTPS                = 0.00D0
+   alphaRandomPert          = 0.66D0
+   writeSubSample           = .false.
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
+/
+ &NAMBHI
+   NTRUNC          = 42,
+   SCALEFACTOR     = 60*0.5739D0,0.60D0,0.65D0,0.70D0,0.75D0,0.80D0,0.85D0,0.90D0,0.95D0,20*1.0D0
+   SCALEFACTORLQ   = 200*0.25D0
+/
+ &NAMBEN
 /
  &NAMTIME
    DSTEPOBSINC = 6.0d0
