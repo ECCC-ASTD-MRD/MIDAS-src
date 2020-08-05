@@ -11,7 +11,13 @@ eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test s
  -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
  -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
  -emails "" "" "[ List of emails to send a message when we find outliers for the execution time ]" \
+ -log    "latest" "latest" "[ log date to use to find timings (default: latest log file) ]" \
  ++ $*)
+
+## Note on '-log' option:
+##    This option allows the user to choose which log to look.  By default, it
+##    is the latest one.  It must a date or a part of a date.  If several log
+##    files qualify for the value given, then it takes the latest one.
 
 if [ -z "${suite}" ]; then
     suite=$(dirname $(true_path $0))
@@ -48,20 +54,34 @@ fi
 
 echo "Extract run times for tests in ${suite}"
 
+if [ "${log}" = latest ]; then
+    logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
+    if [ -z "${logs}" ]; then
+        echo "The suite '${suite}' does not contain any logs in '${suite}/logs'." >&2
+        exit 1
+    fi
+else
+    logs=$(/bin/ls -t ${suite}/logs/*${log}*_nodelog 2>/dev/null | head -1)
+    if [ -z "${logs}" ]; then
+        echo "The suite '${suite}' does not contain any logs matching '${suite}/logs/*${log}*_nodelog'." >&2
+        exit 1
+    fi
+fi
+
+if [ ! -f "${logs}" ]; then
+    echo "Cannot access log file '${logs}'." >&2
+    exit 1
+fi
+
+logdate=$(basename ${logs} _nodelog)
+echo "Using the logdate ${logdate}"
+
 if [ "${computeStats}" = yes ]; then
     echo
     echo "The statistics are given like this:"
     echo -e "\tMean, Stddev, Stddev/Mean, Min, Max, Number of cases"
     echo
 fi
-
-logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
-if [ -z "${logs}" ]; then
-    echo "The suite '${suite}' does not contain any logs in '${suite}/logs'." >&2
-    exit 1
-fi
-
-logdate=$(basename ${logs} _nodelog)
 
 findRunTime () {
     set -e
