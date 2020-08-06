@@ -37,6 +37,8 @@ program midas_bgckMW
   type(struct_obs)              :: obsSpaceData                                       ! ObsSpace Data object
   type(struct_columnData), target :: trlColumnOnTrlLev
   integer                       :: reportIndex                                        ! report index
+  integer                       :: headerIndex                                        ! header index
+  integer                       :: bodyIndex                                          ! body   index
   integer                       :: lastReportIndex                                    ! report index
   integer                       :: reportNumObs                                       ! number of obs in current report
   integer                       :: reportNumChannel                                   ! "      "   channels "      "
@@ -118,17 +120,18 @@ program midas_bgckMW
   integer                       :: numFileFound
   integer                       :: reportNumMax                    ! Max number of reports in file
   integer                       :: locationNumMax                  ! Max number of obs per report
-  integer                       :: channelNumMax                   ! Max number of channel in report
   integer                       :: maxNumSat
-  integer                       :: maxNumChan
+  integer                       :: channelOffset
+  integer                       :: maxNumChan 
   integer                       :: MaxNumTest
+  integer                       :: get_max_rss
 
   namelist /nambgck/instName, glmg_file, statsFile, &
                     writeModelLsqTT, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeEle25174, &
-                    maxNumSat, maxNumChan, maxNumTest 
+                    maxNumSat, channelOffset,  maxNumTest 
 
-  namelist/nammwobs/reportNumMax, locationNumMax, channelNumMax
+  namelist/nammwobs/reportNumMax, locationNumMax, maxNumChan
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -159,8 +162,13 @@ program midas_bgckMW
   ETIKRESU              = '>>BGCKALT'
   writeEle25174         = .false.
   maxNumSat             = 9
-  maxNumChan            = 42
+  channelOffset         = 27
   maxNumTest            = 15
+
+  ! default nammwobs namelist
+  reportNumMax = 1000
+  locationNumMax = 3000
+  maxNumChan = 42
 
   ! reading nambgck namelist
   nulnam = 0
@@ -170,6 +178,15 @@ program midas_bgckMW
     call utl_abort('midas_bgckmw: Error reading nambgck namelist')
   end if 
   write(*,nml=nambgck)
+  ier = fclos(nulnam)
+  ! reading nammwobs namelist
+  nulnam = 0
+  ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read(nulnam, nml=nammwobs, iostat=ier)
+  if ( ier /= 0 ) then 
+    call utl_abort('midas_bgckmw: Error reading nammwobs namelist')
+  end if 
+  write(*,nml=nammwobs)
   ier = fclos(nulnam)
 
   mwbg_debug = debug
@@ -189,20 +206,7 @@ program midas_bgckMW
   call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
   call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
 
-  ! default nammwobs namelist
-  reportNumMax = 1000
-  locationNumMax = 3000
-  channelNumMax = 22
 
-  ! reading nammwobs namelist
-  nulnam = 0
-  ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam, nml=nammwobs, iostat=ier)
-  if ( ier /= 0 ) then 
-    call utl_abort('midas_bgckmw: Error reading nammwobs namelist')
-  end if 
-  write(*,nml=nammwobs)
-  ier = fclos(nulnam)
   
   !
   !- Read bias correction namelist (default is to not use it)
@@ -212,8 +216,8 @@ program midas_bgckMW
 
 
   ! Initialize obsSpaceData object
-  call obs_class_initialize('ALL')
-  call obs_initialize( obsSpaceData, mpi_local=.true. )
+  !call obs_class_initialize('ALL')
+  !call obs_initialize( obsSpaceData, mpi_local=.true. )
   ! Basic setups
   call mwbg_setup()
   burpFileNameIn = obsf_getFileName('TO',numFileFound)
@@ -234,7 +238,10 @@ program midas_bgckMW
   call utl_reAllocate(obsNumPerReport,reportNumMax)
   call utl_reAllocate(listeOfResumeReport,reportNumMax)
   call utl_reAllocate(listeOfGoodReport,reportNumMax)
+  !- Setup and read observations
   !
+  call inn_setupObs(obsSpaceData, 'ALL', 'LIKESPLITFILES', 'bgck')
+
   ! MAIN LOOP through all the reports in the BURP file
   listeOfGoodReport(:) = .true.
   listeOfResumeReport(:) = .false.
@@ -254,6 +261,7 @@ program midas_bgckMW
                       resumeReport, ifLastReport, instName, burpFileSatId, idtyp)
     if (resumeReport) then
       listeOfResumeReport(reportIndex) = .true.
+      listeOfGoodReport(reportIndex) = .false.
       call utl_reAllocate(obsTb,1)
       call utl_reAllocate(ompTb,1)
       call utl_reAllocate(obsTbBiasCorr,1)
@@ -279,14 +287,14 @@ program midas_bgckMW
       ! Increment total number of obs pts read
       nobs_tot = nobs_tot + reportNumObs
       ! Put vectors in ObsSpaceData
-      call mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel,         &
-                                  satIdentifier, satZenithAngle, azimuthAngle,      &
-                                  solarZenithAngle, landQualifierIndice,            &
-                                  terrainTypeIndice, obsDate, obsTime, idtyp,       &
-                                  obsLatitude, obsLongitude,                        &
-                                  satScanPosition, sensor, instrument, obsQcFlag1, satOrbit,    &
-                                  obsGlobalMarker, burpFileSatId, obsTb,            &
-                                  obsQcFlag2, obsChannels, obsFlags, obsSpaceData)
+      !call mwbg_copyObsToObsSpace(instName, reportNumObs, reportNumChannel,         &
+      !                            satIdentifier, satZenithAngle, azimuthAngle,      &
+      !                           solarZenithAngle, landQualifierIndice,            &
+       !                           terrainTypeIndice, obsDate, obsTime, idtyp,       &
+      !                            obsLatitude, obsLongitude,                        &
+      !                            satScanPosition, sensor, instrument, obsQcFlag1, satOrbit,    &
+      !                            obsGlobalMarker, burpFileSatId, obsTb,            &
+      !                           obsQcFlag2, obsChannels, obsFlags, obsSpaceData)
       
     end if
     if (ifLastReport) exit REPORTS
@@ -299,24 +307,17 @@ program midas_bgckMW
   call obs_setHind(obsSpaceData)
   call filt_suprep(obsSpaceData)
   call tmg_stop(14)
-
   !
   !  Additional filtering for bias correction if requested 
   !
-  call bcs_setup()
-  call bcs_filterObs(obsSpaceData)
+  !call bcs_setup()
+  !call bcs_filterObs(obsSpaceData)
 
   !
   !- Initialization and memory allocation for TOVS processing
   !
-  call tvs_setupAlloc(obsSpaceData)
+  !call tvs_setupAlloc(obsSpaceData)
 
-  !
-  ! set missing observation to not to assimilate
-  write(*,*) ' mwbg_setMissingObsToNotAssimilated: '
-  call mwbg_setMissingObsToNotAssimilated(obsSpaceData)
-  !
-  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   !
   call inn_setupBackgroundColumns(trlColumnOnTrlLev, obsSpaceData)
 
@@ -328,8 +329,6 @@ program midas_bgckMW
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
   call tmg_stop(12)
   !
-  ! set GlobalFlag (ele 55200) bit 11 - Enregistrement contient des donnees derivees d'entree
-  call mwbg_setGlobalFlagBit(obsSpaceData, 11)
   ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
   !
   call tmg_start(11,'BIAS_COR')
@@ -353,87 +352,101 @@ program midas_bgckMW
   ifLastReport = .false.
   
   call tmg_start(10, 'Quality_Control')
+  write(*,*)'liste of good report = ', listeOfGoodreport
+  write(*,*)'number of data per report = ', obsNumPerReport
   QCLoop: do 
     reportIndex = reportIndex + 1
     ifLastReport = reportIndex == lastReportIndex
     if (listeOfGoodreport(reportIndex)) then
-      if (.not. listeOfResumeReport(reportIndex)) then
-        ! read burp arrays from ObspaceData Object
-        call mwbg_readObsFromObsSpace(instName, obsNumPerReport(reportIndex),       &
-                                 satIdentifier, satZenithAngle,landQualifierIndice, & 
-                                 terrainTypeIndice, obsLatitude, obsLongitude,      &
-                                 satScanPosition, obsQcFlag1, satOrbit,             &
-                                 obsGlobalMarker, burpFileSatId, obsTb,             &
-                                 obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
-                                 obsFlags, reportNumObs,               &
-                                 reportNumChannel, obsSpaceData)
-        !###############################################################################
-        ! STEP 1) trouver l'indice du satellite                                        !
-        !###############################################################################
-        write(*,*) ' ==> mwbg_findSatelliteIndex: '
-        call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
+      ! read burp arrays from ObspaceData Object
+      call mwbg_readObsFromObsSpace(instName, channelOffset, obsNumPerReport(reportIndex),&
+                               satIdentifier, satZenithAngle,landQualifierIndice, & 
+                               terrainTypeIndice, obsLatitude, obsLongitude,      &
+                               satScanPosition, obsQcFlag1, satOrbit,             &
+                               obsGlobalMarker, burpFileSatId, obsTb,             &
+                               obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
+                               obsFlags, reportNumObs,               &
+                               reportNumChannel, obsSpaceData)
+
+      !###############################################################################
+      ! STEP 1) trouver l'indice du satellite                                        !
+      !###############################################################################
+      write(*,*) ' ==> mwbg_findSatelliteIndex: '
+      call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
     
-        !###############################################################################
-        ! STEP 2) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
-        !###############################################################################
-        write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
-        call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
-                                                obsLongitude, modelInterpTerrain,     &
-                                                modelInterpGroundIce, modelInterpSeaIce)
+      !###############################################################################
+      ! STEP 2) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
+      !###############################################################################
+      write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
+                                              obsLongitude, modelInterpTerrain,     &
+                                              modelInterpGroundIce, modelInterpSeaIce)
 
-        !###############################################################################
-        ! STEP 3) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
-        !###############################################################################
-        write(*,*) ' ==> mwbg_tovCheck For: ', instName
-        if (instName == 'AMSUA') then
-          call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                               IUTILST, satIdentifier, landQualifierIndice,&
-                              satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
-                              ompTb, qcIndicator, reportNumChannel, reportNumObs,       &
-                              satIndexObserrFile, globalQcIndicator,     &
-                              satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
-                              modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
-                              obsFlags, newInformationFlag, cloudLiquidWaterPath,       &
-                              atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
-                              RESETQC, obsLatitude)
-        else if (instName == 'ATMS') then
-          call mwbg_tovCheckAtms(TOVERRST, IUTILST,glmg_file, obsLatitude, obsLongitude,&
-                              landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
-                              obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
-                              obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
-                              qcIndicator, reportNumChannel,          &
-                              reportNumObs, satIndexObserrFile,          &
-                              newInformationFlag, globalQcIndicator, satScanPosition,   &
-                              modelInterpTerrain, obsGlobalMarker, obsFlags,            &
-                              cloudLiquidWaterPath,atmScatteringIndex,rejectionCodArray,&
-                              rejectionCodArray2, burpFileSatId, RESETQC)
-        else
-          write(*,*) 'midas-bgckMW: instName = ', instName
-          call utl_abort('midas-bgckMW: unknown instName')
-        end if
-
-        !###############################################################################
-        ! STEP 4) Accumuler Les statistiques sur les rejets
-        !###############################################################################
-        write(*,*) ' ==> mwbg_qcStats For: ', instName
-        call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,       &
-                          reportNumChannel, reportNumObs, satelliteId, .FALSE.,         &
-                          rejectionCodArray, rejectionCodArray2)
+      !###############################################################################
+      ! STEP 3) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
+      !###############################################################################
+      write(*,*) ' ==> mwbg_tovCheck For: ', instName
+      if (instName == 'AMSUA') then
+        call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                             IUTILST, satIdentifier, landQualifierIndice,&
+                            satOrbit, obsChannels, obsTb, obsTbBiasCorr, & 
+                            ompTb, qcIndicator, reportNumChannel, reportNumObs,       &
+                            satIndexObserrFile, globalQcIndicator,     &
+                            satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
+                            modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
+                            obsFlags, newInformationFlag, cloudLiquidWaterPath,       &
+                            atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
+                            RESETQC, obsLatitude)
+      else if (instName == 'ATMS') then
+        call mwbg_tovCheckAtms(TOVERRST, IUTILST,glmg_file, obsLatitude, obsLongitude,&
+                            landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
+                            obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
+                            obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
+                            qcIndicator, reportNumChannel,          &
+                            reportNumObs, satIndexObserrFile,          &
+                            newInformationFlag, globalQcIndicator, satScanPosition,   &
+                            modelInterpTerrain, obsGlobalMarker, obsFlags,            &
+                            cloudLiquidWaterPath,atmScatteringIndex,rejectionCodArray,&
+                            rejectionCodArray2, burpFileSatId, RESETQC)
+      else
+        write(*,*) 'midas-bgckMW: instName = ', instName
+        call utl_abort('midas-bgckMW: unknown instName')
       end if
+      !###############################################################################
+      ! STEP 4) Accumuler Les statistiques sur les rejets
+      !###############################################################################
+      write(*,*) ' ==> mwbg_qcStats For: ', instName
+      call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,       &
+                        reportNumChannel, reportNumObs, satelliteId, .FALSE.,         &
+                        rejectionCodArray, rejectionCodArray2)
+
+      !###############################################################################
+      ! STEP 5) Update Flags and obs in obsspace data
+      !###############################################################################
+      write(*,*) ' ==> mwbg_updateObsSpaceAfterQc For report Number : ',reportIndex         
+      call mwbg_updateObsSpaceAfterQc(obsSpaceData, channelOffset, obsTb, obsFlags, &
+                                      obsNumPerReport(reportIndex))
+
+      write(*,*) ' Qc ended for report ', reportIndex
 
       !###############################################################################
       ! STEP 5) Update the burpfile out burpFileNameIn
       !###############################################################################
-      write(*,*) ' ==> mwbg_updateBurp For : ', instName
-      call mwbg_updateBurp(burpFileNameIn,instName, reportIndex,ETIKRESU,obsTb,           &
-                           obsTbBiasCorr, obsChannels, ompTb, cloudLiquidWaterPath,        &
-                           atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
-                           globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
-                           obsFlags, writeEle25174, writeModelLsqTT)
+      !write(*,*) ' ==> mwbg_updateBurp For : ', instName
+      !call mwbg_updateBurp(burpFileNameIn,instName, reportIndex,ETIKRESU,obsTb,           &
+      !                     obsTbBiasCorr, obsChannels, ompTb, cloudLiquidWaterPath,        &
+      !                     atmScatteringIndex,newInformationFlag,obsGlobalMarker, RESETQC,& 
+      !                     globalQcIndicator, landQualifierIndice, terrainTypeIndice,     &
+      !                     obsFlags, writeEle25174, writeModelLsqTT)
     end if
     if (ifLastReport) exit QCLoop
   end do QCLoop
   call tmg_stop(10)
+  !###############################################################################
+  ! STEP 5) Update the burpfile out burpFileNameIn
+  !###############################################################################
+  write(*,*) '> midas-obsSelection: writing to file'
+  call obsf_writeFiles(obsSpaceData)
 
   write(*,*) ' Number of obs pts read from BURP file              = ', nobs_tot
   write(*,*) ' Number of BURP file reports                        = ', reportIndex
@@ -445,6 +458,11 @@ program midas_bgckMW
   call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,              &
                     reportNumChannel, reportNumObs, satelliteId,.TRUE.,rejectionCodArray,&
                     rejectionCodArray2)
+
+  !  Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+  end if
 
   ! deallocation
   deallocate(obsNumPerReport)

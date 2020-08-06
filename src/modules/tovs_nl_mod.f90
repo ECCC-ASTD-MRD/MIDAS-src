@@ -226,7 +226,7 @@ contains
     allocate (tvs_isReallyPresentMpiGlobal(tvs_nsensors), stat= allocStatus(9))
 
     call utl_checkAllocationStatus(allocStatus, " tvs_setupAlloc")
-  
+
     tvs_nchan(:) = 0 
     tvs_ichan(:,:) = 0
     tvs_isReallyPresent(:) = .true.
@@ -2195,7 +2195,7 @@ contains
     
     
     !   1.1   Read surface information
-    if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
+    !if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
 
     !   2.  Computation of hx for tovs data only
 

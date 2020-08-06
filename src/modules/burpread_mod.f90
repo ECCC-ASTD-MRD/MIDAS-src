@@ -314,7 +314,7 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=16
+        NELE_INFO=23
         WINDS=.FALSE.
         ADDSIZE=600000
       CASE('CH')
@@ -1629,6 +1629,7 @@ CONTAINS
     INTEGER, ALLOCATABLE   :: LAT(:),LON(:),HHMM(:),DATE(:),GLBFLAG(:)
     REAL   , ALLOCATABLE   :: HLAT(:,:),  HLON(:,:),  HTIME(:,:)
     INTEGER, ALLOCATABLE   :: PHASE(:,:)
+    INTEGER, ALLOCATABLE   :: dataQcFlagLEV(:),dataQcFlag2(:,:)
     REAL   , ALLOCATABLE   :: HLAT_SFC(:),HLON_SFC(:),HTIME_SFC(:)
 
     REAL   , ALLOCATABLE   :: RINFO(:,:)
@@ -1643,7 +1644,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    INTEGER                :: LISTE_INFO(22),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(26),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1651,6 +1652,7 @@ CONTAINS
     INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
     INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR,IND_PHASE,IND_BCOR_TT,IND_BCOR_HU
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
+    INTEGER                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2 
 
     INTEGER                :: vcord_type(10),SUM,vcoord_type
     REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
@@ -1674,7 +1676,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,1033,2011,4197/
+        013209,1033,2011,4197,5040,33078,33079,33080/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1803,7 +1805,7 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=20
+        NELE_INFO=24
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -2164,12 +2166,16 @@ CONTAINS
             IND_LON   = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
             IND_TIME  = BURP_Find_Element(Block_in, ELEMENT=4015, IOSTAT=error)
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
+
             if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
             IND_BCOR    = -1
             IND_BCOR_TT = -1
             IND_BCOR_HU = -1
             IND_PHASE   = -1
+            IND_dataQcFlag0 = -1
+            IND_dataQcFlag1 = -1
+            IND_dataQcFlag2 = -1
             phasePresent = .false.
             if ( FAMILYTYPE == 'TO' ) IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
             if ( FAMILYTYPE == 'AI' .or. FAMILYTYPE2 == 'UA') then
@@ -2189,6 +2195,21 @@ CONTAINS
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
+            if ( FAMILYTYPE == 'TO' ) then
+              IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081,IOSTAT=error)
+              IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032,IOSTAT=error)
+              if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
+                call  utl_abort('readBurp : Got two valid indices for IND_dataQcFlag2 in family' // trim(familyType))
+              elseif ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 < 0 ) then 
+                IND_dataQcFlag2 = IND_dataQcFlag0
+              elseif ( IND_dataQcFlag0 < 0 .and. IND_dataQcFlag1 > 0 ) then 
+                IND_dataQcFlag2 = IND_dataQcFlag1
+              end if
+              ALLOCATE(dataQcFlag2(nvale,nte))
+              ALLOCATE(dataQcFlagLEV(nvale))
+              dataQcFlag2(:,:) = MPC_missingValue_INT
+            end if
+
             ALLOCATE(EMIS(nvale,nte))
             ALLOCATE(SURF_EMIS(nvale))
             EMIS(:,:)       = MPC_missingValue_R4
@@ -2205,8 +2226,10 @@ CONTAINS
                ALLOCATE(BiasCorrection2(nele,nvale))
                BCOR2(:,:,:) =  MPC_missingValue_R4
             end if
+           
 
             ! Get the observations and conventional data bias corrections for each element in LISTE_ELE
+              
             do IL = 1, NELE
 
               iele = LISTE_ELE(IL)
@@ -2238,6 +2261,9 @@ CONTAINS
                   END IF
                   if ( phasePresent ) then
                     phase(j,k) = BURP_Get_Tblval(Block_in,NELE_IND = IND_phase,NVAL_IND = j,NT_IND = k)
+                  end if
+                  if ( IND_dataQcFlag2 > 0 ) then
+                    dataQcFlag2(j,k) = BURP_Get_Tblval(Block_in,NELE_IND = IND_dataQcFlag2,NVAL_IND = j,NT_IND = k)
                   end if
                   IF (IND_EMIS > 0) THEN
                     EMIS(j,k) = BURP_Get_Rval(Block_in,NELE_IND = IND_EMIS,NVAL_IND = j,NT_IND = k)
@@ -2649,6 +2675,7 @@ CONTAINS
                 OBSERV(1:NELE,1:1) = obsvalue(1:NELE,jj:jj,k)
                 if (allocated(BCOR2))  BiasCorrection2(1:NELE,1:1) = BCOR2(1:NELE,jj:jj,k)
                 if (allocated(qcflag)) QCFLAGS(1:NELE,1:1) = qcflag(1:NELE,jj:jj,k)
+
                 XLAT=HLAT(jj,k);XLON=HLON(jj,k);XTIME=HTIME(jj,k)
                 IF ( XLON  < 0. ) XLON  = 360. + XLON
 
@@ -2767,17 +2794,18 @@ CONTAINS
               OBSERV(1:NELE,1:NVAL) = obsvalue(1:NELE,1:NVAL,k)
               if (allocated(BCOR2))  BiasCorrection2(1:NELE,1:NVAL) = BCOR2(1:NELE,1:NVAL,k)
               if (allocated(qcflag)) QCFLAGS(1:NELE,1:NVAL) = qcflag(1:NELE,1:NVAL,k)
+              if (allocated(dataQcFlag2)) dataQcFlagLEV(1:NVAL) = dataQcFlag2(1:NVAL,k)
               VCORD(1:NVAL) = VCOORD(1:NVAL,k)
               
               if (allocated(BCOR)) then
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
+                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection, dataQcFlag2_opt=dataQcFlagLEV)
               elseif (allocated(BCOR2)) then
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
+                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2, dataQcFlag2_opt=dataQcFlagLEV)
               else
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS)
+                   SURF_EMIS_opt = SURF_EMIS, dataQcFlag2_opt=dataQcFlagLEV)
               end if
               
               IF (NDATA > 0) THEN
@@ -2900,6 +2928,9 @@ CONTAINS
         if ( allocated(EMIS) ) then
           DEALLOCATE (EMIS,SURF_EMIS)
         end if
+        if ( allocated(dataQcFlag2) ) then
+          DEALLOCATE (dataQcFlag2,dataQcFlagLEV)
+        end if
         if (allocated(azimuth)) then
           deallocate(azimuth)
         end if
@@ -2976,7 +3007,7 @@ CONTAINS
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
                       obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS_opt, &
-                      BiasCorrection_opt)
+                      BiasCorrection_opt,dataQcFlag2_opt)
 
     implicit none
     type (struct_obs), intent(inout) :: obsdat
@@ -2987,6 +3018,7 @@ CONTAINS
     INTEGER, allocatable          ::  QCFLAG(:,:)
     REAL   , allocatable          ::  VERTCOORD(:)
     REAL   , allocatable,optional ::  BiasCorrection_opt(:,:)
+    INTEGER, allocatable,optional ::  dataQcFlag2_opt(:)
 
     CHARACTER*2 ::   FAMTYP
     REAL        ::   ELEVFACT,VCOORD
@@ -2998,18 +3030,20 @@ CONTAINS
     INTEGER     ::   NOBS
     INTEGER     ::   VARNO,IL,J,COUNT,NLV
 
-    INTEGER     ::   IFLAG,BITSflagoff,BITSflagon
+    INTEGER     ::   IFLAG,BITSflagoff,BITSflagon,IFLAG2
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
     LOGICAL     ::   L_EMISS
     LOGICAL     ::   L_BCOR
+    LOGICAL     ::   L_dataQcFlag2
 
     
     
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
+    L_dataQcFlag2 = present( dataQcFlag2_opt )
 
     NONELEV  =-1
 
@@ -3116,6 +3150,9 @@ CONTAINS
         if ( L_BCOR )  then
           BCOR  =  BiasCorrection_opt(il,j)
         end if
+        if ( L_dataQcFlag2 )  then
+          IFLAG2  =  dataQcFlag2_opt(j)
+        end if
         IFLAG = INT(qCflag(il,j))
 
         if(iand(iflag,BITSflagoff) /= 0) cycle
@@ -3134,6 +3171,10 @@ CONTAINS
 
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
+          end if
+
+          if ( L_dataQcFlag2 ) then
+             call obs_bodySet_i(obsdat,OBS_QCF2,count,IFLAG2)
           end if
 
           if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
@@ -3272,12 +3313,13 @@ CONTAINS
     REAL*4      ::   INFOV
     INTEGER     ::   CODTYP
     INTEGER     ::   IL,NOBS
-    INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
-    INTEGER     ::   TERRAIN_TYPE
+    INTEGER     ::   SENSOR,ORBIT,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
+    INTEGER     ::   TERRAIN_TYPE,QCFLAG1,QCFLAG2,QCFLAG3
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
     INTEGER     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
-    REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
+    REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT,RQCFLAG1,RQCFLAG2,RQCFLAG3
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
+    REAL        ::   RORBIT
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
     REAL(pre_obsReal) ::   cloudLiquidWater
@@ -3293,6 +3335,10 @@ CONTAINS
     ORIGIN_CENTRE = 0
     RAOBSTYPE  = MPC_missingValue_INT
     LAUNCHTIME = MPC_missingValue_INT
+    ORBIT      = 0
+    QCFLAG1    = 0
+    QCFLAG2    = 0
+    QCFLAG3    = 0
 
     IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
@@ -3337,6 +3383,35 @@ CONTAINS
           ELSE
             SENSOR = NINT(RSENSOR)
           END IF
+        CASE( 5040)
+          RORBIT = INFOV
+          if (RORBIT == MPC_missingValue_R4 ) THEN
+            ORBIT = MPC_missingValue_INT
+          ELSE
+            ORBIT = NINT(RORBIT)
+          END IF
+        CASE( 33078)
+          RQCFLAG1 = INFOV
+          if (RQCFLAG1 == MPC_missingValue_R4 ) THEN
+            QCFLAG1 = MPC_missingValue_INT
+          ELSE
+            QCFLAG1 = NINT(RQCFLAG1)
+          END IF
+        CASE( 33079)
+          RQCFLAG2 = INFOV
+          if (RQCFLAG2 == MPC_missingValue_R4 ) THEN
+            QCFLAG2 = MPC_missingValue_INT
+          ELSE
+            QCFLAG2 = NINT(RQCFLAG2)
+          END IF
+        CASE( 33080)
+          RQCFLAG3 = INFOV
+          if (RQCFLAG3 == MPC_missingValue_R4 ) THEN
+            QCFLAG3 = MPC_missingValue_INT
+          ELSE
+            QCFLAG3 = NINT(RQCFLAG3)
+          END IF
+
         CASE( 2019)
           RINSTRUMENT = INFOV
           if (RINSTRUMENT == MPC_missingValue_R4 ) THEN
@@ -3457,6 +3532,10 @@ CONTAINS
     END IF
 
     if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,LAND_SEA)
+    if ( obs_columnActive_IH(obsdat,OBS_ORBI)) call obs_headSet_i(obsdat,OBS_ORBI,nobs,ORBIT)
+    if ( obs_columnActive_IH(obsdat,OBS_AQF1)) call obs_headSet_i(obsdat,OBS_AQF1,nobs,QCFLAG1)
+    if ( obs_columnActive_IH(obsdat,OBS_AQF2)) call obs_headSet_i(obsdat,OBS_AQF2,nobs,QCFLAG2)
+    if ( obs_columnActive_IH(obsdat,OBS_AQF3)) call obs_headSet_i(obsdat,OBS_AQF3,nobs,QCFLAG3)
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)

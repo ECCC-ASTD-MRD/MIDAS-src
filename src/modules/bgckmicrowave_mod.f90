@@ -54,6 +54,7 @@ module bgckmicrowave_mod
   public :: mwbg_readObsFromObsSpace
   public :: mwbg_setGlobalFlagBit
   public :: mwbg_setMissingObsToNotAssimilated
+  public :: mwbg_updateObsSpaceAfterQc
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
   public :: mwbg_firstQcCheckAtms
@@ -1902,9 +1903,13 @@ contains
     ! Add new elements CLW and scatw
     Call BURP_Set_Element(burpBlock,NELE_IND=burpNele,ELEMENT=burpElement,iostat=error)
     call BURP_Encode_Block(burpBlock)   ! encode the element numbers in the block
+    write(*,*)'my_nele = ',burpNele
+    write(*,*)'my_nt = ',burpLocationNum
+    write(*,*)'my_nval   = ',burpChannelNum
     dataIndex = 1 
     do burpLocationIndex  =1, burpLocationNum
       do burpChannelIndex = 1,burpChannelNum  
+        write(*,*)'dataIndex = ',dataIndex
         Call BURP_Set_Rval(burpBlock,NELE_IND=burpNele,NVAL_IND=burpChannelIndex,NT_IND=burpLocationIndex,RVAL=burpArr(dataIndex),iostat=error)
         dataIndex = dataIndex + 1        
       end do
@@ -2150,7 +2155,7 @@ contains
       Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
       nsize = MRFMXL(iun_burpin)
       ! Add nsize to report size to accomodate modified (larger) data blocks
-      nsize = nsize*10
+      nsize = nsize*15
       ! Create new report (reportOut) to contain modified blocks from reportIn
       Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
       if (error /= burp_noerr) call burpErrorHistory(file_in, reportOut)
@@ -2248,7 +2253,9 @@ contains
       else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
                 my_bfam == 0 ) then
         ! 1- Add new elements obsTbBiasCorr
-        call addRealElementBurpBlock(blk, 12233, obsTbBiasCorr, my_nval, my_nt, my_nele+1)
+
+
+        !call addRealElementBurpBlock(blk, 12233, obsTbBiasCorr, my_nval, my_nt, my_nele+1)
         ! Create the block  Omp 9322
         ! 2- copy data bloc, make some change to replace ztb by OMP data then save it in BLOC btyp=9322, bfam= 14 
         !-------------------------------------------------------------------------------------------------------
@@ -5787,14 +5794,56 @@ contains
     end do BODY
 
   end subroutine mwbg_setMissingObsToNotAssimilated
+  !--------------------------------------------------------------------------
+  !  mwbg_updateObsSpaceAfterQc
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData,channelOffset, obsTb, obsFlags, obsNumOfReport)
+
+    !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
+    implicit None
+
+    !Arguments
+    type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
+    integer,              intent(in)        :: obsFlags(:)            ! data flags
+    real,                 intent(in)        :: obsTb(:)               ! obs Tb
+    integer,              intent(in)        :: obsNumOfReport         ! number of current report in file
+    integer,              intent(in)        :: channelOffset          ! sat channel offset
+    ! Locals
+    integer,             save               :: numHeaderRead = 0
+    integer                                 :: headerIndex
+    integer                                 :: bodyIndex
+    integer                                 :: obsNumCurrentLoc
+    integer                                 :: bodyIndexbeg
+    integer                                 :: headerCompt 
+    integer                                 :: bodyCompt   
+    integer                                 :: currentChannelNumber 
+    integer                                 :: ChannelNum
+
+    channelNum = mwbg_maxNumChan - channelOffset
+    headerCompt = 1 
+    bodyCompt = 0
     
+    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
+      bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+      obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+        currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+        call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(bodyCompt+currentChannelNumber))
+        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(bodyCompt+currentChannelNumber))
+      end do BODY
+      bodyCompt =  bodyCompt+channelNum
+      headerCompt = headerCompt + 1
+    end do HEADER
+    numHeaderRead = numHeaderRead + obsNumOfReport
+  end subroutine mwbg_updateObsSpaceAfterQc  
    
 
   !--------------------------------------------------------------------------
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_readObsFromObsSpace(instName, obsNumOfReport, satIdentifier, satZenithAngle, landQualifierIndice, &
+  subroutine mwbg_readObsFromObsSpace(instName, channelOffset, obsNumOfReport, satIdentifier, satZenithAngle, landQualifierIndice, &
                                     terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
                                     obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
                                     obsFlags, reportNumObs, reportNumChannel, obsSpaceData)
@@ -5805,6 +5854,7 @@ contains
 
     !Arguments
     character(len=9),     intent(in)     :: InstName               ! Instrument Name
+    integer,              intent(in)     :: channelOffset          ! sat. channel offset(e.g 27 for amsua) 
     integer,              intent(in)     :: obsNumOfReport         ! number of locations    (btyp=5120,etc.)
     integer, allocatable, intent(out)    :: satIdentifier(:)       ! satellite identifier
     real   , allocatable, intent(out)    :: satZenithAngle(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
@@ -5830,38 +5880,58 @@ contains
 
     ! Locals
     integer,          save               :: numHeaderRead = 0
-    integer,          save               :: numBodyRead = 0
     integer                              :: headerIndex
     integer                              :: bodyIndex
     integer                              :: obsNumCurrentLoc
+    integer                              :: channelNum
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt 
     integer                              :: bodyCompt   
+    integer                              :: currentChannelNumber  
+    integer                              :: channelIndex
 
+    channelNum = mwbg_maxNumChan - channelOffset
+    reportNumChannel = channelNum
     headerCompt = 1 
-    bodyCompt = 1 
+    bodyCompt = 0
     reportNumObs = obsNumOfReport
-    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
+    ! Allocate Header elements
+    call utl_reAllocate(satIdentifier, obsNumOfReport)
+    call utl_reAllocate(satZenithAngle, obsNumOfReport)
+    call utl_reAllocate(landQualifierIndice, obsNumOfReport)
+    call utl_reAllocate(terrainTypeIndice, obsNumOfReport)
+    call utl_reAllocate(obsLatitude, obsNumOfReport)
+    call utl_reAllocate(obsLongitude, obsNumOfReport)
+    call utl_reAllocate(satScanPosition, obsNumOfReport)
+    call utl_reAllocate(obsGlobalMarker, obsNumOfReport)
+    call utl_reAllocate(satOrbit, obsNumOfReport)
+    call utl_reAllocate(obsQcFlag1, obsNumOfReport,3)
+    ! Allocate Body elements
+    call utl_reAllocate(obsTb, obsNumOfReport*channelNum)
+    call utl_reAllocate(ompTb, obsNumOfReport*channelNum)
+    call utl_reAllocate(obsTbBiasCorr, obsNumOfReport*channelNum)
+    call utl_reAllocate(obsFlags, obsNumOfReport*channelNum)
+    call utl_reAllocate(obsChannels, obsNumOfReport*channelNum)
+    call utl_reAllocate(obsQcFlag2, obsNumOfReport*channelNum)
+    !initialization
+    obsTb(:) = mwbg_realMissing
+    ompTb(:) = mwbg_realMissing
+    obsTbBiasCorr(:) = mwbg_realMissing
+
       ! ====================================
-      ! Allocate Header elements
-      call utl_reAllocate(satIdentifier, obsNumOfReport)
-      call utl_reAllocate(satZenithAngle, obsNumOfReport)
-      call utl_reAllocate(landQualifierIndice, obsNumOfReport)
-      call utl_reAllocate(terrainTypeIndice, obsNumOfReport)
-      call utl_reAllocate(obsLatitude, obsNumOfReport)
-      call utl_reAllocate(obsLongitude, obsNumOfReport)
-      call utl_reAllocate(satScanPosition, obsNumOfReport)
-      call utl_reAllocate(obsGlobalMarker, obsNumOfReport)
-      call utl_reAllocate(satOrbit, obsNumOfReport)
-      call utl_reAllocate(obsQcFlag1, obsNumOfReport,3)
+
+    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
       ! ====================================
         
       if (headerIndex == numHeaderRead+1) &
       burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
+      write(*,*) 'satId in burpFile = ', burpFileSatId, 'for headerIndex = ', headerIndex
       satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
       satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
       landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
       terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
+      ! If terrain type sea ice (0), set landQualifier=2
+      if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
       obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
       obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
       satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
@@ -5875,37 +5945,27 @@ contains
 
       bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
       obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-      reportNumChannel = obsNumCurrentLoc
-      ! Allocate Body elements
-      call utl_reAllocate(obsTb, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(ompTb, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(obsTbBiasCorr, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(obsFlags, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(obsChannels, obsNumOfReport*obsNumCurrentLoc)
-      call utl_reAllocate(obsQcFlag2, obsNumOfReport*obsNumCurrentLoc)
-   
-      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-        obsTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-        ompTb(bodyCompt)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-        obsTbBiasCorr(bodyCompt)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
-        if(obsTb(bodyCompt) == MPC_missingValue_r8) then
-          obsTb(bodyCompt)         = mwbg_realMissing
-          ompTb(bodyCompt)         = mwbg_realMissing
-          obsTbBiasCorr(bodyCompt) = mwbg_realMissing
-        end if 
-        obsFlags(bodyCompt)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-        obsChannels(bodyCompt)    = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))
-        obsQcFlag2(bodyCompt)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
-        bodyCompt = bodyCompt + 1
-      end do BODY
 
+      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+        currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+        obsTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+        ompTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+        obsTbBiasCorr(bodyCompt+currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
+        obsFlags(bodyCompt+currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+        obsQcFlag2(bodyCompt+currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
+        
+      end do BODY
+      do channelIndex=1,channelNum
+        obsChannels(bodyCompt+channelIndex)    = channelIndex+channelOffset
+      end do
+      bodyCompt = bodyCompt + channelNum
+      
       ! Convert lat/lon to degrees
       obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
       if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
       obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
 
       headerCompt = headerCompt + 1
-      numBodyRead = numBodyRead + obsNumCurrentLoc      
     end do HEADER
     numHeaderRead = numHeaderRead + obsNumOfReport
   end subroutine mwbg_readObsFromObsSpace 

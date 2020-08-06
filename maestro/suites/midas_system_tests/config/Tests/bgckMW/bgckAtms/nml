@@ -8,14 +8,14 @@
   ETIKRESU = '>>BGCKALT'
   writeEle25174 = .true.
   maxNumSat             = 2
-  maxNumChan            = 22
+  channelOffset         = 0
   maxNumTest            = 5
 
 /
  &NAMMWOBS
   reportNumMax = 500
   locationNumMax = 1200
-  channelNumMax = 22
+  maxNumChan = 22
 /
  &NAMDIMO
    NMXOBS=500000,
@@ -57,6 +57,23 @@
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
 
+/
+ &NAMBURP_FILTER_TOVS
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=1
+  BLISTELEMENTS=12163
+/
+ &NAMBURP_UPDATE
+  BN_ITEMS=1,
+  BITEMLIST(1)='OMP',
+  BITEMLIST(2)='OMA',
+  BITEMLIST(3)='FGE',
+  TYPE_RESUME='BGCKALT'
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
