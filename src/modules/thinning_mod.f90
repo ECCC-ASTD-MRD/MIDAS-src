@@ -5797,7 +5797,7 @@ contains
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex
-    integer :: ierr, nsize, procIndex, countHeader
+    integer :: ierr, nsize, procIndex, countHeader, countHeaderMpi
     real(4) :: latInRadians, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
@@ -5814,11 +5814,50 @@ contains
     logical, allocatable :: rejectThisHeader(:)
     logical :: keepThisObs
     integer :: obsLonBurpFile, obsLatBurpFile
-    character(len=12) :: stnid
+    integer, parameter :: numStnIdMax = 10
+    integer :: numStnId, stnIdIndexFound, stnIdIndex, countMpi, numObsStnId(numStnIdMax)
+    character(len=12) :: stnid, stnidList(numStnIdMax)
 
     write(*,*)
     write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
     write(*,*)
+
+    ! loop over all header indices of the specified family
+    countHeader = 0
+    numStnId = 0
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER0
+
+      countHeader = countHeader + 1
+      stnid = obs_elem_c(obsdat,'STID',headerIndex)
+
+      if (numStnId < numStnIdMax ) then
+        stnIdIndexFound = -1
+        do stnIdIndex = 1, numStnId
+          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
+        end do
+        if ( stnIdIndexFound == -1 ) then
+          numStnId = numStnId + 1
+          stnidList(numStnId) = stnid
+          stnIdIndexFound = numStnId
+        end if
+        numObsStnId(stnIdIndexFound) = numObsStnId(stnIdIndexFound) + 1
+      else
+        call utl_abort('thn_hyperByLatLonBoxes: numStnId too large')
+      end if
+
+    end do HEADER0
+
+    ! return if no observations for this instrument
+    call rpn_comm_allReduce(countHeader, countHeaderMpi, 1, 'mpi_integer', &
+                            'mpi_sum', 'grid', ierr)
+    if (countHeaderMpi == 0) then
+      write(*,*) 'thn_hyperByLatLonBoxes: no observations for this instrument'
+      return
+    end if
 
     ! Initial setup
     numLat = nint( 2. * real(latLength) / real(deltax) )
@@ -5836,6 +5875,31 @@ contains
     gridLats(:)              = 0.0
     numGridLons(:)                = 0
 
+    write(*,'(a)') ' '
+    write(*,'(a)') ' == Gridbox properties == '
+    write(*,'(a)') ' '
+    write(*,'(a,i8)') ' Number of horizontal boxes : ', numLon
+    write(*,'(a,i8)') ' Number of vertical boxes   : ', numLat
+    write(*,'(a,i8)') ' Number of temporal bins    : ', tim_nstepobs
+
+    ! print some statistics before thinning
+
+    write(*,*)
+    write(*,'(a)')        ' == Input file == '
+    write(*,*)
+    write(*,'(a,a4)')     ' Instrument = ', codtyp_get_name(codtyp)
+    write(*,'(a,i4)')     ' Codtyp     = ', codtyp
+
+    write(*,*)
+    write(*,'(a,2i8)')     ' Number of valid satellite profiles  = ', countHeader, countHeaderMpi
+    write(*,*)
+
+    do stnIdIndex = 1, numStnId
+      call rpn_comm_allReduce(numObsStnId(stnIdIndex), countMpi, 1, 'mpi_integer', &
+                              'mpi_sum', 'grid', ierr)
+      write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
+    end do
+    
     allocate(headerIndexKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
     allocate(numChannelsKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
     allocate(distanceKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
@@ -5857,17 +5921,13 @@ contains
       numGridLons(latIndex)   = nint(length/deltax)
     end do
 
-    countHeader = 0
-
     ! loop over all header indices of the specified family
     call obs_set_current_header_list(obsdat,trim(familyType))
-    HEADER: do
+    HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER
+      if (headerIndex < 0) exit HEADER1
 
-      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER
-
-      countHeader = countHeader + 1
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER1
 
       obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
       obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
@@ -5930,8 +5990,6 @@ contains
                                            MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
                                            MPC_RADIANS_PER_DEGREE_R8 * obsLon )
 
-      stnid = obs_elem_c(obsdat,'STID',headerIndex)
-
       ! Apply thinning criteria
       keepThisObs = .false.
 
@@ -5967,14 +6025,7 @@ contains
         numChannelsKeep(latBinIndex,lonBinIndex,timeBinIndex) = numChannels
       end if
 
-    end do HEADER
-
-    ! return if no observations for this instrument
-    if (countHeader == 0) then
-      call deallocLocals()
-      write(*,*) 'thn_hyperByLatLonBoxes: no observations for this instrument'
-      return
-    end if
+    end do HEADER1
 
     ! communicate results to all other mpi tasks
     nsize = numLat * numLon * tim_nstepobs
@@ -6060,7 +6111,9 @@ contains
       end do
     end do
 
-    ! modify flags, by setting bit 11 for those rejected
+    ! modify flags, by setting bit 11 for those rejected, and count obs
+    countHeader = 0
+    numObsStnId(:) = 0
     call obs_set_current_header_list(obsdat,trim(familyType))
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -6068,7 +6121,21 @@ contains
 
       if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER2
 
-      if (.not. rejectThisHeader(headerIndex)) cycle HEADER2
+      if (.not. rejectThisHeader(headerIndex)) then
+
+        stnid = obs_elem_c(obsdat,'STID',headerIndex)
+        stnIdIndexFound = -1
+        do stnIdIndex = 1, numStnId
+          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
+        end do
+        if ( stnIdIndexFound == -1 ) then
+          call utl_abort('thn_hyperByLatLonBoxes: Problem with stnId')
+        end if
+        numObsStnId(stnIdIndexFound) = numObsStnId(stnIdIndexFound) + 1
+        countHeader = countHeader + 1
+
+        cycle HEADER2
+      end if
 
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list(obsdat, headerIndex)
@@ -6081,32 +6148,39 @@ contains
       end do BODY2
 
     end do HEADER2
-    deallocate(rejectThisHeader)
 
-    call deallocLocals()
+    call rpn_comm_allReduce(countHeader, countHeaderMpi, 1, 'mpi_integer', &
+                            'mpi_sum', 'grid', ierr)
+
+    write(*,*)
+    write(*,'(a)')        ' == Output file == '
+
+    write(*,*)
+    write(*,'(a,2i8)')     ' Number of valid satellite profiles  = ', countHeader, countHeaderMpi
+    write(*,*)
+
+    do stnIdIndex = 1, numStnId
+      call rpn_comm_allReduce(numObsStnId(stnIdIndex), countMpi, 1, 'mpi_integer', &
+                              'mpi_sum', 'grid', ierr)
+      write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
+    end do
+    
+    deallocate(rejectThisHeader)
+    deallocate(headerIndexKeep)
+    deallocate(numChannelsKeep)
+    deallocate(distanceKeep)
+    deallocate(delMinutesKeep)
+    deallocate(gridLats)
+    deallocate(numGridLons)
+    deallocate(headerIndexKeepMpi)
+    deallocate(numChannelsKeepMpi)
+    deallocate(distanceKeepMpi)
+    deallocate(delMinutesKeepMpi)
+    deallocate(procIndexKeep)
 
     write(*,*)
     write(*,*) 'thn_hyperByLatLonBoxes: Finished'
     write(*,*)
-
-  contains
-
-    subroutine deallocLocals()
-      implicit none
-
-      deallocate(headerIndexKeep)
-      deallocate(numChannelsKeep)
-      deallocate(distanceKeep)
-      deallocate(delMinutesKeep)
-      deallocate(gridLats)
-      deallocate(numGridLons)
-      deallocate(headerIndexKeepMpi)
-      deallocate(numChannelsKeepMpi)
-      deallocate(distanceKeepMpi)
-      deallocate(delMinutesKeepMpi)
-      deallocate(procIndexKeep)
-      
-    end subroutine deallocLocals
 
   end subroutine thn_hyperByLatLonBoxes
 
