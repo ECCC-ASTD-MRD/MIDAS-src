@@ -210,8 +210,9 @@ contains
     real(8) :: heightMin     ! niveau a partir du quel on accepte les donnees
     real(8) :: heightMax     ! niveau a partir du quel on rejette les donnees
     real(8) :: heightSpacing ! epaisseur minimale entre deux niveaux
+    integer :: gpsroVarNo    ! bufr element id to be used
 
-    namelist /thin_gpsro/heightMin, heightMax, heightSpacing
+    namelist /thin_gpsro/heightMin, heightMax, heightSpacing, gpsroVarNo
 
     ! return if no gb-gps obs
     if (.not. obs_famExist(obsdat,'RO')) return
@@ -220,6 +221,7 @@ contains
     heightMin     = 1000.0d0
     heightMax     = 40000.0d0
     heightSpacing = 750.0d0
+    gpsroVarNo    = BUFR_NERF ! default is refractivity
 
     ! Read the namelist for GpsRo observations (if it exists)
     if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
@@ -237,7 +239,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
-    call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing)
+    call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, gpsroVarNo)
 
   end subroutine thn_thinGpsRo
 
@@ -569,7 +571,8 @@ contains
   !--------------------------------------------------------------------------
   ! thn_gpsroVertical
   !--------------------------------------------------------------------------
-  subroutine thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing)
+  subroutine thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, &
+                               gpsroVarNo)
     !
     ! :Purpose: Original method for thinning GPSRO data by vertical distance.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -581,12 +584,12 @@ contains
     real(8),          intent(in)    :: heightMin
     real(8),          intent(in)    :: heightMax
     real(8),          intent(in)    :: heightSpacing
-
-    ! Local parameters:
-    integer, parameter :: gpsroVarNo = BUFR_NERF
+    integer,          intent(in)    :: gpsroVarNo
 
     ! Locals:
-    integer :: countObs, countObsInMpi, headerIndex, bodyIndex, ierr
+    integer :: countObs, countObsMpi
+    integer :: countObsReject, countObsRejectMpi, countObsTotal, countObsTotalMpi
+    integer :: headerIndex, bodyIndex, ierr
     integer :: numLev, levIndex, obsVarNo, obsFlag
     real(8) :: nextHeightMin
     logical :: rejectObs
@@ -606,16 +609,15 @@ contains
       countObs = countObs + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-    if (countObsInMpi == 0) then
+    if (countObsMpi == 0) then
       write(*,*) 'thn_gpsroVertical: no gpsro observations present'
       return
     end if
 
-    write(*,*) 'thn_gpsroVertical: number of obs initial = ', &
-               countObs, countObsInMpi
-
+    countObsTotal  = 0
+    countObsReject = 0
     call obs_set_current_header_list(obsdat,'RO')
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -632,6 +634,7 @@ contains
         if (obsVarNo /= gpsroVarNo) cycle BODY1
 
         numLev = numLev + 1
+        countObsTotal = countObsTotal + 1
 
       end do BODY1
 
@@ -673,6 +676,7 @@ contains
           bodyIndex = bodyIndexList(levIndex)
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          countObsReject = countObsReject + 1
         end if
         
       end do LEVELS
@@ -681,6 +685,15 @@ contains
       deallocate(bodyIndexList)
 
     end do HEADER1
+
+    call rpn_comm_allReduce(countObsTotal, countObsTotalMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(countObsReject, countObsRejectMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    write(*,*)' Number of GPS-RO elements, total     --->', countObsTotalMpi
+    write(*,*)' Number of GPS-RO elements, rejected  --->', countObsRejectMpi
+    write(*,*)' Number of GPS-RO elements, kept      --->', countObsTotalMpi - &
+                                                            countObsRejectMpi
 
     write(*,*)
     write(*,*) 'thn_gpsroVertical: Finished'
@@ -1118,10 +1131,12 @@ contains
     call rpn_comm_allReduce(countAcc_es, countAccMpi_es, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
 
+    write(*,*)
     write(*,*) 'DD Rej/Acc = ',countRejMpi_dd, countAccMpi_dd
     write(*,*) 'FF Rej/Acc = ',countRejMpi_ff, countAccMpi_ff
     write(*,*) 'TT Rej/Acc = ',countRejMpi_tt, countAccMpi_tt
     write(*,*) 'ES Rej/Acc = ',countRejMpi_es, countAccMpi_es
+    write(*,*)
 
     ! Replace obs flags in obsSpaceData with obsFlags
     levStnIndex = 0
@@ -3580,10 +3595,6 @@ contains
     allocate(gridLon(numLon))
     gridLon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
     gridLat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
-    write(*,*) 'thinning grid lats = '
-    write(*,*) gridLat(:)
-    write(*,*) 'thinning grid lons = '
-    write(*,*) gridLon(:)
     write(*,*) 'thinning grid vlev = '
     write(*,*) vlev(1:numLev)
 
@@ -3858,8 +3869,6 @@ contains
                             obsTTPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
 
     STEP: do stepIndex = 1, tim_nstepobs
-      write(*,'(a50,i10)' ) ' Process bin number = ', stepIndex
-
       handlesGrid(:,:,:) = -1
       minScoreGrid(:,:,:) = 1000000.
       minDistGrid(:,:,:) = 1000000.
@@ -5105,7 +5114,7 @@ contains
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-    write(*,*) 'thn_scatByLatLonBoxes: countObs after QC and time tests = ', &
+    write(*,*) 'thn_scatByLatLonBoxes: countObs after QC and time tests   = ', &
                countObs, countObsOutMpi
 
     ! Gather data from all MPI tasks
@@ -5267,31 +5276,33 @@ contains
                             'mpi_integer', 'mpi_sum', 'grid', ierr)
 
     write(*,*)
-    write(*,'(a,i6)') ' Number of obs in input ', countObsInMpi
-    write(*,'(a,i6)') ' Number of obs in output ', countObsOutMpi
-    write(*,'(a,i6)') ' Number of obs not selected due to time ', timeRejectCountMpi
-    write(*,'(a,i6)') ' Number of obs not selected due to topo ', flagRejectCountMpi
+    write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs in input  = ', countObsInMpi
+    write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs in output = ', countObsOutMpi
+    write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs not selected due to time = ', &
+         timeRejectCountMpi
+    write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs not selected due to topo = ', &
+         flagRejectCountMpi
     write(*,*)
     
     write(*,'(a40,i10)' ) 'Number of satellites found = ', numStnId
     write(*,*)
   
-    write(*,'(a40,2a15)' ) 'Satellite', 'nb SCAT in'
+    write(*,'(a40,a15)' ) 'Satellite', 'nb SCAT in'
     write(*,*)
     do stnIdIndex = 1, numStnId
-      write(*,'(a40,2i15)') stnidList(stnIdIndex), numObsStnIdInMpi(stnIdIndex)
+      write(*,'(a40,i15)') stnidList(stnIdIndex), numObsStnIdInMpi(stnIdIndex)
     end do
     write(*,*)
-    write(*,'(a40,2i10,f10.4)' ) 'Total number of obs in : ', sum(numObsStnIdInMpi(:))
+    write(*,'(a40,i15)' ) 'Total number of obs in : ', sum(numObsStnIdInMpi(:))
   
     write(*,*)
-    write(*,'(a40,2a15)' ) 'Satellite', 'nb SCAT out'
+    write(*,'(a40,a15)' ) 'Satellite', 'nb SCAT out'
     write(*,*)
     do stnIdIndex = 1, numStnId
-      write(*,'(a40,2i15)') stnidList(stnIdIndex), numObsStnIdOutMpi(stnIdIndex)
+      write(*,'(a40,i15)') stnidList(stnIdIndex), numObsStnIdOutMpi(stnIdIndex)
     end do
     write(*,*)
-    write(*,'(a40,2i10,f10.4)' ) 'Total number of obs out : ', sum(numObsStnIdOutMpi(:))
+    write(*,'(a40,i15)' ) 'Total number of obs out : ', sum(numObsStnIdOutMpi(:))
 
     ! Deallocations:
     deallocate(valid)
