@@ -1967,6 +1967,8 @@ contains
     data zmisgLocal   / -99.     /
     data epsilon /   1.E-30 /
 
+    logical skipLoopChan15Missing 
+
     ! 1) Initialise output parameters:
     do i = 1, ni
       ice  (i) = zmisgLocal
@@ -1989,8 +1991,6 @@ contains
            tb50(i)    .gt. 350.  .or. &
            tb53(i)    .lt. 120.  .or. &
            tb53(i)    .gt. 350.  .or. &
-           tb89(i)    .lt. 120.  .or. &
-           tb89(i)    .gt. 350.  .or. &
            pangl(i)   .lt. -90.  .or. &
            pangl(i)   .gt.  90.  .or. &
            plat(i)    .lt. -90.  .or. &
@@ -2005,7 +2005,7 @@ contains
     end do
 
     !3) Compute parameters:
-    do i = 1, ni
+    loopObsGrody: do i = 1, ni
       if ( ier(i) .eq. 0 ) then
         abslat = abs(plat(i))
         cosz   = cosd(pangl(i))
@@ -2013,20 +2013,27 @@ contains
         t31 = tb31(i)
         t50 = tb50(i)
         t53 = tb53(i)
-        t89 = tb89(i)
         dif285t23  =max(285.-t23,epsilon)
         dif285t23_P=max(285.-tb23_P(i),epsilon)
         dif285t31  =max(285.-t31,epsilon)
         dif285t31_P=max(285.-tb31_P(i),epsilon)
 
-        ! scattering indices:
-        siw = -113.2 + (2.41 - 0.0049*t23)*t23 &
-                     + 0.454*t31 &
-                     - t89 
-        sil = t23 - t89 
+        skipLoopChan15Missing = .false.
+        if ( tb89(i) < 120.0 .or. tb89(i) > 350.0 ) & 
+          skipLoopChan15Missing = .true.
 
-        scatl (i) = sil
-        scatw (i) = siw
+        if ( .not. skipLoopChan15Missing ) then
+          t89 = tb89(i)
+
+          ! scattering indices:
+          siw = -113.2 + (2.41 - 0.0049*t23)*t23 &
+                       + 0.454*t31 &
+                       - t89 
+          sil = t23 - t89 
+
+          scatl (i) = sil
+          scatw (i) = siw
+        end if
 
         ! discriminate functions:
         df1 =  2.85 + 0.020*t23 - 0.028*t50 ! used to identify (also remove) sea ice
@@ -2098,6 +2105,8 @@ contains
             clwFG(i) = min(3.,max(0.,clwFG(i)))   ! jh       
           endif
 
+          if ( skipLoopChan15Missing ) cycle loopObsGrody
+
           !3.4) Ocean rain: 0=no rain; 1=rain.
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
@@ -2113,6 +2122,8 @@ contains
           end if
 
         else
+
+          if ( skipLoopChan15Missing ) cycle loopObsGrody
 
           ! Land Parameters
 
@@ -2196,7 +2207,7 @@ contains
                   ier(i),ice(i),tpw(i),clwObs(i),clwFG(i),rain(i),snow(i)
       end if
 
-    end do
+    end do loopObsGrody
 
   end subroutine GRODY
 
