@@ -614,8 +614,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
    integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
+   integer, parameter, public :: OBS_ROLA= OBS_OMPE+1 ! individual obs latitude
+   integer, parameter, public :: OBS_ROLO= OBS_ROLA+1 ! individual obs longitude
+
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_OMPE
+   integer, parameter :: NBDY_REAL_END = OBS_ROLO
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -623,7 +626,7 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','HAHT','ZHA ','OMP6','OMA0',     &
-         'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR', 'OMPE' /)
+         'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR', 'OMPE', 'ROLA', 'ROLO' /)
 end module ObsColumnNames_mod
 
 
@@ -728,9 +731,9 @@ module ObsDataColumn_mod
    integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
       (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD, &
         OBS_QCF2 /)
-   integer, public, parameter :: odc_ENKF_bdy_real_column_list(13) = &
+   integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
+        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_ROLA,OBS_ROLO /)
 
 contains
 
@@ -1037,7 +1040,7 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
               OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_PRM,&
-              OBS_BCOR, (0,ii=16,100) /)
+              OBS_BCOR,OBS_ROLO,OBS_ROLA, (0,ii=18,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1488,10 +1491,10 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
    public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS,OBS_BCOR
-   public :: OBS_OMPE
+   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
-   integer, public, parameter :: OBS_JPNBRELEM   = 57 ! obs variable-types table length
+   integer, public, parameter :: OBS_JPNBRELEM   = 59 ! obs variable-types table length
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
 
@@ -3900,7 +3903,7 @@ contains
          87,     88,     89,     90,     91, & ! 41-50
          012163, 010004, 011001, 011002, 012062, &
          008001, 008004, 010051, 011011, 011012, & ! 51-57
-         41,     42 /)
+         41    ,     42, 005001, 006001 /)
 
 
       ! OBS. ARRAY VARIABLES NUMBERING IN A BURP FILE
@@ -3963,6 +3966,8 @@ contains
       ! 55 =011012
       ! 56 =    41 (U AT 10M)
       ! 57 =    42 (V AT 10M)
+      ! 58 =005001 Latitude
+      ! 59 =006001 Longitude
 
       obs_get_obs_index_for_bufr_element=-1
       do indbuf=1,OBS_JPNBRELEM
