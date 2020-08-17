@@ -1616,6 +1616,7 @@ CONTAINS
     real   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
     real   , ALLOCATABLE   :: BiasCorrection_sfc(:,:,:)
     real   , ALLOCATABLE   :: BCOR_SFC(:,:)
+    REAL                   :: ROLAT(500), ROLON(500)
 
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
@@ -1651,22 +1652,22 @@ CONTAINS
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     integer                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
-    integer                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
+    integer                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al,IND5001,IND6001
     integer                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR,IND_PHASE,IND_BCOR_TT,IND_BCOR_HU
     integer                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
     integer                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2 
 
     integer                :: vcord_type(10),SUM,vcoord_type
     REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
-    real                   :: XTIME
-    integer                :: status ,idtyp,lati,long,dx,dy,elev, &
-                               drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
+    real                   :: XTIME,ROLAT0,ROLON0,ROLAT1,ROLON1
+    integer                :: status ,idtyp,lati,long,dx,dy,elev
+    integer                :: drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
 
     integer                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
     integer                :: bit_alt,btyp_offset,btyp_offset_uni
     character(len = 5)     :: BURP_TYP
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
-    LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent
+    LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent,LOK,LROK
     integer                :: NDATA,NDATA_SF
     integer                :: IER,date2,time2,time_sonde,NEWDATE
     real                   :: RAD_MOY,RAD_STD
@@ -2020,6 +2021,8 @@ CONTAINS
         HIPCS=.FALSE.
         HIRES_SFC=.FALSE.
         phasePresent = .false.
+        LROK = .false.
+
         BLOCKS1: do
 
           ref_blk = BURP_Find_Block(Rpt_in, &
@@ -2037,6 +2040,37 @@ CONTAINS
                       & BTYP   = btyp, &
                       & BKSTP  = BKSTP, &
                       & IOSTAT = error)
+
+          ! Read slant latlon if type is RO
+          if (trim(familytype) == 'RO' .and. bfam == 0 .and. LROK == .FALSE.) then
+            ROLAT0 = 0.01*lati- 90.
+            ROLON0 = 0.01*long
+            if (ROLON0 > 180.) ROLON0 = ROLON0-360.
+            ROLAT = ROLAT0
+            ROLON = ROLON0
+            IND5001 = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
+            IND6001 = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
+            write(*,*)'ROLOC',lati,long,ROLAT0,ROLON0,IND5001,IND6001,bfam,btyp,bkstp
+            if (IND5001 > 0 .and. IND6001 > 0) then
+              do j=1,nvale
+                ROLAT1=BURP_Get_Rval(Block_in, &
+                                     NELE_IND=IND5001, &
+                                     NVAL_IND=j, &
+                                     NT_IND=1, IOSTAT=error)
+                ROLON1=BURP_Get_Rval(Block_in, &
+                                     NELE_IND=IND6001, &
+                                     NVAL_IND=j, &
+                                     NT_IND=1, IOSTAT=error)
+                lok = ( -90.1 < ROLAT1 .and. ROLAT1 <  90.1) .and. &
+                      (-180.1 < ROLON1 .and. ROLON1 < 360.1)
+                if (lok) then
+                  ROLAT(j)=ROLAT1
+                  ROLON(j)=ROLON1
+                  LROK = .TRUE.
+                endif
+              enddo
+            endif
+          endif
 
           ! observation block (btyp = 0100 100011X XXXX)
           if(trim(familytype) == 'AL')then
@@ -2830,8 +2864,13 @@ CONTAINS
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
                                   dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
               else
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                                  dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS)
+                if (trim(familytype) == 'RO') then
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                         dataQcFlagLEV, ROLAT_opt = ROLAT, ROLON_opt = ROLON)
+                else
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                         dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS)
+                endif
               end if
               
               IF (NDATA > 0) THEN
@@ -3035,9 +3074,8 @@ CONTAINS
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
-                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV, SURF_EMIS_opt, &
-                      BiasCorrection_opt)
-
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,SURF_EMIS_opt, &
+                      BiasCorrection_opt, ROLAT_opt, ROLON_opt)
     implicit none
 
     type (struct_obs), intent(inout) :: obsdat
@@ -3048,15 +3086,18 @@ CONTAINS
     real   , allocatable          ::  VERTCOORD(:)
     real   , allocatable,optional ::  BiasCorrection_opt(:,:)
     integer, intent(in)           ::  dataQcFlagLEV(:)
+    REAL                ,optional ::  ROLAT_opt(500), ROLON_opt(500)
+
     CHARACTER*2 ::   FAMTYP
     real        ::   ELEVFACT,VCOORD
     integer     ::   NELE,NVAL
     integer     ::   LISTE_ELE(:)
     integer     ::   NOBS,VARNO,IL,J,COUNT,NLV
     integer     ::   IFLAG,BITSflagoff,BITSflagon,IFLAG2
-    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR
+    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat,rolon
     integer     ::   VCO,NONELEV
     real        ::   ZEMFACT
+
     LOGICAL     ::   L_EMISS
     LOGICAL     ::   L_BCOR
     LOGICAL     ::   L_dataQcFlag2
@@ -3186,7 +3227,12 @@ CONTAINS
           ELEV_R=VCOORD + ELEV*ELEVFACT
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
-
+          if (trim(FAMTYP).EQ.'RO') then
+            rolat=ROLAT_opt(j)
+            rolon=ROLON_opt(j)
+            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat)
+            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon)
+          endif
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
           end if
