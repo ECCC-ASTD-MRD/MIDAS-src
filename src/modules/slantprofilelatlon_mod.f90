@@ -26,6 +26,7 @@ module slantprofilelatlon_mod
   use utilities_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
+  use tovs_nl_mod
 
   implicit none
   save
@@ -197,7 +198,7 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-    azimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
+    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
     zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
     ! convert angles to radian unit

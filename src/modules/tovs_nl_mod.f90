@@ -105,7 +105,8 @@ module tovs_nl_mod
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
-
+  public :: tvs_doAzimuthAngleCorrection
+  public :: tvs_oldStyleAzimuthAngleCorrection 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -116,6 +117,7 @@ module tovs_nl_mod
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
+  public :: tvs_getCorrectedSatelliteAzimuthAngle
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -156,7 +158,9 @@ module tovs_nl_mod
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
-  logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option 
+  logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
+  logical tvs_doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+  logical tvs_oldStyleAzimuthAngleCorrection  
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
@@ -508,6 +512,8 @@ contains
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
+    logical :: doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+    logical :: oldStyleAzimuthAngleCorrection 
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
     logical :: mwInstrumUsingCLW_tl
@@ -517,17 +523,19 @@ contains
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
-    namelist /NAMTOV/ regLimitExtrap
+    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection
  
     !   1.1 Default values for namelist variables
 
     nsensors = 0
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
+    doAzimuthAngleCorrection(:) = .false.
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
     useO3Climatology = .true.
+    oldStyleAzimuthAngleCorrection = .true.
     crtmodl = 'RTTOV'
     useUofWIREmiss = .false.
     useMWEmissivityAtlas = .false.
@@ -555,7 +563,8 @@ contains
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
     tvs_regLimitExtrap = regLimitExtrap
-
+    tvs_oldStyleAzimuthAngleCorrection = oldStyleAzimuthAngleCorrection
+    tvs_doAzimuthAngleCorrection(:) =  doAzimuthAngleCorrection(:) 
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -1956,15 +1965,11 @@ contains
           profiles(tovsIndex) % zenangle = 0.d0
         end if
  
-        profiles(tovsIndex) % azangle  = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
+        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
-        if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
-          !Correction sur la definition de l'angle. A ammeliorer. Ok pour l'instant.
-          profiles(tovsIndex) % azangle   = profiles(tovsIndex) % sunazangle + profiles(tovsIndex) % azangle
-          if ( profiles(tovsIndex) % azangle > 360.d0 ) profiles(tovsIndex) % azangle = profiles(tovsIndex) % azangle - 360.d0
-        end if
+        
         profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
@@ -2064,6 +2069,35 @@ contains
 
   end subroutine tvs_fillProfiles
 
+  !--------------------------------------------------------------------------
+  !  tvs_getCorrectedSatelliteAzimuthAngle
+  !--------------------------------------------------------------------------
+  real(8) function tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
+    !
+    ! :Purpose: get properly corrected satellite Azimuth Angle from obsSpaceData header
+    !
+    implicit none
+    ! Arguments
+    type(struct_obs), intent(in) :: obsSpaceData  ! obsSpaceData structure
+    integer, intent(in)          :: headerIndex   ! location in header
+    ! Locals
+    integer :: instrum, iplatform, sensorNo, tovsIndex
+
+    tovsIndex = tvs_tovsIndex (headerIndex)
+    sensorNo  = tvs_lsensor(tovsIndex)
+    instrum   = tvs_instruments(sensorNo)
+    iplatform = tvs_platforms(sensorNo)
+    
+    tvs_getCorrectedSatelliteAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
+
+    if ( ( tvs_oldStyleAzimuthAngleCorrection .and. (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) &
+           .or. tvs_doAzimuthAngleCorrection(sensorNo) ) then
+      ! Correction sur la definition de l'angle.
+      tvs_getCorrectedSatelliteAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) + tvs_getCorrectedSatelliteAzimuthAngle
+      if ( tvs_getCorrectedSatelliteAzimuthAngle > 360.d0 ) tvs_getCorrectedSatelliteAzimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle - 360.d0
+    end if
+
+  end function tvs_getCorrectedSatelliteAzimuthAngle
 
   !--------------------------------------------------------------------------
   !  tvs_rttov
