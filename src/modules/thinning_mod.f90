@@ -993,6 +993,10 @@ contains
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate(stationIndex), obsTime(stationIndex), tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
+      if (obsStepIndex < 0) then
+        obsStepIndex = (tim_nstepobs+1)/2
+        write(*,*) 'thn_radiosonde: Obs outside the assimilation window, set to middle of window'
+      end if
 
       ! Calculate pressure levels for each station based on GEM3 vertical coordinate
       do levIndex  = 1, numLev
