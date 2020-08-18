@@ -118,6 +118,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuthAngle
+  public :: tvs_isSlantPath
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -160,6 +161,7 @@ module tovs_nl_mod
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
   logical tvs_doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+  logical tvs_doSlantPath(tvs_maxNumberOfSensors)
   logical tvs_oldStyleAzimuthAngleCorrection  
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
@@ -513,6 +515,7 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
     logical :: doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+    logical :: doSlantPath(tvs_maxNumberOfSensors)
     logical :: oldStyleAzimuthAngleCorrection 
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
@@ -523,7 +526,7 @@ contains
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
-    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection
+    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection, doSlantPath
  
     !   1.1 Default values for namelist variables
 
@@ -531,6 +534,7 @@ contains
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
     doAzimuthAngleCorrection(:) = .false.
+    doSlantPath(:) = .false.
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
@@ -564,7 +568,8 @@ contains
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
     tvs_regLimitExtrap = regLimitExtrap
     tvs_oldStyleAzimuthAngleCorrection = oldStyleAzimuthAngleCorrection
-    tvs_doAzimuthAngleCorrection(:) =  doAzimuthAngleCorrection(:) 
+    tvs_doAzimuthAngleCorrection(:) =  doAzimuthAngleCorrection(:)
+    tvs_doSlantPath(:) =  doSlantPath(:)
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -2083,12 +2088,14 @@ contains
     ! Locals
     integer :: instrum, iplatform, sensorNo, tovsIndex
 
+    tvs_getCorrectedSatelliteAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
+
     tovsIndex = tvs_tovsIndex (headerIndex)
+    if ( tovsIndex < 0) return
+
     sensorNo  = tvs_lsensor(tovsIndex)
     instrum   = tvs_instruments(sensorNo)
     iplatform = tvs_platforms(sensorNo)
-    
-    tvs_getCorrectedSatelliteAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
 
     if ( ( tvs_oldStyleAzimuthAngleCorrection .and. (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) &
            .or. tvs_doAzimuthAngleCorrection(sensorNo) ) then
@@ -2098,6 +2105,33 @@ contains
     end if
 
   end function tvs_getCorrectedSatelliteAzimuthAngle
+
+
+  !--------------------------------------------------------------------------
+  !  tvs_isSlantPath
+  !--------------------------------------------------------------------------
+  logical function tvs_isSlantPath(headerIndex)
+    !
+    ! :Purpose: should the slant path computation be performed for that radiance Observation 
+    !
+    implicit none
+    ! Arguments
+    integer, intent(in)          :: headerIndex   ! location in header
+    ! Locals
+    integer :: sensorNo, tovsIndex
+
+    tovsIndex = tvs_tovsIndex (headerIndex)
+
+    if ( tovsIndex < 0) then
+      tvs_isSlantPath = .false.
+      return
+    end if
+    
+    sensorNo  = tvs_lsensor(tovsIndex)
+        
+    tvs_isSlantPath = tvs_doSlantPath(sensorNo)
+
+  end function tvs_isSlantPath
 
   !--------------------------------------------------------------------------
   !  tvs_rttov
