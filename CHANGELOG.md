@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added interpolation from a `Y` grid for the background fields (#385 and  !367)
  * When `midas.splitobs` is splitting an SQLite observation file into
    equal parts, we not only process the tables `header` and `data` but
    all the tables containing `id_obs` as a key and we split them in
