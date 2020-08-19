@@ -378,6 +378,25 @@ module HorizontalCoord_mod
       !-  2.4.3 We know this is a global grid
       global = .true.
 
+    !- 2.5 Irregular structure
+    elseif ( trim(grtyp) == 'Y' ) then
+
+      !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
+      lon_8(:) = -999.999d0
+      lat_8(:) = -999.999d0
+
+      !- 2.5.2 This grid type is not rotated
+      rotated = .false.
+      xlat1_4 = 0.0
+      xlon1_4 = 0.0
+      xlat2_4 = 1.0
+      xlon2_4 = 1.0
+
+      grtypTicTac = 'L'
+
+      !- 2.5.3 Generally not a global grid, but hard to test upfront
+      global = .false.
+
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U are supported !, grtyp = ', trim(grtyp)
