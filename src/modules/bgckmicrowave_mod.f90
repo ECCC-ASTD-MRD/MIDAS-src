@@ -45,6 +45,7 @@ module bgckmicrowave_mod
   public :: mwbg_bgCheckMW
 
   real    :: mwbg_clwQcThreshold
+  real    :: mwbg_clwDiffThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
@@ -836,9 +837,10 @@ contains
         ! In all-sky mode, turn on bit=23 for cloud-affected radiances 
         ! when there is mismatch between clwObs and clwFG
         ! (to be used in gen_bias_corr)
-        if ( mwbg_allowStateDepSigmaObs                                 .and. &
-            ((clwObs(nDataIndex) == 0.0 .and. clwFG(nDataIndex)  > 0.0) .or.  &
-             (clwObs(nDataIndex)  > 0.0 .and. clwFG(nDataIndex) == 0.0)) ) then
+        clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
+        IF ( mwbg_allowStateDepSigmaObs .and. &
+            (clwObsFGaveraged > mwbg_clwDiffThresholdBcorr .or. &
+            clwObsFGaveraged == MISGRODY) ) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)

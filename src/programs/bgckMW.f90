@@ -87,6 +87,7 @@ program midas_bgckMW
   character(len=128)            :: mglg_file                       ! glace de mer file
   character(len=128)            :: statsFile                       ! stats error file
   real                          :: clwQcThreshold                  ! 
+  real                          :: clwDiffThresholdBcorr
   logical                       :: allowStateDepSigmaObs           !
   logical                       :: useUnbiasedObsForClw            !
   logical                       :: RESETQC                         ! reset Qc flags option
@@ -99,7 +100,7 @@ program midas_bgckMW
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile,
-                    useAveragedClwForQC 
+                    useAveragedClwForQC, clwDiffThresholdBcorr 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -133,6 +134,7 @@ program midas_bgckMW
   ETIKRESU              = '>>BGCKALT'
   writeTbValuesToFile   = .false.
   useAveragedClwForQC   = .false.
+  clwDiffThresholdBcorr = 0.05
 
   ! reading namelist
   nulnam = 0
@@ -149,6 +151,7 @@ program midas_bgckMW
   mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
   mwbg_useAveragedClwForQC = useAveragedClwForQC
+  mwbg_clwDiffThresholdBcorr = clwDiffThresholdBcorr
 
   if ( (      mwbg_allowStateDepSigmaObs .and. .not. mwbg_useAveragedClwForQC) .or. &
        (.not. mwbg_allowStateDepSigmaObs .and.       mwbg_useAveragedClwForQC) ) then
