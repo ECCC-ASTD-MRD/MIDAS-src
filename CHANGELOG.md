@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to perform background check for SAR winds (wind speed retrieval) (#299 and !364)
  * Added thinning algorithm for radiosondes for use in `obsSelection` program (#373 and !361)
  * Added `crisCloudFractionThreshold` to namelist section `NAMBGCKIR` (#327 and !360)
  * Added thinning for most obs types in `obsSelection` program (#367 and !357)
