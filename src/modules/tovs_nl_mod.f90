@@ -118,7 +118,6 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuthAngle
-  !public :: tvs_azimuthIsValid
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -161,7 +160,7 @@ module tovs_nl_mod
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
   logical tvs_doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
-  logical tvs_doSlantPath(tvs_maxNumberOfSensors)
+  logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
   logical tvs_oldStyleAzimuthAngleCorrection  
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
@@ -515,7 +514,7 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
     logical :: doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
-    logical :: doSlantPath(tvs_maxNumberOfSensors)
+    logical :: isAzimuthValid(tvs_maxNumberOfSensors)
     logical :: oldStyleAzimuthAngleCorrection 
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
@@ -526,7 +525,7 @@ contains
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
-    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection, doSlantPath
+    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection, isAzimuthValid
  
     !   1.1 Default values for namelist variables
 
@@ -534,7 +533,7 @@ contains
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
     doAzimuthAngleCorrection(:) = .false.
-    doSlantPath(:) = .false.
+    isAzimuthValid(:) = .false.
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
@@ -569,7 +568,7 @@ contains
     tvs_regLimitExtrap = regLimitExtrap
     tvs_oldStyleAzimuthAngleCorrection = oldStyleAzimuthAngleCorrection
     tvs_doAzimuthAngleCorrection(:) =  doAzimuthAngleCorrection(:)
-    tvs_doSlantPath(:) =  doSlantPath(:)
+    tvs_isAzimuthValid(:) =  isAzimuthValid(:)
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -2098,7 +2097,7 @@ contains
     instrum   = tvs_instruments(sensorNo)
     iplatform = tvs_platforms(sensorNo)
 
-    if ( forSlantPath .and. .not. tvs_doSlantPath(sensorNo) ) then
+    if ( forSlantPath .and. .not. tvs_isAzimuthValid(sensorNo) ) then
       tvs_getCorrectedSatelliteAzimuthAngle = obs_missingValue_R
       return
     end if
@@ -2112,32 +2111,6 @@ contains
 
   end function tvs_getCorrectedSatelliteAzimuthAngle
 
-
-  !--------------------------------------------------------------------------
-  !  tvs_azimuthIsValid
-  !--------------------------------------------------------------------------
-!  logical function tvs_azimuthIsValid(headerIndex)
-    !
-    ! :Purpose: should the slant path computation be performed for that radiance Observation 
-    !
-!    implicit none
-    ! Arguments
-!    integer, intent(in)          :: headerIndex   ! location in header
-    ! Locals
-!    integer :: sensorNo, tovsIndex
-
-!    tovsIndex = tvs_tovsIndex (headerIndex)
-
-!    if ( tovsIndex < 0) then
-!      tvs_azimuthIsValid = .false.
-!      return
-!    end if
-    
-!    sensorNo  = tvs_lsensor(tovsIndex)
-        
-!    tvs_azimuthIsValid = tvs_doSlantPath(sensorNo)
-
-!  end function tvs_azimuthIsValid
 
   !--------------------------------------------------------------------------
   !  tvs_rttov
