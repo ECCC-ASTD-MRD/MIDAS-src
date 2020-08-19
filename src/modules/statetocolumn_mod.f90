@@ -572,7 +572,8 @@ contains
 
           azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.true.)
 
-          if ( tvs_isIdBurpTovs(codeType) .and. ( azimuthAngle /= obs_missingValue_R) ) then
+!          if ( tvs_isIdBurpTovs(codeType) .and. ( azimuthAngle /= obs_missingValue_R) ) then
+          if ( tvs_isIdBurpTovs(codeType) ) then
             if ( firstHeaderSlantPath ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPath = .false.
@@ -588,6 +589,7 @@ contains
             call tmg_stop(199)
 
           else
+
             latLev_T(:) = real(lat_r4,8)
             lonLev_T(:) = real(lon_r4,8)
             latLev_M(:) = real(lat_r4,8)

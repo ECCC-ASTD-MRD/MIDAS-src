@@ -200,38 +200,47 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-!    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
-    zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-    ! convert angles to radian unit
-    azimuthAngle_rad = azimuthAngle * MPC_RADIANS_PER_DEGREE_R8
-    zenithAngle_rad = zenithAngle * MPC_RADIANS_PER_DEGREE_R8
-    elevationAngle_rad = 0.5d0 * MPC_PI_R8 - zenithAngle_rad
+    if ( azimuthAngle /= obs_missingValue_R) then
 
-    obsCordGlb  = RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
-    unitz = (/  cos(lat)*cos(lon), cos(lat)*sin(lon) , sin(lat) /)
-    unitx = (/ -sin(lon)         , cos(lon)          , 0.d0     /)
-    unity = (/ -sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat) /)
+      zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-    ! unit vector towards satellite in local coordinate
-    unitSatLoc = (/ cos(elevationAngle_rad)*sin(azimuthAngle_rad) , &
-                    cos(elevationAngle_rad)*cos(azimuthAngle_rad) , &
-                    sin(elevationAngle_rad) /)
-    ! unit vector towards satellite in global coordinate
-    unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
+      ! convert angles to radian unit
+      azimuthAngle_rad = azimuthAngle * MPC_RADIANS_PER_DEGREE_R8
+      zenithAngle_rad = zenithAngle * MPC_RADIANS_PER_DEGREE_R8
+      elevationAngle_rad = 0.5d0 * MPC_PI_R8 - zenithAngle_rad
 
-    ! Geometric altitude
-    geometricHeight = real(height_r4,8)
+      obsCordGlb  = RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
+      unitz = (/  cos(lat)*cos(lon), cos(lat)*sin(lon) , sin(lat) /)
+      unitx = (/ -sin(lon)         , cos(lon)          , 0.d0     /)
+      unity = (/ -sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat) /)
+
+      ! unit vector towards satellite in local coordinate
+      unitSatLoc = (/ cos(elevationAngle_rad)*sin(azimuthAngle_rad) , &
+                      cos(elevationAngle_rad)*cos(azimuthAngle_rad) , &
+                      sin(elevationAngle_rad) /)
+      ! unit vector towards satellite in global coordinate
+      unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
+
+      ! Geometric altitude
+      geometricHeight = real(height_r4,8)
 
     ! distance along line of sight
-    distAlongPath = geometricHeight / cos(zenithAngle_rad)
+      distAlongPath = geometricHeight / cos(zenithAngle_rad)
 
-    slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
+      slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
 
-    latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
-    lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
-    if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
-    if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
+      latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
+      lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
+      if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
+      if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
+
+    else
+
+      latSlant = lat
+      lonSlant = lon
+
+    end if
 
   end subroutine findIntersectLatlon
 
