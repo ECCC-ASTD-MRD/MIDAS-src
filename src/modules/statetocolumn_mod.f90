@@ -264,7 +264,7 @@ contains
     integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    real(8) :: latRot, lonRot, lat, lon
+    real(8) :: latRot, lonRot, lat, lon, azimuthAngle
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: footprintRadius_r4 ! (metres)
@@ -570,7 +570,9 @@ contains
 
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if ( tvs_isIdBurpTovs(codeType) .and. tvs_azimuthIsValid(headerIndex) ) then
+          azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.true.)
+
+          if ( tvs_isIdBurpTovs(codeType) .and. ( azimuthAngle /= obs_missingValue_R) ) then
             if ( firstHeaderSlantPath ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPath = .false.
@@ -580,6 +582,7 @@ contains
             call tmg_start(199,'slp_calcLatLonTovs')
             call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,               & ! IN
+                                     azimuthAngle,                               & ! IN
                                      latLev_T, lonLev_T,                         & ! OUT
                                      latLev_M, lonLev_M )                          ! OUT
             call tmg_stop(199)

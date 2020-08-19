@@ -43,7 +43,7 @@ module slantprofilelatlon_mod
 
 contains 
 
-  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, azimuthAngle, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radiance 
     !           observations, iteratively. To replace the vertical columns with 
@@ -57,6 +57,7 @@ contains
     integer, intent(in)  :: headerIndex
     real(4), intent(in)  :: height3D_T_r4(:,:,:)
     real(4), intent(in)  :: height3D_M_r4(:,:,:)
+    real(8), intent(in)  :: azimuthAngle
     real(8), intent(out)  :: latSlantLev_T(:)
     real(8), intent(out)  :: lonSlantLev_T(:)
     real(8), intent(out)  :: latSlantLev_M(:)
@@ -115,7 +116,7 @@ contains
       while_doIteration: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
@@ -152,7 +153,7 @@ contains
       while_doIteration2: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
@@ -175,7 +176,7 @@ contains
   end subroutine slp_calcLatLonTovs
 
 
-  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, latSlant, lonSlant)
+  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, azimuthAngle, latSlant, lonSlant)
     !
     !:Purpose: Computation of lat/lon of the intersection between model level 
     !          and the slant line-of-sight for radiance observations.
@@ -185,12 +186,13 @@ contains
     type(struct_obs), intent(in)  :: obsSpaceData
     real(4), intent(in)  :: height_r4
     integer, intent(in)  :: headerIndex
+    real(8), intent(in)  :: azimuthAngle
     real(8), intent(out) :: latSlant
     real(8), intent(out) :: lonSlant 
 
     ! Locals:
     real(8) :: lat, lon, geometricHeight
-    real(8) :: zenithAngle, zenithAngle_rad, azimuthAngle, azimuthAngle_rad, elevationAngle_rad, distAlongPath
+    real(8) :: zenithAngle, zenithAngle_rad, azimuthAngle_rad, elevationAngle_rad, distAlongPath
     real(8) :: obsCordGlb(3), slantPathCordGlb(3), unitx(3), unity(3), unitz(3), unitSatLoc(3), unitSatGlb(3)
 
     ! read lat/lon/angles from obsSpaceData
@@ -198,7 +200,7 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
+!    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
     zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
     ! convert angles to radian unit

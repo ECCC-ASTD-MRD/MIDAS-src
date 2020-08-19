@@ -118,7 +118,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuthAngle
-  public :: tvs_azimuthIsValid
+  !public :: tvs_azimuthIsValid
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -1970,7 +1970,7 @@ contains
           profiles(tovsIndex) % zenangle = 0.d0
         end if
  
-        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
+        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.false.)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
@@ -2077,14 +2077,15 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getCorrectedSatelliteAzimuthAngle
   !--------------------------------------------------------------------------
-  real(8) function tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
+  real(8) function tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath)
     !
     ! :Purpose: get properly corrected satellite Azimuth Angle from obsSpaceData header
     !
     implicit none
     ! Arguments
-    type(struct_obs), intent(in) :: obsSpaceData  ! obsSpaceData structure
-    integer, intent(in)          :: headerIndex   ! location in header
+    type(struct_obs), intent(in) :: obsSpaceData     ! obsSpaceData structure
+    integer, intent(in)          :: headerIndex      ! location in header
+    logical, intent(in)          :: forSlantPath     ! .true. for slantpath (.false. for other application like FASTEM)
     ! Locals
     integer :: instrum, iplatform, sensorNo, tovsIndex
 
@@ -2096,6 +2097,11 @@ contains
     sensorNo  = tvs_lsensor(tovsIndex)
     instrum   = tvs_instruments(sensorNo)
     iplatform = tvs_platforms(sensorNo)
+
+    if ( forSlantPath .and. .not. tvs_doSlantPath(sensorNo) ) then
+      tvs_getCorrectedSatelliteAzimuthAngle = obs_missingValue_R
+      return
+    end if
 
     if ( ( tvs_oldStyleAzimuthAngleCorrection .and. (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) &
            .or. tvs_doAzimuthAngleCorrection(sensorNo) ) then
@@ -2110,28 +2116,28 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_azimuthIsValid
   !--------------------------------------------------------------------------
-  logical function tvs_azimuthIsValid(headerIndex)
+!  logical function tvs_azimuthIsValid(headerIndex)
     !
     ! :Purpose: should the slant path computation be performed for that radiance Observation 
     !
-    implicit none
+!    implicit none
     ! Arguments
-    integer, intent(in)          :: headerIndex   ! location in header
+!    integer, intent(in)          :: headerIndex   ! location in header
     ! Locals
-    integer :: sensorNo, tovsIndex
+!    integer :: sensorNo, tovsIndex
 
-    tovsIndex = tvs_tovsIndex (headerIndex)
+!    tovsIndex = tvs_tovsIndex (headerIndex)
 
-    if ( tovsIndex < 0) then
-      tvs_azimuthIsValid = .false.
-      return
-    end if
+!    if ( tovsIndex < 0) then
+!      tvs_azimuthIsValid = .false.
+!      return
+!    end if
     
-    sensorNo  = tvs_lsensor(tovsIndex)
+!    sensorNo  = tvs_lsensor(tovsIndex)
         
-    tvs_azimuthIsValid = tvs_doSlantPath(sensorNo)
+!    tvs_azimuthIsValid = tvs_doSlantPath(sensorNo)
 
-  end function tvs_azimuthIsValid
+!  end function tvs_azimuthIsValid
 
   !--------------------------------------------------------------------------
   !  tvs_rttov
