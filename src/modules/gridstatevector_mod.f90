@@ -5111,6 +5111,9 @@ module gridStateVector_mod
     else
       typvar = 'R'
     end if
+    if ( allocated(statevector%hco%mask) ) then
+      typvar(2:2) = '@'
+    end if
     etiket = trim(Etiket_in)
     grtyp  = statevector%hco%grtyp
     ig1    = statevector%hco%ig1
@@ -5132,7 +5135,7 @@ module gridStateVector_mod
       nulfile = 0
       write(*,*) 'gsv_writeToFile: file name = ',trim(fileName)
       ierr = fnom(nulfile,trim(fileName),'RND+APPEND',0)
-       
+
       if ( ierr >= 0 ) then
         ierr  =  fstouv(nulfile,'RND')
       else
@@ -5334,6 +5337,12 @@ module gridStateVector_mod
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
 
+            if ( allocated(statevector%hco%mask) ) then
+              ierr = fstecr(statevector%hco%mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
+                            nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
+                            ig1, ig2, ig3, ig4, 2, .false.)
+            end if
+
           end if ! iDoWriting
 
         end do ! levIndex
@@ -5387,42 +5396,75 @@ module gridStateVector_mod
     !- 1.  Writing Tic-Tac
     !
     if ( statevector % hco % grtyp == 'Z' ) then
-       npak     = -32
-       deet     =  0
-       ip1      =  statevector%hco%ig1
-       ip2      =  statevector%hco%ig2
-       ip3      =  statevector%hco%ig3
-       npas     =  0
-       datyp    =  1
-       grtyp    =  statevector%hco%grtypTicTac
-       typvar   = 'X'
-       dateo =  0
+      npak     = -32
+      deet     =  0
+      ip1      =  statevector%hco%ig1
+      ip2      =  statevector%hco%ig2
+      ip3      =  statevector%hco%ig3
+      npas     =  0
+      datyp    =  1
+      grtyp    =  statevector%hco%grtypTicTac
+      typvar   = 'X'
+      dateo =  0
 
-       call cxgaig ( grtyp,                                          & ! IN
-                     ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                     real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
-                     real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
+      call cxgaig ( grtyp,                                          & ! IN
+                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
+                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
+                    real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
 
-       ig1      =  ig1_tictac
-       ig2      =  ig2_tictac
-       ig3      =  ig3_tictac
-       ig4      =  ig4_tictac
+      ig1      =  ig1_tictac
+      ig2      =  ig2_tictac
+      ig3      =  ig3_tictac
+      ig4      =  ig4_tictac
 
-       ier = utl_fstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
-                        iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
-                        ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                        ig2, ig3, ig4, datyp, .true.)
+      ier = utl_fstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                       iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
+                       ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                       ig2, ig3, ig4, datyp, .true.)
 
-       ier = utl_fstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
-                        iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
-                        ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                        ig2, ig3, ig4, datyp, .true.)
+      ier = utl_fstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                       iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
+                       ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                       ig2, ig3, ig4, datyp, .true.)
 
     else if ( statevector % hco % grtyp == 'U' ) then
       npak     = -32
       ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
                    statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'X', '^>', etiket, &
                    'F', 1, 0, 0, 0, 5, .false.)
+
+    else if ( statevector % hco % grtyp == 'Y' ) then
+      npak     = -32
+      deet     =  0
+      ip1      =  statevector%hco%ig1
+      ip2      =  statevector%hco%ig2
+      ip3      =  statevector%hco%ig3
+      npas     =  0
+      datyp    =  1
+      grtyp    =  statevector%hco%grtypTicTac
+      typvar   = 'X'
+      dateo =  0
+
+      call cxgaig ( grtyp,                                          & ! IN
+                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
+                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
+                    real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
+
+      ig1      =  ig1_tictac
+      ig2      =  ig2_tictac
+      ig3      =  ig3_tictac
+      ig4      =  ig4_tictac
+
+      ier = utl_fstecr(statevector%hco%lon2d_4*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
+                       ip1, ip2, ip3, typvar, '>>', etiket, grtyp,          &
+                       ig1, ig2, ig3, ig4, datyp, .true.)
+
+      ier = utl_fstecr(statevector%hco%lat2d_4*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
+                       ip1, ip2, ip3, typvar, '^^', etiket, grtyp,          &
+                       ig1, ig2, ig3, ig4, datyp, .true.)
+
 
     end if
 
