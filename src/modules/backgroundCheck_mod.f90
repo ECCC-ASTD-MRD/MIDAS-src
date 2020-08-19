@@ -628,6 +628,7 @@ module backgroundCheck_mod
       logical :: lmodif1020 ! switch to activate special criteria for backound check (*ua 10-20 mb)
 
       ! Locals:      
+      real(8), parameter :: zsacrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
       real(8), parameter :: zttcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
       real(8), parameter :: zalcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
       real(8), parameter :: zescrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
@@ -661,7 +662,7 @@ module backgroundCheck_mod
          if ( zbgchk >= zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zgzcrit(2) .and. zbgchk < zgzcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zgzcrit(3) )then
            isetflag =3
          endif
@@ -673,7 +674,7 @@ module backgroundCheck_mod
          if ( zbgchk >= zttcrit(1) .and. zbgchk < zttcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zttcrit(2) .and. zbgchk < zttcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zttcrit(3) )then
            isetflag =3
          endif
@@ -685,19 +686,31 @@ module backgroundCheck_mod
          if ( zbgchk >= zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zdzcrit(2) .and. zbgchk < zdzcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zdzcrit(3) )then
            isetflag =3
          endif
 
+      else if ( kvnam == BUFR_NEFS ) then
+
+         ! SET FLAG FOR WIND SPEED
+
+         if ( zbgchk >= zsacrit(1) .and. zbgchk < zsacrit(2) ) then
+           isetflag=1
+         else if ( zbgchk >= zsacrit(2) .and. zbgchk < zsacrit(3) ) then
+           isetflag=2
+         else if ( zbgchk >= zsacrit(3) )then
+           isetflag =3
+         endif
+
       else if ( kvnam == BUFR_NEUU .or. kvnam == BUFR_NEVV ) then
-  
+
          ! SET FLAG FOR WIND COMPONENTS
 
          if ( zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zuvcrit(2) .and. zbgchk < zuvcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zuvcrit(3) )then
            isetflag =3
          endif
@@ -707,11 +720,11 @@ module backgroundCheck_mod
          ! SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
  
          if ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
-            isetflag=1
+           isetflag=1
          else if ( zbgchk >= zalcrit(2) .and. zbgchk < zalcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zalcrit(3) )then
-            isetflag=3
+           isetflag=3
          end if
 
       else if ( kvnam == BUFR_NEUS .or. kvnam == BUFR_NEVS ) then
@@ -721,7 +734,7 @@ module backgroundCheck_mod
          if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zswcrit(3) )then
            isetflag =3
          endif
@@ -733,7 +746,7 @@ module backgroundCheck_mod
          if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk >= zswcrit(3) )then
            isetflag =3
          endif
