@@ -570,7 +570,7 @@ contains
 
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if ( tvs_isIdBurpTovs(codeType) .and. tvs_isSlantPath(headerIndex) ) then
+          if ( tvs_isIdBurpTovs(codeType) .and. tvs_azimuthIsValid(headerIndex) ) then
             if ( firstHeaderSlantPath ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPath = .false.

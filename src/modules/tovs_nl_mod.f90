@@ -118,7 +118,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuthAngle
-  public :: tvs_isSlantPath
+  public :: tvs_azimuthIsValid
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -2108,9 +2108,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  !  tvs_isSlantPath
+  !  tvs_azimuthIsValid
   !--------------------------------------------------------------------------
-  logical function tvs_isSlantPath(headerIndex)
+  logical function tvs_azimuthIsValid(headerIndex)
     !
     ! :Purpose: should the slant path computation be performed for that radiance Observation 
     !
@@ -2123,15 +2123,15 @@ contains
     tovsIndex = tvs_tovsIndex (headerIndex)
 
     if ( tovsIndex < 0) then
-      tvs_isSlantPath = .false.
+      tvs_azimuthIsValid = .false.
       return
     end if
     
     sensorNo  = tvs_lsensor(tovsIndex)
         
-    tvs_isSlantPath = tvs_doSlantPath(sensorNo)
+    tvs_azimuthIsValid = tvs_doSlantPath(sensorNo)
 
-  end function tvs_isSlantPath
+  end function tvs_azimuthIsValid
 
   !--------------------------------------------------------------------------
   !  tvs_rttov
