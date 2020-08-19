@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed bug in thinning for hyperIR, CSR and aladin observations when called from `obsSelection` (#380 and !366)
  * Fixed bug in `burpClean` that was causing errors for integer valued elements in the data blocks (#373 and !361)
  * Fixed channel indexing bug in hyperspectral IR background check (#379 and !359)
  * Fixed midas.reunir_obs_mpi so as to preserve the content of RESUME and RDB4_SCHEMA tables (#374 and !356)
