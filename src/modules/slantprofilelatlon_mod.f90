@@ -43,7 +43,7 @@ module slantprofilelatlon_mod
 
 contains 
 
-  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, azimuthAngle, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radiance 
     !           observations, iteratively. To replace the vertical columns with 
@@ -57,7 +57,6 @@ contains
     integer, intent(in)  :: headerIndex
     real(4), intent(in)  :: height3D_T_r4(:,:,:)
     real(4), intent(in)  :: height3D_M_r4(:,:,:)
-    real(8), intent(in)  :: azimuthAngle
     real(8), intent(out)  :: latSlantLev_T(:)
     real(8), intent(out)  :: lonSlantLev_T(:)
     real(8), intent(out)  :: latSlantLev_M(:)
@@ -66,7 +65,7 @@ contains
     ! Locals:
     real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    real(8) :: lat, lon, latSlant, lonSlant
+    real(8) :: lat, lon, latSlant, lonSlant, azimuthAngle
     integer :: subGridIndex, lonIndex, latIndex
     integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
@@ -98,6 +97,7 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
+    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.true.)
 
     ! put the last lat/lon at the surface
     latSlantLev_T(nlev_T) = lat
