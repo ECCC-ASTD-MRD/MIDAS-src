@@ -79,7 +79,7 @@ contains
     deltmax = 90
     useBlackList = .true.
 
-    ! Read the namelist for Aircraft observations (if it exists)
+    ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_surface','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -91,7 +91,7 @@ contains
     else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
-      write(*,*) '                  The default value will be taken.'
+      write(*,*) '                 The default value will be taken.'
       if (mpi_myid == 0) write(*,nml=thin_surface)
     end if
 
@@ -639,161 +639,147 @@ contains
     logical,          intent(in)    :: useBlackList
 
     ! Drifter removal parameters:
-    ! Remove incomplete DRIFTER reports (using list_ele_cod18)?
-    logical, parameter :: remove_bad_drifters = .true.
+    ! Remove incomplete DRIFTER reports (using listEleBadDrifter)?
+    logical, parameter :: removeBadDrifters = .true.
     ! Minimum required number elements (1 is consistent with bextrep in ops)
-    integer, parameter :: n_min_cod18 = 1
+    integer, parameter :: numEleMinBadDrifter = 1
     ! List of required elements for codtyp 18 (see ops derivate program)
-    integer, parameter :: list_ele_cod18(4) = (/ 10051, 11011, 11012, 12004 /)
+    integer, parameter :: listEleBadDrifter(4) = (/ 10051, 11011, 11012, 12004 /)
 
     ! Selection parameters:
-    integer, parameter :: n_codtyp = 8 ! number of elements in list_codtyp
+    integer, parameter :: numListCodtyp = 8 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
-    integer, parameter :: list_codtyp(n_codtyp) = &
+    integer, parameter :: listCodtyp(numListCodtyp) = &
          (/ 12, 146, 13, 147, 18, 143, 144, 15 /)
-    character(len=13), parameter :: list_codnam(n_codtyp) = &
+    character(len=13), parameter :: listCodtypName(numListCodtyp) = &
          (/ 'SYNOP', 'ASYNOP', 'SHIP', 'ASHIP', &
             'DRIFTER', 'SWOB_regular', 'ASWOB_regular', 'METAR' /)
     ! Codtyps to which list_ele_select will be applied
-    integer, parameter :: list_codtyp_select(3) = (/ 15, 143, 144 /)
+    integer, parameter :: listCodtypSelect(3) = (/ 15, 143, 144 /)
     ! Elements to select (flags for all other elements will have bit 11 set)
-    !  integer, parameter :: list_ele_select(3) = (/ 8194, 10004, 10051 /) ! P
-    !  integer, parameter :: list_ele_select(6) = (/ 8194, 10004, 10051, 12004, 12006, 12203 /) ! P, T, Td
-    integer, parameter :: list_ele_select(10) = &
-         (/ 8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /) ! P, T, Td, U, V
+    integer, parameter :: listEleSelect(10) = &    ! P, T, Td, U, V
+         (/ 8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /) 
 
     ! BlackList parameters:
-    character(len=6), parameter :: blacklist_mode = 'normal' 
-    integer, parameter :: n_col_blacklist = 5  ! number of columns in blacklist file
-    integer, parameter :: n_ele_blacklist = 11 ! number of elements in list_ele_blacklist
-    integer, parameter :: list_ele_blacklist(n_ele_blacklist) = &
-    (/ 10004, 10004, 10051, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /)
-    integer, parameter :: list_col_blacklist(n_ele_blacklist) = &
-    (/     1,     2,     1,     2,     5,     5,     5,     5,     3,     4,     4 /)
     character(len=*), parameter :: blackListFileName = 'blacklist_sf'
+    character(len=6), parameter :: blacklistMode = 'normal' 
+    integer, parameter :: numColBlacklist = 5  ! number of columns in blacklist file
+    integer, parameter :: numEleBlacklist = 11 ! number of elements in listEleBlacklist
+    integer, parameter :: listEleBlacklist(numEleBlacklist) = &
+         (/ 10004, 10004, 10051, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /)
+    integer, parameter :: listColBlackList(numEleBlacklist) = &
+         (/     1,     2,     1,     2,     5,     5,     5,     5,     3,     4,     4 /)
 
     ! Locals:
-    integer :: countObs, countObsMpi, countObsAllMpi(mpi_nprocs), countObsMyOffset
-    integer :: n_rep_in, n_rep_out
-    integer :: numElements, codtyp, obsDate, obsTime, obsDateStamp, n_bin
+    integer :: countObsIn, countObsInMpi, countObsOut
+    integer :: countObsInAllMpi(mpi_nprocs), countObsInMyOffset
+    integer :: numElements, codtyp, obsDateStamp, numStep
     integer :: listIndex, obsIndex, obsIndex2, headerIndex, bodyIndex, procIndex
-    integer :: ierr, istat, nulfile, n_row_blacklist
+    integer :: ierr, istat, nulfile, numRowBlacklist
     integer :: elemIndex, rowIndex, colIndex, obsFlag, obsVarNo
-    integer :: arr_work_blacklist(n_col_blacklist) ! blacklist work array
-    integer :: n_rep_in_per_cod(n_codtyp), n_rep_out_per_cod(n_codtyp)
-    integer :: n_ele_in_per_cod(n_codtyp), n_ele_out_per_cod(n_codtyp)
-    integer :: n_bit8_in_per_cod(n_codtyp), n_bit8_out_per_cod(n_codtyp)
-    integer :: n_bit11_in_per_cod(n_codtyp), n_bit11_out_per_cod(n_codtyp)
-    integer :: n_bit8_in, n_bit8_out, n_bit11_in, n_bit11_out, n_rep_incomplete
-    integer :: n_removed_codtyp, n_removed_cod_priority
-    integer :: n_removed_time, n_removed_delt
-    integer :: n_ele_in, n_ele_out, n_repeat1, n_repeat2, n_removed_drifter
-    integer, allocatable :: mat_blacklist(:,:) ! blacklist data matrix
-    integer, allocatable :: arr_lon(:), arr_lat(:), arr_date(:)
-    integer, allocatable :: arr_lonMpi(:), arr_latMpi(:)
-    integer, allocatable :: arr_hhmm(:), arr_bin(:), arr_binMpi(:)
-    integer, allocatable :: index_codtyp(:), arr_delt(:), n_ele_in_per_rep(:)
-    integer, allocatable :: index_codtypMpi(:), arr_deltMpi(:)
-    real(8) :: obsStepIndex, deltaHours
-    logical, allocatable :: keep_rep(:), keep_repMpi(:)
-    character(len=9), allocatable :: arr_stnid(:), arr_stnidMpi(:), arr_stn_blacklist(:)
+    integer :: rowBlackList(numColBlacklist) ! blacklist work array
+    integer :: countObsInPerCodtyp(numListCodtyp), countObsOutPerCodtyp(numListCodtyp)
+    integer :: numEleInPerCodtyp(numListCodtyp), numEleOutPerCodtyp(numListCodtyp)
+    integer :: numBit8InPerCodtyp(numListCodtyp), numBit8OutPerCodtyp(numListCodtyp)
+    integer :: numBit11InPerCodtyp(numListCodtyp), numBit11OutPerCodtyp(numListCodtyp)
+    integer :: numBit8In, numBit8Out, numBit11In, numBit11Out, countObsIncomplete
+    integer :: numRemovedCodtyp, numRemovedCodTypPriority
+    integer :: numRemovedTime, numRemovedDelt
+    integer :: numEleIn, numEleOut, numRepeat1, numRepeat2, numRemovedDrifter
+    integer, allocatable :: dataBlacklist(:,:) ! blacklist data matrix
+    integer, allocatable :: obsLon(:), obsLat(:), obsDate(:)
+    integer, allocatable :: obsLonMpi(:), obsLatMpi(:)
+    integer, allocatable :: obsTime(:), obsStepIndex(:), obsStepIndexMpi(:)
+    integer, allocatable :: obsCodtypIndex(:), obsDelT(:)
+    integer, allocatable :: obsCodtypIndexMpi(:), obsDelTMpi(:)
+    real(8) :: obsStepIndex_r8, deltaHours
+    logical, allocatable :: valid(:), validMpi(:)
+    character(len=9), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
 
     integer, external :: newdate
 
     ! Check if any observations to be treated
-    countObs = 0
+    countObsIn = 0
     call obs_set_current_header_list(obsdat,'SF')
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER0
-      countObs = countObs + 1
+      countObsIn = countObsIn + 1
     end do HEADER0
 
-    call rpn_comm_allGather(countObs,       1, 'mpi_integer',  &
-                            countObsAllMpi, 1, 'mpi_integer', &
-                            'GRID', ierr )
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+    call rpn_comm_allReduce(countObsIn, countObsInMpi, 1, 'mpi_integer', &
                             'mpi_sum', 'grid', ierr)
-    countObsMyOffset = 0
-    do procIndex = 1, mpi_myid
-      countObsMyOffset = countObsMyOffset + countObsAllMpi(procIndex)
-    end do
-
     write(*,*)
-    if (countObsMpi == 0) then
+    if (countObsInMpi == 0) then
       write(*,*) 'thn_surfaceInTime: no surface observations present'
       return
     else
-      write(*,*) 'thn_surfaceInTime: countObs initial = ', countObs, countObsMpi
+      write(*,*) 'thn_surfaceInTime: countObs initial = ', countObsIn, countObsInMpi
     end if
     write(*,*)
 
-    ! Compute number of time steps in the window
-    n_bin = 2*nint(((tim_windowsize - step)/2.d0)/step) + 1
-    write(*,*) 'thn_surfaceInTime: step, numStep = ', real(step), n_bin
+    ! Compute number of time steps in the window for thinning
+    numStep = 2*nint(((tim_windowsize - step)/2.d0)/step) + 1
+    write(*,*) 'thn_surfaceInTime: step, numStep = ', real(step), numStep
     write(*,*)
  
     ! Print some values to the listing
     write(*,*) 'Codtyps to which selection will be applied:'
-    do listIndex = 1, size(list_codtyp_select)
-      write(*,*) list_codtyp_select(listIndex)
+    do listIndex = 1, size(listCodtypSelect)
+      write(*,*) listCodtypSelect(listIndex)
     end do
     write(*,*) 'Elements to select from above codtyps:'
-    do listIndex = 1, size(list_ele_select)
-      write(*,*) list_ele_select(listIndex)
+    do listIndex = 1, size(listEleSelect)
+      write(*,*) listEleSelect(listIndex)
     end do
-    write(*,*) 'Remove incomplete DRIFTER reports: ', remove_bad_drifters
+    write(*,*) 'Remove incomplete DRIFTER reports: ', removeBadDrifters
     write(*,*)
 
-    n_rep_in = countObs
-
     ! Allocate arrays
-    allocate(keep_rep(n_rep_in))
-    allocate(index_codtyp(n_rep_in))
-    allocate(n_ele_in_per_rep(n_rep_in))
-    allocate(arr_lon(n_rep_in))
-    allocate(arr_lat(n_rep_in))
-    allocate(arr_date(n_rep_in))
-    allocate(arr_hhmm(n_rep_in))
-    allocate(arr_delt(n_rep_in))
-    allocate(arr_bin(n_rep_in))
-    allocate(arr_stnid(n_rep_in))
+    allocate(valid(countObsIn))
+    allocate(obsCodtypIndex(countObsIn))
+    allocate(obsLon(countObsIn))
+    allocate(obsLat(countObsIn))
+    allocate(obsDate(countObsIn))
+    allocate(obsTime(countObsIn))
+    allocate(obsDelT(countObsIn))
+    allocate(obsStepIndex(countObsIn))
+    allocate(obsStnid(countObsIn))
 
     ! Initialize dynamic arrays
-    keep_rep(:) =    .true. ! array which keeps track of which reports to keep
-    index_codtyp(:)   = 999 ! codtyp index array (999 means non-existent)
-    n_ele_in_per_rep(:) = 0 ! number of elements in each report
-    arr_lon(:)          = 0 ! longitude corresponding to each report
-    arr_lat(:)          = 0 ! latitude corresponding to each report
-    arr_date(:)         = 0 ! DATE yyyymmdd corresponding to each report
-    arr_hhmm(:)         = 0 ! time hhmm corresponding to each report
-    arr_delt(:)      = 9999 ! delta t array (departure from nearest bin time)
-    arr_bin(:)          = 0 ! temporal bin corresponding to each report
-    arr_stnid(:)       = '' ! stnid corresponding to each report
+    valid(:) =    .true.    ! array which keeps track of which reports to keep
+    obsCodtypIndex(:) = 999 ! codtyp index array (999 means non-existent)
+    obsLon(:)           = 0 ! longitude corresponding to each report
+    obsLat(:)           = 0 ! latitude corresponding to each report
+    obsDate(:)          = 0 ! DATE yyyymmdd corresponding to each report
+    obsTime(:)          = 0 ! time hhmm corresponding to each report
+    obsDelT(:)       = 9999 ! delta t array (departure from nearest bin time)
+    obsStepIndex(:)     = 0 ! temporal bin corresponding to each report
+    obsStnid(:)        = '' ! stnid corresponding to each report
 
     ! Initialize counters and counter arrays
-    n_ele_in               = 0 ! number of elements in input file
-    n_bit8_in              = 0 ! number of input elements flagged (blacklist)
-    n_bit11_in             = 0 ! number of input elements flagged (selection)
-    n_ele_out              = 0 ! number of elements in output file
-    n_bit8_out             = 0 ! number of output elements flagged (blacklist)
-    n_bit11_out            = 0 ! number of output elements flagged (selection)
-    n_removed_codtyp       = 0 ! number of obs removed due to network
-    n_removed_time         = 0 ! number of obs removed (desired time window)
-    n_removed_cod_priority = 0 ! number of obs removed due to codtyp
-    n_removed_delt         = 0 ! number of obs removed due to delta t
-    n_removed_drifter      = 0 ! number of incomplete drifter reports removed
-    n_repeat1              = 0 ! number of obs same lon/lat/date/time
-    n_repeat2              = 0 ! number of obs same lon/lat/date/time/codtyp
+    numEleIn                 = 0 ! number of elements in input file
+    numBit8In                = 0 ! number of input elements flagged (blacklist)
+    numBit11In               = 0 ! number of input elements flagged (selection)
+    numEleOut                = 0 ! number of elements in output file
+    numBit8Out               = 0 ! number of output elements flagged (blacklist)
+    numBit11Out              = 0 ! number of output elements flagged (selection)
+    numRemovedCodtyp         = 0 ! number of obs removed due to network
+    numRemovedTime           = 0 ! number of obs removed (desired time window)
+    numRemovedCodTypPriority = 0 ! number of obs removed due to codtyp
+    numRemovedDelt           = 0 ! number of obs removed due to delta t
+    numRemovedDrifter        = 0 ! number of incomplete drifter reports removed
+    numRepeat1               = 0 ! number of obs same lon/lat/date/time
+    numRepeat2               = 0 ! number of obs same lon/lat/date/time/codtyp
 
-    n_rep_in_per_cod(:)    = 0 ! number of input reports for each codtyp
-    n_ele_in_per_cod(:)    = 0 ! number of input elements for each codtyp
-    n_bit8_in_per_cod(:)   = 0 ! number of input flags bit 8 for each codtyp
-    n_bit11_in_per_cod(:)  = 0 ! number of input flags bit 11 for each codtyp
-    n_rep_out_per_cod(:)   = 0 ! number of output reports for each codtyp
-    n_ele_out_per_cod(:)   = 0 ! number of output elements for each codtyp
-    n_bit8_out_per_cod(:)  = 0 ! number of output flags bit 8 for each codtyp
-    n_bit11_out_per_cod(:) = 0 ! number of output flags bit 11 for each codtyp
+    countObsInPerCodtyp(:)  = 0 ! number of input reports for each codtyp
+    numEleInPerCodtyp(:)    = 0 ! number of input elements for each codtyp
+    numBit8InPerCodtyp(:)   = 0 ! number of input flags bit 8 for each codtyp
+    numBit11InPerCodtyp(:)  = 0 ! number of input flags bit 11 for each codtyp
+    countObsOutPerCodtyp(:) = 0 ! number of output reports for each codtyp
+    numEleOutPerCodtyp(:)   = 0 ! number of output elements for each codtyp
+    numBit8OutPerCodtyp(:)  = 0 ! number of output flags bit 8 for each codtyp
+    numBit11OutPerCodtyp(:) = 0 ! number of output flags bit 11 for each codtyp
 
     ! Extract needed information from obsSpaceData
     obsIndex = 0
@@ -805,32 +791,32 @@ contains
 
       ! Get index in codtyp list
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
-      do listIndex = 1, n_codtyp
-        if (codtyp == list_codtyp(listIndex)) then
-          index_codtyp(obsIndex) = listIndex
+      do listIndex = 1, numListCodtyp
+        if (codtyp == listCodtyp(listIndex)) then
+          obsCodtypIndex(obsIndex) = listIndex
         end if
       end do
 
       ! Remove observation if not in codtyp list
-      if (index_codtyp(obsIndex) == 999) then
-        keep_rep(obsIndex) = .false.
-        n_removed_codtyp = n_removed_codtyp + 1
+      if (obsCodtypIndex(obsIndex) == 999) then
+        valid(obsIndex) = .false.
+        numRemovedCodtyp = numRemovedCodtyp + 1
         cycle HEADER1
       end if
 
       ! Check if DRIFTER reports contain required element(s), otherwise cycle
-      if ((codtyp == 18) .and. remove_bad_drifters) then
+      if ((codtyp == 18) .and. removeBadDrifters) then
         numElements = 0
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY1: do 
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY1
           obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
-          if (any(list_ele_cod18(:) == obsVarNo)) numElements = numElements + 1
+          if (any(listEleBadDrifter(:) == obsVarNo)) numElements = numElements + 1
         enddo BODY1
-        if (numElements < n_min_cod18) then
-          keep_rep(obsIndex) = .false.
-          n_removed_drifter = n_removed_drifter + 1
+        if (numElements < numEleMinBadDrifter) then
+          valid(obsIndex) = .false.
+          numRemovedDrifter = numRemovedDrifter + 1
           cycle HEADER1
         end if
       end if
@@ -851,89 +837,89 @@ contains
 
         ! Count input flags with bit 8 set
         if (btest(obsFlag, 8)) then
-          n_bit8_in_per_cod(index_codtyp(obsIndex)) = &
-               n_bit8_in_per_cod(index_codtyp(obsIndex)) + 1
-          n_bit8_in = n_bit8_in + 1
+          numBit8InPerCodtyp(obsCodtypIndex(obsIndex)) = &
+               numBit8InPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit8In = numBit8In + 1
         end if
 
         ! Count input flags with bit 11 set
         if (btest(obsFlag, 11)) then
-          n_bit11_in_per_cod(index_codtyp(obsIndex)) = &
-               n_bit11_in_per_cod(index_codtyp(obsIndex)) + 1
-          n_bit11_in = n_bit11_in + 1
+          numBit11InPerCodtyp(obsCodtypIndex(obsIndex)) = &
+               numBit11InPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit11In = numBit11In + 1
         end if
 
       end do BODY2
 
-      n_ele_in = n_ele_in + numElements
+      numEleIn = numEleIn + numElements
 
       ! Counts per codtyp
-      listIndex = index_codtyp(obsIndex)
-      n_rep_in_per_cod(listIndex) = n_rep_in_per_cod(listIndex) + 1
-      n_ele_in_per_cod(listIndex) = n_ele_in_per_cod(listIndex) + numElements
+      listIndex = obsCodtypIndex(obsIndex)
+      countObsInPerCodtyp(listIndex) = countObsInPerCodtyp(listIndex) + 1
+      numEleInPerCodtyp(listIndex) = numEleInPerCodtyp(listIndex) + numElements
 
-      arr_stnid(obsIndex) = obs_elem_c(obsdat,'STID',headerIndex)
+      obsStnid(obsIndex) = obs_elem_c(obsdat,'STID',headerIndex)
 
-      arr_lon(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
-                               obs_headElem_r(obsdat, OBS_LON, headerIndex))
-      arr_lat(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
-                               obs_headElem_r(obsdat, OBS_LAT, headerIndex))
+      obsLon(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
+                              obs_headElem_r(obsdat, OBS_LON, headerIndex))
+      obsLat(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
+                              obs_headElem_r(obsdat, OBS_LAT, headerIndex)) + 9000
 
-      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      arr_date(obsIndex) = obsDate
-      arr_hhmm(obsIndex) = obsTime
+      obsDate(obsIndex) = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime(obsIndex) = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
 
-      call tim_getStepObsIndex(obsStepIndex, tim_getDatestamp(), &
-                               obsDate, obsTime, n_bin)
-      arr_bin(obsIndex) = nint(obsStepIndex)
-      if (n_bin > 1) then
-        arr_delt(obsIndex) = &
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate(obsIndex), obsTime(obsIndex), numStep)
+      obsStepIndex(obsIndex) = nint(obsStepIndex_r8)
+      if (numStep > 1) then
+        obsDelT(obsIndex) = &
              nint( 60.0 * step * &
-                   (obsStepIndex - real(arr_bin(obsIndex))) )
+                   (obsStepIndex_r8 - real(obsStepIndex(obsIndex))) )
       else
-        ierr = newdate(obsDateStamp, obsDate, obsTime*10000, 3)
+        ierr = newdate(obsDateStamp, obsDate(obsIndex), obsTime(obsIndex)*10000, 3)
         call difdatr(obsDateStamp,tim_getDateStamp(),deltaHours)
-        arr_delt(obsIndex) = nint(60.0*deltaHours)
+        obsDelT(obsIndex) = nint(60.0*deltaHours)
       end if
 
       ! Reject if time difference larger than deltmax
-      if (abs(arr_delt(obsIndex)) > deltmax) then
-        keep_rep(obsIndex) = .false.
-        n_removed_time = n_removed_time + 1
+      if (abs(obsDelT(obsIndex)) > deltmax) then
+        valid(obsIndex) = .false.
+        numRemovedTime = numRemovedTime + 1
       endif
 
+      write(*,*) 'DEBUG: ', obsLon(obsIndex), obsLat(obsIndex), obsDate(obsIndex), obsTime(obsIndex), obsStnid(obsIndex)
     end do HEADER1
 
-    call utl_allReduce(n_removed_drifter)
-    call utl_allReduce(n_removed_time)
-    call utl_allReduce(n_removed_codtyp)
+    call utl_allReduce(numRemovedDrifter)
+    call utl_allReduce(numRemovedTime)
+    call utl_allReduce(numRemovedCodtyp)
 
     ! Read blacklist file
     if (useBlackList) then
       write(*,*) 'Opening blacklist file'
-      n_row_blacklist = 0
+      numRowBlacklist = 0
       nulfile = 0
       open (unit=nulfile, file=blackListFileName, status='OLD', iostat=ierr)
       if (ierr /= 0) then
         write(*,*) 'Cannot open blacklist file ', trim(blackListFileName)
         call utl_abort('thn_surfaceInTime')
       end if
-      read(nulfile, iostat=istat, fmt='(i6)') n_row_blacklist
-      write(*,*) 'thn_surfaceInTime: Number of stations in blacklist: ', n_row_blacklist
+      read(nulfile, iostat=istat, fmt='(i6)') numRowBlacklist
+      write(*,*) 'thn_surfaceInTime: Number of stations in blacklist: ', numRowBlacklist
 
-      allocate(arr_stn_blacklist(n_row_blacklist))
-      allocate(mat_blacklist(n_row_blacklist, n_ele_blacklist))
-      arr_stn_blacklist(:) = '' ! array of stnid values in blacklist file
-      mat_blacklist(:,:)    = 0 ! blacklist matrix for stnids and elements
+      allocate(stnidBlacklist(numRowBlacklist))
+      allocate(dataBlacklist(numRowBlacklist, numEleBlacklist))
+      stnidBlacklist(:) = '' ! array of stnid values in blacklist file
+      dataBlacklist(:,:)    = 0 ! blacklist matrix for stnids and elements
 
-      do rowIndex = 1, n_row_blacklist
+      do rowIndex = 1, numRowBlacklist
         read(nulfile, iostat=istat, fmt='(x,a8,x,5(x,i1))') &
-             arr_stn_blacklist(rowIndex), &
-             (arr_work_blacklist(colIndex), colIndex = 1, n_col_blacklist)
-        do elemIndex = 1, n_ele_blacklist
-          if ((blacklist_mode == 'severe') .or. (arr_work_blacklist(list_col_blacklist(elemIndex)) .eq. 1)) then
-            mat_blacklist(rowIndex,elemIndex) = 1
+             stnidBlacklist(rowIndex), &
+             (rowBlackList(colIndex), colIndex = 1, numColBlacklist)
+        do elemIndex = 1, numEleBlacklist
+          if ( (blacklistMode == 'severe') .or. &
+               (rowBlackList(listColBlackList(elemIndex))==1)) then
+            dataBlacklist(rowIndex,elemIndex) = 1
           end if
         end do
       end do
@@ -943,69 +929,74 @@ contains
     end if
 
     ! Gather array information over all mpi tasks
-    allocate(keep_repMpi(countObsMpi))
-    allocate(index_codtypMpi(countObsMpi))
-    allocate(arr_lonMpi(countObsMpi))
-    allocate(arr_latMpi(countObsMpi))
-    allocate(arr_deltMpi(countObsMpi))
-    allocate(arr_binMpi(countObsMpi))
-    allocate(arr_stnidMpi(countObsMpi))
+    allocate(validMpi(countObsInMpi))
+    allocate(obsCodtypIndexMpi(countObsInMpi))
+    allocate(obsLonMpi(countObsInMpi))
+    allocate(obsLatMpi(countObsInMpi))
+    allocate(obsDelTMpi(countObsInMpi))
+    allocate(obsStepIndexMpi(countObsInMpi))
+    allocate(obsStnidMpi(countObsInMpi))
 
-    call intArrayToMpi(arr_lon, arr_lonMpi)
-    call intArrayToMpi(arr_lat, arr_latMpi)
-    call intArrayToMpi(index_codtyp, index_codtypMpi)
-    call intArrayToMpi(arr_bin, arr_binMpi)
-    call intArrayToMpi(arr_delt, arr_deltMpi)
-    call logicalArrayToMpi(keep_rep, keep_repMpi)
-    call stringArrayToMpi(arr_stnid, arr_stnidMpi)
+    call intArrayToMpi(obsLon, obsLonMpi)
+    call intArrayToMpi(obsLat, obsLatMpi)
+    call intArrayToMpi(obsCodtypIndex, obsCodtypIndexMpi)
+    call intArrayToMpi(obsStepIndex, obsStepIndexMpi)
+    call intArrayToMpi(obsDelT, obsDelTMpi)
+    call logicalArrayToMpi(valid, validMpi)
+    call stringArrayToMpi(obsStnid, obsStnidMpi)
     
     ! Apply the thinning algorithm
-    do obsIndex = 1, countObsMpi
+    do obsIndex = 1, countObsInMpi
       
       ! If current report OK so far
-      if (keep_repMpi(obsIndex)) then
+      if (validMpi(obsIndex)) then
         ! Loop over previously-read reports
         do obsIndex2 = 1, obsIndex - 1
           ! If other report OK so far and both reports in same bin
-          if ((keep_repMpi(obsIndex2)) .and. (arr_binMpi(obsIndex) == arr_binMpi(obsIndex2))) then
+          if ( validMpi(obsIndex2) .and. &
+               (obsStepIndexMpi(obsIndex) == obsStepIndexMpi(obsIndex2)) ) then
             ! If reports are spatially colocated or have same stnid
-            if (((arr_lonMpi(obsIndex) == arr_lonMpi(obsIndex2)) .and. (arr_latMpi(obsIndex) == arr_latMpi(obsIndex2))) &
-                 .or. (arr_stnidMpi(obsIndex) == arr_stnidMpi(obsIndex2))) then
+            if ( ( (obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
+                   (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
+                 (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) then
               ! If both reports have same codtyp
-              if (index_codtypMpi(obsIndex) == index_codtypMpi(obsIndex2)) then
+              if (obsCodtypIndexMpi(obsIndex) == obsCodtypIndexMpi(obsIndex2)) then
                 ! If current report closer to bin time
-                if (abs(arr_deltMpi(obsIndex)) < abs(arr_deltMpi(obsIndex2))) then
+                if (abs(obsDelTMpi(obsIndex)) < abs(obsDelTMpi(obsIndex2))) then
                   ! Reject other report
-                  keep_repMpi(obsIndex2) = .false.
-                  n_removed_delt = n_removed_delt + 1
-                else if (abs(arr_deltMpi(obsIndex)) > abs(arr_deltMpi(obsIndex2))) then ! other report closer to bin time
-                  ! Reject current report
-                  keep_repMpi(obsIndex) = .false.
-                  n_removed_delt = n_removed_delt + 1
-                else if (arr_deltMpi(obsIndex) >= arr_deltMpi(obsIndex2)) then ! both reports equally far from bin time
+                  validMpi(obsIndex2) = .false.
+                  numRemovedDelt = numRemovedDelt + 1
+                else if (abs(obsDelTMpi(obsIndex)) > abs(obsDelTMpi(obsIndex2))) then
+                  ! other report closer to bin time, so reject current report
+                  validMpi(obsIndex) = .false.
+                  numRemovedDelt = numRemovedDelt + 1
+                else if (obsDelTMpi(obsIndex) >= obsDelTMpi(obsIndex2)) then
+                  ! both reports equally far from bin time
                   ! If other report not more recent then reject it
-                  keep_repMpi(obsIndex2) = .false.
-                  if (arr_deltMpi(obsIndex) == arr_deltMpi(obsIndex2)) then
-                    n_repeat2 = n_repeat2 + 1
+                  validMpi(obsIndex2) = .false.
+                  if (obsDelTMpi(obsIndex) == obsDelTMpi(obsIndex2)) then
+                    numRepeat2 = numRepeat2 + 1
                   else
-                    n_removed_delt = n_removed_delt + 1
+                    numRemovedDelt = numRemovedDelt + 1
                   end if
-                else ! current report less recent, reject it
-                  keep_repMpi(obsIndex) = .false.
-                  n_removed_delt = n_removed_delt + 1
+                else
+                  ! current report less recent, reject it
+                  validMpi(obsIndex) = .false.
+                  numRemovedDelt = numRemovedDelt + 1
                 end if ! delta t
-              else ! Reports do not have same codtyp
+              else
+                ! Reports do not have same codtyp
                 ! If current report has higher codtyp precedence
-                if (index_codtypMpi(obsIndex) < index_codtypMpi(obsIndex2)) then
+                if (obsCodtypIndexMpi(obsIndex) < obsCodtypIndexMpi(obsIndex2)) then
                   ! Reject other report
-                  keep_repMpi(obsIndex2) = .false.
-                else ! Other report has higher codtyp precedence
-                  ! Reject current report
-                  keep_repMpi(obsIndex) = .false.
-                end if ! codtyp precedence
-                n_removed_cod_priority = n_removed_cod_priority + 1
-                if (arr_deltMpi(obsIndex) == arr_deltMpi(obsIndex2)) then
-                  n_repeat1 = n_repeat1 + 1
+                  validMpi(obsIndex2) = .false.
+                else
+                  ! Other report has higher codtyp precedence, so reject current report
+                  validMpi(obsIndex) = .false.
+                end if
+                numRemovedCodTypPriority = numRemovedCodTypPriority + 1
+                if (obsDelTMpi(obsIndex) == obsDelTMpi(obsIndex2)) then
+                  numRepeat1 = numRepeat1 + 1
                 end if
               end if ! codtyp
             end if ! lon, lat, ibin
@@ -1015,14 +1006,21 @@ contains
 
     end do ! obsIndex
 
-    ! Transfer mpi global keep_rep to local array
-    do obsIndex = 1, countObs
-      keep_rep(obsIndex) = keep_repMpi(obsIndex + countObsMyOffset)
+    ! Transfer mpi global array 'valid' to local array
+    call rpn_comm_allGather(countObsIn,       1, 'mpi_integer',  &
+                            countObsInAllMpi, 1, 'mpi_integer', &
+                            'GRID', ierr )
+    countObsInMyOffset = 0
+    do procIndex = 1, mpi_myid
+      countObsInMyOffset = countObsInMyOffset + countObsInAllMpi(procIndex)
+    end do
+    do obsIndex = 1, countObsIn
+      valid(obsIndex) = validMpi(obsIndex + countObsInMyOffset)
     end do
 
     ! Do counts of kepts observations
     obsIndex = 0
-    n_rep_out = 0
+    countObsOut = 0
     call obs_set_current_header_list(obsdat,'SF')
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -1030,7 +1028,7 @@ contains
       obsIndex = obsIndex + 1
 
       ! If rejected, set bit 11 for all data flags
-      if (.not. keep_rep(obsIndex)) then
+      if (.not. valid(obsIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
@@ -1059,14 +1057,14 @@ contains
         ! Set bit 8 according to blacklist, if blacklist present
         if (useBlackList) then
           ! Traverse rows of blacklist matrix
-          do rowIndex = 1, n_row_blacklist
+          do rowIndex = 1, numRowBlacklist
             ! If stnid found in blacklist, flag elements as appropriate
-            if (arr_stnid(obsIndex) == arr_stn_blacklist(rowIndex)) then
+            if (obsStnid(obsIndex) == stnidBlacklist(rowIndex)) then
               ! Traverse columns of blacklist matrix
-              do elemIndex = 1, n_ele_blacklist
+              do elemIndex = 1, numEleBlacklist
                 ! If element is to be blacklisted, set bit 8
-                if ( obsVarNo == list_ele_blacklist(elemIndex) .and. &
-                     mat_blacklist(rowIndex,elemIndex) == 1 ) then
+                if ( obsVarNo == listEleBlacklist(elemIndex) .and. &
+                     dataBlacklist(rowIndex,elemIndex) == 1 ) then
                   obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
                   call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,8))
                 end if
@@ -1076,9 +1074,9 @@ contains
         end if ! useBlackList
 
         ! Set bit 11 according to requested codtyps and elements
-        if (any(list_codtyp_select(:) == codtyp)) then
+        if (any(listCodtypSelect(:) == codtyp)) then
           ! If current element not in select list, set bit 11
-          if (.not. any(list_ele_select(:) == obsVarNo)) then
+          if (.not. any(listEleSelect(:) == obsVarNo)) then
             obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
 write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
             call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
@@ -1089,100 +1087,100 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
         ! Count output flags with bit 8 set
         if (btest(obsFlag, 8)) then
-          n_bit8_out_per_cod(index_codtyp(obsIndex)) = &
-               n_bit8_out_per_cod(index_codtyp(obsIndex)) + 1
-          n_bit8_out = n_bit8_out + 1
+          numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) = &
+               numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit8Out = numBit8Out + 1
         end if
 
         ! Count output flags with bit 11 set
         if (btest(obsFlag, 11)) then
-          n_bit11_out_per_cod(index_codtyp(obsIndex)) = &
-               n_bit11_out_per_cod(index_codtyp(obsIndex)) + 1
-          n_bit11_out = n_bit11_out + 1
+          numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) = &
+               numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit11Out = numBit11Out + 1
         end if
 
       end do BODY4
 
-      n_ele_out = n_ele_out + numElements
-      n_rep_out = n_rep_out + 1
+      numEleOut = numEleOut + numElements
+      countObsOut = countObsOut + 1
 
       ! Counts per codtyp
-      listIndex = index_codtyp(obsIndex)
-      n_rep_out_per_cod(listIndex) = n_rep_out_per_cod(listIndex) + 1
-      n_ele_out_per_cod(listIndex) = n_ele_out_per_cod(listIndex) + numElements
+      listIndex = obsCodtypIndex(obsIndex)
+      countObsOutPerCodtyp(listIndex) = countObsOutPerCodtyp(listIndex) + 1
+      numEleOutPerCodtyp(listIndex) = numEleOutPerCodtyp(listIndex) + numElements
 
     end do HEADER2
 
     ! Output statistics to screen
 
-    ! n_repeat1 should include the case where codtyps are the same
-    n_repeat1 = n_repeat1 + n_repeat2
+    ! numRepeat1 should include the case where codtyps are the same
+    numRepeat1 = numRepeat1 + numRepeat2
 
     write(*,'(a)') ' Number of reports in input file'
-    do listIndex = 1, n_codtyp
-      call utl_allReduce(n_rep_in_per_cod(listIndex))
-      write(*,'(i4,3a,i7)') list_codtyp(listIndex), ' (', &
-           list_codnam(listIndex), '): ', n_rep_in_per_cod(listIndex)
+    do listIndex = 1, numListCodtyp
+      call utl_allReduce(countObsInPerCodtyp(listIndex))
+      write(*,'(i4,3a,i7)') listCodtyp(listIndex), ' (', &
+           listCodtypName(listIndex), '): ', countObsInPerCodtyp(listIndex)
     end do
 
     write(*,*)
     write(*,'(a)') ' Number of elements in input file'
-    do listIndex = 1, n_codtyp
-      call utl_allReduce(n_ele_in_per_cod(listIndex))
-      call utl_allReduce(n_bit8_in_per_cod(listIndex))
-      call utl_allReduce(n_bit11_in_per_cod(listIndex))
-      write(*,'(i4,3a,i7,a,i7,a,i7,a)') list_codtyp(listIndex), ' (', &
-           list_codnam(listIndex), '): ', n_ele_in_per_cod(listIndex), ' (', &
-           n_bit8_in_per_cod(listIndex), ' bit 8, ', &
-           n_bit11_in_per_cod(listIndex), ' bit 11)'
+    do listIndex = 1, numListCodtyp
+      call utl_allReduce(numEleInPerCodtyp(listIndex))
+      call utl_allReduce(numBit8InPerCodtyp(listIndex))
+      call utl_allReduce(numBit11InPerCodtyp(listIndex))
+      write(*,'(i4,3a,i7,a,i7,a,i7,a)') listCodtyp(listIndex), ' (', &
+           listCodtypName(listIndex), '): ', numEleInPerCodtyp(listIndex), ' (', &
+           numBit8InPerCodtyp(listIndex), ' bit 8, ', &
+           numBit11InPerCodtyp(listIndex), ' bit 11)'
     end do
 
     write(*,*)
     write(*,'(a)') ' Number of reports in output file'
-    do listIndex = 1, n_codtyp
-      call utl_allReduce(n_rep_out_per_cod(listIndex))
-      write(*,'(i4,3a,i7)') list_codtyp(listIndex), ' (', &
-           list_codnam(listIndex), '): ', n_rep_out_per_cod(listIndex)
+    do listIndex = 1, numListCodtyp
+      call utl_allReduce(countObsOutPerCodtyp(listIndex))
+      write(*,'(i4,3a,i7)') listCodtyp(listIndex), ' (', &
+           listCodtypName(listIndex), '): ', countObsOutPerCodtyp(listIndex)
     end do
 
     write(*,*)
     write(*,'(a)') ' Number of elements in output file'
-    do listIndex = 1, n_codtyp
-      call utl_allReduce(n_ele_out_per_cod(listIndex))
-      call utl_allReduce(n_bit8_out_per_cod(listIndex))
-      call utl_allReduce(n_bit11_out_per_cod(listIndex))
-      write(*,'(i4,3a,i7,a,i7,a,i7,a)') list_codtyp(listIndex), ' (', &
-           list_codnam(listIndex), '): ', n_ele_out_per_cod(listIndex), ' (', &
-           n_bit8_out_per_cod(listIndex), ' bit 8, ', &
-           n_bit11_out_per_cod(listIndex), ' bit 11)'
+    do listIndex = 1, numListCodtyp
+      call utl_allReduce(numEleOutPerCodtyp(listIndex))
+      call utl_allReduce(numBit8OutPerCodtyp(listIndex))
+      call utl_allReduce(numBit11OutPerCodtyp(listIndex))
+      write(*,'(i4,3a,i7,a,i7,a,i7,a)') listCodtyp(listIndex), ' (', &
+           listCodtypName(listIndex), '): ', numEleOutPerCodtyp(listIndex), ' (', &
+           numBit8OutPerCodtyp(listIndex), ' bit 8, ', &
+           numBit11OutPerCodtyp(listIndex), ' bit 11)'
     end do
 
     write(*,*)
-    call utl_allReduce(n_rep_in)
-    call utl_allReduce(n_rep_out)
-    write(*,'(a,i7)') 'Total number of reports in input file:   ', n_rep_in
-    write(*,'(a,i7)') 'Total number of reports in output file:  ', n_rep_out
-    call utl_allReduce(n_ele_in)
-    call utl_allReduce(n_bit8_in)
-    call utl_allReduce(n_bit11_in)
-    call utl_allReduce(n_ele_out)
-    call utl_allReduce(n_bit8_out)
-    call utl_allReduce(n_bit11_out)
-    write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in input file:  ', n_ele_in, &
-          ' (', n_bit8_in, ' bit 8, ', n_bit11_in, ' bit 11)'
-    write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in output file: ', n_ele_out, &
-          ' (', n_bit8_out, ' bit 8, ', n_bit11_out, ' bit 11)'
+    call utl_allReduce(countObsIn)
+    call utl_allReduce(countObsOut)
+    write(*,'(a,i7)') 'Total number of reports in input file:   ', countObsIn
+    write(*,'(a,i7)') 'Total number of reports in output file:  ', countObsOut
+    call utl_allReduce(numEleIn)
+    call utl_allReduce(numBit8In)
+    call utl_allReduce(numBit11In)
+    call utl_allReduce(numEleOut)
+    call utl_allReduce(numBit8Out)
+    call utl_allReduce(numBit11Out)
+    write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in input file:  ', numEleIn, &
+          ' (', numBit8In, ' bit 8, ', numBit11In, ' bit 11)'
+    write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in output file: ', numEleOut, &
+          ' (', numBit8Out, ' bit 8, ', numBit11Out, ' bit 11)'
     write(*,*)
-    write(*,'(a,i7)') 'Number of repeated reports (lon/lat/date/time):        ', n_repeat1
-    write(*,'(a,f6.2)') 'Above count as a percentage of total reports in:        ', 100.0 * n_repeat1 / n_rep_in
-    write(*,'(a,i7)') 'Number of repeated reports (lon/lat/date/time/codtyp): ', n_repeat2
-    write(*,'(a,f6.2)') 'Above count as a percentage of total reports in:        ', 100.00 * n_repeat2 / n_rep_in
+    write(*,'(a,i7)') 'Number of repeated reports (lon/lat/date/time):        ', numRepeat1
+    write(*,'(a,f6.2)') 'Above count as a percentage of total reports in:        ', 100.0 * numRepeat1 / countObsIn
+    write(*,'(a,i7)') 'Number of repeated reports (lon/lat/date/time/codtyp): ', numRepeat2
+    write(*,'(a,f6.2)') 'Above count as a percentage of total reports in:        ', 100.00 * numRepeat2 / countObsIn
     write(*,*)
-    write(*,'(a,i7)') 'Number of reports removed due to codtyp:               ', n_removed_codtyp
-    write(*,'(a,i7)') 'Number of reports removed due to time:                 ', n_removed_time
-    write(*,'(a,i7)') 'Number of reports removed using codtyp precedence:     ', n_removed_cod_priority
-    write(*,'(a,i7)') 'Number of reports removed using delta t:               ', n_removed_delt
-    write(*,'(a,i7)') 'Number of incomplete drifter reports removed:          ', n_removed_drifter
+    write(*,'(a,i7)') 'Number of reports removed due to codtyp:               ', numRemovedCodtyp
+    write(*,'(a,i7)') 'Number of reports removed due to time:                 ', numRemovedTime
+    write(*,'(a,i7)') 'Number of reports removed using codtyp precedence:     ', numRemovedCodTypPriority
+    write(*,'(a,i7)') 'Number of reports removed using delta t:               ', numRemovedDelt
+    write(*,'(a,i7)') 'Number of incomplete drifter reports removed:          ', numRemovedDrifter
     write(*,*)
  
   end subroutine thn_surfaceInTime

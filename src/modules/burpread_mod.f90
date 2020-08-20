@@ -4455,7 +4455,7 @@ CONTAINS
     integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
     logical                     :: resumeReport, cleanLevels, checkBlock
-    character(len=2)            :: familyTypesToDo(6) = (/'AI','SW','TO','SC','GP','UA'/)
+    character(len=2)            :: familyTypesToDo(7) = (/'AI','SW','TO','SC','GP','UA','SF'/)
     character(len=9)            :: stnid
     real(4)                     :: realBurpValue
     logical                     :: debug = .false.
