@@ -41,6 +41,7 @@ module tovs_nl_mod
        inst_id_mtsatim     ,&
        inst_id_amsua       ,&
        inst_id_mhs         ,&
+       inst_id_ssmis       ,&
        sensor_id_mw        ,&
        sensor_id_po        ,&
        platform_id_jpss    ,&
@@ -105,8 +106,9 @@ module tovs_nl_mod
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
-  public :: tvs_doAzimuthAngleCorrection
-  public :: tvs_oldStyleAzimuthAngleCorrection 
+  public :: tvs_doAzimuthCorrection
+  public :: tvs_userDefinedDoAzimuthAngleCorrection
+  public :: tvs_userDefinedIsAzimuthValid
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -159,9 +161,10 @@ module tovs_nl_mod
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
-  logical tvs_doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+  logical tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
   logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
-  logical tvs_oldStyleAzimuthAngleCorrection  
+  logical tvs_userDefinedDoAzimuthAngleCorrection
+  logical tvs_userDefinedIsAzimuthValid
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
@@ -205,7 +208,7 @@ contains
     integer :: channelNumber, nosensor, channelIndex
     integer :: errorStatus(1)
     integer :: headerIndex, bodyIndex, taskIndex
-    logical,allocatable ::logicalBuffer(:)
+    logical, allocatable :: logicalBuffer(:)
 
     if (tvs_nsensors == 0) return
 
@@ -307,6 +310,33 @@ contains
       end do BODY
     end do HEADER
 
+    if ( .not. tvs_userDefinedDoAzimuthAngleCorrection) then 
+      ! tvs_doAzimuthCorrection user defined values will be overwriten by the old default values 
+      do sensorIndex = 1, tvs_nsensors
+        tvs_doAzimuthCorrection(sensorIndex) = ( tvs_platforms(sensorIndex) /= platform_id_eos .and. &
+             ( tvs_instruments(sensorIndex) == inst_id_amsua .or. tvs_instruments(sensorIndex) == inst_id_mhs )  )     
+      end do
+      if ( mpi_myId == 0 ) write(*,*) " tvs_setupAlloc: Warning tvs_doAzimuthCorrection user defined values overwriten by the old default values"
+    end if
+
+    if ( .not. tvs_userDefinedIsAzimuthValid ) then 
+      ! tvs_isAzimuthValid  user defined values will be overwriten by the current default values 
+      do sensorIndex = 1, tvs_nsensors
+        tvs_isAzimuthValid(sensorIndex) = .not. ( ( tvs_isInstrumGeostationary(tvs_instruments(sensorIndex))  .or. &
+             tvs_instruments(sensorIndex) == inst_id_ssmis   ) )     
+      end do
+      if ( mpi_myId == 0 ) write(*,*) " tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values"
+    end if
+
+    if ( mpi_myId == 0 ) then
+      write(*,*) " tvs_setupAlloc: platform satellite id tvs_doAzimuthCorrection tvs_isAzimuthValid"
+      do sensorIndex = 1, tvs_nsensors
+        write(*,'(18x,a,1x,a,1x,i2,1x,L1,10x,L1)') inst_name(tvs_instruments(sensorIndex)), &
+             platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), &
+             tvs_doAzimuthCorrection(sensorIndex), tvs_isAzimuthValid(sensorIndex)
+      end do
+    end if
+    
     ! Sort list of channels in ascending order.Also force at least one channel, if none are found.
     do sensorIndex = 1, tvs_nsensors
       call isort(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex))
@@ -329,7 +359,7 @@ contains
     else
       allocate(logicalBuffer(1))
     end if
-
+    
     do sensorIndex = 1, tvs_nsensors
       call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, "GRID", errorStatus(1) )
       if (mpi_myid ==0) then
@@ -340,7 +370,7 @@ contains
       end if
       call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
     end do
-
+    
     deallocate(logicalBuffer)
 
     !  3. Initialize TOVS radiance transfer model
@@ -352,7 +382,7 @@ contains
       allocate (tvs_coefs(tvs_nsensors)          ,stat= allocStatus(1))
       allocate (tvs_listSensors (3,tvs_nsensors) ,stat= allocStatus(2))
       allocate (tvs_opts (tvs_nsensors)          ,stat= allocStatus(3))
-
+      
       call utl_checkAllocationStatus(allocStatus(1:3), " tvs_setupAlloc before rttov initialization")
 
       do sensorIndex=1, tvs_nsensors
@@ -513,9 +543,10 @@ contains
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
-    logical :: doAzimuthAngleCorrection(tvs_maxNumberOfSensors)
+    logical :: doAzimuthCorrection(tvs_maxNumberOfSensors)
     logical :: isAzimuthValid(tvs_maxNumberOfSensors)
-    logical :: oldStyleAzimuthAngleCorrection 
+    logical :: userDefinedDoAzimuthAngleCorrection
+    logical :: userDefinedIsAzimuthValid
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
     logical :: mwInstrumUsingCLW_tl
@@ -525,20 +556,22 @@ contains
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
-    namelist /NAMTOV/ regLimitExtrap, doAzimuthAngleCorrection, oldStyleAzimuthAngleCorrection, isAzimuthValid
+    namelist /NAMTOV/ regLimitExtrap, doazimuthcorrection, userDefinedDoAzimuthAngleCorrection
+    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid 
  
     !   1.1 Default values for namelist variables
 
     nsensors = 0
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
-    doAzimuthAngleCorrection(:) = .false.
+    doazimuthcorrection(:) = .false.
     isAzimuthValid(:) = .false.
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
     useO3Climatology = .true.
-    oldStyleAzimuthAngleCorrection = .true.
+    userDefinedDoAzimuthAngleCorrection = .false.
+    userDefinedIsAzimuthValid = .false.
     crtmodl = 'RTTOV'
     useUofWIREmiss = .false.
     useMWEmissivityAtlas = .false.
@@ -553,6 +586,7 @@ contains
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam, nml=namtov, iostat=ierr)
     if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist')
+
     if (mpi_myid == 0) write(*,nml=namtov)
     ierr = fclos(nulnam)
 
@@ -566,8 +600,9 @@ contains
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
     tvs_regLimitExtrap = regLimitExtrap
-    tvs_oldStyleAzimuthAngleCorrection = oldStyleAzimuthAngleCorrection
-    tvs_doAzimuthAngleCorrection(:) =  doAzimuthAngleCorrection(:)
+    tvs_userDefinedDoAzimuthAngleCorrection = userDefinedDoAzimuthAngleCorrection
+    tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
+    tvs_doazimuthcorrection(:) =  doazimuthcorrection(:)
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
     !  1.4 Validate namelist values
     
@@ -2094,16 +2129,13 @@ contains
     if ( tovsIndex < 0) return
 
     sensorNo  = tvs_lsensor(tovsIndex)
-    instrum   = tvs_instruments(sensorNo)
-    iplatform = tvs_platforms(sensorNo)
 
     if ( forSlantPath .and. .not. tvs_isAzimuthValid(sensorNo) ) then
       tvs_getCorrectedSatelliteAzimuthAngle = obs_missingValue_R
       return
     end if
 
-    if ( ( tvs_oldStyleAzimuthAngleCorrection .and. (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) &
-           .or. tvs_doAzimuthAngleCorrection(sensorNo) ) then
+    if ( tvs_doazimuthcorrection(sensorNo) ) then
       ! Correction sur la definition de l'angle.
       tvs_getCorrectedSatelliteAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) + tvs_getCorrectedSatelliteAzimuthAngle
       if ( tvs_getCorrectedSatelliteAzimuthAngle > 360.d0 ) tvs_getCorrectedSatelliteAzimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle - 360.d0
