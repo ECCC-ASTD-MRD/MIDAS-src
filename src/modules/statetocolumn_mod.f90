@@ -44,7 +44,7 @@ module stateToColumn_mod
   use slantprofilelatlon_mod
   use tovs_nl_mod
   use codtyp_mod
-  use interpolation_mod
+  use getGridPosition_mod
 
   implicit none
   save
@@ -168,7 +168,7 @@ contains
       !
       !- Find the position in the analysis grid
       !
-      ierr = int_getPositionXY( hco_anl % EZscintID,  &
+      ierr = gpos_getPositionXY( hco_anl % EZscintID,  &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -812,7 +812,7 @@ contains
                          MPC_DEGREES_PER_RADIAN_R8)
             lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            ierr = int_getPositionXY( stateVector%hco%EZscintID,   &
+            ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                       lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -2338,7 +2338,7 @@ contains
       if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
-      ierr = int_getPositionXY( stateVector % hco % EZscintID,   &
+      ierr = gpos_getPositionXY( stateVector % hco % EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
       xpos = real(xpos_r4,8)
@@ -2768,7 +2768,7 @@ contains
                  MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    ierr = int_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -2972,7 +2972,6 @@ contains
     real(8) :: lon_rad, lat_rad
     real(8) :: grid_lon_rad, grid_lat_rad
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    real(4), allocatable, save :: grid_lon_deg_r4(:,:), grid_lat_deg_r4(:,:)
     integer :: ipoint, gridptCount
     integer :: top, bottom, left, right, rectangleCount
     real(8) :: dist
@@ -2980,13 +2979,6 @@ contains
     integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
     integer :: rectLonIndex(2*(statevector%ni+statevector%nj)-4), rectLatIndex(4*(statevector%ni+statevector%nj)-4)
     logical :: inside, reject
-
-    integer, save :: EZscintID_old = -999
-    character(len=1) :: grtyp
-    integer :: ni, nj, ig1, ig2, ig3, ig4
-
-    ! external functions
-    integer :: ezgprm, gdll
 
     reject = .false.
 
@@ -2998,7 +2990,7 @@ contains
     lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = int_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -3015,15 +3007,6 @@ contains
     else
       ! only 1 subGrid involved in interpolation
       numSubGridsForInterp = 1
-    end if
-
-    if ( EZscintID_old /= stateVector%hco%EZscintID ) then
-      ierr = ezgprm(stateVector%hco%EZscintID, grtyp, ni, nj, ig1, ig2, ig3, ig4)
-      if ( allocated(grid_lat_deg_r4) ) deallocate(grid_lat_deg_r4, grid_lon_deg_r4)
-      allocate(grid_lat_deg_r4(ni,nj), grid_lon_deg_r4(ni,nj))
-      ierr = gdll(stateVector%hco%EZscintID, grid_lat_deg_r4, grid_lon_deg_r4)
-      where (grid_lon_deg_r4 < 0.0) grid_lon_deg_r4 = grid_lon_deg_r4 + 360.0
-      EZscintID_old = stateVector%hco%EZscintID
     end if
 
     do subGridForInterp = 1, numSubGridsForInterp
@@ -3095,8 +3078,8 @@ contains
               latIndex = rectLatIndex(rectangleIndex)
               if (latIndex >= 1 .and. latIndex <= statevector%nj) then
 
-                grid_lat_rad = real(grid_lat_deg_r4(lonIndex,latIndex),8)*MPC_RADIANS_PER_DEGREE_R8
-                grid_lon_rad = real(grid_lon_deg_r4(lonIndex,latIndex),8)*MPC_RADIANS_PER_DEGREE_R8
+                grid_lat_rad = real(stateVector%hco%lat2d_4(lonIndex,latIndex),8)
+                grid_lon_rad = real(stateVector%hco%lon2d_4(lonIndex,latIndex),8)
 
                 ! Compute distance between grid point and observation point.
                 dist = phf_calcDistance(grid_lat_rad, grid_lon_rad, lat_rad, lon_rad)
@@ -3212,7 +3195,7 @@ contains
     lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = int_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -3342,7 +3325,7 @@ contains
     lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
-    ierr = int_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -3450,7 +3433,7 @@ contains
 
     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
-    ierr = int_getPositionXY( hco%EZscintID,   &
+    ierr = gpos_getPositionXY( hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -3470,7 +3453,7 @@ contains
 
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
-      ierr = int_getPositionXY( hco%EZscintID,   &
+      ierr = gpos_getPositionXY( hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
