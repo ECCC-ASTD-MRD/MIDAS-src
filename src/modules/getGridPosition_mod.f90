@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module interpolation_mod
-  ! MODULE interpolation_mod (prefix='int' category='7. Low-level data objects and utilities')
+module getGridPosition_mod
+  ! MODULE getGridPosition_mod (prefix='gpos' category='7. Low-level data objects and utilities')
   !
   ! :Purpose: A place to collect numerous interpolation related routines
   !
@@ -29,7 +29,7 @@ module interpolation_mod
   private
 
   ! public procedures
-  public :: int_getPositionXY
+  public :: gpos_getPositionXY
 
   integer, parameter :: maxNumLocalGridPointsSearch = 100
   integer, external  :: get_max_rss
@@ -39,14 +39,15 @@ module interpolation_mod
 contains
 
 
-  function int_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
+  function gpos_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
     !
     ! :Purpose: Compute the grid XY position from a lat-lon. This
     !           simply calls the ezsint routine gdxyfll for simple grids. For
     !           Yin-Yan grids it can return locations from both the Yin and Yan
     !           subgrids when in the overlap region, depending on the logical 
-    !           variable `useSingleValueOverlap`.
+    !           variable `useSingleValueOverlap`. There is also support for
+    !           RPN Y grids, in which case it calls the subroutine gpos_xyfll.
     !
     implicit none
 
@@ -85,7 +86,7 @@ contains
 
       if (grtyp == 'Y') then
 
-         ierr = int_xyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+         ierr = gpos_xyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
 
       else
 
@@ -110,7 +111,7 @@ contains
       ! compute rotated lon and lat at obs location
       axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
       if (axesDifferent) then
-        write(*,*) 'int_getPositionXY: axesDifferent, compute needed parameters'
+        write(*,*) 'gpos_getPositionXY: axesDifferent, compute needed parameters'
         if (allocated(ax_yin)) deallocate(ax_yin,ay_yin)
         allocate(ax_yin(ni),ay_yin(nj))
         ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
@@ -195,11 +196,14 @@ contains
       ypos2_r4 = ypos_r4
     end if
 
-  end function int_getPositionXY
+  end function gpos_getPositionXY
 
-  function int_xyfll( gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4 ) result(ierr)
+  function gpos_xyfll( gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4 ) result(ierr)
 
-    ! :Purpose: This function is used to interpolate from a 'Y' grid to observation location.
+    ! :Purpose: This function is used to interpolate from a RPN grid to a location
+    !           specified by a latitude and longitude.
+    !           It has special treatment for the ORCA12 and ORCA025 tri-polar grids
+    !           used for sea ice and ocean models.
     !           The kdtree2 module is used to efficiently
     !           perform this task. The kdtree itself is constructed on the first call.
     implicit none
@@ -236,13 +240,13 @@ contains
     real(kdkind)              :: refPosition(3)
 
     if ( gdid /= gdid_old .and. gdid_old > 0) then
-      write(*,*) 'int_xyfll: gdid gdid_old = ',gdid,gdid_old
-      call utl_abort('int_xyfll: only one grid expected. Change code !')
+      write(*,*) 'gpos_xyfll: gdid gdid_old = ',gdid,gdid_old
+      call utl_abort('gpos_xyfll: only one grid expected. Change code !')
     end if
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
-      write(*,*) 'int_xyfll: start creating kdtree'
+      write(*,*) 'gpos_xyfll: start creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       ierr = ezgprm(gdid, grtyp, ni, nj, ig1, ig2, ig3, ig4)
 
@@ -291,7 +295,7 @@ contains
         end do
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
-      write(*,*) 'int_xyfll: done creating kdtree'
+      write(*,*) 'gpos_xyfll: done creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     else
@@ -311,7 +315,12 @@ contains
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numLocalGridPointsFound,&
                            nalloc=maxNumLocalGridPointsSearch, results=searchResults)
     if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-      call utl_abort('int_xyfll: the parameter maxNumLocalGridPointsSearch must be increased')
+      call utl_abort('gpos_xyfll: the parameter maxNumLocalGridPointsSearch must be increased')
+    end if
+
+    if (numLocalGridPointsFound < 1) then
+      write(*,*) 'gpos_xyfll: numLocalGridPointsFound = ',numLocalGridPointsFound
+      call utl_abort('gpos_xyfll: the search did not found close points.')
     end if
 
     ! Get closest grid point from the observation
@@ -321,6 +330,6 @@ contains
     xpos_r4 = real(xIndex)
     ypos_r4 = real(yIndex)
 
-  end function int_xyfll
+  end function gpos_xyfll
 
-end module interpolation_mod
+end module getGridPosition_mod
