@@ -69,6 +69,9 @@ program midas_thinning
   call obs_class_initialize('ALL')
   call obs_initialize( obsSpaceData, mpi_local=.true. )
 
+  !- Setup obsFilter_mod
+  call filt_setup('bgck')
+
   !- Read observations
   call tmg_start(2,'READ_OBS')
   call obsf_readFiles( obsSpaceData )

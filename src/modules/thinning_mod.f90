@@ -993,6 +993,10 @@ contains
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate(stationIndex), obsTime(stationIndex), tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
+      if (obsStepIndex < 0) then
+        obsStepIndex = (tim_nstepobs+1)/2
+        write(*,*) 'thn_radiosonde: Obs outside the assimilation window, set to middle of window'
+      end if
 
       ! Calculate pressure levels for each station based on GEM3 vertical coordinate
       do levIndex  = 1, numLev
@@ -4109,12 +4113,10 @@ contains
       bodyIndex = obs_getBodyIndex(obsdat)
       if (bodyIndex < 0) exit BODY
 
-      ! If the datum is not being assimilated, ignore it
-      if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle BODY
-
       ! If datum already rejected, ignore it
       flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-      if (btest(flag,9)) cycle BODY
+      if ( btest(flag,9) .or. &
+           btest(flag,11) ) cycle BODY
 
       headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
       newProfileId = obs_headElem_i(obsdat, OBS_PRFL, headerIndex)
@@ -5541,7 +5543,10 @@ contains
         channelIndex = channelIndex + 1
         channelList(channelIndex) = nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex))
 
-        if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) then
+        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        if ( .not.btest(obsFlag,8) .and. &
+             .not.btest(obsFlag,9) .and. &
+             .not.btest(obsFlag,11) ) then
           valid(headerIndex) = .true.
           channelAssim(channelIndex,headerIndex) = .true.
         end if
@@ -5964,12 +5969,14 @@ contains
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           if (.not. btest(obsFlag,6)) then
             call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
-            call obs_bodySet_i(obsdat, OBS_ASS, bodyIndex, obs_notAssimilated)
           end if
         end if
 
         ! count the number of accepted channels
-        if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) then
+        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        if ( .not. btest(obsFlag,8) .and. &
+             .not. btest(obsFlag,9) .and. &
+             .not. btest(obsFlag,11) ) then
           numChannels = numChannels + 1
         end if
 
