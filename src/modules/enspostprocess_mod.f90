@@ -85,6 +85,7 @@ contains
 
     ! Namelist variables
     integer  :: randomSeed           ! seed used for random perturbation additive inflation
+    logical  :: includeYearInSeed    ! switch for choosing to include year in default random seed
     logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
     logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for initializing medium-range fcsts
     real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
@@ -100,7 +101,7 @@ contains
     character(len=12) :: etiket0
     integer  :: numBits                ! number of bits when writing ensemble mean and spread
 
-    NAMELIST /namEnsPostProcModule/randomSeed, writeSubSample, writeSubSampleUnPert,  &
+    NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
                                    weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
@@ -118,6 +119,7 @@ contains
 
     !- Setting default namelist variable values
     randomSeed            =  -999
+    includeYearInSeed     = .false.
     writeSubSample        = .false.
     writeSubSampleUnPert  = .false.
     alphaRTPS             =  0.0D0
@@ -340,17 +342,25 @@ contains
           ierr = newdate(dateStamp, datePrint, timePrint, imode)
           timePrint = timePrint/1000000
           datePrint =  datePrint*100 + timePrint
-          ! Remove the year and add 9
-          randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
-          write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
+          if (includeYearInSeed) then
+            ! Remove the century, keeping 2 digits of the year
+            randomSeedRandomPert = datePrint - 100000000*(datePrint/100000000)
+          else
+            ! Remove the year and add 9
+            randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+          end if
         else
           randomSeedRandomPert = randomSeed
         end if
+        write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
+             randomSeedRandomPert
         call tmg_start(101,'LETKF-randomPert')
         if (ens_allocated(ensembleTrl)) then
-          call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeedRandomPert)
+          call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
+               randomSeedRandomPert)
         else
-          call epp_addRandomPert(ensembleAnl, stateVectorMeanAnl, alphaRandomPert, randomSeedRandomPert)
+          call epp_addRandomPert(ensembleAnl, stateVectorMeanAnl, alphaRandomPert, &
+               randomSeedRandomPert)
         end if
         call tmg_stop(101)
       end if
@@ -360,7 +370,8 @@ contains
                          dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+                         dataKind_opt=4, allocHeight_opt=.false., &
+                         allocPressure_opt=.false. )
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
 
@@ -376,15 +387,21 @@ contains
             ierr = newdate(dateStamp, datePrint, timePrint, imode)
             timePrint = timePrint/1000000
             datePrint =  datePrint*100 + timePrint
-            ! Remove the year and add 9
-            randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
-            write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
+            if (includeYearInSeed) then
+              ! Remove the century, keeping 2 digits of the year
+              randomSeedRandomPert = datePrint - 100000000*(datePrint/100000000)
+            else
+              ! Remove the year and add 9
+              randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+            end if
           else
             randomSeedRandomPert = randomSeed
           end if
+          write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
+               randomSeedRandomPert
           call tmg_start(101,'LETKF-randomPert')
           call epp_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
-                                  alphaRandomPertSubSample, randomSeedRandomPert)
+                                 alphaRandomPertSubSample, randomSeedRandomPert)
           call tmg_stop(101)
         end if
 
