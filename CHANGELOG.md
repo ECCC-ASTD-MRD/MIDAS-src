@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added namelist variable to include year in random seed in `ensPostProcess_mod` (#389 and !368)
  * Added ability to perform background check for SAR winds (wind speed retrieval) (#299 and !364)
  * Added thinning algorithm for radiosondes for use in `obsSelection` program (#373 and !361)
  * Added `crisCloudFractionThreshold` to namelist section `NAMBGCKIR` (#327 and !360)
