@@ -216,6 +216,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>    
+    <SUBMITS sub_name="surface"/>
+    <FAMILY  name="surface">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>    
     <SUBMITS sub_name="gpsro"/>
     <FAMILY  name="gpsro">
       <SUBMITS sub_name="UnitTest"/>

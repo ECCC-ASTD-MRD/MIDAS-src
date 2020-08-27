@@ -210,6 +210,7 @@ program midas_obsSelection
     call thn_thinScat(obsSpaceData)
     call thn_thinSatWinds(obsSpaceData)
     call thn_thinAircraft(obsSpaceData)
+    call thn_thinSurface(obsSpaceData)
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
