@@ -41,7 +41,6 @@ module tovs_nl_mod
        inst_id_mtsatim     ,&
        inst_id_amsua       ,&
        inst_id_mhs         ,&
-       inst_id_ssmis       ,&
        sensor_id_mw        ,&
        sensor_id_po        ,&
        platform_id_jpss    ,&
@@ -322,8 +321,7 @@ contains
     if ( .not. tvs_userDefinedIsAzimuthValid ) then 
       ! tvs_isAzimuthValid  user defined values will be overwriten by the current default values 
       do sensorIndex = 1, tvs_nsensors
-        tvs_isAzimuthValid(sensorIndex) = .not. ( ( tvs_isInstrumGeostationary(tvs_instruments(sensorIndex))  .or. &
-             tvs_instruments(sensorIndex) == inst_id_ssmis   ) )     
+        tvs_isAzimuthValid(sensorIndex) = .not. ( tvs_isInstrumGeostationary(tvs_instruments(sensorIndex)) )
       end do
       if ( mpi_myId == 0 ) write(*,*) " tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values"
     end if
@@ -2004,7 +2002,7 @@ contains
           profiles(tovsIndex) % zenangle = 0.d0
         end if
  
-        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.false.)
+        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
@@ -2111,7 +2109,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getCorrectedSatelliteAzimuthAngle
   !--------------------------------------------------------------------------
-  real(8) function tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath)
+  real(8) function tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
     !
     ! :Purpose: get properly corrected satellite Azimuth Angle from obsSpaceData header
     !
@@ -2119,7 +2117,6 @@ contains
     ! Arguments
     type(struct_obs), intent(in) :: obsSpaceData     ! obsSpaceData structure
     integer, intent(in)          :: headerIndex      ! location in header
-    logical, intent(in)          :: forSlantPath     ! .true. for slantpath (.false. for other application like FASTEM)
     ! Locals
     integer :: instrum, iplatform, sensorNo, tovsIndex
 
@@ -2130,7 +2127,7 @@ contains
 
     sensorNo  = tvs_lsensor(tovsIndex)
 
-    if ( forSlantPath .and. .not. tvs_isAzimuthValid(sensorNo) ) then
+    if ( .not. tvs_isAzimuthValid(sensorNo) ) then
       tvs_getCorrectedSatelliteAzimuthAngle = obs_missingValue_R
       return
     end if

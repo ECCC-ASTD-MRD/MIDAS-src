@@ -27,6 +27,7 @@ module slantprofilelatlon_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
   use tovs_nl_mod
+  use codtyp_mod
 
   implicit none
   save
@@ -66,7 +67,8 @@ contains
     real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: lat, lon, latSlant, lonSlant, azimuthAngle
-    integer :: subGridIndex, lonIndex, latIndex
+    integer :: subGridIndex, lonIndex, latIndex, idatyp
+!    integer :: tovsIndex, sensorNo
     integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
     integer :: numIteration
@@ -97,8 +99,20 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex, forSlantPath=.true.)
+    azimuthAngle = tvs_getCorrectedSatelliteAzimuthAngle(obsSpaceData, headerIndex)
 
+    !SSMIS special case
+    idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+!    tovsIndex = tvs_tovsIndex (headerIndex)
+!    if ( tovsIndex > 0) then
+!      sensorNo  = tvs_lsensor(tovsIndex)
+!      if ( tvs_instruments(sensorNo) == inst_id_ssmis ) then
+!        azimuthAngle = obs_missingValue_R
+!      end if
+!    end if
+    if ( idatyp == codtyp_get_codtyp('ssmis')) then
+      azimuthAngle = obs_missingValue_R
+    end if
     ! put the last lat/lon at the surface
     latSlantLev_T(nlev_T) = lat
     lonSlantLev_T(nlev_T) = lon
