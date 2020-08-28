@@ -585,6 +585,7 @@ contains
             call tmg_stop(199)
 
           else
+
             latLev_T(:) = real(lat_r4,8)
             lonLev_T(:) = real(lon_r4,8)
             latLev_M(:) = real(lat_r4,8)

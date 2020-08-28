@@ -26,6 +26,8 @@ module slantprofilelatlon_mod
   use utilities_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
+  use tovs_nl_mod
+  use codtyp_mod
 
   implicit none
   save
@@ -64,8 +66,8 @@ contains
     ! Locals:
     real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    real(8) :: lat, lon, latSlant, lonSlant
-    integer :: subGridIndex, lonIndex, latIndex
+    real(8) :: lat, lon, latSlant, lonSlant, azimuthAngle
+    integer :: subGridIndex, lonIndex, latIndex, idatyp
     integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
     integer :: numIteration
@@ -96,7 +98,13 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
+    azimuthAngle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
 
+    !SSMIS special case
+    idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+    if ( idatyp == codtyp_get_codtyp('ssmis') ) then
+      azimuthAngle = obs_missingValue_R
+    end if
     ! put the last lat/lon at the surface
     latSlantLev_T(nlev_T) = lat
     lonSlantLev_T(nlev_T) = lon
@@ -114,7 +122,7 @@ contains
       while_doIteration: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
@@ -151,7 +159,7 @@ contains
       while_doIteration2: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
@@ -174,7 +182,7 @@ contains
   end subroutine slp_calcLatLonTovs
 
 
-  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, latSlant, lonSlant)
+  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, azimuthAngle, latSlant, lonSlant)
     !
     !:Purpose: Computation of lat/lon of the intersection between model level 
     !          and the slant line-of-sight for radiance observations.
@@ -184,12 +192,13 @@ contains
     type(struct_obs), intent(in)  :: obsSpaceData
     real(4), intent(in)  :: height_r4
     integer, intent(in)  :: headerIndex
+    real(8), intent(in)  :: azimuthAngle
     real(8), intent(out) :: latSlant
     real(8), intent(out) :: lonSlant 
 
     ! Locals:
     real(8) :: lat, lon, geometricHeight
-    real(8) :: zenithAngle, zenithAngle_rad, azimuthAngle, azimuthAngle_rad, elevationAngle_rad, distAlongPath
+    real(8) :: zenithAngle, zenithAngle_rad, azimuthAngle_rad, elevationAngle_rad, distAlongPath
     real(8) :: obsCordGlb(3), slantPathCordGlb(3), unitx(3), unity(3), unitz(3), unitSatLoc(3), unitSatGlb(3)
 
     ! read lat/lon/angles from obsSpaceData
@@ -197,38 +206,47 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-    azimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
-    zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-    ! convert angles to radian unit
-    azimuthAngle_rad = azimuthAngle * MPC_RADIANS_PER_DEGREE_R8
-    zenithAngle_rad = zenithAngle * MPC_RADIANS_PER_DEGREE_R8
-    elevationAngle_rad = 0.5d0 * MPC_PI_R8 - zenithAngle_rad
+    if ( azimuthAngle /= obs_missingValue_R) then
 
-    obsCordGlb  = RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
-    unitz = (/  cos(lat)*cos(lon), cos(lat)*sin(lon) , sin(lat) /)
-    unitx = (/ -sin(lon)         , cos(lon)          , 0.d0     /)
-    unity = (/ -sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat) /)
+      zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-    ! unit vector towards satellite in local coordinate
-    unitSatLoc = (/ cos(elevationAngle_rad)*sin(azimuthAngle_rad) , &
-                    cos(elevationAngle_rad)*cos(azimuthAngle_rad) , &
-                    sin(elevationAngle_rad) /)
-    ! unit vector towards satellite in global coordinate
-    unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
+      ! convert angles to radian unit
+      azimuthAngle_rad = azimuthAngle * MPC_RADIANS_PER_DEGREE_R8
+      zenithAngle_rad = zenithAngle * MPC_RADIANS_PER_DEGREE_R8
+      elevationAngle_rad = 0.5d0 * MPC_PI_R8 - zenithAngle_rad
 
-    ! Geometric altitude
-    geometricHeight = real(height_r4,8)
+      obsCordGlb  = RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
+      unitz = (/  cos(lat)*cos(lon), cos(lat)*sin(lon) , sin(lat) /)
+      unitx = (/ -sin(lon)         , cos(lon)          , 0.d0     /)
+      unity = (/ -sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat) /)
+
+      ! unit vector towards satellite in local coordinate
+      unitSatLoc = (/ cos(elevationAngle_rad)*sin(azimuthAngle_rad) , &
+                      cos(elevationAngle_rad)*cos(azimuthAngle_rad) , &
+                      sin(elevationAngle_rad) /)
+      ! unit vector towards satellite in global coordinate
+      unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
+
+      ! Geometric altitude
+      geometricHeight = real(height_r4,8)
 
     ! distance along line of sight
-    distAlongPath = geometricHeight / cos(zenithAngle_rad)
+      distAlongPath = geometricHeight / cos(zenithAngle_rad)
 
-    slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
+      slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
 
-    latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
-    lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
-    if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
-    if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
+      latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
+      lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
+      if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
+      if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
+
+    else
+
+      latSlant = lat
+      lonSlant = lon
+
+    end if
 
   end subroutine findIntersectLatlon
 
