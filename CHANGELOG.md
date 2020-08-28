@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added NAMTOV namelist variables
-   * doAzimuthCorrection(:) and userDefinedDoAzimuthCorrection to control correction of Satellite Azimut Angle
-   * isAzimuthValid(:) and userDefinedIsAzimuthValid to specify if the azimuth in BUFR files is valid 
+ * Added NAMTOV namelist variables (#386 and !365)
+   * doAzimuthCorrection(:) and userDefinedDoAzimuthCorrection to control correction of Satellite Azimuth Angle
+   * isAzimuthValid(:) and userDefinedIsAzimuthValid to specify if the azimuth in observation files is valid
  * Added temporal thinning algorithm for surface observations (#381 and !369)
  * Added namelist variable to include year in random seed in `ensPostProcess_mod` (#389 and !368)
  * Added ability to perform background check for SAR winds (wind speed retrieval) (#299 and !364)
