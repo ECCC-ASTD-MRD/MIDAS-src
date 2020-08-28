@@ -21,6 +21,7 @@ module getGridPosition_mod
   !
   use kdtree2_mod
   use mathPhysConstants_mod
+  use physicsFunctions_mod
   use utilities_mod
   use earthconstants_mod
 
@@ -47,7 +48,7 @@ contains
     !           Yin-Yan grids it can return locations from both the Yin and Yan
     !           subgrids when in the overlap region, depending on the logical 
     !           variable `useSingleValueOverlap`. There is also support for
-    !           RPN Y grids, in which case it calls the subroutine gpos_xyfll.
+    !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
     !
     implicit none
 
@@ -86,7 +87,7 @@ contains
 
       if (grtyp == 'Y') then
 
-         ierr = gpos_xyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+         ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
 
       else
 
@@ -198,7 +199,7 @@ contains
 
   end function gpos_getPositionXY
 
-  function gpos_xyfll( gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4 ) result(ierr)
+  function gpos_xyfll_unstructGrid( gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4 ) result(ierr)
 
     ! :Purpose: This function is used to interpolate from a RPN grid to a location
     !           specified by a latitude and longitude.
@@ -216,19 +217,26 @@ contains
 
     ! Local Variables
 
-    real(8) :: lon_rad_r8, lat_rad_r8
+    real(8) :: lon_rad_r8, lat_rad_r8, pertGridLonRad, pertGridLatRad
+    real(8), parameter :: deltaGrid = 0.00001d0
+    real(8) :: pertPosition(3)
+    real(8) :: gridSpacing
+    real(8) :: gridSpacingSquared, lowerLeftCornerDistSquared, lowerRightCornerDistSquared, upperLeftCornerDistSquared
+    real(8) :: distToRef(2)
 
-    integer, save :: gdid_old = -999
-    integer, save :: nx
-    integer :: ni, nj, ny
-    real(8), allocatable, save  :: grid_lon_rad(:,:), grid_lat_rad(:,:)
-    logical :: global
-    real(4), save :: max_grid_spacing
+    integer, save :: gdidOld = -999
+    integer :: nx, ny
+    integer, save :: ni, nj
+    real(8), allocatable, save :: grid_lon_rad(:,:), grid_lat_rad(:,:)
+    real(4), save :: maxGridSpacing
+    integer, save :: startXIndex, startYIndex, endXIndex, endYIndex
 
     character(len=1) :: grtyp
     integer :: ig1, ig2, ig3, ig4
     real(4), allocatable :: grid_lat_deg_r4(:,:), grid_lon_deg_r4(:,:)
-    integer :: xIndex, yIndex, gridIndex
+    integer :: closePointsIndex
+    integer :: gridIndex, dirIndex
+    integer :: xIndex, yIndex, xIndexMin, xIndexMax, yIndexMin, yIndexMax
 
     ! Functions
     integer :: ezgprm, gdll
@@ -236,46 +244,26 @@ contains
     integer                   :: numLocalGridPointsFound
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
-    real(kdkind)              :: maxRadius
+    real(kdkind)              :: maxRadiusSquared
     real(kdkind)              :: refPosition(3)
 
-    if ( gdid /= gdid_old .and. gdid_old > 0) then
-      write(*,*) 'gpos_xyfll: gdid gdid_old = ',gdid,gdid_old
-      call utl_abort('gpos_xyfll: only one grid expected. Change code !')
+    if ( gdid /= gdidOld .and. gdidOld > 0) then
+      write(*,*) 'gpos_xyfll_unstructGrid: gdid gdidOld = ',gdid, gdidOld
+      call utl_abort('gpos_xyfll_unstructGrid: only one grid expected. Change code !')
     end if
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
-      write(*,*) 'gpos_xyfll: start creating kdtree'
+      write(*,*) 'gpos_xyfll_unstructGrid: start creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       ierr = ezgprm(gdid, grtyp, ni, nj, ig1, ig2, ig3, ig4)
 
-      global = .false.
-      max_grid_spacing = 10000.0
+      startXIndex = 1
+      startYIndex = 1
+      endXIndex = ni
+      endYIndex = nj
+      maxGridSpacing = 10000.0
 
-      if(ni == 4322 .and. nj == 3059) then
-        ! This is orca12
-        global = .true.
-      end if
-      if(ni == 1442 .and. nj == 1021) then
-        ! This is orca025
-        global = .true.
-        max_grid_spacing = 27000.0
-      end if
-
-      if(global) then
-        ! The last 2 columns (i=4321 and 4322) are repetitions of the first 2 columns (i=1 and 2)
-        ! and are thus eliminated from the search domain.
-        ! The last line (j=3059) is a repetition in reverse order of the line j=3057
-        ! and is thus eliminated from the search domain.
-        nx = ni - 2
-        ny = nj - 1
-      else
-        nx = ni
-        ny = nj
-      end if
-
-      allocate(positionArray(3,nx*ny))
       if (allocated(grid_lat_rad)) deallocate(grid_lat_rad, grid_lon_rad)
       allocate(grid_lat_rad(ni,nj), grid_lon_rad(ni,nj))
       allocate(grid_lat_deg_r4(ni,nj), grid_lon_deg_r4(ni,nj))
@@ -283,53 +271,333 @@ contains
       grid_lat_rad(:,:) = real(grid_lat_deg_r4(:,:),8)*MPC_RADIANS_PER_DEGREE_R8
       grid_lon_rad(:,:) = real(grid_lon_deg_r4(:,:),8)*MPC_RADIANS_PER_DEGREE_R8
       deallocate(grid_lat_deg_r4, grid_lon_deg_r4)
-      gdid_old = gdid
+      gdidOld = gdid
+
+      if(ni == 4322 .and. nj == 3059) then
+        ! This is orca12
+        ! The last 2 columns (i=4321 and 4322) are repetitions of the first 2 columns (i=1 and 2)
+        ! so both ends are removed from the search area.
+        startXIndex = 2
+        endXIndex = ni - 1
+        ! The last line (j=3059) is a repetition in reverse order of the line j=3057
+        ! and is thus eliminated from the search domain.
+        endYIndex = nj - 1
+        ! Check that is true
+        do yIndex = 1, nj
+          if(grid_lat_rad(1,yIndex) /= grid_lat_rad(ni-1,yIndex) .or. grid_lat_rad(2,yIndex) /= grid_lat_rad(ni,yIndex) .or. &
+             grid_lon_rad(1,yIndex) /= grid_lon_rad(ni-1,yIndex) .or. grid_lon_rad(2,yIndex) /= grid_lon_rad(ni,yIndex)) then
+            write(*,*) 'yIndex = ',yIndex
+            write(*,*) grid_lat_rad(1,yIndex), grid_lat_rad(ni-1,yIndex), grid_lat_rad(2,yIndex), grid_lat_rad(ni,yIndex), &
+                       grid_lon_rad(1,yIndex), grid_lon_rad(ni-1,yIndex), grid_lon_rad(2,yIndex), grid_lon_rad(ni,yIndex)
+            call utl_abort('gpos_xyfll_unstructGrid: Assumptions about the grid not verified.')
+          end if
+        end do
+!!$        do xIndex = 1, ni
+!!$          if(grid_lat_rad(xIndex,nj-2) /= grid_lat_rad(xIndex,nj) .or. grid_lon_rad(xIndex,nj-2) /= grid_lon_rad(xIndex,nj)) then
+!!$            write(*,*) 'Assumptions about the grid not verified:'
+!!$            write(*,*) 'xIndex = ',xIndex
+!!$            write(*,*) grid_lat_rad(xIndex,nj-2), grid_lat_rad(xIndex,nj), grid_lon_rad(xIndex,nj-2), grid_lon_rad(xIndex,nj)
+!!$            call utl_abort('gpos_xyfll_unstructGrid: Assumptions about the grid not verified.')            
+!!$          end if
+!!$        end do
+      end if
+      if(ni == 1442 .and. nj == 1021) then
+        ! This is orca025
+        startXIndex = 2
+        endXIndex = ni - 1
+        endYIndex = nj - 1
+        maxGridSpacing = 27000.0
+      end if
+
+      nx = endXIndex - startXIndex + 1
+      ny = endYIndex - startYIndex + 1
+
+      allocate(positionArray(3,nx*ny))
 
       gridIndex = 0
-      do yIndex = 1, ny
-        do xIndex = 1, nx
+      do yIndex = startYIndex, endYIndex
+        do xIndex = startXIndex, endXIndex
           gridIndex = gridIndex + 1
+          if ( yIndex /= (gridIndex-1)/nx + startYIndex .or. xIndex /= gridIndex - (yIndex-startYIndex)*nx + startXIndex - 1) then
+            write(*,*) 'xIndex and yIndex do not match gridIndex ', xIndex, yIndex, gridIndex
+            call utl_abort('gpos_xyfll_unstructGrid: xIndex and yIndex do not match gridIndex')
+          end if
           positionArray(1,gridIndex) = RA * sin(grid_lon_rad(xIndex,yIndex)) * cos(grid_lat_rad(xIndex,yIndex))
           positionArray(2,gridIndex) = RA * cos(grid_lon_rad(xIndex,yIndex)) * cos(grid_lat_rad(xIndex,yIndex))
           positionArray(3,gridIndex) = RA * sin(grid_lat_rad(xIndex,yIndex))
         end do
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
-      write(*,*) 'gpos_xyfll: done creating kdtree'
+      write(*,*) 'gpos_xyfll_unstructGrid: done creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     else
 
       ierr = 0
+      nx = endXIndex - startXIndex + 1
 
     end if
 
     ! do the search
-    maxRadius = max_grid_spacing**2
+    maxRadiusSquared = maxGridSpacing**2
     lon_rad_r8 = real(lon_deg_r4,8)*MPC_RADIANS_PER_DEGREE_R8
     lat_rad_r8 = real(lat_deg_r4,8)*MPC_RADIANS_PER_DEGREE_R8
     refPosition(1) = RA * sin(lon_rad_r8) * cos(lat_rad_r8)
     refPosition(2) = RA * cos(lon_rad_r8) * cos(lat_rad_r8)
     refPosition(3) = RA * sin(lat_rad_r8)
 
-    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numLocalGridPointsFound,&
+    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numLocalGridPointsFound,&
                            nalloc=maxNumLocalGridPointsSearch, results=searchResults)
     if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-      call utl_abort('gpos_xyfll: the parameter maxNumLocalGridPointsSearch must be increased')
+      call utl_abort('gpos_xyfll_unstructGrid: the parameter maxNumLocalGridPointsSearch must be increased')
     end if
 
-    if (numLocalGridPointsFound < 1) then
-      write(*,*) 'gpos_xyfll: numLocalGridPointsFound = ',numLocalGridPointsFound
-      call utl_abort('gpos_xyfll: the search did not found close points.')
+    if (numLocalGridPointsFound < 4) then
+      write(*,*) 'gpos_xyfll_unstructGrid: numLocalGridPointsFound = ',numLocalGridPointsFound
+      call utl_abort('gpos_xyfll_unstructGrid: the search did not find 4 close points.')
     end if
 
-    ! Get closest grid point from the observation
-    gridIndex = searchResults(1)%idx
-    yIndex = (gridIndex-1)/nx + 1
-    xIndex = gridIndex - (yIndex-1)*nx
-    xpos_r4 = real(xIndex)
-    ypos_r4 = real(yIndex)
+    if (searchResults(1)%dis > maxRadiusSquared) then
+      write(*,*) 'gpos_xyfll_unstructGrid: No grid point found within ',maxGridSpacing,' meters'
+      write(*,*) 'of the reference location lat-lon (degrees): ',lat_deg_r4,lon_deg_r4
+      xpos_r4 = -999.0
+      ypos_r4 = -999.0
+      return
+    end if
 
-  end function gpos_xyfll
+    ! We found the closest grid point to the reference point.
+    ! Now we need to determine in which of the 4 quadrants around the grid point the reference point lies.
+
+    do closePointsIndex = 1,2
+      gridIndex = searchResults(closePointsIndex)%idx
+      yIndex = (gridIndex-1)/nx + startYIndex
+      xIndex = gridIndex - (yIndex-startYIndex)*nx + startXIndex - 1
+
+      distToRef(closePointsIndex) = phf_calcDistance(grid_lat_rad(xIndex,yIndex), grid_lon_rad(xIndex,yIndex), &
+           lat_rad_r8, lon_rad_r8)
+    end do
+
+    if ( distToRef(1) <= distToRef(2) ) then
+       closePointsIndex = 1
+    else
+       write(*,*) 'After verification the first grid point found was not the closest to the reference point.'
+       write(*,*) distToRef
+       closePointsIndex = 2
+    end if
+
+    gridIndex = searchResults(closePointsIndex)%idx
+    yIndex = (gridIndex-1)/nx + startYIndex
+    xIndex = gridIndex - (yIndex-startYIndex)*nx + startXIndex - 1
+
+    ! Perturbing the closest grid point in the x direction
+
+    if ( xIndex < ni ) then
+
+      if ( grid_lon_rad(xIndex+1,yIndex) - grid_lon_rad(xIndex,yIndex) > 5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex+1,yIndex) - (grid_lon_rad(xIndex,yIndex) + 2.d0 * MPC_PI_R8))*deltaGrid
+      else if ( grid_lon_rad(xIndex+1,yIndex) - grid_lon_rad(xIndex,yIndex) < -5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + ((grid_lon_rad(xIndex+1,yIndex) + 2.d0 * MPC_PI_R8) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      else
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex+1,yIndex) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      end if
+      pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex+1,yIndex) - grid_lat_rad(xIndex,yIndex))*deltaGrid
+
+      ! Calculate the distance between the reference point and the perturbed grid point.
+      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(3) = RA * sin(pertGridLatRad)
+
+      gridSpacingSquared = 0.0d0
+      do dirIndex = 1, 3
+        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
+      end do
+
+      if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
+        xIndexMin = xIndex
+        xIndexMax = xIndex + 1
+      else
+        if ( xIndex > 1 ) then
+          xIndexMin = xIndex - 1
+          xIndexMax = xIndex
+        else
+          write(*,*) 'xIndex yIndex ', xIndex, yIndex
+          write(*,*) 'Closest distance = ',sqrt(searchResults(closePointsIndex)%dis)
+          write(*,*) 'Perturbed distance = ',sqrt(gridSpacingSquared)
+          call utl_abort('gpos_xyfll_unstructGrid: 1. the reference point is outside the grid.')
+        end if
+      end if
+
+    else
+
+      if ( grid_lon_rad(xIndex-1,yIndex) - grid_lon_rad(xIndex,yIndex) > 5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex-1,yIndex) - (grid_lon_rad(xIndex,yIndex) + 2.d0 * MPC_PI_R8))*deltaGrid
+      else if ( grid_lon_rad(xIndex-1,yIndex) - grid_lon_rad(xIndex,yIndex) < -5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + ((grid_lon_rad(xIndex-1,yIndex) + 2.d0 * MPC_PI_R8) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      else
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex-1,yIndex) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      end if
+      pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex-1,yIndex) - grid_lat_rad(xIndex,yIndex))*deltaGrid
+
+      ! Calculate the distance between the reference point and the perturbed grid point.
+      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(3) = RA * sin(pertGridLatRad)
+
+      gridSpacingSquared = 0.0d0
+      do dirIndex = 1, 3
+        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
+      end do
+
+      if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
+        xIndexMin = xIndex - 1
+        xIndexMax = xIndex
+      else
+        write(*,*) 'xIndex yIndex ', xIndex, yIndex
+        write(*,*) 'Closest distance = ',sqrt(searchResults(closePointsIndex)%dis)
+        write(*,*) 'Perturbed distance = ',sqrt(gridSpacingSquared)
+        call utl_abort('gpos_xyfll_unstructGrid: 2. the reference point is outside the grid.')
+      end if
+
+    end if
+
+    ! Perturbing the closest grid point in the y direction
+
+    if ( yIndex < nj ) then
+
+      if ( grid_lon_rad(xIndex,yIndex+1) - grid_lon_rad(xIndex,yIndex) > 5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex,yIndex+1) - (grid_lon_rad(xIndex,yIndex) + 2.d0 * MPC_PI_R8))*deltaGrid
+      else if ( grid_lon_rad(xIndex,yIndex+1) - grid_lon_rad(xIndex,yIndex) < -5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + ((grid_lon_rad(xIndex,yIndex+1) + 2.d0 * MPC_PI_R8) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      else
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex,yIndex+1) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      end if
+      pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex,yIndex+1) - grid_lat_rad(xIndex,yIndex))*deltaGrid
+
+      ! Calculate the distance between the reference point and the perturbed grid point.
+      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(3) = RA * sin(pertGridLatRad)
+
+      gridSpacingSquared = 0.0d0
+      do dirIndex = 1, 3
+        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
+      end do
+
+      if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
+        yIndexMin = yIndex
+        yIndexMax = yIndex + 1
+      else
+        if ( yIndex > 1 ) then
+          yIndexMin = yIndex - 1
+          yIndexMax = yIndex
+        else
+          write(*,*) 'xIndex yIndex ', xIndex, yIndex
+          write(*,*) 'Closest distance = ',sqrt(searchResults(closePointsIndex)%dis)
+          write(*,*) 'Perturbed distance = ',sqrt(gridSpacingSquared)
+          call utl_abort('gpos_xyfll_unstructGrid: 3. the reference point is outside the grid.')
+        end if
+      end if
+
+    else
+
+      if ( grid_lon_rad(xIndex,yIndex-1) - grid_lon_rad(xIndex,yIndex) > 5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex,yIndex-1) - (grid_lon_rad(xIndex,yIndex) + 2.d0 * MPC_PI_R8))*deltaGrid
+      else if ( grid_lon_rad(xIndex,yIndex-1) - grid_lon_rad(xIndex,yIndex) < -5.0d0 ) then
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + ((grid_lon_rad(xIndex,yIndex-1) + 2.d0 * MPC_PI_R8) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      else
+        pertGridLonRad = grid_lon_rad(xIndex,yIndex) + (grid_lon_rad(xIndex,yIndex-1) - grid_lon_rad(xIndex,yIndex))*deltaGrid
+      end if
+      pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex,yIndex-1) - grid_lat_rad(xIndex,yIndex))*deltaGrid
+
+      ! Calculate the distance between the reference point and the perturbed grid point.
+      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
+      pertPosition(3) = RA * sin(pertGridLatRad)
+
+      gridSpacingSquared = 0.0d0
+      do dirIndex = 1, 3
+        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
+      end do
+
+      if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
+        yIndexMin = yIndex - 1
+        yIndexMax = yIndex
+      else
+        write(*,*) 'xIndex yIndex ', xIndex, yIndex
+        write(*,*) 'Closest distance = ',sqrt(searchResults(closePointsIndex)%dis)
+        write(*,*) 'Perturbed distance = ',sqrt(gridSpacingSquared)
+        call utl_abort('gpos_xyfll_unstructGrid: 4. the reference point is outside the grid.')
+      end if
+
+    end if
+
+    ! Calculate real x and y position in the grid.
+    ! kdtree returns distance in square meters !
+
+    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin))
+
+    gridSpacingSquared = gridSpacing**2
+
+    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           lat_rad_r8, lon_rad_r8)
+
+    lowerLeftCornerDistSquared = gridSpacing**2
+
+    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin), &
+           lat_rad_r8, lon_rad_r8)
+
+    lowerRightCornerDistSquared = gridSpacing**2
+
+    xpos_r4 = real(xIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared - lowerRightCornerDistSquared)/(2.0*(gridSpacingSquared))
+
+    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax))
+
+    gridSpacingSquared = gridSpacing**2
+
+    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax), &
+           lat_rad_r8, lon_rad_r8)
+
+    upperLeftCornerDistSquared = gridSpacing**2
+
+    ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - upperLeftCornerDistSquared)/(2.0*(gridSpacingSquared))
+
+    if ( abs(ypos_r4 - yIndexMin) > 1.1 .or. abs(xpos_r4 - xIndexMin) > 1.1 ) then
+      write(*,*) 'xpos_r4 = ',xpos_r4
+      write(*,*) 'ypos_r4 = ',ypos_r4
+      write(*,*) 'xIndexMin = ',xIndexMin
+      write(*,*) 'yIndexMin = ',yIndexMin
+      do closePointsIndex = 1,min(numLocalGridPointsFound,5)
+        gridIndex = searchResults(closePointsIndex)%idx
+        yIndex = (gridIndex-1)/nx + startYIndex
+        xIndex = gridIndex - (yIndex-startYIndex)*nx
+        write(*,*) 'closePointsIndex: ', closePointsIndex
+        write(*,*) 'xIndex yIndex ', xIndex, yIndex
+        write(*,*) 'idx: ',searchResults(closePointsIndex)%idx
+        write(*,*) 'distance (meters): ',sqrt(searchResults(closePointsIndex)%dis)
+      end do
+      write(*,*) 'lowerLeftCornerDist = ',sqrt(lowerLeftCornerDistSquared)
+      write(*,*) 'lowerRightCornerDist = ',sqrt(lowerRightCornerDistSquared)
+      write(*,*) 'upperLeftCornerDist = ',sqrt(upperLeftCornerDistSquared)
+      write(*,*) 'y gridSpacing = ',sqrt(gridSpacingSquared)
+      gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin))
+      write(*,*) 'x gridSpacing = ',gridSpacing
+      write(*,*) 'lon-lat (deg):'
+      write(*,*) 'reference point: ',lon_deg_r4, lat_deg_r4
+      write(*,*) xIndexMin,yIndexMin,grid_lon_rad(xIndexMin,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMin,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax,yIndexMin,grid_lon_rad(xIndexMax,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax+1,yIndexMin,grid_lon_rad(xIndexMax+1,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax+1,yIndexMin)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMin,yIndexMax,grid_lon_rad(xIndexMin,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMin,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax,yIndexMax,grid_lon_rad(xIndexMax,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax+1,yIndexMax,grid_lon_rad(xIndexMax+1,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax+1,yIndexMax)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMin,yIndexMax+1,grid_lon_rad(xIndexMin,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMin,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax,yIndexMax+1,grid_lon_rad(xIndexMax,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) xIndexMax+1,yIndexMax+1,grid_lon_rad(xIndexMax+1,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8,grid_lat_rad(xIndexMax+1,yIndexMax+1)* MPC_DEGREES_PER_RADIAN_R8
+      call utl_abort('gpos_xyfll_unstructGrid: Check code !')
+    end if
+
+  end function gpos_xyfll_unstructGrid
 
 end module getGridPosition_mod
