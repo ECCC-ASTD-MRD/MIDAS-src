@@ -41,7 +41,7 @@ private
 
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
-public :: brpr_addBiasCorrectionElement, brpr_burpClean
+public :: brpr_addBiasCorrectionElement, brpr_updateMissingObservationFlags, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -3325,7 +3325,6 @@ CONTAINS
     REAL(pre_obsReal) ::   cloudLiquidWater
 
     NOBS=obs_numHeader(obsdat)
-
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
     !write(*,*)'  DEBUT WRITE_INFO NOBS CODTYP ----> ',NOBS,CODTYP,size(liste_info),size(RINFO),liste_info
     LAND_SEA   = 0
@@ -3346,7 +3345,7 @@ CONTAINS
 
     RTANGENT_RADIUS=real(MPC_missingValue_R8,pre_obsReal)
     RGEOID=real(MPC_missingValue_R8,pre_obsReal)
-    TERRAIN_TYPE=99
+    TERRAIN_TYPE=-1
     RCLOUD_COVER = MPC_missingValue_R4
     CONSTITUENT_TYPE = MPC_missingValue_INT
     IFOV = MPC_missingValue_INT
@@ -3464,7 +3463,7 @@ CONTAINS
         CASE( 13039)
           RTERRAIN_TYPE=INFOV
           if (RTERRAIN_TYPE == MPC_missingValue_R4 ) THEN
-            TERRAIN_TYPE=99
+            TERRAIN_TYPE=-1
           ELSE
             TERRAIN_TYPE=NINT ( RTERRAIN_TYPE )
           END IF
@@ -3527,10 +3526,11 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! Is terrain type sea ice (iterrain=0)?, If so, set imask=2.
-    IF ( TERRAIN_TYPE ==  0       ) THEN
+    if ( (TERRAIN_TYPE ==  0) .and. (.not. (tvs_isIdBurpInst(CODTYP,'amsua'))) ) then 
       LAND_SEA = 2
-    END IF
+    end if 
 
+    if ( obs_columnActive_IH(obsdat,OBS_TTYP)) call obs_headSet_i(obsdat,OBS_TTYP,nobs,TERRAIN_TYPE)
     if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,LAND_SEA)
     if ( obs_columnActive_IH(obsdat,OBS_ORBI)) call obs_headSet_i(obsdat,OBS_ORBI,nobs,ORBIT)
     if ( obs_columnActive_IH(obsdat,OBS_AQF1)) call obs_headSet_i(obsdat,OBS_AQF1,nobs,QCFLAG1)
@@ -3652,6 +3652,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
+    integer                :: ind13209, ind13208, ind25174, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -3893,220 +3894,306 @@ CONTAINS
             deallocate(glbflag)
 
           end if
+          ! For Hyperspectral data
+          !
+          if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
 
-          ! info block (btyp = 0001 100000X XXXX) 
-          ! 0001 100000X XXXX = 3072
-          btyp10    = ishft(btyp,-5)
-          btyp10inf = 96
-
-          if ( btyp10 - btyp10inf == 0 ) then
-
-            flag_passage2 = 1
-
-            ind14213 = BURP_Find_Element(inputBlock, ELEMENT=014213, iostat=error)
-            ind14214 = BURP_Find_Element(inputBlock, ELEMENT=014214, iostat=error)
-            ind14215 = BURP_Find_Element(inputBlock, ELEMENT=014215, iostat=error)
-            ind14216 = BURP_Find_Element(inputBlock, ELEMENT=014216, iostat=error)
-            ind14217 = BURP_Find_Element(inputBlock, ELEMENT=014217, iostat=error)
-            ind14218 = BURP_Find_Element(inputBlock, ELEMENT=014218, iostat=error)
-            ind14219 = BURP_Find_Element(inputBlock, ELEMENT=014219, iostat=error)
-            ind14220 = BURP_Find_Element(inputBlock, ELEMENT=014220, iostat=error)
-            ind14221 = BURP_Find_Element(inputBlock, ELEMENT=014221, iostat=error)
-            ind13214 = BURP_Find_Element(inputBlock, ELEMENT=013214, iostat=error)
-            ind59182 = BURP_Find_Element(inputBlock, ELEMENT=59182, iostat=error)
-            if (ind14213 < 0) then
-              call BURP_Resize_Block(inputBlock, ADD_NELE=11, iostat=error)
-              if (error/=burp_noerr) then
-                call handle_error("Erreur dans BURP_Resize_Block info")
-              end if
-              ind14213 = nbele+ 1
-              ind14214 = nbele+ 2
-              ind14215 = nbele+ 3
-              ind14216 = nbele+ 4
-              ind14217 = nbele+ 5
-              ind14218 = nbele+ 6
-              ind14219 = nbele+ 7
-              ind14220 = nbele+ 8
-              ind14221 = nbele+ 9
-              ind13214 = nbele+ 10
-              ind59182 = nbele+ 11
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14213, ELEMENT=014213, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14214, ELEMENT=014214, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14215, ELEMENT=014215, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14216, ELEMENT=014216, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14217, ELEMENT=014217, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14218, ELEMENT=014218, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14219, ELEMENT=014219, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14220, ELEMENT=014220, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind14221, ELEMENT=014221, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind13214, ELEMENT=013214, iostat=error)
-              call BURP_Set_Element(inputBlock, NELE_IND=ind59182, ELEMENT=059182, iostat=error)
-            end if
-            
-            ind008012 = BURP_Find_Element(inputBlock, &
-                 ELEMENT  = 008012, &
-                 iostat   = error)
-            
-            do tIndex = 1, nte
-              
-              if ( goodprof(tIndex) == 1 ) then
-
-                if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                  write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
-                  write(*,*) "Should not happen..."
-                  call utl_abort('brpr_addCloudParametersandEmissivity')
+            write(*,*) 'brpr_addCloudParametersandEmissivity for IR data'
+            ! info block (btyp = 0001 100000X XXXX) 
+            ! 0001 100000X XXXX = 3072
+            btyp10    = ishft(btyp,-5)
+            btyp10inf = 96
+            if ( btyp10 - btyp10inf == 0 ) then
+              flag_passage2 = 1
+              ind14213 = BURP_Find_Element(inputBlock, ELEMENT=014213, iostat=error)
+              ind14214 = BURP_Find_Element(inputBlock, ELEMENT=014214, iostat=error)
+              ind14215 = BURP_Find_Element(inputBlock, ELEMENT=014215, iostat=error)
+              ind14216 = BURP_Find_Element(inputBlock, ELEMENT=014216, iostat=error)
+              ind14217 = BURP_Find_Element(inputBlock, ELEMENT=014217, iostat=error)
+              ind14218 = BURP_Find_Element(inputBlock, ELEMENT=014218, iostat=error)
+              ind14219 = BURP_Find_Element(inputBlock, ELEMENT=014219, iostat=error)
+              ind14220 = BURP_Find_Element(inputBlock, ELEMENT=014220, iostat=error)
+              ind14221 = BURP_Find_Element(inputBlock, ELEMENT=014221, iostat=error)
+              ind13214 = BURP_Find_Element(inputBlock, ELEMENT=013214, iostat=error)
+              ind59182 = BURP_Find_Element(inputBlock, ELEMENT=59182, iostat=error)
+              if (ind14213 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=11, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
                 end if
-
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ETOP,idata2)),ind14213,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VTOP,idata2)),ind14214,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ECF,idata2)),ind14215,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VCF,idata2)),ind14216,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_HE,idata2)),ind14217,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTSR,idata2)),ind14218,1,tIndex)
-                call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_NCO2,idata2),ind14219,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTM,idata2)),ind14220,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2)),ind14221,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2)),ind13214,1,tIndex)
-                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2)),ind59182,1,tIndex)
-                call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
-                idata2 = idata2 + 1
-
-              else
-
-                call Insert_into_burp_r4(-1.0,ind14213,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14214,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14215,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14216,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14217,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14218,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14219,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14220,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind14221,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind13214,1,tIndex)
-                call Insert_into_burp_r4(-1.0,ind59182,1,tIndex)
-                call Insert_into_burp_i(-1,ind008012,1,tIndex)
-                
+                ind14213 = nbele+ 1
+                ind14214 = nbele+ 2
+                ind14215 = nbele+ 3
+                ind14216 = nbele+ 4
+                ind14217 = nbele+ 5
+                ind14218 = nbele+ 6
+                ind14219 = nbele+ 7
+                ind14220 = nbele+ 8
+                ind14221 = nbele+ 9
+                ind13214 = nbele+ 10
+                ind59182 = nbele+ 11
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14213, ELEMENT=014213, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14214, ELEMENT=014214, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14215, ELEMENT=014215, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14216, ELEMENT=014216, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14217, ELEMENT=014217, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14218, ELEMENT=014218, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14219, ELEMENT=014219, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14220, ELEMENT=014220, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind14221, ELEMENT=014221, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13214, ELEMENT=013214, iostat=error)
+                call BURP_Set_Element(inputBlock, NELE_IND=ind59182, ELEMENT=059182, iostat=error)
               end if
-                             
-            end do
 
-          end if
+              ind008012 = BURP_Find_Element(inputBlock, &
+                   ELEMENT  = 008012, &
+                   iostat   = error)
 
-          ! observation block (btyp = 0100 100011X XXXX)
-          ! 0100 1000110 0000 = 9312
-          btyp10    = ishft(btyp,-5)
-          btyp10obs = 291
+              do tIndex = 1, nte
 
-          if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
-            flag_passage3 = 1
+                if ( goodprof(tIndex) == 1 ) then
 
-            indEmis  = BURP_Find_Element(inputBlock, ELEMENT=055043, iostat=error)
-            if (indEmis < 0) then
-              indEmis=nbele+1
-              call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-              if (error/=burp_noerr) then
-                call handle_error("Erreur dans BURP_Resize_Block data")
-              end if
-              call BURP_Set_Element(inputBlock, NELE_IND=indEmis, ELEMENT=055043, iostat=error)
-              indEmis=nbele+1
-            end if
-            indchan  = BURP_Find_Element(inputBlock, ELEMENT=005042, iostat=error)
-            do tIndex = 1, nte
-              do valIndex = 1, nvale
-                call Insert_into_burp_i(-1,indEmis,valIndex,tIndex)
-              end do
-                 
-              if ( goodprof(tIndex) == 1 ) then
-
-                if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
-                  write(*,*) "File Inconsistency emissivity block", &
-                       obs_headElem_i(obsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
-                  write(*,*) "Should not happen..."
-                  call utl_abort('brpr_addCloudParametersandEmissivity')
-                end if
-
-                idata   = obs_headElem_i(obsSpaceData,OBS_RLN,idata3)
-                idatend = obs_headElem_i(obsSpaceData,OBS_NLV,idata3) + idata - 1
-                do bodyIndex = idata, idatend
-                  emisfc = 100.d0 * obs_bodyElem_r(obsspacedata,OBS_SEM,bodyIndex)
-                  ichn = NINT(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-                  ichn = MAX(0,MIN(ichn,tvs_maxChannelNumber+1))
-                  bl: do valIndex=1, nvale
-                    ichnb=BURP_Get_Tblval(inputBlock, &
-                         NELE_IND = indchan,          &
-                         NVAL_IND = valIndex,         &
-                         NT_IND   = tIndex)
-                    if (ichn==ichnb) then
-                      call Insert_into_burp_r4(sngl(emisfc), indEmis, valIndex, tIndex)
-                      exit bl
+                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    write(*,*) "Should not happen..."
+                    call utl_abort('brpr_addCloudParametersandEmissivity')
                     end if
-                  end do bl
-                  
+
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ETOP,idata2)),ind14213,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VTOP,idata2)),ind14214,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ECF,idata2)),ind14215,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VCF,idata2)),ind14216,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_HE,idata2)),ind14217,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTSR,idata2)),ind14218,1,tIndex)
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_NCO2,idata2),ind14219,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTM,idata2)),ind14220,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2)),ind14221,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2)),ind13214,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2)),ind59182,1,tIndex)
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
+                  idata2 = idata2 + 1
+
+                else
+
+                  call Insert_into_burp_r4(-1.0,ind14213,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14214,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14215,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14216,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14217,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14218,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14219,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14220,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind14221,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind13214,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind59182,1,tIndex)
+                  call Insert_into_burp_i(-1,ind008012,1,tIndex)
+
+                end if
+
+
+              end do
+ 
+            end if
+
+            ! observation block (btyp = 0100 100011X XXXX)
+            ! 0100 1000110 0000 = 9312
+            btyp10    = ishft(btyp,-5)
+            btyp10obs = 291
+
+            if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
+              flag_passage3 = 1
+
+              indEmis  = BURP_Find_Element(inputBlock, ELEMENT=055043, iostat=error)
+              if (indEmis < 0) then
+                indEmis=nbele+1
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block data")
+                end if
+                call BURP_Set_Element(inputBlock, NELE_IND=indEmis, ELEMENT=055043, iostat=error)
+                indEmis=nbele+1
+              end if
+              indchan  = BURP_Find_Element(inputBlock, ELEMENT=005042, iostat=error)
+              do tIndex = 1, nte
+                do valIndex = 1, nvale
+                  call Insert_into_burp_i(-1,indEmis,valIndex,tIndex)
                 end do
-                    
-                idata3 = idata3 + 1
-                    
-              end if
-                       
-            end do
 
-          end if
+                if ( goodprof(tIndex) == 1 ) then
 
-          ! flag block (btyp = 0111 100011X XXXX)
-          ! 0111 1000110 0000 = 15456
-          btyp10    = ishft(btyp,-5)
-          btyp10flg = 483
-              
-          if ( btyp10 - btyp10flg == 0 ) then
-            flag_passage4 = 1
-            
-            indEmis  = BURP_Find_Element(inputBlock, ELEMENT=255043, iostat=error)
-            if (indEmis < 0) then
-              indEmis=nbele+1
-              call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-              if (error/=burp_noerr) then
-                call handle_error("Erreur dans BURP_Resize_Block marqueur")
-              end if
-              call BURP_Set_Element(inputBlock, NELE_IND=indEmis, ELEMENT=255043, iostat=error)
+                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                    write(*,*) "File Inconsistency emissivity block", &
+                         obs_headElem_i(obsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                    write(*,*) "Should not happen..."
+                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                  end if
+                  idata   = obs_headElem_i(obsSpaceData,OBS_RLN,idata3)
+                  idatend = obs_headElem_i(obsSpaceData,OBS_NLV,idata3) + idata - 1
+                  do bodyIndex = idata, idatend
+                    emisfc = 100.d0 * obs_bodyElem_r(obsspacedata,OBS_SEM,bodyIndex)
+                    ichn = NINT(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+                    ichn = MAX(0,MIN(ichn,tvs_maxChannelNumber+1))
+                    bl: do valIndex=1, nvale
+                      ichnb=BURP_Get_Tblval(inputBlock, &
+                           NELE_IND = indchan,          &
+                           NVAL_IND = valIndex,         &
+                           NT_IND   = tIndex)
+                      if (ichn==ichnb) then
+                        call Insert_into_burp_r4(sngl(emisfc), indEmis, valIndex, tIndex)
+                        exit bl
+                      end if
+                    end do bl
+
+                  end do
+
+                  idata3 = idata3 + 1
+
+                end if
+
+              end do
+
             end if
-            
-            do tIndex = 1, nte
-              do valIndex = 1, nvale
-                call BURP_Set_Tblval(inputBlock, &
-                     NELE_IND = indEmis,         &
-                     NVAL_IND = valIndex,        &
-                     NT_IND   = tIndex,          &
-                     TBLVAL   = 0, &
+
+            ! flag block (btyp = 0111 100011X XXXX)
+            ! 0111 1000110 0000 = 15456
+            btyp10    = ishft(btyp,-5)
+            btyp10flg = 483
+
+            if ( btyp10 - btyp10flg == 0 ) then
+              flag_passage4 = 1
+
+              indEmis  = BURP_Find_Element(inputBlock, ELEMENT=255043, iostat=error)
+              if (indEmis < 0) then
+                indEmis=nbele+1
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block marqueur")
+                end if
+                call BURP_Set_Element(inputBlock, NELE_IND=indEmis, ELEMENT=255043, iostat=error)
+              end if
+
+              do tIndex = 1, nte
+                do valIndex = 1, nvale
+                  call BURP_Set_Tblval(inputBlock, &
+                       NELE_IND = indEmis,         &
+                       NVAL_IND = valIndex,        &
+                       NT_IND   = tIndex,          &
+                       TBLVAL   = 0, &
+                       iostat   = error)
+                end do
+              end do
+            end if
+
+            ! O-P block (btyp = 0100 100011X XXXX)
+            ! 0100 1000110 0000 = 9312
+            btyp10    = ishft(btyp,-5)
+            btyp10omp = 291
+
+            if ( btyp10 - btyp10omp == 0 .and. bfam == 14 ) then
+              flag_passage5 = 1
+
+              indEmis  = BURP_Find_Element(inputBlock, ELEMENT=055043, iostat=error)
+              if (indEmis < 0) then
+                indEmis=nbele+1
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block O-P")
+                end if
+                call BURP_Set_Element(inputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
+              end if
+
+              do tIndex = 1, nte
+                do valIndex = 1, nvale
+                  call Insert_into_burp_i(-1,indEmis,valIndex,tIndex)
+                end do
+              end do
+
+            end if
+
+          end if ! hyper Spectral
+
+          if ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+            ! info block (btyp = 0001 100000X XXXX) 
+            ! 0001 100000X XXXX = 3072
+            btyp10    = ishft(btyp,-5)
+            btyp10inf = 96
+            if ( btyp10 - btyp10inf == 0 ) then
+              flag_passage2 = 1
+              ! Marqueur d'info SMOS
+              ind25174 = BURP_Find_Element(inputBlock, ELEMENT=025174, iostat=error)
+              indtmp = nbele
+              if (ind25174 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind25174 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
+                indtmp = indtmp + 1
+              end if
+              ! CLW
+              ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
+              if (ind13209 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13209 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13209, ELEMENT=013209, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13209 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013209, &
                      iostat   = error)
-              end do
-            end do
-          end if
-              
-          ! O-P block (btyp = 0100 100011X XXXX)
-          ! 0100 1000110 0000 = 9312
-          btyp10    = ishft(btyp,-5)
-          btyp10omp = 291
-          
-          if ( btyp10 - btyp10omp == 0 .and. bfam == 14 ) then
-            flag_passage5 = 1
-              
-            indEmis  = BURP_Find_Element(inputBlock, ELEMENT=055043, iostat=error)
-            if (indEmis < 0) then
-              indEmis=nbele+1
-              call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-              if (error/=burp_noerr) then
-                call handle_error("Erreur dans BURP_Resize_Block O-P")
               end if
-              call BURP_Set_Element(inputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
-            end if
-                
-            do tIndex = 1, nte
-              do valIndex = 1, nvale
-                call Insert_into_burp_i(-1,indEmis,valIndex,tIndex)
+              ! SCATERING INDEX
+              ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208, iostat=error)
+              if (ind13208 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13208 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13208 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013208, &
+                     iostat   = error)
+              end if
+
+              ind008012 = BURP_Find_Element(inputBlock, &
+                   ELEMENT  = 008012, &
+                   iostat   = error)
+
+              do tIndex = 1, nte
+
+                if ( goodprof(tIndex) == 1 ) then
+
+                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    write(*,*) "Should not happen..."
+                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                  end if
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW,idata2)),ind13209,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
+                  idata2 = idata2 + 1
+
+                else
+
+                  call Insert_into_burp_i(-1,ind25174,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  call Insert_into_burp_i(-1,ind008012,1,tIndex)
+
+                end if
+
               end do
-            end do
-                
-          end if
+ 
+            end if
+          end if ! tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')
 
           ! Add block into new report
 
@@ -4129,36 +4216,47 @@ CONTAINS
         if ( allocated(goodprof) ) then
           deallocate (goodprof,btobs)
         end if
-
         ! Write new report into file        
         call BURP_Delete_Report(inputFile, inputReport, iostat=error)
         call BURP_Write_Report(inputFile, copyReport, iostat=error)
       end do REPORTS
+      if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
+        if ( flag_passage1 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
+        end if
+        if ( flag_passage2 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - info block not seen ? Verify btyp'
+        end if
+        if ( flag_passage3 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - observation block not seen ? Verify btyp'
+        end if
+        if ( flag_passage4 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - flag block not seen ? Verify btyp'
+        end if
+        if ( flag_passage5 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
+        end if
+      else if  ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+        if ( flag_passage1 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
+        end if
+        if ( flag_passage2 == 0 ) then
+          write(*,*)
+          write(*,*) 'ERROR - info block not seen ? Verify btyp'
+        end if
+      end if
 
-      if ( flag_passage1 == 0 ) then
-        write(*,*)
-        write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
-      end if
-      if ( flag_passage2 == 0 ) then
-        write(*,*)
-        write(*,*) 'ERROR - info block not seen ? Verify btyp'
-      end if
-      if ( flag_passage3 == 0 ) then
-        write(*,*)
-        write(*,*) 'ERROR - observation block not seen ? Verify btyp'
-      end if
-      if ( flag_passage4 == 0 ) then
-        write(*,*)
-        write(*,*) 'ERROR - flag block not seen ? Verify btyp'
-      end if
-      if ( flag_passage5 == 0 ) then
-        write(*,*)
-        write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
-      end if
-          
     end if !! End of 'if ( count > 0 )'
 
     call  cleanup()
+
+
 
   contains
 
@@ -4235,7 +4333,7 @@ CONTAINS
       integer, intent(in) :: pt
 
       integer :: error
-      
+
       if ( ival >= 0 ) then
         call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
@@ -4259,6 +4357,311 @@ CONTAINS
     end subroutine Insert_into_burp_i
 
   end subroutine brpr_addCloudParametersandEmissivity
+
+  !--------------------------------------------------------------------------
+  ! brpr_updateMissingObservationFlags
+  !--------------------------------------------------------------------------
+  subroutine brpr_updateMissingObservationFlags( obsSpaceData, fileIndex, burpFile )
+    !
+    ! :Purpose: Open burp file and set missing data flags to 2048.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
+    integer, intent(in)              :: fileIndex    ! number of the burp file to update
+    character (len=*), intent(in)    :: burpFile
+
+    ! Locals:
+    type(BURP_FILE)        :: inputFile
+    type(BURP_RPT)         :: inputReport,copyReport
+    type(BURP_BLOCK)       :: inputBlock
+    character(len=9)       :: opt_missing
+    integer                :: btyp10, btyp, bfam, error
+    integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
+    integer                :: nb_rpts, ref_rpt, ref_blk, count
+    integer, allocatable   :: address(:)
+    integer, allocatable   :: btobs(:,:)
+    logical, allocatable   :: goodTB(:,:)
+    integer                :: nbele,nvale,nte
+    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex
+    integer                :: ind012163,ind212163
+    integer                :: idata
+    integer                :: flag_passage, flagval
+    integer                :: idatyp
+    real                   :: val_option_r4
+    character(len=9)       :: station_id
+
+    write(*,*) '----------------------------------------------------------'
+    write(*,*) '-- Begin subroutine brpr_updateMissingObservationFlags----'
+    write(*,*) '----------------------------------------------------------'
+
+    ! Initialisation
+    ! Opening file
+    write(*,*) 'OPENED FILE = ', trim(burpFile)
+
+    call BURP_New(inputFile, &
+         FILENAME = burpFile, &
+         MODE     = FILE_ACC_APPEND, &
+         iostat   = error )
+
+    ! Obtain input burp file number of reports
+
+    call BURP_Get_Property(inputFile, NRPTS=nb_rpts)
+
+    ! Scan input burp file to get all reports address
+
+    allocate(address(nb_rpts))
+    address(:) = 0
+    count = 0
+    ref_rpt = 0
+
+    do
+      ref_rpt = BURP_Find_Report(inputFile, &
+           report      = inputReport,       &
+           SEARCH_FROM = ref_rpt,           &
+           iostat      = error)
+      if (ref_rpt < 0) Exit
+
+      call BURP_Get_Property(inputReport, STNID=station_id)
+      if (station_id(1:2)==">>") cycle
+
+      count = count + 1
+      address(count) = ref_rpt
+    end do
+
+    write(*,*)
+    write(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',count
+    write(*,*)
+
+    if ( count > 0 ) then
+
+      ! Create a new report
+
+      call BURP_New(copyReport, ALLOC_SPACE=20000000, iostat=error)
+      if (error/=burp_noerr) then
+        Write(*,*) "Error creating new directory ",error
+        call handle_error('brpr_updateMissingObservationFlags')
+      end if
+
+      ! Loop on reports
+
+      REPORTS: do reportIndex = 1, count
+
+        call BURP_Get_Report(inputFile,        &
+             report    = inputReport,          &
+             REF       = address(reportIndex), &
+             iostat    = error)
+
+        if (reportIndex == 1) then
+          call BURP_Get_Property(inputReport, IDTYP=idatyp)
+          Write(*,*) "brpr_updateMissingObservationFlags idatyp ", idatyp
+          idata = -1
+          call obs_set_current_header_list(obsSpaceData, 'TO')
+          HEADER: do
+            headerIndex = obs_getHeaderIndex(obsSpaceData)
+            if (headerIndex < 0) exit HEADER
+            if  ( obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
+                  obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
+              idata = headerIndex
+              exit HEADER
+            end if
+          end do HEADER
+          if (idata == -1) then
+            Write(*,*) "datyp ",idatyp," not found in input file !"
+            Write(*,*) "Nothing to do here ! Exiting ..."
+            call  cleanup()
+            return
+          end if
+        end if
+
+
+        ! Find bad/missing TB. 
+
+        ref_blk = 0
+
+        BLOCKS1: do
+
+          ref_blk = BURP_Find_Block(inputReport, &
+               BLOCK       = inputBlock,         &
+               SEARCH_FROM = ref_blk,            &
+               convert = .false.,            &
+               iostat      = error)
+
+          if (ref_blk < 0) exit BLOCKS1
+
+          call BURP_Get_Property(inputBlock, &
+               NELE   = nbele,               &
+               NVAL   = nvale,               &
+               NT     = nte,                 &
+               BFAM   = bfam,                &
+               BTYP   = btyp,                &
+               iostat = error)
+
+          ! observation block (btyp = 0100 100011X XXXX)
+          ! 0100 1000110 0000 = 9312
+          btyp10    = ishft(btyp,-5)
+          btyp10obs = 291
+
+          if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
+
+           ind012163  = BURP_Find_Element(inputBlock, ELEMENT=012163, iostat=error)
+           if ( ind012163 < 0 ) exit BLOCKS1
+           allocate(btobs( nvale,nte))
+           allocate(goodTB(nvale,nte))
+            goodTB(:,:) = .false.
+            btobs(:,:)  = 0
+            do tIndex=1,nte
+              do valIndex=1,nvale
+                btobs(valIndex,tIndex) = BURP_Get_Tblval(inputBlock, &
+                     NELE_IND = ind012163,                         &
+                     NVAL_IND = valIndex,                          &
+                     NT_IND   = tIndex )
+                if ( btobs(valIndex,tIndex) /= -1 ) goodTB(valIndex,tIndex) = .true.
+              end do
+            end do
+
+          end if
+
+        end do BLOCKS1
+
+        call BURP_copy_Header(TO=copyReport, FROM=inputReport)
+        if (error /= BURP_NOERR) then
+          write(*,*) "Error= ",error
+          call handle_error("Erreur dans BURP_copy_Header")
+        end if
+
+        call BURP_Init_Report_Write(inputFile, copyReport, iostat=error)
+        if (error /= BURP_NOERR) then
+          write(*,*) "Error= ",error
+          call handle_error("Erreur dans BURP_Init_Report_Write")
+        end if
+
+        ! Second loop on blocks
+
+        ! to set missingFlag when not goodTB
+
+        ref_blk = 0
+
+        BLOCKS2: do
+
+          if ( .not. allocated(goodTB) ) then
+            write(*,*)
+            write(*,*) 'Resume report is position # ',reportIndex 
+            exit BLOCKS2
+          end if
+          ref_blk = BURP_Find_Block(inputReport, &
+               BLOCK       = inputBlock, &
+               SEARCH_FROM = ref_blk, &
+               convert = .false., &
+               iostat      = error)
+
+          if (ref_blk < 0) exit BLOCKS2
+
+          call BURP_Get_Property(inputBlock, &
+               NELE   = nbele,               &
+               NVAL   = nvale,               &
+               NT     = nte,                 &
+               BFAM   = bfam,                &
+               BTYP   = btyp,                &
+               iostat = error)
+
+          ! flag block (btyp = 0111 100011X XXXX)
+          ! 0111 1000110 0000 = 15456
+          btyp10    = ishft(btyp,-5)
+          btyp10flg = 483
+
+          if ( btyp10 - btyp10flg == 0 ) then
+            flag_passage = 1
+
+            ind212163  = BURP_Find_Element(inputBlock, ELEMENT=212163, iostat=error)
+            if (ind212163 < 0) then
+              call handle_error("Erreur dans BURP_Find_Element 212163")
+            end if
+
+            do tIndex = 1, nte
+              do valIndex = 1, nvale
+                if ( .not. goodTB(valIndex, tIndex) ) then
+                  flagval = BURP_Get_Tblval(inputBlock, &
+                          NELE_IND = ind212163,         &
+                          NVAL_IND = valIndex,        &
+                          NT_IND   = tIndex,          &
+                          iostat   = error)
+                  if (error/=burp_noerr) then
+                    call handle_error("Erreur dans BURP_Set_Tblval pour ind212163,")
+                  end if
+                  flagval = ibset(flagval,11)
+                  flagval = ibset(flagval,7)
+                  flagval = ibset(flagval,9)
+                  call BURP_Set_Tblval(inputBlock, &
+                       NELE_IND = ind212163,         &
+                       NVAL_IND = valIndex,        &
+                       NT_IND   = tIndex,          &
+                       TBLVAL   = flagval, &
+                       iostat   = error)
+                  if (error/=burp_noerr) then
+                    call handle_error("Erreur dans BURP_Set_Tblval pour ind212163,")
+                  end if
+                end if
+              end do
+            end do
+          end if
+          ! Add block into new report
+          call BURP_Write_Block(copyReport, inputBlock, &
+               ENCODE_BLOCK  = .false., &
+               CONVERT_BLOCK = .false., &
+               iostat        = error)
+           
+          if (error/=burp_noerr) then
+            write(*,*)"Btyp= ",btyp
+            call handle_error("Erreur dans BURP_Write_Block")
+          end if
+        end do BLOCKS2
+        if (allocated(goodTB) ) then
+          deallocate(goodTB)
+          deallocate(btobs)
+        end if
+        ! Write new report into file        
+        call BURP_Delete_Report(inputFile, inputReport, iostat=error)
+        call BURP_Write_Report(inputFile, copyReport, iostat=error)
+      end do REPORTS
+    end if !! End of 'if ( count > 0 )'
+
+    call  cleanup()
+
+  contains
+
+    !--------- CLEANUP -----
+
+    subroutine cleanup()
+      implicit none
+      if (allocated(address)) deallocate(address)
+      call BURP_Free(InputFile)
+      call BURP_Free(InputReport, CopyReport)
+      call BURP_Free(InputBlock)
+    end subroutine cleanup
+
+    !--------- HANDLE_ERROR -----
+
+    subroutine handle_error(errorMessage)
+      !
+      ! :Purpose: handle error
+      !
+
+      implicit none
+
+      character (len=*) :: errorMessage
+
+      write(*,*) BURP_STR_ERROR()
+      write(*,*) "history"
+      call BURP_STR_ERROR_HISTORY()
+      call cleanup()
+      call utl_abort(trim(errorMessage))
+
+    end subroutine handle_error
+
+  end subroutine brpr_updateMissingObservationFlags
+
 
   !-----------------------------------------------------------------------
   ! brpr_addBiasCorrectionElement
@@ -5155,5 +5558,5 @@ CONTAINS
     end select
 
   end subroutine getElementIdsRead
-    
+
 end module burpread_mod

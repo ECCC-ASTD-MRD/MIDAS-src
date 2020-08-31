@@ -1,27 +1,31 @@
- &NAMBGCK
+ &NAMCT0
+   NCONF  = 121,
+/ 
+&NAMBGCK
   instName = 'AMSUA'
-  glmg_file  = './fstglmg'
-  statsFile = './stats_amsua_assim'
-  writeModelLsqTT = .true. 
-  debug = .false.
-  RESETQC = .FALSE.
-  ETIKRESU = '>>BGCKALT'
-  writeEle25174 = .false.	
-  maxNumSat             = 9
-  channelOffset         = 27
-  maxNumTest            = 15
+  glmg_file  = 'fstglmg'
+  statsFile = 'stats_amsua_assim'
+  debug = .true.
+  RESETQC = .false.
+  maxNumSat  = 9
+  channelOffset = 27
+  maxNumTest = 15
+  maxNumChan = 42
+  allowStateDepSigmaObs = .false. 
+  clwQcThreshold = 0.3
+  useUnbiasedObsForClw =.false.
 /
- &NAMMWOBS
-  reportNumMax = 500
-  locationNumMax = 1500
-   maxNumChan= 42
+ &namObsSelection
+  doThinning = .false.
 /
  &NAMDIMO
-   NMXOBS=100000,
-   NDATAMX=2000000
+   NMXOBS=120000,
+   NDATAMX=2000000,
 /
+
  &NAMTIME
   DSTEPOBS = 0.25D0
+
 /
  &NAMFILT
   NELEMS = 3,
@@ -65,23 +69,6 @@
    CINSTRUMENTID(7)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-/
- &NAMBURP_FILTER_TOVS
-  BNBITSOFF=0,
-  BBITOFF(1)=2,
-  BBITOFF(2)=4,
-  BBITOFF(3)=5,
-  BBITOFF(4)=-5,
-  BBITOFF(5)=-8,
-  NELEMS=1
-  BLISTELEMENTS=12163
-/
- &NAMBURP_UPDATE
-  BN_ITEMS=1,
-  BITEMLIST(1)='OMP',
-  BITEMLIST(2)='OMA',
-  BITEMLIST(3)='FGE',
-  TYPE_RESUME='BGCKALT'
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -152,7 +139,7 @@
    LISTSAT(22)=000,
    LISTBURP(23)=259,! GOES 15
    LISTPLAT(23)="goes",
-   LISTSAT(23)=015, 
+   LISTSAT(23)=015,
    LISTBURP(24)=172,! MTSAT-2
    LISTPLAT(24)="mtsat",
    LISTSAT(24)=002,
@@ -168,6 +155,18 @@
    LISTBURP(28)=173,! HMWARI-8
    LISTPLAT(28)="hmwari",
    LISTSAT(28)=008,
+   LISTBURP(29)=055,! METEOSAT 8
+   LISTPLAT(29)="msg",
+   LISTSAT(29)=001,
+   LISTBURP(30)=174,! HMWARI-9
+   LISTPLAT(30)="hmwari",
+   LISTSAT(30)=009,
+   LISTBURP(31)=270,! GOES 16
+   LISTPLAT(31)="goes",
+   LISTSAT(31)=016,
+   LISTBURP(32)=225,! NOAA 20
+   LISTPLAT(32)="noaa",
+   LISTSAT(32)=020,
 /
  &NAMINST
    LISTBURP(1)=050
@@ -176,17 +175,17 @@
    LISTINSTRUM(2)="mhs",
    LISTBURP(3)=205,
    LISTINSTRUM(3)="mviri",
-   LISTBURP(4)=207, 
+   LISTBURP(4)=207,
    LISTINSTRUM(4)="seviri",
-   LISTBURP(5)=221, 
+   LISTBURP(5)=221,
    LISTINSTRUM(5)="iasi",
    LISTBURP(6)=295,
    LISTINSTRUM(6)="gmsim",
-   LISTBURP(7)=296, 
+   LISTBURP(7)=296,
    LISTINSTRUM(7)="gmsim",
-   LISTBURP(8)=365, 
+   LISTBURP(8)=365,
    LISTINSTRUM(8)="tmi",
-   LISTBURP(9)=389, 
+   LISTBURP(9)=389,
    LISTINSTRUM(9)="modis",
    LISTBURP(10)=420,
    LISTINSTRUM(10)="airs",
@@ -224,7 +223,7 @@
    LISTINSTRUM(26)="msu",
    LISTBURP(27)=627,
    LISTINSTRUM(27)="ssu",
-   LISTBURP(28)=905,	
+   LISTBURP(28)=905,
    LISTINSTRUM(28)="ssmi",
    LISTBURP(29)=908,
    LISTINSTRUM(29)="ssmis",
@@ -232,6 +231,10 @@
    LISTINSTRUM(30)="airs",
    LISTBURP(31)=297,
    LISTINSTRUM(31)="ahi",
+   LISTBURP(32)=617,
+   LISTINSTRUM(32)="abi",
+   LISTBURP(33)=2046,
+   LISTINSTRUM(33)="crisfsr",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -255,11 +258,13 @@
    inst_names(7)='iasi',
    inst_names(8)='cris',
    inst_names(9)='radianceclear',
+   inst_names(10)='crisfsr',
 /
  &NAMHYPER
    name_inst(1)='airs',
    name_inst(2)='iasi',
    name_inst(3)='cris',
+   name_inst(4)='crisfsr',
 /
  &NAMGEO
    name_inst(1)='goesim',
@@ -267,7 +272,51 @@
    name_inst(3)='mviri',
    name_inst(4)='seviri',
    name_inst(5)='gmsim',
-   name_inst(6)='mtsatim',
+   name_inst(6)='abi',
+/
+ &NAMCODTYP
+/
+ &NAMGPSRO
+/
+ &NAMGPSGB
+/
+ &NAMBURP_FILTER_SFC
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  NELEMS_SF=7,
+  BLISTELEMENTS_SF=10004,12004,10051,12203,11011,11012,13220
+  NELEMS_GP=7,
+  BLISTELEMENTS_GP=10004,12004,12203,15031,15032,15035,13220
+/
+ &NAMBURP_FILTER_CONV
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=10,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMBURP_FILTER_TOVS
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=1
+  BLISTELEMENTS=12163
+/
+ &NAMBURP_UPDATE
+  BN_ITEMS=1,
+  BITEMLIST(1)='OMP',
+  BITEMLIST(2)='OMA',
+  BITEMLIST(3)='FGE',
+  TYPE_RESUME='BGCKALT'
 /
 &NAMBIASSAT
     biasActive=.TRUE.,
@@ -325,3 +374,197 @@
     nbscan(14)=1
     cglobal(14)="OUI"
 /
+
+&NAMBIASSAT
+    biasActive=.TRUE.,
+    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
+    biasmode="apply",
+    removeBiasCorrection=.false.
+    refreshBiasCorrection=.false.
+    mimicsatbcor=.true.
+    scanBiasCorLength=-1.d0
+    centerPredictors=.false.,
+    weightedEstimate=.false.,
+    outstats=.false.,
+    outcoeffcov=.false.,
+    filterObs = .false.,
+    cinst(1)="AMSUA"
+    nbscan(1)=30
+    cglobal(1)="DEF"
+    cinst(2)="AMSUB"
+    nbscan(2)=90
+    cglobal(2)="DEF"
+    cinst(3)="MHS"
+    nbscan(3)=90
+    cglobal(3)="DEF"
+    cinst(4)="ATMS"
+    nbscan(4)=96
+    cglobal(4)="DEF"
+/
+ &NAMBGCKIR
+   NINST=4,
+   INST(1)='AIRS',
+   IWINDOW(1)=787,
+   IWINDOW_ALT(1)=950,
+   ILIST1(1,1)=528,
+   ILIST1(1,2)=787,
+   ILIST1(1,3)=950,
+   ILIST1(1,4)=2209,
+   ILIST2(1,1)=204,
+   ILIST2(1,2)=221,
+   ILIST2(1,3)=232,
+   ILIST2(1,4)=252,
+   ILIST2(1,5)=262,
+   ILIST2(1,6)=272,
+   ILIST2(1,7)=299,
+   ILIST2(1,8)=305,
+   ILIST2(1,9)=310,
+   ILIST2(1,10)=355,
+   ILIST2(1,11)=362,
+   ILIST2(1,12)=375,
+   ILIST2(1,13)=375,
+   ILIST2_PAIR(1,1)=252,
+   ILIST2_PAIR(1,2)=262,
+   ILIST2_PAIR(1,3)=272,
+   ILIST2_PAIR(1,4)=299,
+   ILIST2_PAIR(1,5)=305,
+   ILIST2_PAIR(1,6)=310,
+   ILIST2_PAIR(1,7)=355,
+   ILIST2_PAIR(1,8)=362,
+   ILIST2_PAIR(1,9)=375,
+   ILIST2_PAIR(1,10)=375,
+   ILIST2_PAIR(1,11)=262,
+   ILIST2_PAIR(1,12)=252,
+   ILIST2_PAIR(1,13)=204,
+   ICHN_SUN(1)=1865,
+   INST(2)='IASI',
+   IWINDOW(2)=1090,
+   IWINDOW_ALT(2)=1133,
+   ILIST1(2,1)=705,
+   ILIST1(2,2)=1090,
+   ILIST1(2,3)=1133,
+   ILIST1(2,4)=7475,
+   ILIST2(2,1)=252,
+   ILIST2(2,2)=269,
+   ILIST2(2,3)=285,
+   ILIST2(2,4)=309,
+   ILIST2(2,5)=320,
+   ILIST2(2,6)=332,
+   ILIST2(2,7)=363,
+   ILIST2(2,8)=371,
+   ILIST2(2,9)=375,
+   ILIST2(2,10)=433,
+   ILIST2(2,11)=442,
+   ILIST2(2,12)=459,
+   ILIST2(2,13)=459,
+   ILIST2_PAIR(2,1)=309,
+   ILIST2_PAIR(2,2)=320,
+   ILIST2_PAIR(2,3)=332,
+   ILIST2_PAIR(2,4)=363,
+   ILIST2_PAIR(2,5)=371,
+   ILIST2_PAIR(2,6)=375,
+   ILIST2_PAIR(2,7)=433,
+   ILIST2_PAIR(2,8)=442,
+   ILIST2_PAIR(2,9)=459,
+   ILIST2_PAIR(2,10)=459,
+   ILIST2_PAIR(2,11)=320,
+   ILIST2_PAIR(2,12)=309,
+   ILIST2_PAIR(2,13)=252,
+   ICHN_SUN(2)=5446,
+   INST(3)='CRIS',
+   IWINDOW(3)=427,
+   IWINDOW_ALT(3)=534,
+   ILIST1(3,1)=275,
+   ILIST1(3,2)=427,
+   ILIST1(3,3)=534,
+   ILIST1(3,4)=1290,
+   ILIST2(3,1)=97,
+   ILIST2(3,2)=130,
+   ILIST2(3,3)=116,
+   ILIST2(3,4)=153,
+   ILIST2(3,5)=169,
+   ILIST2(3,6)=158,
+   ILIST2(3,7)=143,
+   ILIST2(3,8)=151,
+   ILIST2(3,9)=239,
+   ILIST2(3,10)=160,
+   ILIST2(3,11)=228,
+   ILIST2(3,12)=200,
+   ILIST2(3,13)=200,
+   ILIST2_PAIR(3,1)=153,
+   ILIST2_PAIR(3,2)=169,
+   ILIST2_PAIR(3,3)=158,
+   ILIST2_PAIR(3,4)=143,
+   ILIST2_PAIR(3,5)=151,
+   ILIST2_PAIR(3,6)=239,
+   ILIST2_PAIR(3,7)=160,
+   ILIST2_PAIR(3,8)=228,
+   ILIST2_PAIR(3,9)=200,
+   ILIST2_PAIR(3,10)=200,
+   ILIST2_PAIR(3,11)=169,
+   ILIST2_PAIR(3,12)=153,
+   ILIST2_PAIR(3,13)=97,	
+   ICHN_SUN(3)=1147,
+   INST(4)='CRISFSR',
+   IWINDOW(4)=427,
+   IWINDOW_ALT(4)=534,
+   ILIST1(4,1)=275,
+   ILIST1(4,2)=427,
+   ILIST1(4,3)=534,
+   ILIST1(4,4)=2151,
+   ILIST2(4,1)=97,
+   ILIST2(4,2)=130,
+   ILIST2(4,3)=116,
+   ILIST2(4,4)=153,
+   ILIST2(4,5)=169,
+   ILIST2(4,6)=158,
+   ILIST2(4,7)=143,
+   ILIST2(4,8)=151,
+   ILIST2(4,9)=239,
+   ILIST2(4,10)=160,
+   ILIST2(4,11)=228,
+   ILIST2(4,12)=200,
+   ILIST2(4,13)=200,
+   ILIST2_PAIR(4,1)=153,
+   ILIST2_PAIR(4,2)=169,
+   ILIST2_PAIR(4,3)=158,
+   ILIST2_PAIR(4,4)=143,
+   ILIST2_PAIR(4,5)=151,
+   ILIST2_PAIR(4,6)=239,
+   ILIST2_PAIR(4,7)=160,
+   ILIST2_PAIR(4,8)=228,
+   ILIST2_PAIR(4,9)=200,
+   ILIST2_PAIR(4,10)=200,
+   ILIST2_PAIR(4,11)=169,
+   ILIST2_PAIR(4,12)=153,
+   ILIST2_PAIR(4,13)=97,
+   ICHN_SUN(4)=1579,
+   DTW=1.5d0,
+   DTL=4.0d0,
+   PCO2MIN=56.73d0,
+   PCO2MAX=321.5d0,
+   NIGHT_ANG=100.d0,
+/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2195,7 +2195,7 @@ contains
     
     
     !   1.1   Read surface information
-    !if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
+    if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
 
     !   2.  Computation of hx for tovs data only
 

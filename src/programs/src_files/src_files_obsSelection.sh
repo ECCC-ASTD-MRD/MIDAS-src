@@ -16,3 +16,4 @@ SRC_FILES="$SRC_FILES bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.
 SRC_FILES="$SRC_FILES bmatrix_mod.f90 obsoperators_mod.f90"
 SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsspacediag_mod.f90 obsSpaceErrorStdDev_mod.f90"
 SRC_FILES="$SRC_FILES backgroundCheck_mod.f90 innovation_mod.f90 thinning_mod.f90"
+SRC_FILES="$SRC_FILES bgckmicrowave_mod.f90"

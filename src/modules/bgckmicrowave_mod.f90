@@ -55,6 +55,7 @@ module bgckmicrowave_mod
   public :: mwbg_setGlobalFlagBit
   public :: mwbg_setMissingObsToNotAssimilated
   public :: mwbg_updateObsSpaceAfterQc
+  public :: mwbg_bgCheckMW
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
   public :: mwbg_firstQcCheckAtms
@@ -1239,9 +1240,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                 IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
-                                ZOMP, ICHECK, KNO, KNT, KNOSAT, KCHKPRF, &
-                                ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
+                                ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
+                                globMarq, IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1275,7 +1275,7 @@ contains
     real, intent(in)                       :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2)   ! 
     integer, intent(in)                    :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
 
-
+    integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
@@ -1303,9 +1303,6 @@ contains
     !                                                                 from observation and background
     real, allocatable, intent(out)         :: scatw(:)              ! scattering index over water
 
-    integer, allocatable, intent(out)      :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
-    !                                                                 =0, ok,
-    !                                                                 >0, rejet d'au moins un canal
     integer, allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                               FOR AMSUA just fill with zeros
 
@@ -1326,6 +1323,9 @@ contains
     real                                   :: PTBO    (KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
+    integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
+    !                                                                 =0, ok,
+    !                                                                 >0, rejet d'au moins un canal
     real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
     integer                                :: MAXVAL
     integer                                :: JI
@@ -1551,6 +1551,10 @@ contains
         IMARQ(INDX) = KMARQ(JI,JJ)
       end do
     end do
+
+    ! reset global marker flag (55200) and mark it if observtions are rejected
+    call resetQcCases(RESETQC, KCHKPRF, globMarq)
+
 
     !###############################################################################
     ! FINAL STEP: set terrain type to sea ice given certain conditions
@@ -2240,10 +2244,7 @@ contains
       ! 2) Bloc info 3d: bloc 5120.
       !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
       elseif (my_btyp == 5120) then     
-        if (mwbg_debug) then
-          write(*,*) ' OLD FLAGS = ', (globMarq(JJ),JJ=1,my_nt)
-        end if
-        call resetQcCases(RESETQC, KCHKPRF, globMarq)
+        !call resetQcCases(RESETQC, KCHKPRF, globMarq)
         ! Remplacer les nouveaux marqueurs dans le tableau.
         call copyIntegerElementToBurpBlock(blk, 55200, globMarq, "MARQUEURS_GLOBAUX", my_nval, my_nt)
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp,.False.)        
@@ -3082,7 +3083,7 @@ contains
     integer                                                   :: max 
     integer                                                   :: IBIT 
 
-    
+ 
     if (.NOT.RESETQC) then
       testIndex = 3
       if ( itest(testIndex) .eq. 1 ) then
@@ -3311,7 +3312,7 @@ contains
   subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, glmg_file, zlat, zlon, ilq, itt, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                               KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
+                               ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
                                rejectionCodArray2, STNID, RESETQC)
                                
 
@@ -3354,9 +3355,6 @@ contains
     integer,allocatable, intent(out) :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
     !                                                                 =0, ok,
     !                                                                 >0, rejet,
-    integer,allocatable, intent(out) :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
-    !                                                            =0, ok,
-    !                                                            >0, rejet d'au moins un canal
     integer, intent(inout)           :: IMARQ(:)       ! marqueurs des radiances
     integer, intent(inout)           :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)           ! cumul du nombre de rejet par satellite, critere et par canal
     integer, intent(inout)           :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)          ! cumul du nombre de rejet (chech n2) par satellite, critere et par canal
@@ -3369,6 +3367,10 @@ contains
     integer                          :: KMARQ(KNO,KNT)       ! marqueurs des radiances 2D
     integer, allocatable             :: lsq(:)
     integer, allocatable             :: trn(:) 
+    integer,allocatable              :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
+    !                                                            =0, ok,
+    !                                                            >0, rejet d'au moins un canal
+
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
     logical                          :: reportHasMissingTb   ! true if Tb(ztb) are set to missing_value
@@ -3486,11 +3488,6 @@ contains
     write(*,*) ' ==> mwbg_grossValueCheck: '
     call mwbg_grossValueCheck(KNT,ztb,grossrej)
      
-    if ( ANY(grossrej) ) then
-      write(*,*) ' mwbg_grossValueCheck has detected bad Tb data. Number of affected &
-           locations = ', COUNT(grossrej)
-    end if
-
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set lqc(nt,mwbg_maxNumChan)=.true. 
     !          for data that fail QC     
@@ -3515,7 +3512,7 @@ contains
     !###############################################################################
  
     !  
-    write(*,*) ' ==>NNN mwbg_nrlFilterAtms: '
+    write(*,*) ' ==> mwbg_nrlFilterAtms: '
     call mwbg_nrlFilterAtms(KNT, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
                             grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -3573,7 +3570,8 @@ contains
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
     call atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
-                                 STNID,  B7CHCK, rejectionCodArray)    
+                                 STNID,  B7CHCK, rejectionCodArray)
+
     ! 2) test 2: Topography check (partial)
     call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                    KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
@@ -3598,8 +3596,8 @@ contains
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
-    call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                                   IUTILST, KMARQ, ICHECK, rejectionCodArray)
+     call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+                                                IUTILST, KMARQ, ICHECK, rejectionCodArray)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -3623,6 +3621,9 @@ contains
         IMARQ(INDX) = KMARQ(JI,JJ)
       end do
     end do
+
+    ! reset global marker flag (55200) and mark it if observtions are rejected
+    call resetQcCases(RESETQC, KCHKPRF, globMarq)
 
     if(mwbg_debug) then
       write(*,*) ' --------------------------------------------------------------- '
@@ -4660,6 +4661,7 @@ contains
     call utl_reAllocate(zlq, npts)
     call utl_reAllocate(ztt, npts)
     call utl_reAllocate(waterobs, npts)
+
     zlq(:) = ilq(1:npts)  ! land/sea qualifier
     ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
     
@@ -4912,6 +4914,7 @@ contains
         write(*,*) 'WARNING: Invalid land/sea qualifier or terrain type!'
         write(*,*) '  ilq, itt, (lat, lon) = ', ilq(ii), itt(ii), '(',zlat(ii), zlon(ii),')'
       end if
+
       if ( ilq(ii) == 0 .and. itt(ii) == 0 ) then
         fail = .true.
         write(*,*) 'WARNING: Sea ice point (itt=0) at land point (ilq=0)!'
@@ -5007,7 +5010,9 @@ contains
     icount = 0
     do ii = 1,nt
       fail = .false.
-      if ( (ilq(ii) /= lsq(ii)) .or. (itt(ii) /= trn(ii)) ) fail = .true.
+      if ( (ilq(ii) /= lsq(ii)) .or. (itt(ii) /= trn(ii)) ) then
+        fail = .true.
+      end if
       if ( fail ) then
         icount =  icount + 1
       end if
@@ -5214,8 +5219,9 @@ contains
       end if
 
       ! Skip computations for points where all data are rejected  (bad Tb ANY channel)       
-      if ( grossrej(i) ) ier(i) = 1 
-
+      if ( grossrej(i) ) then
+        ier(i) = 1 
+      end if 
     end do
 
     ! 3) Compute parameters:
@@ -5689,7 +5695,7 @@ contains
 
     HEADER: do headerIndex = numHeaderWritten + 1, numHeaderWritten + reportNumObs
       ! If terrain type sea ice (0), set landQualifier=2
-      if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
+      !if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
 
       ! Convert lat/lon to radians
       if ( obsLongitude(headerCompt) < 0. ) obsLongitude(headerCompt) = 360. + obsLongitude(headerCompt)
@@ -5798,20 +5804,24 @@ contains
   !  mwbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData,channelOffset, obsTb, obsFlags, obsNumOfReport)
+  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, headerIndex, channelOffset, obsTb, obsFlags, &
+                                        cloudLiquidWaterPath,atmScatteringIndex,     &
+                                        obsGlobalMarker,newInformationFlag)
 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     implicit None
 
     !Arguments
     type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
+    integer,              intent(in)        :: channelOffset          ! sat channel offset
+    integer,              intent(in)        :: headerIndex            ! current header index
     integer,              intent(in)        :: obsFlags(:)            ! data flags
     real,                 intent(in)        :: obsTb(:)               ! obs Tb
-    integer,              intent(in)        :: obsNumOfReport         ! number of current report in file
-    integer,              intent(in)        :: channelOffset          ! sat channel offset
+    real,                 intent(in)        :: cloudLiquidWaterPath(:)   ! obs CLW
+    real,                 intent(in)        :: atmScatteringIndex(:)     ! atmospheric scatering index
+    integer,              intent(in)        :: newInformationFlag(:)     ! information flag used with satplot
+    integer,              intent(in)        :: obsGlobalMarker(:)        ! information flag used with satplot
     ! Locals
-    integer,             save               :: numHeaderRead = 0
-    integer                                 :: headerIndex
     integer                                 :: bodyIndex
     integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
@@ -5824,18 +5834,19 @@ contains
     headerCompt = 1 
     bodyCompt = 0
     
-    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
-      bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-      obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-        currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
-        call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(bodyCompt+currentChannelNumber))
-        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(bodyCompt+currentChannelNumber))
-      end do BODY
-      bodyCompt =  bodyCompt+channelNum
-      headerCompt = headerCompt + 1
-    end do HEADER
-    numHeaderRead = numHeaderRead + obsNumOfReport
+    call obs_headSet_r(obsSpaceData, OBS_CLW,  headerIndex, cloudLiquidWaterPath(headerCompt))
+    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(headerCompt))
+    call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(headerCompt))
+    call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(headerCompt))
+    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+      currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+      call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(bodyCompt+currentChannelNumber))
+      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(bodyCompt+currentChannelNumber))
+    end do BODY
+    bodyCompt =  bodyCompt+channelNum
+
   end subroutine mwbg_updateObsSpaceAfterQc  
    
 
@@ -5843,10 +5854,10 @@ contains
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_readObsFromObsSpace(instName, channelOffset, obsNumOfReport, satIdentifier, satZenithAngle, landQualifierIndice, &
-                                    terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
-                                    obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                    obsFlags, reportNumObs, reportNumChannel, obsSpaceData)
+  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, channelOffset, satIdentifier, satZenithAngle, landQualifierIndice, &
+                                      terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
+                                      obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
+                                      obsFlags, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -5854,8 +5865,8 @@ contains
 
     !Arguments
     character(len=9),     intent(in)     :: InstName               ! Instrument Name
+    integer,              intent(in)     :: headerIndex            ! current header Index 
     integer,              intent(in)     :: channelOffset          ! sat. channel offset(e.g 27 for amsua) 
-    integer,              intent(in)     :: obsNumOfReport         ! number of locations    (btyp=5120,etc.)
     integer, allocatable, intent(out)    :: satIdentifier(:)       ! satellite identifier
     real   , allocatable, intent(out)    :: satZenithAngle(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
     integer, allocatable, intent(out)    :: landQualifierIndice(:) ! land/sea qualifier     (btyp=3072,ele=8012)
@@ -5866,108 +5877,311 @@ contains
     integer, allocatable, intent(out)    :: obsQcFlag1(:,:)        ! flag values for btyp=3072 block ele 033078, 033079, 033080
     integer, allocatable, intent(out)    :: satOrbit(:)            ! orbit number
     integer, allocatable, intent(out)    :: obsGlobalMarker(:)     ! global Marqueur Data
-    character(*),         intent(out)    :: burpFileSatId          ! Platform Name
+    character(*),intent(out)             :: burpFileSatId          ! Platform Name
     real   , allocatable, intent(out)    :: obsTb(:)               ! brightness temperature (btyp=9248/9264,ele=12163) 
     real   , allocatable, intent(out)    :: obsTbBiasCorr(:)       ! bias correction 
     real   , allocatable, intent(out)    :: ompTb(:)               ! OMP values
     integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
     integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
     integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
-    integer,              intent(out)    :: reportNumObs          ! number of locations    (btyp=5120,etc.)
-    integer,              intent(out)    :: reportNumChannel       ! number of locations    (btyp=5120,etc.)
 
-    type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
+    type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
 
     ! Locals
-    integer,          save               :: numHeaderRead = 0
-    integer                              :: headerIndex
     integer                              :: bodyIndex
     integer                              :: obsNumCurrentLoc
-    integer                              :: channelNum
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt 
     integer                              :: bodyCompt   
     integer                              :: currentChannelNumber  
     integer                              :: channelIndex
+    integer                              ::  numChannelUsed      
+    integer                              :: numObsToProcess       
 
-    channelNum = mwbg_maxNumChan - channelOffset
-    reportNumChannel = channelNum
+    numChannelUsed = mwbg_maxNumChan - channelOffset
     headerCompt = 1 
     bodyCompt = 0
-    reportNumObs = obsNumOfReport
+    numObsToProcess = 1
     ! Allocate Header elements
-    call utl_reAllocate(satIdentifier, obsNumOfReport)
-    call utl_reAllocate(satZenithAngle, obsNumOfReport)
-    call utl_reAllocate(landQualifierIndice, obsNumOfReport)
-    call utl_reAllocate(terrainTypeIndice, obsNumOfReport)
-    call utl_reAllocate(obsLatitude, obsNumOfReport)
-    call utl_reAllocate(obsLongitude, obsNumOfReport)
-    call utl_reAllocate(satScanPosition, obsNumOfReport)
-    call utl_reAllocate(obsGlobalMarker, obsNumOfReport)
-    call utl_reAllocate(satOrbit, obsNumOfReport)
-    call utl_reAllocate(obsQcFlag1, obsNumOfReport,3)
+    call utl_reAllocate(satIdentifier, numObsToProcess)
+    call utl_reAllocate(satZenithAngle, numObsToProcess)
+    call utl_reAllocate(landQualifierIndice, numObsToProcess)
+    call utl_reAllocate(terrainTypeIndice, numObsToProcess)
+    call utl_reAllocate(obsLatitude, numObsToProcess)
+    call utl_reAllocate(obsLongitude, numObsToProcess)
+    call utl_reAllocate(satScanPosition, numObsToProcess)
+    call utl_reAllocate(obsGlobalMarker, numObsToProcess)
+    call utl_reAllocate(satOrbit, numObsToProcess)
+    call utl_reAllocate(obsQcFlag1, numObsToProcess,3)
     ! Allocate Body elements
-    call utl_reAllocate(obsTb, obsNumOfReport*channelNum)
-    call utl_reAllocate(ompTb, obsNumOfReport*channelNum)
-    call utl_reAllocate(obsTbBiasCorr, obsNumOfReport*channelNum)
-    call utl_reAllocate(obsFlags, obsNumOfReport*channelNum)
-    call utl_reAllocate(obsChannels, obsNumOfReport*channelNum)
-    call utl_reAllocate(obsQcFlag2, obsNumOfReport*channelNum)
+    call utl_reAllocate(obsTb, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(ompTb, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(obsTbBiasCorr, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(obsFlags, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(obsChannels, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(obsQcFlag2, numObsToProcess*numChannelUsed)
     !initialization
     obsTb(:) = mwbg_realMissing
     ompTb(:) = mwbg_realMissing
     obsTbBiasCorr(:) = mwbg_realMissing
 
-      ! ====================================
-
-    HEADER: do headerIndex = numHeaderRead+1, numHeaderRead + obsNumOfReport
-      ! ====================================
         
-      if (headerIndex == numHeaderRead+1) &
-      burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
-      write(*,*) 'satId in burpFile = ', burpFileSatId, 'for headerIndex = ', headerIndex
-      satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
-      satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
-      landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
-      terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
-      ! If terrain type sea ice (0), set landQualifier=2
-      if (terrainTypeIndice(headerCompt) ==  0) landQualifierIndice(headerCompt) = 2
-      obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
-      obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
-      satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
-      obsGlobalMarker(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex ) 
-      satOrbit(headerCompt)              = obs_headElem_i( obsSpaceData, OBS_ORBI, headerIndex) 
-      if (instName == 'ATMS') then  
-        obsQcFlag1(headerCompt,1)        = obs_headElem_i( obsSpaceData, OBS_AQF1, headerIndex) 
-        obsQcFlag1(headerCompt,2)        = obs_headElem_i( obsSpaceData, OBS_AQF2, headerIndex) 
-        obsQcFlag1(headerCompt,3)        = obs_headElem_i( obsSpaceData, OBS_AQF3, headerIndex) 
-      end if
+    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
+    satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
+    satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
+    landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
+    terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
+    ! If terrain type is missing, set it to -1 for the QC programs
+    if (terrainTypeIndice(headerCompt) ==  99) terrainTypeIndice(headerCompt) = -1
+    obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
+    obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
+    ! Convert lat/lon to degrees
+    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
+    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
+    satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
+    obsGlobalMarker(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex ) 
+    satOrbit(headerCompt)              = obs_headElem_i( obsSpaceData, OBS_ORBI, headerIndex) 
+    if (instName == 'ATMS') then  
+      obsQcFlag1(headerCompt,1)        = obs_headElem_i( obsSpaceData, OBS_AQF1, headerIndex) 
+      obsQcFlag1(headerCompt,2)        = obs_headElem_i( obsSpaceData, OBS_AQF2, headerIndex) 
+      obsQcFlag1(headerCompt,3)        = obs_headElem_i( obsSpaceData, OBS_AQF3, headerIndex) 
+    end if
 
-      bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-      obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
 
-      BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-        currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
-        obsTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-        ompTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-        obsTbBiasCorr(bodyCompt+currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
-        obsFlags(bodyCompt+currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-        obsQcFlag2(bodyCompt+currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
-        
-      end do BODY
-      do channelIndex=1,channelNum
-        obsChannels(bodyCompt+channelIndex)    = channelIndex+channelOffset
-      end do
-      bodyCompt = bodyCompt + channelNum
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+      obsTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+      ompTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+      obsTbBiasCorr(bodyCompt+currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
+      obsFlags(bodyCompt+currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+      obsQcFlag2(bodyCompt+currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
       
-      ! Convert lat/lon to degrees
-      obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
-      if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
-      obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-
-      headerCompt = headerCompt + 1
-    end do HEADER
-    numHeaderRead = numHeaderRead + obsNumOfReport
+    end do BODY
+    do channelIndex=1,numChannelUsed
+      obsChannels(bodyCompt+channelIndex)    = channelIndex+channelOffset
+    end do
+    bodyCompt = bodyCompt + numChannelUsed
+      
   end subroutine mwbg_readObsFromObsSpace 
+
+  !--------------------------------------------------------------------------
+  !  mwbg_mwbg_bgCheckMW
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_bgCheckMW( obsSpaceData )
+    !:Purpose:        do the quality controle for ATMS and AMSUA
+
+    implicit None
+
+    !Arguments
+    type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
+
+    ! Locals
+    integer                       :: numObsToProcess               ! number of obs in current report
+    integer                       :: numChannelUsed                ! "      "   channels "      "
+    integer                       :: headerIndex                   !header Index 
+    integer                       :: satIndexObserrFile            ! satellite index in obserror file
+    integer                       :: codtyp                        ! codetype
+    character(len=9)              :: burpFileSatId                 ! station id in burp file
+    character(len=9), allocatable :: satelliteId(:)                ! satellite Id in stats error file
+    real, allocatable             :: modelInterpTerrain(:)         ! topo in standard file interpolated to obs point
+    real, allocatable             :: modelInterpSeaIce(:)          ! Glace de mer " "
+    real, allocatable             :: modelInterpGroundIce(:)       ! Glace de continent " "
+    real,    allocatable          :: obsLatitude(:)                ! obs. point latitudes
+    real,    allocatable          :: obsLongitude(:)               ! obs. point longitude
+    integer, allocatable          :: satIdentifier(:)              ! Satellite identifier
+    real,    allocatable          :: satZenithAngle(:)             ! sat. satZenithAngle angle
+    real,    allocatable          :: azimuthAngle(:)               ! azimuth angle
+    real,    allocatable          :: solarZenithAngle(:)           ! solar zenith angle
+    integer, allocatable          :: landQualifierIndice(:)        ! land qualifyer
+    integer, allocatable          :: terrainTypeIndice(:)          ! terrain type
+    real,    allocatable          :: obsTb(:)                      ! temperature de brillance
+    real,    allocatable          :: ompTb(:)                      ! o-p temperature de "
+    real,    allocatable          :: obsTbBiasCorr(:)              ! bias correction fo obsTb
+    integer, allocatable          :: satScanPosition(:)            ! scan position
+    integer, allocatable          :: obsQcFlag1(:,:)               ! Obs Quality flag 1
+    integer, allocatable          :: obsQcFlag2(:)                 ! Obs Quality flag 2 
+    integer, allocatable          :: obsChannels(:)                ! obsTb channels
+    integer, allocatable          :: obsFlags(:)                   ! obs. flag
+    integer, allocatable          :: satOrbit(:)                   ! orbit
+    integer, allocatable          :: obsGlobalMarker(:)            ! global marker
+    integer, allocatable          :: IUTILST(:,:)                  ! channel use option for each sat.
+    real,    allocatable          :: TOVERRST(:,:)                 ! obs . error per channel for each sat
+    real,    allocatable          :: sigmaObsErr(:,:,:)            ! 
+    real,    allocatable          :: clwThreshArr(:,:,:)           ! 
+    integer, allocatable          :: useStateDepSigmaObs(:,:)      !
+    integer, allocatable          :: rejectionCodArray(:,:,:)      ! number of rejection 
+                                                                   !  per sat. per channl per test
+    integer, allocatable          :: rejectionCodArray2(:,:,:)     ! number of rejection per channl per test
+    !                                                                for ATMS 2nd category of tests
+    integer, allocatable          :: qcIndicator(:,:)              ! indicateur controle de qualite tovs par canal 
+    !                                                                =0, ok,
+    !                                                                >0, rejet,
+    integer, allocatable          :: newInformationFlag(:)         ! ATMS Information flag (newInformationFlag) values 
+    !                                                                (new BURP element  025174 in header). FOR AMSUA 
+    !
+    real,    allocatable          :: cloudLiquidWaterPath(:)       ! cloud liquid water. NB: for AMSUA, 
+    !                                                                cloudLiquidWaterPath=0.5(model_cloudLiquidWaterPath 
+    !                                                                + obs_cloudLiquidWaterPath)
+    real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
+    integer, external             :: exdb, exfin, fnom, fclos
+    integer                       :: ier, istat, nulnam
+    ! namelist variables
+    character(len=9)              :: instName                      ! instrument name
+    character(len=128)            :: glmg_file                     ! glace de mer file
+    character(len=128)            :: statsFile                     ! stats error file
+    real                          :: clwQcThreshold                ! 
+    logical                       :: allowStateDepSigmaObs         !
+    logical                       :: useUnbiasedObsForClw          !
+    logical                       :: RESETQC                       ! reset Qc flags option
+    logical                       :: debug                         ! debug mode
+    integer                       :: numFileFound
+    integer                       :: maxNumSat
+    integer                       :: channelOffset
+    integer                       :: maxNumChan
+    integer                       :: MaxNumTest
+    integer                       :: get_max_rss
+
+    namelist /nambgck/instName, glmg_file, statsFile, &
+                      clwQcThreshold, allowStateDepSigmaObs, &
+                      useUnbiasedObsForClw, debug, RESETQC,  &
+                      maxNumSat, channelOffset,  maxNumTest, &
+                      maxNumChan
+    write(*,*) ' MWBG QC PROGRAM STARTS ....'
+    ! reading nambgck namelist
+    nulnam = 0
+    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam, nml=nambgck, iostat=ier)
+    if ( ier /= 0 ) then
+      call utl_abort('midas_bgckmw: Error reading nambgck namelist')
+    end if
+    write(*,nml=nambgck)
+    ier = fclos(nulnam)
+
+    mwbg_debug = debug
+    mwbg_clwQcThreshold = clwQcThreshold
+    mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
+    mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
+    mwbg_maxNumChan = maxNumChan
+    mwbg_maxNumSat  = maxNumSat
+    mwbg_maxNumTest = maxNumTest
+
+    ! Allocate some variables
+    call utl_reAllocate(IUTILST,mwbg_maxNumChan,mwbg_maxNumSat)
+    call utl_reAllocate(TOVERRST,mwbg_maxNumChan,mwbg_maxNumSat)
+    call utl_reAllocate(sigmaObsErr,mwbg_maxNumChan,mwbg_maxNumSat,2)
+    call utl_reAllocate(clwThreshArr,mwbg_maxNumChan,mwbg_maxNumSat,2)
+    call utl_reAllocate(useStateDepSigmaObs,mwbg_maxNumChan,mwbg_maxNumSat)
+    call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
+    call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
+
+    !#################################################################################
+    ! Lecture des statistiques d'erreur totale pour les  TOVS
+    !#################################################################################
+    call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST, &
+                           sigmaObsErr, clwThreshArr, useStateDepSigmaObs)
+
+    !Quality Control loop over all observations
+    !
+    ! loop over all header indices of the specified family with surface obs
+    numObsToProcess = 1
+    numChannelUsed = maxNumChan - channelOffset
+
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( .not. ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
+                   (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ATM or AMSUA'
+        cycle HEADER
+      end if
+      write(*,*) ' ==> mwbg_readObsFromObsSpace: '
+      !###############################################################################
+      ! STEP 1) read obs from obsSpacedata to start QC                               !
+      !###############################################################################
+
+      call mwbg_readObsFromObsSpace(instName, headerIndex, channelOffset, &
+                                   satIdentifier, satZenithAngle,landQualifierIndice, &
+                                   terrainTypeIndice, obsLatitude, obsLongitude,      &
+                                   satScanPosition, obsQcFlag1, satOrbit,             &
+                                   obsGlobalMarker, burpFileSatId, obsTb,             &
+                                   obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
+                                   obsFlags, obsSpaceData)
+
+      !###############################################################################
+      ! STEP 2) trouver l'indice du satellite                                        !
+      !###############################################################################
+      write(*,*) ' ==> mwbg_findSatelliteIndex: '
+      call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
+
+      !###############################################################################
+      ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
+      !###############################################################################
+      write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
+                                                  obsLongitude, modelInterpTerrain,     &
+                                                  modelInterpGroundIce, modelInterpSeaIce)
+
+      !###############################################################################
+      ! STEP 4) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
+      !###############################################################################
+
+      write(*,*) ' ==> mwbg_tovCheck For: ', instName
+      if (instName == 'AMSUA') then
+        call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                IUTILST, satIdentifier, landQualifierIndice,&
+                                satOrbit, obsChannels, obsTb, obsTbBiasCorr, &
+                                ompTb, qcIndicator, numChannelUsed, numObsToProcess,       &
+                                satIndexObserrFile, &
+                                satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
+                                modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
+                                obsGlobalMarker, obsFlags, newInformationFlag, cloudLiquidWaterPath,       &
+                                atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
+                                RESETQC, obsLatitude)
+      else if (instName == 'ATMS') then
+        call mwbg_tovCheckAtms(TOVERRST, IUTILST,glmg_file, obsLatitude, obsLongitude,&
+                               landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
+                               obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
+                               obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
+                               qcIndicator, numChannelUsed,          &
+                               numObsToProcess, satIndexObserrFile,          &
+                               newInformationFlag, satScanPosition,   &
+                               modelInterpTerrain, obsGlobalMarker, obsFlags,            &
+                               cloudLiquidWaterPath,atmScatteringIndex,rejectionCodArray,&
+                               rejectionCodArray2, burpFileSatId, RESETQC)
+      else
+        write(*,*) 'midas-bgckMW: instName = ', instName
+        call utl_abort('midas-bgckMW: unknown instName')
+      end if
+      !###############################################################################
+      ! STEP 5) Accumuler Les statistiques sur les rejets
+      !###############################################################################
+      write(*,*) ' ==> mwbg_qcStats For: ', instName
+      call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,       &
+                        numChannelUsed, numObsToProcess, satelliteId, .FALSE.,         &
+                        rejectionCodArray, rejectionCodArray2)
+
+      !###############################################################################
+      ! STEP 6) Update Flags and obs in obsspace data
+      !###############################################################################
+      write(*,*) ' ==> mwbg_updateObsSpaceAfterQc : '
+      call mwbg_updateObsSpaceAfterQc(obsSpaceData, headerIndex, channelOffset, obsTb, obsFlags, &
+                                      cloudLiquidWaterPath, atmScatteringIndex,       &
+                                      obsGlobalMarker,newInformationFlag)
+
+    end do HEADER
+    !###############################################################################
+    ! STEP 7) Print the statistics in listing file 
+    !###############################################################################
+    call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,              &
+                      numChannelUsed, numObsToProcess, satelliteId,.TRUE.,rejectionCodArray,&
+                      rejectionCodArray2)
+
+  end subroutine mwbg_bgCheckMW 
 
 end module bgckmicrowave_mod

@@ -367,10 +367,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_AQF1= OBS_ORBI+1! ATMS Geolocalisation Quality Control Flag 
    integer, parameter, public :: OBS_AQF2= OBS_AQF1+1! ATMS Granule Level Quality Control Flag 
    integer, parameter, public :: OBS_AQF3= OBS_AQF2+1! ATMS Scan Level Quality Control Flag 
+   integer, parameter, public :: OBS_TTYP= OBS_AQF3+1! TERRAIN TYP INDICE for TOVS QC
+   integer, parameter, public :: OBS_INFG= OBS_TTYP+1! SATPLOT INFO FLAG for TOVS
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_AQF3
+   integer, parameter :: NHDR_INT_END = OBS_INFG
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -383,7 +385,7 @@ module ObsColumnNames_mod
          'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG',&
-         'LFLG','ORBI','AQF1','AQF2','AQF3'/)
+         'LFLG ','ORBI ','AQF1 ','AQF2 ','AQF3 ','TTYP ','INFG'/)
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -523,9 +525,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
    integer, parameter, public :: OBS_CLW   = OBS_SAZ  +1 ! cloud liquid water retrieval
    integer, parameter, public :: OBS_MWS   = OBS_CLW  +1 ! model wind speed (in ASCAT data)
+   integer, parameter, public :: OBS_SCAT   = OBS_MWS  +1! atmospheric scatering index
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_MWS
+   integer, parameter :: NHDR_REAL_END = OBS_SCAT
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -551,7 +554,7 @@ module ObsColumnNames_mod
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
-        'CLW ','MWS '/)
+        'CLW ','MWS ','SCAT '/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1454,7 +1457,7 @@ module ObsSpaceData_mod
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
    public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
    public :: OBS_LCH, OBS_RTP, OBS_HDD, OBS_HDT, OBS_TFLG, OBS_LFLG
-   public :: OBS_ORBI,OBS_AQF1, OBS_AQF2, OBS_AQF3
+   public :: OBS_ORBI,OBS_AQF1, OBS_AQF2, OBS_AQF3, OBS_TTYP, OBS_INFG
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
@@ -1476,6 +1479,7 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW, OBS_MWS
+   public :: OBS_SCAT
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_IDD, OBS_QCF2

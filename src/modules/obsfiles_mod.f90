@@ -53,7 +53,7 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-
+  public :: obsf_updateMissingObservationFlags
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -889,6 +889,39 @@ contains
     end do
 
   end subroutine obsf_addCloudParametersAndEmissivity
+
+
+  !--------------------------------------------------------------------------
+  ! obsf_updateMissingObservationFlags
+  !--------------------------------------------------------------------------
+  subroutine obsf_updateMissingObservationFlags(obsSpaceData)
+    !
+    ! :Purpose: Loop on observation files to set missing observation flags to 2048
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs)  :: obsSpaceData
+
+    ! Locals:
+    integer           :: fileIndex
+    character(len=10) :: obsFileType
+    
+    ! If obs files not split and I am not task 0, then return
+    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+    FILELOOP: do fileIndex = 1, obsf_nfiles
+      if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
+      write(*,*) 'INPUT FILE TO  obsf_updateMissingObservationFlags = ', trim( obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( trim(obsFileType) /= 'BURP' ) then
+        write(*,*) 'obsFileType = ',obsFileType
+        call utl_abort('obsf_updateMissingObservationFlags: this s/r is currently only compatible with BURP files')
+      else
+        call brpr_updateMissingObservationFlags(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+      end if
+    end do FILELOOP
+
+  end subroutine obsf_updateMissingObservationFlags
 
   !--------------------------------------------------------------------------
   ! obsf_copyObsDirectory
