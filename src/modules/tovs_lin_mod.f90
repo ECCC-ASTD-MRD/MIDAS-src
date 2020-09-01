@@ -215,7 +215,7 @@ contains
         if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle obs_loop
         headerIndex = tvs_headerIndex(tovsIndex)
         profileCount = profileCount + 1
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
         sensorHeaderIndexes(profileCount) = headerIndex
       end do obs_loop
 
@@ -687,7 +687,7 @@ contains
         end if
       end if
 
-      surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+      surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
       if ( runObsOperatorWithClw_ad ) then
         do  profileIndex = 1 , profileCount 

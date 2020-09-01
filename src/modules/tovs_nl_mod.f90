@@ -112,6 +112,7 @@ module tovs_nl_mod
   public :: tvs_isNameGeostationary
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
+  public :: tvs_ChangedStypValue
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
@@ -1738,6 +1739,31 @@ contains
   end function tvs_countRadiances
 
   !--------------------------------------------------------------------------
+  !  tvs_ChangedStypValue(obsspacedata, headerIndex)
+  !--------------------------------------------------------------------------
+  integer function tvs_ChangedStypValue(obsSpaceData, headerIndex)
+    !
+    ! :Purpose: to obtain new STYP value given observed STYP and TTYP value
+    !
+    implicit none
+    integer, intent(in)          :: headerIndex
+    type(struct_obs)             :: obsSpaceData
+    
+
+    integer :: TERRAIN_TYPE, LAND_SEA 
+
+    TERRAIN_TYPE = obs_headElem_i(obsSpaceData,TTYP,headerIndex)
+    LAND_SEA     = obs_headElem_i(obsSpaceData,STYP,headerIndex)
+
+    if ( TERRAIN_TYPE ==  0 ) then
+      tvs_ChangedStypValue = 2
+    else
+      tvs_ChangedStypValue = LAND_SEA
+    end if
+
+  end function tvs_ChangedStypValue
+
+  !--------------------------------------------------------------------------
   !  tvs_getHIREmissivities
   !--------------------------------------------------------------------------
   subroutine tvs_getHIREmissivities(sensorTovsIndexes, obsSpaceData, surfem)
@@ -1983,7 +2009,7 @@ contains
         call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_fillProfiles")
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        profiles(tovsIndex) % skin % surftype = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
+        profiles(tovsIndex) % skin % surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
@@ -2008,7 +2034,7 @@ contains
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
 
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8

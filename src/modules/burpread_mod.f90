@@ -3526,9 +3526,9 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! Is terrain type sea ice (iterrain=0)?, If so, set imask=2.
-    if ( (TERRAIN_TYPE ==  0) .and. (.not. (tvs_isIdBurpInst(CODTYP,'amsua'))) ) then 
-      LAND_SEA = 2
-    end if 
+    !if ( TERRAIN_TYPE ==  0) then 
+    !  LAND_SEA = 2
+    !end if 
 
     if ( obs_columnActive_IH(obsdat,OBS_TTYP)) call obs_headSet_i(obsdat,OBS_TTYP,nobs,TERRAIN_TYPE)
     if ( obs_columnActive_IH(obsdat,OBS_STYP)) call obs_headSet_i(obsdat,OBS_STYP,nobs,LAND_SEA)
@@ -3970,7 +3970,7 @@ CONTAINS
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2)),ind14221,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2)),ind13214,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2)),ind59182,1,tIndex)
-                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
+                  call Insert_into_burp_i(tvs_ChangedStypValue(obsSpaceData,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
 
                 else

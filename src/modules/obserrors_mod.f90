@@ -1021,7 +1021,7 @@ contains
       idate    = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
       itime    = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
-      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+      surfTypeIsWater = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
       nlev = idatend - idata + 1
 

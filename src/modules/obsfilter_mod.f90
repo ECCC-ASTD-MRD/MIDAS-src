@@ -340,7 +340,7 @@ contains
       !
       if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
         if ( tvs_isIdBurpTovs(idburp) ) then
-          ilansea  = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex )
+          ilansea  = tvs_ChangedStypValue( obsSpaceData,  headerIndex )
           if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
         end if
       end if
