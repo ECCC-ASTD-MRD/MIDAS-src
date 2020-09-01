@@ -729,7 +729,7 @@ test_rdb_avhrr () {
 
     test_rdb_avhrr_ndigits=4
     test_rdb_avhrr_npex=1
-    test_rdb_avhrr_npey=64
+    test_rdb_avhrr_npey=4
 
     typeset -Z${test_rdb_avhrr_ndigits} procx procy
     procx=${test_rdb_avhrr_npex}
