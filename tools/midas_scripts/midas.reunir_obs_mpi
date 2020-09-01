@@ -9,7 +9,7 @@ CCLARGS=${CCLARGS:-cclargs_lite}
 
 arguments=$*
 eval `${CCLARGS} -D "" $0 \
-  -obsin         "" "" "[input observation directory (where 'obsfiles_*.updated directories are)]"  \
+  -obsin         "" "" "[input observation directory (where observations input directories are)]"  \
   -obsout        "" "" "[output observation directory]" \
   -number_of_families_already_processed  "0"   "0" "[Number of families already process by a previous MPI run (default: 0)]" \
   -families2process  ""   "" "[List of families extension to be processed]" \
@@ -63,7 +63,7 @@ if [ -z "${fam}" ]; then
 fi
 ${echo_cmd} "fam=${fam} will be processed"
 
-files="$(${ls_cmd} -1 ${obsin}/${fam}.updated/* | ${grep_cmd} -v num_headers || ${true_cmd})"
+files="$(${ls_cmd} -1 ${obsin}/${fam}/* | ${grep_cmd} -v num_headers || ${true_cmd})"
 [ -z "${files}" ] && exit 0
 
 [ -f ${fam}.all.original ] && ${rm_cmd} -f ${fam}.all.original
@@ -148,15 +148,15 @@ EOF
 	        ;;
         esac
     else
-        ${mv_cmd} ${fam}.1resrec ${fam}
+        ${mv_cmd} ${fam}.1resrec ${fam}.obs
     fi
 elif [ "${filetype}" = SQLite ]; then
-    rdbout=${fam}
+    rdbout=${fam}.obs
     ## on copie le schema de la base de donnees
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -i -sq 'CREATE TABLE rdb4_schema' || status=1
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE rdb4_schema' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
@@ -166,7 +166,7 @@ EOF
     fi
 
     status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -i -sq 'CREATE TABLE resume' || status=1
+    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE resume' || status=1
     if [ "${status}" -eq 0 ]; then
         ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
@@ -205,7 +205,12 @@ else
     exit 1
 fi
 
-${cp_cmd} ${fam} ${obsout}
+if [[ "${fam}" = *.updated ]]; then
+    ${cp_cmd} ${fam}.obs ${obsout}/$(${echo_cmd} ${fam} | ${sed_cmd} 's/\.updated$//')
+else
+    ${cp_cmd} ${fam}.obs ${obsout}/${fam}
+fi
+
 cd ${MIDAS_WORKDIR}
 if [ "${fasttmp}" = yes ]; then
     ${rm_cmd} -rf ${FASTTMP}

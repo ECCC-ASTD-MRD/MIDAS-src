@@ -312,8 +312,10 @@ if [ -n "${observations}" ]; then
                 ## afile='obsto_amsua'
                 fam=${afile:3}
                 ## fam='to_amsua'
+                filename=${file##*/}
                 #########################################################
-                ${mv_cmd} ${file} ${prefix}files_${fam}.updated/${file##*/}
+                ${mv_cmd} ${file} ${prefix}files_${fam}.updated/${filename}
+                [ -f obsBeforeThinning/${filename} ] && ${mv_cmd} obsBeforeThinning/${filename} obsfiles_${fam}.beforeThinning
             fi
         done
     fi

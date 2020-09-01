@@ -399,6 +399,8 @@ EOF
 
 doCreateDiagnostics=1
 grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+doThinning=1
+grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
@@ -416,7 +418,10 @@ if [ -n "${observations}" ]; then
                 mkdir diafiles_${fam}.updated
             fi
         fi
-        if [ "${MIDAS_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
+        if [ "${doThinning}" -ne 0 ]; then
+            mkdir obsfiles_${fam}.beforeThinning
+        fi
+        if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
         fi
     done
@@ -510,9 +515,16 @@ if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
             mv $(basename ${obsfile}) obsfiles_final
         done
     else
+
+        dirext2process=.updated
+        if [ "${doThinning}" -ne 0 ]; then
+            dirext2process="${dirext2process} .beforeThinning"
+        fi
+
         ${midas_reunir_obs} -midas_reunir_obs_mpi ${midas_reunir_obs_mpi} \
             -obsin            ${PWD}                                      \
             -obsout           ${PWD}/obsfiles_final                       \
+            -dirext2process   ${dirext2process}                           \
             -reunir_obs       ${reunir_obs}                               \
             -reunir_obs_fam   ${reunir_obs_fam}                           \
             -splitobs_mode    ${splitobs_mode}                            \
@@ -538,7 +550,14 @@ else
     mv -f flnml ..                   || true
     if [ -d obsfiles_final ]; then
         for obsfile in obsfiles_final/*; do
-            mv -f ${obsfile} ../$(basename ${obsfile} | sed 's/files_//') || true
+            if [ -f "${obsfile}" ]; then
+                mv -f ${obsfile} ../$(basename ${obsfile} | sed 's/files_//') || true
+            elif [ -d "${obsfile}" ]; then
+                filetype=$(basename ${obsfile} | cut -d_ -f2-)
+                for tobsfile in ${obsfile}/*; do
+                    mv -f ${tobsfile} ../$(basename ${tobsfile} | sed 's/files_//')_${filetype} || true
+                done
+            fi
         done
     fi
     mv -f pm1q ..                    || true
