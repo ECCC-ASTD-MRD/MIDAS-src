@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The scripts `midas.*` in the directory `tools/midas_scripts` have
+   been taught to process the files `obsfiles_${fam}.beforeThinning`
+   produced by the program `midas-obsSelection` which are equivalent
+   to the `evalalt` files (#375 and !370).
  * Added NAMTOV namelist variables (#386 and !365)
    * doAzimuthCorrection(:) and userDefinedDoAzimuthCorrection to control correction of Satellite Azimuth Angle
    * isAzimuthValid(:) and userDefinedIsAzimuthValid to specify if the azimuth in observation files is valid
