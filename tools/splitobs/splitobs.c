@@ -124,7 +124,11 @@ typedef struct {
 /*****************************************************/
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
+static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns);
+void append_id_obs_table_list_requests(char* requete_sql, char* table_list);
+
 int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
+int sqlite_get_tables_with_id_obs(char* obsin, char* table_list);
 
 int    getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 
@@ -458,12 +462,21 @@ int f77name(splitobs)(int argc, char** argv) {
 
   if ( filetype == WKF_SQLite ) {  /* Alors on traite une base de donnees SQL */
     char sqlreq_resume[MAXSTR];
+    char table_list[MAXSTR];
 
     /**********************************************************
      * Cette partie a pour but de manipuler la base de donnees SQL
      * et d'en creer une nouvelle qui ne contient que les observations a
      * l'interieur du domaine defini par la grille donnee plus haut.  
      **********************************************************/
+
+    strcpy(table_list,"");
+    status = sqlite_get_tables_with_id_obs(opt.obsin, table_list);
+    if( status != OK ) {
+      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_id_obs pour le fichier '%s'\n", status, opt.obsin);
+
+      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+    }
 
     status = sqlite_add_resume_request(opt.obsin,sqlreq_resume,"dbin");
     if( status != OK ) {
@@ -813,6 +826,9 @@ int f77name(splitobs)(int argc, char** argv) {
 
       // On ajoute la requete SQL pour copier les tables 'rdb4_schema' et 'resume'.
       strcat(requete_sql,sqlreq_resume);
+
+      append_id_obs_table_list_requests(requete_sql,table_list);
+
       strcat(requete_sql,"\ndetach dbin;");
 
       printf("\n\nVoici la requete SQL effectuee sur la base de donnees:\n");
@@ -904,7 +920,7 @@ int f77name(splitobs)(int argc, char** argv) {
                 exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
-              printf("Voici le contenu de sqlschema: '%s'", sqlschema);
+              printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
 
               status = sqlite3_close(sqldbin);
               if( status != SQLITE_OK ) {
@@ -938,15 +954,16 @@ int f77name(splitobs)(int argc, char** argv) {
 "PRAGMA  synchronous = OFF;\n"
 "attach '%s' as dbin; \n"
 "insert into header select * from dbin.header where id_obs %% %d = %d;\n"
-"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s"
-"\ndetach dbin;"
+"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s\n",
 /* "insert into header select * from dbin.header where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "insert into data   select * from dbin.data   where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "CREATE TABLE rdb4_schema( schema  varchar(9) );\n" */
 /* "insert into rdb4_schema values('${TYPE}');\n" */
 /* "create table resume(date integer , time integer , run varchar(9)) ;\n" */
 /* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
-                  , opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
+                  opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
+          append_id_obs_table_list_requests(requete_sql,table_list);
+          strcat(requete_sql,"detach dbin;");
 
           printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
           printf("%s\n", requete_sql);
@@ -2468,6 +2485,177 @@ static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_
 
 
   /***************************************************************************
+   * fonction: sqlite_get_tables_with_id_obs
+   *
+   * Trouve les tables qui contiennent une colonne 'id_obs'
+   *
+   ***************************************************************************/
+int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
+  int status;
+  char *ErrMsg;
+  sqlite3 *sqldbin;
+
+  /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
+  /* On ouvre le fichier d'input */
+  status = sqlite3_open(obsin,&sqldbin);
+  if ( status != SQLITE_OK ) {
+    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
+
+    status = sqlite3_close(sqldbin);
+    if( status != SQLITE_OK )
+      fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+
+    return NOT_OK;
+  } /* Fin du 'if ( status != SQLITE_OK )' */
+
+  strcpy(table_list,"");
+
+  /* Execution de la requete SQL sur la base de donnees */
+  /* Since the table 'header' and 'data' are already processed in the main */
+  /*   request, we must not process them again when adding tables which */
+  /*   contains a column 'id_obs'. */
+  status = sqlite3_exec(sqldbin, "select * from sqlite_master where lower(name) not in ('header','data');", sqlite_check_tables_with_id_obs_callback, table_list, &ErrMsg);
+  if( status != SQLITE_OK ) {
+    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+    sqlite3_free(ErrMsg);
+
+    return NOT_OK;
+  } /* Fin du 'if ( status != SQLITE_OK )' */
+
+
+  status = sqlite3_close(sqldbin);
+  if( status != SQLITE_OK ) {
+    fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+
+    return NOT_OK;
+  }
+
+  return OK;
+}
+
+
+  /***************************************************************************
+   * fonction: sqlite_check_tables_with_id_obs_callback
+   *
+   * Cette fonction sert de 'callback' pour la requete executee par 'sqlite3_exec'.
+   *    On veut savoir si elle contient les tables 'rdb4_schema' et 'resume'
+   *
+   ***************************************************************************/
+static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns) {
+  int idx, isTypeTable, foundID_OBS;
+  char table_name[MAXSTR];
+
+  isTypeTable = 0;
+  for (idx = 0; idx < count; idx++) {
+    if (strcasecmp(columns[idx],"type")==0)
+      if (strcasecmp(data[idx],"table")==0)
+        isTypeTable = 1;
+  }
+
+  if (isTypeTable == 0) return 0;
+
+  strcpy(table_name,"");
+  foundID_OBS=0;
+  for (idx = 0; idx < count; idx++) {
+    if (strcasecmp(columns[idx],"tbl_name")==0)
+      strcpy(table_name,data[idx]);
+    else if(strcasecmp(columns[idx],"sql")==0) {
+      // Ici, on regarde si 'id_obs' est contenu dans 'data[idx]' qui est de la forme:
+      //       CREATE TABLE DATA (
+      //       ID_DATA integer primary key   ,
+      //       ID_OBS integer,
+      //       BURP_BTYP integer,
+      //       VCOORD integer,
+      //       VARNO integer,
+      //       VCOORD_TYPE integer,
+      //       OBSVALUE real,
+      //       BIAS_CORR real,
+      //       SURF_EMISS real,
+      //       CLOUD_EMISS real,
+      //       FLAG integer,
+      //       OMP real,
+      //       OMA real,
+      //       OBS_ERROR real,
+      //       FG_ERROR real,
+      //       TEMP_RAD_LOG10 real,
+      //       CHAN_QC_FLAG integer,
+      //       FSO real
+      //       )
+
+      regex_t regex;
+      char regex_errbuf[MAXSTR];
+      int regex_err;
+
+      regex_err = regcomp(&regex, "id_obs", REG_ICASE);
+      if (regex_err!=0) {
+	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+        fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: cannot compile regular expression '%s': error '%s'", "id_obs", regex_errbuf);
+        return 1;
+      }
+      regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
+      if (regex_err == 0) {
+        // This means that there was a match
+        foundID_OBS=1;
+      }
+      else if (regex_err == REG_NOMATCH) {
+        foundID_OBS=0;
+      }
+      else {
+	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+        regfree(&regex);
+	fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
+        return 1;
+      }
+
+      regfree(&regex);
+    }
+  }
+
+  if (foundID_OBS) {
+    if (strlen(table_name)>0) {
+      if (strlen((char*) table_list)>0) {
+        strcat((char*) table_list, " ");
+      }
+      strcat((char*) table_list, table_name);
+    }
+    else {
+      fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d but table_name is empty", foundID_OBS);
+      return 1;
+    }
+  }
+
+  return 0;
+} /* End of function 'sqlite_check_tables_with_id_obs_callback' */
+
+
+  /***************************************************************************
+   * fonction: append_id_obs_table_list_requests
+   *
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les
+   * tables supplementaires autres que 'header' et 'data' mais qui ont
+   * 'id_obs' comme colonne.
+   *
+   ***************************************************************************/
+void append_id_obs_table_list_requests(char* requete_sql, char* table_list) {
+  const char separator_char[2] = " ";
+  char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
+  char *token;
+
+  // Make a copy of 'table_list' input string because 'strtok' is changing in place that string
+  strcpy(table_list_tmp,table_list);
+  /* get the first token */
+  token = strtok(table_list_tmp, separator_char);
+  /* walk through other tokens */
+  while( token != (char*) NULL ) {
+    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
+    strcat(requete_sql,sqlreqtmp);
+    token = strtok((char*) NULL, separator_char);
+  }
+  // On a termine d'ajouter les requetes pour les autres tables
+}
+
+
+/***************************************************************************
    * fonction: getGZ
    *
    * Cette fonction sert a aller chercher le champ GZ dans le fichier donne

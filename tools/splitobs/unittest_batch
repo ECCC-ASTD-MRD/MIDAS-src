@@ -69,4 +69,3 @@ EOF
         echo "All the tests have been successfully run for '${test2run}'"
     fi
 done
-
