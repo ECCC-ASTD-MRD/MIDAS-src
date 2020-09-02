@@ -8,11 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * When `midas.splitobs` is splitting an observation file into equal
-   parts we process not only the tables `header` and `data` but all
-   the tables containing `id_obs` as a key and we split them in the
-   same way as `header` and `data` (#376 and !371).
- * The scripts `midas.*` in the directory `tools/midas_scripts` have
+ * When `midas.splitobs` is splitting an SQLite observation file into
+   equal parts, we not only process the tables `header` and `data` but
+   all the tables containing `id_obs` as a key and we split them in
+   the same way as `header` and `data` (#376 and !371).
+* The scripts `midas.*` in the directory `tools/midas_scripts` have
    been taught to process the files `obsfiles_${fam}.beforeThinning`
    produced by the program `midas-obsSelection` which are equivalent
    to the `evalalt` files (#375 and !370).
