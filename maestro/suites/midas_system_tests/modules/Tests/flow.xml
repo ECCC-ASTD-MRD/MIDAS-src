@@ -134,6 +134,16 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckAtms"/>
+    <FAMILY  name="BgckAtms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="BgckAmsua"/>
+    <FAMILY  name="BgckAmsua">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="conv"/>
     <FAMILY  name="conv">
       <SUBMITS sub_name="UnitTest"/>
@@ -161,16 +171,6 @@
     </FAMILY>
     <SUBMITS sub_name="select_AL"/>
     <FAMILY  name="select_AL">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="bgckAtms"/>
-    <FAMILY  name="bgckAtms">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="bgckAmsua"/>
-    <FAMILY  name="bgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
