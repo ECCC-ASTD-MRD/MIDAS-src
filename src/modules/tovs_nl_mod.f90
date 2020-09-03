@@ -1752,8 +1752,8 @@ contains
 
     integer :: TERRAIN_TYPE, LAND_SEA 
 
-    TERRAIN_TYPE = obs_headElem_i(obsSpaceData,TTYP,headerIndex)
-    LAND_SEA     = obs_headElem_i(obsSpaceData,STYP,headerIndex)
+    TERRAIN_TYPE = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
+    LAND_SEA     = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
 
     if ( TERRAIN_TYPE ==  0 ) then
       tvs_ChangedStypValue = 2

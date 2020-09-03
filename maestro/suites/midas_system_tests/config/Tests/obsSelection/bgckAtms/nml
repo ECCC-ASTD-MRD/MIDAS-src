@@ -1,7 +1,6 @@
  &NAMBGCK
   instName = 'ATMS'
   glmg_file  = './fstglmg'
-  statsFile = './stats_atms_assim'
   debug = .false.
   RESETQC = .false.
   maxNumSat  = 2
@@ -10,7 +9,7 @@
   maxNumChan = 22
 /
  &namObsSelection
-  doThinning = .true.
+  doThinning = .false.
 /
  &NAMDIMO
    NMXOBS=100000,

@@ -35,6 +35,7 @@ module bgckmicrowave_mod
   use horizontalCoord_mod
   use analysisGrid_mod
   use obsUtil_mod
+  use obsErrors_mod
 
   implicit none
   save
@@ -43,10 +44,8 @@ module bgckmicrowave_mod
   ! Public functions/subroutines
 
   ! common functions/subroutines
-  public :: mwbg_readStatTovs
   public :: mwbg_qcStats
   public :: mwbg_readGeophysicFieldsAndInterpolate
-  public :: mwbg_findSatelliteIndex
   public :: mwbg_readObsFromObsSpace
   public :: mwbg_updateObsSpaceAfterQc
   public :: mwbg_bgCheckMW
@@ -927,10 +926,10 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)      ! rogue factor 
-    real,        intent(in)                :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)      !  erreur totale TOVs
-    integer,     intent(in)                :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat)  !  erreur totale TOVs
-    real,        intent(in)                :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat, 2) ! cloud threshold err
-    real,        intent(in)                :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat, 2) ! sigma obs  err
+    real(8),     intent(in)                :: TOVERRST(:,:)      !  erreur totale TOVs
+    integer,     intent(in)                :: useStateDepSigmaObs(:,:)  !  erreur totale TOVs
+    real(8),     intent(in)                :: clwThreshArr(:,:,:) ! cloud threshold err
+    real(8),     intent(in)                :: sigmaObsErr(:,:,:) ! sigma obs  err
     integer,     intent(in)                :: ktermer(KNT)              !
     real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
     real,        intent(in)                :: clw_avg(KNT)                 ! cloud liquid water avg 
@@ -953,7 +952,6 @@ contains
     real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
     logical                                :: surfTypeIsWater
-
 
     testIndex = 14
     do nDataIndex=1,KNT
@@ -982,13 +980,13 @@ contains
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
             rejectionCodArray(testIndex,channelval,KNOSAT) = &
                 rejectionCodArray(testIndex,channelval,KNOSAT) + 1 
-            if ( mwbg_debug ) then
+            !if ( mwbg_debug ) then
               write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                       ' OBS = ',nDataIndex, &
                       ' CHANNEL= ',channelval, &
                       ' CHECK VALUE= ',XCHECKVAL, &
                       ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex)
-            end if
+            !end if
             if ( channelval .EQ. 28 .OR. &
                  channelval .EQ. 29 .OR. &
                  channelval .EQ. 30      ) then
@@ -1043,7 +1041,7 @@ contains
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     integer,     intent(in)                :: ITERRAIN(KNT)                  ! terrain type
     real  ,      intent(in)                :: GLINTRP(KNT)                   ! gl
-    integer,     intent(in)                :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)          !  channel selection
+    integer,     intent(in)                :: IUTILST(:,:)          !  channel selection
     integer,     intent(in)                :: MXSFCREJ2                       ! cst 
     integer,     intent(in)                :: ISFCREJ2(MXSFCREJ2)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1055,7 +1053,7 @@ contains
     integer                                :: nChannelIndex
     integer                                :: testIndex
     integer                                :: ITRN 
-    integer                                :: INDXCAN 
+    integer                                :: INDXCAN
     real                                   :: XCHECKVAL
     logical                                :: SFCREJCT
 
@@ -1196,14 +1194,14 @@ contains
     !                  - **) set terrain type to sea ice given certain conditions
     implicit none 
     !Arguments:
-    integer, intent(in)                    :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat) !channel Selection using array IUTILST(chan,sat)
+    integer, intent(in)                    :: IUTILST(:,:)       !channel Selection using array IUTILST(chan,sat)
     !                                                               IUTILST = 0 (blacklisted)
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
-    real, intent(in)                       :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
-    real, intent(in)                       :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2)  ! 
-    real, intent(in)                       :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2)   ! 
-    integer, intent(in)                    :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
+    real(8), intent(in)                    :: TOVERRST(:,:)            ! l'erreur totale des TOVS
+    real(8), intent(in)                    :: clwThreshArr(:,:,:)       ! 
+    real(8), intent(in)                    :: sigmaObsErr(:,:,:)        ! 
+    integer, intent(in)                    :: useStateDepSigmaObs(:,:)     !
 
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
@@ -1305,7 +1303,6 @@ contains
     logical                                :: FULLREJCT
     logical                                :: SFCREJCT
     logical, save                          :: LLFIRST
-
 
     LLFIRST = .TRUE.
     EPSILON = 0.01
@@ -1514,7 +1511,7 @@ contains
     integer, intent(in)                    :: KNOSAT                             ! numero d'identificateur du satellite
     integer, intent(in)                    :: KNO                                ! nombre de canaux des observations 
     integer, intent(in)                    :: KNT                                ! nombre de tovs
-    character *9, intent(in)               :: satelliteId(:)                     ! identificateur du satellite
+    character(len=15), intent(in)          :: satelliteId(:)                     ! identificateur du satellite
     logical, intent(in)                    :: LDprint                            ! mode: imprimer ou cumuler?
     !Locals
     integer                                :: numSats
@@ -2087,294 +2084,6 @@ contains
 
   end subroutine GRODY
 
-  !--------------------------------------------------------------------------
-  !  mwbg_readStatTovs
-  !--------------------------------------------------------------------------
-  subroutine mwbg_readStatTovs(statFileName, instName, satelliteId, IUTILST, TOVERRST, &
-                               sigmaObsErr, clwThreshArr, useStateDepSigmaObs)
-    !:Purpose:       Lire les statistiques de l'erreur totale pour les TOVS.
-    !
-    implicit none
-    !Arguments:
-    character(*), intent(in) :: statFileName  ! fichier stats des TOVS
-    character(*), intent(in) :: instName      ! Instrument Name
-    character(len = 9), allocatable, intent(out) :: satelliteId(:)       ! Identificateur de satellite 
-    integer,                         intent(out) :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat) ! channel Selection using array IUTILST(chan,sat)
-    !                                                                      IUTILST = 0 (blacklisted)
-    !                                                                      1 (assmilate)
-    !                                                                      2 (assimilate over open water only)
-
-    real,                         intent(out) :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)    ! l'erreur totale des TOVS
-    real,                         intent(out) :: sigmaObsErr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
-    real,                         intent(out) :: clwThreshArr(mwbg_maxNumChan,mwbg_maxNumSat,2) ! 
-    integer,                      intent(out) :: useStateDepSigmaObs(mwbg_maxNumChan,mwbg_maxNumSat) !
- 
-    !Locals
-
-    integer :: iunStat,ILUTOV
-    integer :: ier 
-    integer :: ISTAT 
-    integer :: fnom 
-    integer :: satNumber 
-    integer :: jpnsatIndex
-    integer :: jpnchanIndex
-    integer, parameter :: casesNum = 2
-    integer :: satIndex 
-    integer :: casesIndex 
-    integer :: alloc_status 
-    integer :: NCHNA(mwbg_maxNumSat)
-    integer :: MLISCHNA(mwbg_maxNumChan,mwbg_maxNumSat)
-    real*8  :: tovErrorIn(mwbg_maxNumChan,2,mwbg_maxNumSat)
-    real    :: tovErrorStatus(mwbg_maxNumChan,mwbg_maxNumSat)
-    integer :: channelInNum(mwbg_maxNumSat)
-    integer :: ICHNIN(mwbg_maxNumChan,mwbg_maxNumSat) 
-    integer :: channelInNum2(mwbg_maxNumSat)
-    integer :: identifSatId(mwbg_maxNumSat)
-    real*8  :: ZDUM
-    integer :: NUMCHNIN2, ISATID2, JI, JL  
-    character(132) :: CLDUM
-    character(132) :: CSATID2
-    character(17) :: CSATSTR 
-    integer :: INUMSAT, INUMSAT2, INDX, IPOS
-    character(12)  :: satelliteStatsType(casesNum)
-
-    DATA satelliteStatsType     / 'Monitoring',  'Assimilation'  /  
-    
-    iunStat = 0
-    ier = fnom(iunStat,statFileName,'SEQ+FMT',0)
-    if (ier .LT. 0) then
-      call utl_abort ('bgckMicrowave_mod: Problem opening TOVS total error statistics file '//trim(statFileName))
-    end if
-
-
-
-    write(*,FMT=9000)
-9000 FORMAT(//,10x,"-mwbg_readStatTovs: reading total error statistics" &
-          ," required for TOVS processing")
-
-    ! 1. Initialize
-100  CONTINUE
-    do jpnsatIndex = 1, mwbg_maxNumSat
-      NCHNA(jpnsatIndex) = 0
-      channelInNum(jpnsatIndex) = 0
-      identifSatId(jpnsatIndex) = 0
-      do jpnchanIndex = 1, mwbg_maxNumChan
-        ICHNIN(jpnchanIndex,jpnsatIndex) = 0
-        tovErrorIn(jpnchanIndex,1,jpnsatIndex) = 0.0
-        tovErrorIn(jpnchanIndex,2,jpnsatIndex) = 0.0
-        IUTILST (jpnchanIndex,jpnsatIndex) = 0
-        tovErrorStatus(jpnchanIndex,jpnsatIndex) = 0.0
-        TOVERRST(jpnchanIndex,jpnsatIndex) = 0.0
-      end do
-    end do
-
-    ! 2. Open the file
-200  CONTINUE
-    ! .... not done here anymore, jh, august 2000
-
-    ! 3. Print the file contents
-300  CONTINUE
-
-    write(*,'(20X,"ASCII dump of stats_tovs file: "//)')
-    do jpnchanIndex = 1, 9999999
-      read (iunStat,'(A)',ERR=900,end=400) CLDUM
-      write(*,'(A)')   CLDUM
-    end do
-
-    ! 4. Read number of satellites
-400  CONTINUE
-
-    rewind(iunStat)
-    read (iunStat,*,ERR=900)
-    read (iunStat,*,ERR=900) satNumber
-    read (iunStat,*,ERR=900)
-    alloc_status = 0
-    if (allocated(satelliteId)) deallocate(satelliteId)
-    allocate(satelliteId(satNumber), stat=alloc_status)
-    if (alloc_status /= 0) then
-      call utl_abort('bgckMicrowave_mod: ERROR - allocate(satelliteId) in mwbg_readStatTovs')
-    end if
-
-    ! 5. Read the satellite identification, the number of channels,
-    ! the observation errors and the utilization flags
-
-    do jpnsatIndex = 1, satNumber
-      read (iunStat,*,ERR=900)
-      read (iunStat,'(A)',ERR=900) CLDUM
-      CSATSTR = TRIM(ADJUSTL(CLDUM))
-
-      ! Get satellite (e.g. NOAA18) from satellite/instrument (e.g. NOAA18 AMSUA)
-      INDX = INDEX(CSATSTR, instName)
-      if ( INDX .GT. 3 ) then
-        if ( (instName == 'AMSUA') .and. ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) ) then
-          satelliteId(jpnsatIndex) = 'AQUA'
-        else
-          IPOS = INDX-2
-          satelliteId(jpnsatIndex) = CSATSTR(1:IPOS)
-        end if
-      else
-        write ( *,*) '(" mwbg_readStatTovs: Non- "', instName, &
-                   ' instrument found in stats file!")'
-        write ( *,'(A)' ) CLDUM
-        call utl_abort ('bgckMicrowave_mod:  mwbg_readStatTovs No instrument found in stats file for '//trim(instName))
-      end if
-      read (iunStat,*,ERR=900)
-      read (iunStat,*,ERR=900) identifSatId(jpnsatIndex), channelInNum(jpnsatIndex)
-      do jpnchanIndex = 1, 3
-        read (iunStat,*,ERR=900)
-      end do
-
-      ! Set errors to ERRBGCK column values
-      do jpnchanIndex = 1, channelInNum(jpnsatIndex)
-        read (iunStat,*,ERR=900) ICHNIN(jpnchanIndex,jpnsatIndex), &
-                  tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),1,jpnsatIndex), &
-                  tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),2,jpnsatIndex), &
-                  IUTILST (ICHNIN(jpnchanIndex,jpnsatIndex),jpnsatIndex), ZDUM
-        TOVERRST(ICHNIN(jpnchanIndex,jpnsatIndex),jpnsatIndex) = tovErrorIn(ICHNIN(jpnchanIndex,jpnsatIndex),1,jpnsatIndex)
-      end do
-      read (iunStat,*,ERR=900)
-    end do
-510  CONTINUE
-    ! 6. Print error stats for assimilated channels
-
-600  CONTINUE
-
-    write(*,'(//5X,"Total errors for TOVS data"/)') 
-    do jpnsatIndex = 1, satNumber
-      INDX = 0
-      do jpnchanIndex = 1, mwbg_maxNumChan
-        if ( IUTILST(jpnchanIndex,jpnsatIndex) .NE. 0 ) then
-          NCHNA(jpnsatIndex) = NCHNA(jpnsatIndex) + 1
-          INDX = INDX + 1
-          MLISCHNA(INDX,jpnsatIndex) = jpnchanIndex
-        end if
-      end do
-      do casesIndex = 1, CasesNum
-        write(*,'(/7X,"Satellite: ",A,5X,A)') &
-          satelliteId(jpnsatIndex), satelliteStatsType(casesIndex)
-        write(*,'(7X,"Channels   : ",30(T22,27I4/))') & 
-         (MLISCHNA(jpnchanIndex,jpnsatIndex),jpnchanIndex=1,NCHNA(jpnsatIndex))
-        write(*,'(7X,"Total errors: ",30(T22,27f4.1/))') &
-         (tovErrorIn(MLISCHNA(jpnchanIndex,jpnsatIndex),casesIndex,jpnsatIndex), &
-          jpnchanIndex=1,NCHNA(jpnsatIndex))
-      end do
-    end do
-     
-    ! 7. Close the file
-700  CONTINUE
-    ISTAT = FCLOS (iunStat)
-    ! read in the parameters to define the user-defined symmetric obs errors
-    if ( mwbg_allowStateDepSigmaObs ) then
-      IER = FNOM(ILUTOV,'stats_amsua_assim_symmetricObsErr','SEQ+FMT',0)
-
-      IF (IER < 0) THEN
-        WRITE (*,*) 'bgckMW: Problem opening TOVS total error statistics file: ', &
-                    'stats_amsua_assim_symmetricObsErr'
-        CALL ABORT()
-      END IF
-
-      WRITE(*,*) 'mwbg_readStatTovs: reading total error statistics required for ', &
-                'TOVS processing from stats_amsua_assim_symmetricObsErr'
-
-      ! Initialize
-      INUMSAT2 = 0
-      channelInNum2(:) = 0
-      NUMCHNIN2 = 0
-      ISATID2 = 0
-      sigmaObsErr(:,:,:) = 0.0
-      clwThreshArr(:,:,:) = 0.0
-      useStateDepSigmaObs(:,:) = 0
-
-      ! Print the file contents
-      WRITE(*,*) 'ASCII dump of stats_tovs file:'
-      DO JI = 1, 9999999
-        READ (ILUTOV,'(A)',ERR=900,END=500) CLDUM
-        WRITE(*,'(A)')   CLDUM
-      ENDDO
-500   CONTINUE
-
-      ! Read number of satellites
-      REWIND(ILUTOV)
-      READ (ILUTOV,*,ERR=900)
-      READ (ILUTOV,*,ERR=900) INUMSAT2
-      READ (ILUTOV,*,ERR=900)
-
-      if ( INUMSAT2 /= INUMSAT ) then
-        write(*,*) 'mwbg_readStatTovs: problem with INUMSAT2 in symmetricObsErr file!'
-        call abort()
-      end if
-
-      ! Read the satellite identification, the number of channels,
-      ! the observation errors and the utilization flags
-      DO JL = 1, INUMSAT2
-        READ (ILUTOV,*,ERR=900)
-        READ (ILUTOV,'(A)',ERR=900) CLDUM
-        CSATSTR = TRIM(ADJUSTL(CLDUM))
-
-        ! Get satellite (e.g. NOAA18) from satellite/instrument (e.g. NOAA18 AMSUA)
-        INDX = INDEX(CSATSTR,'AMSUA')
-        IF ( INDX .GT. 3 ) THEN
-          IF ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) THEN
-            CSATID2 = 'AQUA'
-          ELSE
-            IPOS = INDX-2
-            CSATID2 = CSATSTR(1:IPOS)
-          ENDIF
-        ELSE
-          WRITE (*,*) 'mwbg_readStatTovs: Non-AMSUA instrument found in symmetricObsErr file!'
-          WRITE (*,'(A)') CLDUM
-          CALL ABORT()
-        ENDIF
-
-        if ( CSATID2 /= satelliteId(JL) ) then
-          write(*,*) 'mwbg_readStatTovs: problem with CSATID2 in symmetricObsErr file!'
-          call abort()
-        end if
-
-        READ (ILUTOV,*,ERR=900)
-        READ (ILUTOV,*,ERR=900) ISATID2, NUMCHNIN2
-
-        if ( ISATID2 /= identifSatId(JL) .or. NUMCHNIN2 /= channelInNum(JL) ) then
-          write(*,*) 'mwbg_readStatTovs: problem with ISATID2, NUMCHNIN2 in symmetricObsErr file!'
-          call abort()
-        end if
-
-        DO JI = 1, 3
-          READ (ILUTOV,*,ERR=900)
-        ENDDO
-
-        ! Set errors to ERRBGCK column values
-        DO JI = 1, NUMCHNIN2
-          READ (ILUTOV,*,ERR=900) channelInNum2(JI), &
-                    clwThreshArr(channelInNum2(JI),JL,1), &
-                    clwThreshArr(channelInNum2(JI),JL,2), &
-                    sigmaObsErr(channelInNum2(JI),JL,1), &
-                    sigmaObsErr(channelInNum2(JI),JL,2), &
-                    useStateDepSigmaObs(channelInNum2(JI),JL)
-
-          if ( channelInNum2(JI) /= ICHNIN(JI,JL) ) then
-            write(*,*) 'mwbg_readStatTovs: problem with channelInNum2 in symmetricObsErr file!'
-            call abort()
-          end if
-        ENDDO
-        READ (ILUTOV,*,ERR=900)
-      ENDDO
-
-      ! Close the file
-      istat = fclos(ILUTOV)
-
-    end if
-
-    
-    return
-
-    ! Read error
-900   write ( *, '(" mwbg_readStatTovs: Problem reading ", &
-                     "TOVS total error stats file ")' ) 
-    ISTAT = FCLOS (iunStat)
-    call utl_abort ('bgckMicrowave_mod:  mwbg_readStatTovs Problem reading TOVS total error stats file')
-
-  end subroutine mwbg_readStatTovs
 
   !--------------------------------------------------------------------------
   !  atmsTest1Flagbit7Check
@@ -2573,7 +2282,7 @@ contains
     integer,     intent(in)              :: KNT                            ! nombre de tovs
     character *9,intent(in)              :: STNID                          ! identificateur du satellite
     real,        intent(in)              :: ROGUEFAC(mwbg_maxNumChan)                  ! rogue factor 
-    real,        intent(in)              :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)          !  erreur totale TOVs
+    real(8),     intent(in)              :: TOVERRST(:,:)          !  erreur totale TOVs
     real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident  
     integer,     intent(in)              :: MXSFCREJ                       ! cst 
@@ -2596,7 +2305,6 @@ contains
     logical                              :: SFCREJCT
     logical                              :: CH2OMPREJCT
     logical                              :: IBIT 
-
 
     testIndex = 4
     if ( itest(testIndex) .eq. 1 ) then
@@ -2703,7 +2411,7 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     integer,     intent(in)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(in)               :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)          !  channsl selection
+    integer,     intent(in)               :: IUTILST(:,:)          !  channsl selection
     integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)            :: rejectionCodArray(:,:,:)       ! cumul of reject element 
 
@@ -2758,12 +2466,12 @@ contains
  
     implicit none 
     !Arguments
-    integer, intent(in)              :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat) !channel Selection using array IUTILST(chan,sat)
+    integer, intent(in)              :: IUTILST(:,:) !channel Selection using array IUTILST(chan,sat)
     !                                                         IUTILST = 0 (blacklisted)
     !                                                         1 (assmilate)
     !                                                         2 (assimilate over open water only)
 
-    real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)      ! l'erreur totale des TOVS
+    real(8), intent(in)              :: TOVERRST(:,:)      ! l'erreur totale des TOVS
     character(len=128), intent(in)   :: glmg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs
@@ -3367,35 +3075,6 @@ contains
       end if
     end do
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
-
-  !--------------------------------------------------------------------------
-  !   mwbg_findSatelliteIndex
-  !--------------------------------------------------------------------------
-  subroutine mwbg_findSatelliteIndex(STNID, satelliteId, INOSAT)
-    !:Purpose: Find the STNID Index in the satelliteId array
-
-    ! Arguments:
-    character(len=9), intent(in)  :: STNID
-    character(len=9), intent(in)  :: satelliteId(:)
-    integer,          intent(out) :: INOSAT 
-    ! Locals
-    integer                       :: satIndex   
-    integer                       :: numSats 
-    ! trouver l'indice du satellite
-    numSats = size(satelliteId)
-    INOSAT = 0
-    do satIndex = 1, numSats
-      if ( trim(STNID) .EQ. '^'//satelliteId(satIndex) ) then
-        INOSAT = satIndex
-        write(*,*)' SATELLITE = ', STNID
-        write(*,*)'    INOSAT = ', INOSAT
-      end if
-    end do 
-    if ( INOSAT .EQ. 0 ) then
-      call utl_abort('bgckMicrowave_mod:  IN STATS FILE No satellite '//trim(STNID))
-    end if
-
-  end subroutine mwbg_findSatelliteIndex
 
   !--------------------------------------------------------------------------
   !  mwbg_landIceMaskAtms
@@ -4582,7 +4261,7 @@ contains
   subroutine mwbg_readObsFromObsSpace(instName, headerIndex, channelOffset, satIdentifier, satZenithAngle, landQualifierIndice, &
                                       terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
                                       obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                      obsFlags, obsSpaceData)
+                                      obsFlags, sensorIndex, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -4609,6 +4288,7 @@ contains
     integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
     integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
     integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
+    integer,              intent(out)    :: sensorIndex     ! find tvs_sensor index corresponding to current obs
 
     type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
 
@@ -4622,6 +4302,12 @@ contains
     integer                              :: channelIndex
     integer                              ::  numChannelUsed      
     integer                              :: numObsToProcess       
+    integer                              :: iplatform
+    integer                              :: instrum
+    integer                              :: isat, iplatf
+    integer                              :: instr
+    logical                              :: sensorIndexFound
+    integer                              :: ichannel
 
     numChannelUsed = mwbg_maxNumChan - channelOffset
     headerCompt = 1 
@@ -4690,6 +4376,25 @@ contains
     end do
     bodyCompt = bodyCompt + numChannelUsed
       
+   ! find tvs_sensor index corresponding to current obs
+
+    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
+    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
+
+    call tvs_mapSat( iplatf, iplatform, isat )
+    call tvs_mapInstrum( instr, instrum )
+    
+    sensorIndexFound = .false.
+    do sensorIndex =1, tvs_nsensors
+      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
+           isat      ==  tvs_satellites(sensorIndex) .and. &
+           instrum   == tvs_instruments(sensorIndex)       ) then
+          sensorIndexFound = .true. 
+         exit
+      end if
+    end do
+    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
+
   end subroutine mwbg_readObsFromObsSpace 
 
   !--------------------------------------------------------------------------
@@ -4708,10 +4413,9 @@ contains
     integer                       :: numObsToProcess               ! number of obs in current report
     integer                       :: numChannelUsed                ! "      "   channels "      "
     integer                       :: headerIndex                   !header Index 
-    integer                       :: satIndexObserrFile            ! satellite index in obserror file
+    integer                       :: sensorIndex            ! satellite index in obserror file
     integer                       :: codtyp                        ! codetype
     character(len=9)              :: burpFileSatId                 ! station id in burp file
-    character(len=9), allocatable :: satelliteId(:)                ! satellite Id in stats error file
     real, allocatable             :: modelInterpTerrain(:)         ! topo in standard file interpolated to obs point
     real, allocatable             :: modelInterpSeaIce(:)          ! Glace de mer " "
     real, allocatable             :: modelInterpGroundIce(:)       ! Glace de continent " "
@@ -4733,11 +4437,6 @@ contains
     integer, allocatable          :: obsFlags(:)                   ! obs. flag
     integer, allocatable          :: satOrbit(:)                   ! orbit
     integer, allocatable          :: obsGlobalMarker(:)            ! global marker
-    integer, allocatable          :: IUTILST(:,:)                  ! channel use option for each sat.
-    real,    allocatable          :: TOVERRST(:,:)                 ! obs . error per channel for each sat
-    real,    allocatable          :: sigmaObsErr(:,:,:)            ! 
-    real,    allocatable          :: clwThreshArr(:,:,:)           ! 
-    integer, allocatable          :: useStateDepSigmaObs(:,:)      !
     integer, allocatable          :: rejectionCodArray(:,:,:)      ! number of rejection 
                                                                    !  per sat. per channl per test
     integer, allocatable          :: rejectionCodArray2(:,:,:)     ! number of rejection per channl per test
@@ -4757,7 +4456,6 @@ contains
     ! namelist variables
     character(len=9)              :: instName                      ! instrument name
     character(len=128)            :: glmg_file                     ! glace de mer file
-    character(len=128)            :: statsFile                     ! stats error file
     real                          :: clwQcThreshold                ! 
     logical                       :: allowStateDepSigmaObs         !
     logical                       :: useUnbiasedObsForClw          !
@@ -4770,7 +4468,7 @@ contains
     integer                       :: MaxNumTest
     integer                       :: get_max_rss
 
-    namelist /nambgck/instName, glmg_file, statsFile, &
+    namelist /nambgck/instName, glmg_file,  &
                       clwQcThreshold, allowStateDepSigmaObs, &
                       useUnbiasedObsForClw, debug, RESETQC,  &
                       maxNumSat, channelOffset,  maxNumTest, &
@@ -4795,19 +4493,8 @@ contains
     mwbg_maxNumTest = maxNumTest
 
     ! Allocate some variables
-    call utl_reAllocate(IUTILST,mwbg_maxNumChan,mwbg_maxNumSat)
-    call utl_reAllocate(TOVERRST,mwbg_maxNumChan,mwbg_maxNumSat)
-    call utl_reAllocate(sigmaObsErr,mwbg_maxNumChan,mwbg_maxNumSat,2)
-    call utl_reAllocate(clwThreshArr,mwbg_maxNumChan,mwbg_maxNumSat,2)
-    call utl_reAllocate(useStateDepSigmaObs,mwbg_maxNumChan,mwbg_maxNumSat)
     call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
     call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
-
-    !#################################################################################
-    ! Lecture des statistiques d'erreur totale pour les  TOVS
-    !#################################################################################
-    call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST, &
-                           sigmaObsErr, clwThreshArr, useStateDepSigmaObs)
 
     !Quality Control loop over all observations
     !
@@ -4836,13 +4523,7 @@ contains
                                    satScanPosition, obsQcFlag1, satOrbit,             &
                                    obsGlobalMarker, burpFileSatId, obsTb,             &
                                    obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
-                                   obsFlags, obsSpaceData)
-
-      !###############################################################################
-      ! STEP 2) trouver l'indice du satellite                                        !
-      !###############################################################################
-      write(*,*) ' ==> mwbg_findSatelliteIndex: '
-      call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
+                                   obsFlags, sensorIndex, obsSpaceData)
 
       !###############################################################################
       ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
@@ -4858,23 +4539,23 @@ contains
 
       write(*,*) ' ==> mwbg_tovCheck For: ', instName
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                IUTILST, satIdentifier, landQualifierIndice,&
+        call mwbg_tovCheckAmsua(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+                                oer_tovutil, satIdentifier, landQualifierIndice,&
                                 satOrbit, obsChannels, obsTb, obsTbBiasCorr, &
                                 ompTb, qcIndicator, numChannelUsed, numObsToProcess,       &
-                                satIndexObserrFile, &
+                                sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, cloudLiquidWaterPath,       &
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                                 RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(TOVERRST, IUTILST,glmg_file, obsLatitude, obsLongitude,&
+        call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil,glmg_file, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
                                obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
                                qcIndicator, numChannelUsed,          &
-                               numObsToProcess, satIndexObserrFile,          &
+                               numObsToProcess, sensorIndex,          &
                                newInformationFlag, satScanPosition,   &
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                cloudLiquidWaterPath,atmScatteringIndex,rejectionCodArray,&
@@ -4887,9 +4568,9 @@ contains
       ! STEP 5) Accumuler Les statistiques sur les rejets
       !###############################################################################
       write(*,*) ' ==> mwbg_qcStats For: ', instName
-      call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,       &
-                        numChannelUsed, numObsToProcess, satelliteId, .FALSE.,         &
-                        rejectionCodArray, rejectionCodArray2)
+      call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,       &
+                        numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), &
+                        .FALSE., rejectionCodArray, rejectionCodArray2)
 
       !###############################################################################
       ! STEP 6) Update Flags and obs in obsspace data
@@ -4903,9 +4584,9 @@ contains
     !###############################################################################
     ! STEP 7) Print the statistics in listing file 
     !###############################################################################
-    call mwbg_qcStats(instName, qcIndicator, obsChannels, satIndexObserrFile,              &
-                      numChannelUsed, numObsToProcess, satelliteId,.TRUE.,rejectionCodArray,&
-                      rejectionCodArray2)
+    call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,              &
+                      numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
+                      .TRUE.,rejectionCodArray, rejectionCodArray2)
 
   end subroutine mwbg_bgCheckMW 
 

@@ -4,7 +4,6 @@
 &NAMBGCK
   instName = 'AMSUA'
   glmg_file  = 'fstglmg'
-  statsFile = 'stats_amsua_assim'
   debug = .true.
   RESETQC = .false.
   maxNumSat  = 9
