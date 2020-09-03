@@ -56,8 +56,9 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    echo "... loading compiler PrgEnv-intel-6.0.5"
-    module load PrgEnv-intel/6.0.5
+    echo "... loading Intel compiler"
+    . r.env.dot --comp 19.0.5
+    echo "... loaded compiler ${COMP_ARCH}"
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
@@ -77,8 +78,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     . ssmuse-sh -x comm/eccc/cmdd/rttov/rttov-1.0/serial/disable-shared/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.5"
-    . r.load.dot eccc/mrd/rpn/libs/19.5
+    echo "... loading eccc/mrd/rpn/libs/19.6.0"
+    . r.load.dot eccc/mrd/rpn/libs/19.6.0
     ## for openmpi
     echo "... loading hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045"
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
@@ -92,8 +93,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     module load cray-hdf5
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.5"
-    . r.load.dot eccc/mrd/rpn/libs/19.5
+    echo "... loading eccc/mrd/rpn/libs/19.6.0"
+    . r.load.dot eccc/mrd/rpn/libs/19.6.0
     echo "... loading cray-hdf5"
     module load cray-hdf5
     echo "... loading cray-netcdf"
@@ -124,12 +125,12 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.5.b2"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.b2
+    echo "... loading eccc/mrd/rpn/vgrid/6.5.0"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.0
     VGRID_LIBNAME="vgrid"
 
-    echo "... loading eccc/cmd/cmda/libs/19.5/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.5/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/19.6.0/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/19.6.0/${COMP_ARCH}
 
     ## For 'perftools' needed for TMG timings
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
