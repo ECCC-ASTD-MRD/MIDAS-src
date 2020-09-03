@@ -7,6 +7,9 @@
   channelOffset = 0
   maxNumTest = 5
   maxNumChan = 22
+  allowStateDepSigmaObs = .false.
+  clwQcThreshold = 0.3
+  useUnbiasedObsForClw =.false.
 /
  &namObsSelection
   doThinning = .false.
