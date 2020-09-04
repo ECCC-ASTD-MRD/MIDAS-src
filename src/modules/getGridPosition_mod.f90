@@ -17,13 +17,17 @@
 module getGridPosition_mod
   ! MODULE getGridPosition_mod (prefix='gpos' category='7. Low-level data objects and utilities')
   !
-  ! :Purpose: A place to collect numerous interpolation related routines
+  ! :Purpose: A place to collect numerous interpolation related routines.
+  !           The main task of the module is to compute the grid XY position from a lat-lon.
+  !           This simply calls the ezsint routine gdxyfll for simple grids. For
+  !           Yin-Yan grids it calls the function gpos_xyfll_yinYangGrid
+  !           (see below in this module). There is also support for
+  !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
   !
   use kdtree2_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use utilities_mod
-  use earthconstants_mod
 
   implicit none
   save
@@ -39,15 +43,16 @@ module getGridPosition_mod
 
 contains
 
-
+  !---------------------------------------------------------
+  ! gpos_getPositionXY
+  !---------------------------------------------------------
   function gpos_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
     !
     ! :Purpose: Compute the grid XY position from a lat-lon. This
     !           simply calls the ezsint routine gdxyfll for simple grids. For
-    !           Yin-Yan grids it can return locations from both the Yin and Yan
-    !           subgrids when in the overlap region, depending on the logical 
-    !           variable `useSingleValueOverlap`. There is also support for
+    !           Yin-Yan grids it calls the function gpos_xyfll_yinYangGrid
+    !           (see below in this module). There is also support for
     !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
     !
     implicit none
@@ -65,17 +70,9 @@ contains
 
     ! locals
     integer :: numSubGrids
-    integer :: ezget_nsubGrids, ezget_subGridids, gdxyfll, ezgprm, gdgaxes
-    integer :: EZscintIDvec(2)
-    integer, save :: EZscintIDvec1_old = -999
+    integer :: ezget_nsubGrids, gdxyfll, ezgprm
     character(len=1) :: grtyp
-    integer :: ni, nj, ig1, ig2, ig3, ig4, lonIndex, latIndex
-    real :: lonrot, latrot
-    real, allocatable, save :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
-    logical :: axesDifferent
-
-    ! this controls which approach to use for interpolation within the YIN-YAN overlap
-    logical :: useSingleValueOverlap = .true.  
+    integer :: ni, nj, ig1, ig2, ig3, ig4
 
     numSubGrids = ezget_nsubGrids(gdid)
     xpos2_r4 = -999.0
@@ -102,92 +99,7 @@ contains
 
       ! This is a Yin-Yang grid, do something different
 
-      ierr = ezget_subGridids(gdid, EZscintIDvec)
-      ! get ni nj of subGrid, assume same for both YIN and YANG
-      ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
-
-      ! first check YIN
-      ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-
-      ! compute rotated lon and lat at obs location
-      axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
-      if (axesDifferent) then
-        write(*,*) 'gpos_getPositionXY: axesDifferent, compute needed parameters'
-        if (allocated(ax_yin)) deallocate(ax_yin,ay_yin)
-        allocate(ax_yin(ni),ay_yin(nj))
-        ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
-        EZscintIDvec1_old = EZscintIDvec(1)
-      end if
-      lonIndex = floor(xpos_r4)
-      if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-        lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
-                 (xpos_r4 - lonIndex)
-      else
-        lonrot = -999.0
-      end if
-      latIndex = floor(ypos_r4)
-      if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-        latrot = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
-                 (ypos_r4 - latIndex)
-      else
-        latrot = -999.0
-      end if
-      subGridIndex = 1
-
-      if ( useSingleValueOverlap ) then
-
-        ! this approach is most similar to how ezsint works, preferentially take YIN
-
-        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! Outside YIN, therefore use YANG (assume it is inside YANG)
-          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 2
-        else
-          subGridIndex = 1
-        end if
-
-      else ! not useSingleValueOverlap
-
-        ! this approach returns both the YIN and YAN locations when point is inside both
-
-        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! Outside YIN, therefore use YANG (assume it is inside YANG)
-          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 2
-        else
-          ! inside YIN, check if also inside YANG
-          allocate(ax_yan(ni),ay_yan(nj))
-          ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
-          ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
-          if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-            lonrot = ax_yan(lonIndex) + (ax_yan(lonIndex+1) - ax_yan(lonIndex)) *  &
-                     (xpos2_r4 - lonIndex)
-          else
-            lonrot = -999.0
-          end if
-          latIndex = floor(ypos2_r4)
-          if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-            latrot = ay_yan(latIndex) + (ay_yan(latIndex+1) - ay_yan(latIndex)) *  &
-                     (ypos2_r4 - latIndex)
-          else
-            latrot = -999.0
-          end if
-          deallocate(ax_yan,ay_yan)
-          if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-            ! outside YANG, only inside YIN
-            xpos2_r4 = -999.0
-            ypos2_r4 = -999.0
-            subGridIndex = 1
-          else
-            ! inside both YIN and YANG
-            ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
-            subGridIndex = 3
-          end if
-        end if
-
-      end if
+      ierr = gpos_xyfll_yinYangGrid(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, subGridIndex)
 
     end if    
 
@@ -199,6 +111,132 @@ contains
 
   end function gpos_getPositionXY
 
+  !---------------------------------------------------------
+  ! gpos_xyfll_yinYangGrid
+  !---------------------------------------------------------
+  function gpos_xyfll_yinYangGrid( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
+                          lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
+
+    ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yang grid.
+    !           It returns locations from both the Yin and Yang
+    !           subgrids when in the overlap region, depending on the logical 
+    !           variable `useSingleValueOverlap`.
+    implicit none
+
+    ! arguments
+    integer :: ierr  ! returned value of function
+    integer, intent(in)  :: gdid
+    integer, intent(out) :: subGridIndex
+    real(4), intent(in)  :: lat_deg_r4, lon_deg_r4
+    real(4), intent(out) :: xpos_r4,  ypos_r4
+    real(4), intent(out) :: xpos2_r4, ypos2_r4
+
+    ! Local Variables
+    integer :: ezget_subGridids, gdgaxes, gdxyfll, ezgprm
+    integer :: EZscintIDvec(2)
+    integer, save :: EZscintIDvec1_old = -999
+    integer :: lonIndex, latIndex
+    real :: lonrot, latrot
+    real, allocatable, save :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
+    logical :: axesDifferent
+    character(len=1) :: grtyp
+    integer :: ni, nj, ig1, ig2, ig3, ig4
+
+    ! this controls which approach to use for interpolation within the YIN-YAN overlap
+    logical :: useSingleValueOverlap = .true.  
+
+    ierr = ezget_subGridids(gdid, EZscintIDvec)
+    ! get ni nj of subGrid, assume same for both YIN and YANG
+    ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
+
+    ! first check YIN
+    ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+
+    ! compute rotated lon and lat at obs location
+    axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
+    if (axesDifferent) then
+      write(*,*) 'gpos_getPositionXY: axesDifferent, compute needed parameters'
+      if (allocated(ax_yin)) deallocate(ax_yin,ay_yin)
+      allocate(ax_yin(ni),ay_yin(nj))
+      ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
+      EZscintIDvec1_old = EZscintIDvec(1)
+    end if
+    lonIndex = floor(xpos_r4)
+    if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
+      lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
+           (xpos_r4 - lonIndex)
+    else
+      lonrot = -999.0
+    end if
+    latIndex = floor(ypos_r4)
+    if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
+      latrot = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
+           (ypos_r4 - latIndex)
+    else
+      latrot = -999.0
+    end if
+    subGridIndex = 1
+
+    if ( useSingleValueOverlap ) then
+
+      ! this approach is most similar to how ezsint works, preferentially take YIN
+
+      if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+        ! Outside YIN, therefore use YANG (assume it is inside YANG)
+        ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+        ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
+        subGridIndex = 2
+      else
+        subGridIndex = 1
+      end if
+
+    else ! not useSingleValueOverlap
+
+      ! this approach returns both the YIN and YAN locations when point is inside both
+
+      if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+        ! Outside YIN, therefore use YANG (assume it is inside YANG)
+        ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+        ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
+        subGridIndex = 2
+      else
+        ! inside YIN, check if also inside YANG
+        allocate(ax_yan(ni),ay_yan(nj))
+        ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
+        ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
+        if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
+          lonrot = ax_yan(lonIndex) + (ax_yan(lonIndex+1) - ax_yan(lonIndex)) *  &
+               (xpos2_r4 - lonIndex)
+        else
+          lonrot = -999.0
+        end if
+        latIndex = floor(ypos2_r4)
+        if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
+          latrot = ay_yan(latIndex) + (ay_yan(latIndex+1) - ay_yan(latIndex)) *  &
+               (ypos2_r4 - latIndex)
+        else
+          latrot = -999.0
+        end if
+        deallocate(ax_yan,ay_yan)
+        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+          ! outside YANG, only inside YIN
+          xpos2_r4 = -999.0
+          ypos2_r4 = -999.0
+          subGridIndex = 1
+        else
+          ! inside both YIN and YANG
+          ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
+          subGridIndex = 3
+        end if
+      end if
+
+    end if
+
+  end function gpos_xyfll_yinYangGrid
+
+  !---------------------------------------------------------
+  ! gpos_xyfll_unstructGrid
+  !---------------------------------------------------------
   function gpos_xyfll_unstructGrid( gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4 ) result(ierr)
 
     ! :Purpose: This function is used to interpolate from a RPN grid to a location
@@ -222,7 +260,6 @@ contains
     real(8) :: pertPosition(3)
     real(8) :: gridSpacing
     real(8) :: gridSpacingSquared, lowerLeftCornerDistSquared, lowerRightCornerDistSquared, upperLeftCornerDistSquared
-    real(8) :: distToRef(2)
 
     integer, save :: gdidOld = -999
     integer :: nx, ny
@@ -235,7 +272,7 @@ contains
     integer :: ig1, ig2, ig3, ig4
     real(4), allocatable :: grid_lat_deg_r4(:,:), grid_lon_deg_r4(:,:)
     integer :: closePointsIndex
-    integer :: gridIndex, dirIndex
+    integer :: gridIndex
     integer :: xIndex, yIndex, xIndexMin, xIndexMax, yIndexMin, yIndexMax
 
     ! Functions
@@ -273,13 +310,13 @@ contains
       deallocate(grid_lat_deg_r4, grid_lon_deg_r4)
       gdidOld = gdid
 
-      if(ni == 4322 .and. nj == 3059) then
-        ! This is orca12
-        ! The last 2 columns (i=4321 and 4322) are repetitions of the first 2 columns (i=1 and 2)
+      if( (ni == 4322 .and. nj == 3059) .or. (ni == 1442 .and. nj == 1021) ) then
+        ! This is orca12 or orca025
+        ! The last 2 columns (i=4321 and 4322 in orca12) are repetitions of the first 2 columns (i=1 and 2)
         ! so both ends are removed from the search area.
         startXIndex = 2
         endXIndex = ni - 1
-        ! The last line (j=3059) is a repetition in reverse order of the line j=3057
+        ! The last line (j=3059 in orca12) is a repetition in reverse order of the line (j=3057 in orca12)
         ! and is thus eliminated from the search domain.
         endYIndex = nj - 1
         ! Check that is true
@@ -292,20 +329,9 @@ contains
             call utl_abort('gpos_xyfll_unstructGrid: Assumptions about the grid not verified.')
           end if
         end do
-!!$        do xIndex = 1, ni
-!!$          if(grid_lat_rad(xIndex,nj-2) /= grid_lat_rad(xIndex,nj) .or. grid_lon_rad(xIndex,nj-2) /= grid_lon_rad(xIndex,nj)) then
-!!$            write(*,*) 'Assumptions about the grid not verified:'
-!!$            write(*,*) 'xIndex = ',xIndex
-!!$            write(*,*) grid_lat_rad(xIndex,nj-2), grid_lat_rad(xIndex,nj), grid_lon_rad(xIndex,nj-2), grid_lon_rad(xIndex,nj)
-!!$            call utl_abort('gpos_xyfll_unstructGrid: Assumptions about the grid not verified.')            
-!!$          end if
-!!$        end do
       end if
       if(ni == 1442 .and. nj == 1021) then
         ! This is orca025
-        startXIndex = 2
-        endXIndex = ni - 1
-        endYIndex = nj - 1
         maxGridSpacing = 27000.0
       end if
 
@@ -318,13 +344,7 @@ contains
       do yIndex = startYIndex, endYIndex
         do xIndex = startXIndex, endXIndex
           gridIndex = gridIndex + 1
-          if ( yIndex /= (gridIndex-1)/nx + startYIndex .or. xIndex /= gridIndex - (yIndex-startYIndex)*nx + startXIndex - 1) then
-            write(*,*) 'xIndex and yIndex do not match gridIndex ', xIndex, yIndex, gridIndex
-            call utl_abort('gpos_xyfll_unstructGrid: xIndex and yIndex do not match gridIndex')
-          end if
-          positionArray(1,gridIndex) = RA * sin(grid_lon_rad(xIndex,yIndex)) * cos(grid_lat_rad(xIndex,yIndex))
-          positionArray(2,gridIndex) = RA * cos(grid_lon_rad(xIndex,yIndex)) * cos(grid_lat_rad(xIndex,yIndex))
-          positionArray(3,gridIndex) = RA * sin(grid_lat_rad(xIndex,yIndex))
+          positionArray(:,gridIndex) = kdtree2_3dPosition(grid_lon_rad(xIndex,yIndex), grid_lat_rad(xIndex,yIndex))
         end do
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
@@ -342,9 +362,7 @@ contains
     maxRadiusSquared = maxGridSpacing**2
     lon_rad_r8 = real(lon_deg_r4,8)*MPC_RADIANS_PER_DEGREE_R8
     lat_rad_r8 = real(lat_deg_r4,8)*MPC_RADIANS_PER_DEGREE_R8
-    refPosition(1) = RA * sin(lon_rad_r8) * cos(lat_rad_r8)
-    refPosition(2) = RA * cos(lon_rad_r8) * cos(lat_rad_r8)
-    refPosition(3) = RA * sin(lat_rad_r8)
+    refPosition(:) = kdtree2_3dPosition(lon_rad_r8, lat_rad_r8)
 
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numLocalGridPointsFound,&
                            nalloc=maxNumLocalGridPointsSearch, results=searchResults)
@@ -368,22 +386,7 @@ contains
     ! We found the closest grid point to the reference point.
     ! Now we need to determine in which of the 4 quadrants around the grid point the reference point lies.
 
-    do closePointsIndex = 1,2
-      gridIndex = searchResults(closePointsIndex)%idx
-      yIndex = (gridIndex-1)/nx + startYIndex
-      xIndex = gridIndex - (yIndex-startYIndex)*nx + startXIndex - 1
-
-      distToRef(closePointsIndex) = phf_calcDistance(grid_lat_rad(xIndex,yIndex), grid_lon_rad(xIndex,yIndex), &
-           lat_rad_r8, lon_rad_r8)
-    end do
-
-    if ( distToRef(1) <= distToRef(2) ) then
-       closePointsIndex = 1
-    else
-       write(*,*) 'After verification the first grid point found was not the closest to the reference point.'
-       write(*,*) distToRef
-       closePointsIndex = 2
-    end if
+    closePointsIndex = 1
 
     gridIndex = searchResults(closePointsIndex)%idx
     yIndex = (gridIndex-1)/nx + startYIndex
@@ -403,14 +406,9 @@ contains
       pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex+1,yIndex) - grid_lat_rad(xIndex,yIndex))*deltaGrid
 
       ! Calculate the distance between the reference point and the perturbed grid point.
-      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(3) = RA * sin(pertGridLatRad)
+      pertPosition(:) = kdtree2_3dPosition(pertGridLonRad, pertGridLatRad)
 
-      gridSpacingSquared = 0.0d0
-      do dirIndex = 1, 3
-        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
-      end do
+      gridSpacingSquared = sum( (pertPosition(:) - refPosition(:))**2 )
 
       if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
         xIndexMin = xIndex
@@ -439,14 +437,9 @@ contains
       pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex-1,yIndex) - grid_lat_rad(xIndex,yIndex))*deltaGrid
 
       ! Calculate the distance between the reference point and the perturbed grid point.
-      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(3) = RA * sin(pertGridLatRad)
+      pertPosition(:) = kdtree2_3dPosition(pertGridLonRad, pertGridLatRad)
 
-      gridSpacingSquared = 0.0d0
-      do dirIndex = 1, 3
-        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
-      end do
+      gridSpacingSquared = sum( (pertPosition(:) - refPosition(:))**2 )
 
       if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
         xIndexMin = xIndex - 1
@@ -474,14 +467,9 @@ contains
       pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex,yIndex+1) - grid_lat_rad(xIndex,yIndex))*deltaGrid
 
       ! Calculate the distance between the reference point and the perturbed grid point.
-      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(3) = RA * sin(pertGridLatRad)
+      pertPosition(:) = kdtree2_3dPosition(pertGridLonRad, pertGridLatRad)
 
-      gridSpacingSquared = 0.0d0
-      do dirIndex = 1, 3
-        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
-      end do
+      gridSpacingSquared = sum( (pertPosition(:) - refPosition(:))**2 )
 
       if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
         yIndexMin = yIndex
@@ -510,14 +498,9 @@ contains
       pertGridLatRad = grid_lat_rad(xIndex,yIndex) + (grid_lat_rad(xIndex,yIndex-1) - grid_lat_rad(xIndex,yIndex))*deltaGrid
 
       ! Calculate the distance between the reference point and the perturbed grid point.
-      pertPosition(1) = RA * sin(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(2) = RA * cos(pertGridLonRad) * cos(pertGridLatRad)
-      pertPosition(3) = RA * sin(pertGridLatRad)
+      pertPosition(:) = kdtree2_3dPosition(pertGridLonRad, pertGridLatRad)
 
-      gridSpacingSquared = 0.0d0
-      do dirIndex = 1, 3
-        gridSpacingSquared = gridSpacingSquared + (pertPosition(dirIndex) - refPosition(dirIndex))**2
-      end do
+      gridSpacingSquared = sum( (pertPosition(:) - refPosition(:))**2 )
 
       if (gridSpacingSquared < searchResults(closePointsIndex)%dis) then
         yIndexMin = yIndex - 1
@@ -534,32 +517,22 @@ contains
     ! Calculate real x and y position in the grid.
     ! kdtree returns distance in square meters !
 
-    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
-           grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin))
+    gridSpacingSquared = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin))**2
 
-    gridSpacingSquared = gridSpacing**2
+    lowerLeftCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           lat_rad_r8, lon_rad_r8)**2
 
-    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
-           lat_rad_r8, lon_rad_r8)
-
-    lowerLeftCornerDistSquared = gridSpacing**2
-
-    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin), &
-           lat_rad_r8, lon_rad_r8)
-
-    lowerRightCornerDistSquared = gridSpacing**2
+    lowerRightCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMax,yIndexMin), grid_lon_rad(xIndexMax,yIndexMin), &
+           lat_rad_r8, lon_rad_r8)**2
 
     xpos_r4 = real(xIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared - lowerRightCornerDistSquared)/(2.0*(gridSpacingSquared))
 
-    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
-           grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax))
+    gridSpacingSquared = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMin), grid_lon_rad(xIndexMin,yIndexMin), &
+           grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax))**2
 
-    gridSpacingSquared = gridSpacing**2
-
-    gridSpacing = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax), &
-           lat_rad_r8, lon_rad_r8)
-
-    upperLeftCornerDistSquared = gridSpacing**2
+    upperLeftCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMin,yIndexMax), grid_lon_rad(xIndexMin,yIndexMax), &
+           lat_rad_r8, lon_rad_r8)**2
 
     ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - upperLeftCornerDistSquared)/(2.0*(gridSpacingSquared))
 
