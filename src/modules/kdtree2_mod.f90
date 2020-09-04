@@ -441,6 +441,7 @@ module kdtree2_mod
   use utilities_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
+  use earthconstants_mod
   ! K-D tree routines in Fortran 90 by Matt Kennel.
   ! Original program was written in Sather by Steve Omohundro and
   ! Matt Kennel.  Only the Euclidean metric is supported. 
@@ -477,6 +478,7 @@ module kdtree2_mod
   ! brute force of kdtree2_[n|r]_nearest
   !----------------------------------------------------------------
 
+  public :: kdtree2_3dPosition
 
   integer, parameter :: bucket_size = 12
   ! The maximum number of points to keep in a terminal node.
@@ -1846,6 +1848,28 @@ contains
        a(i)=value
     end do
   end subroutine heapsort_struct
+
+  !--------------------------------------------------------------------------
+  ! kdtree2_3dPosition
+  !--------------------------------------------------------------------------
+  function kdtree2_3dPosition(lon_rad, lat_rad) result(positionArray)
+    !
+    !:Purpose: Calculate the 3 dimensional coordinates of a point
+    !          on the sphere of Earth radius given
+    !          the longitude-latitude position on the surface of the sphere
+    !          in radian.
+    !
+    implicit none
+
+    ! arguments
+    real(kdkind) :: positionArray(3)  ! returned values of function
+    real(8), intent(in) :: lon_rad, lat_rad
+    
+    positionArray(1) = RA * sin(lon_rad) * cos(lat_rad)
+    positionArray(2) = RA * cos(lon_rad) * cos(lat_rad)
+    positionArray(3) = RA * sin(lat_rad)
+
+  end function kdtree2_3dPosition
 
 end module kdtree2_mod
 
