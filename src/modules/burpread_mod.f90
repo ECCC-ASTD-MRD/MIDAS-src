@@ -1993,11 +1993,9 @@ CONTAINS
     write(*, *)  ' BTYP10obs BTYP10obs_uni         = ',BTYP10obs,BTYP10obs_uni
 
     if ( count > 0 ) then
-
       ! LOOP ON REPORTS
       REPORTS: do kk = 1, count
             
-
         Call BURP_Get_Report(File_in, &
                       & REPORT    = Rpt_in, &
                       & REF       = address(kk), &
@@ -2016,7 +2014,6 @@ CONTAINS
         HIPCS=.FALSE.
         HIRES_SFC=.FALSE.
         phasePresent = .false.
-
         BLOCKS1: do
 
           ref_blk = BURP_Find_Block(Rpt_in, &
@@ -2195,7 +2192,7 @@ CONTAINS
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
-            if ( FAMILYTYPE == 'TO' ) then
+            if ( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) ) then
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081,IOSTAT=error)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032,IOSTAT=error)
               if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
@@ -2796,17 +2793,31 @@ CONTAINS
               if (allocated(qcflag)) QCFLAGS(1:NELE,1:NVAL) = qcflag(1:NELE,1:NVAL,k)
               if (allocated(dataQcFlag2)) dataQcFlagLEV(1:NVAL) = dataQcFlag2(1:NVAL,k)
               VCORD(1:NVAL) = VCOORD(1:NVAL,k)
-              
-              if (allocated(BCOR)) then
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection, dataQcFlag2_opt=dataQcFlagLEV)
-              elseif (allocated(BCOR2)) then
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2, dataQcFlag2_opt=dataQcFlagLEV)
-              else
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                   SURF_EMIS_opt = SURF_EMIS, dataQcFlag2_opt=dataQcFlagLEV)
-              end if
+
+              !CASES DEPENDING ON WETHER ON NOT WE HAVE MW DATA
+              if ( .not. (( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) )) ) then         
+                if (allocated(BCOR)) then
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
+                elseif (allocated(BCOR2)) then
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
+                else
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS)
+                end if
+              else if (( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) )) then  
+                if (allocated(BCOR)) then
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection, dataQcFlag2_opt=dataQcFlagLEV)
+                elseif (allocated(BCOR2)) then
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2, dataQcFlag2_opt=dataQcFlagLEV)
+                else
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, dataQcFlag2_opt=dataQcFlagLEV)
+                end if
+              end if 
               
               IF (NDATA > 0) THEN
 
@@ -3040,10 +3051,11 @@ CONTAINS
     LOGICAL     ::   L_dataQcFlag2
 
     
-    
+  write(*,*) 'ON COMMENCE WRITE INFO'
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
     L_dataQcFlag2 = present( dataQcFlag2_opt )
+    write(*,*) 'L_dataQcFlag2 is ', L_dataQcFlag2
 
     NONELEV  =-1
 

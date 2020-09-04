@@ -49,6 +49,7 @@ module bgckmicrowave_mod
   public :: mwbg_readObsFromObsSpace
   public :: mwbg_updateObsSpaceAfterQc
   public :: mwbg_bgCheckMW
+  public :: mwbg_init
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
   public :: mwbg_firstQcCheckAtms
@@ -99,8 +100,56 @@ module bgckmicrowave_mod
   real,   parameter :: scatbg_atms_nrl_LTrej=10.0    ! lower trop chans 1-6
   real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
-  
+
+  ! namelist variables
+  character(len=9)              :: instName                      ! instrument name
+  character(len=128)            :: glmg_file                     ! glace de mer file
+  real                          :: clwQcThreshold                ! 
+  logical                       :: allowStateDepSigmaObs         !
+  logical                       :: useUnbiasedObsForClw          !
+  logical                       :: RESETQC                       ! reset Qc flags option
+  logical                       :: debug                         ! debug mode
+  integer                       :: maxNumSat
+  integer                       :: channelOffset
+  integer                       :: maxNumChan
+  integer                       :: MaxNumTest
+
+
+  namelist /nambgck/instName, glmg_file,  &
+                      clwQcThreshold, allowStateDepSigmaObs, &
+                      useUnbiasedObsForClw, debug, RESETQC,  &
+                      maxNumSat, channelOffset,  maxNumTest, &
+                      maxNumChan
+
 contains
+
+  subroutine mwbg_init()
+    !
+    !:Purpose: This subroutine reads the namelist section NAMBGCK
+    !          for the module.
+    implicit none
+
+    ! Locals:
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
+    read(nulnam, nml=nambgck, iostat=ierr)
+    if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
+    if (mpi_myid == 0) write(*, nml=nambgck)
+    ierr = fclos(nulnam)
+
+    mwbg_debug = debug
+    mwbg_clwQcThreshold = clwQcThreshold
+    mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
+    mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
+    mwbg_maxNumChan = maxNumChan
+    mwbg_maxNumSat  = maxNumSat
+    mwbg_maxNumTest = maxNumTest
+
+  end subroutine mwbg_init 
+
 
   !--------------------------------------------------------------------------
   !  ISRCHEQR function
@@ -4454,45 +4503,13 @@ contains
     integer, external             :: exdb, exfin, fnom, fclos
     integer                       :: ier, istat, nulnam
     ! namelist variables
-    character(len=9)              :: instName                      ! instrument name
-    character(len=128)            :: glmg_file                     ! glace de mer file
-    real                          :: clwQcThreshold                ! 
-    logical                       :: allowStateDepSigmaObs         !
-    logical                       :: useUnbiasedObsForClw          !
-    logical                       :: RESETQC                       ! reset Qc flags option
-    logical                       :: debug                         ! debug mode
-    integer                       :: numFileFound
-    integer                       :: maxNumSat
-    integer                       :: channelOffset
-    integer                       :: maxNumChan
-    integer                       :: MaxNumTest
     integer                       :: get_max_rss
 
-    namelist /nambgck/instName, glmg_file,  &
-                      clwQcThreshold, allowStateDepSigmaObs, &
-                      useUnbiasedObsForClw, debug, RESETQC,  &
-                      maxNumSat, channelOffset,  maxNumTest, &
-                      maxNumChan
     write(*,*) ' MWBG QC PROGRAM STARTS ....'
-    ! reading nambgck namelist
-    nulnam = 0
-    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml=nambgck, iostat=ier)
-    if ( ier /= 0 ) then
-      call utl_abort('midas_bgckmw: Error reading nambgck namelist')
-    end if
-    write(*,nml=nambgck)
-    ier = fclos(nulnam)
+    ! read nambgck
+    call mwbg_init()
 
-    mwbg_debug = debug
-    mwbg_clwQcThreshold = clwQcThreshold
-    mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
-    mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
-    mwbg_maxNumChan = maxNumChan
-    mwbg_maxNumSat  = maxNumSat
-    mwbg_maxNumTest = maxNumTest
-
-    ! Allocate some variables
+    ! Allocate some variables for diagnosyic purpose
     call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
     call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
 
