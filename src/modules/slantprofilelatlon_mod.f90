@@ -28,6 +28,7 @@ module slantprofilelatlon_mod
   use horizontalCoord_mod
   use tovs_nl_mod
   use codtyp_mod
+  use getGridPosition_mod
 
   implicit none
   save
@@ -279,7 +280,7 @@ contains
 
     lat_deg_r4 = real(lat * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = utl_getPositionXY( hco%EZscintID,   &
+    ierr = gpos_getPositionXY( hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 

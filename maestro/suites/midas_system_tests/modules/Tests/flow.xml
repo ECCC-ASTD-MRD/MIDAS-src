@@ -101,6 +101,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="sea_ice_y"/>
+      <FAMILY  name="sea_ice_y">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="SST"/>
       <FAMILY  name="SST">
         <SUBMITS sub_name="UnitTest"/>
