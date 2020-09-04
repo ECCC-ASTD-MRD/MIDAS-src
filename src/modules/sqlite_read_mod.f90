@@ -1100,6 +1100,50 @@ contains
     call fSQL_close( db, status )
   end subroutine sqlr_cleanSqlite
 
+  function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
+    !
+    ! :Purpose: Return the part of the observation file name associated
+    !           with the type of observation it contains.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*)           :: obsFamily
+    character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
+    integer, optional          :: codetype_opt
+    character(len=20) :: fileName
+
+    if ( obsFamily == 'TO' ) then
+      if (.not. present(codetype_opt)) then
+        call utl_abort('getObsFileName: codetype_opt must be specified for TO family')
+      end if
+
+      if ( codtyp_get_name( codeType_opt ) == 'radianceclear' ) then
+        fileName  = 'csr'
+      else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
+        fileName = 'to_amsub'
+      else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
+        fileName = 'to_amsua'
+      else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
+        fileName = 'ssmis'
+      else if ( codtyp_get_name( codeType_opt ) == 'crisfsr' ) then
+        fileName = 'cris'
+      else
+        fileName = codtyp_get_name( codeType_opt )
+      end if
+    else
+      if (.not. present(sfFileName_opt)) then
+        call utl_abort('getObsFileName: sfFileName_opt must be specified')
+      end if
+      call up2low( obsFamily, fileName )
+      if ( fileName == 'ra' ) fileName = 'radar'
+      if ( fileName == 'sf' ) then
+        ! use either 'sf' or 'sfc' for filename with surface obs
+        fileName = sfFileName_opt
+      end if
+    end if
+
+  end function getObsFileName
 
   subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs )
     !
