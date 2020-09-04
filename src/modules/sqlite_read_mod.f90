@@ -32,9 +32,9 @@ use utilities_mod
 use bufr_mod
 use ramDisk_mod
 use tovs_nl_mod
+use codtyp_mod
 use obsVariableTransforms_mod
 use obsFilter_mod
-use fileNames_mod
 
 implicit none   
  
@@ -1100,6 +1100,7 @@ contains
     call fSQL_close( db, status )
   end subroutine sqlr_cleanSqlite
 
+
   function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
     !
     ! :Purpose: Return the part of the observation file name associated
@@ -1145,6 +1146,7 @@ contains
 
   end function getObsFileName
 
+
   subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
@@ -1177,7 +1179,7 @@ contains
     tovsFileNameListSize = 0
     tovsFileNameList(:) = 'XXXXX'
     do codeTypeIndex = 1, tovsAllCodeTypeListSize
-      fileName = fln_obsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
+      fileName = getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
       if ( all(tovsFileNameList(:) /= fileName) ) then
         tovsFileNameListSize = tovsFileNameListSize + 1
         tovsFileNameList(tovsFileNameListSize) = fileName
@@ -1200,7 +1202,7 @@ contains
           tovsCodeTypeListSize = 0
           tovsCodeTypeList(:) = MPC_missingValue_INT
           do codeTypeIndex = 1, tovsAllCodeTypeListSize
-            if (fileName == fln_obsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
+            if (fileName == getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
               tovsCodeTypeListSize = tovsCodeTypeListSize + 1
               tovsCodeTypeList(tovsCodeTypeListSize) = tovsAllCodeTypeList(codeTypeIndex)
             end if
@@ -1215,7 +1217,7 @@ contains
 
       else
 
-        fileName = fln_obsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
+        fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
         call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex),  &
                                    onlyAssimObs, fileName) 
 
