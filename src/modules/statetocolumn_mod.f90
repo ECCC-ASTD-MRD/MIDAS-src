@@ -3482,14 +3482,14 @@ contains
            ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
 
       ! Assign domain mid-point lat-lon to this header
-      xpos_r4 = real(hco%ni)/2.0
-      ypos_r4 = real(hco%nj)/2.0
-      if ( hco%grtyp /= 'Y' ) then
-        ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
-                       xpos_r4, ypos_r4, 1)
-      else
+      if ( hco%grtyp == 'Y' ) then
         lat_deg_r4 = hco%lat2d_4(hco%ni/2,hco%nj/2)
         lon_deg_r4 = hco%lon2d_4(hco%ni/2,hco%nj/2)
+      else
+        xpos_r4 = real(hco%ni)/2.0
+        ypos_r4 = real(hco%nj)/2.0
+        ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
+                       xpos_r4, ypos_r4, 1)
       end if
 
       lonLev_T(:) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
