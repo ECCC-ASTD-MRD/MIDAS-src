@@ -18,6 +18,8 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-14.04* ]]; then
 elif [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     export AFSISIO=/home/smco502/env_sles-15-skylake-64-xc50
     ## export TBB_MALLOC_USE_HUGE_PAGES=1
+    module load craype-hugepages16M
+    export FOR_DISABLE_KMP_MALLOC=0
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     export AFSISIO=/home/smco502/env_ubuntu-18.04-skylake-64
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)

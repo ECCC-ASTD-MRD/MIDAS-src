@@ -59,6 +59,8 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loading Intel compiler"
     . r.env.dot --comp 19.0.5
     echo "... loaded compiler ${COMP_ARCH}"
+    echo "... loading craype-hugepages16M"
+    module load craype-hugepages16M
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
@@ -136,16 +138,13 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     if [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
         echo "... loading main/opt/perftools/perftools-2.0/PrgEnv-intel-6.0.5"
         . ssmuse-sh -x main/opt/perftools/perftools-2.0/PrgEnv-intel-6.0.5
-
-        echo "... loading eccc/mrd/rpn/anl/rttov/12v1.4/PrgEnv-intel-6.0.5"
-        . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.4/PrgEnv-intel-6.0.5
     else
         echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
         . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
-
-        echo "... loading eccc/mrd/rpn/anl/rttov/12v1.4/${COMP_ARCH}"
-        . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.4/${COMP_ARCH}
     fi
+
+    echo "... loading /home/erv000/data/ords/SSM/rttov-12/hugepages16m-1.4-4-g87f291c/${COMP_ARCH}"
+    . r.load.dot /home/erv000/data/ords/SSM/rttov-12/hugepages16m-1.4-4-g87f291c/${COMP_ARCH}
 
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
