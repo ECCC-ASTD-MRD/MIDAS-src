@@ -41,7 +41,7 @@ module obsFiles_mod
   use burpread_mod
   use biasCorrectionConv_mod
   use clib_interfaces_mod
-   
+  use tovs_nl_mod 
   implicit none
   save
   private
@@ -897,6 +897,7 @@ contains
   subroutine obsf_updateMissingObservationFlags(obsSpaceData)
     !
     ! :Purpose: Loop on observation files to set missing observation flags to 2048
+    !           For now, this is done for only ATMS and AMSUA
     !
     implicit none
     ! Arguments:
@@ -905,7 +906,28 @@ contains
     ! Locals:
     integer           :: fileIndex
     character(len=10) :: obsFileType
-    
+    logical           :: mwDataPresent
+    integer           :: headerIndex
+    integer           :: codtyp 
+
+
+    mwDataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+    if (headerIndex < 0) exit HEADER
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
+             (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+        mwDataPresent = .true.
+      end if
+    end do HEADER
+
+    if ( .not. mwDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingObservationFlags since no ATMS or AMSUA'
+      return
+    end if
+
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
 

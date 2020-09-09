@@ -229,8 +229,25 @@ contains
     ! Locals:
     integer,allocatable :: nobir(:)
     integer             :: headerIndex, idatyp, sensorIndex, instrumentIndex
+    logical             :: irDataPresent
 
     call tmg_start(3,'BGCHECKIR')
+
+    irDataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER0
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
+        irDataPresent = .true.
+      end if
+    end do HEADER0
+
+    if ( .not. irDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN irbg_bgCheckIR since no IR'
+      return
+    end if
 
     write(*,'(A)') " ****************"
     write(*,'(A)') " BEGIN IR BACKGROUND CHECK"

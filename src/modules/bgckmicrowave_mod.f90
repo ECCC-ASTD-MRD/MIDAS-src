@@ -4502,8 +4502,26 @@ contains
     real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
     integer, external             :: exdb, exfin, fnom, fclos
     integer                       :: ier, istat, nulnam
-    ! namelist variables
     integer                       :: get_max_rss
+    logical                       :: mwDataPresent
+
+
+    mwDataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+    if (headerIndex < 0) exit HEADER0
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
+             (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+        mwDataPresent = .true.
+      end if
+    end do HEADER0
+
+    if ( .not. mwDataPresent ) then 
+      write(*,*) 'WARNING: WILL NOT RUN mwbg_bgCheckMW since no ATMS or AMSUA'
+      return
+    end if 
 
     write(*,*) ' MWBG QC PROGRAM STARTS ....'
     ! read nambgck

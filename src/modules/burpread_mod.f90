@@ -3051,11 +3051,9 @@ CONTAINS
     LOGICAL     ::   L_dataQcFlag2
 
     
-  write(*,*) 'ON COMMENCE WRITE INFO'
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
     L_dataQcFlag2 = present( dataQcFlag2_opt )
-    write(*,*) 'L_dataQcFlag2 is ', L_dataQcFlag2
 
     NONELEV  =-1
 

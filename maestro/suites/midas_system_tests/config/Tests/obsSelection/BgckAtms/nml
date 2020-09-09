@@ -1,7 +1,7 @@
  &NAMBGCK
   instName = 'ATMS'
   glmg_file  = './fstglmg'
-  debug = .false.
+  debug = .true.
   RESETQC = .false.
   maxNumSat  = 2
   channelOffset = 0
@@ -9,7 +9,7 @@
   maxNumChan = 22
   allowStateDepSigmaObs = .false.
   clwQcThreshold = 0.3
-  useUnbiasedObsForClw =.false.
+  useUnbiasedObsForClw =.true.
 /
  &namObsSelection
   doThinning = .false.
