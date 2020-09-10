@@ -1979,6 +1979,7 @@ CONTAINS
 
     write(*,*) STN_RESUME,' bit_alt==== >  ',bit_alt
 
+
     BTYP10obs     = 291 -btyp_offset
     BTYP10obs_uni = 291 -btyp_offset_uni
     if (bit_alt == 2) btyp10obs =  BTYP10obs - 2
@@ -2005,7 +2006,6 @@ CONTAINS
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
         IF ( stnid(1:2) == ">>" ) cycle
-
         !  LOOP ON BLOCKS
 
         ref_blk = 0
@@ -2191,8 +2191,7 @@ CONTAINS
             if( (TRIM(FAMILYTYPE2) == 'UA') .and. UA_HIGH_PRECISION_TT_ES ) HIPCS=.true.
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
-
-            if ( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) ) then
+            if ( idtyp == 192 .or. idtyp == 164 ) then
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081,IOSTAT=error)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032,IOSTAT=error)
               if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
@@ -2795,7 +2794,7 @@ CONTAINS
               VCORD(1:NVAL) = VCOORD(1:NVAL,k)
 
               !CASES DEPENDING ON WETHER ON NOT WE HAVE MW DATA
-              if ( .not. (( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) )) ) then         
+              if ( .not.  (idtyp == 192 .or. idtyp ==164) ) then         
                 if (allocated(BCOR)) then
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
                      SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
@@ -2806,7 +2805,7 @@ CONTAINS
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
                      SURF_EMIS_opt = SURF_EMIS)
                 end if
-              else if (( (tvs_isIdBurpInst(idtyp,'atms')) .or. (tvs_isIdBurpInst(idtyp,'amsua')) )) then  
+              else   
                 if (allocated(BCOR)) then
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
                      SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection, dataQcFlag2_opt=dataQcFlagLEV)
@@ -3054,7 +3053,7 @@ CONTAINS
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
     L_dataQcFlag2 = present( dataQcFlag2_opt )
-
+    if(L_dataQcFlag2) write(*,*) 'L_dataQcFlag2 = ', L_dataQcFlag2
     NONELEV  =-1
 
     MISG=MPC_missingValue_R4
@@ -3162,6 +3161,7 @@ CONTAINS
         end if
         if ( L_dataQcFlag2 )  then
           IFLAG2  =  dataQcFlag2_opt(j)
+          write(*,*) 'IFLAG2 = ', IFLAG2
         end if
         IFLAG = INT(qCflag(il,j))
 
