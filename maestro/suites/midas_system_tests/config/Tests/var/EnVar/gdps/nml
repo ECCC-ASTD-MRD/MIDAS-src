@@ -11,6 +11,7 @@
  &NAMS2C
   SLANTPATH_NL   = .FALSE.,
   SLANTPATH_TLAD = .FALSE.,
+  SLANTPATH_NLRO = .FALSE.,
   calcHeightPressIncrOnColumn = .FALSE.
 /
  &NAMMIN
