@@ -1616,11 +1616,12 @@ CONTAINS
     real   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
     real   , ALLOCATABLE   :: BiasCorrection_sfc(:,:,:)
     real   , ALLOCATABLE   :: BCOR_SFC(:,:)
-    REAL                   :: ROLAT(500), ROLON(500)
+    INTEGER, PARAMETER     :: MAXRONVAL=500
+    real                   :: ROLAT(MAXRONVAL), ROLON(MAXRONVAL)
 
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
-    REAL(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
+    real(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
     integer, allocatable   :: hiresTimeFlag(:,:), hiresLatFlag(:,:)
@@ -2063,7 +2064,7 @@ CONTAINS
                                      NT_IND=1, IOSTAT=error)
                 lok = ( -90.1 < ROLAT1 .and. ROLAT1 <  90.1) .and. &
                       (-180.1 < ROLON1 .and. ROLON1 < 360.1)
-                if (lok) then
+                if (lok .and. j<=MAXRONVAL) then
                   ROLAT(j)=ROLAT1
                   ROLON(j)=ROLON1
                   LROK = .TRUE.
@@ -3086,7 +3087,7 @@ CONTAINS
     real   , allocatable          ::  VERTCOORD(:)
     real   , allocatable,optional ::  BiasCorrection_opt(:,:)
     integer, intent(in)           ::  dataQcFlagLEV(:)
-    REAL                ,optional ::  ROLAT_opt(500), ROLON_opt(500)
+    real                ,optional ::  ROLAT_opt(:), ROLON_opt(:)
 
     CHARACTER*2 ::   FAMTYP
     real        ::   ELEVFACT,VCOORD
