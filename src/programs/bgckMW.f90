@@ -95,12 +95,11 @@ program midas_bgckMW
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
   logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
-  logical                       :: useAveragedClwForQC
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
-                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile,
-                    useAveragedClwForQC, clwDiffThresholdBcorr 
+                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile, &
+                    clwDiffThresholdBcorr 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -133,7 +132,6 @@ program midas_bgckMW
   RESETQC               = .false.
   ETIKRESU              = '>>BGCKALT'
   writeTbValuesToFile   = .false.
-  useAveragedClwForQC   = .false.
   clwDiffThresholdBcorr = 0.05
 
   ! reading namelist
@@ -150,14 +148,7 @@ program midas_bgckMW
   mwbg_clwQcThreshold = clwQcThreshold 
   mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
-  mwbg_useAveragedClwForQC = useAveragedClwForQC
   mwbg_clwDiffThresholdBcorr = clwDiffThresholdBcorr
-
-  if ( (      mwbg_allowStateDepSigmaObs .and. .not. mwbg_useAveragedClwForQC) .or. &
-       (.not. mwbg_allowStateDepSigmaObs .and.       mwbg_useAveragedClwForQC) ) then
-    write(*,*) 'Using state-dependant obs and averaged CLW for QC should be compatible and are not.'
-    call abort()
-  end if
 
   ! Initializations of counters (for total reports/locations in the file).
   n_bad_reps = 0

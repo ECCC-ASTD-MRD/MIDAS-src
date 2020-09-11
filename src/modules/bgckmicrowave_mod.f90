@@ -49,7 +49,6 @@ module bgckmicrowave_mod
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
-  logical :: mwbg_useAveragedClwForQC 
   integer :: mwbg_maxNumChan
   integer :: mwbg_maxNumSat 
   integer :: mwbg_maxNumTest
@@ -807,7 +806,7 @@ contains
 
     testIndex = 12
     do nDataIndex=1,KNT
-      if ( mwbg_useAveragedClwForQC ) then
+      if ( mwbg_allowStateDepSigmaObs ) then
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
         clwUsedForQC = clwObsFGaveraged
       else
