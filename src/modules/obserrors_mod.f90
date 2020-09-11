@@ -1584,7 +1584,8 @@ contains
     character(len=9)      :: stnid
     integer(kind=int_def) :: error, ref_rpt
     integer  :: numLevels, numValues, numReports, obsCount
-    integer  :: levelIndex, reportIndex, obsIndex, numFound
+    logical  :: numFound
+    integer  :: levelIndex, reportIndex, obsIndex
     integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
     integer  :: vnm, bodyIndexBeg, bodyIndexEnd
     real(8), allocatable :: uu_oer(:), vv_oer(:)

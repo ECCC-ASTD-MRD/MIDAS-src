@@ -695,7 +695,7 @@ contains
     implicit none
     ! arguments:
     character(len=2), intent(in) :: obsfam
-    integer, intent(out), optional :: numFound_opt
+    logical, intent(out), optional :: numFound_opt
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
     ! locals:
     integer :: numFound, ifile
@@ -707,6 +707,7 @@ contains
        if (obsfam == obsf_cfamtyp(ifile)) then
           filename = obsf_cfilnam(ifile)
           numFound = numFound + 1
+          exit
        end if
     end do
 
@@ -717,7 +718,7 @@ contains
       write(*,*) "obsf_getFileName: WARNING: Multiple files found for obs family '" // trim(obsfam) // "'"
     end if
 
-    if (present(numFound_opt)) numFound_opt = numFound
+    if (present(numFound_opt)) numFound_opt = (numFound > 0)
 
   end function obsf_getFileName
 
@@ -762,12 +763,12 @@ contains
     type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
     character(len=maxLengthFilename) :: filename
-    integer :: numFileFound
+    logical :: numFileFound
     character(len=10) :: obsFileType
 
     filename = obsf_getFileName(obsfam,numFileFound)
 
-    if (numFileFound > 0) then
+    if (numFileFound) then
        call obsf_determineSplitFileType( obsFileType, filename )
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
@@ -830,12 +831,12 @@ contains
 
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
-    integer :: numFileFound
+    logical :: numFileFound
     character(len=10) :: obsFileType
 
     filename = obsf_getFileName(obsfam,numFileFound)
 
-    if (numFileFound > 0) then
+    if (numFileFound) then
        if (obsf_filesSplit() .or. mpi_myid == 0) then
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
