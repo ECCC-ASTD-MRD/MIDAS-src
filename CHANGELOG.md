@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed a bug in `tools/midas_scripts/midas.mpi` (#393 and !373):
+   * When an observation file contained less records than the number of MPI tiles, that script was aborting.
  * Fixed bugs in thinning for radiosondes, hyperIR, CSR and aladin observations - changes results (#390 and !366)
  * Fixed bug in `burpClean` that was causing errors for integer valued elements in the data blocks (#373 and !361)
  * Fixed channel indexing bug in hyperspectral IR background check (#379 and !359)
