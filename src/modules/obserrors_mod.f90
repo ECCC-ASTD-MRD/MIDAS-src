@@ -1628,7 +1628,7 @@ contains
     channelNumber_withOffset = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex) )
     channelNumber = channelNumber_withOffset - tvs_channelOffset(sensorIndex)
 
-    surfTypeIsWater = ( obs_headElem_i( obsSpaceData, OBS_OFL, headerIndex ) == surftype_sea )
+    surfTypeIsWater = ( obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex ) == surftype_sea )
 
     if ( .not. allowStateDepSigmaObs .or. &
          .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &

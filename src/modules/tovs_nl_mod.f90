@@ -2478,7 +2478,7 @@ contains
           ! set the cloud profile in tvs_profiles_nl to zero
           call updateCloudInTovsProfile(                            &
                 sensorTovsIndexes(1:profileCount),                  &
-                nRttovLevels,                                       &
+                nlv_T,                                              &
                 mode='save',                                        &
                 beSilent=.true.)
 
@@ -2530,7 +2530,7 @@ contains
           ! restore the cloud profiles in tvs_profiles_nl
           call updateCloudInTovsProfile(                          &
                 sensorTovsIndexes(1:profileCount),                &
-                nRttovLevels,                                     &
+                nlv_T,                                            &
                 mode='restore',                                   &
                 beSilent=.true.)
 
@@ -4577,7 +4577,7 @@ contains
   end subroutine tvs_getLocalChannelIndexFromChannelNumber
 
 
-  subroutine updateCloudInTovsProfile(sensorTovsIndexes, nRttovLevels, mode, beSilent)
+  subroutine updateCloudInTovsProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
     !
     ! :Purpose: Modify the cloud in tovs_profile structure.
     !
@@ -4585,12 +4585,12 @@ contains
     
     ! Arguments:
     integer,      intent(in) :: sensorTovsIndexes(:)
-    integer,      intent(in) :: nRttovLevels
+    integer,      intent(in) :: nlv_T
     character(*), intent(in) :: mode         ! save or restore
     logical,      intent(in) :: beSilent     ! flag to control verbosity
 
     ! Locals:
-    integer :: profileIndex, profileCount 
+    integer :: profileIndex, profileCount
     real(8), allocatable, save :: cloudProfileToStore(:,:)
 
     if ( .not. beSilent ) write(*,*) "Entering updateCloudInTovsProfile"
@@ -4599,7 +4599,7 @@ contains
     profileCount = size(sensorTovsIndexes)
 
     if ( trim(mode) == 'save' ) then 
-      allocate(cloudProfileToStore(nRttovLevels,profileCount))
+      allocate(cloudProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)

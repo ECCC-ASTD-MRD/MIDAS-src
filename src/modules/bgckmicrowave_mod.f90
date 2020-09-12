@@ -938,7 +938,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
                                     useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
-                                    MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full). Les observations, dont le residu (O-P) 
@@ -962,6 +962,7 @@ contains
     real,        intent(in)                :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
     real,        intent(in)                :: clwFG(KNT)                     ! retrieved cloud liquid water from background
     real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
+    real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1182,7 +1183,7 @@ contains
     if ( .not. mwbg_allowStateDepSigmaObs ) return 
 
     loopObs: do nDataIndex = 1, KNT
-      surfTypeIsWater = ( ktermer(jj) ==  1 )
+      surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
       if ( .not. surfTypeIsWater ) cycle loopObs
 
       rejectLowPeakingChannels = .false.
@@ -1372,8 +1373,6 @@ contains
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    real, allocatable                      :: clwObs(:)             ! obs retrieved cloud liquid water
-    real, allocatable                      :: clwFG(:)              ! background retrieved cloud liquid water
     integer                                :: MAXVAL
     integer                                :: JI
     integer                                :: JJ
@@ -1560,7 +1559,7 @@ contains
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
                                     useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
-                                    MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
