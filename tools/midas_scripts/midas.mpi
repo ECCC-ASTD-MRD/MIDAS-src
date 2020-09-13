@@ -219,10 +219,12 @@ if [ -n "${observations}" ]; then
         wait
 
         for file in ${OBS_DIRECTORY}/obs*_${obsfile_x}_${obsfile_y}; do
-            fam=$(extractFamily ${file} yes)
-            ofile=${OBS_DIRECTORY}/obs${fam}_${obsfile_x}_${obsfile_y}
-            if [ "${file}" != "${ofile}" ]; then
-                ${reflex} -ixent ${file} -oxsrt ${ofile}
+            if [ -f "${file}" ]; then
+                fam=$(extractFamily ${file} yes)
+                ofile=${OBS_DIRECTORY}/obs${fam}_${obsfile_x}_${obsfile_y}
+                if [ "${file}" != "${ofile}" ]; then
+                    ${reflex} -ixent ${file} -oxsrt ${ofile}
+                fi
             fi
         done
         ${rm_cmd} ${OBS_DIRECTORY}/obs??????????_*_${obsfile_x}_${obsfile_y} || ${true_cmd}
