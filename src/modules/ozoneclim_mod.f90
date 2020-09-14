@@ -55,10 +55,10 @@ contains
     integer ,intent(in) :: nlev            ! NUMBER OF VERTICAL LEVELS
     integer ,intent(in) :: nprf            ! NUMBER OF PROFILES
     REAL(8),intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
-    REAL(8),intent(in)  :: PLEV(NLEV)      ! PRESSURE LEVELS (HPA)
-    REAL(8),intent(out)  :: O3P(NLEV,NPRF) ! OZONE PROFILES (PPMV)
+    REAL(8),intent(in)  :: PLEV(NLEV,NPRF) ! PRESSURE LEVELS (HPA)
+    REAL(8),intent(out) :: O3P(NLEV,NPRF)  ! OZONE PROFILES (PPMV)
 
-    INTEGER   :: JN, K, NUMLAT(NPRF)
+    INTEGER   :: JN, K, NUMLAT
     REAL(8)   :: QO3B(NLEVO3,NPRF)
     REAL(8)   :: PRO3(NLEVO3,NPRF)
 
@@ -66,9 +66,9 @@ contains
     !* assign default qgas values if need be
 
     DO JN = 1, NPRF
-       NUMLAT(JN) = NINT( (ZLAT(JN)+90.D0) / (180.D0/(REAL(NLATO3-1,8))) ) + 1
+       NUMLAT = NINT( (ZLAT(JN)+90.D0) / (180.D0/(REAL(NLATO3-1,8))) ) + 1
        DO K = 1, NLEVO3
-          QO3B(K,JN) = FOZO_r4(NUMLAT(JN),K)
+          QO3B(K,JN) = FOZO_r4(NUMLAT,K)
        END DO
     END DO
 

@@ -832,7 +832,7 @@ module presProfileOperators_mod
       integer ,intent(in)  :: kni               ! Number of input levels (source)
       integer ,intent(in)  :: knprof            ! Number of profiles
       integer ,intent(in)  :: kno               ! Number of output levels (destination)
-      real(8) ,intent(in)  :: ppo(kno)          ! Vertical levels, pressure (destination)
+      real(8) ,intent(in)  :: ppo(kno,knprof)   ! Vertical levels, pressure (destination)
       real(8) ,intent(out) :: pvo(kno,knprof)   ! Interpolated profiles (destination)
 
       ! Locals:
@@ -893,7 +893,7 @@ module presProfileOperators_mod
       DO JI=1,KNI
          DO profileIndex = 1, KNPROF
             DO JO=1,KNO
-              ZRT = PPO(JO)
+              ZRT = PPO(JO,profileIndex)
                ZP = ZPI(JI,profileIndex)
                XI = SIGN(1.0D0,IORDER*(ZRT-ZP))
                IL(JO,profileIndex) = IL(JO,profileIndex) + MAX(0.0D0,XI)
@@ -923,7 +923,7 @@ module presProfileOperators_mod
       
       DO profileIndex = 1, KNPROF
         DO JO=1,KNO
-          ZP = PPO(JO)
+          ZP = PPO(JO,profileIndex)
           IK = IL(JO,profileIndex)
           ZP1 = ZPI(IK  ,profileIndex)
           ZP2 = ZPI(IK+1,profileIndex)
