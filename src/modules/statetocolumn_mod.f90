@@ -259,7 +259,8 @@ contains
 
     ! locals
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
-    type(struct_gsv)          :: stateVector_Tiles_1Step, stateVector_1Step
+    type(struct_gsv)          :: stateVector_Tiles_1Step
+    type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
     integer :: bodyIndex, kIndex, kIndexCount, myKBeg
@@ -282,7 +283,7 @@ contains
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
     real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
-    real(4), pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
+    real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
@@ -441,8 +442,11 @@ contains
       end do
     end if
 
+    nlev_T = gsv_getNumLev(stateVector,'TH')
+    nlev_M = gsv_getNumLev(stateVector,'MM')
+
     ! prepare for extracting the 3D height for slant-path calculation
-    if ( doSlantPath .and. &
+    if ( doSlantPath .and. (headerIndexBeg == 1) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
 
@@ -501,8 +505,6 @@ contains
 
       end if ! inputStateVectorType 
 
-      nlev_T = gsv_getNumLev(stateVector,'TH')
-      nlev_M = gsv_getNumLev(stateVector,'MM')
       if ( mpi_myid == 0 ) then
         call gsv_allocate( stateVector_1Step, 1, &
                            stateVector%hco, stateVector%vco, &
@@ -801,11 +803,14 @@ contains
     if ( doSlantPath .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
-      if ( mpi_myid == 0 ) then
-        call gsv_deallocate(stateVector_1Step)
-      else
-        deallocate(height3D_T_r4)
-        deallocate(height3D_M_r4)
+      if (headerIndexEnd == obs_numheader(obsSpaceData) ) then
+        write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
+        if ( mpi_myid == 0 ) then
+          call gsv_deallocate(stateVector_1Step)
+        else
+          deallocate(height3D_T_r4)
+          deallocate(height3D_M_r4)
+        end if
       end if
     end if
     deallocate(footprintRadiusVec_r4)
