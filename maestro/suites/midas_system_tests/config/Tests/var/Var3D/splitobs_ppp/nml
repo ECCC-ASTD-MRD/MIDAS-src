@@ -5,8 +5,9 @@
  &NAMBEN
 /
  &NAMS2C
-  SLANTPATH_NL   = .FALSE.,
-  SLANTPATH_TLAD = .FALSE.,
+  SLANTPATH_TO_NL   = .FALSE.,
+  SLANTPATH_TO_TLAD = .FALSE.,
+  SLANTPATH_RO_NL   = .FALSE.,
   calcHeightPressIncrOnColumn = .FALSE.
 /
  &NAMSLP
