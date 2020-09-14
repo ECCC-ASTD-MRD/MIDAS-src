@@ -5,9 +5,9 @@
    SCALEFACTOR   = 100*0.0D0
 /
  &NAMS2C
-   SLANTPATH_NL   = .FALSE.,
-   SLANTPATH_TLAD = .FALSE.,
-   SLANTPATH_NLRO = .TRUE.,
+   SLANTPATH_TO_NL   = .FALSE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .TRUE.,
    calcHeightPressIncrOnColumn = .FALSE.,
 /
  &NAMMIN
