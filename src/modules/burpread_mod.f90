@@ -1619,6 +1619,9 @@ CONTAINS
     INTEGER, PARAMETER     :: MAXRONVAL=500
     real                   :: ROLAT(MAXRONVAL), ROLON(MAXRONVAL)
 
+    INTEGER, PARAMETER     :: MAXRONVAL = 500
+    REAL                   :: ROLAT(MAXRONVAL), ROLON(MAXRONVAL)
+
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
     real(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
@@ -2047,31 +2050,30 @@ CONTAINS
             ROLAT0 = 0.01*lati- 90.
             ROLON0 = 0.01*long
             if (ROLON0 > 180.) ROLON0 = ROLON0-360.
-            ROLAT = ROLAT0
-            ROLON = ROLON0
-            IND5001 = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
-            IND6001 = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
-            write(*,*)'ROLOC',lati,long,ROLAT0,ROLON0,IND5001,IND6001,bfam,btyp,bkstp
+            ROLAT(:) = ROLAT0
+            ROLON(:) = ROLON0
+            IND5001 = BURP_Find_Element(Block_in, ELEMENT = 5001, IOSTAT = error)
+            IND6001 = BURP_Find_Element(Block_in, ELEMENT = 6001, IOSTAT = error)
             if (IND5001 > 0 .and. IND6001 > 0) then
-              do j=1,nvale
-                ROLAT1=BURP_Get_Rval(Block_in, &
-                                     NELE_IND=IND5001, &
-                                     NVAL_IND=j, &
-                                     NT_IND=1, IOSTAT=error)
-                ROLON1=BURP_Get_Rval(Block_in, &
-                                     NELE_IND=IND6001, &
-                                     NVAL_IND=j, &
-                                     NT_IND=1, IOSTAT=error)
+              do j = 1, nvale
+                ROLAT1 = BURP_Get_Rval(Block_in, &
+                                       NELE_IND = IND5001, &
+                                       NVAL_IND = j, &
+                                       NT_IND = 1, IOSTAT = error)
+                ROLON1 = BURP_Get_Rval(Block_in, &
+                                       NELE_IND = IND6001, &
+                                       NVAL_IND = j, &
+                                       NT_IND = 1, IOSTAT = error)
                 lok = ( -90.1 < ROLAT1 .and. ROLAT1 <  90.1) .and. &
                       (-180.1 < ROLON1 .and. ROLON1 < 360.1)
                 if (lok .and. j<=MAXRONVAL) then
-                  ROLAT(j)=ROLAT1
-                  ROLON(j)=ROLON1
+                  ROLAT(j) = ROLAT1
+                  ROLON(j) = ROLON1
                   LROK = .TRUE.
-                endif
-              enddo
-            endif
-          endif
+                end if
+              end do
+            end if
+          end if
 
           ! observation block (btyp = 0100 100011X XXXX)
           if(trim(familytype) == 'AL')then
@@ -2865,13 +2867,8 @@ CONTAINS
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
                                   dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
               else
-                if (trim(familytype) == 'RO') then
-                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                         dataQcFlagLEV, ROLAT_opt = ROLAT, ROLON_opt = ROLON)
-                else
-                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                         dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS)
-                endif
+                NDATA = WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                                   dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, ROLAT_opt = ROLAT, ROLON_opt = ROLON)
               end if
               
               IF (NDATA > 0) THEN
@@ -3228,12 +3225,12 @@ CONTAINS
           ELEV_R=VCOORD + ELEV*ELEVFACT
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
-          if (trim(FAMTYP).EQ.'RO') then
-            rolat=ROLAT_opt(j)
-            rolon=ROLON_opt(j)
-            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat)
-            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon)
-          endif
+          if ( FAMTYP == 'RO' ) then
+            rolat = ROLAT_opt(j)
+            rolon = ROLON_opt(j)
+            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat*MPC_RADIANS_PER_DEGREE_R8)
+            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon*MPC_RADIANS_PER_DEGREE_R8)
+          end if
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
           end if
