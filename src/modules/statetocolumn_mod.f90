@@ -100,9 +100,9 @@ module stateToColumn_mod
   real(4), parameter ::         bilinearFootprint =  0.0
 
   ! namelist variables:
-  logical, save :: slantPath_nl
-  logical, save :: slantPath_tlad
-  logical, save :: slantPath_nlRO
+  logical :: slantPath_TO_nl
+  logical :: slantPath_TO_tlad
+  logical :: slantPath_RO_nl
   logical, save :: calcHeightPressIncrOnColumn
 
   integer, external    :: get_max_rss
@@ -289,10 +289,10 @@ contains
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
-    logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPath, firstHeaderSlantPathRO
+    logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
     logical, save :: nmlAlreadyRead = .false.
 
-    namelist /nams2c/ slantPath_nl, slantPath_tlad, slantPath_nlRO, calcHeightPressIncrOnColumn
+    namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -303,39 +303,40 @@ contains
       nmlAlreadyRead = .true.
 
       ! default values
-      slantPath_nl = .false.
-      slantPath_tlad = .false.
-      slantPath_nlRO = .false.
+      slantPath_TO_nl   = .false.
+      slantPath_TO_tlad = .false.
+      slantPath_RO_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
 
       ! reading namelist variables
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=nams2c, iostat=ierr)
+      read(nulnam, nml = nams2c, iostat = ierr)
       if ( ierr /= 0 .and. mpi_myid == 0 ) then
         write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
-      if ( mpi_myid == 0 ) write(*, nml=nams2c)
+      if ( mpi_myid == 0 ) write(*, nml = nams2c)
       ierr = fclos(nulnam)
     end if
 
     doSlantPath = .false.
     SlantTO     = .false.
     SlantRO     = .false.
-    if ( slantPath_nl   .and. inputStateVectorType == 'nl' ) then
-       doSlantPath = .true.
-       SlantTO     = .true.
+    if ( slantPath_TO_nl   .and. inputStateVectorType == 'nl' ) then
+      doSlantPath = .true.
+      SlantTO     = .true.
     endif
-    if ( slantPath_tlad .and. inputStateVectorType /= 'nl' ) then
-       doSlantPath = .true.
-       SlantTO     = .true.
+    if ( slantPath_TO_tlad .and. inputStateVectorType /= 'nl' ) then
+      doSlantPath = .true.
+      SlantTO     = .true.
     endif
-    if ( slantPath_nlRO .and. inputStateVectorType == 'nl' ) then
-       doSlantPath = .true.
-       SlantRO     = .true.
+    if ( slantPath_RO_nl   .and. inputStateVectorType == 'nl' ) then
+      doSlantPath = .true.
+      SlantRO     = .true.
     endif
-    write(*,*) 's2c_setupInterpInfo: doSlantPath,SlantTO,SlantRO=', doSlantPath, SlantTO, SlantRO
+    write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO = ', &
+               doSlantPath, SlantTO, SlantRO
 
     numStep = stateVector%numStep
     numHeader = headerIndexEnd - headerIndexBeg + 1
@@ -573,8 +574,8 @@ contains
         latLev_M(:) = 0.0d0
         lonLev_M(:) = 0.0d0
 
-        firstHeaderSlantPath  = .true.
-        firstHeaderSlantPathRO= .true.
+        firstHeaderSlantPathTO = .true.
+        firstHeaderSlantPathRO = .true.
         header_loop3: do headerUsedIndex = 1, numHeaderUsed
           headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
 
@@ -587,9 +588,10 @@ contains
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
           if ( tvs_isIdBurpTovs(codeType) .and. SlantTO ) then
-            if ( firstHeaderSlantPath ) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
-              firstHeaderSlantPath = .false.
+            if ( firstHeaderSlantPathTO ) then
+              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex = ', &
+                   stepIndex,' and numHeaderUsed = ',numHeaderUsed
+              firstHeaderSlantPathTO = .false.
             end if
 
             ! calculate lat/lon along the line of sight
@@ -600,10 +602,10 @@ contains
                                      latLev_M, lonLev_M )                          ! OUT
             call tmg_stop(199)
 
-          elseif (codeType == 169 .and. SlantRO ) then
+          else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if ( firstHeaderSlantPathRO ) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RO. stepIndex=', &
-                   stepIndex,' and numHeaderUsed=',numHeaderUsed
+              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RO. stepIndex = ', &
+                   stepIndex,' and numHeaderUsed = ',numHeaderUsed
               firstHeaderSlantPathRO = .false.
             end if
 
@@ -618,7 +620,7 @@ contains
             lonLev_T(:) = real(lon_r4,8)
             latLev_M(:) = real(lat_r4,8)
             lonLev_M(:) = real(lon_r4,8)
-          end if !tvs_isIdBurpTovs
+          end if
 
           ! check if the slanted lat/lon is inside the domain
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
