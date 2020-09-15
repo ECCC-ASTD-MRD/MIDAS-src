@@ -1591,7 +1591,7 @@ contains
     real(8), allocatable :: uu_oer(:), vv_oer(:)
 
     filename = obsf_getFileName('SW',numFound)
-    if (numFound > 0) then
+    if (numFound) then
       write(*,*) 'oer_readOerFromObsFileForSW: reading OER from the file: ', trim(filename)
     else
       write(*,*) 'oer_readOerFromObsFileForSW: no obsfile with SW family, returning'

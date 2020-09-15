@@ -236,7 +236,7 @@ program midas_obsSelection
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData, obsFileClean_opt=doThinning)
-
+  
   ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
     call obsf_updateMissingObservationFlags(obsSpaceData)

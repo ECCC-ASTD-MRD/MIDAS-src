@@ -277,7 +277,6 @@ contains
     end if
 
   end if
-
   end subroutine obsf_writeFiles
 
 
@@ -702,7 +701,7 @@ contains
 
     filename = ""
     numFound = 0
-       
+   
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_cfamtyp(ifile)) then
           filename = obsf_cfilnam(ifile)

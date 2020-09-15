@@ -2670,7 +2670,6 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL    
     !###############################################################################
-    write(*,*) ' ==> mwbg_landIceMaskAtms: '
     call mwbg_landIceMaskAtms(glmg_file, KNT, zlat, zlon, ilq, itt, &
                               lsq, trn, waterobs)
 
@@ -2678,7 +2677,6 @@ contains
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.    
     !###############################################################################
 
-    write(*,*) ' ==> mwbg_grossValueCheck: '
     call mwbg_grossValueCheck(KNT,ztb,grossrej)
      
     !###############################################################################
@@ -2686,7 +2684,6 @@ contains
     !          for data that fail QC     
     !###############################################################################
 
-    write(*,*) ' ==> mwbg_firstQcCheckAtms: '
     call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, stnid, &
                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
                                qcflag2, ICANO, reportHasMissingTb)
@@ -2705,7 +2702,6 @@ contains
     !###############################################################################
  
     !  
-    write(*,*) ' ==> mwbg_nrlFilterAtms: '
     call mwbg_nrlFilterAtms(KNT, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
                             grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -2717,7 +2713,6 @@ contains
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
     
-    write(*,*) ' ==> mwbg_flagDataUsingNrlCriteria: '
     call mwbg_flagDataUsingNrlCriteria(KNT, ztb, biasCorr, rclw, scatec, scatbg, &
                                        SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
@@ -2734,7 +2729,6 @@ contains
     !            for ch.20-22 over land)
     !###############################################################################
 
-    write(*,*) ' ==> mwbg_reviewAllcriteriaforFinalFlags: '
     call mwbg_reviewAllcriteriaforFinalFlags(KNT,KNO, lqc, grossrej, waterobs, &
                                              precipobs, rclw, scatec, scatbg, iwvreject, riwv, &
                                              IMARQ, globMarq, zdi, ident, drycnt, landcnt, rejcnt, &
@@ -4547,7 +4541,6 @@ contains
         write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ATM or AMSUA'
         cycle HEADER
       end if
-      write(*,*) ' ==> mwbg_readObsFromObsSpace: '
       !###############################################################################
       ! STEP 1) read obs from obsSpacedata to start QC                               !
       !###############################################################################
@@ -4563,7 +4556,6 @@ contains
       !###############################################################################
       ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       !###############################################################################
-      write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
       call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
                                                   obsLongitude, modelInterpTerrain,     &
                                                   modelInterpGroundIce, modelInterpSeaIce)
@@ -4572,7 +4564,6 @@ contains
       ! STEP 4) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       !###############################################################################
 
-      write(*,*) ' ==> mwbg_tovCheck For: ', instName
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, satIdentifier, landQualifierIndice,&
@@ -4602,7 +4593,6 @@ contains
       !###############################################################################
       ! STEP 5) Accumuler Les statistiques sur les rejets
       !###############################################################################
-      write(*,*) ' ==> mwbg_qcStats For: ', instName
       call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,       &
                         numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), &
                         .FALSE., rejectionCodArray, rejectionCodArray2)
@@ -4610,7 +4600,6 @@ contains
       !###############################################################################
       ! STEP 6) Update Flags and obs in obsspace data
       !###############################################################################
-      write(*,*) ' ==> mwbg_updateObsSpaceAfterQc : '
       call mwbg_updateObsSpaceAfterQc(obsSpaceData, headerIndex, channelOffset, obsTb, obsFlags, &
                                       cloudLiquidWaterPath, atmScatteringIndex,       &
                                       obsGlobalMarker,newInformationFlag)
