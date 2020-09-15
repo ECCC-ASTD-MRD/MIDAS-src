@@ -183,21 +183,6 @@ contains
     if(mpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
-    ! Force nlist to be in the same sequence as NVNUMB for invariance in
-    ! matrix-vector product done in matvec.
-    itotelem = 0
-    do elem2 = 1, nelems
-       elem=obs_get_obs_index_for_bufr_element(nlist(elem2))
-       if (elem /= -1) then
-          itotelem = itotelem + 1
-          ielem = nlist(itotelem)
-          nlist(itotelem) = nlist(elem2)
-          nlist(elem2) = ielem
-       else 
-          if(mpi_myid == 0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(elem2)
-       end if
-    end do
-
     filt_rlimlvhu    = rlimlvhu
     filt_nelems      = nelems
     filt_nlist(:)    = nlist(:)
