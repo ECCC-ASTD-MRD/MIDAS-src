@@ -2688,7 +2688,7 @@ CONTAINS
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type, &
                                    OBSERV_SFC,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC, &
-                                   dataQcFlagLEV_sfc, BiasCorrection_opt=BCOR_SFC)              
+                                   dataQcFlagLEV_sfc,ROLAT,ROLON,BiasCorrection_opt=BCOR_SFC)
 
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
@@ -2743,14 +2743,19 @@ CONTAINS
 
                 VCORD(1)=VCOORD(jj,k)
                 if (allocated(BCOR)) then
-                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE, &
-                                    dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                    SURF_EMIS_opt=SURF_EMIS, &
+                                    BiasCorrection_opt=BiasCorrection)
                 elseif (allocated(BCOR2)) then
-                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE, &
-                                    dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                    SURF_EMIS_opt=SURF_EMIS, &
+                                    BiasCorrection_opt=BiasCorrection2)
                 else
-                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE, &
-                                    dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS)
+                  NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                    SURF_EMIS_opt=SURF_EMIS)
                 end if
 
                 IF (NDATA > 0) THEN
@@ -2825,8 +2830,10 @@ CONTAINS
               ! dataQcFlagLev does not exist for surface data
               dataQcFlagLev_sfc(:) = MPC_missingValue_INT
 
-              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc, &
-                                   NELE_SFC,1,LISTE_ELE_SFC, dataQcFlagLEV_sfc, BiasCorrection_opt = BCOR_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type, &
+                                   OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC, &
+                                   dataQcFlagLEV_sfc,ROLAT,ROLON,BiasCorrection_opt=BCOR_SFC)
+
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
@@ -2861,14 +2868,17 @@ CONTAINS
 
               !CASES DEPENDING ON WETHER ON NOT WE HAVE MW DATA
               if (allocated(BCOR)) then
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                                  dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                  SURF_EMIS_opt=SURF_EMIS,BiasCorrection_opt=BiasCorrection)
               elseif (allocated(BCOR2)) then
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                                  dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection2)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                  SURF_EMIS_opt=SURF_EMIS,BiasCorrection_opt=BiasCorrection2)
               else
-                NDATA = WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
-                                   dataQcFlagLEV, SURF_EMIS_opt = SURF_EMIS, ROLAT_opt = ROLAT, ROLON_opt = ROLON)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                  SURF_EMIS_opt=SURF_EMIS)
               end if
               
               IF (NDATA > 0) THEN
@@ -3072,34 +3082,30 @@ CONTAINS
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
-                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,SURF_EMIS_opt, &
-                      BiasCorrection_opt, ROLAT_opt, ROLON_opt)
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                      SURF_EMIS_opt,BiasCorrection_opt)
+
     implicit none
 
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    integer ::  WRITE_BODY,VCOORD_TYPE
-    real   , allocatable          ::  OBSVALUE(:,:)
-    real   , allocatable,optional ::  SURF_EMIS_opt(:)
+    INTEGER ::  WRITE_BODY,VCOORD_TYPE
+    REAL   , allocatable          ::  OBSVALUE(:,:)
     INTEGER, allocatable          ::  QCFLAG(:,:)
-    real   , allocatable          ::  VERTCOORD(:)
-    real   , allocatable,optional ::  BiasCorrection_opt(:,:)
+    REAL   , allocatable          ::  VERTCOORD(:)
+    REAL                          ::  ROLAT(:), ROLON(:)
+    REAL   , allocatable,optional ::  SURF_EMIS_opt(:)
+    REAL   , allocatable,optional ::  BiasCorrection_opt(:,:)
     integer, intent(in)           ::  dataQcFlagLEV(:)
-    real                ,optional ::  ROLAT_opt(:), ROLON_opt(:)
 
-    CHARACTER*2 ::   FAMTYP
-    real        ::   ELEVFACT,VCOORD
-    integer     ::   NELE,NVAL
-    integer     ::   LISTE_ELE(:)
-    integer     ::   NOBS,VARNO,IL,J,COUNT,NLV
-    integer     ::   IFLAG,BITSflagoff,BITSflagon,IFLAG2
-    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat,rolon
-    integer     ::   VCO,NONELEV
-    real        ::   ZEMFACT
-
-    LOGICAL     ::   L_EMISS
-    LOGICAL     ::   L_BCOR
-    LOGICAL     ::   L_dataQcFlag2
-
+    ! Locals:
+    CHARACTER(len=2)  :: FAMTYP
+    REAL              :: ELEVFACT,VCOORD,ZEMFACT
+    INTEGER           :: NELE,NVAL,VCO,NONELEV
+    integer           :: LISTE_ELE(:),ID_OBS,NOBS,VARNO,IL,J,COUNT,NLV
+    INTEGER           :: IFLAG,BITSflagoff,BITSflagon
+    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat1,rolon1
+    LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2
     
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
@@ -3226,10 +3232,10 @@ CONTAINS
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
           if ( FAMTYP == 'RO' ) then
-            rolat = ROLAT_opt(j)
-            rolon = ROLON_opt(j)
-            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat*MPC_RADIANS_PER_DEGREE_R8)
-            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon*MPC_RADIANS_PER_DEGREE_R8)
+            rolat1 = rolat(j)*MPC_RADIANS_PER_DEGREE_R8
+            rolon1 = rolon(j)*MPC_RADIANS_PER_DEGREE_R8
+            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat1)
+            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon1)
           end if
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)

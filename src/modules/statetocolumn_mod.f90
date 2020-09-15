@@ -505,27 +505,17 @@ contains
 
       end if ! inputStateVectorType 
 
-      if ( mpi_myid == 0 ) then
-        call gsv_allocate( stateVector_1Step, 1, &
-                           stateVector%hco, stateVector%vco, &
-                           mpi_local_opt=.false., &
-                           dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
-
-        call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
-        call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
-
-      else
-        allocate(height3D_T_r4(stateVector%ni,stateVector%nj,nlev_T))
-        allocate(height3D_M_r4(stateVector%ni,stateVector%nj,nlev_M))
-      end if
-
-      ! now bring all the heights to processor 0
-      call gsv_transposeTilesToStep(stateVector_1Step, stateVector_Tiles_1Step, 1)
-
-      ! broadcast 3D height field (single precision) to all the processors
-      call rpn_comm_bcast(height3D_T_r4, size(height3D_T_r4), 'MPI_REAL4', 0, 'GRID', ierr)
-      call rpn_comm_bcast(height3D_M_r4, size(height3D_M_r4), 'MPI_REAL4', 0, 'GRID', ierr)
-
+      ! Communicate 3D height fields onto all mpi tasks
+      call gsv_allocate( stateVector_1Step, 1, &
+                         stateVector%hco, stateVector%vco, &
+                         mpi_local_opt=.false., &
+                         dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
+      call tmg_start(198,'s2c_height3DGather')
+      call gsv_transposeTilesToMpiGlobal(stateVector_1Step, stateVector_Tiles_1Step)
+      call tmg_stop(198)
+      call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
+      call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
+    
       write(*,*) 's2c_setupInterpInfo, height3D_T_r4='
       write(*,*) height3D_T_r4(1,1,:)
       write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
@@ -612,10 +602,12 @@ contains
             end if
 
             ! Calculate lat/lon along the GPSRO obs
-            call slp_calcLatLonRO(   obsSpaceData, stateVector%hco, headerIndex, & ! IN
-                                     height3D_T_r4, height3D_M_r4,               & ! IN
-                                     latLev_T, lonLev_T,                         & ! OUT
-                                     latLev_M, lonLev_M )                          ! OUT
+            call tmg_start(191,'slp_calcLatLonRO')
+            call slp_calcLatLonRO( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                   height3D_T_r4, height3D_M_r4,               & ! IN
+                                   latLev_T, lonLev_T,                         & ! OUT
+                                   latLev_M, lonLev_M )                          ! OUT
+            call tmg_stop(191)
           else
 
             latLev_T(:) = real(lat_r4,8)
@@ -699,6 +691,7 @@ contains
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
+        call tmg_start(190,'s2c_slantMpiComm')
         do kIndexCount = 1, maxkCount
           do procIndex = 1, mpi_nprocs
             ! compute kIndex value being sent
@@ -729,6 +722,7 @@ contains
           end do
 
         end do ! kIndexCount
+        call tmg_stop(190)
 
         deallocate(lon_send_r8)
         deallocate(lon_recv_r8)
@@ -800,18 +794,11 @@ contains
 
     end do step_loop2
 
-    if ( doSlantPath .and. &
+    if ( doSlantPath .and. (headerIndexEnd == obs_numheader(obsSpaceData)) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
-      if (headerIndexEnd == obs_numheader(obsSpaceData) ) then
-        write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
-        if ( mpi_myid == 0 ) then
-          call gsv_deallocate(stateVector_1Step)
-        else
-          deallocate(height3D_T_r4)
-          deallocate(height3D_M_r4)
-        end if
-      end if
+      write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
+      call gsv_deallocate(stateVector_1Step)
     end if
     deallocate(footprintRadiusVec_r4)
 
