@@ -55,7 +55,7 @@ contains
     icod(:) = -1
 
     ! read namelist to obtain additions to codtype dictionary
-    if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
+    if (utl_isNamelistPresent('namcodtyp','./flnml')) then
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namcodtyp,iostat=ierr)

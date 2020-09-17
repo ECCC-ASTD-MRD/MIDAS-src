@@ -522,7 +522,6 @@ contains
 
         if ( instrument == 420 ) obsSat  = 784
         if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
-        !if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
         if ( sensor == MPC_missingValue_INT ) then
           sensor = 0
           if (instrument == MPC_missingValue_INT ) instrument = 0

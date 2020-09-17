@@ -1584,14 +1584,14 @@ contains
     character(len=9)      :: stnid
     integer(kind=int_def) :: error, ref_rpt
     integer  :: numLevels, numValues, numReports, obsCount
-    logical  :: numFound
+    logical  :: fileFound
     integer  :: levelIndex, reportIndex, obsIndex
     integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
     integer  :: vnm, bodyIndexBeg, bodyIndexEnd
     real(8), allocatable :: uu_oer(:), vv_oer(:)
 
-    filename = obsf_getFileName('SW',numFound)
-    if (numFound) then
+    filename = obsf_getFileName('SW',fileFound)
+    if (fileFound) then
       write(*,*) 'oer_readOerFromObsFileForSW: reading OER from the file: ', trim(filename)
     else
       write(*,*) 'oer_readOerFromObsFileForSW: no obsfile with SW family, returning'

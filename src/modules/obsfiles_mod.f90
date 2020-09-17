@@ -53,7 +53,7 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-  public :: obsf_updateMissingObservationFlags
+  public :: obsf_updateMissingFlags
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -219,8 +219,8 @@ contains
     if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
       call obsu_updateSourceVariablesFlag(obsSpaceData)
     end if
-    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'bgckMW') call ovt_transformResiduals(obsSpaceData, obs_omp)
-    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'bgckMW') call obsu_updateSourceVariablesFlag(obsSpaceData)
+    if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
+    if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
     ! Put the scale factor for FSO
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
@@ -681,7 +681,7 @@ contains
   end subroutine obsf_determineSplitFileType
 
 
-  function obsf_getFileName(obsfam,numFound_opt) result(filename)
+  function obsf_getFileName(obsfam,fileFound_opt) result(filename)
     !
     ! :Purpose: Returns the observations file name assigned to the calling processor.
     !           If the input family has more than one file, the first file found will
@@ -694,7 +694,7 @@ contains
     implicit none
     ! arguments:
     character(len=2), intent(in) :: obsfam
-    logical, intent(out), optional :: numFound_opt
+    logical, intent(out), optional :: fileFound_opt
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
     ! locals:
     integer :: numFound, ifile
@@ -717,7 +717,7 @@ contains
       write(*,*) "obsf_getFileName: WARNING: Multiple files found for obs family '" // trim(obsfam) // "'"
     end if
 
-    if (present(numFound_opt)) numFound_opt = (numFound > 0)
+    if (present(fileFound_opt)) fileFound_opt = (numFound > 0)
 
   end function obsf_getFileName
 
@@ -892,9 +892,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  ! obsf_updateMissingObservationFlags
+  ! obsf_updateMissingFlags
   !--------------------------------------------------------------------------
-  subroutine obsf_updateMissingObservationFlags(obsSpaceData)
+  subroutine obsf_updateMissingFlags(obsSpaceData)
     !
     ! :Purpose: Loop on observation files to set missing observation flags to 2048
     !           For now, this is done for only ATMS and AMSUA
@@ -924,7 +924,7 @@ contains
     end do HEADER
 
     if ( .not. mwDataPresent ) then
-      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingObservationFlags since no ATMS or AMSUA'
+      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingFlags since no ATMS or AMSUA'
       return
     end if
 
@@ -933,17 +933,17 @@ contains
 
     FILELOOP: do fileIndex = 1, obsf_nfiles
       if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
-      write(*,*) 'INPUT FILE TO  obsf_updateMissingObservationFlags = ', trim( obsf_cfilnam(fileIndex) )
+      write(*,*) 'INPUT FILE TO  obsf_updateMissingFlags = ', trim( obsf_cfilnam(fileIndex) )
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( trim(obsFileType) /= 'BURP' ) then
         write(*,*) 'obsFileType = ',obsFileType
-        call utl_abort('obsf_updateMissingObservationFlags: this s/r is currently only compatible with BURP files')
+        call utl_abort('obsf_updateMissingFlags: this s/r is currently only compatible with BURP files')
       else
-        call brpr_updateMissingObservationFlags(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_updateMissingFlags(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
       end if
     end do FILELOOP
 
-  end subroutine obsf_updateMissingObservationFlags
+  end subroutine obsf_updateMissingFlags
 
   !--------------------------------------------------------------------------
   ! obsf_copyObsDirectory

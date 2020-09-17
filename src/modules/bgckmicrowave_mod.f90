@@ -42,36 +42,7 @@ module bgckmicrowave_mod
   private
 
   ! Public functions/subroutines
-
-  ! common functions/subroutines
-  public :: mwbg_qcStats
-  public :: mwbg_readGeophysicFieldsAndInterpolate
-  public :: mwbg_readObsFromObsSpace
-  public :: mwbg_updateObsSpaceAfterQc
   public :: mwbg_bgCheckMW
-  public :: mwbg_init
-  ! ATMS specific functions/subroutines
-  public :: mwbg_landIceMaskAtms
-  public :: mwbg_firstQcCheckAtms
-  public :: mwbg_grossValueCheck
-  public :: mwbg_nrlFilterAtms
-  public :: mwbg_flagDataUsingNrlCriteria
-  public :: mwbg_reviewAllcriteriaforFinalFlags
-  public :: mwbg_tovCheckAtms
-  ! AMSUA specific functions/subroutines
-  public :: mwbg_tovCheckAmsua
-  ! public variables
-  public :: mwbg_debug
-  public :: mwbg_clwQcThreshold
-  public :: mwbg_useUnbiasedObsForClw 
-  public :: mwbg_allowStateDepSigmaObs
-  public :: mwbg_maxNumChan
-  public :: mwbg_maxNumSat
-  public :: mwbg_maxNumTest
-  public :: mwbg_maxNumObs
-  public :: mwbg_maxScanAngle
-  public :: mwbg_realMissing
-  public :: mwbg_intMissing
 
   real    :: mwbg_clwQcThreshold
   logical :: mwbg_debug
@@ -81,9 +52,7 @@ module bgckmicrowave_mod
   integer :: mwbg_maxNumSat 
   integer :: mwbg_maxNumTest
 
-  integer, PARAMETER :: mwbg_maxNumObs = 3000
   integer, parameter :: mwbg_maxScanAngle=96
-  !real,    parameter :: mwbg_realMissing=9.9e09 
   real,    parameter :: mwbg_realMissing=-99. 
   integer, parameter :: mwbg_intMissing=-1
 
@@ -152,37 +121,7 @@ contains
 
 
   !--------------------------------------------------------------------------
-  !  ISRCHEQR function
-  !--------------------------------------------------------------------------
-  integer function ISRCHEQR (KLIST, KLEN, KENTRY)
-    ! OBJET          Rechercher un element dans une liste (valeurs reelles).
-    ! APPEL          INDX = ISRCHEQR (KLIST, KLEN, KENTRY)
-    ! ARGUMENTS      - indx    - output -  position de l'element recherche:
-    !                                   =0, element introuvable,
-    !                                   >0, position de l'element trouve,
-    !                - klist   - input  -  la liste
-    !                - klen    - input  -  longueur de la liste
-    !                - kentry  - input  -  l'element recherche
-
-    implicit none
-
-    integer  KLEN, JI
-
-    real  KLIST(KLEN)
-    real  KENTRY
-
-    ISRCHEQR = 0
-    do JI=1,KLEN
-       if ( NINT(KLIST(JI)) .EQ. NINT(KENTRY) ) then
-          ISRCHEQR = JI
-          return
-       end if
-    end do
-
-  end function ISRCHEQR
-
-  !--------------------------------------------------------------------------
-  !  ISRCHEQR function
+  !  ISRCHEQI function
   !--------------------------------------------------------------------------
   function ISRCHEQI (KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
     !OBJET          Rechercher un element dans une liste (valeurs entieres).
@@ -4251,7 +4190,7 @@ contains
   !  mwbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, headerIndex, channelOffset, obsTb, obsFlags, &
+  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPath,atmScatteringIndex,     &
                                         obsGlobalMarker,newInformationFlag)
 
@@ -4260,7 +4199,7 @@ contains
 
     !Arguments
     type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)        :: channelOffset          ! sat channel offset
+    integer,              intent(in)        :: sensorIndex            ! tvs_sensorIndex
     integer,              intent(in)        :: headerIndex            ! current header index
     integer,              intent(in)        :: obsFlags(:)            ! data flags
     real,                 intent(in)        :: obsTb(:)               ! obs Tb
@@ -4272,27 +4211,22 @@ contains
     integer                                 :: bodyIndex
     integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
-    integer                                 :: headerCompt 
-    integer                                 :: bodyCompt   
     integer                                 :: currentChannelNumber 
     integer                                 :: ChannelNum
 
-    channelNum = mwbg_maxNumChan - channelOffset
-    headerCompt = 1 
-    bodyCompt = 0
+    channelNum = mwbg_maxNumChan - tvs_channelOffset(sensorIndex)
     
-    call obs_headSet_r(obsSpaceData, OBS_CLW,  headerIndex, cloudLiquidWaterPath(headerCompt))
-    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(headerCompt))
-    call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(headerCompt))
-    call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(headerCompt))
+    call obs_headSet_r(obsSpaceData, OBS_CLW,  headerIndex, cloudLiquidWaterPath(1))
+    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
+    call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
+    call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
     obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
-      call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(bodyCompt+currentChannelNumber))
-      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(bodyCompt+currentChannelNumber))
+      call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(currentChannelNumber))
+      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY
-    bodyCompt =  bodyCompt+channelNum
 
   end subroutine mwbg_updateObsSpaceAfterQc  
    
@@ -4301,7 +4235,7 @@ contains
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, channelOffset, satIdentifier, satZenithAngle, landQualifierIndice, &
+  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, satIdentifier, satZenithAngle, landQualifierIndice, &
                                       terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
                                       obsGlobalMarker, burpFileSatId, obsTb, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
                                       obsFlags, sensorIndex, obsSpaceData)
@@ -4313,7 +4247,6 @@ contains
     !Arguments
     character(len=9),     intent(in)     :: InstName               ! Instrument Name
     integer,              intent(in)     :: headerIndex            ! current header Index 
-    integer,              intent(in)     :: channelOffset          ! sat. channel offset(e.g 27 for amsua) 
     integer, allocatable, intent(out)    :: satIdentifier(:)       ! satellite identifier
     real   , allocatable, intent(out)    :: satZenithAngle(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
     integer, allocatable, intent(out)    :: landQualifierIndice(:) ! land/sea qualifier     (btyp=3072,ele=8012)
@@ -4340,7 +4273,6 @@ contains
     integer                              :: obsNumCurrentLoc
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt 
-    integer                              :: bodyCompt   
     integer                              :: currentChannelNumber  
     integer                              :: channelIndex
     integer                              ::  numChannelUsed      
@@ -4352,9 +4284,29 @@ contains
     logical                              :: sensorIndexFound
     integer                              :: ichannel
 
-    numChannelUsed = mwbg_maxNumChan - channelOffset
+
+
+   ! find tvs_sensor index corresponding to current obs
+
+    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
+    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
+
+    call tvs_mapSat( iplatf, iplatform, isat )
+    call tvs_mapInstrum( instr, instrum )
+    
+    sensorIndexFound = .false.
+    do sensorIndex =1, tvs_nsensors
+      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
+           isat      ==  tvs_satellites(sensorIndex) .and. &
+           instrum   == tvs_instruments(sensorIndex)       ) then
+          sensorIndexFound = .true. 
+         exit
+      end if
+    end do
+    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
+
+    numChannelUsed = mwbg_maxNumChan - tvs_channelOffset(sensorIndex)
     headerCompt = 1 
-    bodyCompt = 0
     numObsToProcess = 1
     ! Allocate Header elements
     call utl_reAllocate(satIdentifier, numObsToProcess)
@@ -4407,36 +4359,17 @@ contains
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
-      obsTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      ompTb(bodyCompt+currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-      obsTbBiasCorr(bodyCompt+currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
-      obsFlags(bodyCompt+currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-      obsQcFlag2(bodyCompt+currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
+      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+      obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
+      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+      obsQcFlag2(currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
       
     end do BODY
     do channelIndex=1,numChannelUsed
-      obsChannels(bodyCompt+channelIndex)    = channelIndex+channelOffset
+      obsChannels(channelIndex)    = channelIndex+channelOffset
     end do
-    bodyCompt = bodyCompt + numChannelUsed
       
-   ! find tvs_sensor index corresponding to current obs
-
-    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
-    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
-
-    call tvs_mapSat( iplatf, iplatform, isat )
-    call tvs_mapInstrum( instr, instrum )
-    
-    sensorIndexFound = .false.
-    do sensorIndex =1, tvs_nsensors
-      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
-           isat      ==  tvs_satellites(sensorIndex) .and. &
-           instrum   == tvs_instruments(sensorIndex)       ) then
-          sensorIndexFound = .true. 
-         exit
-      end if
-    end do
-    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
 
   end subroutine mwbg_readObsFromObsSpace 
 
@@ -4536,16 +4469,15 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( .not. ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
-                   (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
-        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ATM or AMSUA'
+      if ( .not. (tvs_isIdBurpInst(codtyp,instName)) ) then
+        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ', instName
         cycle HEADER
       end if
       !###############################################################################
       ! STEP 1) read obs from obsSpacedata to start QC                               !
       !###############################################################################
 
-      call mwbg_readObsFromObsSpace(instName, headerIndex, channelOffset, &
+      call mwbg_readObsFromObsSpace(instName, headerIndex,                            &
                                    satIdentifier, satZenithAngle,landQualifierIndice, &
                                    terrainTypeIndice, obsLatitude, obsLongitude,      &
                                    satScanPosition, obsQcFlag1, satOrbit,             &
@@ -4600,7 +4532,7 @@ contains
       !###############################################################################
       ! STEP 6) Update Flags and obs in obsspace data
       !###############################################################################
-      call mwbg_updateObsSpaceAfterQc(obsSpaceData, headerIndex, channelOffset, obsTb, obsFlags, &
+      call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                       cloudLiquidWaterPath, atmScatteringIndex,       &
                                       obsGlobalMarker,newInformationFlag)
 

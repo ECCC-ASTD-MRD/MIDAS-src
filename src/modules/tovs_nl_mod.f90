@@ -1746,19 +1746,21 @@ contains
     ! :Purpose: to obtain new STYP value given observed STYP and TTYP value
     !
     implicit none
+    ! Arguments:
     integer, intent(in)          :: headerIndex
     type(struct_obs)             :: obsSpaceData
     
+    ! Locals:
+    integer :: terrainType
+    integer :: landSea 
 
-    integer :: TERRAIN_TYPE, LAND_SEA 
+    terrainType = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
+    landSea     = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
 
-    TERRAIN_TYPE = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
-    LAND_SEA     = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
-
-    if ( TERRAIN_TYPE ==  0 ) then
+    if ( terrainType ==  0 ) then
       tvs_ChangedStypValue = 2
     else
-      tvs_ChangedStypValue = LAND_SEA
+      tvs_ChangedStypValue = landSea
     end if
 
   end function tvs_ChangedStypValue

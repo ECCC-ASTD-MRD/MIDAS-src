@@ -197,7 +197,7 @@ program midas_obsSelection
     
     ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
     if (obs_famExist(obsSpaceData,'TO')) then
-      call obsf_updateMissingObservationFlags(obsSpaceData)
+      call obsf_updateMissingFlags(obsSpaceData)
       call obsf_addCloudParametersAndEmissivity(obsSpaceData)
     end if
 
@@ -239,7 +239,7 @@ program midas_obsSelection
   
   ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
-    call obsf_updateMissingObservationFlags(obsSpaceData)
+    call obsf_updateMissingFlags(obsSpaceData)
     call obsf_addCloudParametersAndEmissivity(obsSpaceData)
   end if
 

@@ -7,9 +7,9 @@
   debug = .true.
   RESETQC = .false.
   maxNumSat  = 9
-  channelOffset = 27
   maxNumTest = 15
   maxNumChan = 42
+  channelOffset = 27
   allowStateDepSigmaObs = .false. 
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.false.
