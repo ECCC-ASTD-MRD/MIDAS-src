@@ -41,7 +41,7 @@ private
 
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
-public :: brpr_addBiasCorrectionElement, brpr_updateMissingFlags, brpr_burpClean
+public :: brpr_addBiasCorrectionElement, brpr_updateMissingObsFlags, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -4372,9 +4372,9 @@ CONTAINS
   end subroutine brpr_addCloudParametersandEmissivity
 
   !--------------------------------------------------------------------------
-  ! brpr_updateMissingFlags
+  ! brpr_updateMissingObsFlags
   !--------------------------------------------------------------------------
-  subroutine brpr_updateMissingFlags( obsSpaceData, fileIndex, burpFile )
+  subroutine brpr_updateMissingObsFlags( obsSpaceData, fileIndex, burpFile )
     !
     ! :Purpose: Open burp file and set missing data flags to 2048.
     !
@@ -4406,7 +4406,7 @@ CONTAINS
     character(len=9)       :: station_id
 
     write(*,*) '----------------------------------------------------------'
-    write(*,*) '-- Begin subroutine brpr_updateMissingFlags----'
+    write(*,*) '-- Begin subroutine brpr_updateMissingObsFlags----'
     write(*,*) '----------------------------------------------------------'
 
     ! Initialisation
@@ -4454,7 +4454,7 @@ CONTAINS
       call BURP_New(copyReport, ALLOC_SPACE=20000000, iostat=error)
       if (error/=burp_noerr) then
         write(*,*) "Error creating new directory ",error
-        call handle_error('brpr_updateMissingFlags')
+        call handle_error('brpr_updateMissingObsFlags')
       end if
 
       ! Loop on reports
@@ -4468,7 +4468,7 @@ CONTAINS
 
         if (reportIndex == 1) then
           call BURP_Get_Property(inputReport, IDTYP=idatyp)
-          write(*,*) "brpr_updateMissingFlags idatyp ", idatyp
+          write(*,*) "brpr_updateMissingObsFlags idatyp ", idatyp
           idata = -1
           call obs_set_current_header_list(obsSpaceData, 'TO')
           HEADER: do
@@ -4673,7 +4673,7 @@ CONTAINS
 
     end subroutine handle_error
 
-  end subroutine brpr_updateMissingFlags
+  end subroutine brpr_updateMissingObsFlags
 
 
   !-----------------------------------------------------------------------

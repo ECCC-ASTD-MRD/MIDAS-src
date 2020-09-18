@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added quality control for AMSUA and ATMS to `obsSelection` (#335 and !320)
  * Added interpolation from a `Y` grid for the background fields (#385 and !367)
  * When `midas.splitobs` is splitting an SQLite observation file into
    equal parts, we not only process the tables `header` and `data` but
@@ -64,6 +65,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Remove program `bgckMW` since the same functionality now in `obsSelection` (#335 and !320)
  * Remove the programs `write_subdomains` and `reunir_obs` from SSM domain publication (#360, #361 and !345)
  * Compile using only one precision and remove the publication of the MIDAS library (#358 and !344)
    * remove the program `midas-obsIO`
