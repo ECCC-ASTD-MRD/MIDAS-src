@@ -143,8 +143,8 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
         . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
     fi
 
-    echo "... loading /home/erv000/data/ords/SSM/rttov-12/hugepages16m-1.4-4-g87f291c/${COMP_ARCH}"
-    . r.load.dot /home/erv000/data/ords/SSM/rttov-12/hugepages16m-1.4-4-g87f291c/${COMP_ARCH}
+    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.5"
+    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.5/${COMP_ARCH}
 
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
