@@ -3153,7 +3153,6 @@ CONTAINS
     END SELECT
 
     !-------------------SPECIAL CASES--------------
-    write(*,*) '------SPECIAL CASES-----'
     DO il = 1, NELE
       varno=LISTE_ELE(il)
       DO j = 1, NVAL
@@ -3169,10 +3168,7 @@ CONTAINS
         if ( L_BCOR )  then
           BCOR  =  BiasCorrection_opt(il,j)
         end if
-          write(*,*) 'L_dataQcFlag2 = ', L_dataQcFlag2
         if ( L_dataQcFlag2 )  then
-          write(*,*) 'L_dataQcFlag2 = ', L_dataQcFlag2
-          write(*,*) 'j= ', j, 'dataQcFlagLEV = ', dataQcFlagLEV(j)
           IFLAG2  =  dataQcFlagLEV(j)
         end if
         IFLAG = INT(qCflag(il,j))

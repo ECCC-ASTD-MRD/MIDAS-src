@@ -1667,7 +1667,6 @@ contains
         end if 
       end do
     end if
-    print *,'END OF mwbd_qcStats'
   end subroutine mwbg_qcStats
 
   !--------------------------------------------------------------------------
@@ -4433,6 +4432,7 @@ contains
     logical                       :: mwDataPresent
 
 
+    call tmg_start(33,'BGCHECK_MW')
     mwDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
@@ -4543,6 +4543,8 @@ contains
     call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,              &
                       numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
                       .TRUE.,rejectionCodArray, rejectionCodArray2)
+
+    call tmg_stop(33)
 
   end subroutine mwbg_bgCheckMW 
 
