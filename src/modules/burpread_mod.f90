@@ -4999,31 +4999,29 @@ CONTAINS
               end do
             end if
         
-            call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.true., iostat=error)
+            ! Adding clear-sky radiance to data block for AMSUA
+            if ( addClearRadToBurp ) then 
+              
+              indele = burp_find_element(inputBlock, element=icodeleRad, iostat=error)
 
-          ! Adding clear-sky radiance to data block for AMSUA
-          else if ( (btyp == 9248 .or. btyp == 9264) .and. bfam == 0 .and. &
-                        addClearRadToBurp ) then 
-            
-            indele = burp_find_element(inputBlock, element=icodeleRad, iostat=error)
-
-            if ( indele <= 0 ) then
-              nbele = nbele + 1
-              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRad, IOSTAT = error)
-              do valIndex = 1,nvale
-                do tIndex = 1,nte
-                  call burp_set_Rval( inputBlock, &
-                       nele_ind = nbele,            &
-                       nval_ind = valIndex,         &
-                       nt_ind   = tIndex,           &
-                       Rval = MPC_missingValue_R4, iostat=error)
-                  if (error /= 0) call handle_error()
+              if ( indele <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRad, IOSTAT = error)
+                do valIndex = 1,nvale
+                  do tIndex = 1,nte
+                    call burp_set_Rval( inputBlock, &
+                         nele_ind = nbele,            &
+                         nval_ind = valIndex,         &
+                         nt_ind   = tIndex,           &
+                         Rval = MPC_missingValue_R4, iostat=error)
+                    if (error /= 0) call handle_error()
+                  end do
                 end do
-              end do
+              end if
+          
             end if
-        
+
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.true., encode_block=.true., iostat=error)
 
@@ -5045,32 +5043,30 @@ CONTAINS
               end do
             end if
         
+            ! Adding clear-sky radiance to MRQ block for AMSUA
+            if ( addClearRadToBurp ) then
+
+              indele = burp_find_element(inputBlock, element=icodeleRadMrq , iostat=error)
+              if ( indele <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRadMrq, IOSTAT = error)
+                do valIndex = 1,nvale
+                  do tIndex = 1, nte
+                    call burp_set_tblval( inputBlock, &
+                         nele_ind = nbele,            &
+                         nval_ind = valIndex,         &
+                         nt_ind   = tIndex,           &
+                         tblval   = 0, iostat=error)
+                    if (error /= 0) call handle_error()
+                  end do
+                end do
+              end if
+          
+            end if
+
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.false., encode_block=.true.,iostat=error)
-
-          ! Adding clear-sky radiance to MRQ block for AMSUA
-          else if ( (btyp == 15392 .or. btyp == 15408 ) .and. bfam == 0 .and. &
-                        addClearRadToBurp ) then
-
-            indele = burp_find_element(inputBlock, element=icodeleRadMrq , iostat=error)
-            if ( indele <= 0 ) then
-              nbele = nbele + 1
-              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRadMrq, IOSTAT = error)
-              do valIndex = 1,nvale
-                do tIndex = 1, nte
-                  call burp_set_tblval( inputBlock, &
-                       nele_ind = nbele,            &
-                       nval_ind = valIndex,         &
-                       nt_ind   = tIndex,           &
-                       tblval   = 0, iostat=error)
-                  if (error /= 0) call handle_error()
-                end do
-              end do
-            end if
-        
-            call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.true.,iostat=error)
 
           else !other blocks
 
