@@ -59,6 +59,7 @@ module bgckmicrowave_mod
   ! Module variable
 
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
+  character(len=128), parameter :: glmg_file='fstglmg'  ! glace de mer file
 
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
   real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
@@ -72,7 +73,6 @@ module bgckmicrowave_mod
 
   ! namelist variables
   character(len=9)              :: instName                      ! instrument name
-  character(len=128)            :: glmg_file                     ! glace de mer file
   real                          :: clwQcThreshold                ! 
   logical                       :: allowStateDepSigmaObs         !
   logical                       :: useUnbiasedObsForClw          !
@@ -84,11 +84,10 @@ module bgckmicrowave_mod
   integer                       :: MaxNumTest
 
 
-  namelist /nambgck/instName, glmg_file,  &
-                      clwQcThreshold, allowStateDepSigmaObs, &
-                      useUnbiasedObsForClw, debug, RESETQC,  &
-                      maxNumSat, channelOffset,  maxNumTest, &
-                      maxNumChan
+  namelist /nambgck/instName, clwQcThreshold, allowStateDepSigmaObs, &
+                    useUnbiasedObsForClw, debug, RESETQC,  &
+                    maxNumSat, channelOffset, maxNumTest, &
+                    maxNumChan
 
 contains
 
@@ -101,6 +100,9 @@ contains
     ! Locals:
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
+
+    ! Default values for namelist variables
+    debug = .false.
 
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
@@ -968,13 +970,13 @@ contains
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
             rejectionCodArray(testIndex,channelval,KNOSAT) = &
                 rejectionCodArray(testIndex,channelval,KNOSAT) + 1 
-            !if ( mwbg_debug ) then
+            if ( mwbg_debug ) then
               write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                       ' OBS = ',nDataIndex, &
                       ' CHANNEL= ',channelval, &
                       ' CHECK VALUE= ',XCHECKVAL, &
                       ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex)
-            !end if
+            end if
             if ( channelval .EQ. 28 .OR. &
                  channelval .EQ. 29 .OR. &
                  channelval .EQ. 30      ) then
@@ -1470,11 +1472,9 @@ contains
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(RESETQC, KCHKPRF, globMarq)
 
-
     !###############################################################################
     ! FINAL STEP: set terrain type to sea ice given certain conditions
     !###############################################################################
-    write(*,*) ' ==> setTerrainTypeToSeaIce : '
     call setTerrainTypeToSeaIce(GLINTRP, KTERMER, ITERRAIN)
 
   end subroutine mwbg_tovCheckAmsua
@@ -1845,7 +1845,7 @@ contains
       scatw(i) = zmisgLocal
       rain (i) = nint(zmisgLocal)
       snow (i) = nint(zmisgLocal)
-    enddo
+    end do
 
     ! 2) Validate input parameters:
     do i = 1, ni
@@ -2440,7 +2440,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, glmg_file, zlat, zlon, ilq, itt, &
+  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, zlat, zlon, ilq, itt, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
@@ -2459,7 +2459,6 @@ contains
     !                                                         2 (assimilate over open water only)
 
     real(8), intent(in)              :: TOVERRST(:,:)      ! l'erreur totale des TOVS
-    character(len=128), intent(in)   :: glmg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs
     real,    intent(in)              :: zlat(:)
@@ -2608,7 +2607,7 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL    
     !###############################################################################
-    call mwbg_landIceMaskAtms(glmg_file, KNT, zlat, zlon, ilq, itt, &
+    call mwbg_landIceMaskAtms(KNT, zlat, zlon, ilq, itt, &
                               lsq, trn, waterobs)
 
     !###############################################################################
@@ -2639,7 +2638,6 @@ contains
     !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
  
-    !  
     call mwbg_nrlFilterAtms(KNT, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
                             grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -2676,8 +2674,6 @@ contains
     ! PART 2 TESTS:
     !###############################################################################
 
-
-
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
     call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
@@ -2704,7 +2700,7 @@ contains
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                          KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2) 
+                                      KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2) 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
     !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac) 
@@ -2714,15 +2710,14 @@ contains
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                  IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                  KMARQ,  B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+                              IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
+                              KMARQ,  B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
  
-
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
-     call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                                IUTILST, KMARQ, ICHECK, rejectionCodArray)
+    call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+                                               IUTILST, KMARQ, ICHECK, rejectionCodArray)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -2795,7 +2790,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate 
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
+  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
 
     implicit none
 
@@ -2808,7 +2803,6 @@ contains
     !         Then Interpolate Those variables to observation location
     !Arguments: 
     character(*),       intent(in)   :: instName       ! Instrument Name
-    character(*),       intent(in)   :: glmg_file      ! mg and lg file
     real,               intent(in)   :: zlat(:)        ! Obseravtion Lats
     real,               intent(in)   :: zlon(:)        ! Observation Lons
     real, allocatable,  intent(out)  :: MGINTRP(:)     ! Glace de mer interpolees au pt d'obs.
@@ -3060,7 +3054,7 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskAtms(glmg_file,npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
+  subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -3112,7 +3106,6 @@ contains
     !--------------------------------------------------------------------
     !  Variable Definitions
     !  --------------------
-    ! - glmg_file  : input  -  name of file holding model MG and LG (or GL) fields
     ! - npts       : input  -  number of input obs pts in report
     ! - zlat       : input  -  array holding lat values for all obs pts in report
     ! - zlon       : input  -  array holding lon values for all obs pts in report
@@ -3150,8 +3143,6 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=128), intent(in) :: glmg_file
-
     integer, intent(in)                   :: npts
     real,    intent(in)                   :: zlat(:)
     real,    intent(in)                   :: zlon(:)
@@ -3162,12 +3153,13 @@ contains
     logical, intent(out), allocatable     :: waterobs(:)
 
     ! Locals:
+    logical, save :: firstCall=.true.
     integer, parameter :: mxlat=5,mxlon=5
-    integer, parameter :: iungeo=50
+    integer :: iungeo
 
     integer :: ier,key,istat
-    integer :: ni,nj,nk,nilg,njlg
-    integer :: ig1,ig2,ig3,ig4,ig1lg,ig2lg,ig3lg,ig4lg
+    integer, save :: ni,nj,nk,nilg,njlg
+    integer, save :: ig1,ig2,ig3,ig4,ig1lg,ig2lg,ig3lg,ig4lg
     integer :: idum4,idum5,idum6,idum7,idum8,idum9,idum10,idum11
     integer :: idum12,idum13,idum14,idum15,idum16,idum17,idum18
 
@@ -3187,16 +3179,16 @@ contains
     character(len=12) :: etikxx
     character(len=4)  :: nomvxx
     character(len=2)  :: typxx
-    character(len=1)  :: grtyp,grtyplg
+    character(len=1), save :: grtyp,grtyplg
   
     logical  :: llg
 
     ! F90 allocatable arrays:
-    real, allocatable, dimension(:)   :: mg,lg
-    real, allocatable, dimension(:)   :: latmesh,lonmesh
-    real, allocatable, dimension(:)   :: mgintob,lgintob
-    real, allocatable, dimension(:,:) :: zlatbox,zlonbox
-    real, allocatable, dimension(:)   :: mgintrp,lgintrp
+    real, allocatable, save :: mg(:),lg(:)
+    real, allocatable       :: latmesh(:),lonmesh(:)
+    real, allocatable       :: mgintob(:),lgintob(:)
+    real, allocatable       :: zlatbox(:,:),zlonbox(:,:)
+    real, allocatable       :: mgintrp(:),lgintrp(:)
   
     ! RMNLIB interpolating functions:
     integer :: ezsetopt,ezqkdef
@@ -3223,52 +3215,55 @@ contains
     ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
     
     ! Open FST file.
+    iungeo = 0
     ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
     ier = fstouv( iungeo,'RND' )
 
-    ! Read MG field.
-    key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
-    if ( key <  0 ) then
-      call utl_abort('bgckMicrowave_mod:  mwbg_landIceMaskAtms The MG field is MISSING')
-    end if
+    if (firstCall) then
+      firstCall = .false.
 
-    call utl_reAllocate(mg, ni*nj)
-
-    ier = fstlir(mg,iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MG')
-
-    ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,    &
-                idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyp,ig1,ig2,  &
-                ig3,ig4,idum12,idum13,idum14,idum15,idum16,idum17,      &
-                idum18)
-
-
-    ! Read LG field. Use GL field as backup.
-    ! **CAUTION**: Discontinuities in GL field may cause interpolation problems! LG field is preferable.
-    llg=.false.
-    key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'LG')
-    if ( key <  0 ) then
-      key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'GL')
+      ! Read MG field.
+      key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
       if ( key <  0 ) then
-        call utl_abort('bgckMicrowave_mod:  mwbg_landIceMaskAtms The LG or GL field is MISSING')
-      else
-        !write(*,*) 'mwbg_landIceMaskAtms: The GL field was found and will be used.'
+        call utl_abort('mwbg_landIceMaskAtms: The MG field is MISSING')
       end if
-    else
-      llg=.true.
-    end if
 
-    call utl_reAllocate(lg, nilg*njlg)
+      call utl_reAllocate(mg, ni*nj)
 
-    if ( llg ) then
-      ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
-    else
-      ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','GL')
-    end if
+      ier = fstlir(mg,iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MG')
 
-    ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,          &
-                idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyplg,ig1lg,ig2lg,  &
-                ig3lg,ig4lg,idum12,idum13,idum14,idum15,idum16,idum17,        &
-                idum18)
+      ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,    &
+                   idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyp,ig1,ig2,  &
+                   ig3,ig4,idum12,idum13,idum14,idum15,idum16,idum17,      &
+                   idum18)
+
+      ! Read LG field. Use GL field as backup.
+      ! **CAUTION**: Discontinuities in GL field may cause interpolation problems! LG field is preferable.
+      llg = .false.
+      key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'LG')
+      if ( key <  0 ) then
+        key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'GL')
+        if ( key <  0 ) then
+          call utl_abort('mwbg_landIceMaskAtms: The LG or GL field is MISSING')
+        end if
+      else
+        llg = .true.
+      end if
+
+      call utl_reAllocate(lg, nilg*njlg)
+
+      if ( llg ) then
+        ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
+      else
+        ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','GL')
+      end if
+
+      ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,          &
+                   idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyplg,ig1lg,ig2lg,  &
+                   ig3lg,ig4lg,idum12,idum13,idum14,idum15,idum16,idum17,        &
+                   idum18)
+
+    end if ! firstCall
 
     ! For each obs pt, define a grid of artificial pts surrounding it.
     nlat = ( mxlat - 1 ) / 2
@@ -3611,11 +3606,9 @@ contains
       indx1 = indx1 + mwbg_maxNumChan
     end do
      
-    write(*,*) 'mwbg_firstQcCheckAtms: Total number of data processed in this box = ', nt*mwbg_maxNumChan
-    write(*,*) '         Total number of data flagged in this box   = ', COUNT(lqc)
-    write(*,*) ' '
+    write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
+               nt*mwbg_maxNumChan, count(lqc)
 
-    return
   end subroutine mwbg_firstQcCheckAtms
 
   !--------------------------------------------------------------------------
@@ -4488,7 +4481,7 @@ contains
       !###############################################################################
       ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       !###############################################################################
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, glmg_file, obsLatitude, &
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLatitude, &
                                                   obsLongitude, modelInterpTerrain,     &
                                                   modelInterpGroundIce, modelInterpSeaIce)
 
@@ -4508,7 +4501,7 @@ contains
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                                 RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil,glmg_file, obsLatitude, obsLongitude,&
+        call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
                                obsChannels, obsTb, obsTbBiasCorr, ompTb,    &

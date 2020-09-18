@@ -3,8 +3,7 @@
 / 
 &NAMBGCK
   instName = 'AMSUA'
-  glmg_file  = 'fstglmg'
-  debug = .true.
+  debug = .false.
   RESETQC = .false.
   maxNumSat  = 9
   maxNumTest = 15

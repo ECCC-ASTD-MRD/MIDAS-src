@@ -1,7 +1,6 @@
  &NAMBGCK
   instName = 'ATMS'
-  glmg_file  = './fstglmg'
-  debug = .true.
+  debug = .false.
   RESETQC = .false.
   maxNumSat  = 2
   maxNumTest = 5
