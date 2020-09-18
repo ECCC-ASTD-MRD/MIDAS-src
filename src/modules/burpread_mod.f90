@@ -1619,9 +1619,6 @@ CONTAINS
     INTEGER, PARAMETER     :: MAXRONVAL=500
     real                   :: ROLAT(MAXRONVAL), ROLON(MAXRONVAL)
 
-    INTEGER, PARAMETER     :: MAXRONVAL = 500
-    REAL                   :: ROLAT(MAXRONVAL), ROLON(MAXRONVAL)
-
     INTEGER, ALLOCATABLE   :: MTVAL(:)
     INTEGER, ALLOCATABLE   :: HAVAL(:), GAVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
     real(pre_obsReal) , ALLOCATABLE  :: azimuth(:)
@@ -3103,7 +3100,7 @@ CONTAINS
     REAL              :: ELEVFACT,VCOORD,ZEMFACT
     INTEGER           :: NELE,NVAL,VCO,NONELEV
     integer           :: LISTE_ELE(:),ID_OBS,NOBS,VARNO,IL,J,COUNT,NLV
-    INTEGER           :: IFLAG,BITSflagoff,BITSflagon
+    INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2
     
