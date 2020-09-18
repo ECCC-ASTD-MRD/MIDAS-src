@@ -100,8 +100,9 @@ module stateToColumn_mod
   real(4), parameter ::         bilinearFootprint =  0.0
 
   ! namelist variables:
-  logical, save :: slantPath_nl
-  logical, save :: slantPath_tlad
+  logical :: slantPath_TO_nl
+  logical :: slantPath_TO_tlad
+  logical :: slantPath_RO_nl
   logical, save :: calcHeightPressIncrOnColumn
 
   integer, external    :: get_max_rss
@@ -258,7 +259,8 @@ contains
 
     ! locals
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
-    type(struct_gsv)          :: stateVector_Tiles_1Step, stateVector_1Step
+    type(struct_gsv)          :: stateVector_Tiles_1Step
+    type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
     integer :: bodyIndex, kIndex, kIndexCount, myKBeg
@@ -281,17 +283,17 @@ contains
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
     real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
-    real(4), pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
+    real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
-    logical :: doSlantPath, firstHeaderSlantPath 
+    logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
     logical, save :: nmlAlreadyRead = .false.
 
-    namelist /nams2c/ slantPath_nl, slantPath_tlad, calcHeightPressIncrOnColumn
+    namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -302,26 +304,40 @@ contains
       nmlAlreadyRead = .true.
 
       ! default values
-      slantPath_nl = .false.
-      slantPath_tlad = .false.
+      slantPath_TO_nl   = .false.
+      slantPath_TO_tlad = .false.
+      slantPath_RO_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
 
       ! reading namelist variables
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=nams2c, iostat=ierr)
+      read(nulnam, nml = nams2c, iostat = ierr)
       if ( ierr /= 0 .and. mpi_myid == 0 ) then
         write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
-      if ( mpi_myid == 0 ) write(*, nml=nams2c)
+      if ( mpi_myid == 0 ) write(*, nml = nams2c)
       ierr = fclos(nulnam)
     end if
 
     doSlantPath = .false.
-    if ( slantPath_nl   .and. inputStateVectorType == 'nl' ) doSlantPath = .true.
-    if ( slantPath_tlad .and. inputStateVectorType /= 'nl' ) doSlantPath = .true.
-    write(*,*) 's2c_setupInterpInfo: doSlantPath=', doSlantPath
+    SlantTO     = .false.
+    SlantRO     = .false.
+    if ( slantPath_TO_nl   .and. inputStateVectorType == 'nl' ) then
+      doSlantPath = .true.
+      SlantTO     = .true.
+    endif
+    if ( slantPath_TO_tlad .and. inputStateVectorType /= 'nl' ) then
+      doSlantPath = .true.
+      SlantTO     = .true.
+    endif
+    if ( slantPath_RO_nl   .and. inputStateVectorType == 'nl' ) then
+      doSlantPath = .true.
+      SlantRO     = .true.
+    endif
+    write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO = ', &
+               doSlantPath, SlantTO, SlantRO
 
     numStep = stateVector%numStep
     numHeader = headerIndexEnd - headerIndexBeg + 1
@@ -426,8 +442,11 @@ contains
       end do
     end if
 
+    nlev_T = gsv_getNumLev(stateVector,'TH')
+    nlev_M = gsv_getNumLev(stateVector,'MM')
+
     ! prepare for extracting the 3D height for slant-path calculation
-    if ( doSlantPath .and. &
+    if ( doSlantPath .and. (headerIndexBeg == 1) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
 
@@ -486,29 +505,17 @@ contains
 
       end if ! inputStateVectorType 
 
-      nlev_T = gsv_getNumLev(stateVector,'TH')
-      nlev_M = gsv_getNumLev(stateVector,'MM')
-      if ( mpi_myid == 0 ) then
-        call gsv_allocate( stateVector_1Step, 1, &
-                           stateVector%hco, stateVector%vco, &
-                           mpi_local_opt=.false., &
-                           dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
-
-        call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
-        call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
-
-      else
-        allocate(height3D_T_r4(stateVector%ni,stateVector%nj,nlev_T))
-        allocate(height3D_M_r4(stateVector%ni,stateVector%nj,nlev_M))
-      end if
-
-      ! now bring all the heights to processor 0
-      call gsv_transposeTilesToStep(stateVector_1Step, stateVector_Tiles_1Step, 1)
-
-      ! broadcast 3D height field (single precision) to all the processors
-      call rpn_comm_bcast(height3D_T_r4, size(height3D_T_r4), 'MPI_REAL4', 0, 'GRID', ierr)
-      call rpn_comm_bcast(height3D_M_r4, size(height3D_M_r4), 'MPI_REAL4', 0, 'GRID', ierr)
-
+      ! Communicate 3D height fields onto all mpi tasks
+      call gsv_allocate( stateVector_1Step, 1, &
+                         stateVector%hco, stateVector%vco, &
+                         mpi_local_opt=.false., &
+                         dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
+      call tmg_start(198,'s2c_height3DGather')
+      call gsv_transposeTilesToMpiGlobal(stateVector_1Step, stateVector_Tiles_1Step)
+      call tmg_stop(198)
+      call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
+      call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
+    
       write(*,*) 's2c_setupInterpInfo, height3D_T_r4='
       write(*,*) height3D_T_r4(1,1,:)
       write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
@@ -559,7 +566,8 @@ contains
         latLev_M(:) = 0.0d0
         lonLev_M(:) = 0.0d0
 
-        firstHeaderSlantPath  = .true.
+        firstHeaderSlantPathTO = .true.
+        firstHeaderSlantPathRO = .true.
         header_loop3: do headerUsedIndex = 1, numHeaderUsed
           headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
 
@@ -571,10 +579,11 @@ contains
 
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if ( tvs_isIdBurpTovs(codeType) ) then
-            if ( firstHeaderSlantPath ) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
-              firstHeaderSlantPath = .false.
+          if ( tvs_isIdBurpTovs(codeType) .and. SlantTO ) then
+            if ( firstHeaderSlantPathTO ) then
+              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex = ', &
+                   stepIndex,' and numHeaderUsed = ',numHeaderUsed
+              firstHeaderSlantPathTO = .false.
             end if
 
             ! calculate lat/lon along the line of sight
@@ -585,14 +594,27 @@ contains
                                      latLev_M, lonLev_M )                          ! OUT
             call tmg_stop(199)
 
+          else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
+            if ( firstHeaderSlantPathRO ) then
+              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RO. stepIndex = ', &
+                   stepIndex,' and numHeaderUsed = ',numHeaderUsed
+              firstHeaderSlantPathRO = .false.
+            end if
+
+            ! Calculate lat/lon along the GPSRO obs
+            call tmg_start(191,'slp_calcLatLonRO')
+            call slp_calcLatLonRO( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                   height3D_T_r4, height3D_M_r4,               & ! IN
+                                   latLev_T, lonLev_T,                         & ! OUT
+                                   latLev_M, lonLev_M )                          ! OUT
+            call tmg_stop(191)
           else
 
             latLev_T(:) = real(lat_r4,8)
             lonLev_T(:) = real(lon_r4,8)
             latLev_M(:) = real(lat_r4,8)
             lonLev_M(:) = real(lon_r4,8)
-
-          end if !tvs_isIdBurpTovs
+          end if
 
           ! check if the slanted lat/lon is inside the domain
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
@@ -669,6 +691,7 @@ contains
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
+        call tmg_start(190,'s2c_slantMpiComm')
         do kIndexCount = 1, maxkCount
           do procIndex = 1, mpi_nprocs
             ! compute kIndex value being sent
@@ -699,6 +722,7 @@ contains
           end do
 
         end do ! kIndexCount
+        call tmg_stop(190)
 
         deallocate(lon_send_r8)
         deallocate(lon_recv_r8)
@@ -770,15 +794,11 @@ contains
 
     end do step_loop2
 
-    if ( doSlantPath .and. &
+    if ( doSlantPath .and. (headerIndexEnd == obs_numheader(obsSpaceData)) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
-      if ( mpi_myid == 0 ) then
-        call gsv_deallocate(stateVector_1Step)
-      else
-        deallocate(height3D_T_r4)
-        deallocate(height3D_M_r4)
-      end if
+      write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
+      call gsv_deallocate(stateVector_1Step)
     end if
     deallocate(footprintRadiusVec_r4)
 

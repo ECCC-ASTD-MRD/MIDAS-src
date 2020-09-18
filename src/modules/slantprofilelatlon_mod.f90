@@ -35,7 +35,7 @@ module slantprofilelatlon_mod
   private
 
   ! public procedures
-  public :: slp_calcLatLonTovs
+  public :: slp_calcLatLonTovs, slp_calcLatLonRO
 
   ! private module variables and derived types
   real(4), save :: toleranceHeightDiff
@@ -86,9 +86,9 @@ contains
       ! reading namelist variables
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namSlantPath, iostat=ierr)
+      read(nulnam, nml = namSlantPath, iostat = ierr)
       if (ierr /= 0) write(*,*) 'slp_calcLatLonTovs: namSlantPath is missing in the namelist. The default value will be taken.'
-      if (mpi_myid == 0) write(*, nml=namSlantPath)
+      if (mpi_myid == 0) write(*, nml = namSlantPath)
       ierr = fclos(nulnam)
     end if
 
@@ -468,5 +468,113 @@ contains
     end do
 
   end subroutine heightBilinearInterp
+
+  subroutine slp_calcLatLonRO(obsSpaceData, hco, headerIndex, &
+                              height3D_T_r4, height3D_M_r4, &
+                              latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+    !
+    ! :Purpose: call the computation of lat/lon on the slant path for GPSRO
+    !           observations, iteratively. To replace the vertical columns with 
+    !           slanted columns.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs)     :: obsSpaceData
+    type(struct_hco)     :: hco 
+    integer, intent(in)  :: headerIndex
+    real(4), intent(in)  :: height3D_T_r4(:,:,:)
+    real(4), intent(in)  :: height3D_M_r4(:,:,:)
+    real(8), intent(out) :: latSlantLev_T(:)
+    real(8), intent(out) :: lonSlantLev_T(:)
+    real(8), intent(out) :: latSlantLev_M(:)
+    real(8), intent(out) :: lonSlantLev_M(:)
+
+    ! Locals:
+    real(4) :: heightInterp_T_r4,heightInterp_M_r4, heightIntersect_r4, heightDiff_r4
+    real(8) :: latr, lonr, latSlant, lonSlant, height,  slantlat, slantlon, rad, dH, hmin
+    integer :: subGridIndex, lonIndex, latIndex, bodyIndex, imin
+    real(8), allocatable :: Lat_Obs(:), Lon_Obs(:), Hgt_Obs(:)
+    real(4), allocatable :: H_M(:,:), H_T(:,:)
+    integer :: Minindex_T(1), Minindex_M(1)
+    integer :: ierr, fnom, fclos, nulnam, nObs, iObs
+    integer :: nlev, levIndex, nlev_M, nlev_T, numIteration
+    logical :: doIteration
+    
+    nlev_M = size(height3D_M_r4,3)
+    nlev_T = size(height3D_T_r4,3)
+
+    ! Header, and Obs counting:
+    call obs_set_current_header_list(obsSpaceData,'RO')
+    call obs_set_current_body_list(obsSpaceData, headerIndex)
+    Rad = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+    nObs = 0
+    BODY: do
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
+      nObs = nObs + 1
+    end do BODY
+
+    call obs_set_current_body_list(obsSpaceData, headerIndex)
+
+    allocate(Hgt_Obs(nObs), Lat_Obs(nObs), Lon_Obs(nObs))
+    allocate(H_M(nObs,nlev_M), H_T(nObs,nlev_T))
+
+    do iObs = 1,nObs
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit
+
+      height = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      ! If the vertical coordinate is an impact parameter (6e6<himp<7e6), subtract radius:
+      if (6.e6 < height .and. height < 7.e6) height = height-rad
+      Hgt_Obs(iObs) = height
+      latr = obs_bodyElem_r(obsSpaceData,OBS_ROLA,bodyIndex)
+      lonr = obs_bodyElem_r(obsSpaceData,OBS_ROLO,bodyIndex)
+      if (lonr <  0.d0          ) lonr = lonr + 2.d0*MPC_PI_R8
+      if (lonr >= 2.d0*MPC_PI_R8) lonr = lonr - 2.d0*MPC_PI_R8
+      Lat_Obs(iObs) = latr
+      Lon_Obs(iObs) = lonr
+      do levIndex = 1, nlev_M
+        call heightBilinearInterp(latr, lonr, hco, height3D_M_r4(:,:,levIndex), &
+                                  H_M(iObs,levIndex))
+      end do
+      do levIndex = 1, nlev_T
+        call heightBilinearInterp(latr, lonr, hco, height3D_T_r4(:,:,levIndex), &
+                                  H_T(iObs,levIndex))
+      end do
+    end do
+
+    do levIndex = 1, nlev_M
+      hmin = 1.e30
+      imin = -1
+      do iObs = 1, nObs
+        dH = abs(H_M(iObs,levIndex)-Hgt_Obs(iObs))
+        if (dH < hmin) then
+          hmin = dH
+          imin = iObs
+        end if
+      end do
+      latSlantLev_M(levIndex) = Lat_Obs(imin)
+      lonSlantLev_M(levIndex) = Lon_Obs(imin)
+    end do
+
+    do levIndex = 1, nlev_T
+      hmin = 1.e30
+      imin = -1
+      do iObs = 1, nObs
+        dH = abs(H_T(iObs,levIndex)-Hgt_Obs(iObs))
+        if (dH < hmin) then
+          hmin = dH
+          imin = iObs
+        end if
+      end do
+      latSlantLev_T(levIndex) = Lat_Obs(imin)
+      lonSlantLev_T(levIndex) = Lon_Obs(imin)
+    end do
+
+    deallocate(H_T, H_M)
+    deallocate(Lon_Obs, Lat_Obs, Hgt_Obs)
+
+  end subroutine slp_calcLatLonRO
 
 end module slantprofilelatlon_mod
