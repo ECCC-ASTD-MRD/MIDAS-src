@@ -41,7 +41,7 @@ module obsFiles_mod
   use burpread_mod
   use biasCorrectionConv_mod
   use clib_interfaces_mod
-   
+  use tovs_nl_mod 
   implicit none
   save
   private
@@ -53,7 +53,7 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-
+  public :: obsf_updateMissingObsFlags
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -219,6 +219,8 @@ contains
     if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
       call obsu_updateSourceVariablesFlag(obsSpaceData)
     end if
+    if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
+    if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
     ! Put the scale factor for FSO
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
@@ -275,7 +277,6 @@ contains
     end if
 
   end if
-
   end subroutine obsf_writeFiles
 
 
@@ -680,7 +681,7 @@ contains
   end subroutine obsf_determineSplitFileType
 
 
-  function obsf_getFileName(obsfam,found_opt) result(filename)
+  function obsf_getFileName(obsfam,fileFound_opt) result(filename)
     !
     ! :Purpose: Returns the observations file name assigned to the calling processor.
     !           If the input family has more than one file, the first file found will
@@ -693,14 +694,14 @@ contains
     implicit none
     ! arguments:
     character(len=2), intent(in) :: obsfam
-    logical, intent(out), optional :: found_opt
+    logical, intent(out), optional :: fileFound_opt
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
     ! locals:
     integer :: numFound, ifile
 
     filename = ""
     numFound = 0
-       
+   
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_cfamtyp(ifile)) then
           filename = obsf_cfilnam(ifile)
@@ -716,7 +717,7 @@ contains
       write(*,*) "obsf_getFileName: WARNING: Multiple files found for obs family '" // trim(obsfam) // "'"
     end if
 
-    if (present(found_opt)) found_opt = (numFound > 0)
+    if (present(fileFound_opt)) fileFound_opt = (numFound > 0)
 
   end function obsf_getFileName
 
@@ -761,12 +762,12 @@ contains
     type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
     character(len=maxLengthFilename) :: filename
-    logical :: found
+    logical :: fileFound
     character(len=10) :: obsFileType
 
-    filename = obsf_getFileName(obsfam,found)
+    filename = obsf_getFileName(obsfam,fileFound)
 
-    if (found) then
+    if (fileFound) then
        call obsf_determineSplitFileType( obsFileType, filename )
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
@@ -829,12 +830,12 @@ contains
 
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
-    logical :: found
+    logical :: fileFound
     character(len=10) :: obsFileType
 
-    filename = obsf_getFileName(obsfam,found)
+    filename = obsf_getFileName(obsfam,fileFound)
 
-    if (found) then
+    if (fileFound) then
        if (obsf_filesSplit() .or. mpi_myid == 0) then
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
@@ -888,6 +889,61 @@ contains
     end do
 
   end subroutine obsf_addCloudParametersAndEmissivity
+
+
+  !--------------------------------------------------------------------------
+  ! obsf_updateMissingObsFlags
+  !--------------------------------------------------------------------------
+  subroutine obsf_updateMissingObsFlags(obsSpaceData)
+    !
+    ! :Purpose: Loop on observation files to set missing observation flags to 2048
+    !           For now, this is done for only ATMS and AMSUA
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs)  :: obsSpaceData
+
+    ! Locals:
+    integer           :: fileIndex
+    character(len=10) :: obsFileType
+    logical           :: mwDataPresent
+    integer           :: headerIndex
+    integer           :: codtyp 
+
+
+    mwDataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+    if (headerIndex < 0) exit HEADER
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
+             (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+        mwDataPresent = .true.
+      end if
+    end do HEADER
+
+    if ( .not. mwDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingObsFlags since no ATMS or AMSUA'
+      return
+    end if
+
+    ! If obs files not split and I am not task 0, then return
+    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+    FILELOOP: do fileIndex = 1, obsf_nfiles
+      if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
+      write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( trim(obsFileType) /= 'BURP' ) then
+        write(*,*) 'obsFileType = ',obsFileType
+        call utl_abort('obsf_updateMissingObsFlags: this s/r is currently only compatible with BURP files')
+      else
+        call brpr_updateMissingObsFlags(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+      end if
+    end do FILELOOP
+
+  end subroutine obsf_updateMissingObsFlags
 
   !--------------------------------------------------------------------------
   ! obsf_copyObsDirectory

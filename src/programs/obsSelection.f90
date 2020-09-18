@@ -38,6 +38,8 @@ program midas_obsSelection
   use biasCorrectionSat_mod
   use biasCorrectionConv_mod
   use thinning_mod
+  use bgckmicrowave_mod
+
   implicit none
 
   integer :: datestamp, headerIndex, ierr, nulnam
@@ -150,6 +152,7 @@ program midas_obsSelection
   !- Initialize the observation error covariances
   !
   call oer_setObsErrors(obsSpaceData, 'bgck')
+
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Apply optional bias corrections
@@ -180,6 +183,7 @@ program midas_obsSelection
 
     ! Do the IR background check
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
+    call mwbg_bgCheckMW(obsSpaceData)
 
   end if
 
@@ -190,9 +194,10 @@ program midas_obsSelection
 
     ! 2.3 Write obs files after background check, but before thinning
     call obsf_writeFiles(obsSpaceData)
-
-    ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+    
+    ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
     if (obs_famExist(obsSpaceData,'TO')) then
+      call obsf_updateMissingObsFlags(obsSpaceData)
       call obsf_addCloudParametersAndEmissivity(obsSpaceData)
     end if
 
@@ -231,9 +236,10 @@ program midas_obsSelection
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData, obsFileClean_opt=doThinning)
-
+  
   ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   if (obs_famExist(obsSpaceData,'TO')) then
+    call obsf_updateMissingObsFlags(obsSpaceData)
     call obsf_addCloudParametersAndEmissivity(obsSpaceData)
   end if
 

@@ -49,6 +49,7 @@ MODULE biasCorrectionSat_mod
   public :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias
   public :: bcs_removeOutliers, bcs_applyBiasCorrection
   public :: bcs_mimicSatbcor
+  public :: bcs_readConfig
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -689,6 +690,7 @@ CONTAINS
         if ( bodyIndex < 0 ) exit BODY
 
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
+        if ( obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) == MPC_missingValue_R8) cycle BODY
 
         call bcs_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
         if (chanindx > 0) then

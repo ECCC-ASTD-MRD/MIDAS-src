@@ -46,13 +46,21 @@ module obsErrors_mod
 
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
-
+ ! Temporary arrays for QC purpose
+  public :: oer_toverrst, oer_clwThreshArr, oer_tovutil
+  public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+ ! Temporary arrays for QC purpose
+  real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: oer_clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  integer :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -544,6 +552,15 @@ contains
     IER = FCLOS(ILUTOV)
     if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
 
+    !
+    !    7. Temporary: Filll the publics variables for QC purpose
+    !       --------------
+    oer_toverrst(:,:) = toverrst(:,:)
+    oer_tovutil (:,:) = tovutil(:,:)
+    oer_clwThreshArr(:,:,:) = clwThreshArr(:,:,:)
+    oer_sigmaObsErr(:,:,:) = sigmaObsErr(:,:,:)
+    oer_useStateDepSigmaObs(:,:) = useStateDepSigmaObs(:,:)
+
   contains
 
     subroutine compact(str)
@@ -1022,7 +1039,7 @@ contains
       idate    = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
       itime    = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
-      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+      surfTypeIsWater = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
       nlev = idatend - idata + 1
 
@@ -1561,20 +1578,20 @@ contains
 
     ! locals
     character(len=1060) :: filename
-    logical             :: found
     type(BURP_FILE)  :: fileIn
     type(BURP_BLOCK) :: blkoer
     type(BURP_RPT)   :: report
     character(len=9)      :: stnid
     integer(kind=int_def) :: error, ref_rpt
     integer  :: numLevels, numValues, numReports, obsCount
+    logical  :: fileFound
     integer  :: levelIndex, reportIndex, obsIndex
     integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
     integer  :: vnm, bodyIndexBeg, bodyIndexEnd
     real(8), allocatable :: uu_oer(:), vv_oer(:)
 
-    filename = obsf_getFileName('SW',found)
-    if (found) then
+    filename = obsf_getFileName('SW',fileFound)
+    if (fileFound) then
       write(*,*) 'oer_readOerFromObsFileForSW: reading OER from the file: ', trim(filename)
     else
       write(*,*) 'oer_readOerFromObsFileForSW: no obsfile with SW family, returning'
@@ -3005,5 +3022,7 @@ contains
     if (allocated(chm_std%lat))      deallocate(chm_std%lat)
 
   end subroutine chm_dealloc_obs_err_stddev
+
+
 
 end module obsErrors_mod

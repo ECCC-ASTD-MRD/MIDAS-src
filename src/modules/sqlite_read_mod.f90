@@ -72,7 +72,7 @@ contains
 
   subroutine sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
                               earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                              solarAzimuth, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, &
+                              solarAzimuth, terrainType, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf, trackCellNum, modelWindSpeed)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
@@ -90,6 +90,7 @@ contains
     integer          , intent(in)    :: obsDate
     integer          , intent(in)    :: obsTime
     integer          , intent(in)    :: obsStatus
+    integer          , intent(in)    :: terrainType
     integer          , intent(in)    :: landSea
     integer          , intent(in)    :: roQcFlag
     integer          , intent(in)    :: obsSat
@@ -122,6 +123,7 @@ contains
     if ( trim(familyType) == 'TO' ) then
 
       call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat      )
+      call obs_headSet_i( obsdat, OBS_TTYP, headerIndex, terrainType     )
       call obs_headSet_i( obsdat, OBS_STYP, headerIndex, landSea     )
       call obs_headSet_i( obsdat, OBS_INS , headerIndex, instrument  )
       call obs_headSet_r( obsdat, OBS_SZA , headerIndex, zenith      )
@@ -464,7 +466,7 @@ contains
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
                                 trackCellNum, modelWindSpeed )
         exit HEADER
       end if
@@ -520,7 +522,6 @@ contains
 
         if ( instrument == 420 ) obsSat  = 784
         if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
-        if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
         if ( sensor == MPC_missingValue_INT ) then
           sensor = 0
           if (instrument == MPC_missingValue_INT ) instrument = 0
@@ -579,8 +580,9 @@ contains
                real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
                roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
                real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
-               real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType,  &
-               obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat,     &
+               xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,              &
+               trackCellNum, modelWindSpeed )
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
@@ -590,8 +592,9 @@ contains
                  real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
                  roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
                  real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
-                 real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType,  &
-                 obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat,     &
+                 xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,              &
+                 trackCellNum, modelWindSpeed )
           end if
 
           lastId = rowIndex + 1
@@ -677,7 +680,7 @@ contains
         if ( lastId > numberRows ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed )
 
       else
 

@@ -992,8 +992,10 @@ contains
     character(len=*), intent(in) :: gridname
 
     if( gridname == 'ComputationalGrid' ) then
+      if (.not. associated(hco_ext)) call utl_abort('agd_getHco: hco_ext not initialized')
       hco_ptr => hco_ext
     elseif( gridname == 'CoreGrid' ) then
+      if (.not. associated(hco_core)) call utl_abort('agd_getHco: hco_core not initialized')
       hco_ptr => hco_core
     else
       call utl_abort('agd_getHco: unknown grid name: ' // gridname)

@@ -10,7 +10,6 @@
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
-  <SUBMITS sub_name="bgckMW"/>
   <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
@@ -132,6 +131,16 @@
     </FAMILY>    
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="BgckAtms"/>
+    <FAMILY  name="BgckAtms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="BgckAmsua"/>
+    <FAMILY  name="BgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -324,20 +333,6 @@
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
-
-  <FAMILY  name="bgckMW">
-    <SUBMITS sub_name="bgckAmsua"/>
-    <FAMILY  name="bgckAmsua">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="bgckAtms"/>
-    <FAMILY  name="bgckAtms">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
 
   <FAMILY  name="genCoeff">
     <SUBMITS sub_name="UnitTest"/>

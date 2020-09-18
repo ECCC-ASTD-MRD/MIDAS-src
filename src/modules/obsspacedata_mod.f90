@@ -363,9 +363,16 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_HDT = OBS_HDD+1  ! time in burp header
    integer, parameter, public :: OBS_TFLG= OBS_HDT+1  ! flag for hi-res time element
    integer, parameter, public :: OBS_LFLG= OBS_TFLG+1 ! flag for hi-res lat element
+   integer, parameter, public :: OBS_ORBI= OBS_LFLG+1! satellite orbit index
+   integer, parameter, public :: OBS_AQF1= OBS_ORBI+1! ATMS Geolocalisation Quality Control Flag 
+   integer, parameter, public :: OBS_AQF2= OBS_AQF1+1! ATMS Granule Level Quality Control Flag 
+   integer, parameter, public :: OBS_AQF3= OBS_AQF2+1! ATMS Scan Level Quality Control Flag 
+   integer, parameter, public :: OBS_TTYP= OBS_AQF3+1! TERRAIN TYP INDICE for TOVS QC
+   integer, parameter, public :: OBS_INFG= OBS_TTYP+1! SATPLOT INFO FLAG for TOVS
+
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_LFLG
+   integer, parameter :: NHDR_INT_END = OBS_INFG
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -377,7 +384,8 @@ module ObsColumnNames_mod
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
-         'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG','LFLG' /)
+         'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG',&
+         'LFLG ','ORBI ','AQF1 ','AQF2 ','AQF3 ','TTYP ','INFG'/)
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -517,9 +525,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
    integer, parameter, public :: OBS_CLW   = OBS_SAZ  +1 ! cloud liquid water retrieval
    integer, parameter, public :: OBS_MWS   = OBS_CLW  +1 ! model wind speed (in ASCAT data)
+   integer, parameter, public :: OBS_SCAT   = OBS_MWS  +1! atmospheric scatering index
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_MWS
+   integer, parameter :: NHDR_REAL_END = OBS_SCAT
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -545,7 +554,7 @@ module ObsColumnNames_mod
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
-        'CLW ','MWS '/)
+        'CLW ','MWS ','SCAT '/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -563,15 +572,18 @@ module ObsColumnNames_mod
                                              ! Flag: extrapolation necessary of
    integer, parameter, public :: OBS_XTR = OBS_LYR+1  ! anal variables to obs'n location
    integer, parameter, public :: OBS_IDD = OBS_XTR+1  ! data id. no.
+   integer, parameter, public :: OBS_QCF2= OBS_IDD+1  ! TOVs Data Level Qc Flag
+                                             ! flag values for btyp=9248 block ele 033081
+
    ! the last column index for integer body variables defined just above
-   integer, parameter :: NBDY_INT_END = OBS_IDD
+   integer, parameter :: NBDY_INT_END = OBS_QCF2
    integer, parameter :: NBDY_INT_SIZE = NBDY_INT_END - NBDY_INT_BEG + 1
 
    !
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ','IDD ' /)  
+      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ','IDD ', 'QCFL ' /)  
 
    !
    ! REAL-BODY COLUMN NUMBERS
@@ -579,7 +591,7 @@ module ObsColumnNames_mod
    ! the first column index for real body variables defined below
    ! (chosen such that every column number is unique, so that a mismatch between
    !  a column number and a column type (real, int, head, body) can be detected)
-   integer, parameter :: NBDY_REAL_BEG = 501
+   integer, parameter :: NBDY_REAL_BEG   = 501
    integer, parameter, public :: OBS_PPP = NBDY_REAL_BEG ! pressure (vertical coordinate)
    integer, parameter, public :: OBS_SEM = OBS_PPP +1 ! surface emissivity
    integer, parameter, public :: OBS_VAR = OBS_SEM +1 ! value of the observation
@@ -600,8 +612,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_QCV = OBS_JOBS+1 ! weight-reduction factor for var QC
    integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! forecast sensitivity to observations
    integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
-   integer, parameter, public :: OBS_BCOR = OBS_CRPS+1 ! observation bias correction
-   integer, parameter, public :: OBS_OMPE = OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
+   integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
+   integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
    ! the number of real body variables defined just above
    integer, parameter :: NBDY_REAL_END = OBS_OMPE
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
@@ -713,8 +725,9 @@ module ObsDataColumn_mod
    integer, target :: columnIndexFromActiveIndex_RB(NBDY_REAL_SIZE)
    integer, target :: columnIndexFromActiveIndex_RH(NHDR_REAL_SIZE)
 
-   integer, public, parameter :: odc_ENKF_bdy_int_column_list(7) = &
-      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD /)
+   integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
+      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD, &
+        OBS_QCF2 /)
    integer, public, parameter :: odc_ENKF_bdy_real_column_list(13) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
         OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
@@ -1011,7 +1024,7 @@ contains
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_ST1, OBS_IDO, OBS_IDF, &
               OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=27,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=28,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1019,7 +1032,7 @@ contains
 
          bdy_int_column_list= &
             (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
-              OBS_XTR, (0,ii=9,100) /)
+              OBS_XTR, OBS_QCF2, (0,ii=10,100) /)
 
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
@@ -1444,6 +1457,7 @@ module ObsSpaceData_mod
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
    public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
    public :: OBS_LCH, OBS_RTP, OBS_HDD, OBS_HDT, OBS_TFLG, OBS_LFLG
+   public :: OBS_ORBI,OBS_AQF1, OBS_AQF2, OBS_AQF3, OBS_TTYP, OBS_INFG
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
@@ -1465,9 +1479,10 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW, OBS_MWS
+   public :: OBS_SCAT
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
-   public :: OBS_XTR, OBS_IDD
+   public :: OBS_XTR, OBS_IDD, OBS_QCF2
 
    !    real-body column numbers
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT

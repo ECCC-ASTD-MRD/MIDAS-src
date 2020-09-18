@@ -112,6 +112,7 @@ module tovs_nl_mod
   public :: tvs_isNameGeostationary
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
+  public :: tvs_ChangedStypValue
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
@@ -226,7 +227,7 @@ contains
     allocate (tvs_isReallyPresentMpiGlobal(tvs_nsensors), stat= allocStatus(9))
 
     call utl_checkAllocationStatus(allocStatus, " tvs_setupAlloc")
-  
+
     tvs_nchan(:) = 0 
     tvs_ichan(:,:) = 0
     tvs_isReallyPresent(:) = .true.
@@ -1738,6 +1739,33 @@ contains
   end function tvs_countRadiances
 
   !--------------------------------------------------------------------------
+  !  tvs_ChangedStypValue(obsspacedata, headerIndex)
+  !--------------------------------------------------------------------------
+  integer function tvs_ChangedStypValue(obsSpaceData, headerIndex)
+    !
+    ! :Purpose: to obtain new STYP value given observed STYP and TTYP value
+    !
+    implicit none
+    ! Arguments:
+    integer, intent(in)          :: headerIndex
+    type(struct_obs)             :: obsSpaceData
+    
+    ! Locals:
+    integer :: terrainType
+    integer :: landSea 
+
+    terrainType = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
+    landSea     = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
+
+    if ( terrainType ==  0 ) then
+      tvs_ChangedStypValue = 2
+    else
+      tvs_ChangedStypValue = landSea
+    end if
+
+  end function tvs_ChangedStypValue
+
+  !--------------------------------------------------------------------------
   !  tvs_getHIREmissivities
   !--------------------------------------------------------------------------
   subroutine tvs_getHIREmissivities(sensorTovsIndexes, obsSpaceData, surfem)
@@ -1983,7 +2011,7 @@ contains
         call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_fillProfiles")
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        profiles(tovsIndex) % skin % surftype = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
+        profiles(tovsIndex) % skin % surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
@@ -2008,7 +2036,7 @@ contains
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
 
-        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex) == surftype_sea )
+        surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
@@ -2414,16 +2442,18 @@ contains
 
       else
 
-        call rttov_parallel_direct(                               &
-             rttov_err_stat,                                      & ! out
-             chanprof,                                            & ! in
-             tvs_opts(sensorId),                                  & ! in
+        if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
+        
+        call rttov_parallel_direct(                            &
+             rttov_err_stat,                                   & ! out
+             chanprof,                                         & ! in
+             tvs_opts(sensorId),                               & ! in
              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
-             tvs_coefs(sensorId),                                 & ! in
-             transmission,                                        & ! inout
-             radiancedata_d,                                      & ! inout
-             calcemis=calcemis,                                   & ! in
-             emissivity=emissivity_local,                         & ! inout
+             tvs_coefs(sensorId),                              & ! in
+             transmission,                                     & ! inout
+             radiancedata_d,                                   & ! inout
+             calcemis=calcemis,                                & ! in
+             emissivity=emissivity_local,                      & ! inout
              nthreads=nthreads      )   
 
       end if
@@ -4325,7 +4355,7 @@ contains
         if (bodyIndex < 0) exit BODY
         
         ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(obsSpaceData,obs_aSS,bodyIndex) /= obs_assimilated ) cycle BODY                
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY                
 
         bufrChannelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
         bufrChannelNumber = max( 0 , min( bufrChannelNumber , tvs_maxChannelNumber + 1))

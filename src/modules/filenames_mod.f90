@@ -23,6 +23,7 @@ module fileNames_mod
   use clib_interfaces_mod
   use ramDisk_mod
   use timeCoord_mod
+  use codtyp_mod
   implicit none
   save
   private
