@@ -21,6 +21,7 @@ program midas_bgckMW
   use bgckmicrowave_mod
   use MathPhysConstants_mod
   use utilities_mod
+  use mpi_mod
 
   implicit none
 
@@ -109,6 +110,13 @@ program midas_bgckMW
             '14x,"-- Revision : ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
+  !- 1.0 mpi
+  call mpi_initialize
+
+  !- 1.1 timings
+  call tmg_init(mpi_myid, 'TMG_BGCKMW' )
+  call tmg_start(1,'MAIN')
+ 
   ! default namelist values
   instName              = 'AMSUA'
   burpFileNameIn        = './obsto_amsua'
@@ -242,6 +250,11 @@ program midas_bgckMW
   !###############################################################################
   call mwbg_qcStats(instName, qualityControlIndicator, observationChannels, satelliteIndexObserrorFile, reportNumChannel, &
                     reportNumObs, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
+
+  call tmg_stop(1)
+  call tmg_terminate(mpi_myid, 'TMG_BGCKMW' )
+
+  call rpn_comm_finalize(ier)
 
   istat  = exfin('midas-bgckMW','FIN','NON')
 
