@@ -347,7 +347,7 @@ CONTAINS
             call utl_abort('brpr_updateBurp: element 12164 should be in namelist.')
         end if
 
-        NELE_INFO=16
+        NELE_INFO=23
         WINDS=.FALSE.
         ADDSIZE=600000
       CASE('CH')
@@ -3744,7 +3744,8 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
-    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW1) ) call obs_headSet_r(obsdat,OBS_CLW1,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLW2) ) call obs_headSet_r(obsdat,OBS_CLW2,nobs,obs_missingValue_r)
 
   end subroutine  setInfoToMissing
 
@@ -3796,7 +3797,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, ind13208, ind25174, indtmp
+    integer                :: ind13209, ind13109, ind13208, ind25174, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4275,7 +4276,7 @@ CONTAINS
                 call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
                 indtmp = indtmp + 1
               end if
-              ! CLW
+              ! clwObs
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4288,6 +4289,21 @@ CONTAINS
               else
                 ind13209 = BURP_Find_Element(inputBlock, &
                      ELEMENT  = 013209, &
+                     iostat   = error)
+              end if
+              ! clwFG
+              ind13109 = BURP_Find_Element(inputBlock, ELEMENT=013109, iostat=error)
+              if (ind13109 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13109 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13109, ELEMENT=013109, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13109 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013109, &
                      iostat   = error)
               end if
               ! SCATERING INDEX
@@ -4320,7 +4336,8 @@ CONTAINS
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW,idata2)),ind13209,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW1,idata2)),ind13209,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW2,idata2)),ind13109,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
@@ -4329,6 +4346,7 @@ CONTAINS
 
                   call Insert_into_burp_i(-1,ind25174,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind13109,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
 
