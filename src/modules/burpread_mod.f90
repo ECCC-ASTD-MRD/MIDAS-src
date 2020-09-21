@@ -308,20 +308,6 @@ CONTAINS
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=16
-      CASE('GO','MI')
-        BURP_TYP='multi'
-        vcord_type(1)=5042
-        vcord_type(2)=2150
-        
-        LISTE_ELE(1:1) = (/12163/)
-        NELE=1
-
-        call BRPACMA_NML('namburp_tovs')
-        NELE=NELEMS
-
-        NELE_INFO=23
-        WINDS=.FALSE.
-        ADDSIZE=600000
       CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
@@ -330,7 +316,7 @@ CONTAINS
         LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
-        CALL BRPACMA_NML('namburp_tovsRad')
+        CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
         if ( addClearRadToBurp ) then
@@ -370,6 +356,8 @@ CONTAINS
         NELE=19
         call BRPACMA_NML('namburp_chm')
         NELE=NELEMS
+      CASE('GO','MI')
+        call utl_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
@@ -1613,7 +1601,6 @@ CONTAINS
          ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON,NELEMS_GPS,LISTE_ELE_GPS
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_FILTER_TOVS_RAD/ NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
@@ -1639,9 +1626,6 @@ CONTAINS
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
-      CASE( 'namburp_tovsRad')
-        READ(NULNAM,NML=NAMBURP_FILTER_TOVS_RAD)
-        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS_RAD)
       CASE( 'namburp_chm_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
@@ -1878,7 +1862,7 @@ CONTAINS
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=18
-      CASE('GO','MI','TO')
+      CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
@@ -1911,6 +1895,8 @@ CONTAINS
         NELE=19
         call BRPACMA_NML('namburp_chm')
         NELE=NELEMS 
+      CASE('GO','MI')
+        call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
@@ -3666,8 +3652,7 @@ CONTAINS
     end if
 
     if (  trim(FAMTYP) == trim('GO') ) then
-      LAND_SEA=0
-      RZENITH=90.
+      call utl_abort('writeInfo: unknown familyType : ' // trim(FAMTYP))
     END IF
    
 
@@ -5783,7 +5768,7 @@ CONTAINS
         elementIds(:) = liste_ele_gps(1:nelems_gps)
       end if
       
-    case('GO','MI','TO')
+    case('TO')
       call brpacma_nml('namburp_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
