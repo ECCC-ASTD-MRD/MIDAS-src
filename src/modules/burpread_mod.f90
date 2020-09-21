@@ -1505,7 +1505,10 @@ CONTAINS
 =======
             Call BURP_Write_Block( CP_RPT, BLOCK_GEN, ENCODE_BLOCK = .FALSE., &
                  CONVERT_BLOCK = .FALSE., IOSTAT = error)
+<<<<<<< HEAD
 >>>>>>> Issue #395: Pass RO bending blocks to output
+=======
+>>>>>>> Issue # 395: Updated cosmetic to main commit/push
           end if
 
           ! descriptor block (btyp = 0010 100000X XXXX) 
@@ -1519,7 +1522,11 @@ CONTAINS
 
           !==================== IASI  SPECIAL BLOCK==================
           if ( (BTYP == 9217 .or. BTYP == 15361) .and.  IDTYP == 186   ) then
+<<<<<<< HEAD
             call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+=======
+            Call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
+>>>>>>> Issue # 395: Updated cosmetic to main commit/push
           end if
           !==================== IASI  SPECIAL BLOCK==================
 
