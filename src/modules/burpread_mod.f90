@@ -1783,7 +1783,7 @@ CONTAINS
         ENFORCE_CLASSIC_SONDES=.false.
         call BRPACMA_NML('namburp_conv')
         NELE=NELEMS
-        NELE_INFO=22
+        NELE_INFO=23
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
@@ -4882,7 +4882,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'brpr_addBiasCorrectionElement: Namelist block NAMADDTOBURP is missing in the namelist.'
       write(*,*) '                               The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=NAMADDTOBURP)
+      write(*,nml=NAMADDTOBURP)
     end if
 
     ! initialisation
