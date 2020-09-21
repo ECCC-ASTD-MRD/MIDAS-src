@@ -776,8 +776,9 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
-                                  ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, &
+                                clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
+                                ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
     !                                 For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
@@ -852,7 +853,8 @@ contains
           end do
           if ( mwbg_debug ) then
             write(*,*) STNID(2:9),' Grody cloud liquid water check', &
-                      ' cloud-affected obs. CLW= ',clwUsedForQC, ', threshold= ', mwbg_cloudyClwThresholdBcorr
+                      ' cloud-affected obs. CLW= ',clwUsedForQC, ', threshold= ', &
+                      mwbg_cloudyClwThresholdBcorr
           end if
         end if
 
@@ -1009,7 +1011,8 @@ contains
             if ( clwObsFGaveraged == MISGRODY ) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
-              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clwObsFGaveraged)
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1, &
+                                                        sigmaThresh2,clwObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
@@ -1153,8 +1156,9 @@ contains
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
 
-  subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, btClear2D, PTBOMP, &
-                                              KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, &
+                                                PTBO, btClear2D, PTBOMP, KMARQ, ICHECK, &
+                                                rejectionCodArray)
     !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
 
@@ -1200,7 +1204,9 @@ contains
         BTcloudy = PTBO(nChannelIndex,nDataIndex) - PTBOMP(nChannelIndex,nDataIndex)
         simulatedCloudEffect = BTcloudy - btClear2D(nChannelIndex,nDataIndex)
         observedCloudEffect = PTBO(nChannelIndex,nDataIndex) - btClear2D(nChannelIndex,nDataIndex)
-        if ( simulatedCloudEffect < -0.5 .or. observedCloudEffect < -0.5 ) rejectLowPeakingChannels = .true.
+        if ( simulatedCloudEffect < -0.5 .or. observedCloudEffect < -0.5 ) then
+          rejectLowPeakingChannels = .true.
+        end if
 
         exit loopChannel2
       end do loopChannel2
@@ -1552,8 +1558,9 @@ contains
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
-                                  ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, &
+                                clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
+                                ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
     call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, scatw, KTERMER, ITERRAIN, &
@@ -1581,8 +1588,9 @@ contains
                                               MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
-    call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, PTBO, btClear2D, PTBOMP, &
-                                              KMARQ, ICHECK, rejectionCodArray)
+    call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, &
+                                        PTBO, btClear2D, PTBOMP,  KMARQ, ICHECK, &
+                                        rejectionCodArray)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -2588,8 +2596,8 @@ contains
   subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, zlat, zlon, ilq, itt, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                               ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, rclw2, riwv, rejectionCodArray, &
-                               rejectionCodArray2, STNID, RESETQC)
+                               ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, rclw2, riwv, &
+                               rejectionCodArray, rejectionCodArray2, STNID, RESETQC)
                                
 
 
@@ -4332,8 +4340,9 @@ contains
   !--------------------------------------------------------------------------
 
   subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
-                                        cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, atmScatteringIndex,     &
-                                        obsGlobalMarker,newInformationFlag)
+                                        cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                        atmScatteringIndex, obsGlobalMarker, &
+                                        newInformationFlag)
 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     implicit None
@@ -4360,8 +4369,9 @@ contains
     
     call obs_headSet_r(obsSpaceData, OBS_CLW1,  headerIndex, cloudLiquidWaterPathObs(1))
 
-    if ( mwbg_allowStateDepSigmaObs ) &
+    if ( mwbg_allowStateDepSigmaObs ) then
       call obs_headSet_r(obsSpaceData, OBS_CLW2,  headerIndex, cloudLiquidWaterPathFG(1))
+    end if
     call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
@@ -4380,10 +4390,13 @@ contains
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, satIdentifier, satZenithAngle, landQualifierIndice, &
-                                      terrainTypeIndice, obsLatitude, obsLongitude, satScanPosition, obsQcFlag1, satOrbit, & 
-                                      obsGlobalMarker, burpFileSatId, obsTb, btClear, obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                      obsFlags, sensorIndex, obsSpaceData)
+  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, &
+                                satIdentifier, satZenithAngle, landQualifierIndice, &
+                                terrainTypeIndice, obsLatitude, obsLongitude, &
+                                satScanPosition, obsQcFlag1, satOrbit, & 
+                                obsGlobalMarker, burpFileSatId, obsTb, btClear, &
+                                obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
+                                obsFlags, sensorIndex, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -4508,8 +4521,9 @@ contains
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      if ( mwbg_allowStateDepSigmaObs ) &
+      if ( mwbg_allowStateDepSigmaObs ) then
         btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_VAR2, bodyIndex )
+      end if
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
       obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
@@ -4655,7 +4669,8 @@ contains
                                 sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
-                                obsGlobalMarker, obsFlags, newInformationFlag, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
+                                obsGlobalMarker, obsFlags, newInformationFlag, &
+                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                                 RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
@@ -4667,7 +4682,8 @@ contains
                                numObsToProcess, sensorIndex,          &
                                newInformationFlag, satScanPosition,   &
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
-                               cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, atmScatteringIndex, rejectionCodArray,&
+                               cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                               atmScatteringIndex, rejectionCodArray, &
                                rejectionCodArray2, burpFileSatId, RESETQC)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
@@ -4684,8 +4700,9 @@ contains
       ! STEP 6) Update Flags and obs in obsspace data
       !###############################################################################
       call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
-                                      cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, atmScatteringIndex,       &
-                                      obsGlobalMarker,newInformationFlag)
+                                        cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                        atmScatteringIndex, obsGlobalMarker, &
+                                        newInformationFlag)
 
     end do HEADER
     !###############################################################################

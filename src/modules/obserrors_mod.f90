@@ -1592,7 +1592,8 @@ contains
 
   end subroutine oer_fillObsErrors
 
-  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, sensorIndex, dest_obs, beSilent_opt)
+  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+                                                sensorIndex, dest_obs, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error
     !
