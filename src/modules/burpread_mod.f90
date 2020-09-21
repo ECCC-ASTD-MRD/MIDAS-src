@@ -33,6 +33,7 @@ use obsVariableTransforms_mod
 use obsFilter_mod
 use tovs_nl_mod
 use kdtree2_mod
+use codtyp_mod
 
 implicit none
 save
@@ -99,14 +100,20 @@ CONTAINS
     real(kdkind), allocatable         :: PPPandVNM(:,:)
     integer, allocatable              :: bodyIndexList(:)
 
+<<<<<<< HEAD
     INTEGER,  PARAMETER    :: NBLOC_LIST=6
     integer                :: LNMX
+=======
+    INTEGER,  PARAMETER    :: NBLOC_LIST=9
+    INTEGER                :: LNMX
+>>>>>>> Issue #395: Pass RO bending blocks to output
 
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN,BLOCK_OMA,BLOCK_OMP,BLOCK_OER,BLOCK_FGE,BLOCK_FLG,BLOCK_FSO
     TYPE(BURP_BLOCK)       :: BLOCK_OMA_SFC,BLOCK_OMP_SFC,BLOCK_OER_SFC,BLOCK_FGE_SFC,BLOCK_FLG_SFC,BLOCK_FSO_SFC
     TYPE(BURP_BLOCK)       :: Block_FLG_CP,BLOCK_OBS_MUL_CP,BLOCK_MAR_MUL_CP,BLOCK_OBS_SFC_CP,BLOCK_MAR_SFC_CP
+    TYPE(BURP_BLOCK)       :: BLOCK_GEN, BLOCK_OBS_BND,BLOCK_MAR_BND,BLOCK_ORB
 
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
@@ -438,6 +445,11 @@ CONTAINS
     call BURP_Init(BLOCK_OBS_SFC_CP ,IOSTAT=error)
     call BURP_Init(BLOCK_MAR_SFC_CP ,IOSTAT=error)
 
+    Call BURP_Init(BLOCK_GEN        ,IOSTAT = error)
+    Call BURP_Init(BLOCK_OBS_BND    ,IOSTAT = error)
+    Call BURP_Init(BLOCK_MAR_BND    ,IOSTAT = error)
+    Call BURP_Init(BLOCK_ORB        ,IOSTAT = error)
+
     ! opening file
     ! ------------
     write(*,*) 'OPENING BURP FILE FOR UPDATE = ', trim(brp_file)
@@ -554,7 +566,11 @@ CONTAINS
       ! The factor 12 before 'LNMX' is arbitrary.
       ! We increase it from time to time as we encounter some
       ! problems.
+<<<<<<< HEAD
       call BURP_New(Cp_rpt, ALLOC_SPACE=12*LNMX, IOSTAT=error)
+=======
+      Call BURP_New(Cp_rpt, ALLOC_SPACE = 12*LNMX, IOSTAT = error)
+>>>>>>> Issue #395: Pass RO bending blocks to output
 
       ! LOOP ON REPORTS
       REPORTS: do kk = 1, count
@@ -592,8 +608,13 @@ CONTAINS
         HIPCS=.FALSE.
         REGRUP=.false.
         NDATA_SF=-1
+<<<<<<< HEAD
         !write(*,*)'  record number =',kk,' obs_start =',obs_start
         BLOCK_LIST(1:6)=-1
+=======
+        !WRITE(*,*)'  record number =',kk,' obs_start =',obs_start
+        BLOCK_LIST(:)=-1
+>>>>>>> Issue #395: Pass RO bending blocks to output
         BLOCKS0: do
           ref_blk = BURP_Find_Block(Rpt_in, &
                      & BLOCK       = Block_in, &
@@ -612,6 +633,9 @@ CONTAINS
                                  & BKNAT  = BKNAT, &
                                  & BKSTP  = BKSTP, &
                                  & IOSTAT = error)
+          if (trim(familytype) == 'RO')then
+             write(*,*)'BLK00 GPS', stnid, nvale, bfam, btyp
+          end if
           if(trim(familytype) == 'AL')then
 
             ! Fudge the block type, because the data are simulated
@@ -640,8 +664,23 @@ CONTAINS
           elseif ( btyp10 == btyp10flg ) then
             BLOCK_LIST(5)=BTYP
             BLOCK_MAR_MUL_CP=BLOCK_IN
+<<<<<<< HEAD
           elseif ( (btyp10 == btyp10inf ) .or. (btyp10 - btyp10inf == 1 ) ) then
             BLOCK_LIST(6)=BTYP
+=======
+          elseif ( (btyp10 - btyp10inf == 0) .or. (btyp10 - btyp10inf == 1) ) then
+            BLOCK_LIST(6) = BTYP
+            BLOCK_GEN     = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp ==  9217) then
+            BLOCK_LIST(7) = BTYP
+            BLOCK_OBS_BND = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp == 15361) then
+            BLOCK_LIST(8) = BTYP
+            BLOCK_MAR_BND = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp ==  9220) then
+            BLOCK_LIST(9) = BTYP
+            BLOCK_ORB     = BLOCK_IN
+>>>>>>> Issue #395: Pass RO bending blocks to output
           else
             !WRITE(*, *)' POUR STATION bloc NON CONNU: ',STNID,ref_blk,bfam,familytype
           end if
@@ -1461,7 +1500,12 @@ CONTAINS
           end if  ! bl == 4
 
           if ( bl == 6 ) then
+<<<<<<< HEAD
             call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+=======
+            Call BURP_Write_Block( CP_RPT, BLOCK_GEN, ENCODE_BLOCK = .FALSE., &
+                 CONVERT_BLOCK = .FALSE., IOSTAT = error)
+>>>>>>> Issue #395: Pass RO bending blocks to output
           end if
 
           ! descriptor block (btyp = 0010 100000X XXXX) 
@@ -1479,6 +1523,19 @@ CONTAINS
           end if
           !==================== IASI  SPECIAL BLOCK==================
 
+          !==================== GPSRO BLOCKS TO KEEP IF THEY EXIST===
+          if ( IDTYP == codtyp_get_codtyp('ro') ) then
+            if (BTYP ==  9217) Call BURP_Write_Block( CP_RPT, BLOCK_OBS_BND, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+            if (BTYP == 15361) Call BURP_Write_Block( CP_RPT, BLOCK_MAR_BND, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+            if (BTYP ==  9220) Call BURP_Write_Block( CP_RPT, BLOCK_ORB, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+          end if
+          !==================== GPSRO BLOCKS=========================
         end do BLOCKS1
 
         if (  REGRUP )  then
@@ -1494,6 +1551,7 @@ CONTAINS
 
     Deallocate(address)
 
+<<<<<<< HEAD
     call BURP_Free(Rpt_in,CP_RPT,IOSTAT=error)
     call BURP_Free(Block_in,     IOSTAT=error)
     call BURP_Free(Block_OMA,    IOSTAT=error)
@@ -1514,6 +1572,32 @@ CONTAINS
     call BURP_Free(Block_OBS_MUL_CP ,IOSTAT=error)
     call BURP_Free(Block_OBS_SFC_CP ,IOSTAT=error)
     call BURP_Free(File_in,      IOSTAT=error)
+=======
+    Call BURP_Free(Rpt_in,CP_RPT,IOSTAT=error)
+    Call BURP_Free(Block_in,     IOSTAT=error)
+    Call BURP_Free(Block_OMA,    IOSTAT=error)
+    Call BURP_Free(Block_OMP,    IOSTAT=error)
+    Call BURP_Free(Block_OER,    IOSTAT=error)
+    Call BURP_Free(Block_FGE,    IOSTAT=error)
+    Call BURP_Free(Block_FSO,    IOSTAT=error)
+    Call BURP_Free(Block_OMA_SFC,IOSTAT=error)
+    Call BURP_Free(Block_OMP_SFC,IOSTAT=error)
+    Call BURP_Free(Block_OER_SFC,IOSTAT=error)
+    Call BURP_Free(Block_FGE_SFC,IOSTAT=error)
+    Call BURP_Free(Block_FSO_SFC,IOSTAT=error)
+    Call BURP_Free(Block_FLG_SFC,IOSTAT=error)
+    Call BURP_Free(Block_FLG    ,IOSTAT=error)
+    Call BURP_Free(Block_FLG_CP ,IOSTAT=error)
+    Call BURP_Free(Block_MAR_MUL_CP , IOSTAT = error)
+    Call BURP_Free(Block_MAR_SFC_CP , IOSTAT = error)
+    Call BURP_Free(Block_OBS_MUL_CP , IOSTAT = error)
+    Call BURP_Free(Block_OBS_SFC_CP , IOSTAT = error)
+    Call BURP_Free(Block_GEN        , IOSTAT = error)
+    Call BURP_Free(Block_OBS_BND    , IOSTAT = error)
+    Call BURP_Free(Block_MAR_BND    , IOSTAT = error)
+    Call BURP_Free(Block_ORB        , IOSTAT = error)
+    Call BURP_Free(File_in          , IOSTAT = error)
+>>>>>>> Issue #395: Pass RO bending blocks to output
     if (associated(tree)) call kdtree2_destroy(tree)
     if (allocated(PPPandVNM)) deallocate(PPPandVNM)
     if (allocated(bodyIndexList)) deallocate(bodyIndexList)
