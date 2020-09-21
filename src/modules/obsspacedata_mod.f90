@@ -523,9 +523,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SZA   = OBS_SUN  +1 ! satellite zenith angle
    integer, parameter, public :: OBS_AZA   = OBS_SZA  +1 ! satellite azimuthal angle
    integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
-   integer, parameter, public :: OBS_CLW1  = OBS_SAZ  +1 ! cloud liquid water retrieved from observation
-   integer, parameter, public :: OBS_CLW2  = OBS_CLW1 +1 ! cloud liquid water retrieved from background
-   integer, parameter, public :: OBS_MWS   = OBS_CLW2 +1 ! model wind speed (in ASCAT data)
+   integer, parameter, public :: OBS_CLWO  = OBS_SAZ  +1 ! cloud liquid water retrieved from observation
+   integer, parameter, public :: OBS_CLWB  = OBS_CLWO +1 ! cloud liquid water retrieved from background
+   integer, parameter, public :: OBS_MWS   = OBS_CLWB +1 ! model wind speed (in ASCAT data)
    integer, parameter, public :: OBS_SCAT  = OBS_MWS  +1 ! atmospheric scatering index
 
    ! the last column index for real header variables defined just above
@@ -617,10 +617,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
    integer, parameter, public :: OBS_ROLA= OBS_OMPE+1 ! individual obs latitude
    integer, parameter, public :: OBS_ROLO= OBS_ROLA+1 ! individual obs longitude
-   integer, parameter, public :: OBS_VAR2= OBS_ROLO+1 ! clear-sky simulated observation
+   integer, parameter, public :: OBS_BTCL= OBS_ROLO+1 ! clear-sky simulated observation
 
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_VAR2
+   integer, parameter :: NBDY_REAL_END = OBS_BTCL
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -1479,7 +1479,7 @@ module ObsSpaceData_mod
    public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
-   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLW1, OBS_CLW2, OBS_MWS
+   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
    public :: OBS_SCAT
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
@@ -1489,7 +1489,7 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
    public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS,OBS_BCOR
-   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO,OBS_VAR2
+   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO,OBS_BTCL
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

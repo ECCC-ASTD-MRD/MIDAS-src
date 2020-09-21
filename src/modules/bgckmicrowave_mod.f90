@@ -822,8 +822,8 @@ contains
 
       surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
 
-      if ( clwUsedForQC .NE.  MISGRODY  ) then
-        if ( clwUsedForQC .GT. mwbg_clwQcThreshold ) then
+      if ( clwUsedForQC /=  MISGRODY  ) then
+        if ( clwUsedForQC > mwbg_clwQcThreshold ) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN.NE.0 )  then
@@ -1020,8 +1020,8 @@ contains
           ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObsFGaveraged=MISGRODY
           ! in all-sky mode), the observation is already rejected in test 12.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
-          if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. mwbg_realMissing    .AND. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL              .and. &
+          if ( PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
+              ABS(PTBOMP(nChannelIndex,nDataIndex)) >= XCHECKVAL .and. &
               sigmaObsErrUsed /= MPC_missingValue_R4 ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
@@ -2032,8 +2032,9 @@ contains
         dif285t31_P=max(285.-tb31_P(i),epsilon)
 
         skipLoopChan15Missing = .false.
-        if ( tb89(i) < 120.0 .or. tb89(i) > 350.0 ) & 
+        if ( tb89(i) < 120.0 .or. tb89(i) > 350.0 ) then 
           skipLoopChan15Missing = .true.
+        end if
 
         if ( .not. skipLoopChan15Missing ) then
           t89 = tb89(i)
@@ -4367,10 +4368,10 @@ contains
 
     channelNum = mwbg_maxNumChan - tvs_channelOffset(sensorIndex)
     
-    call obs_headSet_r(obsSpaceData, OBS_CLW1,  headerIndex, cloudLiquidWaterPathObs(1))
+    call obs_headSet_r(obsSpaceData, OBS_CLWO,  headerIndex, cloudLiquidWaterPathObs(1))
 
     if ( mwbg_mwAllskyAssim ) then
-      call obs_headSet_r(obsSpaceData, OBS_CLW2,  headerIndex, cloudLiquidWaterPathFG(1))
+      call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
     call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
@@ -4522,7 +4523,7 @@ contains
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
       if ( mwbg_mwAllskyAssim ) then
-        btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_VAR2, bodyIndex )
+        btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_BTCL, bodyIndex )
       end if
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
       obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)

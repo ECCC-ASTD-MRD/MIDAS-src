@@ -1094,8 +1094,8 @@ contains
                     clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
                     sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                     sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
-                    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLW1, headerIndex )
-                    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLW2, headerIndex )
+                    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
+                    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLWB, headerIndex )
                     clw_avg = 0.5D0 * (clwObs + clwFG)
 
                     ! check to ensure CLW is retrieved and properly set
@@ -1593,7 +1593,7 @@ contains
   end subroutine oer_fillObsErrors
 
   subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                                sensorIndex, dest_obs, beSilent_opt)
+                                                sensorIndex, ompOmaObsColumn, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error
     !
@@ -1604,7 +1604,7 @@ contains
     integer,          intent(in)    :: headerIndex
     integer,          intent(in)    :: bodyIndex
     integer,          intent(in)    :: sensorIndex
-    integer,          intent(in)    :: dest_obs  ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
+    integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals:
@@ -1636,32 +1636,35 @@ contains
          .not. surfTypeIsWater .or. &
          .not. any(inflateStateDepSigmaObs(:)) ) return
 
-    if ( .not. beSilent ) & 
+    if ( .not. beSilent ) then
       write(*,*) 'oer_computeInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
                         ', sensorIndex=', sensorIndex, &
                         ', chan_noOff=', channelNumber_withOffset, &
                         ', chan_no=', channelNumber
+    end if
 
-    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLW1, headerIndex )
-    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLW2, headerIndex )
+    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
+    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLWB, headerIndex )
 
     sigmaObsBeforeInflation = obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
-    ompValue                = obs_bodyElem_r( obsSpaceData, dest_obs, bodyIndex )
+    ompValue                = obs_bodyElem_r( obsSpaceData, ompOmaObsColumn, bodyIndex )
 
     ! error inflation for cloud placement 
     deltaE1 = 0.0D0
     if ( inflateStateDepSigmaObs(1)                                         .and. &
          ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
           (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
-         abs(clwObs - clwFG) >= 0.005 )                                           &
+         abs(clwObs - clwFG) >= 0.005 ) then
       deltaE1 = abs(ompValue)
+    end if
 
     ! error inflation due to cloud liquid water difference
     deltaE2 = 0.0D0
-    if ( inflateStateDepSigmaObs(2) )                                  &
+    if ( inflateStateDepSigmaObs(2) ) then
       deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
                       sigmaObsBeforeInflation
-      deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
+    end if
+    deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
     sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
                               (deltaE1 + deltaE2) ** 2)

@@ -62,7 +62,7 @@ INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
 LOGICAL                :: READ_QI_GA_MT_SW
 
-logical, save          :: addClearRadToBurp
+logical                :: addClearRadToBurp
 
 
 CONTAINS
@@ -1314,8 +1314,8 @@ CONTAINS
                   else
                     BCOR = MPC_missingValue_R4
                   end if
-                  if ( obs_columnActive_RB(obsdat,OBS_VAR2) ) then
-                    obsClear = obs_bodyElem_r(obsdat,OBS_VAR2,LK)
+                  if ( obs_columnActive_RB(obsdat,OBS_BTCL) ) then
+                    obsClear = obs_bodyElem_r(obsdat,OBS_BTCL,LK)
                   else
                     obsClear = MPC_missingValue_R4
                   end if
@@ -1391,12 +1391,14 @@ CONTAINS
                     IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMHBCOR, IOSTAT=error)
                   end if
                       
-                  if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
+                  if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) then
                        call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
+                  end if
 
                   IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12164, IOSTAT=error)
-                  if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_VAR2) ) &
-                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
+                  if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_BTCL) ) then
+                    Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
+                  end if
 
                   IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
@@ -3686,8 +3688,8 @@ CONTAINS
     else
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
-    if ( obs_columnActive_RH(obsdat,OBS_CLW1) ) call obs_headSet_r(obsdat,OBS_CLW1,nobs,cloudLiquidWaterObs)
-    if ( obs_columnActive_RH(obsdat,OBS_CLW2) ) call obs_headSet_r(obsdat,OBS_CLW2,nobs,cloudLiquidWaterFG)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,cloudLiquidWaterObs)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,cloudLiquidWaterFG)
 
   END SUBROUTINE  writeInfo
 
@@ -3729,8 +3731,8 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
-    if ( obs_columnActive_RH(obsdat,OBS_CLW1) ) call obs_headSet_r(obsdat,OBS_CLW1,nobs,obs_missingValue_r)
-    if ( obs_columnActive_RH(obsdat,OBS_CLW2) ) call obs_headSet_r(obsdat,OBS_CLW2,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,obs_missingValue_r)
 
   end subroutine  setInfoToMissing
 
@@ -4321,8 +4323,8 @@ CONTAINS
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW1,idata2)),ind13209,1,tIndex)
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW2,idata2)),ind13109,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),ind13109,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1

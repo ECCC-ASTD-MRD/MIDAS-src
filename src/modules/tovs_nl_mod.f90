@@ -306,9 +306,10 @@ contains
           end if
 
           if ( tvs_debug .and. mpi_myid == 0 .and. &
-                trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) &
+                trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
             write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
                         tvs_satelliteName(nosensor), channelNumber, channelIndex
+          end if
         end if
       end do BODY
     end do HEADER
@@ -2470,10 +2471,10 @@ contains
 
       else
 
-        ! run clear-sky RTTOV, save the radiances in OBS_VAR2 of obsSpaceData 
+        ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData 
         if ( tvs_numMWInstrumUsingCLW /= 0        .and. &
             tvs_opts(sensorId) % rt_mw % clw_data .and. &
-            obs_columnActive_RB(obsSpaceData, OBS_VAR2) ) then
+            obs_columnActive_RB(obsSpaceData, OBS_BTCL) ) then
 
           ! set the cloud profile in tvs_profiles_nl to zero
           call updateCloudInTovsProfile(                            &
@@ -2496,7 +2497,7 @@ contains
                nthreads=nthreads      )   
 
           ! save in obsSpaceData
-          do btIndex = 1, btCount
+          loopClearSky1: do btIndex = 1, btCount
             profileIndex = chanprof(btIndex)%prof
             channelIndex = chanprof(btIndex)%chan
             tovsIndex = sensorTovsIndexes(profileIndex)
@@ -2504,28 +2505,27 @@ contains
             clearMwRadiance = radiancedata_d % bt(btIndex)
 
             headerIndex = tvs_headerIndex(tovsIndex)
-            if ( headerIndex > 0 ) then
-              istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-              iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+            if ( headerIndex < 1 ) cycle loopClearSky1
+            istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+            iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
 
-              ifBodyIndexFound = .false.
-              loopClearSky: do bodyIndex = istart, iend
-                channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-                channelNumber = channelNumber - tvs_channelOffset(sensorId)
-                channelIndexFound = utl_findArrayIndex(tvs_ichan(:,sensorId),tvs_nchan(sensorId),channelNumber)
-                if ( channelIndex == channelIndexFound ) then
-                  ifBodyIndexFound = .true.
-                  exit loopClearSky
-                end if
-              end do loopClearSky
+            ifBodyIndexFound = .false.
+            loopClearSky2: do bodyIndex = istart, iend
+              channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+              channelNumber = channelNumber - tvs_channelOffset(sensorId)
+              channelIndexFound = utl_findArrayIndex(tvs_ichan(:,sensorId),tvs_nchan(sensorId),channelNumber)
+              if ( channelIndex == channelIndexFound ) then
+                ifBodyIndexFound = .true.
+                exit loopClearSky2
+              end if
+            end do loopClearSky2
 
-              if ( .not. ifBodyIndexFound ) &
-                          call utl_abort('tvs_rttov: bodyIndex not found.')
+            if ( .not. ifBodyIndexFound ) call utl_abort('tvs_rttov: bodyIndex not found.')
 
-              if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) &
-                call obs_bodySet_r(obsSpaceData, OBS_VAR2, bodyIndex, clearMwRadiance)
+            if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
+              call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
-          end do
+          end do loopClearSky1
 
           ! restore the cloud profiles in tvs_profiles_nl
           call updateCloudInTovsProfile(                          &
@@ -4599,6 +4599,7 @@ contains
     profileCount = size(sensorTovsIndexes)
 
     if ( trim(mode) == 'save' ) then 
+      if ( allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
       allocate(cloudProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
@@ -4612,6 +4613,9 @@ contains
       end do
 
       deallocate(cloudProfileToStore)
+
+    else
+      call utl_abort("updateCloudInTovsProfile: mode should be either 'save' or 'restore'")
 
     end if
 
