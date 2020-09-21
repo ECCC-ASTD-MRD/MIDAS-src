@@ -4881,16 +4881,22 @@ CONTAINS
     icodeleMrq =  200000 + icodele
     if ( familyType == "TO" ) icodeleRadMrq = 200000 + icodeleRad
 
-    ! default values for namelist variables
+    ! Read the NAMADDTOBURP namelist (if it exists)
     addClearRadToBurp = .false.
-
-    ! read the namelist
-    nulnam = 0
-    error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml=NAMADDTOBURP, iostat=error)
-    if ( error /= 0 ) call utl_abort('brpr_addRadianceBiasCorrectionElement: Error reading namelist')
-    write(*,nml=NAMADDTOBURP)
-    error = fclos(nulnam)
+    if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
+      ! read the namelist
+      nulnam = 0
+      error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=NAMADDTOBURP, iostat=error)
+      if ( error /= 0 ) call utl_abort('brpr_addRadianceBiasCorrectionElement: Error reading namelist')
+      write(*,nml=NAMADDTOBURP)
+      error = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'brpr_addBiasCorrectionElement: Namelist block NAMADDTOBURP is missing in the namelist.'
+      write(*,*) '                               The default value will be taken.'
+      if (mpi_myid == 0) write(*,nml=NAMADDTOBURP)
+    end if
 
     ! initialisation
     ! --------------
