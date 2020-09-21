@@ -9,7 +9,7 @@
   maxNumTest = 15
   maxNumChan = 42
   channelOffset = 27
-  allowStateDepSigmaObs = .false. 
+  mwAllskyAssim = .false. 
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.false.
 /
