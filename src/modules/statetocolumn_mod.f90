@@ -715,8 +715,8 @@ contains
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(:,procIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(:,procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             end if
           end do
 
