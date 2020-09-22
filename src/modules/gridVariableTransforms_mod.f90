@@ -448,14 +448,15 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_ens
   !--------------------------------------------------------------------------
-  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt)
+  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt, huMinValue_opt)
     implicit none
    
     ! Arguments
-    type(struct_ens)  :: ens
+    type(struct_ens)             :: ens
     character(len=*), intent(in) :: transform
-    logical, optional :: allowOverWrite_opt
-    character(len=*), optional :: varName_opt
+    logical, optional            :: allowOverWrite_opt
+    character(len=*), optional   :: varName_opt
+    real(8), optional            :: huMinValue_opt
 
     select case(trim(transform))
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
@@ -464,7 +465,7 @@ CONTAINS
         call LPRtoPR_ens(ens, allowOverWrite_opt=allowOverWrite_opt)
       end if
     case ('HUtoLQ')
-      call HUtoLQ_ens(ens)
+      call HUtoLQ_ens(ens, huMinValue_opt=huMinValue_opt)
     case ('LPRtoPR')
       call LPRtoPR_ens(ens, allowOverWrite_opt=allowOverWrite_opt)
     case ('UVtoPsiChi')
@@ -594,17 +595,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! HUtoLQ_ens
   !--------------------------------------------------------------------------
-  subroutine HUtoLQ_ens(ens)
+  subroutine HUtoLQ_ens(ens, huMinValue_opt)
     implicit none
 
-    type(struct_ens) :: ens
+    type(struct_ens)  :: ens
+    real(8), optional :: huMinValue_opt
 
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
-
     character(len=4) :: varName
-
     real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(4)          :: huMinValue
+
+    if (present(huMinValue_opt)) then
+      huMinValue = huMinValue_opt
+    else
+      huMinValue = MPC_MINIMUM_HU_R4
+    end if
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
@@ -619,7 +626,8 @@ CONTAINS
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, ens_getNumStep(ens)
             do memberIndex = 1, ens_getNumMembers(ens)
-              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),real(gsv_rhumin,4)))
+              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = &
+                   log( max( ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex), huMinValue ) )
             end do
           end do
         end do

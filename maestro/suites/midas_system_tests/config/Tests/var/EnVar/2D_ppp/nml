@@ -5,8 +5,7 @@
  &NAMBEN
    NTRUNC  = 24,
    NENS = 96,
-   SCALEFACTOR=    100*0.0D0,
-   ENSPATHNAME='./ensemble/',
+   SCALEFACTOR=    100*0.0D0
 /
  &NAMMIN
    NVAMAJ = 25,
