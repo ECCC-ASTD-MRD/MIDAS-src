@@ -374,33 +374,6 @@
     nbscan(14)=1
     cglobal(14)="OUI"
 /
-
-&NAMBIASSAT
-    biasActive=.TRUE.,
-    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
-    biasmode="apply",
-    removeBiasCorrection=.false.
-    refreshBiasCorrection=.false.
-    mimicsatbcor=.true.
-    scanBiasCorLength=-1.d0
-    centerPredictors=.false.,
-    weightedEstimate=.false.,
-    outstats=.false.,
-    outcoeffcov=.false.,
-    filterObs = .false.,
-    cinst(1)="AMSUA"
-    nbscan(1)=30
-    cglobal(1)="DEF"
-    cinst(2)="AMSUB"
-    nbscan(2)=90
-    cglobal(2)="DEF"
-    cinst(3)="MHS"
-    nbscan(3)=90
-    cglobal(3)="DEF"
-    cinst(4)="ATMS"
-    nbscan(4)=96
-    cglobal(4)="DEF"
-/
  &NAMBGCKIR
    NINST=4,
    INST(1)='AIRS',
@@ -545,26 +518,3 @@
    PCO2MAX=321.5d0,
    NIGHT_ANG=100.d0,
 /
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

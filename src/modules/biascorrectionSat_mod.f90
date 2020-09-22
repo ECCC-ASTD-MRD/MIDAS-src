@@ -39,6 +39,7 @@ MODULE biasCorrectionSat_mod
   use codtyp_mod
   use timeCoord_mod
   use clib_interfaces_mod
+  use obserrors_mod
 
   implicit none
   save
@@ -2051,10 +2052,10 @@ CONTAINS
     type(struct_obs), intent(inout) :: obsSpaceData
     !Locals:
     integer :: bodyIndex, headerIndex
-    integer :: assim,flag,codtyp
+    integer :: assim, flag, codtyp, channelNumber
     integer :: isatBufr, instBufr, iplatform, isat, inst ,idsat,i,chanIndx
     logical :: lHyperIr, lGeo, lSsmis, lTovs
-    logical :: condition, condition1, condition2
+    logical :: condition, condition1, condition2, channelIsAllsky
 
     if (.not. filterObs ) return
 
@@ -2105,6 +2106,14 @@ CONTAINS
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
+
+        ! determine if instrument/channel function in all-sky mode
+        channelNumber = NINT( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
+        channelIsAllsky = .false.
+        if ( tvs_isInstrumUsingCLW(tvs_instruments(idsat)) .and. &
+             oer_useStateDepSigmaObs(channelNumber,idsat) ) then
+          channelIsAllsky = .true.
+        end if
 
         assim =  obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
@@ -2162,6 +2171,7 @@ CONTAINS
                 condition2  =  btest(flag,9) .and. .not. btest(flag,7) .and. .not. btest(flag,18)  !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
                 condition = condition1 .or. condition2
               end if
+              if ( channelIsAllsky ) condition = condition .and. .not. btest(flag,23)
             else if( lGeo ) then   !  AIRS, IASI, CSR, CRIS  
               ! CSR case!    No flag check        =                all data that have passed QC/filtering
               !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering

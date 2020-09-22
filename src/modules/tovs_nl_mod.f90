@@ -117,6 +117,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
+  public :: tvs_isInstrumUsingCLW
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -423,7 +424,7 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addpc = .false.     ! to carry out principal component calculations 
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
-        tvs_opts(sensorIndex) % rt_mw % clw_data = isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
+        tvs_opts(sensorIndex) % rt_mw % clw_data = tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .true. ! use of internal profile interpolator (rt calculation on model levels)
@@ -1381,9 +1382,9 @@ contains
   end function tvs_isInstrumGeostationary
 
   !--------------------------------------------------------------------------
-  !  isInstrumUsingCLW
+  !  tvs_isInstrumUsingCLW
   !--------------------------------------------------------------------------
-  function isInstrumUsingCLW(instrumId) result(idExist)
+  function tvs_isInstrumUsingCLW(instrumId) result(idExist)
     !
     ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
     !
@@ -1404,7 +1405,7 @@ contains
       end if
     end do
 
-  end function isInstrumUsingCLW
+  end function tvs_isInstrumUsingCLW
 
   !--------------------------------------------------------------------------
   !  tvs_mapInstrum
