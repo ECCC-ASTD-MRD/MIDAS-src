@@ -1090,24 +1090,32 @@ contains
                   if ( mwAllskyAssim .and. &
                        useStateDepSigmaObs(channelNumber,sensorIndex) .and. &
                        surfTypeIsWater ) then
-                    clwThresh1 = clwThreshArr(channelNumber,sensorIndex,1)
-                    clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
-                    sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
-                    sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
-                    clwObs  = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
-                    clwFG  = obs_headElem_r( obsSpaceData, OBS_CLWB, headerIndex )
-                    clw_avg = 0.5D0 * (clwObs + clwFG)
 
-                    ! check to ensure CLW is retrieved and properly set
-                    if ( clw_avg < minRetrievableClwValue .or. &
-                        clw_avg > maxRetrievableClwValue ) then
-                      write(*,*) 'This observation should have been rejected in all-sky mode at background check!' 
-                      write(*,*) 'oer_fillObsErrors: clwObs=', clwObs, &
-                                ', clwFG=', clwFG
-                      call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
+                    ! set dummy value for OBS_OER in bgck mode
+                    if ( trim( obserrorMode ) == 'bgck' ) then
+                      sigmaObsErrUsed = 1.0D0
+                    else
+                      clwThresh1 = clwThreshArr(channelNumber,sensorIndex,1)
+                      clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
+                      sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
+                      sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
+                      clwObs  = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
+                      clwFG  = obs_headElem_r( obsSpaceData, OBS_CLWB, headerIndex )
+                      clw_avg = 0.5D0 * (clwObs + clwFG)
+
+                      ! check to ensure CLW is retrieved and properly set
+                      if ( clw_avg < minRetrievableClwValue .or. &
+                          clw_avg > maxRetrievableClwValue ) then
+                        write(*,*) 'This observation should have been rejected ', &
+                                  'in all-sky mode at background check!' 
+                        write(*,*) 'oer_fillObsErrors: clwObs=', clwObs, &
+                                  ', clwFG=', clwFG
+                        call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
+                      end if
+
+                      sigmaObsErrUsed = calcStateDepObsErr(clwThresh1, clwThresh2, &
+                                sigmaThresh1,sigmaThresh2,clw_avg)
                     end if
-
-                    sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
                   else
                     sigmaObsErrUsed = TOVERRST( channelNumber, sensorIndex )
                   end if

@@ -2,16 +2,17 @@
    NCONF  = 121,
 / 
 &NAMBGCK
-  instName = 'AMSUA'
-  debug = .false.
-  RESETQC = .false.
-  maxNumSat  = 9
-  maxNumTest = 15
-  maxNumChan = 42
-  channelOffset = 27
-  mwAllskyAssim = .false. 
-  clwQcThreshold = 0.3
-  useUnbiasedObsForClw =.false.
+  instName = 'AMSUA',
+  debug = .false.,
+  RESETQC = .false.,
+  maxNumSat  = 9,
+  maxNumTest = 15,
+  maxNumChan = 42,
+  channelOffset = 27,
+  mwAllskyAssim = .true.,
+  clwQcThreshold = 0.6,
+  useUnbiasedObsForClw =.false.,
+  cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
   doThinning = .false.
@@ -48,6 +49,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
    NSENSORS         =  7,
@@ -67,6 +69,9 @@
    CINSTRUMENTID(7)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
+   MWINSTRUMUSINGCLW_TL = .true.
+   cloudScaleFactor = 0.5D0
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -517,4 +522,9 @@
    PCO2MIN=56.73d0,
    PCO2MAX=321.5d0,
    NIGHT_ANG=100.d0,
+/
+ &NAMOER
+  mwAllskyAssim = .true.,
+  inflateStateDepSigmaObs(1) = .true.,
+  inflateStateDepSigmaObs(2) = .true.,
 /
