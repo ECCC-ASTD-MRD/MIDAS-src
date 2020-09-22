@@ -154,9 +154,9 @@ fi
 
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
-    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
-    COMPF_NOC="${COMPF_GLOBAL} -debug ${OPTF}"
-    COMPF="${COMPF_NOC} -check all"
+    COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
+    COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}
