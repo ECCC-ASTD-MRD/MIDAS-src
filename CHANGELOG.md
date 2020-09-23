@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Using `rpn/libs/19.6.0` to compile which does not change the results (#382 and !378)
+    * One must use the login profile `1.11.0` (`/fs/ssm/eccc/mrd/ordenv/profile/1.11.0`)
+    * On XC50, we compile using Intel compile `19.0.5` and `module load craype-hugepages16M`.
+    * On PPP, we compile using `eccc/mrd/rpn/code-tools/1.5.0`.
  * Use the compiler options `-warn all -warn errors` to remove unused variables
    * Get rid of the namelist variable `rejectTdZeroC` from `thin_raobs` namelist since it was not used.
    * Added `-fp-speculation=safe -init=snan,arrays` for debug mode
