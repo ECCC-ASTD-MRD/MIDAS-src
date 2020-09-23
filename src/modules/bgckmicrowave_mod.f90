@@ -48,7 +48,6 @@ module bgckmicrowave_mod
   real    :: mwbg_cloudyClwThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
-  logical :: mwbg_mwAllskyAssim
   integer :: mwbg_maxNumChan
   integer :: mwbg_maxNumSat 
   integer :: mwbg_maxNumTest
@@ -76,7 +75,6 @@ module bgckmicrowave_mod
   character(len=9)              :: instName                      ! instrument name
   real                          :: clwQcThreshold                ! 
   real                          :: cloudyClwThresholdBcorr       ! 
-  logical                       :: mwAllskyAssim                 !
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: debug                         ! debug mode
@@ -86,7 +84,7 @@ module bgckmicrowave_mod
   integer                       :: MaxNumTest
 
 
-  namelist /nambgck/instName, clwQcThreshold, mwAllskyAssim, &
+  namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     maxNumSat, channelOffset, maxNumTest, &
                     maxNumChan, cloudyClwThresholdBcorr 
@@ -106,7 +104,6 @@ contains
     ! Default values for namelist variables
     debug = .false.
     clwQcThreshold  = 0.3 
-    mwAllskyAssim = .false.
     useUnbiasedObsForClw = .false.
     cloudyClwThresholdBcorr = 0.05
     RESETQC = .false.
@@ -120,7 +117,6 @@ contains
 
     mwbg_debug = debug
     mwbg_clwQcThreshold = clwQcThreshold
-    mwbg_mwAllskyAssim = mwAllskyAssim
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = cloudyClwThresholdBcorr
     mwbg_maxNumChan = maxNumChan
@@ -813,7 +809,7 @@ contains
 
     testIndex = 12
     do nDataIndex=1,KNT
-      if ( mwbg_mwAllskyAssim ) then
+      if ( tvs_mwAllskyAssim ) then
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
         clwUsedForQC = clwObsFGaveraged
       else
@@ -844,7 +840,7 @@ contains
         ! when there is mismatch between clwObs and clwFG
         ! (to be used in gen_bias_corr)
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
-        IF ( mwbg_mwAllskyAssim .and. &
+        IF ( tvs_mwAllskyAssim .and. &
             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
             clwObsFGaveraged == MISGRODY) ) then
           do nChannelIndex = 1,KNO
@@ -860,7 +856,7 @@ contains
 
       ! Reject surface sensitive observations over water, in all-sky mode, 
       ! if CLW is not retrieved, and is needed to define obs error.
-      else if ( mwbg_mwAllskyAssim .and. surfTypeIsWater .and. &
+      else if ( tvs_mwAllskyAssim .and. surfTypeIsWater .and. &
                 clwUsedForQC == MISGRODY ) then
 
         loopChannel: do nChannelIndex = 1, KNO
@@ -1001,7 +997,7 @@ contains
         if ( channelval .NE. 20 ) then
           ! using state-dependent obs error only over water.
           ! obs over sea-ice will be rejected in test 15.
-          if ( mwbg_mwAllskyAssim .and. useStateDepSigmaObs(channelval,KNOSAT) &
+          if ( tvs_mwAllskyAssim .and. useStateDepSigmaObs(channelval,KNOSAT) &
                 .and. surfTypeIsWater ) then
             clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
@@ -1190,7 +1186,7 @@ contains
     integer, dimension(2), parameter :: lowPeakingChannelsList = (/ 31, 32 /)
 
     testIndex = 16
-    if ( .not. mwbg_mwAllskyAssim ) return 
+    if ( .not. tvs_mwAllskyAssim ) return 
 
     loopObs: do nDataIndex = 1, KNT
       surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
@@ -4370,7 +4366,7 @@ contains
     
     call obs_headSet_r(obsSpaceData, OBS_CLWO,  headerIndex, cloudLiquidWaterPathObs(1))
 
-    if ( mwbg_mwAllskyAssim ) then
+    if ( tvs_mwAllskyAssim ) then
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
     call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
@@ -4522,7 +4518,7 @@ contains
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      if ( mwbg_mwAllskyAssim ) then
+      if ( tvs_mwAllskyAssim ) then
         btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_BTCL, bodyIndex )
       end if
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )

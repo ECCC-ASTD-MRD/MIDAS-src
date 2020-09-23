@@ -104,7 +104,7 @@ module tovs_nl_mod
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
+  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_mwAllskyAssim
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -153,6 +153,7 @@ module tovs_nl_mod
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer tvs_numMWInstrumUsingCLW 
   logical tvs_mwInstrumUsingCLW_tl
+  logical tvs_mwAllskyAssim
   real(8) :: tvs_cloudScaleFactor 
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
@@ -565,7 +566,7 @@ contains
     logical :: userDefinedIsAzimuthValid
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
-    logical :: mwInstrumUsingCLW_tl
+    logical :: mwInstrumUsingCLW_tl, mwAllskyAssim
     real(8) :: cloudScaleFactor 
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
@@ -575,6 +576,7 @@ contains
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
+    namelist /NAMTOV/ mwAllskyAssim
  
     !   1.1 Default values for namelist variables
 
@@ -597,6 +599,7 @@ contains
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
     regLimitExtrap = .false.
     cloudScaleFactor = 0.5D0
+    mwAllskyAssim = .false.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -623,6 +626,7 @@ contains
     tvs_doAzimuthCorrection(:) =  doAzimuthCorrection(:)
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
     tvs_cloudScaleFactor = cloudScaleFactor 
+    tvs_mwAllskyAssim = mwAllskyAssim
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -1921,8 +1925,14 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
-    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) &
+    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
+    end if
+
+    if ( (tvs_numMWInstrumUsingCLW == 0 .and.       tvs_mwAllskyAssim) .or. &
+         (tvs_numMWInstrumUsingCLW  > 0 .and. .not. tvs_mwAllskyAssim) ) then
+      call utl_abort('tvs_fillProfiles: number of instrument to use CLW do not match all-sky namelist variable. ')
+    end if
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'O3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable must be included as an analysis variable in NAMSTATE. ')

@@ -142,7 +142,7 @@ module obsErrors_mod
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
-  logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, mwAllskyAssim, useTovsUtil
+  logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, useTovsUtil
   logical :: inflateStateDepSigmaObs(2)
   real(8) :: clearClwThresholdSigmaObsInflation(5)
   real(8) :: stateDepSigmaObsInflationCoeff
@@ -190,7 +190,7 @@ contains
     logical, optional            :: useTovsUtil_opt
 
     integer :: fnom, fclos, ierr, nulnam  
-    namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded, mwAllskyAssim
+    namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ inflateStateDepSigmaObs
     namelist /namoer/ clearClwThresholdSigmaObsInflation
     namelist /namoer/ stateDepSigmaObsInflationCoeff
@@ -211,7 +211,6 @@ contains
     new_oer_sw = .false.
     obsfile_oer_sw  = .false.
     visAndGustAdded = .false.
-    mwAllskyAssim = .false.
     inflateStateDepSigmaObs(:) = .false.
     clearClwThresholdSigmaObsInflation(:) = 0.03D0
     clearClwThresholdSigmaObsInflation(1) = 0.05D0
@@ -416,7 +415,7 @@ contains
     end do
 
     ! read in the parameters to define the user-defined symmetric TOVS errors
-    if ( mwAllskyAssim ) then
+    if ( tvs_mwAllskyAssim ) then
       ilutov2 = 10
       IER =  FNOM(ILUTOV2,'stats_tovs_symmetricObsErr','SEQ+FMT',0)
       if ( IER < 0 ) call utl_abort ('oer_readObsErrorsTOVS: Problem opening symmetricObsErr file.')
@@ -489,7 +488,7 @@ contains
               TOVERRST(JI,JL) = TOVERRIN(JI,obsErrorColumnIndex,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
 
-              if ( mwAllskyAssim ) then
+              if ( tvs_mwAllskyAssim ) then
                 clwThreshArr(JI,JL,:) = clwThreshArrInput(JI,JM,:)
                 sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
                 useStateDepSigmaObs(JI,JL) = &
@@ -540,7 +539,7 @@ contains
       do JL = 1, tvs_nsensors
         write(*,'(A,I2,4(A))') 'SENSOR #', JL, ', Platform: ', tvs_satelliteName(JL), &
                                 ', Instrument: ',tvs_instrumentName(JL)
-        if ( mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)) ) then
+        if ( tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)) ) then
           write(*,'(A,5(2X,A8))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','use'
           do JI = 1, NUMCHN(JL)
             write(*,'(I7,4(2X,F8.4),(2X,L8))') ICHN(JI,JL), &
@@ -1087,7 +1086,7 @@ contains
                      instrum   == tvs_instruments(sensorIndex)      ) then
 
                   ! decide whether or not use the state dependent sigmaObsErrUsed for OBS_OER
-                  if ( mwAllskyAssim .and. &
+                  if ( tvs_mwAllskyAssim .and. &
                        useStateDepSigmaObs(channelNumber,sensorIndex) .and. &
                        surfTypeIsWater ) then
 
@@ -1639,7 +1638,7 @@ contains
 
     surfTypeIsWater = ( obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex ) == surftype_sea )
 
-    if ( .not. mwAllskyAssim .or. &
+    if ( .not. tvs_mwAllskyAssim .or. &
          .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
          .not. surfTypeIsWater .or. &
          .not. any(inflateStateDepSigmaObs(:)) ) return

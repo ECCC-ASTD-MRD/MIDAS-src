@@ -9,7 +9,6 @@
   maxNumTest = 15,
   maxNumChan = 42,
   channelOffset = 27,
-  mwAllskyAssim = .true.,
   clwQcThreshold = 0.6,
   useUnbiasedObsForClw =.false.,
   cloudyClwThresholdBcorr = 0.05,
@@ -69,6 +68,7 @@
    CINSTRUMENTID(7)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
    INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
    MWINSTRUMUSINGCLW_TL = .true.
    cloudScaleFactor = 0.5D0
@@ -524,7 +524,6 @@
    NIGHT_ANG=100.d0,
 /
  &NAMOER
-  mwAllskyAssim = .true.,
   inflateStateDepSigmaObs(1) = .true.,
   inflateStateDepSigmaObs(2) = .true.,
 /
