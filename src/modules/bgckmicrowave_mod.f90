@@ -4418,7 +4418,7 @@ contains
     integer, allocatable, intent(out)    :: obsGlobalMarker(:)     ! global Marqueur Data
     character(*),intent(out)             :: burpFileSatId          ! Platform Name
     real   , allocatable, intent(out)    :: obsTb(:)               ! brightness temperature (btyp=9248/9264,ele=12163) 
-    real   , allocatable, intent(out)    :: btClear(:)             ! clear brightness temperature (btyp=9248/9264,ele=12164)
+    real   , allocatable, intent(out)    :: btClear(:)             ! clear brightness temperature (btyp=9248/9264,ele=btClearElementId)
     real   , allocatable, intent(out)    :: obsTbBiasCorr(:)       ! bias correction 
     real   , allocatable, intent(out)    :: ompTb(:)               ! OMP values
     integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      

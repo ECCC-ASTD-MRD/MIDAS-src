@@ -62,7 +62,8 @@ INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
 LOGICAL                :: READ_QI_GA_MT_SW
 
-logical                :: addClearRadToBurp
+logical                :: addBtClearToBurp
+integer*4              :: clwFgElementId, btClearElementId
 
 
 CONTAINS
@@ -158,7 +159,7 @@ CONTAINS
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
     logical                :: FSOFound
-    logical                :: clearRadElementFound 
+    logical                :: btClearElementFound 
 
     ! ensure kdtrees object is null
     nullify(tree)
@@ -319,18 +320,18 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        if ( addClearRadToBurp ) then
-          clearRadElementFound = .false.
+        if ( addBtClearToBurp ) then
+          btClearElementFound = .false.
 
           elementLoop: do iele = 1, NELE
-            if ( BLISTELEMENTS(iele) == 12164 ) then
-              clearRadElementFound = .true.
+            if ( BLISTELEMENTS(iele) == btClearElementId ) then
+              btClearElementFound = .true.
               exit elementLoop
             end if
           end do elementLoop
 
-          if ( .not. clearRadElementFound ) &
-            call utl_abort('brpr_updateBurp: element 12164 should be in namelist.')
+          if ( .not. btClearElementFound ) &
+            call utl_abort('brpr_updateBurp: btClearElement element should be in namelist.')
         end if
 
         NELE_INFO=23
@@ -1395,7 +1396,7 @@ CONTAINS
                        call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
                   end if
 
-                  IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12164, IOSTAT=error)
+                  IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=btClearElementId, IOSTAT=error)
                   if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_BTCL) ) then
                     Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
                   end if
@@ -1746,7 +1747,7 @@ CONTAINS
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,013109,1033,2011,4197,5040,33078,33079,33080/
+        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -3625,7 +3626,7 @@ CONTAINS
           END IF
         CASE(13209)
           cloudLiquidWaterObs = INFOV
-        CASE(13109)
+        CASE(clwFgElementId)
           cloudLiquidWaterFG = INFOV
         CASE(2011)
           raobsType = nint(infov)
@@ -3784,7 +3785,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, ind13109, ind13208, ind25174, indtmp
+    integer                :: ind13209, indClwFG, ind13208, ind25174, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4279,19 +4280,22 @@ CONTAINS
                      iostat   = error)
               end if
               ! clwFG
-              ind13109 = BURP_Find_Element(inputBlock, ELEMENT=013109, iostat=error)
-              if (ind13109 < 0) then
-                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                if (error/=burp_noerr) then
-                  call handle_error("Erreur dans BURP_Resize_Block info")
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId, iostat=error)
+                if (indClwFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  if (error/=burp_noerr) then
+                    call handle_error("Erreur dans BURP_Resize_Block info")
+                  end if
+                  indClwFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indClwFG, ELEMENT=clwFgElementId, iostat=error)
+                  indtmp = indtmp + 1
+                else
+                  indClwFG = BURP_Find_Element(inputBlock, &
+                       ELEMENT  = clwFgElementId, &
+                       iostat   = error)
                 end if
-                ind13109 = indtmp + 1
-                call BURP_Set_Element(inputBlock, NELE_IND=ind13109, ELEMENT=013109, iostat=error)
-                indtmp = indtmp + 1
-              else
-                ind13109 = BURP_Find_Element(inputBlock, &
-                     ELEMENT  = 013109, &
-                     iostat   = error)
               end if
               ! SCATERING INDEX
               ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208, iostat=error)
@@ -4324,7 +4328,10 @@ CONTAINS
                   end if
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),ind13109,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
+                  end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
@@ -4333,7 +4340,10 @@ CONTAINS
 
                   call Insert_into_burp_i(-1,ind25174,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
-                  call Insert_into_burp_r4(-1.0,ind13109,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
+                  end if
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
 
@@ -4831,7 +4841,7 @@ CONTAINS
     integer                     :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable        :: address(:)
     integer                     :: nbele, nvale, nte
-    integer                     :: valIndex, tIndex, reportIndex, btyp, bfam, error
+    integer                     :: valIndex, tIndex, reportIndex, btyp, idatyp, bfam, error
     integer                     :: indele, nsize, iun_burpin
     integer                     :: ibfam, ival, nulnam
     real                        :: rval
@@ -4840,12 +4850,12 @@ CONTAINS
     integer                     :: icodele
     integer                     :: icodeleRad
     integer                     :: icodeleMrq 
-    integer                     :: icodeleRadMrq 
+    integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
 
-    namelist /NAMADDTOBURP/ addClearRadToBurp
+    namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
 
     write(*,*) '-----------------------------------------------'
     write(*,*) '- begin brpr_addBiasCorrectionElement -'
@@ -4854,7 +4864,6 @@ CONTAINS
     select case(familyType)
     case("TO")
       icodele = 12233
-      icodeleRad = 12164
       BTYP10obs = 289 !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
       BTYP10mrq = 481 !MRQ block 481 = 2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
     case("GP")
@@ -4866,10 +4875,11 @@ CONTAINS
     end select
 
     icodeleMrq =  200000 + icodele
-    if ( familyType == "TO" ) icodeleRadMrq = 200000 + icodeleRad
 
     ! Read the NAMADDTOBURP namelist (if it exists)
-    addClearRadToBurp = .false.
+    addBtClearToBurp = .false.
+    clwFgElementId = -1 
+    btClearElementId = -1
     if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
       ! read the namelist
       nulnam = 0
@@ -4884,6 +4894,14 @@ CONTAINS
       write(*,*) '                               The default value will be taken.'
       write(*,nml=NAMADDTOBURP)
     end if
+
+    ! check clear-sky radiance element is in the namelist
+    if ( addBtClearToBurp .and. btClearElementId < 0 ) then
+      call utl_abort('brpr_addRadianceBiasCorrectionElement: btClearElementId missing in the namelist')
+    end if
+
+    btClearMrqElementID = -200001
+    if ( familyType == "TO" ) btClearMrqElementID = 200000 + btClearElementId
 
     ! initialisation
     ! --------------
@@ -4915,7 +4933,7 @@ CONTAINS
     call burp_get_property(inputFile, nrpts=nb_rpts, io_unit= iun_burpin)
 
     nsize = mrfmxl(iun_burpin)
-    if ( addClearRadToBurp ) then
+    if ( addBtClearToBurp ) then
       nsize = 4 * nsize
     else
       nsize = 3 * nsize
@@ -4942,8 +4960,14 @@ CONTAINS
       count = count + 1
       address(count) = ref_rpt
 
-      call burp_get_property(inputReport, stnid = station_id )
+      call burp_get_property(inputReport, stnid = station_id, idatyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
+
+      ! check clwFG element is in the namelist in all-sky mode.
+      if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
+           tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+        call utl_abort('brpr_addRadianceBiasCorrectionElement: clwFgElementId missing in the namelist')
+      end if
     end do
 
     if ( count > 0 .and. isDerialt) then
@@ -5010,15 +5034,16 @@ CONTAINS
               end do
             end if
         
-            ! Adding clear-sky radiance to data block for AMSUA
-            if ( addClearRadToBurp ) then 
+            ! Adding clear-sky radiance to data block for instrument in all-sky mode.
+            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
+                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
               
-              indele = burp_find_element(inputBlock, element=icodeleRad, iostat=error)
+              indele = burp_find_element(inputBlock, element=btClearElementId, iostat=error)
 
               if ( indele <= 0 ) then
                 nbele = nbele + 1
                 call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRad, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = btClearElementId, IOSTAT = error)
                 do valIndex = 1,nvale
                   do tIndex = 1,nte
                     call burp_set_Rval( inputBlock, &
@@ -5054,14 +5079,15 @@ CONTAINS
               end do
             end if
         
-            ! Adding clear-sky radiance to MRQ block for AMSUA
-            if ( addClearRadToBurp ) then
+            ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
+            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
+                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
 
-              indele = burp_find_element(inputBlock, element=icodeleRadMrq , iostat=error)
+              indele = burp_find_element(inputBlock, element=btClearMrqElementID, iostat=error)
               if ( indele <= 0 ) then
                 nbele = nbele + 1
                 call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleRadMrq, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = btClearMrqElementID, IOSTAT = error)
                 do valIndex = 1,nvale
                   do tIndex = 1, nte
                     call burp_set_tblval( inputBlock, &
