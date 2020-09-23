@@ -1744,10 +1744,9 @@ CONTAINS
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     
     
-    DATA LISTE_INFO  &
-       /1007,002019,007024,007025 ,005021, 005022, 008012, &
+    LISTE_INFO(1:27) = (/ 1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080/
+        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080 /)
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -3626,13 +3625,12 @@ CONTAINS
           END IF
         CASE(13209)
           cloudLiquidWaterObs = INFOV
-        CASE(clwFgElementId)
-          cloudLiquidWaterFG = INFOV
         CASE(2011)
           raobsType = nint(infov)
         CASE(4197)
           launchTime = nint(infov)
       END SELECT
+      if (liste_info(il) == clwFgElementId ) cloudLiquidWaterFG = INFOV
     end do
 
     !-------------------SPECIAL CASES--------------
@@ -4960,8 +4958,14 @@ CONTAINS
       count = count + 1
       address(count) = ref_rpt
 
-      call burp_get_property(inputReport, stnid = station_id, idatyp = idatyp )
+      call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
+
+      write(*,*) 'brpr_addBiasCorrectionElement: tvs_mwAllskyAssim=',tvs_mwAllskyAssim
+      write(*,*) 'brpr_addBiasCorrectionElement: clwFgElementId =',clwFgElementId 
+      write(*,*) 'brpr_addBiasCorrectionElement: codtyp_get_name(idatyp)=',codtyp_get_name(idatyp)
+      write(*,*) 'brpr_addBiasCorrectionElement: tvs_getInstrumentId(codtyp_get_name(idatyp))=',tvs_getInstrumentId(codtyp_get_name(idatyp))
+      write(*,*) 'brpr_addBiasCorrectionElement: tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))=',tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
 
       ! check clwFG element is in the namelist in all-sky mode.
       if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
