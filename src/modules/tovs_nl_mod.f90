@@ -577,6 +577,14 @@ contains
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
     namelist /NAMTOV/ mwAllskyAssim
+
+    ! return if the NAMTOV does not exist
+    if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
+      write(*,*)
+      write(*,*) 'tvs_setup: Namelist block NAMTOV is missing in the namelist.'
+      write(*,*) '           Skipping tvs_setup.'
+      return
+    end if
  
     !   1.1 Default values for namelist variables
 

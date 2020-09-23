@@ -4823,7 +4823,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! brpr_addBiasCorrectionElement
   !-----------------------------------------------------------------------
-  subroutine brpr_addBiasCorrectionElement(inputFileName, familyType)
+  subroutine brpr_addBiasCorrectionElement(inputFileName, familyType, beSilent_opt)
     !
     !:Purpose: to add element for radiance bias correction to data block of DERIALT BURP file
     !
@@ -4831,6 +4831,7 @@ CONTAINS
     !Arguments:
     character(len=*), intent(in)  :: inputFileName
     character(len=*), intent(in)  :: familyType
+    logical, optional             :: beSilent_opt
     !Locals:
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
@@ -4852,6 +4853,7 @@ CONTAINS
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
+    logical                     :: beSilent
 
     namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
 
@@ -4859,6 +4861,12 @@ CONTAINS
     write(*,*) '- begin brpr_addBiasCorrectionElement -'
     write(*,*) '-----------------------------------------------'
  
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
     select case(familyType)
     case("TO")
       icodele = 12233
@@ -4961,11 +4969,17 @@ CONTAINS
       call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
 
-      write(*,*) 'brpr_addBiasCorrectionElement: tvs_mwAllskyAssim=',tvs_mwAllskyAssim
-      write(*,*) 'brpr_addBiasCorrectionElement: clwFgElementId =',clwFgElementId 
-      write(*,*) 'brpr_addBiasCorrectionElement: codtyp_get_name(idatyp)=',codtyp_get_name(idatyp)
-      write(*,*) 'brpr_addBiasCorrectionElement: tvs_getInstrumentId(codtyp_get_name(idatyp))=',tvs_getInstrumentId(codtyp_get_name(idatyp))
-      write(*,*) 'brpr_addBiasCorrectionElement: tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))=',tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
+      if ( .not. beSilent ) then
+        if ( count == 1 ) then
+          write(*,*) 'brpr_addBiasCorrectionElement: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
+          write(*,*) 'brpr_addBiasCorrectionElement: clwFgElementId =', clwFgElementId 
+        end if
+
+        write(*,*) 'brpr_addBiasCorrectionElement: for report count =', count, &
+              ', instrumentName=', codtyp_get_name(idatyp), &
+              ', instrumentId =', tvs_getInstrumentId(codtyp_get_name(idatyp)), &
+              ', isInstrumUsingCLW =', tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
+      end if
 
       ! check clwFG element is in the namelist in all-sky mode.
       if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
