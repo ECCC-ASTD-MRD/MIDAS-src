@@ -1,3 +1,26 @@
+# Breaking change!
+
+If you compile MIDAS code after tag `v_3.6.0-a1`, then you must update your
+login profile to version `1.11.0`:
+```bash
+ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.11.0 ~/.profile_1.11.0
+rm -v ~/.profile && ln -svi .profile_1.11.0 ~/.profile
+```
+
+This change is backward compatible for your suites but you absolutely
+need to update your profile to compile any MIDAS code after version
+`v_3.6.0-a1`.
+
+To know if your code if after `v_3.6.0-a1`, you can execute:
+```bash
+git describe
+```
+
+If the output is containing the string `v_3.6.0`, then you need to
+update your profile.  If not, then you have to use the previous
+version of the profile which is
+`/fs/ssm/eccc/mrd/ordenv/profile/1.10`.
+
 # MIDAS Fortran coding standards:
 
 * [List of standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards)
