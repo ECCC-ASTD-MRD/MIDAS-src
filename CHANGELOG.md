@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Forward slant profile shape of GPSRO observations to output. Shape is located within bending block.
  * Added ability to use slant path for GPS-RO observations (#380 and !374)
  * Added quality control for AMSUA and ATMS to `obsSelection` (#335 and !320)
  * Added interpolation from a `Y` grid for the background fields (#385 and !367)
@@ -47,6 +46,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Copy the slant profile shape of GPSRO obs from input to output burp files. (#395 and !377)
  * Make diffusion operator B matrix mpi compatible (#355 and !354)
  * Reduce memory requirements for bgck and other programs (in s2c_nl) (#371 and !353)
    * also speed up burp update by using kdtree
