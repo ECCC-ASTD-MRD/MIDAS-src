@@ -6113,6 +6113,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     cloudGrid(:,:,:,:)      = -1.0
     channelAssim(:,:)       = .false.
     numChannel(:)           = 0
+    obsAngle(:)             = 0.0
+    obsCloud(:,:)           = 0.0
+    obsDistance(:)          = 0.0
 
     ! set spatial boxes properties
 
@@ -6264,6 +6267,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+
+    ! Initialize arrays
+    obsLatIndexMpi(:)    = 0
+    obsLonIndexMpi(:)    = 0
+    obsStepIndexMpi(:)   = 0
+    numChannelMpi(:)     = 0
+    obsAngleMpi(:)       = 0.0
+    obsDistanceMpi(:)    = 0.0
+    channelAssimMpi(:,:) = 0
+    obsCloudMpi(:,:)     = 0.0
+    stnIdInt(:,:)        = 0
+    stnIdIntMpi(:,:)     = 0
 
     ! Station ID converted to integer array
     HEADER3: do headerIndex = 1, numHeader

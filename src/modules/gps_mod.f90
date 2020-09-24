@@ -2891,6 +2891,7 @@ contains
     do i=1,ngpslev-1
         gz(i) = (lnu(i+1)%Var - lnu(i)%Var) / (h(i+1)%Var-  h(i)%Var)
     enddo
+    gz(ngpslev) = 0.0_dp
     
     iSize = size(impv)
     if (nval < iSize) iSize=nval

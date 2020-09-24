@@ -1257,6 +1257,7 @@ contains
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
     allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
+    weight(:,:) = 0.0d0
 
     ! compute a 2D weight field used for horizontal averaging
     hco => gsv_getHco(stateVectorStdDev)
