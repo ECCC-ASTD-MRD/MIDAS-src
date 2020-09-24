@@ -33,6 +33,7 @@ use obsVariableTransforms_mod
 use obsFilter_mod
 use tovs_nl_mod
 use kdtree2_mod
+use codtyp_mod
 
 implicit none
 save
@@ -99,14 +100,15 @@ CONTAINS
     real(kdkind), allocatable         :: PPPandVNM(:,:)
     integer, allocatable              :: bodyIndexList(:)
 
-    INTEGER,  PARAMETER    :: NBLOC_LIST=6
-    integer                :: LNMX
+    INTEGER,  PARAMETER    :: NBLOC_LIST = 9
+    INTEGER                :: LNMX
 
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN,BLOCK_OMA,BLOCK_OMP,BLOCK_OER,BLOCK_FGE,BLOCK_FLG,BLOCK_FSO
     TYPE(BURP_BLOCK)       :: BLOCK_OMA_SFC,BLOCK_OMP_SFC,BLOCK_OER_SFC,BLOCK_FGE_SFC,BLOCK_FLG_SFC,BLOCK_FSO_SFC
     TYPE(BURP_BLOCK)       :: Block_FLG_CP,BLOCK_OBS_MUL_CP,BLOCK_MAR_MUL_CP,BLOCK_OBS_SFC_CP,BLOCK_MAR_SFC_CP
+    TYPE(BURP_BLOCK)       :: BLOCK_GEN, BLOCK_OBS_BND,BLOCK_MAR_BND,BLOCK_ORB
 
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
@@ -438,6 +440,11 @@ CONTAINS
     call BURP_Init(BLOCK_OBS_SFC_CP ,IOSTAT=error)
     call BURP_Init(BLOCK_MAR_SFC_CP ,IOSTAT=error)
 
+    Call BURP_Init(BLOCK_GEN        ,IOSTAT = error)
+    Call BURP_Init(BLOCK_OBS_BND    ,IOSTAT = error)
+    Call BURP_Init(BLOCK_MAR_BND    ,IOSTAT = error)
+    Call BURP_Init(BLOCK_ORB        ,IOSTAT = error)
+
     ! opening file
     ! ------------
     write(*,*) 'OPENING BURP FILE FOR UPDATE = ', trim(brp_file)
@@ -592,8 +599,8 @@ CONTAINS
         HIPCS=.FALSE.
         REGRUP=.false.
         NDATA_SF=-1
-        !write(*,*)'  record number =',kk,' obs_start =',obs_start
-        BLOCK_LIST(1:6)=-1
+        !WRITE(*,*)'  record number =',kk,' obs_start =',obs_start
+        BLOCK_LIST(:)=-1
         BLOCKS0: do
           ref_blk = BURP_Find_Block(Rpt_in, &
                      & BLOCK       = Block_in, &
@@ -640,8 +647,18 @@ CONTAINS
           elseif ( btyp10 == btyp10flg ) then
             BLOCK_LIST(5)=BTYP
             BLOCK_MAR_MUL_CP=BLOCK_IN
-          elseif ( (btyp10 == btyp10inf ) .or. (btyp10 - btyp10inf == 1 ) ) then
-            BLOCK_LIST(6)=BTYP
+          elseif ( (btyp10 == btyp10inf) .or. (btyp10 - btyp10inf == 1) ) then
+            BLOCK_LIST(6) = BTYP
+            BLOCK_GEN     = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp ==  9217) then
+            BLOCK_LIST(7) = BTYP
+            BLOCK_OBS_BND = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp == 15361) then
+            BLOCK_LIST(8) = BTYP
+            BLOCK_MAR_BND = BLOCK_IN
+          else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp ==  9220) then
+            BLOCK_LIST(9) = BTYP
+            BLOCK_ORB     = BLOCK_IN
           else
             !WRITE(*, *)' POUR STATION bloc NON CONNU: ',STNID,ref_blk,bfam,familytype
           end if
@@ -1461,7 +1478,8 @@ CONTAINS
           end if  ! bl == 4
 
           if ( bl == 6 ) then
-            call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+            call BURP_Write_Block( CP_RPT, BLOCK_GEN, ENCODE_BLOCK = .FALSE., &
+                                   CONVERT_BLOCK = .FALSE., IOSTAT = error)
           end if
 
           ! descriptor block (btyp = 0010 100000X XXXX) 
@@ -1475,10 +1493,24 @@ CONTAINS
 
           !==================== IASI  SPECIAL BLOCK==================
           if ( (BTYP == 9217 .or. BTYP == 15361) .and.  IDTYP == 186   ) then
-            call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+            call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., &
+                                   CONVERT_BLOCK = .FALSE., IOSTAT= error)
           end if
           !==================== IASI  SPECIAL BLOCK==================
 
+          !==================== GPSRO BLOCKS TO KEEP IF THEY EXIST===
+          if ( IDTYP == codtyp_get_codtyp('ro') ) then
+            if (BTYP ==  9217) Call BURP_Write_Block( CP_RPT, BLOCK_OBS_BND, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+            if (BTYP == 15361) Call BURP_Write_Block( CP_RPT, BLOCK_MAR_BND, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+            if (BTYP ==  9220) Call BURP_Write_Block( CP_RPT, BLOCK_ORB, &
+                                   ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., &
+                                   IOSTAT= error)
+          end if
+          !==================== GPSRO BLOCKS=========================
         end do BLOCKS1
 
         if (  REGRUP )  then
@@ -1494,26 +1526,30 @@ CONTAINS
 
     Deallocate(address)
 
-    call BURP_Free(Rpt_in,CP_RPT,IOSTAT=error)
-    call BURP_Free(Block_in,     IOSTAT=error)
-    call BURP_Free(Block_OMA,    IOSTAT=error)
-    call BURP_Free(Block_OMP,    IOSTAT=error)
-    call BURP_Free(Block_OER,    IOSTAT=error)
-    call BURP_Free(Block_FGE,    IOSTAT=error)
-    call BURP_Free(Block_FSO,    IOSTAT=error)
-    call BURP_Free(Block_OMA_SFC,IOSTAT=error)
-    call BURP_Free(Block_OMP_SFC,IOSTAT=error)
-    call BURP_Free(Block_OER_SFC,IOSTAT=error)
-    call BURP_Free(Block_FGE_SFC,IOSTAT=error)
-    call BURP_Free(Block_FSO_SFC,IOSTAT=error)
-    call BURP_Free(Block_FLG_SFC,IOSTAT=error)
-    call BURP_Free(Block_FLG    ,IOSTAT=error)
-    call BURP_Free(Block_FLG_CP ,IOSTAT=error)
-    call BURP_Free(Block_MAR_MUL_CP ,IOSTAT=error)
-    call BURP_Free(Block_MAR_SFC_CP ,IOSTAT=error)
-    call BURP_Free(Block_OBS_MUL_CP ,IOSTAT=error)
-    call BURP_Free(Block_OBS_SFC_CP ,IOSTAT=error)
-    call BURP_Free(File_in,      IOSTAT=error)
+    call BURP_Free(Rpt_in,CP_RPT   , IOSTAT = error)
+    call BURP_Free(Block_in        , IOSTAT = error)
+    call BURP_Free(Block_OMA       , IOSTAT = error)
+    call BURP_Free(Block_OMP       , IOSTAT = error)
+    call BURP_Free(Block_OER       , IOSTAT = error)
+    call BURP_Free(Block_FGE       , IOSTAT = error)
+    call BURP_Free(Block_FSO       , IOSTAT = error)
+    call BURP_Free(Block_OMA_SFC   , IOSTAT = error)
+    call BURP_Free(Block_OMP_SFC   , IOSTAT = error)
+    call BURP_Free(Block_OER_SFC   , IOSTAT = error)
+    call BURP_Free(Block_FGE_SFC   , IOSTAT = error)
+    call BURP_Free(Block_FSO_SFC   , IOSTAT = error)
+    call BURP_Free(Block_FLG_SFC   , IOSTAT = error)
+    call BURP_Free(Block_FLG       , IOSTAT = error)
+    call BURP_Free(Block_FLG_CP    , IOSTAT = error)
+    call BURP_Free(Block_MAR_MUL_CP, IOSTAT = error)
+    call BURP_Free(Block_MAR_SFC_CP, IOSTAT = error)
+    call BURP_Free(Block_OBS_MUL_CP, IOSTAT = error)
+    call BURP_Free(Block_OBS_SFC_CP, IOSTAT = error)
+    call BURP_Free(Block_GEN       , IOSTAT = error)
+    call BURP_Free(Block_OBS_BND   , IOSTAT = error)
+    call BURP_Free(Block_MAR_BND   , IOSTAT = error)
+    call BURP_Free(Block_ORB       , IOSTAT = error)
+    call BURP_Free(File_in         , IOSTAT = error)
     if (associated(tree)) call kdtree2_destroy(tree)
     if (allocated(PPPandVNM)) deallocate(PPPandVNM)
     if (allocated(bodyIndexList)) deallocate(bodyIndexList)
