@@ -6,7 +6,6 @@
   maxNumTest = 5
   maxNumChan = 22
   channelOffset = 0
-  mwAllskyAssim = .false.
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.true.
 /
@@ -266,8 +265,6 @@
  &NAMGPSRO
 /
  &NAMGPSGB
-/
- &NAMADDTOBURP
 /
  &NAMBURP_FILTER_SFC
   BNBITSOFF=0,

@@ -42,7 +42,7 @@ private
 
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
-public :: brpr_addBiasCorrectionElement, brpr_updateMissingObsFlags, brpr_burpClean
+public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -4821,9 +4821,9 @@ CONTAINS
 
 
   !-----------------------------------------------------------------------
-  ! brpr_addBiasCorrectionElement
+  ! brpr_addElementsToBurp
   !-----------------------------------------------------------------------
-  subroutine brpr_addBiasCorrectionElement(inputFileName, familyType, beSilent_opt)
+  subroutine brpr_addElementsToBurp(inputFileName, familyType, beSilent_opt)
     !
     !:Purpose: to add element for radiance bias correction to data block of DERIALT BURP file
     !
@@ -4858,7 +4858,7 @@ CONTAINS
     namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
 
     write(*,*) '-----------------------------------------------'
-    write(*,*) '- begin brpr_addBiasCorrectionElement -'
+    write(*,*) '- begin brpr_addElementsToBurp -'
     write(*,*) '-----------------------------------------------'
  
     if ( present(beSilent_opt) ) then
@@ -4891,19 +4891,19 @@ CONTAINS
       nulnam = 0
       error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=NAMADDTOBURP, iostat=error)
-      if ( error /= 0 ) call utl_abort('brpr_addRadianceBiasCorrectionElement: Error reading namelist')
+      if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
       write(*,nml=NAMADDTOBURP)
       error = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'brpr_addBiasCorrectionElement: Namelist block NAMADDTOBURP is missing in the namelist.'
+      write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'
       write(*,*) '                               The default value will be taken.'
       write(*,nml=NAMADDTOBURP)
     end if
 
     ! check clear-sky radiance element is in the namelist
     if ( addBtClearToBurp .and. btClearElementId < 0 ) then
-      call utl_abort('brpr_addRadianceBiasCorrectionElement: btClearElementId missing in the namelist')
+      call utl_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
     end if
 
     btClearMrqElementID = -200001
@@ -4931,7 +4931,7 @@ CONTAINS
   
     if (error /= burp_noerr) then
       write(*,*) "cannot open BURP input file ", inputFileName
-      call utl_abort('brpr_addBiasCorrectionElement')
+      call utl_abort('brpr_addElementsToBurp')
     end if
 
     ! obtain input burp file number of reports
@@ -4971,11 +4971,11 @@ CONTAINS
 
       if ( .not. beSilent ) then
         if ( count == 1 ) then
-          write(*,*) 'brpr_addBiasCorrectionElement: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
-          write(*,*) 'brpr_addBiasCorrectionElement: clwFgElementId =', clwFgElementId 
+          write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
+          write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
         end if
 
-        write(*,*) 'brpr_addBiasCorrectionElement: for report count =', count, &
+        write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
               ', instrumentName=', codtyp_get_name(idatyp), &
               ', instrumentId =', tvs_getInstrumentId(codtyp_get_name(idatyp)), &
               ', isInstrumUsingCLW =', tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
@@ -4984,12 +4984,12 @@ CONTAINS
       ! check clwFG element is in the namelist in all-sky mode.
       if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
            tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
-        call utl_abort('brpr_addRadianceBiasCorrectionElement: clwFgElementId missing in the namelist')
+        call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
       end if
     end do
 
     if ( count > 0 .and. isDerialt) then
-      write(*,*) "brpr_addBiasCorrectionElement: modifying file..."
+      write(*,*) "brpr_addElementsToBurp: modifying file..."
      
 
 
@@ -5144,7 +5144,7 @@ CONTAINS
     call  cleanup()
 
     write(*,*) '---------------------------------------------'
-    write(*,*) '- end brpr_addBiasCorrectionElement -'
+    write(*,*) '- end brpr_addElementsToBurp -'
     write(*,*) '---------------------------------------------'
 
   contains
@@ -5165,10 +5165,10 @@ CONTAINS
       write(*,*) "history"
       call burp_str_error_history()
       call cleanup()
-      call utl_abort('brpr_addBiasCorrectionElement')
+      call utl_abort('brpr_addElementsToBurp')
     end subroutine handle_error
     
-  end subroutine brpr_addBiasCorrectionElement
+  end subroutine brpr_addElementsToBurp
 
   !-----------------------------------------------------------------------
   ! brpr_burpClean

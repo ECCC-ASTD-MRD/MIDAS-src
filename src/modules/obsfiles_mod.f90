@@ -161,7 +161,7 @@ contains
         if ( obsFileType == 'BURP' )   then
           ! Add extra bias correction element to GP and TO files
           if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
-               call brpr_addBiasCorrectionElement(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+               call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
