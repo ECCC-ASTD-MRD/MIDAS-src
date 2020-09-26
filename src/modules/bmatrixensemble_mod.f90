@@ -297,7 +297,7 @@ CONTAINS
       useCmatrixOnly        = .false.
       ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
       transformVarKindCH    = ''
-      huMinValue            = MPC_MINIMUM_HU_R8
+      huMinValue            = MPC_missingValue_R8
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -330,6 +330,12 @@ CONTAINS
 
       if (trim(ben_mode) == 'BackgroundCheck' .and. nInstance > 1) then
         call utl_abort('ben_setup: the background check mode is not compatible with multiple instance')
+      end if
+
+      if ( (huMinValue == MPC_missingValue_R8) .and. &
+           gsv_varExist(varName='HU') .and. &
+           (ctrlVarHumidity == 'LQ') ) then
+        call utl_abort('ben_setup: the value of huMinValue must be specified in namelist NAMBEN')
       end if
 
       !- Transfer the info to the structure
