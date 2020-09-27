@@ -143,7 +143,7 @@ module obsErrors_mod
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
   logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, useTovsUtil
-  logical :: inflateStateDepSigmaObs(2)
+  logical :: mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
   real(8) :: clearClwThresholdSigmaObsInflation(5)
   real(8) :: stateDepSigmaObsInflationCoeff
 
@@ -191,7 +191,7 @@ contains
 
     integer :: fnom, fclos, ierr, nulnam  
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
-    namelist /namoer/ inflateStateDepSigmaObs
+    namelist /namoer/ mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
     namelist /namoer/ clearClwThresholdSigmaObsInflation
     namelist /namoer/ stateDepSigmaObsInflationCoeff
 
@@ -211,7 +211,8 @@ contains
     new_oer_sw = .false.
     obsfile_oer_sw  = .false.
     visAndGustAdded = .false.
-    inflateStateDepSigmaObs(:) = .false.
+    mwAllskyInflateByOmp = .false.
+    mwAllskyInflateByClwDiff = .false.
     clearClwThresholdSigmaObsInflation(:) = 0.03D0
     clearClwThresholdSigmaObsInflation(1) = 0.05D0
     clearClwThresholdSigmaObsInflation(4) = 0.02D0
@@ -1641,7 +1642,7 @@ contains
     if ( .not. tvs_mwAllskyAssim .or. &
          .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
          .not. surfTypeIsWater .or. &
-         .not. any(inflateStateDepSigmaObs(:)) ) return
+         (.not. mwAllskyInflateByOmp .and. .not. mwAllskyInflateByClwDiff) ) return
 
     if ( .not. beSilent ) then
       write(*,*) 'oer_computeInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
@@ -1658,7 +1659,7 @@ contains
 
     ! error inflation for cloud placement 
     deltaE1 = 0.0D0
-    if ( inflateStateDepSigmaObs(1)                                         .and. &
+    if ( mwAllskyInflateByOmp                                         .and. &
          ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
           (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
          abs(clwObs - clwFG) >= 0.005 ) then
@@ -1667,7 +1668,7 @@ contains
 
     ! error inflation due to cloud liquid water difference
     deltaE2 = 0.0D0
-    if ( inflateStateDepSigmaObs(2) ) then
+    if ( mwAllskyInflateByClwDiff ) then
       deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
                       sigmaObsBeforeInflation
     end if

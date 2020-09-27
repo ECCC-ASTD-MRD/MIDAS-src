@@ -527,6 +527,6 @@
    NIGHT_ANG=100.d0,
 /
  &NAMOER
-  inflateStateDepSigmaObs(1) = .true.,
-  inflateStateDepSigmaObs(2) = .true.,
+  mwAllskyInflateByOmp = .true.,
+  mwAllskyInflateByClwDiff = .true.,
 /
