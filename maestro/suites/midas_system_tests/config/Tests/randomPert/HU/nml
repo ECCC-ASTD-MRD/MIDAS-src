@@ -5,6 +5,7 @@
  &NAMBEN
   NENS = 16
   SCALEFACTOR = 100*0.5d0
+  huMinValue = 1.0D-7
 /
  &NAMENKF
    NENS=4

@@ -153,6 +153,7 @@ module BmatrixEnsemble_mod
     logical             :: useCmatrixOnly
     integer             :: ensDateOfValidity
     character(len=20)   :: transformVarKindCH
+    real(8)             :: huMinValue
   end type struct_bEns
 
   integer :: nInstance = 0 ! The number of Bens instances
@@ -229,6 +230,7 @@ CONTAINS
     real(8)             :: footprintTopoThreshold
     logical             :: useCmatrixOnly
     integer             :: ensDateOfValidity
+    real(8)             :: huMinValue
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &
@@ -236,7 +238,8 @@ CONTAINS
          ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
-         useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity,transformVarKindCH
+         useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity, transformVarKindCH,        &
+         huMinValue
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -293,7 +296,8 @@ CONTAINS
       footprintTopoThreshold =  200.0d0 ! 200 m
       useCmatrixOnly        = .false.
       ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
-      transformVarKindCH = ''
+      transformVarKindCH    = ''
+      huMinValue            = MPC_missingValue_R8
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -328,6 +332,12 @@ CONTAINS
         call utl_abort('ben_setup: the background check mode is not compatible with multiple instance')
       end if
 
+      if ( (huMinValue == MPC_missingValue_R8) .and. &
+           gsv_varExist(varName='HU') .and. &
+           (ctrlVarHumidity == 'LQ') ) then
+        call utl_abort('ben_setup: the value of huMinValue must be specified in namelist NAMBEN')
+      end if
+
       !- Transfer the info to the structure
       bEns(nInstance)%nEns                       = nEns
       bEns(nInstance)%scaleFactor(:)             = scaleFactor(:)
@@ -359,6 +369,7 @@ CONTAINS
       bEns(nInstance)%useCmatrixOnly             = useCmatrixOnly
       bEns(nInstance)%ensDateOfValidity          = ensDateOfValidity
       bEns(nInstance)%transformVarKindCH         = transformVarKindCH
+      bEns(nInstance)%huMinValue                 = huMinValue
 
       bEns(nInstance)%hco_anl => hco_anl_in
       bEns(nInstance)%vco_anl => vco_anl_in
@@ -1165,7 +1176,7 @@ CONTAINS
 
     if ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1),'HU') .and. &
          bEns(instanceIndex)%ensContainsFullField ) then
-      call gvt_transform(bEns(instanceIndex)%ensPerts(1),'HUtoLQ')
+      call gvt_transform(bEns(instanceIndex)%ensPerts(1),'HUtoLQ',huMinValue_opt=bEns(instanceIndex)%huMinValue)
     else if ( trim(bEns(instanceIndex)%transformVarKindCH) /= '' ) then
       do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
         if ( vnl_varKindFromVarname(bEns(instanceIndex)%includeAnlVar(varIndex)) /= 'CH' ) cycle            

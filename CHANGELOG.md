@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added control on minimum HU value for ensemble B matrix (#399 and !379)
+   * Note: The namelist variable `huMinValue` must now appear in NAMBEN,
+     otherwise the program will abort.
  * Exclude cloudy observations from bias correction in all-sky using bit=23 (#397 and !376)
  * Inflating observation error at analysis for all-sky assimilation (#372 and !376)
    * Adding new elements to BURP file using NAMADDTOBURP namelist block.
@@ -45,7 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * The program `midas-obsImpact` needs them.
  * Incorporated in `tools/midas_scripts` all the helper scripts that was before in `oavar_scripts` (#364 and !349)
    * renamed them from `oavar.*` to `midas.*`
-     * renamed `midas.var_mpi` to `midas.mpi` to remove any reference to the VAR program
+   * renamed `midas.var_mpi` to `midas.mpi` to remove any reference to the VAR program
    * renamed the environment variables from `OAVAR_` to `MIDAS_*`
    * renamed the arguments in the script starting with `oavar_` to `midas_*`
    * modified the SSM publication process to take the scripts directly in the MIDAS code base
