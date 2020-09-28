@@ -2188,7 +2188,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,prf)
              !
              !     *        Prepare the vector of all the observations:
              !

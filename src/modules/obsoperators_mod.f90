@@ -1146,7 +1146,7 @@ contains
        !
        ! GPS profile structure:
        !
-       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,zUU,zVV,prf)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -1630,7 +1630,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_tovs_nl
   !--------------------------------------------------------------------------
-  subroutine oop_tovs_nl( columnghr, obsSpaceData, datestamp, limlvhu, beSilent,  &
+  subroutine oop_tovs_nl( columnghr, obsSpaceData, datestamp, beSilent,  &
                           jobs, bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
     !
     ! :Purpose: Computation of jobs and the residuals to the tovs observations
@@ -1648,7 +1648,6 @@ contains
     type(struct_columnData) :: columnghr
     type(struct_obs) :: obsSpaceData
     integer :: datestamp
-    real(8) :: limlvhu
     logical :: beSilent
     real(8) :: jobs
     logical, optional :: bgckMode_opt
@@ -1697,7 +1696,7 @@ contains
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,"nl",limlvhu,beSilent)
+    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,"nl",beSilent)
 
     if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -2224,7 +2223,7 @@ contains
       !
       if (min_nsim == 1) then
         datestamp = tim_getDatestamp()
-        call tvs_fillProfiles(columng, obsSpaceData, datestamp, "tlad", filt_rlimlvhu, .false.)
+        call tvs_fillProfiles(columng, obsSpaceData, datestamp, "tlad", .false.)
       end if
 
 
@@ -3006,7 +3005,7 @@ contains
 
 
       datestamp = tim_getDatestamp()
-      call tvs_fillProfiles(columng,obsSpaceData,datestamp,"tlad",filt_rlimlvhu,.false.)
+      call tvs_fillProfiles(columng,obsSpaceData,datestamp,"tlad",.false.)
 
       call tvslin_rttov_ad(column,columng,obsSpaceData)
 
@@ -3601,7 +3600,7 @@ contains
           zvv(ngpslev) = zuu(nwndlev)
 
           ! GPS profile structure:
-          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zHeight,zuu,zvv,prf)
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zHeight,prf)
 
           ! Prepare the vector of all the observations:
           nh1 = 0

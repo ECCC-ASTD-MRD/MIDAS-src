@@ -212,7 +212,7 @@ contains
     logical :: skip                       ! The decision
     
     ! Locals:
-    integer :: transformIndex, bufrCodeIndex
+    integer :: bufrCodeIndex
 
     if (.not. initialized) then
       call utl_abort(' ovt_bufrCodeSkipped: this module has not been setup')
@@ -504,7 +504,6 @@ contains
     logical        :: direction_missing, speed_missing
     logical        :: uWind_present, vWind_present
 
-    real(pre_obsReal) :: obsValue
     real(pre_obsReal) :: uWind, vWind, direction, speed
     real(pre_obsReal) :: level_direction, level, level2, level3
 

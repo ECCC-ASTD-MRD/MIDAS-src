@@ -248,8 +248,8 @@ contains
                               fileIndex )
         if ( present(obsFileClean_opt) ) then
           if ( obsFileClean_opt ) then
-            call sqlf_cleanFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                 obsf_cfamtyp(fileIndex), fileIndex )
+            call sqlf_cleanFile( obsf_cfilnam(fileIndex), &
+                                 obsf_cfamtyp(fileIndex) )
           end if
         end if
       end if

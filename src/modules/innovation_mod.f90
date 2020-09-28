@@ -549,10 +549,10 @@ contains
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgck'  ) then
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, ZJOTOV, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, ZJOTOV, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
     !

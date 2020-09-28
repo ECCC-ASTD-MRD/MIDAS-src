@@ -566,7 +566,7 @@ contains
       ! convert transformed to model variables for analysis and trial ensembles
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call tmg_start(104,'LETKF-writeEns')
-      call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
+      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                              containsFullField_opt=.true.)
       call tmg_stop(104)
@@ -577,7 +577,7 @@ contains
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', ' ', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false.)
         ! Also write the reference (analysis) surface pressure to increment files
@@ -611,7 +611,7 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', ' ', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_ANL', 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
@@ -620,7 +620,7 @@ contains
         ! WARNING: Increment put in ensembleTrlSubSample for output
         call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', ' ', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false.)
         ! Also write the reference (analysis) surface pressure to increment files
@@ -637,7 +637,7 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', ' ', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', 'ENS_ANL', 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)

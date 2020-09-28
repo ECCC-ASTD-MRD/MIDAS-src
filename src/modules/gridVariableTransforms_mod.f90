@@ -894,7 +894,6 @@ CONTAINS
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, kIndexLPR, kIndexPR
     logical :: overWriteNeeded
-    character(len=4) :: varName
     real(4), pointer :: PR_ptr_r4(:,:,:,:), LPR_ptr_r4(:,:,:,:)
 
     ! Check if overWrite of PR is needed, but not allowed

@@ -3839,7 +3839,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, MpiIdUU, MpiIdVV
-    integer :: levUV, kIndex, stepIndex, numSend, numRecv
+    integer :: levUV, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_out%nk), requestIdRecv(stateVector_out%nk)
     integer :: mpiStatuses(mpi_status_size,stateVector_out%nk)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -6413,7 +6413,7 @@ module gridStateVector_mod
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
-    integer :: kIndex, procIndex, stepIndex, numStep
+    integer :: kIndex, stepIndex, numStep
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)

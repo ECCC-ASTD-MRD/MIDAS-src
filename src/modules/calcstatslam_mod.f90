@@ -317,7 +317,7 @@ contains
     !- 6.  Transform u-wind and v-wind to control variables 
     !
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', ctrlVarHumidity, 'MODELVAR', 'E', &
+      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', 'MODELVAR', 'E', &
                              containsFullField_opt = ensContainsFullField)
     end if
 
@@ -332,7 +332,7 @@ contains
     end if
 
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', ctrlVarHumidity, 'CTRLVAR', 'E', &
+      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', 'CTRLVAR', 'E', &
                              containsFullField_opt = ensContainsFullField)
     end if
 

@@ -324,7 +324,7 @@ program midas_ensManip
   if ( output_ensemble_perturbations ) then
     call tmg_start(8,'OUTPUT_PERTURBATIONS')
     call ens_removeMean(ensemble)
-    call ens_writeEnsemble(ensemble, '.', 'pert_', ctrlVarHumidity, 'ENSPERT', 'P', numBits_opt = numBits)
+    call ens_writeEnsemble(ensemble, '.', 'pert_', 'ENSPERT', 'P', numBits_opt = numBits)
     call tmg_stop(8)
   end if
 
@@ -439,7 +439,7 @@ program midas_ensManip
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 
     call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
-    call ens_writeEnsemble(ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput,  &
+    call ens_writeEnsemble(ensemble, '.', 'recentered_', ensembleEtiketOutput, ensembleTypVarOutput,  &
                            numBits_opt = numBits, etiketAppendMemberNumber_opt = ensembleEtiketOutputAppendMemberNumber)
     call tmg_stop(130)
   end if ! end of 'if (recenter)'

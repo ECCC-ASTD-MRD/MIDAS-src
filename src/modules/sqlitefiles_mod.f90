@@ -101,7 +101,7 @@ module sqliteFiles_mod
     type (struct_obs), intent(inout) :: obsdat
     character(len=*)                 :: fileName
     character(len=*)                 :: familyType
-    integer                          :: fileINdex
+    integer                          :: fileIndex
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     character(len=*), parameter :: my_name = 'sqlf_readFile'
@@ -118,7 +118,7 @@ module sqliteFiles_mod
 
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName), fileIndex )
+    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
 
@@ -202,17 +202,15 @@ module sqliteFiles_mod
   end subroutine sqlf_updateFile
 
 
-  subroutine sqlf_cleanFile(obsSpaceData, fileName, familyType, fileIndex)
+  subroutine sqlf_cleanFile(fileName, familyType)
     !
     ! :Purpose: to reduce the number of observation data in an SQLite file
     !
     implicit none
 
     ! arguments
-    type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*),  intent(in) :: fileName
     character(len=*),  intent(in) :: familyType
-    integer,           intent(in) :: fileIndex
 
     ! locals
     character(len=*), parameter :: myName = 'sqlf_cleanFile'
@@ -222,7 +220,7 @@ module sqliteFiles_mod
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
 
-    call sqlr_cleanSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    call sqlr_cleanSqlite(db, fileName)
 
     write(*,*)myName//': Finished'
     call tmg_stop(96)

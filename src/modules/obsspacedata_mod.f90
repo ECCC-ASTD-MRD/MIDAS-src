@@ -945,14 +945,13 @@ contains
    end subroutine odc_initColumnFlavour
 
 
-   subroutine odc_class_initialize(obsColumnMode, myip)
+   subroutine odc_class_initialize(obsColumnMode)
       !
       ! :Purpose: Set variables that use the same values for all instances of the class.
       !
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
       character(len=*), intent(in) :: obsColumnMode
-      integer, intent(in) :: myip
 
       integer :: column_index, list_index, ii
       integer, parameter :: COLUMN_LIST_SIZE = 100
@@ -1353,7 +1352,6 @@ module ObsSpaceData_mod
    public obs_columnIndexFromName_IH !         "
    public obs_columnIndexFromName_RB !         "
    public obs_columnIndexFromName_RH !         "
-   public obs_comm       ! communicate header and body info between mpi processes
    public obs_copy       ! copy an obsdat object
    public obs_count_headers ! count the stations and observations in the object
    public obs_elem_c     ! obtain character element from the observation object
@@ -1392,7 +1390,6 @@ module ObsSpaceData_mod
    public obs_prntbdy    ! print the body data for one header
    public obs_prnthdr    ! print the data contained in one header
    public obs_read       ! read the observation data from binary files
-   public obs_readstns   ! read stations for 1 analysis pass, store in obs object
    public obs_creatSubCMA ! create a sub-CMA from the global CMA.  
    public obs_reduceToMpiLocal ! retain only data pertinent to the mpi-local PE
    public obs_squeeze    ! reallocate objects arrays to reduce memory use
@@ -1945,7 +1942,7 @@ contains
 
          ! DELEGATE THE REAL WORK TO THE ODC CLASS
          ! DELEGATE THE REAL WORK TO THE ODC CLASS
-         call odc_class_initialize(obsColumnMode_class, myip_)
+         call odc_class_initialize(obsColumnMode_class)
 
       else INITIALIZED
          write(*,*) 'obs_class_initialize: !!! WARNING WARNING WARNING!!!'
@@ -2325,168 +2322,6 @@ contains
 
       column_index = obs_columnIndexFromName(odc_flavour_RH, column_name)
    end function obs_columnIndexFromName_RH
-
-
-   subroutine obs_comm( obsdat, myip, nens, nstncom, hx )
-     !
-     ! :Purpose: communicate information on the stations and the observations
-     !        between the processes
-     ! :Comment: this routine evolved from the earlier routine commstns that worked
-     !      per analysis pass and did not consider hx.
-     !
-     ! :Arguments:     
-     !           :myip: number of the processor.
-     !           :nens: number of ensemble members for hx (may be zero)
-     !           :nstncom: we wish to exchange the obsdat for stations 1 ... nstncom
-     !                     (nstncom may be less than obsdat%numHeader_max).
-
-      implicit none
-
-      type (struct_obs), intent(inout)                 :: obsdat
-      integer,           intent(in)                    :: myip
-      integer,           intent(in)                    :: nens
-      integer,           intent(in)                    :: nstncom
-      real(8),           intent(inout), dimension(:,:) :: hx    
-
-      integer :: column_index
-      integer :: active_index
-      integer          , pointer :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
-      real(pre_obsReal), pointer :: realHeaders_tmp(:,:),realBodies_tmp(:,:)
-      integer :: ier,master,ncomm,nobs
-      character(len=100) :: message
-
-      ! broadcast relevant integers from master to all processes 
-
-      master=0
-
-      ! if nothing to communicate, return
-      if (obsdat%numHeader_max <= 0) return
-
-      if (nstncom > obsdat%numHeader_max) then
-         write(message,*) 'ERROR in obs_comm: nstncom ',nstncom, &
-            ' may not exceed numHeader_max ',obsdat%numHeader_max
-         call obs_abort(message); return
-      endif
-      if (nstncom <= 0) then
-         call obs_abort('OBS_COMM: nstncom should be positive'); return
-      endif
-
-      ! Nonmaster processes need to know how many body elements they will receive
-      nobs=  obs_headElem_i(obsdat, OBS_RLN, nstncom) &
-           + obs_headElem_i(obsdat, OBS_NLV, nstncom) - 1
-      ncomm=1
-      call rpn_comm_bcast(nobs,ncomm,"mpi_integer",master,"world",ier)
-
-      if (nobs > obsdat%numBody_max) then
-         write(message,*) 'ERROR in obs_comm: nobs ',nobs, &
-            ' may not exceed obsdat%numBody_max ',obsdat%numBody_max
-         call obs_abort(message); return
-      endif
-      if (nobs <= 0) then
-         write(message,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
-         call obs_abort(message); return
-      endif
-
-      ! extract data from active columns before broadcasting them
-      ncomm=nstncom*odc_numActiveColumn(obsdat%intHeaders)
-      allocate(intHeaders_tmp(odc_numActiveColumn(obsdat%intHeaders),nobs))
-      do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%intHeaders%odc_flavour, active_index)
-         intHeaders_tmp(active_index,1:nstncom) &
-                      =obsdat%intHeaders%columns(column_index)%value_i(1:nstncom)
-      enddo
-      call rpn_comm_bcast(intHeaders_tmp,ncomm,"mpi_integer",master,"world",ier)
-      ! put data from active columns back into object
-      do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%intHeaders%odc_flavour, active_index)
-         obsdat%intHeaders%columns(column_index)%value_i(1:nstncom) &
-                                          =intHeaders_tmp(active_index,1:nstncom)
-      enddo
-      deallocate(intHeaders_tmp)
-
-      ! extract data from active columns before broadcasting them
-      ncomm=nstncom*odc_numActiveColumn(obsdat%realHeaders)
-      allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders),nobs))
-      do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                    obsdat%realHeaders%odc_flavour, active_index)
-         realHeaders_tmp(active_index,1:nstncom) &
-                     =obsdat%realHeaders%columns(column_index)%value_r(1:nstncom)
-      enddo
-      call rpn_comm_bcast(realHeaders_tmp,ncomm,pre_obsMpiReal,master,"world",ier)
-      ! put data from active columns back into object
-      do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                    obsdat%realHeaders%odc_flavour, active_index)
-         obsdat%realHeaders%columns(column_index)%value_r(1:nstncom) &
-                                         =realHeaders_tmp(active_index,1:nstncom)
-      enddo
-      deallocate(realHeaders_tmp)
-
-      ncomm=nstncom*len(obsdat%cstnid(0))
-      call rpn_comm_bcastc(obsdat%cstnid,ncomm,"mpi_character",master,"world", &
-                                                                             ier)
-      ncomm=nstncom*len(obsdat%cfamily(0))
-      call rpn_comm_bcastc(obsdat%cfamily,ncomm,"mpi_character",master,"world", &
-                                                                             ier)
-
-      ! extract data from active columns before broadcasting them
-      ncomm=nobs*odc_numActiveColumn(obsdat%intBodies)
-      allocate(intBodies_tmp(odc_numActiveColumn(obsdat%intBodies),nobs))
-      do active_index=1,odc_numActiveColumn(obsdat%intBodies)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                      obsdat%intBodies%odc_flavour, active_index)
-         intBodies_tmp(active_index,1:nobs) &
-                          =obsdat%intBodies%columns(column_index)%value_i(1:nobs)
-      enddo
-      call rpn_comm_bcast(intBodies_tmp,ncomm,"mpi_integer",master,"world",ier)
-      ! put data from active columns back into object
-      do active_index=1,odc_numActiveColumn(obsdat%intBodies)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                      obsdat%intBodies%odc_flavour, active_index)
-         obsdat%intBodies%columns(column_index)%value_i(1:nobs) &
-                                              =intBodies_tmp(active_index,1:nobs)
-      enddo
-      deallocate(intBodies_tmp)
-
-      ! extract data from active columns before broadcasting them
-      ncomm=nobs*odc_numActiveColumn(obsdat%realBodies)
-      allocate(realBodies_tmp(odc_numActiveColumn(obsdat%realBodies),nobs))
-      do active_index=1,odc_numActiveColumn(obsdat%realBodies)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%realBodies%odc_flavour, active_index)
-         realBodies_tmp(active_index,1:nobs) &
-                         =obsdat%realBodies%columns(column_index)%value_r(1:nobs)
-      enddo
-      call rpn_comm_bcast(realBodies_tmp,ncomm,pre_obsMpiReal,master,"world",ier)
-      ! put data from active columns back into object
-      do active_index=1,odc_numActiveColumn(obsdat%realBodies)
-         column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%realBodies%odc_flavour, active_index)
-         obsdat%realBodies%columns(column_index)%value_r(1:nobs) &
-                                             =realBodies_tmp(active_index,1:nobs)
-      enddo
-      deallocate(realBodies_tmp)
-
-      ! Broadcast the remaining obsdat variables
-      ncomm=1
-      call rpn_comm_bcast(obsdat%numHeader,ncomm,"mpi_integer",master,"world", &
-                                                                             ier)
-      call rpn_comm_bcast(obsdat%numBody,  ncomm,"mpi_integer",master,"world", &
-                                                                             ier)
-      call rpn_comm_bcast(obsdat%mpi_local,ncomm,"mpi_integer",master,"world", &
-                                                                             ier)
-
-      if (nens > 0) then
-         ncomm=nobs*nens
-         call rpn_comm_bcast(hx,ncomm,"mpi_double_precision",master,"world",ier)
-      endif
-
-      return
-
-   end subroutine obs_comm
 
 
    subroutine obs_copy( obs_a, obs_b )
@@ -4429,173 +4264,6 @@ contains
 
    end subroutine obs_read
 
-
-   subroutine obs_readstns( obsdat, myip, ipasscur, iregcur, nobshdr, nobsbdy, np, &
-                            mxstn, mxobs )
-      !
-      ! :Purpose: read the stations for one analysis pass, from unformatted files,
-      !       and store them in an ObsSpaceData_mod object.  The files have been
-      !       written by obs_write().
-      !       (this routine is intended for the master mpi process,
-      !        other processes exit immediately)
-      !
-      ! :Arguments:
-      !           :obsdat:   obsSpaceData object
-      !           :myip:     number of the process
-      !           :ipasscur: number of the current analysis pass (i.e. batch)
-      !           :iregcur:  number of the region to be done for this pass. 
-      !           :nobshdr:  unit number of the file with obsdat header info.
-      !           :nobsbdy:  unit number of the file with obsdat body info.
-      !           :np:       total number of processes used in MPI. 
-      !
-      implicit none
-
-      type(struct_obs), intent(inout) :: obsdat
-      integer         , intent(in)    :: ipasscur
-      integer         , intent(in)    :: myip
-      integer         , intent(in)    :: nobshdr
-      integer         , intent(in)    :: nobsbdy
-      integer         , intent(in)    :: np
-      integer         , intent(in)    :: mxstn
-      integer         , intent(in)    :: mxobs
-      integer         , intent(out)   :: iregcur
-
-      integer :: i,idata,ifirst,ilast,ipass,ireg,j,k
-      integer :: active_index
-      integer :: column_index
-
-      real(pre_obsReal), save :: realHeaders_1(1:NHDR_REAL_SIZE)
-      integer,           save :: intHeaders_1(1:NHDR_INT_SIZE)
-      character(len=12), save :: cstnid_1
-      character(len=2),  save :: cfamily_1
-      logical,           save :: empty  = .false., &
-                                 hasone = .false.
-
-      if (myip /= 0) return
-
-      if (empty) then
-         write(*,*) 'file is empty'
-         return
-      endif
-
-      iregcur=1
-
-      ! read headers for this pass of the sequential algorithm
-
-      ! hasone indicates whether a header has been read without being
-      ! inserted into obsdat. This occurs after the headers for one pass have
-      ! been read. In this case one should not read a new header 
-      ! but first insert the saved one.
-
-      do while( get_one() )
-         ireg =intHeaders_1(odc_activeIndexFromColumnIndex( &
-                                          obsdat%intHeaders%odc_flavour,OBS_REG))
-         ipass=intHeaders_1(odc_activeIndexFromColumnIndex( &
-                                          obsdat%intHeaders%odc_flavour,OBS_PAS))
-
-         if ((ipass /= ipasscur)) then
-            if(obsdat%numHeader == 0) then
-               write(6,*)"ERROR"
-               write(6,*)"ERROR:  In obs_readstns(), the next"
-               write(6,*)"ERROR:  OBS_PAS value, ", ipass, "does not match the"
-               write(6,*)"ERROR:  current  pass, ", ipasscur,".  Exiting."
-               write(6,*)"ERROR"
-               call obs_abort('OBS_READSTNS: ipass /= ipasscur')
-               return
-            end if
-            exit
-         end if
-
-         ! default assignment of all input variables to obsdat.
-         obsdat%numHeader=obsdat%numHeader+1
-         idata=obsdat%numHeader
-         do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
-            column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%intHeaders%odc_flavour, active_index)
-            if(obsdat%intHeaders%odc_flavour%columnActive(column_index))  &
-               call obs_headSet_i(obsdat, column_index, idata, &
-                                  intHeaders_1(active_index))
-                                                         
-         enddo
-         do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
-            column_index=odc_columnIndexFromActiveIndex( &
-                                    obsdat%realHeaders%odc_flavour, active_index)
-            if(obsdat%realHeaders%odc_flavour%columnActive(column_index))  &
-               call obs_headSet_r(obsdat, column_index, idata, &
-                                  realHeaders_1(active_index))
-                                                         
-         enddo
-         obsdat%cstnid(idata)  =cstnid_1
-         obsdat%cfamily(idata) =cfamily_1
-
-         ! determine which process will handle this station.
-         ! the corresponding scatter operation is in program scattercma.
-         call obs_headSet_i(obsdat,OBS_IP,idata,mod(ipasscur,np))
-
-         ireg=obs_headElem_i(obsdat, OBS_REG, idata)
-         if (iregcur /= ireg) then
-            iregcur=ireg
-         endif
-
-         if (idata == 1) then
-            call obs_headSet_i(obsdat, OBS_RLN, idata, 1)
-         else
-            call obs_headSet_i(obsdat, OBS_RLN, idata, &
-                obs_headElem_i(obsdat, OBS_RLN, idata-1) &
-               +obs_headElem_i(obsdat, OBS_NLV, idata-1))
-         endif
-
-         ! now read the bodies:
-         ifirst=         obs_headElem_i(obsdat, OBS_RLN, idata)
-         ilast =ifirst + obs_headElem_i(obsdat, OBS_NLV, idata)-1
-         do i=ifirst,ilast
-            read(nobsbdy) &
-              (obsdat%intBodies%columns(odc_columnIndexFromActiveIndex( &
-                                                obsdat%intBodies%odc_flavour,j) &
-                                       )%value_i(i), &
-                   j=1,odc_numActiveColumn(obsdat%intBodies)), &
-              (obsdat%realBodies%columns(odc_columnIndexFromActiveIndex( &
-                                               obsdat%realBodies%odc_flavour,k) &
-                                        )%value_r(i), &
-                   k=1,odc_numActiveColumn(obsdat%realBodies))
-                                        ! Make HIND point to new header row_index
-            call obs_bodySet_i(obsdat, OBS_HIND, i, idata)
-         enddo
-
-         hasone=.false.
-
-         ! go back to read the next station
-      end do
-
-      return
-
-
-   contains
-      logical function get_one()
-         integer :: ierr
-
-         if (.not. hasone) then 
-            read(nobshdr,iostat=ierr) &
-                 (intHeaders_1(i),i=1,odc_numActiveColumn(obsdat%intHeaders)),&
-                 (realHeaders_1(j),j=1,odc_numActiveColumn(obsdat%realHeaders)),&
-                 cstnid_1, &
-                 cfamily_1
-            if(ierr == 0) then
-               hasone = .true.
-            else
-               hasone = .false.
-               empty=.true.
-               write(*,*) 'file is now empty'
-               close(nobshdr)
-               close(nobsbdy)
-            end if ! ierr
-         end if ! hasone
-
-         get_one = hasone
-         return
-      end function get_one
-
-   end subroutine obs_readstns
 
    subroutine obs_creatSubCMA(cma,cma_sub,ipasscur,np)
    !

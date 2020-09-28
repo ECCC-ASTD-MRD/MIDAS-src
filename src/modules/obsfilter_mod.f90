@@ -102,7 +102,7 @@ contains
 
     character(len=*), intent(in) :: filterMode_in
 
-    integer :: nulnam, ierr, elem, elem2, jflag, ibit, itotelem, ielem
+    integer :: nulnam, ierr, elem, jflag, ibit
     integer :: fnom, fclos
     integer :: nelems, nlist(30)
     integer :: nflags, nlistflg(15), obsFamilyIndex
@@ -1283,7 +1283,7 @@ end subroutine filt_topoAISW
     logical                 :: beSilent
     !
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER :: JL, ISAT, IQLF, iProfile, I, IFLG
+    INTEGER :: JL, ISAT, IQLF, iProfile, IFLG
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL
@@ -1588,7 +1588,7 @@ end subroutine filt_topoAISW
     logical :: beSilent
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
-    integer :: ivnm, countAssim, jl, icount,unit,ier
+    integer :: ivnm, countAssim, jl, icount
     real(8) :: obsAltitude, obsPressure, colTopPressure, colSfcPressure
     real(8) :: colAltitudeBelow, colAltitudeAbove
     logical :: list_is_empty
