@@ -1622,7 +1622,6 @@ contains
 
     ! Local variables
     real(8) :: zomp,zinc,zoer,zhbht
-    integer :: ier
     integer, external :: fclos
 
     ! Obs space local variables
@@ -2225,7 +2224,7 @@ contains
   ! Local variables
   
   real(8) :: press_obs(obsoper%nobslev),zwork(obsoper%nmodlev),unit_conversion(obsoper%nmodlev)
-  real(8) :: sigma_trial(obsoper%nmodlev,2),temp_eff(1),zhmin,check
+  real(8) :: sigma_trial(obsoper%nmodlev,2),temp_eff(1),zhmin
   integer :: iobslev,imodlev,jvar
   integer, parameter :: code_len=90
   character(len=code_len) :: code    ! Must be at least as large as chm_code_len

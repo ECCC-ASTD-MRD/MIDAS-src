@@ -246,7 +246,7 @@ contains
          obs_famExist( obsSpaceData, 'SF' ) .or. obs_famExist( obsSpaceData, 'GP' ) .or. obs_famExist( obsSpaceData, 'SC' ) .or. &
          obs_famExist( obsSpaceData, 'PR' ) ) then
 
-      call oer_readObsErrorsCONV( obsSpaceData )
+      call oer_readObsErrorsCONV()
 
     else
 
@@ -314,13 +314,11 @@ contains
     integer :: IPLATFORM(tvs_maxNumberOfSensors), ISATID(tvs_maxNumberOfSensors)
     integer :: IINSTRUMENT(tvs_maxNumberOfSensors), NUMCHN(tvs_maxNumberOfSensors)
     integer :: NUMCHNIN(tvs_maxNumberOfSensors)
-    integer :: IPLATFORM2, ISATID2, IINSTRUMENT2, NUMCHN2, NUMCHNIN2
+    integer :: IPLATFORM2, ISATID2, IINSTRUMENT2, NUMCHNIN2
     integer :: IUTILST(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: ICHN(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: ICHNIN(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: ICHNIN2(tvs_maxChannelNumber)
-
-    real :: ZDUM
 
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
     real(8) :: clwThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
@@ -673,15 +671,13 @@ contains
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsCONV
   !--------------------------------------------------------------------------
-  subroutine oer_readObsErrorsCONV ( obsSpaceData )
+  subroutine oer_readObsErrorsCONV()
     ! 
     ! :Purpose: read observation errors (modification of former readcovo subroutine) of conventional data 
     !
     implicit none
-    ! argument
-    type(struct_obs) :: obsSpaceData
 
-    integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat, nulnam
+    integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat
     logical             :: LnewExists
     character (len=128) :: ligne
 
@@ -1713,7 +1709,7 @@ contains
     logical  :: fileFound
     integer  :: levelIndex, reportIndex, obsIndex
     integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
-    integer  :: vnm, bodyIndexBeg, bodyIndexEnd
+    integer  :: bodyIndexBeg, bodyIndexEnd
     real(8), allocatable :: uu_oer(:), vv_oer(:)
 
     filename = obsf_getFileName('SW',fileFound)
@@ -1915,7 +1911,7 @@ contains
         E_HEIGHT = 8000.0
       else
         E_DRIFT = 7.5 - 0.05*iqiv
-        call get_height_error(cstnid,imet,itrn,ihav,zlat,zlon,zlev,E_HEIGHT,J_SAT)
+        call get_height_error(cstnid,imet,itrn,ihav,zlat,zlev,E_HEIGHT,J_SAT)
       end if
 
       varLevel = vnl_varLevelFromVarnum(ivnm)
@@ -1968,14 +1964,13 @@ contains
   !--------------------------------------------------------------------------
   ! get_height_error
   !--------------------------------------------------------------------------
-  subroutine get_height_error( stnid, methode, terrain, htasmet, zlat, zlon, zlev, E_HEIGHT, J_SAT )
+  subroutine get_height_error( stnid, methode, terrain, htasmet, zlat, zlev, E_HEIGHT, J_SAT )
     character(len=9), intent(in)     :: stnid
     integer,          intent(in)     :: methode
     integer,          intent(in)     :: terrain
     integer,          intent(in)     :: htasmet
     integer,          intent(out)    :: J_SAT 
     real(8),          intent(in)     :: zlat
-    real(8),          intent(in)     :: zlon
     real(8),          intent(in)     :: zlev
     real(8),          intent(out)    :: E_HEIGHT
 
@@ -2421,15 +2416,14 @@ contains
     REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
 
     !
-    !     ZZDERMIN = MIN ZTD OER VALUE (M), ZZFERREJ = MAX FERR VALUE (M) FOR REJECTION
+    !     ZZDERMIN = MIN ZTD OER VALUE (M)
     !     ZZDERMAX = MAX ZTD OER VALUE (M)
     !     ZTDERFAC = MULTIPLICATION FACTOR FOR FORMAL ZTD MEASUREMENT ERROR
     !     ZOPEFAC  = FRACTION OF REGRESSION EQUATION SD(O-P) TO USE AS ZTD OBSERVATION ERROR
     !     ----------------------------------------------------------------------------------
     !
-    REAL*8 ZZDERMIN, ZZFERREJ, ZZDERMAX, ZTDERFAC, ZOPEFAC
+    REAL*8 ZZDERMIN, ZZDERMAX, ZTDERFAC, ZOPEFAC
     DATA ZZDERMIN /0.004D0/
-    DATA ZZFERREJ /0.015D0/
     DATA ZZDERMAX /0.030D0/
     DATA ZTDERFAC /3.0D0/
     DATA ZOPEFAC  /1.0D0/

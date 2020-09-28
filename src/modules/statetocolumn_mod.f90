@@ -263,7 +263,7 @@ contains
     type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
-    integer :: bodyIndex, kIndex, kIndexCount, myKBeg
+    integer :: kIndex, kIndexCount, myKBeg
     integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
     integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
@@ -1102,15 +1102,15 @@ contains
             yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
-                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU', &
+                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
                                    ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
-                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV', &
+                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName, &
+                call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex),  &
                                   ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, &
                                   stepIndex, procIndex )
               end if
@@ -1391,11 +1391,11 @@ contains
             yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
-                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
+                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
                                    ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
-                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
+                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
@@ -1641,11 +1641,11 @@ contains
               yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
               if ( yourNumHeader > 0 ) then
                 if ( varName == 'UU' ) then
-                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
+                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
                                      ptr4d_r4(:,:,kIndex,stepIndex), ptr3d_UV_r4(:,:,stepIndex), &
                                      interpInfo_nl, kindex, stepIndex, procIndex )
                 else if ( varName == 'VV' ) then
-                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
+                  call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                      ptr3d_UV_r4(:,:,stepIndex), ptr4d_r4(:,:,kIndex,stepIndex), &
                                      interpInfo_nl, kindex, stepIndex, procIndex )
                 else
@@ -3312,7 +3312,6 @@ contains
     ! locals
     integer :: depotIndex
     integer :: ierr
-    integer :: bodyIndexBeg, bodyIndexEnd
     integer :: latIndex, lonIndex
     integer :: subGridIndex
     real(4) :: lon_deg_r4, lat_deg_r4

@@ -423,7 +423,7 @@ CONTAINS
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
     integer        :: levIndex, jvar, status
-    integer        :: fnom, fclos, ierr, nulnam
+    integer        :: ierr
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
@@ -1489,8 +1489,7 @@ CONTAINS
 
     integer :: nTrunc
     integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
-    integer :: mymCount, mynCount, ierr
-    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
+    integer :: mymCount, mynCount
     integer :: waveBandIndexStart, waveBandIndexEnd
     integer :: waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
 
