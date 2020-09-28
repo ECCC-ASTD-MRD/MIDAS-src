@@ -20,7 +20,7 @@ for file in *.f90; do
     midasAbs=midas-${program}_${platform}-${revnum}.Abs
     if [ -f "${absdir}/${midasAbs}" ]; then
         if [ -n "${midas_abs}" ]; then
-            echo "The program '${absdir}/${midasAbs}' exists and is copied to '${midas_abs}'"
+            echo "The program '${absdir}/${midasAbs}' exists and is copied to '${midas_abs}/${midasAbs}'"
             cp ${absdir}/${midasAbs} ${midas_abs}
         else
             echo "The program '${absdir}/${midasAbs}' exists"
