@@ -842,7 +842,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: t, latIndex, lonIndex
+    integer :: latIndex, lonIndex
 
     real(8) :: xlast ( diff( diffID ) % ni, diff( diffID ) % nj )
     real(8) :: dp ( diff ( diffID ) % ni )
@@ -892,7 +892,7 @@ contains
     real(8), intent(out) :: xout(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
     ! Locals:
-    integer :: t, latIndex, lonIndex
+    integer :: latIndex, lonIndex
 
     real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
     real(8) :: dp(diff(diffID)%nj)

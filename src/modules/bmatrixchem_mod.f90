@@ -191,7 +191,6 @@ module BmatrixChem_mod
 
     integer :: VarIndex,nChmVars,VarIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
-    character(len=20)   :: TransformTempArray(vnl_numvarmax)
     
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode, &
                       IncludeAnlVarKindCH,getPhysSpace_hcorrel,CrossCornsVarKindCH,ReadWrite_PSStats, &
