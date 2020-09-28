@@ -104,7 +104,7 @@ module tovs_nl_mod
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
+  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_mwAllskyAssim
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -117,6 +117,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
+  public :: tvs_isInstrumUsingCLW
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -152,6 +153,8 @@ module tovs_nl_mod
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer tvs_numMWInstrumUsingCLW 
   logical tvs_mwInstrumUsingCLW_tl
+  logical tvs_mwAllskyAssim
+  real(8) :: tvs_cloudScaleFactor 
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
@@ -303,6 +306,12 @@ contains
             tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
             tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
           end if
+
+          if ( tvs_debug .and. mpi_myid == 0 .and. &
+                trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
+            write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
+                        tvs_satelliteName(nosensor), channelNumber, channelIndex
+          end if
         end if
       end do BODY
     end do HEADER
@@ -369,6 +378,18 @@ contains
     
     deallocate(logicalBuffer)
 
+    if ( tvs_debug .and. mpi_myid == 0 ) then
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) "sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)"
+        write(*,*) sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)
+        write(*,*) "tvs_channelOffset(sensorIndex), tvs_nchan(sensorIndex)"
+        write(*,*) tvs_channelOffset(sensorIndex), tvs_nchan(sensorIndex)
+        write(*,*) "tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex)"
+        write(*,*) tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex)
+        write(*,*) 
+      end do
+    end if
+
     !  3. Initialize TOVS radiance transfer model
 
     if ( radiativeTransferCode == 'RTTOV' ) then
@@ -404,7 +425,7 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addpc = .false.     ! to carry out principal component calculations 
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
-        tvs_opts(sensorIndex) % rt_mw % clw_data = isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
+        tvs_opts(sensorIndex) % rt_mw % clw_data = tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .true. ! use of internal profile interpolator (rt calculation on model levels)
@@ -545,7 +566,8 @@ contains
     logical :: userDefinedIsAzimuthValid
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
-    logical :: mwInstrumUsingCLW_tl
+    logical :: mwInstrumUsingCLW_tl, mwAllskyAssim
+    real(8) :: cloudScaleFactor 
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -553,7 +575,16 @@ contains
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
-    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid 
+    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
+    namelist /NAMTOV/ mwAllskyAssim
+
+    ! return if the NAMTOV does not exist
+    if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
+      write(*,*)
+      write(*,*) 'tvs_setup: Namelist block NAMTOV is missing in the namelist.'
+      write(*,*) '           Skipping tvs_setup.'
+      return
+    end if
  
     !   1.1 Default values for namelist variables
 
@@ -575,6 +606,8 @@ contains
     mwInstrumUsingCLW_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
     regLimitExtrap = .false.
+    cloudScaleFactor = 0.5D0
+    mwAllskyAssim = .false.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -600,6 +633,8 @@ contains
     tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
     tvs_doAzimuthCorrection(:) =  doAzimuthCorrection(:)
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
+    tvs_cloudScaleFactor = cloudScaleFactor 
+    tvs_mwAllskyAssim = mwAllskyAssim
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -1359,9 +1394,9 @@ contains
   end function tvs_isInstrumGeostationary
 
   !--------------------------------------------------------------------------
-  !  isInstrumUsingCLW
+  !  tvs_isInstrumUsingCLW
   !--------------------------------------------------------------------------
-  function isInstrumUsingCLW(instrumId) result(idExist)
+  function tvs_isInstrumUsingCLW(instrumId) result(idExist)
     !
     ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
     !
@@ -1382,7 +1417,7 @@ contains
       end if
     end do
 
-  end function isInstrumUsingCLW
+  end function tvs_isInstrumUsingCLW
 
   !--------------------------------------------------------------------------
   !  tvs_mapInstrum
@@ -1898,8 +1933,14 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
-    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) &
+    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
+    end if
+
+    if ( (tvs_numMWInstrumUsingCLW == 0 .and.       tvs_mwAllskyAssim) .or. &
+         (tvs_numMWInstrumUsingCLW  > 0 .and. .not. tvs_mwAllskyAssim) ) then
+      call utl_abort('tvs_fillProfiles: number of instrument to use CLW do not match all-sky namelist variable. ')
+    end if
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'O3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable must be included as an analysis variable in NAMSTATE. ')
@@ -2040,6 +2081,10 @@ contains
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+          if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
+            clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
+            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
+          end if
         end do
         
         if (  runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
@@ -2190,7 +2235,7 @@ contains
     integer, external :: omp_get_num_threads
     integer :: nthreads,max_nthreads
     integer :: sensorId, tovsIndex
-    integer :: channelIndex
+    integer :: channelIndex, channelIndexFound, channelNumber
     integer :: profileCount
     integer :: profileIndex, levelIndex, jj, btIndex
     integer :: instrum
@@ -2207,6 +2252,9 @@ contains
     real(8), allocatable  :: surfem1(:)
     real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     integer              :: profileIndex2, tb1, tb2
+    integer :: istart, iend, bodyIndex, headerIndex
+    real(8) :: clearMwRadiance
+    logical :: ifBodyIndexFound
 
     if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2442,12 +2490,77 @@ contains
 
       else
 
+        ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData 
+        if ( tvs_numMWInstrumUsingCLW /= 0        .and. &
+            tvs_opts(sensorId) % rt_mw % clw_data .and. &
+            obs_columnActive_RB(obsSpaceData, OBS_BTCL) ) then
+
+          ! set the cloud profile in tvs_profiles_nl to zero
+          call updateCloudInTovsProfile(                            &
+                sensorTovsIndexes(1:profileCount),                  &
+                nlv_T,                                              &
+                mode='save',                                        &
+                beSilent=.true.)
+
+          ! run clear-sky RTTOV
+          call rttov_parallel_direct(                               &
+               rttov_err_stat,                                      & ! out
+               chanprof,                                            & ! in
+               tvs_opts(sensorId),                                  & ! in
+               tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
+               tvs_coefs(sensorId),                                 & ! in
+               transmission,                                        & ! inout
+               radiancedata_d,                                      & ! inout
+               calcemis=calcemis,                                   & ! in
+               emissivity=emissivity_local,                         & ! inout
+               nthreads=nthreads      )   
+
+          ! save in obsSpaceData
+          loopClearSky1: do btIndex = 1, btCount
+            profileIndex = chanprof(btIndex)%prof
+            channelIndex = chanprof(btIndex)%chan
+            tovsIndex = sensorTovsIndexes(profileIndex)
+
+            clearMwRadiance = radiancedata_d % bt(btIndex)
+
+            headerIndex = tvs_headerIndex(tovsIndex)
+            if ( headerIndex < 1 ) cycle loopClearSky1
+            istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+            iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+
+            ifBodyIndexFound = .false.
+            loopClearSky2: do bodyIndex = istart, iend
+              channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+              channelNumber = channelNumber - tvs_channelOffset(sensorId)
+              channelIndexFound = utl_findArrayIndex(tvs_ichan(:,sensorId),tvs_nchan(sensorId),channelNumber)
+              if ( channelIndex == channelIndexFound ) then
+                ifBodyIndexFound = .true.
+                exit loopClearSky2
+              end if
+            end do loopClearSky2
+
+            if ( .not. ifBodyIndexFound ) call utl_abort('tvs_rttov: bodyIndex not found.')
+
+            if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
+              call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
+            end if
+          end do loopClearSky1
+
+          ! restore the cloud profiles in tvs_profiles_nl
+          call updateCloudInTovsProfile(                          &
+                sensorTovsIndexes(1:profileCount),                &
+                nlv_T,                                            &
+                mode='restore',                                   &
+                beSilent=.true.)
+
+        end if
+
         if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
-        
-        call rttov_parallel_direct(                            &
-             rttov_err_stat,                                   & ! out
-             chanprof,                                         & ! in
-             tvs_opts(sensorId),                               & ! in
+
+        call rttov_parallel_direct(                               &
+             rttov_err_stat,                                      & ! out
+             chanprof,                                            & ! in
+             tvs_opts(sensorId),                                  & ! in
              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
              tvs_coefs(sensorId),                              & ! in
              transmission,                                     & ! inout
@@ -4481,5 +4594,50 @@ contains
     end if
 
   end subroutine tvs_getLocalChannelIndexFromChannelNumber
+
+
+  subroutine updateCloudInTovsProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
+    !
+    ! :Purpose: Modify the cloud in tovs_profile structure.
+    !
+    implicit none
+    
+    ! Arguments:
+    integer,      intent(in) :: sensorTovsIndexes(:)
+    integer,      intent(in) :: nlv_T
+    character(*), intent(in) :: mode         ! save or restore
+    logical,      intent(in) :: beSilent     ! flag to control verbosity
+
+    ! Locals:
+    integer :: profileIndex, profileCount
+    real(8), allocatable, save :: cloudProfileToStore(:,:)
+
+    if ( .not. beSilent ) write(*,*) "Entering updateCloudInTovsProfile"
+    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    profileCount = size(sensorTovsIndexes)
+
+    if ( trim(mode) == 'save' ) then 
+      if ( allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
+      allocate(cloudProfileToStore(nlv_T,profileCount))
+
+      do profileIndex = 1, profileCount
+        cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = minClwValue 
+      end do
+
+    else if ( trim(mode) == 'restore' ) then 
+      do profileIndex = 1, profileCount
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = cloudProfileToStore(:,profileIndex)
+      end do
+
+      deallocate(cloudProfileToStore)
+
+    else
+      call utl_abort("updateCloudInTovsProfile: mode should be either 'save' or 'restore'")
+
+    end if
+
+  end subroutine updateCloudInTovsProfile
 
 end module tovs_nl_mod

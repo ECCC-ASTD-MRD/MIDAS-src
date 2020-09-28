@@ -6,7 +6,6 @@
   maxNumTest = 5
   maxNumChan = 22
   channelOffset = 0
-  allowStateDepSigmaObs = .false.
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.true.
 /
@@ -297,7 +296,7 @@
   BBITOFF(5)=-8,
   NELEMS=1
   BLISTELEMENTS=12163
-/
+/ 
  &NAMBURP_UPDATE
   BN_ITEMS=1,
   BITEMLIST(1)='OMP',

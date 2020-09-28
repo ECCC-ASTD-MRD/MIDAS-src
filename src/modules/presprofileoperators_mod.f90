@@ -145,6 +145,7 @@ module presProfileOperators_mod
       REAL(8) ZPS(KNI,knprof)
       REAL(8) ZLNPO (KNO)
 
+      PP(:,:) = 0.0D0
 
 ! --- Apply weighted averaging 
 

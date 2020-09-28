@@ -2,16 +2,16 @@
    NCONF  = 121,
 / 
 &NAMBGCK
-  instName = 'AMSUA'
-  debug = .false.
-  RESETQC = .false.
-  maxNumSat  = 9
-  maxNumTest = 15
-  maxNumChan = 42
-  channelOffset = 27
-  allowStateDepSigmaObs = .false. 
-  clwQcThreshold = 0.3
-  useUnbiasedObsForClw =.false.
+  instName = 'AMSUA',
+  debug = .false.,
+  RESETQC = .false.,
+  maxNumSat  = 9,
+  maxNumTest = 15,
+  maxNumChan = 42,
+  channelOffset = 27,
+  clwQcThreshold = 0.6,
+  useUnbiasedObsForClw =.false.,
+  cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
   doThinning = .false.
@@ -48,6 +48,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
    NSENSORS         =  7,
@@ -67,6 +68,10 @@
    CINSTRUMENTID(7)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
+   INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
+   MWINSTRUMUSINGCLW_TL = .true.
+   cloudScaleFactor = 0.5D0
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -278,6 +283,11 @@
 /
  &NAMGPSGB
 /
+ &NAMADDTOBURP
+  addBtClearToBurp=.true.,
+  btClearElementId=12164,
+  clwFgElementId=13109,
+/
  &NAMBURP_FILTER_SFC
   BNBITSOFF=0,
   BBITOFF(1)=2,
@@ -306,8 +316,8 @@
   BBITOFF(3)=5,
   BBITOFF(4)=-5,
   BBITOFF(5)=-8,
-  NELEMS=1
-  BLISTELEMENTS=12163
+  NELEMS=2
+  BLISTELEMENTS=12163,12164
 /
  &NAMBURP_UPDATE
   BN_ITEMS=1,
@@ -371,33 +381,6 @@
     cinst(14)="AHI"
     nbscan(14)=1
     cglobal(14)="OUI"
-/
-
-&NAMBIASSAT
-    biasActive=.TRUE.,
-    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
-    biasmode="apply",
-    removeBiasCorrection=.false.
-    refreshBiasCorrection=.false.
-    mimicsatbcor=.true.
-    scanBiasCorLength=-1.d0
-    centerPredictors=.false.,
-    weightedEstimate=.false.,
-    outstats=.false.,
-    outcoeffcov=.false.,
-    filterObs = .false.,
-    cinst(1)="AMSUA"
-    nbscan(1)=30
-    cglobal(1)="DEF"
-    cinst(2)="AMSUB"
-    nbscan(2)=90
-    cglobal(2)="DEF"
-    cinst(3)="MHS"
-    nbscan(3)=90
-    cglobal(3)="DEF"
-    cinst(4)="ATMS"
-    nbscan(4)=96
-    cglobal(4)="DEF"
 /
  &NAMBGCKIR
    NINST=4,
@@ -543,26 +526,7 @@
    PCO2MAX=321.5d0,
    NIGHT_ANG=100.d0,
 /
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ &NAMOER
+  mwAllskyInflateByOmp = .true.,
+  mwAllskyInflateByClwDiff = .true.,
+/

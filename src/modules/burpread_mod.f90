@@ -42,7 +42,7 @@ private
 
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
-public :: brpr_addBiasCorrectionElement, brpr_updateMissingObsFlags, brpr_burpClean
+public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -61,6 +61,9 @@ CHARACTER *7           :: TYPE_RESUME = 'UNKNOWN'
 INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
 LOGICAL                :: READ_QI_GA_MT_SW
+
+logical                :: addBtClearToBurp
+integer*4              :: clwFgElementId, btClearElementId
 
 
 CONTAINS
@@ -123,7 +126,7 @@ CONTAINS
     integer                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
     integer                :: IND_ELE,IND_VCOORD
     integer                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
-    integer                :: IND_LAT,IND_LON,IND_TIME,IND_BCOR,IND_BCOR_TT,IND_BCOR_HU
+    integer                :: IND_LAT,IND_LON,IND_TIME,IND_BCOR,IND_BCOR_TT,IND_BCOR_HU,IND_obsClear
 
     integer                :: vcord_type(10),SUM
     real                   :: ELEVFACT
@@ -142,7 +145,7 @@ CONTAINS
 
     integer                :: OBS_START,SAVE_OBS
     integer                :: IL_INDEX,IRLN,INLV,LK,VNM
-    real                   :: OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR
+    real                   :: OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR, obsClear
     integer                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS,ILEMZBCOR,ILEMTBCOR,ILEMHBCOR
 
     integer                :: BLOCK_LIST(NBLOC_LIST),bl
@@ -156,6 +159,7 @@ CONTAINS
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
     logical                :: FSOFound
+    logical                :: btClearElementFound 
 
     ! ensure kdtrees object is null
     nullify(tree)
@@ -305,7 +309,7 @@ CONTAINS
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=16
-      CASE('GO','MI','TO')
+      CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
@@ -313,8 +317,22 @@ CONTAINS
         LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
-        call BRPACMA_NML('namburp_tovs')
+        CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
+
+        if ( addBtClearToBurp ) then
+          btClearElementFound = .false.
+
+          elementLoop: do iele = 1, NELE
+            if ( BLISTELEMENTS(iele) == btClearElementId ) then
+              btClearElementFound = .true.
+              exit elementLoop
+            end if
+          end do elementLoop
+
+          if ( .not. btClearElementFound ) &
+            call utl_abort('brpr_updateBurp: btClearElement element should be in namelist.')
+        end if
 
         NELE_INFO=23
         WINDS=.FALSE.
@@ -339,6 +357,8 @@ CONTAINS
         NELE=19
         call BRPACMA_NML('namburp_chm')
         NELE=NELEMS
+      CASE('GO','MI')
+        call utl_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
@@ -1295,6 +1315,11 @@ CONTAINS
                   else
                     BCOR = MPC_missingValue_R4
                   end if
+                  if ( obs_columnActive_RB(obsdat,OBS_BTCL) ) then
+                    obsClear = obs_bodyElem_r(obsdat,OBS_BTCL,LK)
+                  else
+                    obsClear = MPC_missingValue_R4
+                  end if
                   FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                   KOBSN= KOBSN + 1
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
@@ -1367,9 +1392,15 @@ CONTAINS
                     IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMHBCOR, IOSTAT=error)
                   end if
                       
-                  if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
+                  if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) then
                        call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
-                      
+                  end if
+
+                  IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=btClearElementId, IOSTAT=error)
+                  if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_BTCL) ) then
+                    Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
+                  end if
+
                   IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
                   call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
@@ -1684,7 +1715,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(26),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(27),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1713,10 +1744,9 @@ CONTAINS
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     
     
-    DATA LISTE_INFO  &
-       /1007,002019,007024,007025 ,005021, 005022, 008012, &
+    LISTE_INFO(1:27) = (/ 1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,1033,2011,4197,5040,33078,33079,33080/
+        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080 /)
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1753,7 +1783,7 @@ CONTAINS
         ENFORCE_CLASSIC_SONDES=.false.
         call BRPACMA_NML('namburp_conv')
         NELE=NELEMS
-        NELE_INFO=22
+        NELE_INFO=23
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
@@ -1834,7 +1864,7 @@ CONTAINS
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=18
-      CASE('GO','MI','TO')
+      CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
@@ -1845,7 +1875,7 @@ CONTAINS
         call BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=24
+        NELE_INFO=25
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -1867,6 +1897,8 @@ CONTAINS
         NELE=19
         call BRPACMA_NML('namburp_chm')
         NELE=NELEMS 
+      CASE('GO','MI')
+        call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
@@ -3423,7 +3455,7 @@ CONTAINS
     real        ::   RORBIT
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     real        ::   RFOV
-    REAL(pre_obsReal) ::   cloudLiquidWater
+    REAL(pre_obsReal) ::   cloudLiquidWaterObs, cloudLiquidWaterFG
 
     NOBS=obs_numHeader(obsdat)
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
@@ -3457,7 +3489,8 @@ CONTAINS
     RSOLAR_ZENITH = real(MPC_missingValue_R8,pre_obsReal)
     RZENITH = 90.
     RAZIMUTH = 0.
-    cloudLiquidWater = real(MPC_missingValue_R8,pre_obsReal)
+    cloudLiquidWaterObs = real(MPC_missingValue_R8,pre_obsReal)
+    cloudLiquidWaterFG = real(MPC_missingValue_R8,pre_obsReal)
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3591,12 +3624,13 @@ CONTAINS
              END IF
           END IF
         CASE(13209)
-          cloudLiquidWater = INFOV
+          cloudLiquidWaterObs = INFOV
         CASE(2011)
           raobsType = nint(infov)
         CASE(4197)
           launchTime = nint(infov)
       END SELECT
+      if (liste_info(il) == clwFgElementId ) cloudLiquidWaterFG = INFOV
     end do
 
     !-------------------SPECIAL CASES--------------
@@ -3619,8 +3653,7 @@ CONTAINS
     end if
 
     if (  trim(FAMTYP) == trim('GO') ) then
-      LAND_SEA=0
-      RZENITH=90.
+      call utl_abort('writeInfo: unknown familyType : ' // trim(FAMTYP))
     END IF
    
 
@@ -3654,7 +3687,8 @@ CONTAINS
     else
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
-    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,cloudLiquidWaterObs)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,cloudLiquidWaterFG)
 
   END SUBROUTINE  writeInfo
 
@@ -3696,7 +3730,8 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
-    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,obs_missingValue_r)
 
   end subroutine  setInfoToMissing
 
@@ -3748,7 +3783,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, ind13208, ind25174, indtmp
+    integer                :: ind13209, indClwFG, ind13208, ind25174, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4227,7 +4262,7 @@ CONTAINS
                 call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
                 indtmp = indtmp + 1
               end if
-              ! CLW
+              ! clwObs
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4241,6 +4276,24 @@ CONTAINS
                 ind13209 = BURP_Find_Element(inputBlock, &
                      ELEMENT  = 013209, &
                      iostat   = error)
+              end if
+              ! clwFG
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId, iostat=error)
+                if (indClwFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  if (error/=burp_noerr) then
+                    call handle_error("Erreur dans BURP_Resize_Block info")
+                  end if
+                  indClwFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indClwFG, ELEMENT=clwFgElementId, iostat=error)
+                  indtmp = indtmp + 1
+                else
+                  indClwFG = BURP_Find_Element(inputBlock, &
+                       ELEMENT  = clwFgElementId, &
+                       iostat   = error)
+                end if
               end if
               ! SCATERING INDEX
               ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208, iostat=error)
@@ -4272,7 +4325,11 @@ CONTAINS
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLW,idata2)),ind13209,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
+                  end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
@@ -4281,6 +4338,10 @@ CONTAINS
 
                   call Insert_into_burp_i(-1,ind25174,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
+                  end if
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
 
@@ -4760,9 +4821,9 @@ CONTAINS
 
 
   !-----------------------------------------------------------------------
-  ! brpr_addBiasCorrectionElement
+  ! brpr_addElementsToBurp
   !-----------------------------------------------------------------------
-  subroutine brpr_addBiasCorrectionElement(inputFileName, familyType)
+  subroutine brpr_addElementsToBurp(inputFileName, familyType, beSilent_opt)
     !
     !:Purpose: to add element for radiance bias correction to data block of DERIALT BURP file
     !
@@ -4770,6 +4831,7 @@ CONTAINS
     !Arguments:
     character(len=*), intent(in)  :: inputFileName
     character(len=*), intent(in)  :: familyType
+    logical, optional             :: beSilent_opt
     !Locals:
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
@@ -4778,21 +4840,33 @@ CONTAINS
     integer                     :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable        :: address(:)
     integer                     :: nbele, nvale, nte
-    integer                     :: valIndex, tIndex, reportIndex, btyp, bfam, error
+    integer                     :: valIndex, tIndex, reportIndex, btyp, idatyp, bfam, error
     integer                     :: indele, nsize, iun_burpin
-    integer                     :: ibfam, ival
+    integer                     :: ibfam, ival, nulnam
     real                        :: rval
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     integer                     :: icodele
+    integer                     :: icodeleRad
     integer                     :: icodeleMrq 
+    integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt
+    logical                     :: beSilent
+
+    namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
+
     write(*,*) '-----------------------------------------------'
-    write(*,*) '- begin brpr_addBiasCorrectionElement -'
+    write(*,*) '- begin brpr_addElementsToBurp -'
     write(*,*) '-----------------------------------------------'
  
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
     select case(familyType)
     case("TO")
       icodele = 12233
@@ -4807,6 +4881,33 @@ CONTAINS
     end select
 
     icodeleMrq =  200000 + icodele
+
+    ! Read the NAMADDTOBURP namelist (if it exists)
+    addBtClearToBurp = .false.
+    clwFgElementId = -1 
+    btClearElementId = -1
+    if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
+      ! read the namelist
+      nulnam = 0
+      error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=NAMADDTOBURP, iostat=error)
+      if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
+      write(*,nml=NAMADDTOBURP)
+      error = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'
+      write(*,*) '                               The default value will be taken.'
+      write(*,nml=NAMADDTOBURP)
+    end if
+
+    ! check clear-sky radiance element is in the namelist
+    if ( addBtClearToBurp .and. btClearElementId < 0 ) then
+      call utl_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
+    end if
+
+    btClearMrqElementID = -200001
+    if ( familyType == "TO" ) btClearMrqElementID = 200000 + btClearElementId
 
     ! initialisation
     ! --------------
@@ -4830,7 +4931,7 @@ CONTAINS
   
     if (error /= burp_noerr) then
       write(*,*) "cannot open BURP input file ", inputFileName
-      call utl_abort('brpr_addBiasCorrectionElement')
+      call utl_abort('brpr_addElementsToBurp')
     end if
 
     ! obtain input burp file number of reports
@@ -4838,7 +4939,12 @@ CONTAINS
     call burp_get_property(inputFile, nrpts=nb_rpts, io_unit= iun_burpin)
 
     nsize = mrfmxl(iun_burpin)
-    nsize = 3 * nsize
+    if ( addBtClearToBurp ) then
+      nsize = 4 * nsize
+    else
+      nsize = 3 * nsize
+    end if
+
     write(*,*) "nsize= ", nsize
     write(*,*) 
     write(*,*) 'number of reports with observations in input file = ', nb_rpts - 1
@@ -4860,12 +4966,30 @@ CONTAINS
       count = count + 1
       address(count) = ref_rpt
 
-      call burp_get_property(inputReport, stnid = station_id )
+      call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
+
+      if ( .not. beSilent ) then
+        if ( count == 1 ) then
+          write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
+          write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
+        end if
+
+        write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
+              ', instrumentName=', codtyp_get_name(idatyp), &
+              ', instrumentId =', tvs_getInstrumentId(codtyp_get_name(idatyp)), &
+              ', isInstrumUsingCLW =', tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
+      end if
+
+      ! check clwFG element is in the namelist in all-sky mode.
+      if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
+           tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+        call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
+      end if
     end do
 
     if ( count > 0 .and. isDerialt) then
-      write(*,*) "brpr_addBiasCorrectionElement: modifying file..."
+      write(*,*) "brpr_addElementsToBurp: modifying file..."
      
 
 
@@ -4928,10 +5052,34 @@ CONTAINS
               end do
             end if
         
+            ! Adding clear-sky radiance to data block for instrument in all-sky mode.
+            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
+                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              
+              indele = burp_find_element(inputBlock, element=btClearElementId, iostat=error)
+
+              if ( indele <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = btClearElementId, IOSTAT = error)
+                do valIndex = 1,nvale
+                  do tIndex = 1,nte
+                    call burp_set_Rval( inputBlock, &
+                         nele_ind = nbele,            &
+                         nval_ind = valIndex,         &
+                         nt_ind   = tIndex,           &
+                         Rval = MPC_missingValue_R4, iostat=error)
+                    if (error /= 0) call handle_error()
+                  end do
+                end do
+              end if
+          
+            end if
+
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.true., encode_block=.true., iostat=error)
 
-          else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block
+          else if ( btyp10 == BTYP10mrq .and. bfam == 0 ) then     !  MRQ block 
             indele = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
             if ( indele <= 0 ) then
               nbele = nbele + 1
@@ -4949,6 +5097,29 @@ CONTAINS
               end do
             end if
         
+            ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
+            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
+                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+
+              indele = burp_find_element(inputBlock, element=btClearMrqElementID, iostat=error)
+              if ( indele <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = btClearMrqElementID, IOSTAT = error)
+                do valIndex = 1,nvale
+                  do tIndex = 1, nte
+                    call burp_set_tblval( inputBlock, &
+                         nele_ind = nbele,            &
+                         nval_ind = valIndex,         &
+                         nt_ind   = tIndex,           &
+                         tblval   = 0, iostat=error)
+                    if (error /= 0) call handle_error()
+                  end do
+                end do
+              end if
+          
+            end if
+
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.false., encode_block=.true.,iostat=error)
 
@@ -4973,7 +5144,7 @@ CONTAINS
     call  cleanup()
 
     write(*,*) '---------------------------------------------'
-    write(*,*) '- end brpr_addBiasCorrectionElement -'
+    write(*,*) '- end brpr_addElementsToBurp -'
     write(*,*) '---------------------------------------------'
 
   contains
@@ -4994,10 +5165,10 @@ CONTAINS
       write(*,*) "history"
       call burp_str_error_history()
       call cleanup()
-      call utl_abort('brpr_addBiasCorrectionElement')
+      call utl_abort('brpr_addElementsToBurp')
     end subroutine handle_error
     
-  end subroutine brpr_addBiasCorrectionElement
+  end subroutine brpr_addElementsToBurp
 
   !-----------------------------------------------------------------------
   ! brpr_burpClean
@@ -5643,7 +5814,7 @@ CONTAINS
         elementIds(:) = liste_ele_gps(1:nelems_gps)
       end if
       
-    case('GO','MI','TO')
+    case('TO')
       call brpacma_nml('namburp_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)

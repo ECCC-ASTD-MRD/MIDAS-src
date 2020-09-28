@@ -120,6 +120,11 @@ contains
     call filt_setup(innovationMode) ! IN
 
     !
+    ! Initialize TOVS processing
+    !
+    call tvs_setup
+
+    !
     ! Read the observations from files
     !
     call tmg_start(11,'READ_OBS')
@@ -134,10 +139,6 @@ contains
     ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
     !
     if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
-    !
-    ! Initialize TOVS processing
-    !
-    if (obs_famExist(obsSpaceData,'TO')) call tvs_setup
     
     !
     ! Filter out data from CMA

@@ -161,13 +161,19 @@ contains
         if ( obsFileType == 'BURP' )   then
           ! Add extra bias correction element to GP and TO files
           if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
-               call brpr_addBiasCorrectionElement(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex))
+               call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
       end do
 
+    end if
+
+    ! abort if NAMTOV does not exist but there are radiance observation files
+    if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
+        any(obsf_cfamtyp(:) == 'TO') ) then
+      call utl_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
     end if
 
     ! initialize OBS_HIND for each observation

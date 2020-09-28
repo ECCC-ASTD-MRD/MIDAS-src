@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Exclude cloudy observations from bias correction in all-sky using bit=23 (#397 and !376)
+ * Inflating observation error at analysis for all-sky assimilation (#372 and !376)
+   * Adding new elements to BURP file using NAMADDTOBURP namelist block.
+   * Adding extra AMSUA quality control test for all-sky in mwbg_bgCheckMW.
+   * FLAG bit=23 is turned on for cloudy observations in all-sky mode.
+   * Running non-linear RTTOV second time to compute clear-sky radiances in all-sky mode.
+   * CLW is computed even if channel 15 is not available for AMSUA.
+   * Model cloud is scaled by 0.5 before using in obs operator in all-sky mode.
+   * obsSelection/BgckAmsua unitTest runs in all-sky mode.
  * Added ability to use slant path for GPS-RO observations (#380 and !374)
  * Added quality control for AMSUA and ATMS to `obsSelection` (#335 and !320)
  * Added interpolation from a `Y` grid for the background fields (#385 and !367)
