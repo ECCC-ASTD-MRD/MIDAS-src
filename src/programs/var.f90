@@ -47,7 +47,7 @@ program midas_var
 
   integer :: istamp, exdb, exfin
   integer :: ierr, dateStamp
-  integer :: get_max_rss, headerIndex
+  integer :: get_max_rss
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -191,7 +191,7 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
+  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)

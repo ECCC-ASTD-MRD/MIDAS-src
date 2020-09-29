@@ -308,12 +308,11 @@ contains
   end subroutine inn_setupBackgroundColumns
 
 
-  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng,obsSpaceData)
+  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng)
     implicit none
 
     ! arguments
     type(struct_columnData) :: columng,columnhr
-    type(struct_obs)        :: obsSpaceData
 
     ! locals
     integer :: jvar, jlev, columnIndex
@@ -575,7 +574,7 @@ contains
     !
     !        CH - CHEMICAL CONSTITUENTS
     !-------------------------------
-    call oop_chm_nl(columnhr, obsSpaceData, beSilent, zjochm, destObsColumn)
+    call oop_chm_nl(columnhr, obsSpaceData, zjochm, destObsColumn)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------

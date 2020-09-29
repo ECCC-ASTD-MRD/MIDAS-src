@@ -422,8 +422,7 @@ CONTAINS
 
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
-    integer        :: levIndex, jvar, status
-    integer        :: ierr
+    integer        :: levIndex, jvar, status, ierr
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate

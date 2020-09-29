@@ -173,7 +173,6 @@ contains
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     real(8), allocatable :: psfc(:,:)
@@ -407,7 +406,7 @@ contains
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
-    integer              :: lon1, lon2, lat1, lat2, lev1, lev2
+    integer              :: lon1, lon2, lat1, lat2
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev, numLev_rttov
     integer              :: fnom, fclos, ierr, nulfile

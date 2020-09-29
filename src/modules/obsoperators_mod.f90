@@ -1021,7 +1021,7 @@ contains
     real(8) :: zlat, lat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
-    integer :: isat, iclf, jj
+    integer :: isat, iclf
     real(8) :: rad, geo
     real(8), allocatable :: zpp(:)
     real(8), allocatable :: ztt(:)
@@ -1729,8 +1729,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_chm_nl
   !--------------------------------------------------------------------------
-  subroutine oop_chm_nl( columnhr, obsSpaceData, beSilent, jobs,  &
-                         destObsColumn )
+  subroutine oop_chm_nl( columnhr, obsSpaceData, jobs, destObsColumn )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for all observations of the CH (chemical constituents) family.
@@ -1746,7 +1745,6 @@ contains
     
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
     real(8)                 :: jobs
     integer                 :: destObsColumn
     
@@ -3495,7 +3493,7 @@ contains
     REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
     real(8) :: zmt
     integer :: IDATYP
-    integer :: jl, ngpslev, nwndlev, jj
+    integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
     logical, save :: lfirst = .true.
