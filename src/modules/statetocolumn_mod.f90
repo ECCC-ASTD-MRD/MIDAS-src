@@ -308,16 +308,21 @@ contains
       slantPath_RO_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
 
-      ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml = nams2c, iostat = ierr)
-      if ( ierr /= 0 .and. mpi_myid == 0 ) then
-        write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
+      if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
+        if ( mpi_myid == 0 ) then
+          write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
+          write(*,*) '                     The default values will be taken.'
+        end if
+
+      else
+        ! reading namelist variables
+        nulnam = 0
+        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam, nml = nams2c, iostat = ierr)
+        if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
+        ierr = fclos(nulnam)
       end if
       if ( mpi_myid == 0 ) write(*, nml = nams2c)
-      ierr = fclos(nulnam)
     end if
 
     doSlantPath = .false.
