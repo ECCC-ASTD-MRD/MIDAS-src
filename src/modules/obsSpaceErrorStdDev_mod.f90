@@ -138,8 +138,7 @@ module obsSpaceErrorStdDev_mod
     !      obsSpaceData - INOUT ( OmP error std dev outputted in OBS_OMPE or/and
     !                            sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
   
-    call ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, &
-                                   staticHBHT, staticHBHT_ch, staticOMPE_ch )
+    call ose_setStaticErrorStddev( columng, obsSpaceData, staticHBHT, staticHBHT_ch, staticOMPE_ch )
 
     !- 1.2 HBHT from the Bens
     !      obsSpaceData - INOUT (HBensHT std. dev. outputted in OBS_WORK)
@@ -207,8 +206,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_setStaticErrorStddev
   !--------------------------------------------------------------------------
-  subroutine ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, & 
-                                       statusHBHT, statusHBHT_ch, statusOMPE_ch )
+  subroutine ose_setStaticErrorStddev( columng, obsSpaceData, statusHBHT, statusHBHT_ch, statusOMPE_ch )
     !
     !:Purpose: To assign or compute the OmP error standard deviations in
     !          observation space where requested. If not possible or available,
@@ -220,9 +218,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
   
     ! Arguments:
-    type(struct_columnData) :: columng,columnhr
-    type(struct_obs)             :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
-    logical, intent(inout)       :: statusHBHT, statusHBHT_ch, statusOMPE_ch
+    type(struct_columnData) :: columng
+    type(struct_obs)        :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
+    logical, intent(inout)  :: statusHBHT, statusHBHT_ch, statusOMPE_ch
     
     ! Locals:
     integer :: famIndex
@@ -2305,7 +2303,7 @@ module obsSpaceErrorStdDev_mod
     ! Local:
     logical :: availableOmP
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp, ierr
-    integer :: idate, itime, iass, ityp, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
+    integer :: idate, itime, iass, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
     real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP,medianOmP
     character(len=12) :: stnid
     real(8), allocatable :: series(:,:,:),sumOmP2d(:,:),sumSqrOmP2d(:,:)
