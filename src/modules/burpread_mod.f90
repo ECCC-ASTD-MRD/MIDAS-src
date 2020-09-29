@@ -4842,7 +4842,6 @@ CONTAINS
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     integer                     :: icodele
-    integer                     :: icodeleRad
     integer                     :: icodeleMrq 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0

@@ -761,7 +761,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, &
+  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
                                 clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                 ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
 
@@ -786,6 +786,7 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
+    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -1360,7 +1361,6 @@ contains
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
     integer                                :: JI
     integer                                :: JJ
     integer                                :: INDX
@@ -4585,7 +4585,7 @@ contains
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
-                               obsQcFlag2, obsQcFlag1,
+                               obsQcFlag2, obsQcFlag1, &
                                obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
                                qcIndicator, numChannelUsed,          &
                                numObsToProcess, sensorIndex,          &
