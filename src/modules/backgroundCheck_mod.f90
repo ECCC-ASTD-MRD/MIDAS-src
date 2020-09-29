@@ -146,7 +146,7 @@ module backgroundCheck_mod
       LOGICAL :: new_bgck_sw
       INTEGER :: IFLAG,INAM,INDEX_HEADER,IDBURP
       INTEGER :: ITYP
-      INTEGER :: J,INDEX_BODY,icoun
+      INTEGER :: INDEX_BODY,icoun
       INTEGER :: INOBS, INREJ, INZOBS, INZREJ
       INTEGER :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
@@ -298,7 +298,7 @@ module backgroundCheck_mod
                 icoun=icoun+1
               endif
               IDBURP=obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-              IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
+              IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZBGCHK)
 
               ! CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
 
@@ -510,7 +510,7 @@ module backgroundCheck_mod
       type(struct_vco), pointer :: vco_trl
       real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
 
-      INTEGER :: INDEX_HEADER, JD
+      INTEGER :: INDEX_HEADER
       INTEGER :: IDATYP
       INTEGER :: IDATA   , IDATEND, INDEX_BODY
       INTEGER :: NGPSLEV
@@ -610,7 +610,7 @@ module backgroundCheck_mod
   !--------------------------------------------------------------------------
   ! isetflag
   !--------------------------------------------------------------------------
-  function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
+  function isetflag(cdfam,kodtyp,kvnam,zbgchk)
       !
       !:Purpose: Set BACKGROUND-CHECK FLAGS According to values set in a table.
       !          Original values in table come from ecmwf.
@@ -623,9 +623,7 @@ module backgroundCheck_mod
       character(len=2) :: cdfam ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
       integer :: kodtyp ! BURP CODE TYPE
       integer :: kvnam  ! VARIABLE NAME ( BURP )
-      real(8) :: zlev   ! LEVEL
       real(8) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
-      logical :: lmodif1020 ! switch to activate special criteria for backound check (*ua 10-20 mb)
 
       ! Locals:      
       real(8), parameter :: zsacrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)

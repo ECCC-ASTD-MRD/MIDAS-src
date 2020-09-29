@@ -139,13 +139,12 @@ module obsSpaceErrorStdDev_mod
     !                            sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
   
     call ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, &
-                                   staticHBHT, staticOMPE, staticHBHT_ch, staticOMPE_ch )
+                                   staticHBHT, staticHBHT_ch, staticOMPE_ch )
 
     !- 1.2 HBHT from the Bens
     !      obsSpaceData - INOUT (HBensHT std. dev. outputted in OBS_WORK)
     
     call ose_compute_hbht_ensemble( columng,      & 
-                                    columnhr,     &
                                     obsSpaceData, &
                                     ensemble )                               
     
@@ -209,7 +208,7 @@ module obsSpaceErrorStdDev_mod
   ! ose_setStaticErrorStddev
   !--------------------------------------------------------------------------
   subroutine ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, & 
-                                       statusHBHT, statusOMPE, statusHBHT_ch, statusOMPE_ch )
+                                       statusHBHT, statusHBHT_ch, statusOMPE_ch )
     !
     !:Purpose: To assign or compute the OmP error standard deviations in
     !          observation space where requested. If not possible or available,
@@ -223,10 +222,10 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_columnData) :: columng,columnhr
     type(struct_obs)             :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
-    logical, intent(inout)       :: statusHBHT, statusOMPE, statusHBHT_ch, statusOMPE_ch
+    logical, intent(inout)       :: statusHBHT, statusHBHT_ch, statusOMPE_ch
     
     ! Locals:
-    integer :: famIndex,famNumber
+    integer :: famIndex
     character(len=4), allocatable :: availableOMPE(:)
     
     allocate(availableOMPE(ofl_numFamily)) 
@@ -269,7 +268,7 @@ module obsSpaceErrorStdDev_mod
      
     if ( any(ofl_familyList /= 'CH' .and. ofl_familyList /= 'TO' .and. &
        ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
-       call ose_compute_hbht_static( columng, columnhr, obsSpaceData, statusHBHT )
+       call ose_compute_hbht_static( columng, obsSpaceData, statusHBHT )
 
     ! HBHT from the B matrix for constituents
      
@@ -283,7 +282,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_static
   !--------------------------------------------------------------------------
-  subroutine ose_compute_hbht_static(lcolumng,lcolumnhr,lobsSpaceData,active)
+  subroutine ose_compute_hbht_static(lcolumng,lobsSpaceData,active)
     !
     !:Purpose: To compute background-error stddev in observation space using
     !          fixed statistics specific in stats file.
@@ -292,7 +291,7 @@ module obsSpaceErrorStdDev_mod
 
       ! Arguments:
       type(struct_obs)        :: lobsSpaceData
-      type(struct_columnData) :: lcolumng,lcolumnhr
+      type(struct_columnData) :: lcolumng
       logical                 :: active
       
       ! Locals:
@@ -810,7 +809,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_ensemble
   !--------------------------------------------------------------------------
-  subroutine ose_compute_hbht_ensemble(columng,columnhr,obsSpaceData,active)
+  subroutine ose_compute_hbht_ensemble(columng,obsSpaceData,active)
     !
     !:Purpose: To compute background-error stddev in observation space using
     !          ensemble-based statistics.
@@ -819,7 +818,6 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     type(struct_columnData) :: columng      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
-    type(struct_columnData) :: columnhr     ! Columns of the background interpolated to obs horizontal locations
     type(struct_obs)        :: obsSpaceData ! Observation-related data
     logical                 :: active
 
@@ -1341,7 +1339,7 @@ module obsSpaceErrorStdDev_mod
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
       INTEGER status
-      INTEGER JL, JJ
+      INTEGER JL
       REAL*8 ZP0, ZMT
       REAL*8 ZFGE, ZERR
       INTEGER JV, NGPSLEV, NWNDLEV
@@ -1950,7 +1948,6 @@ module obsSpaceErrorStdDev_mod
     ! Externals:
     ! Local:
     integer, parameter :: ndim=1
-    integer :: istnid
 
     ! Check for the presence of CH observations
     availableOMPE = '    '
@@ -1998,7 +1995,7 @@ module obsSpaceErrorStdDev_mod
   
     character (len=128) :: ligne
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
-    integer :: ipos,inum,stnidIndex,monthIndex,levIndex,ios,isize,icount
+    integer :: ipos, stnidIndex, monthIndex, levIndex, ios, isize, icount
     character(len=20) :: abortText
 
     ! Initialization
@@ -2569,8 +2566,8 @@ module obsSpaceErrorStdDev_mod
     
     ! Local:
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
-    integer :: idate, itime, iass, ityp, latIndex, monthIndex, ibegin
-    real(8) :: zlat, zvar, zlev, OmP_err_stddev, lat
+    integer :: idate, itime, iass, latIndex, monthIndex, ibegin
+    real(8) :: zlat, zlev, OmP_err_stddev, lat
     character(len=12) :: stnid
 
     ! Loop over all obs types
