@@ -427,6 +427,7 @@ CONTAINS
     type(struct_eob)         :: ensObs
 
     call utl_abort('eob_readFromFiles: not yet implemented')
+    write(*,*) 'eob_readFromFiles: This structure contains ', ensObs%numMembers, ' members'
 
   end subroutine eob_readFromFiles
 
