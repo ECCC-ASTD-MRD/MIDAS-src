@@ -40,7 +40,6 @@ program midas_adjointTest
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()
-  type(struct_vco),       pointer :: vco_trl  => null()
   type(struct_hco),       pointer :: hco_anl  => null()
   type(struct_hco),       pointer :: hco_core => null()
 
@@ -249,7 +248,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Bhi')
+    call checkInnerProd ('Bhi')
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -328,7 +327,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Bens')
+    call checkInnerProd ('Bens')
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -463,7 +462,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Loc')
+    call checkInnerProd ('Loc')
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -605,7 +604,7 @@ contains
 !!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 !!$    
 !!$    ! Results
-!!$    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'addMem')
+!!$    call checkInnerProd ('addMem')
 !!$    
 !!$    call gsv_deallocate(statevector_LTx)
 !!$    call gsv_deallocate(statevector_y)
@@ -747,7 +746,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'advection')
+    call checkInnerProd ('advection')
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -870,7 +869,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'advection')
+    call checkInnerProd ('advection')
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -905,7 +904,7 @@ contains
   !--------------------------------------------------------------------------
   !- Inner product comparison
   !--------------------------------------------------------------------------
-  subroutine checkInnerProd (innerProduct1, innerProduct2, testName)
+  subroutine checkInnerProd (testName)
     implicit none
     real(8) ::  innerProduct1, innerProduct2
     character(len=*) :: testName
