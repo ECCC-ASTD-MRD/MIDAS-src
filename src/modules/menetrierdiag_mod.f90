@@ -221,8 +221,8 @@ contains
     real(8) :: t1, t2, t3, rmse
 
     integer :: i, j, k, f, ens, bin, numbins, numFunctions, nSize
-    integer :: iref_id, jref_id, iref, jref, ier
-    integer :: nLevEns, nLevStart, nLevEnd, jvar, mykBeg, mykEnd
+    integer :: iref, jref, ier
+    integer :: nLevEns, jvar, mykBeg, mykEnd
 
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
@@ -733,7 +733,7 @@ contains
     real(8), pointer :: PressureProfile(:)
     real(8), pointer :: distanceBinInLnP(:,:)
 
-    real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
+    real(8) :: dnens, correlation, covariance, fourthMoment, weight
     real(8) :: t1, t2, t3, rmse
 
     integer :: k, k2, kens, f, ens, bin, numbins, numFunctions

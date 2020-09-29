@@ -86,7 +86,7 @@ module CalcStatsGlb_mod
     type(struct_hco), pointer, intent(in)   :: hco_in
     ! locals:
     integer :: nulnam, ierr, status, waveBandIndex, memberIndex
-    integer :: fclos, fnom, fstouv, fstfrm
+    integer :: fclos, fnom
     real(8) :: zps
 
     NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks
@@ -324,7 +324,7 @@ module CalcStatsGlb_mod
     call calcCorrelations(ensPerturbations,corns,rstddev)
 
     variableType = cvUnbalSpace
-    call writeStats(corns,rstddev,variableType,ptot,theta1)
+    call writeStats(corns,rstddev,ptot,theta1)
 
     call writeStddev(stddevZonAvg,stddev3d,stddevZonAvgUnbal,stddev3dUnbal)
 
@@ -358,7 +358,7 @@ module CalcStatsGlb_mod
     integer :: variableType, latIndex, jlatband, lat1, lat2, lat3
     real(4), pointer     :: ensPerturbations(:,:,:,:)
     real(8), pointer     :: stddev3d(:,:,:)
-    real(8), pointer     :: stddevZonAvg(:,:),stddevZonAvgBal(:,:)
+    real(8), pointer     :: stddevZonAvg(:,:)
     real(8), allocatable :: corns(:,:,:),rstddev(:,:)
     real(8) :: latMask(nj)
 
@@ -434,7 +434,7 @@ module CalcStatsGlb_mod
       call calcCorrelations(ensPerturbations,corns,rstddev,latMask_opt=latMask)
 
       variableType = cvSpace
-      call writeStats(corns,rstddev,variableType,latBand_opt=jlatBand)
+      call writeStats(corns,rstddev,latBand_opt=jlatBand)
     end do
 
     call writeStddev(stddevZonAvg,stddev3d)
@@ -547,7 +547,7 @@ module CalcStatsGlb_mod
                                 corns,            & ! OUT (vertical correlation in spectral space)
                                 rstddev)            ! OUT ( sqrt(normalized power spectrum) )
 
-          call writeStats(corns,rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
+          call writeStats(corns,rstddev,waveBandIndex_opt=waveBandIndex) ! IN
 
           call calcHorizScale(rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
 
@@ -578,8 +578,6 @@ module CalcStatsGlb_mod
     !       (no variable transform!!!)
 
     integer :: variableType
-
-    integer :: ierr,  waveBandIndex
 
     real(4),pointer     :: ensPerturbations(:,:,:,:)
     real(8),allocatable :: powerSpec(:,:)
@@ -651,7 +649,7 @@ module CalcStatsGlb_mod
     real(8) :: PtoT(:,:,:),theta(:,:)
     integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
     integer fstouv,fnom,fstfrm,fclos
-    integer ip1,ip2,ip3,kni,knj,idatyp,idateo
+    integer ip1,ip3,kni,knj,idatyp,idateo
     integer :: nulstats
     real(8) :: bufz(nLevEns_M),bufyz(nj,nLevEns_M),zsp(0:ntrunc,nLevEns_M)
     real(8) :: bufptot(nj,(nLevEns_T+1)*nLevEns_M),spptot(0:ntrunc,(nLevEns_T+1)*nLevEns_M)
@@ -927,7 +925,7 @@ module CalcStatsGlb_mod
 
     real(8) :: spectralState(nla,2,nkgdimEns)
     real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
-    real(8) :: dfact, dfact2, dsummed
+    real(8) :: dfact, dfact2
 
     integer :: ensIndex,ila,jn,jm,jk
 
@@ -972,12 +970,10 @@ module CalcStatsGlb_mod
   !--------------------------------------------------------------------------
   ! WRITESTATS
   !--------------------------------------------------------------------------
-  subroutine writeStats(corns, rstddev, variableType, ptot_opt, &
-                        theta_opt, waveBandIndex_opt, latBand_opt)
+  subroutine writeStats(corns, rstddev, ptot_opt, theta_opt, waveBandIndex_opt, latBand_opt)
     implicit none
 
     real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
-    integer, intent(in) :: variableType
     real(8), optional :: PtoT_opt(:,:,:),theta_opt(:,:)
     integer, optional :: waveBandIndex_opt
     integer, optional :: latBand_opt
@@ -988,8 +984,6 @@ module CalcStatsGlb_mod
     integer :: fstouv,fnom,fstfrm,fclos
     integer :: ip1,ip2,ip3,idatyp,idateo
     integer :: nulstats
-    integer :: varIndex1, varIndex2
-    integer :: nLevEns1, nLevEns2, nlevstart1, nlevend1, nlevstart2, nlevend2
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
@@ -1116,8 +1110,8 @@ module CalcStatsGlb_mod
     ! locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
-    integer :: latIndex, lonIndex, levIndex, ierr, varIndex, varIndexStddev, nLevEns, numVarToWrite
-    integer :: ip1, ip2, ip3, idatyp, idateo, numBits, nip1_l(max(nLevEns_M,nLevens_T))
+    integer :: latIndex, levIndex, ierr, varIndex, varIndexStddev, nLevEns, numVarToWrite
+    integer :: ip1, ip2, ip3, idatyp, idateo, numBits
     integer :: nulstats
     real(8), pointer :: field(:,:,:)
     integer, allocatable :: dateStampList(:)
@@ -1253,9 +1247,9 @@ module CalcStatsGlb_mod
     ! locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
-    integer :: latIndex, lonIndex, levIndex, ierr, varIndex, nLevEns
+    integer :: latIndex, levIndex, ierr, varIndex, nLevEns
     integer :: fstouv, fnom, fstfrm, fclos
-    integer :: ip1, ip2, ip3, idatyp, idateo, numBits, nip1_l(max(nLevEns_M,nLevens_T))
+    integer :: ip1, ip2, ip3, idatyp, idateo, numBits
     integer :: nulstats
     real(8), pointer :: field(:,:,:)
     integer, allocatable :: dateStampList(:)
@@ -1481,27 +1475,23 @@ module CalcStatsGlb_mod
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
     real(8) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
     real(4), pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
-    INTEGER :: ensIndex, IENS, JK1, JK2, JLA, JN, JM, ILA, levIndex, nsize
-    INTEGER :: IERR, JFILE, JK, latIndex, ILON, lonIndex, JB, NLATBAND
-    INTEGER :: IBND1,IBND2,JPNLATBND,ILAT
+    INTEGER :: ensIndex, JK1, JK2, nsize
+    INTEGER :: IERR, JK, latIndex, lonIndex, JB, JPNLATBND
     PARAMETER (JPNLATBND = 3)
-    REAL(8) :: ZFACT,ZMAXI,ZWT,ZPS,zlat(nj)
-    REAL(8) :: ZFACT2,ZFACTTOT
+    REAL(8) :: ZFACT,zlat(nj)
+    REAL(8) :: ZFACTTOT
     REAL(8) :: ZM1(NLEVENS_T+1,NLEVENS_M,JPNLATBND), ZM2(NLEVPTOT,NLEVPTOT,JPNLATBND)
     REAL(8) :: ZM1_mpiglobal(NLEVENS_T+1,NLEVENS_M,JPNLATBND), ZM2_mpiglobal(NLEVPTOT,NLEVPTOT,JPNLATBND)
     REAL(8) :: ZPTOTBND(NLEVENS_T+1,NLEVENS_M)
-    REAL(8) :: ZM2INV(NLEVPTOT,NLEVPTOT,JPNLATBND),ZWORK(NLEVPTOT*NLEVPTOT),ZDET,ZEPS
+    REAL(8) :: ZM2INV(NLEVPTOT,NLEVPTOT,JPNLATBND)
     REAL(8) :: DLA2, DL1SA2
     REAL(8) :: DLLATMIN(JPNLATBND), DLLATMAX(JPNLATBND)
-    REAL(8) :: DLLATMID(JPNLATBND)
-    REAL(8) :: ZLC,ZTLEN,ZR,ZCORR,ZPRES1,ZPRES2
     real(8) :: zeigwrk(4*nlevPtoT),zeigen(nlevPtoT,nlevPtoT),zeigenv(nlevPtoT)
     real(8) :: zeigenvi(nlevPtoT)
     integer :: iwork,info
 
     DATA DLLATMIN / -60.0D0, -30.0D0, 30.0D0 /
     DATA DLLATMAX / -30.0D0,  30.0D0, 60.0D0 /
-    DATA DLLATMID / -45.0D0,  00.0D0, 45.0D0 /
 
     DLA2 = DBLE(RA)*DBLE(RA)
     DL1SA2 = 1.D0/DLA2
@@ -2100,7 +2090,7 @@ module CalcStatsGlb_mod
     real(8)  :: spectralState(nla,2,nkgdimEns)
     real(8)  :: gridState(ni,nj,nkgdimEns)
 
-    integer :: ji, jj, jk, jn, jm, ila, iref, jref
+    integer :: ji, jk, jn, jm, ila, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, varIndex, iStart, iEnd
 
     character(len=128) :: outfilename
