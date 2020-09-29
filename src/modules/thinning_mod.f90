@@ -680,7 +680,7 @@ contains
     integer :: numEleInPerCodtyp(numListCodtyp), numEleOutPerCodtyp(numListCodtyp)
     integer :: numBit8InPerCodtyp(numListCodtyp), numBit8OutPerCodtyp(numListCodtyp)
     integer :: numBit11InPerCodtyp(numListCodtyp), numBit11OutPerCodtyp(numListCodtyp)
-    integer :: numBit8In, numBit8Out, numBit11In, numBit11Out, countObsIncomplete
+    integer :: numBit8In, numBit8Out, numBit11In, numBit11Out
     integer :: numRemovedCodtyp, numRemovedCodTypPriority
     integer :: numRemovedTime, numRemovedDelt
     integer :: numEleIn, numEleOut, numRepeat1, numRepeat2, numRemovedDrifter
@@ -1690,17 +1690,15 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     deallocate(procIndexes)
     deallocate(procIndexesMpi)
 
-    call raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numlev, numLevStn, &
+    call raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numlev, &
                                numStation, numLevStnMax, obsLevOffset )
 
     if ( verticalThinningES ) then
-      call raobs_thinning_es( obsFlags, obsValues, numLevStn, numStation, &
-                              numLevStnMax, obsLevOffset )
+      call raobs_thinning_es( obsFlags, obsValues, numStation, numLevStnMax, obsLevOffset )
     end if
 
     if ( ecmwfRejetsES ) then
-      call raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numLevStn, &
-                                     numStation, obsLevOffset )
+      call raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numStation, obsLevOffset )
     end if
 
     countAcc_dd=0;  countRej_dd=0
@@ -1847,8 +1845,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     character(len=*) :: arrayMpi(:)
 
     ! Locals:
-    integer :: ierr, procIndex, arrayIndex, charIndex, lenString
-    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    integer :: ierr, arrayIndex, charIndex, lenString
+    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs)
     integer, allocatable :: stringInt(:), stringIntMpi(:)
 
     nsize = size(array)
@@ -2289,9 +2287,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, intent(in)    :: obsLevOffset(:)
     logical, intent(out)   :: sameProfile
 
-    logical :: condition
     integer :: varIndex, levIndex, levStnIndex, levStnIndex1, levStnIndex2, numSum
-    real(4) :: valSum, minDeltaP, minDeltaP1, minDeltaP2
+    real(4) :: valSum, minDeltaP1, minDeltaP2
 
     ! Standard levels
     integer, parameter :: numStdLevels = 16
@@ -2598,12 +2595,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   ! raobs_thinning_model
   !--------------------------------------------------------------------------
   subroutine raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numLev, &
-                                   numLevStn, numStation, numLevStnMax, obsLevOffset )
+                                   numStation, numLevStnMax, obsLevOffset )
     ! :Purpose: Perform raobs thinning by comparing with a set of model levels.
 
     implicit none
 
-    integer,           intent(in)    :: numVars, numLev, numLevStn, numStation, numLevStnMax
+    integer,           intent(in)    :: numVars, numLev, numStation, numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
@@ -2613,7 +2610,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: stationIndex, levIndex, levStnIndex, stdLevelIndex, varIndex
     integer :: varIndexDD, varIndexFF, varIndexPres
     integer :: levSelectIndex, levSelectIndex2, numLevSelect, levStnIndexValid
-    integer :: numLevSelectBest, tempInt, status
+    integer :: numLevSelectBest, tempInt
     real(4) :: presTop, presBottom, deltaPres, deltaPresMin
     integer, allocatable :: levStnIndexList(:), numValidObs(:), listIndex(:)
 
@@ -2886,13 +2883,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! raobs_thinning_es
   !--------------------------------------------------------------------------
-  subroutine raobs_thinning_es( obsFlags, obsValues, numLevStn, numStation, &
+  subroutine raobs_thinning_es( obsFlags, obsValues, numStation, &
                                 numLevStnMax, obsLevOffset )
     ! :Purpose: Perform thinning of T-Td raobs observations.
 
     implicit none
 
-    integer,           intent(in)    :: numLevStn, numStation, numLevStnMax
+    integer,           intent(in)    :: numStation, numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
@@ -3000,14 +2997,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! raobs_blacklisting_ecmwf
   !--------------------------------------------------------------------------
-  subroutine raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numLevStn, &
-                                       numStation, obsLevOffset )
+  subroutine raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numStation, obsLevOffset )
     ! :Purpose: Perform filtering of T-Td raobs observations based on
     !           approach inspired by ECMWF approach
 
     implicit none
 
-    integer, intent(in)    :: numLevStn, numStation
+    integer, intent(in)    :: numStation
     integer, intent(in)    :: obsLevOffset(:), obsType(:)
     integer, intent(inout) :: obsFlags(:,:)
     real(4), intent(in)    :: obsValues(:,:)
@@ -4758,7 +4754,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer, parameter :: PROFILE_NOT_FOUND=-1
-    integer :: headerIndex, bodyIndex, bodyIndex2, bodyIndexStart, bodyIndexEnd
+    integer :: headerIndex, bodyIndex
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
     integer :: newProfileId
@@ -4848,7 +4844,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
     integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
-    integer :: loscan, hiscan, obsFlag, numObs, nsize, minLonBurpFileMpi(mpi_nprocs)
+    integer :: loscan, hiscan, obsFlag, numObs, minLonBurpFileMpi(mpi_nprocs)
     integer :: procIndex, procIndexKeep, minLonBurpFile, countObs, countObsMpi
     integer :: countQc, countKept, countOther, countKeptMpi, countQcMpi, countGridPoints
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon, distance
@@ -5528,7 +5524,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
-    real(4) :: latInRadians, distance, obsLat, obsLon, gridLat, gridLon
+    real(4) :: latInRadians, distance, obsLat, obsLon
     real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
     logical :: change
     real(4), allocatable :: gridLats(:), gridLatsMid(:), gridLonsMid(:,:)
