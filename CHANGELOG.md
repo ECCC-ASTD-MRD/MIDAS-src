@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Use the compiler options `-warn all -warn errors` to remove unused variables
+   * Get rid of the namelist variable `rejectTdZeroC` from `thin_raobs` namelist since it was not used.
+   * Added `-fp-speculation=safe -init=snan,arrays` for debug mode
  * Copy the slant profile shape of GPSRO obs from input to output burp files. (#395 and !377)
  * Make diffusion operator B matrix mpi compatible (#355 and !354)
  * Reduce memory requirements for bgck and other programs (in s2c_nl) (#371 and !353)
