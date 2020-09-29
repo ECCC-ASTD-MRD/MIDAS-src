@@ -51,7 +51,6 @@ program midas_randomPert
 
   integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
   integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
-  integer :: cvDim_mpilocal
 
   real(8), allocatable :: controlVector(:), controlVector_mpiglobal(:)
   real(8), allocatable :: gdmean(:,:,:)
