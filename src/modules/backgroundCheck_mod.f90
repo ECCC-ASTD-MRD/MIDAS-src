@@ -100,8 +100,8 @@ module backgroundCheck_mod
      ! Otherwise calc HBHT contribution (sigma_B in observation space)  
      ! -------------------------------------------------------------------- 
 
-     call ose_computeStddev( columng, columnhr, &   ! IN
-                             obsSpaceData )         ! INOUT    
+     call ose_computeStddev( columng,     & ! IN
+                             obsSpaceData ) ! INOUT
 
      ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
      ! ----------------------------------------------

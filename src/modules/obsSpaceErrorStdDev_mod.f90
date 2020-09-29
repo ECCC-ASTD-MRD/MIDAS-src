@@ -100,7 +100,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_computeStddev
   !--------------------------------------------------------------------------
-  subroutine ose_computeStddev(columng,columnhr,obsSpaceData)
+  subroutine ose_computeStddev(columng,obsSpaceData)
     !
     !:Purpose: To set OmP-error std dev when possible. Otherwise 
     !          compute background-error stddev in observation space to 
@@ -110,7 +110,6 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     type(struct_columnData) :: columng       ! Columns of the background interpolated to analysis levels and to obs horizontal locations
-    type(struct_columnData) :: columnhr      ! Columns of the background interpolated to obs horizontal locations
     type(struct_obs) :: obsSpaceData         ! Observation-related data
     
     ! Locals:

@@ -1364,7 +1364,6 @@ contains
     integer                                :: JI
     integer                                :: JJ
     integer                                :: INDX
-    integer                                :: INDXCAN
     integer                                :: ICLWREJ (MXCLWREJ)
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
@@ -4504,7 +4503,6 @@ contains
     real,    allocatable          :: cloudLiquidWaterPathFG(:)     ! cloud liquid water path from background.
     real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
     integer, external             :: exdb, exfin, fnom, fclos
-    integer                       :: ier
     logical                       :: mwDataPresent
 
 
