@@ -119,9 +119,8 @@ contains
     ! Namelist variables
     logical :: verticalThinningES !
     logical :: ecmwfRejetsES      !
-    logical :: rejectTdZeroC      !
 
-    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES, rejectTdZeroC
+    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES
 
     ! return if no aircraft obs
     if (.not. obs_famExist(obsdat,'UA')) return
@@ -129,7 +128,6 @@ contains
     ! Default values for namelist variables
     verticalThinningES = .true.
     ecmwfRejetsES = .true.
-    rejectTdZeroC = .true.
 
     ! Read the namelist for Radiosonde observations (if it exists)
     if (utl_isNamelistPresent('thin_raobs','./flnml')) then
@@ -147,7 +145,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_raobs)
     end if
 
-    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
 
   end subroutine thn_thinRaobs
 
@@ -1321,7 +1319,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_radiosonde
   !--------------------------------------------------------------------------
-  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, rejectTdZeroC)
+  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
     !
     ! :Purpose: Original method for thinning radiosonde data vertically.
     !           We assume that each vertical level is stored in obsSpaceData
@@ -1334,7 +1332,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     type(struct_obs), intent(inout) :: obsdat
     logical,          intent(in)    :: verticalThinningES
     logical,          intent(in)    :: ecmwfRejetsES
-    logical,          intent(in)    :: rejectTdZeroC
 
     ! Locals:
     type(struct_hco), pointer :: hco_sfc
