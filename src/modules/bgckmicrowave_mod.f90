@@ -1390,7 +1390,6 @@ contains
     integer                                :: err (KNT)
     integer                                :: rain(KNT)
     integer                                :: snow(KNT)
-    logical                                :: GROSSERROR
     logical, save                          :: LLFIRST
 
     LLFIRST = .TRUE.
@@ -1882,9 +1881,6 @@ contains
     !               - tb89    - input  -  89Ghz brightness temperature (K)
     !               - tb23_P  - input  -  23Ghz brightness temperature from background (K)
     !               - tb31_P  - input  -  31Ghz brightness temperature from background (K)
-    !               - tb50_P  - input  -  50Ghz brightness temperature from background (K)
-    !               - tb53_P  - input  -  53Ghz brightness temperature from background (K)
-    !               - tb89_P  - input  -  89Ghz brightness temperature from background (K)
     !               - pangl   - input  -  satellite zenith angle (deg.)
     !               - plat    - input  -  lalitude (deg.)
     !               - ilansea - input  -  land/sea indicator (0=land;1=ocean)
@@ -1923,9 +1919,6 @@ contains
     real tb89  (:)
     real tb23_P(:)
     real tb31_P(:)
-    real tb50_P(:)
-    real tb53_P(:)
-    real tb89_P(:)
     real pangl (:)
     real plat  (:)
     real ice   (:)
@@ -2516,8 +2509,6 @@ contains
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
-    integer                               :: INDXCAN 
-    logical                               :: SFCREJCT
 
     testIndex = 5
     if ( itest(testIndex) .eq. 1 ) then
@@ -2628,7 +2619,6 @@ contains
     integer                          :: JJ
     integer                          :: kk
     integer                          :: INDX
-    integer                          :: INDXTOPO
     integer                          :: ISFCREJ(MXSFCREJ)
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                          :: B7CHCK(KNO,KNT)
@@ -2636,7 +2626,6 @@ contains
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest) 
     integer                          :: ICHTOPO(MXTOPO) 
-    logical                          :: FULLREJCT
     logical, save                    :: LLFIRST
     integer, save                    :: numReportWithMissigTb           ! Number of BURP file reports where Tb set to mwbg_realMissing
     integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index             
@@ -3248,7 +3237,7 @@ contains
     integer, parameter :: mxlat=5,mxlon=5
     integer :: iungeo
 
-    integer :: ier,key,istat
+    integer :: ier,key
     integer, save :: ni,nj,nk,nilg,njlg
     integer, save :: ig1,ig2,ig3,ig4,ig1lg,ig2lg,ig3lg,ig4lg
     integer :: idum4,idum5,idum6,idum7,idum8,idum9,idum10,idum11
@@ -3257,8 +3246,6 @@ contains
     integer :: indx,ii,jj,kk
     integer :: nlat,nlon
 
-    integer, dimension(15) :: alloc_status = 0
-  
     real, parameter :: pi=3.141592654
     real, parameter :: MGthresh=0.01,LGthresh=0.01
     real, parameter :: rlat_km=40.0,rlon_km=40.0
