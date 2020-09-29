@@ -57,7 +57,7 @@ program midas_ensManip
   type(struct_hco), pointer :: hco_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
-  integer              :: memberIndex, stepIndex, numStep, subEnsIndex
+  integer              :: stepIndex, numStep, subEnsIndex
   integer              :: nulnam, dateStamp
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
@@ -70,8 +70,6 @@ program midas_ensManip
   logical             :: makeBiPeriodic, targetGridFileExist, checkModelTop
   logical             :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
   logical             :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
-
-  real(4), pointer    :: ensOneLevel(:,:,:,:)
 
   ! namelist variables
   character(len=1)   :: ensembleTypVarOutput

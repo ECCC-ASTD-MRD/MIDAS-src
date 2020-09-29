@@ -45,7 +45,6 @@ program midas_gencoeff
   implicit none
 
   integer, external :: exdb,exfin,fnom, fclos, get_max_rss
-  integer ::  nulnam, headerIndex
   integer :: ierr,istamp
 
   type(struct_obs),        target  :: obsSpaceData

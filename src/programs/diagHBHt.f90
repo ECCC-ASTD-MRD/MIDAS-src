@@ -54,7 +54,6 @@ program midas_diagHBHt
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
 
-  character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
 
   istamp = exdb('diagHBHt','DEBUT','NON')
@@ -262,7 +261,6 @@ contains
     integer :: index_body, local_dimension, jj, ierr, dateprnt,timeprnt,nrandseed, istat
     integer ,external :: newdate,get_max_rss
     real(8) ,external :: gasdev
-    real(8) :: zdum
     !
     !- 1.  Initialization
 

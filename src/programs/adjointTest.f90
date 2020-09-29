@@ -906,7 +906,6 @@ contains
   !--------------------------------------------------------------------------
   subroutine checkInnerProd (testName)
     implicit none
-    real(8) ::  innerProduct1, innerProduct2
     character(len=*) :: testName
 
     if ( mpi_myid == 0 ) then

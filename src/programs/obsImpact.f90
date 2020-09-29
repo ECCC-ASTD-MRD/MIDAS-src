@@ -346,7 +346,7 @@ contains
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
  
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
-    call fso_calcFcstError(columng,obsSpaceData,statevector_FcstErr)
+    call fso_calcFcstError(columng,statevector_FcstErr)
    
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
@@ -355,7 +355,7 @@ contains
     if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
-      call fso_minimize(vhat, nvadim_mpilocal, zhat, column, columng, obsSpaceData)
+      call fso_minimize(nvadim_mpilocal, zhat, column, columng, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     elseif( trim(fsoMode) == 'EFSO' ) then
@@ -396,7 +396,7 @@ contains
 
   end subroutine fso_ensemble
 
-  subroutine fso_calcFcstError(columng,obsSpaceData,statevector_out)
+  subroutine fso_calcFcstError(columng,statevector_out)
     !
     ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
     ! Based on these inputs, it calculates the Forecast error
@@ -404,7 +404,6 @@ contains
     implicit none
     
     type(struct_columnData),target  :: columng
-    type(struct_obs),target         :: obsSpaceData
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
     type(struct_gsv)                :: statevector_out
     character(len=256)              :: fileName_fa, fileName_fb, fileName_a
@@ -479,12 +478,12 @@ contains
 
   end subroutine fso_calcFcstError
 
-  subroutine fso_minimize(vhat,nvadim,zhat,column,columng,obsSpaceData)
+  subroutine fso_minimize(nvadim,zhat,column,columng,obsSpaceData)
     implicit none
 
     type(struct_columnData),target  :: columng, column
     type(struct_obs),target         :: obsSpaceData
-    real(8),dimension(nvadim)       :: vhat, zhat
+    real(8),dimension(nvadim)       :: zhat
     real(8),allocatable             :: gradJ(:), vatra(:)
     ! for minimization
     integer                         :: imode, itermax, isimmax, indic,nvadim, nmtra
