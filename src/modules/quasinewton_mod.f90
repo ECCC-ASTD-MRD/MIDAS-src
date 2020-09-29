@@ -244,7 +244,7 @@ module quasinewton_mod
       do 200 j=jmin,jfin
           jp=j
           if (jp.gt.nm) jp=jp-nm
-          call dystbl (.false.,ybar,sbar,n,jp)
+          ! call dystbl (.false.,ybar,sbar,n,jp)
           call prosca (n,depl,ybar(1),ps,izs,rzs,dzs)
           r=alpha(jp)-ps
           do 120 i=1,n
@@ -838,7 +838,7 @@ module quasinewton_mod
               ybar(i,jcour)=d1*ybar(i,jcour)
   410     continue
 !$OMP END PARALLEL DO
-          if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
+!         if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
 !
 !         --- compute the scalar or diagonal preconditioner
 !
