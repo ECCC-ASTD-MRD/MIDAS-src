@@ -760,7 +760,7 @@ contains
 
   end subroutine simvar
 
-  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
+  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC)
     ! DSCALQN: inner product in canonical space
     !
     ! Purpose: interface for the inner product to be used
@@ -770,14 +770,7 @@ contains
     !     i : KDIM      : dimension of the vectors
     !     i : PX, PY    : vector for which <PX,PY> is being calculated
     !     o : DDSC      : result of the inner product
-    !     i :  KZS(1)   : unused working space for INTEGER  (not used)
-    !     i :  PZS(1)   : unused working space for REAL     (not used)
-    !     i : PDZS(1)   : unused working space for REAL*8   (not used)
     IMPLICIT NONE
-
-    REAL PZS(1)
-    INTEGER KZS(1)
-    REAL(8)  DDZS(1)
 
     INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
@@ -800,12 +793,9 @@ contains
     !
     IMPLICIT NONE
 
-    INTEGER KDIM, J, RR
+    INTEGER KDIM, J
     REAL(8) PX(KDIM), PY(KDIM)
     REAL(8) DDSC
-    REAL(8) partialsum(128)
-    INTEGER mythread,numthreads,jstart,jend
-    INTEGER omp_get_thread_num,omp_get_num_threads
 
     DDSC = 0.D0
 
@@ -819,7 +809,7 @@ contains
 
   END SUBROUTINE PRSCAL
 
-  SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
+  SUBROUTINE DCANAB(KDIM,PY,PX)
     ! DCANAB  - Change of variable associated with the canonical inner product
     !
     ! Author    JM Belanger CMDA/SMC   May 2001
@@ -833,10 +823,8 @@ contains
     !
     IMPLICIT NONE
 
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
+    INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) PDZS(1)
 
     INTEGER JDIM
 
@@ -848,7 +836,7 @@ contains
 
   END SUBROUTINE DCANAB
 
-  SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
+  SUBROUTINE DCANONB(KDIM,PX,PY)
     ! DCANONB  - Change of variable associated with the canonical inner product
     !
     ! Author    JM Belanger CMDA/SMC  May 2001
@@ -861,10 +849,8 @@ contains
     !(see the modulopt documentation about DTONB)
     !
     IMPLICIT NONE
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
+    INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) PDZS(1)
 
     INTEGER JDIM
 
