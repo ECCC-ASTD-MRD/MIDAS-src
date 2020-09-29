@@ -264,7 +264,6 @@ contains
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
@@ -315,7 +314,6 @@ contains
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
@@ -377,7 +375,6 @@ contains
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
@@ -425,7 +422,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -473,7 +469,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -517,7 +512,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -570,7 +564,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -631,7 +624,6 @@ contains
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
@@ -682,7 +674,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -715,7 +706,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, GROSSMIN, &
+  subroutine amsuaTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
@@ -728,7 +719,6 @@ contains
     integer,     intent(in)               :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
-    logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: PTBO(KNO,KNT)                      ! radiances 
     real,        intent(in)               :: GROSSMIN(mwbg_maxNumChan)                ! Gross val min 
     real,        intent(in)               :: GROSSMAX(mwbg_maxNumChan)                ! Gross val max 
@@ -736,7 +726,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -786,7 +775,6 @@ contains
     integer,     intent(in)               :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
-    logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
     real,        intent(in)               :: clwFG(KNT)                     ! retrieved cloud liquid water from background
     logical,     intent(in)               :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
@@ -798,7 +786,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -879,7 +866,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, scatw, KTERMER, ITERRAIN, &
+  subroutine amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
                                               MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                  13) test 13: Grody scattering index check (partial)
@@ -892,7 +879,6 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    logical,     intent(in)                :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)                :: scatw(KNT)                     ! scattering index 
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     integer,     intent(in)                :: ITERRAIN(KNT)                  ! terrain type 
@@ -903,7 +889,6 @@ contains
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
@@ -1098,7 +1083,6 @@ contains
     integer                                :: testIndex
     integer                                :: ITRN 
     integer                                :: INDXCAN
-    real                                   :: XCHECKVAL
     logical                                :: SFCREJCT
 
     testIndex = 15
@@ -1247,7 +1231,6 @@ contains
     !locals
     integer                             :: firstDimIndex 
     integer                             :: secondDimIndex 
-    integer                             :: productDim 
     integer                             :: productDimIndex 
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
@@ -1275,7 +1258,6 @@ contains
     !locals
     integer                             :: firstDimIndex 
     integer                             :: secondDimIndex 
-    integer                             :: productDim 
     integer                             :: productDimIndex 
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
@@ -1292,7 +1274,7 @@ contains
   !  mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, btClear, ZCOR, &
+                                IUTILST, KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwObs, clwFG, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
 
@@ -1329,10 +1311,8 @@ contains
     logical, intent(in)                    :: useStateDepSigmaObs(:,:)  ! if using state dependent obs error
 
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
-    integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
-    integer, intent(in)                    :: KORBIT(:)          ! numero d'orbite
     integer, intent(in)                    :: ICANO(:)       ! canaux des observations
     integer, intent(inout)                 :: ITERRAIN(:)        ! indicateur du type de terrain
     integer, intent(in)                    :: KNO                  ! nombre de canaux des observations 
@@ -1357,10 +1337,10 @@ contains
     real, allocatable, intent(out)         :: clwFG(:)             ! retrieved cloud liquid water from background 
     real, allocatable, intent(out)         :: scatw(:)              ! scattering index over water
 
-    integer, allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
+    integer, allocatable, intent(out)      :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                               FOR AMSUA just fill with zeros
 
-    integer, intent(inout)                   :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
+    integer, intent(inout)                 :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
     integer, parameter                     :: mwbg_maxScanAngleAMSU= 30 
@@ -1380,31 +1360,17 @@ contains
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    integer                                :: MAXVAL
+    real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
     integer                                :: JI
     integer                                :: JJ
-    integer                                :: INDX8
-    integer                                :: INDX12
-    integer                                :: INO
-    integer                                :: ICHN
-    integer                                :: JK
-    integer                                :: IBIT
-    integer                                :: JC
     integer                                :: INDX
     integer                                :: INDXCAN
-    integer                                :: ITRN
-    integer                                :: alloc_status 
     integer                                :: ICLWREJ (MXCLWREJ)
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
     integer                                :: ISCATREJ(MXSCATREJ)
     real                                   :: EPSILON
-    real                                   :: ZANGL
     real                                   :: MISGRODY
-    real                                   :: ZSEUILSCAT
-    real                                   :: APPROXIM
-    real                                   :: ANGDif
-    real                                   :: XCHECKVAL
     real                                   :: GROSSMIN(mwbg_maxNumChan)
     real                                   :: GROSSMAX(mwbg_maxNumChan) 
     real                                   :: ROGUEFAC(mwbg_maxNumChan)
@@ -1425,8 +1391,6 @@ contains
     integer                                :: rain(KNT)
     integer                                :: snow(KNT)
     logical                                :: GROSSERROR
-    logical                                :: FULLREJCT
-    logical                                :: SFCREJCT
     logical, save                          :: LLFIRST
 
     LLFIRST = .TRUE.
@@ -1490,8 +1454,7 @@ contains
     
     !  Run Grody AMSU-A algorithms.
 
-    call grody (err, knt, tb23, tb31, tb50, tb53, tb89, &
-                tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
+    call grody (err, knt, tb23, tb31, tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
                 satzen, zlat, ktermer, ice, tpw, clwObs, clwFG, &
                 rain, snow, scatl, scatw)   
 
@@ -1550,16 +1513,16 @@ contains
     call amsuaTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray) 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuaTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, GROSSMIN, &
+    call amsuaTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clwObs, &
+    call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
                                 clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
                                 ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
-    call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, scatw, KTERMER, ITERRAIN, &
+    call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
                                               MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -1890,8 +1853,7 @@ contains
   !--------------------------------------------------------------------------
   !  GRODY
   !--------------------------------------------------------------------------
-  subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, &
-                   tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
+  subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, tb23_P, tb31_P, &
                    pangl, plat, ilansea, ice, tpw, clwObs, clwFG, &
                    rain, snow, scatl, scatw)
     !OBJET          Compute the following parameters using 5 AMSU-A
@@ -2244,7 +2206,6 @@ contains
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)          ! indicateur du QC par canal
     integer,     intent(inout)                                :: rejectionCodArray(:,:,:) ! cumul of reject element 
     ! Locals
-    integer                                                   :: channelval
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
     integer                                                   :: testIndex
@@ -2299,7 +2260,6 @@ contains
     integer,     intent(inout)                                :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     integer,     intent(inout)                                :: rejectionCodArray2(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                                   :: channelval
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
     integer                                                   :: testIndex
@@ -2358,7 +2318,6 @@ contains
     integer,     intent(inout)                                :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     integer,     intent(inout)                                :: rejectionCodArray2(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                                                   :: channelval
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
     integer                                                   :: testIndex
@@ -2558,9 +2517,7 @@ contains
     integer                               :: nChannelIndex
     integer                               :: testIndex
     integer                               :: INDXCAN 
-    real                                  :: XCHECKVAL
     logical                               :: SFCREJCT
-    logical                               :: CH2OMPREJCT
 
     testIndex = 5
     if ( itest(testIndex) .eq. 1 ) then
@@ -2591,12 +2548,11 @@ contains
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, zlat, zlon, ilq, itt, &
-                               zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, &
+                               zenith, qcflag2, qcflag1, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, rclw2, riwv, &
                                rejectionCodArray, rejectionCodArray2, STNID, RESETQC)
                                
-
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
     !
@@ -2619,9 +2575,7 @@ contains
     integer, intent(in)              :: qcflag2(:)
     integer, intent(in)              :: qcflag1(:,:)
     integer, intent(inout)           :: globMarq(:)
-    integer, intent(in)              :: KSAT(KNT)            ! numero d'identificateur du satellite
     integer, intent(in)              :: ISCNPOS(KNT)         ! position sur le "scan"
-    integer, intent(in)              :: KORBIT(KNT)          ! numero d'orbite
     integer, intent(in)              :: ICANO(:)       ! canaux des observations
     integer, intent(in)              :: KNOSAT               ! numero de satellite (i.e. indice)
     real, intent(inout)              :: ztb(:)        ! radiances
@@ -2668,35 +2622,21 @@ contains
     integer, parameter               :: MXSFCREJ   = 8 
     integer, parameter               :: MXCH2OMPREJ= 6  
     integer, parameter               :: MXTOPO     = 5 
-    integer                          :: maxval 
     integer                          :: iRej 
     integer                          :: iNumSeaIce 
     integer                          :: JI
     integer                          :: JJ
     integer                          :: kk
-    integer                          :: INDX8
-    integer                          :: INDX12
-    integer                          :: INO
-    integer                          :: ICHN
-    integer                          :: JK
-    integer                          :: IBIT
-    integer                          :: JC
     integer                          :: INDX
-    integer                          :: INDXCAN
     integer                          :: INDXTOPO
     integer                          :: ISFCREJ(MXSFCREJ)
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                          :: B7CHCK(KNO,KNT)
-    real                             :: APPROXIM
-    real                             :: XCHECKVAL
     real                             :: ROGUEFAC(mwbg_maxNumChan)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest) 
     integer                          :: ICHTOPO(MXTOPO) 
-    logical                          :: GROSSERROR
     logical                          :: FULLREJCT
-    logical                          :: SFCREJCT
-    logical                          :: CH2OMPREJCT
     logical, save                    :: LLFIRST
     integer, save                    :: numReportWithMissigTb           ! Number of BURP file reports where Tb set to mwbg_realMissing
     integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index             
@@ -2772,7 +2712,7 @@ contains
     !          for data that fail QC     
     !###############################################################################
 
-    call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, stnid, &
+    call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
                                qcflag2, ICANO, reportHasMissingTb)
 
@@ -2978,7 +2918,7 @@ contains
     integer                  :: FSTINF,FSTPRM,FCLOS
     integer                  :: FSTLIR,FSTFRM, FNOM, FSTOUV
     integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4
-    integer                  :: IDUM,IDUM1,IDUM2,IDUM3,IDUM4
+    integer                  :: IDUM1,IDUM2,IDUM3,IDUM4
     integer                  :: IDUM5,IDUM6,IDUM7,IDUM8
     integer                  :: IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
     integer                  :: IDUM14,IDUM15,IDUM16,IDUM17,IDUM18
@@ -3526,7 +3466,7 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_firstQcCheckAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid,&
+  subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, &
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
                                    ican, reportHasMissingTb)
     !  This routine performs basic quality control checks on the data. It sets array
@@ -3555,7 +3495,6 @@ contains
     integer,              intent(in)                :: itt(:)
     integer,              intent(in)                :: scanpos(:)
     integer,              intent(in)                :: ican(:)
-    character(len=9),     intent(in)                :: stnid
     integer,              intent(in)                :: qcflag2(:)
     integer,              intent(in)                :: qcflag1(:,:)
     integer,              intent(in)                :: nt
@@ -4187,15 +4126,7 @@ contains
 
     ! Locals
     logical, allocatable                       :: lflagchn(:,:)
-    integer                                    :: indx1
-    integer                                    :: indx2
-    integer                                    :: ii, kk, j, ipos, iidata
-    integer                                    :: n_cld
-    real, allocatable                          :: ztb_amsub3(:)  
-    real, allocatable                          :: bcor_amsub3(:)  
-    real, allocatable                          :: ztb_amsub5(:) 
-    real, allocatable                          :: bcor_amsub5(:) 
-    real                                       :: ztb183(5)
+    integer                                    :: kk, j, ipos
 
 
     ! Allocation
@@ -4438,7 +4369,6 @@ contains
     integer                              :: isat, iplatf
     integer                              :: instr
     logical                              :: sensorIndexFound
-    integer                              :: ichannel
 
 
 
@@ -4560,8 +4490,6 @@ contains
     real,    allocatable          :: obsLongitude(:)               ! obs. point longitude
     integer, allocatable          :: satIdentifier(:)              ! Satellite identifier
     real,    allocatable          :: satZenithAngle(:)             ! sat. satZenithAngle angle
-    real,    allocatable          :: azimuthAngle(:)               ! azimuth angle
-    real,    allocatable          :: solarZenithAngle(:)           ! solar zenith angle
     integer, allocatable          :: landQualifierIndice(:)        ! land qualifyer
     integer, allocatable          :: terrainTypeIndice(:)          ! terrain type
     real,    allocatable          :: obsTb(:)                      ! temperature de brillance
@@ -4589,8 +4517,7 @@ contains
     real,    allocatable          :: cloudLiquidWaterPathFG(:)     ! cloud liquid water path from background.
     real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
     integer, external             :: exdb, exfin, fnom, fclos
-    integer                       :: ier, istat, nulnam
-    integer                       :: get_max_rss
+    integer                       :: ier
     logical                       :: mwDataPresent
 
 
@@ -4660,8 +4587,8 @@ contains
 
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
-                                oer_tovutil, satIdentifier, landQualifierIndice,&
-                                satOrbit, obsChannels, obsTb, btClear, obsTbBiasCorr, &
+                                oer_tovutil, landQualifierIndice,&
+                                obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, numChannelUsed, numObsToProcess,       &
                                 sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
@@ -4673,7 +4600,7 @@ contains
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
-                               obsQcFlag2, obsQcFlag1, satIdentifier, satOrbit,          &
+                               obsQcFlag2, obsQcFlag1,
                                obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
                                qcIndicator, numChannelUsed,          &
                                numObsToProcess, sensorIndex,          &
