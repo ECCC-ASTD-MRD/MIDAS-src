@@ -1452,7 +1452,7 @@ contains
     
     !  Run Grody AMSU-A algorithms.
 
-    call grody (err, knt, tb23, tb31, tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
+    call grody (err, knt, tb23, tb31, tb50, tb53, tb89, tb23_P, tb31_P, &
                 satzen, zlat, ktermer, ice, tpw, clwObs, clwFG, &
                 rain, snow, scatl, scatw)   
 
