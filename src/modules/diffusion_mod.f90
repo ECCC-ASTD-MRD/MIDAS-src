@@ -562,6 +562,8 @@ contains
     ! Arguments:
     integer, intent(in)  :: diffID
 
+    write(*,*) 'diff_finalize: deallocating arrays for diffID = ', diffID
+
     deallocate( diff( diffID ) % diff1y_c      )
     deallocate( diff( diffID ) % diff1y_bp_inv )
     deallocate( diff( diffID ) % diff1y_ap     )
