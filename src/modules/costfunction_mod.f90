@@ -305,7 +305,7 @@ contains
         call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
 
         call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                        sensorIndex, dest_obs, beSilent_opt=.false.)
+                                        sensorIndex, dest_obs, beSilent_opt=.true.)
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
