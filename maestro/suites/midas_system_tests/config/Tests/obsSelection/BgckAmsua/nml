@@ -6,7 +6,7 @@
   debug = .false.,
   RESETQC = .false.,
   maxNumSat  = 9,
-  maxNumTest = 15,
+  maxNumTest = 16,
   maxNumChan = 42,
   channelOffset = 27,
   clwQcThreshold = 0.6,
