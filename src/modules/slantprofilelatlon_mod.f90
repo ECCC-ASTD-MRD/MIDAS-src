@@ -66,9 +66,8 @@ contains
 
     ! Locals:
     real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
-    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: lat, lon, latSlant, lonSlant, azimuthAngle
-    integer :: subGridIndex, lonIndex, latIndex, idatyp
+    integer :: idatyp
     integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
     integer :: numIteration
@@ -491,15 +490,12 @@ contains
     real(8), intent(out) :: lonSlantLev_M(:)
 
     ! Locals:
-    real(4) :: heightInterp_T_r4,heightInterp_M_r4, heightIntersect_r4, heightDiff_r4
-    real(8) :: latr, lonr, latSlant, lonSlant, height,  slantlat, slantlon, rad, dH, hmin
-    integer :: subGridIndex, lonIndex, latIndex, bodyIndex, imin
+    real(8) :: latr, lonr, height, rad, dH, hmin
+    integer :: bodyIndex, imin
     real(8), allocatable :: Lat_Obs(:), Lon_Obs(:), Hgt_Obs(:)
     real(4), allocatable :: H_M(:,:), H_T(:,:)
-    integer :: Minindex_T(1), Minindex_M(1)
-    integer :: ierr, fnom, fclos, nulnam, nObs, iObs
-    integer :: nlev, levIndex, nlev_M, nlev_T, numIteration
-    logical :: doIteration
+    integer :: nObs, iObs
+    integer :: levIndex, nlev_M, nlev_T
     
     nlev_M = size(height3D_M_r4,3)
     nlev_T = size(height3D_T_r4,3)

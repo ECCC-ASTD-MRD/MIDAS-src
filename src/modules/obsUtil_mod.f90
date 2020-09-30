@@ -53,8 +53,6 @@ contains
     integer          :: headerIndex, bodyIndexStart, bodyIndexEnd, bodyIndex, bodyIndex2
     real(pre_obsReal)   :: level
 
-    integer :: transformIndex, transformedBufrCodeIndex
-
     body : do bodyIndex = 1, obs_numBody(obsSpaceData) 
 
       if (ovt_isTransformedVariable(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex))) then

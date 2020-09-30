@@ -930,7 +930,6 @@ CONTAINS
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
-    character(len=4), pointer :: varNamesInEns(:)
 
     if( present(subEnsIndex_opt) ) then
       subEnsIndex = subEnsIndex_opt
@@ -2402,7 +2401,7 @@ CONTAINS
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
-                               ctrlVarHumidity, etiket, typvar, &
+                               etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt)
     !
@@ -2415,7 +2414,6 @@ CONTAINS
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
     character(len=*)  :: ensFileNamePrefix
-    character(len=*)  :: ctrlVarHumidity
     character(len=*)  :: etiket
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables

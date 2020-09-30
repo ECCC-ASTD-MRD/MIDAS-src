@@ -54,7 +54,6 @@ program midas_diagHBHt
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
 
-  character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
 
   istamp = exdb('diagHBHt','DEBUT','NON')
@@ -90,7 +89,7 @@ program midas_diagHBHt
   call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
+  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
@@ -262,7 +261,6 @@ contains
     integer :: index_body, local_dimension, jj, ierr, dateprnt,timeprnt,nrandseed, istat
     integer ,external :: newdate,get_max_rss
     real(8) ,external :: gasdev
-    real(8) :: zdum
     !
     !- 1.  Initialization
 

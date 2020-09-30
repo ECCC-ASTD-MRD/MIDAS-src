@@ -1004,7 +1004,7 @@ subroutine tt2phi_col_ad(column,column_trial)
 
   type(struct_columnData) :: column,column_trial
 
-  integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numColumns,colIndex,latIndex,lonIndex
+  integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numColumns,colIndex
   real(8) :: ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:,:)
   real(8), pointer     :: height_M_ptr(:,:),height_T_ptr(:,:)

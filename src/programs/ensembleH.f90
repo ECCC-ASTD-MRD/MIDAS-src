@@ -49,7 +49,7 @@ program midas_ensembleH
   type(struct_hco), pointer :: hco_ens_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
-  integer              :: memberIndex, stepIndex, numStep, numBody, bodyIndex
+  integer              :: memberIndex, numStep, numBody
   integer              :: nulnam, dateStamp
   integer              :: get_max_rss
 

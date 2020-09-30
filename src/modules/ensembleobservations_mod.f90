@@ -427,6 +427,7 @@ CONTAINS
     type(struct_eob)         :: ensObs
 
     call utl_abort('eob_readFromFiles: not yet implemented')
+    write(*,*) 'eob_readFromFiles: This structure contains ', ensObs%numMembers, ' members'
 
   end subroutine eob_readFromFiles
 
@@ -796,7 +797,7 @@ CONTAINS
 
     ! locals
     integer :: obsIndex, memberIndex
-    real(8) :: hpht, sigo, sigi
+    real(8) :: hpht
 
     do obsIndex = 1, ensObs%numObs
       if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, obsIndex) == obs_notAssimilated) cycle
@@ -1086,7 +1087,7 @@ CONTAINS
     integer :: levIndex
     real(8) :: lnPres(numLevels), avgPres(numLevels-1)
     real(8) :: diffTau, derivTau(numLevels), maxDeriv
-    integer :: nAvgLev, low, high, maxIndex
+    integer :: nAvgLev, maxIndex
 
     nAvgLev = numLevels - 1
     lnPres(:) = log(rttovPres(:)*MPC_PA_PER_MBAR_R8)

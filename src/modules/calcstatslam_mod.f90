@@ -107,7 +107,7 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     integer :: nulnam, ier, status
-    integer :: fclos, fnom, fstouv, fstfrm
+    integer :: fclos, fnom
     integer :: grd_ext_x, grd_ext_y
     integer :: varIndex, k
 
@@ -317,7 +317,7 @@ contains
     !- 6.  Transform u-wind and v-wind to control variables 
     !
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', ctrlVarHumidity, 'MODELVAR', 'E', &
+      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', 'MODELVAR', 'E', &
                              containsFullField_opt = ensContainsFullField)
     end if
 
@@ -332,7 +332,7 @@ contains
     end if
 
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', ctrlVarHumidity, 'CTRLVAR', 'E', &
+      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', 'CTRLVAR', 'E', &
                              containsFullField_opt = ensContainsFullField)
     end if
 
@@ -545,7 +545,6 @@ contains
   subroutine csl_toolbox
     implicit none
 
-    real(8),allocatable :: VertCorrel(:,:,:)
     real(8),allocatable :: SpVertCorrel(:,:,:)
     real(8),allocatable :: NormB(:,:,:)
     real(8),allocatable :: PowerSpectrum(:,:)
@@ -684,9 +683,9 @@ contains
 
     real(4), pointer  :: ptr4d_r4(:,:,:,:)
 
-    real(8)           :: weight, sum
+    real(8)           :: weight
 
-    integer           :: i, j, k1, k2, ens, b, e, ila, p, k, totwvnb
+    integer           :: k1, k2, ens, e, ila, p, k, totwvnb
     integer           :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer           :: nSize, ier
 
@@ -882,7 +881,7 @@ contains
 
     real(8)           :: sum
 
-    integer           :: i, j, e, ila, p, k, totwvnb
+    integer           :: e, ila, p, k, totwvnb
 
     character(len=24) :: kind
 
@@ -994,8 +993,7 @@ contains
     real(8), intent(out) :: HorizScale(bhi%nVarLev)
     real(8), intent(in)  :: SpCovariance(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    real(8) :: circ_eq, cur_circ_eq, un_deg_lon, dx, dist
-    real(8) :: a, b, beta
+    real(8) :: a, b, beta, dx, dist
 
     integer :: totwvnb, k, var
 
@@ -1207,7 +1205,7 @@ contains
 
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
-    integer :: nulnam, fstouv, fnom, fstfrm, fclos, iunstats
+    integer :: fstouv, fnom, fstfrm, fclos, iunstats
 
     write(*,*)
     write(*,*) 'CalcVertCorrel: Starting...'
@@ -1296,10 +1294,7 @@ contains
 
     character(len=4), pointer :: varNamesList(:)
 
-    integer   :: i, j, e, ila, p, k, totwvnb
-
-    integer   :: ier, fstouv, fnom, fstfrm, fclos
-    integer   :: iunstats
+    integer   :: e, ila, p, k, totwvnb
 
     type(struct_lst)  :: lst_cor ! Spectral transform Parameters
 
@@ -1307,9 +1302,9 @@ contains
 
     nullify(varNamesList)
     call ens_varNamesList(varNamesList,ensPerts) 
-    call gsv_allocate(statevector, ens_getNumStep(ensPerts),  &
+    call gsv_allocate(statevector, ens_getNumStep(ensPerts),                    &
                       hco_bhi, ens_getVco(ensPerts), varNames_opt=varNamesList, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false.,                &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false.,  &
                       dataKind_opt=8 )
 
     !
@@ -1385,9 +1380,9 @@ contains
 
     type(struct_lst)  :: lst_hloc ! Spectral transform Parameters
 
-    integer :: totwvnb, var, k, i, j, e, ila, p
+    integer :: totwvnb, var, k, e, ila, p
 
-    real(8)  :: dist, fact, hlocalize
+    real(8)  :: hlocalize
 
     character(len=24) :: kind
 
@@ -1772,8 +1767,7 @@ contains
 
     real(4) :: work
 
-    integer   :: ier, fstecr
-    integer   :: k, kgdim, totwvnb
+    integer   :: ier, fstecr, totwvnb
 
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
@@ -1896,7 +1890,7 @@ contains
 
     real(4), allocatable :: workecr(:,:)
 
-    real(4)   :: factor, work
+    real(4)   :: work
 
     integer   :: ier, fstecr
     integer   :: var, k, kgdim
@@ -1909,7 +1903,6 @@ contains
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
     character(len=12) :: etiket
-    character(len=3)  :: cens
 
     allocate(workecr(nTrunc+1, 1))
 
@@ -1969,10 +1962,9 @@ contains
 
     real(4), allocatable :: workecr(:,:,:)
 
-    real(4)   :: factor, work
+    real(4)   :: work
 
-    integer   :: ier, fstecr
-    integer   :: var, k, kgdim
+    integer   :: ier, fstecr, var
 
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
@@ -1982,7 +1974,6 @@ contains
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
     character(len=12) :: etiket
-    character(len=3)  :: cens
 
     !- Loop over Control Variables
     do var = 1, bhi%nControlVariable
@@ -2037,12 +2028,10 @@ contains
 
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
-    integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
 
     character(len=1)  :: grtyp
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
-    character(len=12) :: etiket
 
     character(len=4)  :: ControlModelVarnameList(bhi%nControlVariable)
     character(len=4)  :: ControlBhiVarnameList  (bhi%nControlVariable)
@@ -2168,7 +2157,7 @@ contains
 
     character(len=4), pointer :: varNamesList(:)
 
-    integer :: nulstats, ier, fclos, fnom, nulnam, iunstats, fstouv, fstfrm
+    integer :: ier, fclos, fnom, nulnam
 
     NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding
 

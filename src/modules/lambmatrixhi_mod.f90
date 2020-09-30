@@ -452,7 +452,6 @@ contains
   subroutine lbhi_GetHorizGridInfo()
     implicit none
 
-    character(len=4), pointer :: anlVar(:)
     character(len=4)          :: varName
 
     !

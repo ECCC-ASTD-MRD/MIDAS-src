@@ -308,12 +308,11 @@ contains
   end subroutine inn_setupBackgroundColumns
 
 
-  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng,obsSpaceData)
+  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng)
     implicit none
 
     ! arguments
     type(struct_columnData) :: columng,columnhr
-    type(struct_obs)        :: obsSpaceData
 
     ! locals
     integer :: jvar, jlev, columnIndex
@@ -549,10 +548,10 @@ contains
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgck'  ) then
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, ZJOTOV, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, ZJOTOV, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
     !
@@ -575,7 +574,7 @@ contains
     !
     !        CH - CHEMICAL CONSTITUENTS
     !-------------------------------
-    call oop_chm_nl(columnhr, obsSpaceData, beSilent, zjochm, destObsColumn)
+    call oop_chm_nl(columnhr, obsSpaceData, zjochm, destObsColumn)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------

@@ -36,7 +36,7 @@ module globalSpectralTransform_mod
             gst_speree, gst_speree_ad, gst_speree_kij, gst_speree_kij_ad, gst_reespe, gst_reespe_kij, &
             gst_spgd, gst_spgda, gst_gdsp, gst_zleginv, gst_zlegdir,  &
             gst_setID, gst_setDefaultID, gst_setToDefaultID,  &
-            gst_ilaList_mpilocal, gst_ilaList_mpiglobal, gst_nList_mpilocal
+            gst_ilaList_mpilocal, gst_ilaList_mpiglobal
   ! public functions
   public :: gst_getRmu, gst_getRwt, gst_getnind, gst_getrlati, gst_getr1qm2, gst_getrsqm2, &
             gst_getrnnp1, gst_getr1snp1, gst_getzleg, gst_getNla
@@ -420,47 +420,6 @@ contains
     enddo
 
   end subroutine GST_ilaList_mpilocal
-
-
-  subroutine GST_nList_mpilocal(nList,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,&
-                                mynEnd,mynSkip)
-    !
-    !:Purpose: To produce an array to get value of n corresponding with mpilocal
-    !          "ila"
-    implicit none
-
-    ! Arguments:
-    integer, pointer :: nList(:)
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
-    integer          :: mynBeg, mynEnd, mynSkip
-
-    ! Locals:
-    integer          :: jm, jn, myNla
-
-    ! compute mpilocal value of nla
-    myNla = 0
-    do jm = mymBeg, mymEnd, mymSkip
-      do jn = mynBeg, mynEnd, mynSkip
-        if(jm.le.jn) then
-          myNla = myNla + 1
-        endif
-      enddo
-    enddo
-
-    allocate(nList(myNla))
-    nList(:) = 0
-
-    myNla = 0
-    do jm = mymBeg, mymEnd, mymSkip
-      do jn = mynBeg, mynEnd, mynSkip
-        if(jm.le.jn) then
-          myNla = myNla + 1
-          nList(myNla) = jn
-        endif
-      enddo
-    enddo
-
-  end subroutine GST_nList_mpilocal
 
 
   integer function gst_setup(ni_in,nj_in,ntrunc_in,maxlevels_in)
@@ -3439,9 +3398,9 @@ contains
        ilatbd = min(nlatbd,gst(gstID)%njlath - jlat + 1)
 
        if(ilatbd.eq.8) then
-          call allp(dlalp,dldalp,gst(gstID)%rmu(jlat),gst(gstID)%nclm(0),0,gst(gstID)%ntrunc,ilatbd)
+          call allp(dlalp,dldalp,gst(gstID)%rmu(jlat),gst(gstID)%nclm(0),gst(gstID)%ntrunc,ilatbd)
        else
-          call allp2(dlalp,dldalp,gst(gstID)%rmu(jlat),gst(gstID)%nclm(0),0,gst(gstID)%ntrunc,ilatbd)
+          call allp2(dlalp,dldalp,gst(gstID)%rmu(jlat),gst(gstID)%ntrunc,ilatbd)
        endif
 
        do jm = 0,gst(gstID)%ntrunc
@@ -3494,12 +3453,12 @@ contains
   end subroutine getalp
 
 
-  subroutine allp( p , g , x , lr , hem , r , nlatp) 
+  subroutine allp( p , g , x , lr , r , nlatp) 
 
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp, lr(0:r), hem 
+    integer :: r, nlatp, lr(0:r)
     real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp) 
 
@@ -3563,12 +3522,12 @@ contains
   end subroutine allp
 
 
-  subroutine allp2( p , g , x , lr , hem , r , nlatp)
+  subroutine allp2( p , g , x , r , nlatp)
 
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp, lr(0:r), hem
+    integer :: r, nlatp
     real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp)
 

@@ -562,6 +562,8 @@ contains
     ! Arguments:
     integer, intent(in)  :: diffID
 
+    write(*,*) 'diff_finalize: deallocating arrays for diffID = ', diffID
+
     deallocate( diff( diffID ) % diff1y_c      )
     deallocate( diff( diffID ) % diff1y_bp_inv )
     deallocate( diff( diffID ) % diff1y_ap     )
@@ -842,7 +844,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: t, latIndex, lonIndex
+    integer :: latIndex, lonIndex
 
     real(8) :: xlast ( diff( diffID ) % ni, diff( diffID ) % nj )
     real(8) :: dp ( diff ( diffID ) % ni )
@@ -892,7 +894,7 @@ contains
     real(8), intent(out) :: xout(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
     ! Locals:
-    integer :: t, latIndex, lonIndex
+    integer :: latIndex, lonIndex
 
     real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
     real(8) :: dp(diff(diffID)%nj)

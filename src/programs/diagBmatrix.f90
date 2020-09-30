@@ -61,10 +61,10 @@ program midas_diagBmatrix
   real(8) :: centralValue, centralValueLocal
 
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
-  integer :: ierr, nsize, iseed, cvDim_local
+  integer :: ierr, nsize, iseed
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
-  integer :: nlons, nlats, nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
+  integer :: nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
 
@@ -79,7 +79,6 @@ program midas_diagBmatrix
   character(len=128) :: filename, filenameInc, filenameIncNorm, filenameEnsAmp
   character(len=128) :: oneobs_timeStep
   character(len=10)  :: datestr
-  character(len=12)  :: etiket
   character(len=4)   :: varName, oneobs_varName
   character(len=1)   :: locIndexString
   character(len=2)   :: instanceIndexString

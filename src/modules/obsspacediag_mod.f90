@@ -206,7 +206,7 @@ contains
     
     ! Perform diagnostics based on OmP (and OmA if available)
  
-    call osd_obsPostProc(obsSpaceData,columng,dateprnt,deltaLat,deltaLon,deltaPressure,anlm_mod)
+    call osd_obsPostProc(obsSpaceData,columng,deltaLat,deltaLon,deltaPressure,anlm_mod)
     
     if ((.not. anlm_mod) .or. (.not.lrandom) .or. (.not.nmlExists)) return
 
@@ -779,7 +779,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_obsPostProc
   !--------------------------------------------------------------------------
-  subroutine osd_obsPostProc( obsSpaceData, columng, date, deltaLat, deltaLon, deltaPressure, anlm_mode )
+  subroutine osd_obsPostProc( obsSpaceData, columng, deltaLat, deltaLon, deltaPressure, anlm_mode )
     !
     ! :Purpose: Interface for observation-space post-processing procedures.
     !
@@ -800,7 +800,6 @@ contains
     !Arguments:
     type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
-    integer, intent(in)     :: date
     real(8), intent(in)     :: deltaLat
     real(8), intent(in)     :: deltaLon
     real(8), intent(in)     :: deltaPressure
@@ -849,7 +848,7 @@ contains
           codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
                        
           call osd_obsDiagnostics(obsSpaceData,columng,'CH',codtyplist,trim(obsspace_diagn_filename(ifam)), &
-                      diagn_save(ifam),date,deltaLat,deltaLon,deltaPressure,diagn_pressmin(ifam),anlm_mode)
+                      diagn_save(ifam),deltaLat,deltaLon,deltaPressure,diagn_pressmin(ifam),anlm_mode)
        
           deallocate(codtyplist)
           
@@ -878,7 +877,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_obsDiagnostics
   !--------------------------------------------------------------------------
-  subroutine osd_obsDiagnostics( obsSpaceData, columng, obsfam, codtyplist, filename, save_diagn, date, &
+  subroutine osd_obsDiagnostics( obsSpaceData, columng, obsfam, codtyplist, filename, save_diagn, &
                                  deltaLat, deltaLon, deltaPressure, pressmin, anlm_mode )
     !       
     ! :Purpose: Calculates and prints observation-space diagnostics for chemical constituents
@@ -913,7 +912,6 @@ contains
     type(struct_columnData) :: columng
     character(len=*)        :: obsfam
     character(len=*)        :: filename
-    integer, intent(in)     :: date
     integer, intent(in)     :: codtyplist(:)
     real(8), intent(in)     :: deltaLat
     real(8), intent(in)     :: deltaLon

@@ -190,7 +190,6 @@ module quasinewton_mod
       !:Purpose: This subroutine has the same role as ddd (computation of the
       !          product H.g). It supposes however that the (y,s) pairs are not
       !          stored in core memory, but on a devise chosen by the user.
-      !          The access to this devise is performed via the subroutine dystbl.
       !
 
 !
@@ -216,7 +215,6 @@ module quasinewton_mod
       do 100 j=jfin,jmin,-1
           jp=j
           if (jp.gt.nm) jp=jp-nm
-          call dystbl (.false.,ybar,sbar,n,jp)
           call prosca (n,depl,sbar,ps,izs,rzs,dzs)
           r=ps
           alpha(jp)=r
@@ -244,7 +242,6 @@ module quasinewton_mod
       do 200 j=jmin,jfin
           jp=j
           if (jp.gt.nm) jp=jp-nm
-          call dystbl (.false.,ybar,sbar,n,jp)
           call prosca (n,depl,ybar(1),ps,izs,rzs,dzs)
           r=alpha(jp)-ps
           do 120 i=1,n
@@ -253,28 +250,6 @@ module quasinewton_mod
 200   continue
 
       end subroutine ddds
-
-      subroutine dystbl (store,ybar,sbar,n,j)
-      !
-      !:Purpose: This subroutine should store (if store = .true.) or restore
-      !          (if store = .false.) a pair (ybar,sbar) at or from position
-      !          j in memory. Be sure to have 1 <= j <= m, where m in the number
-      !          of updates specified by subroutine mupdts.
-      !
-      !          The subroutine is used only when the (y,s) pairs are not
-      !          stored in core memory in the arrays ybar(.,.) and sbar(.,.).
-      !          In this case, the subroutine has to be written by the user.
-      !
-
-!
-!         arguments
-!
-      logical store
-      integer n,j
-      real(8) ybar(n),sbar(n)
-!
-      !return
-      end subroutine dystbl
 
       subroutine mupdts (sscale,inmemo,n,m,nrz)
 
@@ -296,8 +271,6 @@ module quasinewton_mod
 !                  in core memory,
 !               .false. otherwise (storage of y and s on disk, for
 !                  instance).
-!     When inmemo=.false., the routine `dystbl', which stores and
-!     restores (y,s) pairs, has to be rewritten.
 !
 !----
 !
@@ -334,7 +307,7 @@ module quasinewton_mod
       !          * N1QN3A
       !          * DDD, DDDS
       !          * NLIS0 + DCUBE (Dec 88)
-      !          * MUPDTS, DYSTBL.
+      !          * MUPDT
       !     
       !          The following routines are proposed to the user in case the
       !          Euclidean scalar product is used:
@@ -838,7 +811,6 @@ module quasinewton_mod
               ybar(i,jcour)=d1*ybar(i,jcour)
   410     continue
 !$OMP END PARALLEL DO
-          if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
 !
 !         --- compute the scalar or diagonal preconditioner
 !

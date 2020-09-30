@@ -51,11 +51,7 @@ program midas_letkf
   type(struct_ens)          :: ensembleAnl
   type(struct_gsv)          :: stateVectorMeanTrl4D
   type(struct_gsv)          :: stateVectorMeanAnl
-  type(struct_gsv)          :: stateVectorMeanInc
   type(struct_gsv)          :: stateVectorWithZandP4D
-  type(struct_gsv)          :: stateVectorStdDevTrl
-  type(struct_gsv)          :: stateVectorStdDevAnl
-  type(struct_gsv)          :: stateVectorStdDevAnlPert
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_columnData)   :: column
 
@@ -65,16 +61,15 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, middleStepIndex, randomSeedRandomPert, randomSeedObs
-  integer :: nulnam, dateStamp, datePrint, timePrint, imode, ierr
-  integer :: get_max_rss, fclos, fnom, fstopc, newdate
+  integer :: memberIndex, middleStepIndex, randomSeedObs
+  integer :: nulnam, dateStamp, ierr
+  integer :: get_max_rss, fclos, fnom, fstopc
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
-  character(len=4)   :: memberIndexStr
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -447,7 +442,7 @@ program midas_letkf
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
+    call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)
     call tmg_stop(104)

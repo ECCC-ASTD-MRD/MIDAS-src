@@ -1884,7 +1884,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_fillProfiles
   !--------------------------------------------------------------------------
-  subroutine tvs_fillProfiles(columnghr, obsSpaceData, datestamp, profileType, limlvhu, beSilent)
+  subroutine tvs_fillProfiles(columnghr, obsSpaceData, datestamp, profileType, beSilent)
     !
     ! :Purpose:  to fill in tvs_profiles_nl structure before call to non-linear, 
     !            tangent-linear or adjoint of RTTOV
@@ -1896,7 +1896,6 @@ contains
     type(struct_obs),        intent(in) :: obsSpaceData ! obsSpaceData structure
     integer,                 intent(in) :: datestamp    ! CMC date stamp
     character (len=*), intent(in) :: profileType
-    real(8),                 intent(in) :: limlvhu      ! humidity value in the stratosphere (if extrapolated)
     logical,                 intent(in) :: beSilent     ! To control verbosity
 
     ! Locals:
@@ -1925,7 +1924,6 @@ contains
     real(8), allocatable :: clw   (:,:)
     logical, allocatable :: surfTypeIsWater(:)
     logical :: runObsOperatorWithClw
-    real(8) :: modelTopPressure
     type(rttov_profile), pointer :: profiles(:)
     real(8), pointer :: column_ptr(:)
 
@@ -2189,7 +2187,7 @@ contains
     integer, intent(in)          :: headerIndex      ! location in header
     real(8)                      :: correctedAzimuth ! corrected azimuth (function result)
     ! Locals
-    integer :: instrum, iplatform, sensorNo, tovsIndex
+    integer :: sensorNo, tovsIndex
 
     correctedAzimuth = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
 

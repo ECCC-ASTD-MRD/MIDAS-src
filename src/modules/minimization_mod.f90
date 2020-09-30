@@ -236,7 +236,6 @@ CONTAINS
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
-      integer :: izs(1)
       real    :: zzsunused(1)
 
       real*8,allocatable :: vazg(:)
@@ -650,7 +649,7 @@ CONTAINS
     do indexAnalysis = 1, numAnalyses
 
       ! write out the original background ensemble perturbation
-      call writeToFile4D(statevector_ens(indexAnalysis),'./bgpert','BGPERT',indexAnalysis,statevector_mean)
+      call writeToFile4D(statevector_ens(indexAnalysis),'./bgpert','BGPERT',indexAnalysis)
 
       ! multiply by -1 (-xb')
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
@@ -709,7 +708,7 @@ CONTAINS
       call bmat_sqrtB(incr_cv,nvadim_mpilocal,statevector_incr)
 
       ! write perturbation analysis increment to file before adding random model-error
-      !call writeToFile4D(statevector_incr,'./pert_inc0','PERT_INC0',indexAnalysis,statevector_mean)
+      !call writeToFile4D(statevector_incr,'./pert_inc0','PERT_INC0',indexAnalysis)
 
       ! compute random model-error
       call calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
@@ -718,13 +717,13 @@ CONTAINS
       call gsv_copy(statevector_randpert,statevector_incr_perturbed)
       call gsv_scale(statevector_incr_perturbed,e1_scaleFactor)
       call gsv_add(statevector_incr,statevector_incr_perturbed)
-      call writeToFile4D(statevector_incr_perturbed,'./pert_inc1','PERT_INC1',indexAnalysis,statevector_mean)
+      call writeToFile4D(statevector_incr_perturbed,'./pert_inc1','PERT_INC1',indexAnalysis)
 
       ! add E2 random model-error to increment and write to file
       call gsv_copy(statevector_randpert,statevector_incr_perturbed)
       call gsv_scale(statevector_incr_perturbed,e2_scaleFactor)
       call gsv_add(statevector_incr,statevector_incr_perturbed)
-      call writeToFile4D(statevector_incr_perturbed,'./pert_inc2','PERT_INC2',indexAnalysis,statevector_mean)
+      call writeToFile4D(statevector_incr_perturbed,'./pert_inc2','PERT_INC2',indexAnalysis)
 
       ! deallocate statevector_ens(indexAnalysis), no longer needed
       call gsv_deallocate(statevector_ens(indexAnalysis))
@@ -749,10 +748,10 @@ CONTAINS
   end subroutine min_analysisPert
 
 
-  subroutine writeToFile4D(statevector,fileName,cetiket,indexAnalysis,statevector_ref)
+  subroutine writeToFile4D(statevector,fileName,cetiket,indexAnalysis)
     implicit none
     ! arguments
-    type(struct_gsv)   :: statevector, statevector_ref
+    type(struct_gsv)   :: statevector
     character(len=*)   :: fileName
     character(len=*)   :: cetiket
     integer            :: indexAnalysis
@@ -1095,7 +1094,7 @@ CONTAINS
   end subroutine simvar
 
 
-  subroutine dscalqn(kdim,px,py,ddsc,kzs, pzs, ddzs)
+  subroutine dscalqn(kdim,px,py,ddsc)
     !:Purpose: Interface for the inner product to be used by the minimization
     !          subroutines QNA_N1QN3.
     !
@@ -1113,10 +1112,6 @@ CONTAINS
     real*8 :: px(kdim) ! vector for which <PX,PY> is being calculated
     real*8 :: py(kdim) ! vector for which <PX,PY> is being calculated
     real*8 :: ddsc     ! result of the inner product
-    integer:: kzs(1)   ! unused working space for INTEGER  (not used)
-    real   :: pzs(1)   ! unused working space for REAL     (not used)
-    real*8 :: ddzs(1)  ! unused working space for REAL*8   (not used)
-
 
     CALL PRSCAL(KDIM,PX,PY,DDSC)
     RETURN
@@ -1154,7 +1149,7 @@ CONTAINS
   end subroutine prscal
 
 
-  subroutine dcanab(kdim,py,px,kzs,pzs,pdzs)
+  subroutine dcanab(kdim,py,px)
     !
     !:Purpose: Change of variable associated with the canonical inner product:
     !
@@ -1166,10 +1161,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim, kzs(1)
-    real pzs(1)
+    integer kdim
     real*8 px(kdim), py(kdim)
-    real*8 pdzs(1)
 
     ! Locals
     INTEGER JDIM
@@ -1182,7 +1175,7 @@ CONTAINS
   end subroutine DCANAB
 
 
-  subroutine dcanonb(kdim,px,py,kzs,pzs,pdzs)
+  subroutine dcanonb(kdim,px,py)
     !
     !:Purpose: Change of variable associated with the canonical inner product:
     !
@@ -1193,10 +1186,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim, kzs(1)
-    real pzs(1)
+    integer kdim
     real*8 px(kdim), py(kdim)
-    real*8 pdzs(1)
 
     ! Locals:
     INTEGER JDIM
@@ -1512,7 +1503,7 @@ CONTAINS
   integer, intent(inout) :: dataptr(:)
 
   ! Locals:
-  integer :: nl_indic, nl_j,ierr
+  integer :: nl_indic, nl_j
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
   real*8  :: dl_alpha, dl_gnorm0

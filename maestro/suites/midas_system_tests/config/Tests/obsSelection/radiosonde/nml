@@ -4,7 +4,6 @@
  &thin_raobs
    verticalThinningES = .true.
    ecmwfRejetsES = .true.
-   rejectTdZeroC = .true.
 /
  &NAMGEM
   numlev = 80

@@ -78,7 +78,7 @@ program midas_ominusf
 
   if ( addHBHT ) then
     ! 2.2 Compute the background errors in observation space
-    call ose_computeStddev(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+    call ose_computeStddev(trlColumnOnAnlLev,obsSpaceData)
   end if
 
   ! 2.3 Write the results

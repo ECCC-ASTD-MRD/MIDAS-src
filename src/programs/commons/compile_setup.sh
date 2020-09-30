@@ -142,7 +142,7 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
 fi
 
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
-OPTF="-check noarg_temp_created -no-wrap-margin"
+OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
     OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
@@ -154,9 +154,9 @@ fi
 
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
-    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
-    COMPF_NOC="${COMPF_GLOBAL} -debug ${OPTF}"
-    COMPF="${COMPF_NOC} -check all"
+    COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
+    COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}

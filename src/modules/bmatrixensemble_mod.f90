@@ -422,8 +422,7 @@ CONTAINS
 
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
-    integer        :: levIndex, jvar, status
-    integer        :: fnom, fclos, ierr, nulnam
+    integer        :: levIndex, jvar, status, ierr
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
@@ -1489,8 +1488,7 @@ CONTAINS
 
     integer :: nTrunc
     integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
-    integer :: mymCount, mynCount, ierr
-    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
+    integer :: mymCount, mynCount
     integer :: waveBandIndexStart, waveBandIndexEnd
     integer :: waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
 
@@ -2632,7 +2630,7 @@ CONTAINS
       if ( mpi_myid == 0 ) write(*,*)
       if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
       call ens_writeEnsemble(bEns(instanceIndex)%ensAmplitudeStorage, ensPathName, ensFileNamePrefix, &
-                             'LQ', 'FROM_BENS', 'R',varNames_opt=bEns(instanceIndex)%varNameALFA, ip3_opt=ip3)
+                             'FROM_BENS', 'R',varNames_opt=bEns(instanceIndex)%varNameALFA, ip3_opt=ip3)
     end if
 
   end subroutine ben_writeAmplitude

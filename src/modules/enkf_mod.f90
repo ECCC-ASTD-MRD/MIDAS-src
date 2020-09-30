@@ -102,8 +102,8 @@ contains
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
     integer :: bodyIndex, localObsIndex, numLocalObs, numLocalObsFound
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
-    integer :: myNumLatLonRecv, myNumLatLonSend, numLatLonRecvMax
-    integer :: numLatLonTotalUnique, latLonIndex, subEnsIndex, subEnsIndex2
+    integer :: myNumLatLonRecv, myNumLatLonSend
+    integer :: latLonIndex, subEnsIndex, subEnsIndex2
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo

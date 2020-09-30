@@ -170,7 +170,7 @@ module oMinusF_mod
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
+        call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
       end if
 
     end subroutine omf_oMinusF

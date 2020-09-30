@@ -183,7 +183,7 @@ contains
     ! Locals:
     integer :: allocStatus(2)
     integer :: tovsIndex, maxChannelNumber
-    integer :: sensorIndex, channelNumber, nlevels
+    integer :: sensorIndex, channelNumber
 
 
     !     Memory allocation for background check related variables
@@ -2498,7 +2498,7 @@ contains
     type (rttov_radiance)      :: radiancedata_d
     type (rttov_emissivity)    :: emissivity(3)
     integer :: nchannels
-    integer :: asw, nlevels, iptobs(1)
+    integer :: nlevels, iptobs(1)
 
   
     if (idiasi_old /= idiasi) then

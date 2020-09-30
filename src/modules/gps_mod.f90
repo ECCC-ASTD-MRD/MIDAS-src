@@ -1041,7 +1041,7 @@ contains
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rTT,rHU,rALT,rUU,rVV,prf)
+       rP0,rPP,rTT,rHU,rALT,prf)
 
     ! Arguments:
     integer(i4)     , intent(in)  :: ngpslev
@@ -1056,8 +1056,6 @@ contains
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
     real(dp)        , intent(in)  :: rALT (ngpssize)
-    real(dp)        , intent(in)  :: rUU (ngpssize)
-    real(dp)        , intent(in)  :: rVV (ngpssize)
 
     type(gps_profile), intent(out) :: prf
 
@@ -1611,39 +1609,6 @@ contains
     enddo
 
   end subroutine gps_structztd_v2
-
-  subroutine gpsdpress(nlev,rHYB,rP0,rPT,rPR,rCF,rDP)
-    !
-    !:Purpose: Computes dP/dP0 for HYBRID or ETA vertical grids
-    !
-
-    ! Arguments:
-    integer           , intent(in)    :: nlev
-    real(dp)          , intent(in)    :: rP0
-    real(dp)          , intent(in)    :: rPT
-    real(dp)          , intent(in)    :: rPR
-    real(dp)          , intent(in)    :: rCF  ! = 1.0 for eta level grid
-    real(dp)          , intent(in)    :: rHYB (ngpssize)
-    real(dp)          , intent(out)   :: rDP  (ngpssize)
-
-    ! Locals:
-    integer(i4)      :: i, ngpslev
-    real(dp)         :: pr1
-
-    ngpslev = nlev
-    if ( abs(rCF-1._dp) .lt. 0.01_dp ) then ! eta
-        do i = 1, ngpslev
-          rDP(i) = rHYB(i)
-        enddo
-    else                                    ! hybrid
-        rDP(1) = 0._dp
-        pr1 = 1._dp/(1._dp - rPT/rPR)
-        do i = 2, ngpslev
-          rDP(i) = ( (rHYB(i) - rPT/rPR)*pr1 )**rCF
-        enddo
-    endif
-
-  end subroutine gpsdpress
 
 
 !modgps05refstruct
@@ -2891,6 +2856,7 @@ contains
     do i=1,ngpslev-1
         gz(i) = (lnu(i+1)%Var - lnu(i)%Var) / (h(i+1)%Var-  h(i)%Var)
     enddo
+    gz(ngpslev) = 0.0_dp
     
     iSize = size(impv)
     if (nval < iSize) iSize=nval

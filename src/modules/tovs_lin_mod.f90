@@ -70,7 +70,7 @@ contains
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,nlv_M,nlv_T
-    integer :: levelIndex, profileIndex
+    integer :: profileIndex
     integer :: status, Vcode
 
     character(len=4) :: ozoneVarName
@@ -95,7 +95,6 @@ contains
     type(rttov_transmission) :: transmission_tl    ! transmission tl
     type(rttov_profile), pointer :: profilesdata_tl(:) ! tl profiles buffer used in rttov calls
     type(rttov_chanprof), pointer :: chanprof(:)
-    logical, save        :: first=.true.
     logical, pointer :: calcemis(:)
     logical :: runObsOperatorWithClw_tl
     integer :: asw

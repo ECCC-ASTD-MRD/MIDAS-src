@@ -46,7 +46,7 @@ program midas_prepcma
   logical :: suprep, rejectOutsideTimeWindow, thinning, applySatUtil
   logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles, writeAsciiCmaFiles
 
-  integer :: fnom, fclos, get_max_rss, nulnam, ierr, dateStamp
+  integer :: fnom, fclos, nulnam, ierr, dateStamp
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)

@@ -126,7 +126,7 @@ CONTAINS
     integer                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
     integer                :: IND_ELE,IND_VCOORD
     integer                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
-    integer                :: IND_LAT,IND_LON,IND_TIME,IND_BCOR,IND_BCOR_TT,IND_BCOR_HU,IND_obsClear
+    integer                :: IND_LAT,IND_LON,IND_TIME,IND_obsClear
 
     integer                :: vcord_type(10),SUM
     real                   :: ELEVFACT
@@ -2774,7 +2774,7 @@ CONTAINS
                 if (allocated(TRINFO))  then
                   call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
                 else
-                  call setInfoToMissing(obsdat,liste_info,nele_info)
+                  call setInfoToMissing(obsdat)
                 end if
 
               END IF
@@ -2858,7 +2858,7 @@ CONTAINS
                   if (allocated(TRINFO))  then
                     call writeInfo(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
                   else
-                    call setInfoToMissing(obsdat,liste_info,nele_info)
+                    call setInfoToMissing(obsdat)
                   end if
 
                 END IF
@@ -3167,7 +3167,7 @@ CONTAINS
     CHARACTER(len=2)  :: FAMTYP
     REAL              :: ELEVFACT,VCOORD,ZEMFACT
     INTEGER           :: NELE,NVAL,VCO,NONELEV
-    integer           :: LISTE_ELE(:),ID_OBS,NOBS,VARNO,IL,J,COUNT,NLV
+    integer           :: LISTE_ELE(:),NOBS,VARNO,IL,J,COUNT,NLV
     INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2
@@ -3695,7 +3695,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! setInfoToMissing
   !--------------------------------------------------------------------------
-  subroutine setInfoToMissing(obsdat,liste_info,nele_info)
+  subroutine setInfoToMissing(obsdat)
     ! :Purpose: Set the obsSpaceData column related to the info block with
     !           missing values
 
@@ -3703,8 +3703,6 @@ CONTAINS
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    integer     ::   nele_info
-    integer     ::   liste_info(nele_info)
 
     ! Locals:
     integer :: nobs
@@ -4533,20 +4531,18 @@ CONTAINS
     type(BURP_FILE)        :: inputFile
     type(BURP_RPT)         :: inputReport,copyReport
     type(BURP_BLOCK)       :: inputBlock
-    character(len=9)       :: opt_missing
     integer                :: btyp10, btyp, bfam, error
-    integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
+    integer                :: btyp10obs, btyp10flg
     integer                :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable   :: address(:)
     integer, allocatable   :: btobs(:,:)
     logical, allocatable   :: goodTB(:,:)
     integer                :: nbele,nvale,nte
-    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex
+    integer                :: headerIndex, valIndex, tIndex, reportIndex
     integer                :: ind012163,ind212163
     integer                :: idata
     integer                :: flag_passage, flagval
     integer                :: idatyp
-    real                   :: val_option_r4
     character(len=9)       :: station_id
 
     write(*,*) '----------------------------------------------------------'
@@ -4842,12 +4838,10 @@ CONTAINS
     integer                     :: nbele, nvale, nte
     integer                     :: valIndex, tIndex, reportIndex, btyp, idatyp, bfam, error
     integer                     :: indele, nsize, iun_burpin
-    integer                     :: ibfam, ival, nulnam
-    real                        :: rval
+    integer                     :: nulnam
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     integer                     :: icodele
-    integer                     :: icodeleRad
     integer                     :: icodeleMrq 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
@@ -5206,7 +5200,6 @@ CONTAINS
     logical                     :: resumeReport, cleanLevels, checkBlock
     character(len=2)            :: familyTypesToDo(7) = (/'AI','SW','TO','SC','GP','UA','SF'/)
     character(len=9)            :: stnid
-    real(4)                     :: realBurpValue
     logical                     :: debug = .false.
 
     write(*,*)
@@ -5752,27 +5745,6 @@ CONTAINS
   end function isObsBlock
 
   
-  function isInfoBlock(familyType, btyp) result(isInfo)
-    implicit none
-
-    ! Arguments:
-    character(len=*) :: familyType
-    integer :: btyp
-    logical :: isInfo
-
-    ! Locals:
-    integer :: btyp10, btyp10info
-
-    isInfo = .false.
-
-    btyp10 = ishft(btyp,-5)
-    btyp10info = 96
-
-    isInfo = (btyp10 == btyp10info) .or. (btyp10 - 1 == btyp10info)
-    
-  end function isInfoBlock
-
-
   subroutine getElementIdsRead(familyType, elementIds)
     implicit none
 

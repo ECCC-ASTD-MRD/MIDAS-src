@@ -263,9 +263,9 @@ contains
     type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
-    integer :: bodyIndex, kIndex, kIndexCount, myKBeg
+    integer :: kIndex, kIndexCount, myKBeg
     integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
-    integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
+    integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
@@ -277,9 +277,8 @@ contains
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     real(8), allocatable :: allLatOneLev(:,:)
     real(8), allocatable :: allLonOneLev(:,:)
-    logical :: obsOutsideGrid
     character(len=4), pointer :: varNames(:)
-    character(len=4)          :: varLevel, varName
+    character(len=4)          :: varLevel
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
     real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
@@ -716,8 +715,8 @@ contains
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(:,procIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(:,procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             end if
           end do
 
@@ -874,7 +873,7 @@ contains
 
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex,stepIndex,procIndex)
 
-            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, &
                                       stateVector, headerIndex, kIndex, stepIndex, &
                                       procIndex, numGridpt)
 
@@ -932,9 +931,8 @@ contains
 
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
 
-            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
-                                      stateVector, headerIndex, kIndex, stepIndex, &
-                                      procIndex, numGridpt)
+            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, stateVector, &
+                                      headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
           end do ! headerIndex
 
@@ -1112,8 +1110,9 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex, procIndex )
+                call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex),  &
+                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, &
+                                  stepIndex, procIndex )
               end if
             end if
           end do
@@ -1400,9 +1399,9 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                call myezsint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex,  &
-                                  procIndex )
+                call myezsint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
+                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, &
+                                  stepIndex, procIndex )
               end if
             end if
           end do
@@ -1475,7 +1474,7 @@ contains
     type(struct_gsv) :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
-    integer :: headerIndexBeg, headerIndexEnd, headerIndexEndMax, obsBatchIndex, numObsBatches
+    integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mpi_nprocs)
     integer :: kIndexHeightSfc
     real(8) :: weight
@@ -1650,7 +1649,7 @@ contains
                                      ptr3d_UV_r4(:,:,stepIndex), ptr4d_r4(:,:,kIndex,stepIndex), &
                                      interpInfo_nl, kindex, stepIndex, procIndex )
                 else
-                  call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                  call myezsint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
                                     ptr4d_r4(:,:,kIndex,stepIndex),  &
                                     interpInfo_nl, kindex, stepIndex, procIndex )
                 end if
@@ -1739,7 +1738,7 @@ contains
               yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
               if ( yourNumHeader > 0 ) then
                 ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
-                call myezsint_r8_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                call myezsint_r8_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
                                      ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
               end if
             end do
@@ -1833,7 +1832,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_nl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_nl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -1842,7 +1841,6 @@ contains
 
     ! arguments
     real(8)                 :: column_out(:)
-    character(len=*)        :: varName
     real(4)                 :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
@@ -1884,7 +1882,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_r8_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_r8_nl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_r8_nl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -1893,7 +1891,6 @@ contains
 
     ! arguments
     real(8)                 :: column_out(:)
-    character(len=*)        :: varName
     real(8)                 :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
@@ -1935,7 +1932,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_tl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_tl( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_tl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -1944,7 +1941,6 @@ contains
 
     ! arguments
     real(8)                 :: column_out(:)
-    character(len=*)        :: varName
     real(pre_incrReal)      :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
@@ -1986,7 +1982,7 @@ contains
   ! -------------------------------------------------------------
   ! myezsint_ad: Adjoint of scalar field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezsint_ad( column_in, varName, field_out, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_ad( column_in, field_out, interpInfo, kIndex, stepIndex, procIndex )
     !
     ! :Purpose: Adjoint of the scalar horizontal interpolation.
     !
@@ -1994,7 +1990,6 @@ contains
 
     ! Arguments:
     real(8)                 :: column_in(:)
-    character(len=*)        :: varName
     real(pre_incrReal)      :: field_out(:,:)
     type(struct_interpInfo) :: interpInfo
     integer                 :: stepIndex
@@ -2526,7 +2521,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupHorizInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, &
                                   stateVector, headerIndex, kIndex, stepIndex, &
                                   procIndex, numGridpt)
     !
@@ -2540,7 +2535,6 @@ contains
     ! Arguments:
     real(4)                , intent(in)    :: footprintRadius_r4 ! (metres)
     type(struct_interpInfo), intent(inout) :: interpInfo
-    type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
@@ -2548,19 +2542,19 @@ contains
 
     if ( footprintRadius_r4 > 0.0 ) then
 
-      call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == bilinearFootprint ) then
 
-      call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == lakeFootprint ) then
 
-      call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
 
-      call s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
     else
 
@@ -2750,9 +2744,8 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, &
-                                     headerIndex, kIndex, stepIndex, procIndex,&
-                                     numGridpt)
+  subroutine s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, kIndex, &
+                                     stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
     !          for the bilinear horizontal interpolation.
@@ -2761,16 +2754,14 @@ contains
 
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
-    type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! Locals:
-    integer :: localHeaderIndex, bodyIndex, depotIndex
-    integer :: ierr
-    integer :: bodyIndexBeg, bodyIndexEnd, niP1
+    integer :: depotIndex
+    integer :: ierr, niP1
     integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     integer :: ipoint, gridptCount
@@ -2964,9 +2955,8 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupFootprintInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, &
-                                      stateVector, headerIndex, kIndex, &
-                                      stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupFootprintInterp(fpr, interpInfo, stateVector, headerIndex, &
+                                      kIndex, stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
     !          for the footprint horizontal interpolation.
@@ -2976,16 +2966,14 @@ contains
     ! Arguments:
     real(4)                , intent(in)    :: fpr ! footprint radius (metres)
     type(struct_interpInfo), intent(inout) :: interpInfo
-    type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! Locals:
-    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: depotIndex
     integer :: ierr
-    integer :: bodyIndexBeg, bodyIndexEnd
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(4) :: lon_deg_r4, lat_deg_r4
@@ -3166,9 +3154,8 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupLakeInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, &
-                                 headerIndex, kIndex, stepIndex, procIndex, &
-                                 numGridpt)
+  subroutine s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, kIndex, &
+                                 stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
     !          for the lake horizontal interpolation.
@@ -3177,16 +3164,14 @@ contains
 
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
-    type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! Locals:
-    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: depotIndex
     integer :: ierr
-    integer :: bodyIndexBeg, bodyIndexEnd
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(4) :: lon_deg_r4, lat_deg_r4
@@ -3311,8 +3296,8 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupNearestNeighbor
   !--------------------------------------------------------------------------
-  subroutine s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, &
-                                      headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, kIndex, &
+                                      stepIndex, procIndex, numGridpt)
     !
     !:Purpose: Determine the nearest grid points to the observations location
     !
@@ -3320,15 +3305,13 @@ contains
 
     ! arguments
     type(struct_interpInfo), intent(inout) :: interpInfo
-    type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! locals
-    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: depotIndex
     integer :: ierr
-    integer :: bodyIndexBeg, bodyIndexEnd
     integer :: latIndex, lonIndex
     integer :: subGridIndex
     real(4) :: lon_deg_r4, lat_deg_r4
@@ -3427,11 +3410,10 @@ contains
     ! Locals:
     integer :: ierr
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, niP1, subGridIndex
-    integer :: nlev_T, lev_T, nlev_M, lev_M
+    integer :: nlev_T, nlev_M
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    real(4) :: xposRecalc_r4, yposRecalc_r4, xpos2Recalc_r4, ypos2Recalc_r4
-    logical :: latlonOutsideGrid, latlonRecalcOutsideGrid, rejectHeader
+    logical :: latlonOutsideGrid, rejectHeader
 
     ! external functions
     integer :: gdllfxy

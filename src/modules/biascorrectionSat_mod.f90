@@ -198,9 +198,8 @@ CONTAINS
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff 
     logical            :: bcifExists
    
-    !variables from background coeff file
+    ! variables from background coeff file
     integer            :: nfov, exitCode
-    integer            :: nchan(tvs_nSensors)
     character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
@@ -527,7 +526,7 @@ CONTAINS
     type(struct_obs), intent(inout)  :: obsSpaceData
     !Locals:
     real(8) :: predictor(NumPredictors)
-    integer :: iobs,iChannel,nsize,i,j,npred
+    integer :: iobs,nsize,i,j,npred
     integer :: headerIndex, idatyp, indxtovs
     integer :: iSensor,iFov,iPredictor,ierr
     integer :: bodyIndex, jpred, chanIndx
@@ -646,7 +645,7 @@ CONTAINS
     type(struct_columnData) :: columnhr
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
-    integer  :: iSensor,iPredictor,index_cv,chanIndx
+    integer  :: iSensor,iPredictor,chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
     real(8)  :: biasCor
@@ -1064,7 +1063,7 @@ CONTAINS
     type(struct_columnData) :: columnhr
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
-    integer  :: iSensor,iPredictor,index_cv,chanIndx
+    integer  :: iSensor,iPredictor,chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
     real(8), pointer :: cv_bias(:)
@@ -1415,7 +1414,7 @@ CONTAINS
     type(struct_obs)     :: obsSpaceData
     !Locals:
     integer  :: headerIndex, bodyIndex, iobs, idatyp
-    integer  :: iSensor, iChannel, iPredictor, index_cv, nsize, ierr, chanIndx
+    integer  :: iSensor, iChannel, iPredictor, chanIndx
     integer  :: iScan, iFOV, jPred
     real(8)  :: predictor(NumPredictors)
     real(8), pointer  :: cv_bias(:)
@@ -1599,8 +1598,8 @@ CONTAINS
     !Parameter:
     real(8), optional  :: cv_in(:)
     !Locals:
-    integer  :: iSensor, iChannel, iPredictor, iScan, instIndex
-    integer  :: jSensor, jChannel, iChannel2, myNbScan
+    integer  :: iSensor, iChannel, iPredictor, iScan
+    integer  :: jSensor, iChannel2
     integer  :: nulfile_inc, nulfile_fov, ierr
     integer, external  :: fnom, fclos
     real(8), pointer :: cv_bias(:)
@@ -1772,15 +1771,8 @@ CONTAINS
     integer            :: npred(maxsat, tvs_maxChannelNumber)       ! dim(maxsat, tvs_maxchannelnumber), number of predictors
     integer            :: ndata(maxsat, tvs_maxChannelNumber)
     ! LOCAL for reading background coeff file
-    character(len=10)  :: sat
-    character(len=120) :: line
-    integer            :: chan, nbfov, nbpred
-    integer            :: mincol, maxcol, nbcol
-    integer            :: ier, istat 
-    integer            :: iSat, jChan, kPred, kFov, totSat
-    logical            :: newsat, verbose
-    real               :: dummy
-    integer            :: iun
+    integer            :: iSat, jChan, kPred, kFov
+    logical            :: verbose
     ! update coeff files
     real               :: fovbias_an(maxsat,tvs_maxChannelNumber,maxfov)
     real               :: coeff_an(maxsat,tvs_maxChannelNumber,maxpred) 
@@ -1930,8 +1922,8 @@ CONTAINS
     ! :Purpose:  write out  the coeff files (regression case).
     !
     implicit none
-    !Locals:
-    integer            :: iuncoef, ierr, numPred
+    ! Locals:
+    integer            :: iuncoef, numPred
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
     character(len=2), parameter  :: predTab(2:6) = (/ "T1", "T2", "T3", "T4", "SV"/)
@@ -2404,7 +2396,7 @@ CONTAINS
     type(struct_obs), intent(inout)        :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnhr
     !Locals:
-    integer    :: iSensor, iChannel, nobs, ifail, npred,nchans, nscan, ndim, ndimmax
+    integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex,iPred1,jPred1,iobs
     integer    :: headerIndex, idatyp,nPredMax,ierr,iFov, iScan, idim
     integer    :: indxtovs, bodyIndex, chanIndx, predstart, ntot

@@ -161,7 +161,7 @@ contains
   end subroutine sqlr_initHeader
 
 
-  subroutine sqlr_readSqlite(obsdat, familyType, fileName, FileNumb )
+  subroutine sqlr_readSqlite(obsdat, familyType, fileName )
     !
     ! :Purpose: To read SQLite namelist and files.
     ! 
@@ -171,8 +171,8 @@ contains
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
     character(len=*) , intent(in)    :: familyType ! Family Type may be TOVS or CONV
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
-    integer          , intent(in)    :: fileNumb   ! Stdout file unit number
-    ! locals
+
+    ! Locals:
     character(len=9)         :: rdbSchema
     character(len=12)        :: idStation
     integer                  :: obsIdo, obsIdd, codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
@@ -1063,7 +1063,7 @@ contains
   end subroutine sqlr_insertSqlite
 
 
-  subroutine sqlr_cleanSqlite(db, obsdat, familyType, fileName, fileNumber)
+  subroutine sqlr_cleanSqlite(db, fileName)
     !
     ! :Purpose: Remove flagged (bit 11 set) observations in an SQLite file
     !
@@ -1071,10 +1071,7 @@ contains
 
     ! arguments
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    type(struct_obs),    intent(inout) :: obsdat
-    character(len=*),    intent(in) :: familyType
     character(len=*),    intent(in) :: fileName
-    integer,             intent(in) :: fileNumber
 
     ! locals
     character(len=*), parameter :: myName = 'sqlr_cleanSqlite:'
@@ -1162,7 +1159,7 @@ contains
     logical                :: onlyAssimObs ! only write assimilated obs
 
     ! locals:
-    integer                :: familyIndex, codeType, codeTypeIndex, fileIndex
+    integer                :: familyIndex, codeTypeIndex, fileIndex
     character(len=2)       :: obsFamilyList(50)
     integer                :: obsFamilyListSize
     integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(30)

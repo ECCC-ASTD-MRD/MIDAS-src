@@ -942,20 +942,23 @@ module gridStateVector_mod
     !           over the mpi tasks. If the variation in the number of grid
     !           points in either direction is too large, other mpi topologies
     !           will be suggested in the listing and the program could
-    !           potentially abort.
+    !           potentially abort. The printing to the listing is limited
+    !           to only the first 5 calls.
     !
     implicit none
 
     ! arguments
     type(struct_gsv) :: statevector
     ! locals
-    integer :: npex, npey
-    integer :: lonPerPEmin, lonPerPEmax, latPerPEmin, latPerPEmax
+    integer       :: npex, npey
+    integer       :: lonPerPEmin, lonPerPEmax, latPerPEmin, latPerPEmax
+    integer, save :: numCalls = 0
 
     ! check if distribution of gridpoints over mpi tasks is very uneven
     if ( maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE) .or. &
          maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE) ) then
-      if (mpi_myid == 0) then
+      numCalls = numCalls + 1
+      if ( mpi_myid == 0 .and. (numCalls <= 5) ) then
         write(*,*) '============================================================='
         write(*,*)
         write(*,*) 'gsv_allocate: WARNING: bad choice of mpi topology!'
@@ -998,6 +1001,13 @@ module gridStateVector_mod
       end if
 
       if (abortOnMpiImbalance) call utl_abort('gsv_allocate: Please choose a better mpi topology')
+    else
+
+      ! After 5 calls, just give a short message
+      if ( mpi_myid ==0 ) then
+        write(*,*) 'gsv_allocate: WARNING: bad choice of mpi topology!'
+      end if
+
     end if
 
   end subroutine gsv_checkMpiDistribution
@@ -3829,7 +3839,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, MpiIdUU, MpiIdVV
-    integer :: levUV, kIndex, stepIndex, numSend, numRecv
+    integer :: levUV, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_out%nk), requestIdRecv(stateVector_out%nk)
     integer :: mpiStatuses(mpi_status_size,stateVector_out%nk)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -5155,8 +5165,14 @@ module gridStateVector_mod
 
     allocate(gd_send_r4(statevector%lonPerPEmax,statevector%latPerPEmax))
     if ( mpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
-      allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
       allocate(work2d_r4(statevector%ni,statevector%nj))
+      if (statevector%mpi_local) then
+        ! Receive tile data from all mpi tasks
+        allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
+      else
+        ! Already have entire domain on mpi task (lat/lonPerPEmax == nj/ni)
+        allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,1))
+      end if
     else
       allocate(gd_recv_r4(1,1,1))
       allocate(work2d_r4(1,1))
@@ -5172,7 +5188,7 @@ module gridStateVector_mod
                    1:statevector%latPerPE) =  &
              real(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd, &
                                     statevector%myLatBeg:statevector%myLatEnd),4)
-        if ( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+        if ( (mpi_nprocs > 1) .and. statevector%mpi_local ) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
                                gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
@@ -6397,7 +6413,7 @@ module gridStateVector_mod
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
-    integer :: kIndex, procIndex, stepIndex, numStep
+    integer :: kIndex, stepIndex, numStep
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)

@@ -208,7 +208,7 @@ program midas_obsimpact
   !
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
+  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
@@ -346,7 +346,7 @@ contains
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
  
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
-    call fso_calcFcstError(columng,obsSpaceData,statevector_FcstErr)
+    call fso_calcFcstError(columng,statevector_FcstErr)
    
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
@@ -355,7 +355,7 @@ contains
     if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
-      call fso_minimize(vhat, nvadim_mpilocal, zhat, column, columng, obsSpaceData)
+      call fso_minimize(nvadim_mpilocal, zhat, column, columng, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     elseif( trim(fsoMode) == 'EFSO' ) then
@@ -396,7 +396,7 @@ contains
 
   end subroutine fso_ensemble
 
-  subroutine fso_calcFcstError(columng,obsSpaceData,statevector_out)
+  subroutine fso_calcFcstError(columng,statevector_out)
     !
     ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
     ! Based on these inputs, it calculates the Forecast error
@@ -404,7 +404,6 @@ contains
     implicit none
     
     type(struct_columnData),target  :: columng
-    type(struct_obs),target         :: obsSpaceData
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
     type(struct_gsv)                :: statevector_out
     character(len=256)              :: fileName_fa, fileName_fb, fileName_a
@@ -479,12 +478,12 @@ contains
 
   end subroutine fso_calcFcstError
 
-  subroutine fso_minimize(vhat,nvadim,zhat,column,columng,obsSpaceData)
+  subroutine fso_minimize(nvadim,zhat,column,columng,obsSpaceData)
     implicit none
 
     type(struct_columnData),target  :: columng, column
     type(struct_obs),target         :: obsSpaceData
-    real(8),dimension(nvadim)       :: vhat, zhat
+    real(8),dimension(nvadim)       :: zhat
     real(8),allocatable             :: gradJ(:), vatra(:)
     ! for minimization
     integer                         :: imode, itermax, isimmax, indic,nvadim, nmtra
@@ -761,7 +760,7 @@ contains
 
   end subroutine simvar
 
-  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
+  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC)
     ! DSCALQN: inner product in canonical space
     !
     ! Purpose: interface for the inner product to be used
@@ -771,14 +770,7 @@ contains
     !     i : KDIM      : dimension of the vectors
     !     i : PX, PY    : vector for which <PX,PY> is being calculated
     !     o : DDSC      : result of the inner product
-    !     i :  KZS(1)   : unused working space for INTEGER  (not used)
-    !     i :  PZS(1)   : unused working space for REAL     (not used)
-    !     i : PDZS(1)   : unused working space for REAL*8   (not used)
     IMPLICIT NONE
-
-    REAL PZS(1)
-    INTEGER KZS(1)
-    REAL(8)  DDZS(1)
 
     INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
@@ -801,12 +793,9 @@ contains
     !
     IMPLICIT NONE
 
-    INTEGER KDIM, J, RR
+    INTEGER KDIM, J
     REAL(8) PX(KDIM), PY(KDIM)
     REAL(8) DDSC
-    REAL(8) partialsum(128)
-    INTEGER mythread,numthreads,jstart,jend
-    INTEGER omp_get_thread_num,omp_get_num_threads
 
     DDSC = 0.D0
 
@@ -820,7 +809,7 @@ contains
 
   END SUBROUTINE PRSCAL
 
-  SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
+  SUBROUTINE DCANAB(KDIM,PY,PX)
     ! DCANAB  - Change of variable associated with the canonical inner product
     !
     ! Author    JM Belanger CMDA/SMC   May 2001
@@ -834,10 +823,8 @@ contains
     !
     IMPLICIT NONE
 
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
+    INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) PDZS(1)
 
     INTEGER JDIM
 
@@ -849,7 +836,7 @@ contains
 
   END SUBROUTINE DCANAB
 
-  SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
+  SUBROUTINE DCANONB(KDIM,PX,PY)
     ! DCANONB  - Change of variable associated with the canonical inner product
     !
     ! Author    JM Belanger CMDA/SMC  May 2001
@@ -862,10 +849,8 @@ contains
     !(see the modulopt documentation about DTONB)
     !
     IMPLICIT NONE
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
+    INTEGER KDIM
     REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) PDZS(1)
 
     INTEGER JDIM
 
