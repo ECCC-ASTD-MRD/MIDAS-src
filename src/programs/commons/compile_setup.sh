@@ -34,6 +34,51 @@ else
     exit 1
 fi
 
+## https://stackoverflow.com/a/4025065
+## if $1 = $2, returns '='
+## if $1 < $2, returns '<'
+## if $1 > $2, returns '>'
+vercomp () {
+    if [[ $1 == $2 ]]
+    then
+        echo '='
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            echo '>'
+            return
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            echo '<'
+            return
+        fi
+    done
+}
+
+check_ec_atomic_profile_version () {
+    set -e
+    if [ "$(vercomp 1.11.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
+        echo "EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.11.0"
+        echo "Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.11.0"
+        exit 1
+    fi
+}
+
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
@@ -44,6 +89,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
     echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+    check_ec_atomic_profile_version
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
     LIBIRC=irc
@@ -56,6 +102,7 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+    check_ec_atomic_profile_version
     echo "... loading Intel compiler"
     . r.env.dot --comp 19.0.5
     echo "... loaded compiler ${COMP_ARCH}"
