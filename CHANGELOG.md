@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Increased tvs_maxNumberOfSensors to 100 + security check (#404 and !381).
 
 ### Removed
 
