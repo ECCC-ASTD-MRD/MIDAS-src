@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
 
 stages:
    - build
@@ -33,7 +34,7 @@ runtests:
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - ./collect_unittest_listings
+     - collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
