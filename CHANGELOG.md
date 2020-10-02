@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Increased tvs_maxNumberOfSensors and added check on the number of sensors in stats_tovs file (#404 and !390)
- * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.6.0-a2]
+
+### Fixed
+
+ * Increased tvs_maxNumberOfSensors and added check on the number of sensors in stats_tovs file (#404 and !390)
+ * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
 
 ## [3.6.0-a1]
 
@@ -593,7 +599,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...HEAD
+[3.6.0-a2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...v_3.6.0-a2
 [3.6.0-a1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0-a1
 [3.5.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...v_3.5.2
 [3.5.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
