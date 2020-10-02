@@ -780,31 +780,8 @@ contains
 
     call tmg_start(148,'ENKF_EXTRACTBODY')
 
-    ! arguments:
-    type(struct_obs), target  :: obsSpaceData
-
-    ! locals:
-    real(obs_real), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
-    integer            :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
-    real(obs_real)     :: lat_obs
-
-    ! for AMSUB observations set the observation error std dev equal to 1.0
-    ! in the larger tropical area where the spread-skill correlation suggests 
-    ! that the data are accurate (.i.e |lat|<40. ). Otherwise don't reduce the
-    ! observational error.
-    do headerIndex = 1, obs_numheader(obsSpaceData)
-      lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
-      codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
-      lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
-      if ( abs(lat_obs) < 40. .and. (codeType == codtyp_get_codtyp('amsub') .or.  &
-                                     codeType == codtyp_get_codtyp('mhs') .or.  &
-                                     codeType == codtyp_get_codtyp('mwhs2')) ) then
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_r(obsSpaceData, obs_oer, bodyIndex, AMSUB_trop_oer)
-        end do
-      end if
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
+      outputVector(bodyIndex) = obs_bodyElem_i(obsSpaceData,obsColumnIndex,bodyIndex)
     end do
 
     call tmg_stop(148)
