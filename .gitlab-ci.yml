@@ -35,7 +35,7 @@ runtests:
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
+     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
