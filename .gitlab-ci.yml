@@ -51,9 +51,9 @@ doc_f90doc:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
     midasdoc: /home/${USER}/public_html/midas-doc
   script:
-  - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
-  - rm -fv $midasdoc/latest
-  - ln -sv $midasdoc/$docname $midasdoc/latest
+    - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
+    - rm -fv $midasdoc/latest
+    - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
 
@@ -63,10 +63,10 @@ doc_sphinx:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
     midasdoc: /home/${USER}/public_html/midas-sphinx-doc
   script:
-  - cd scripts/sphinx
-  - ./build_html.sh ../../src $midasdoc/$docname
-  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+    - cd scripts/sphinx
+    - ./build_html.sh ../../src $midasdoc/$docname
+    - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+    - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - v_3.4
     - 408-fix-the-ci-for-branch-v_3-4
