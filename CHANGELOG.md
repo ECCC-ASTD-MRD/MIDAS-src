@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#400 and !384).
  * Increased tvs_maxNumberOfSensors to 100 + security check (#404 and !381).
 
 ### Removed

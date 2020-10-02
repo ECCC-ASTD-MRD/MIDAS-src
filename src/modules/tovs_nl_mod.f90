@@ -305,7 +305,6 @@ contains
         tvs_ltovsno (index_header) = tvs_nobtov
       else
         write(*,*) " tvs_setupAlloc: Warning Invalid Sensor ",IPLATFORM,ISAT,INSTRUM," skipping ..."
-        cycle HEADER
       endif
 
       ! loop over all body indices (still in the 'TO' family)
@@ -314,18 +313,22 @@ contains
       BODY: do 
         index_body = obs_getBodyIndex(lobsSpaceData)
         if (index_body < 0) exit BODY
+        if (nosensor > 0) then
+          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == 1 ) THEN
+            ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
+            ICHN = max(0,min(ICHN,tvs_maxChannelNumber+1))
+            
+            ICHN = ICHN - tvs_channelOffset(nosensor)
 
-        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == 1 ) THEN
-          ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-          ICHN = max(0,min(ICHN,tvs_maxChannelNumber+1))
-          
-          ICHN = ICHN - tvs_channelOffset(nosensor)
-
-          INDXCHN = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),ichn)
-          if ( indxchn == 0 ) then
-            tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
-            tvs_ichan(tvs_nchan(nosensor),nosensor) = ichn
+            INDXCHN = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),ichn)
+            if ( indxchn == 0 ) then
+              tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
+              tvs_ichan(tvs_nchan(nosensor),nosensor) = ichn
+            end if
           end if
+        else
+          ! set to notAssimilated if instrument not in NAMTOV namelist
+          call obs_bodySet_i(lobsSpaceData, OBS_ASS, index_body, 0)
         end if
       end do BODY
     end do HEADER
