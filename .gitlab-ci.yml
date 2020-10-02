@@ -1,7 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
-    MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
-    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
+    MIDAS_ABS: /home/${USER}/data_maestro/ords/midas/gitlab-ci/abs
+    LISTINGS_ARCHIVE: /home/${USER}/data_maestro/eccc-ppp4/UnitTests/midas/listings
 
 stages:
    - build
@@ -47,7 +47,7 @@ doc_f90doc:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl888/public_html/midas-doc
+    midasdoc: /home/${USER}/public_html/midas-doc
   script:
   - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
   - rm -fv $midasdoc/latest
@@ -59,7 +59,7 @@ doc_sphinx:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
+    midasdoc: /home/${USER}/public_html/midas-sphinx-doc
   script:
   - cd scripts/sphinx
   - ./build_html.sh ../../src $midasdoc/$docname
