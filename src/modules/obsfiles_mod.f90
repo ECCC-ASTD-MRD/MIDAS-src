@@ -923,8 +923,10 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
     if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
-             (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+      if ( (tvs_isIdBurpInst(codtyp,'atms' )) .or. &
+           (tvs_isIdBurpInst(codtyp,'amsua')) .or. &
+           (tvs_isIdBurpInst(codtyp,'amsub')) .or. &
+           (tvs_isIdBurpInst(codtyp,'mhs'  )) ) then
         mwDataPresent = .true.
       end if
     end do HEADER

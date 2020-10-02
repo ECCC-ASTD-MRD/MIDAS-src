@@ -2296,9 +2296,9 @@ CONTAINS
 
             if(HIRES) allocate(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
-            ! If ATMS or AMSUA, read the element 33081 or 33082
+            ! If ATMS or AMSUA, or AMSUB read the element 33081 or 33082
             IND_dataQcFlag2 = -1
-            if ( idtyp == 192 .or. idtyp == 164 ) then
+            if ( idtyp == 192 .or. idtyp == 164 .or. idtyp == 181 .or. idtyp == 182) then
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081,IOSTAT=error)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032,IOSTAT=error)
               if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
@@ -4241,26 +4241,19 @@ CONTAINS
 
           end if ! hyper Spectral
 
-          if ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+          if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
+               (tvs_isIdBurpInst(idatyp,'amsua')) .or. & 
+               (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
+               (tvs_isIdBurpInst(idatyp,'mhs'  )) ) then 
+            write(*,*) 'brpr_addCloudParametersAndEmissivity for ELE = ', idatyp
             ! info block (btyp = 0001 100000X XXXX) 
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
             if ( btyp10 == btyp10inf ) then
               flag_passage2 = 1
-              ! Marqueur d'info SMOS
-              ind25174 = BURP_Find_Element(inputBlock, ELEMENT=025174, iostat=error)
               indtmp = nbele
-              if (ind25174 < 0) then
-                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                if (error/=burp_noerr) then
-                  call handle_error("Erreur dans BURP_Resize_Block info")
-                end if
-                ind25174 = indtmp + 1
-                call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
-                indtmp = indtmp + 1
-              end if
-              ! clwObs
+              ! CLW
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4322,7 +4315,6 @@ CONTAINS
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
-                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
                   if ( tvs_mwAllskyAssim .and. &
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
@@ -4333,8 +4325,6 @@ CONTAINS
                   idata2 = idata2 + 1
 
                 else
-
-                  call Insert_into_burp_i(-1,ind25174,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
                   if ( tvs_mwAllskyAssim .and. &
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
@@ -4396,7 +4386,10 @@ CONTAINS
           write(*,*)
           write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
         end if
-      else if  ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+      else if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
+                (tvs_isIdBurpInst(idatyp,'amsua')) .or. &
+                (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
+                (tvs_isIdBurpInst(idatyp,'mhs'  )) ) then 
         if ( flag_passage1 == 0 ) then
           write(*,*)
           write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'

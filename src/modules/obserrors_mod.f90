@@ -1073,7 +1073,6 @@ contains
                  ityp == BUFR_NBT3     ) then
 
               channelNumber = NINT( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
-
               call tvs_mapSat( iplatf, iplatform, isat )
               call tvs_mapInstrum( instr, instrum )
 
