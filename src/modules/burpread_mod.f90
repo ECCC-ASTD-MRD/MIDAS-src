@@ -2296,9 +2296,9 @@ CONTAINS
 
             if(HIRES) allocate(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
-            ! If ATMS or AMSUA, read the element 33081 or 33082
+            ! If ATMS or AMSUA, or AMSUB read the element 33081 or 33082
             IND_dataQcFlag2 = -1
-            if ( idtyp == 192 .or. idtyp == 164 ) then
+            if ( idtyp == 192 .or. idtyp == 164 .or. idtyp == 181 .or. idtyp == 182) then
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081,IOSTAT=error)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032,IOSTAT=error)
               if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
@@ -3781,7 +3781,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, indClwFG, ind13208, ind25174, indtmp
+    integer                :: ind13209, indClwFG, ind13208, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4241,26 +4241,16 @@ CONTAINS
 
           end if ! hyper Spectral
 
-          if ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+          if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
+               (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
             ! info block (btyp = 0001 100000X XXXX) 
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
             if ( btyp10 == btyp10inf ) then
               flag_passage2 = 1
-              ! Marqueur d'info SMOS
-              ind25174 = BURP_Find_Element(inputBlock, ELEMENT=025174, iostat=error)
               indtmp = nbele
-              if (ind25174 < 0) then
-                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                if (error/=burp_noerr) then
-                  call handle_error("Erreur dans BURP_Resize_Block info")
-                end if
-                ind25174 = indtmp + 1
-                call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
-                indtmp = indtmp + 1
-              end if
-              ! clwObs
+              ! CLW
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4322,7 +4312,6 @@ CONTAINS
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
-                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
                   if ( tvs_mwAllskyAssim .and. &
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
@@ -4333,8 +4322,6 @@ CONTAINS
                   idata2 = idata2 + 1
 
                 else
-
-                  call Insert_into_burp_i(-1,ind25174,1,tIndex)
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
                   if ( tvs_mwAllskyAssim .and. &
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
@@ -4396,7 +4383,8 @@ CONTAINS
           write(*,*)
           write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
         end if
-      else if  ( (tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+      else if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
+                (tvs_isIdBurpInst(idatyp,'amsua'  )) ) then 
         if ( flag_passage1 == 0 ) then
           write(*,*)
           write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
@@ -4516,15 +4504,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! brpr_updateMissingObsFlags
   !--------------------------------------------------------------------------
-  subroutine brpr_updateMissingObsFlags( obsSpaceData, fileIndex, burpFile )
+  subroutine brpr_updateMissingObsFlags( burpFile )
     !
     ! :Purpose: Open burp file and set missing data flags to 2048.
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
-    integer, intent(in)              :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
 
     ! Locals:
@@ -4538,11 +4524,9 @@ CONTAINS
     integer, allocatable   :: btobs(:,:)
     logical, allocatable   :: goodTB(:,:)
     integer                :: nbele,nvale,nte
-    integer                :: headerIndex, valIndex, tIndex, reportIndex
+    integer                :: valIndex, tIndex, reportIndex
     integer                :: ind012163,ind212163
-    integer                :: idata
     integer                :: flag_passage, flagval
-    integer                :: idatyp
     character(len=9)       :: station_id
 
     write(*,*) '----------------------------------------------------------'
@@ -4605,29 +4589,6 @@ CONTAINS
              report    = inputReport,          &
              REF       = address(reportIndex), &
              iostat    = error)
-
-        if (reportIndex == 1) then
-          call BURP_Get_Property(inputReport, IDTYP=idatyp)
-          write(*,*) "brpr_updateMissingObsFlags idatyp ", idatyp
-          idata = -1
-          call obs_set_current_header_list(obsSpaceData, 'TO')
-          HEADER: do
-            headerIndex = obs_getHeaderIndex(obsSpaceData)
-            if (headerIndex < 0) exit HEADER
-            if  ( obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
-                  obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
-              idata = headerIndex
-              exit HEADER
-            end if
-          end do HEADER
-          if (idata == -1) then
-            write(*,*) "datyp ",idatyp," not found in input file !"
-            write(*,*) "Nothing to do here ! Exiting ..."
-            call  cleanup()
-            return
-          end if
-        end if
-
 
         ! Find bad/missing TB. 
 

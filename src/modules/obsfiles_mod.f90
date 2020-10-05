@@ -923,8 +923,10 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
     if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( ( (tvs_isIdBurpInst(codtyp,'atms')) .or. &
-             (tvs_isIdBurpInst(codtyp,'amsua')) ) ) then
+      if ( (tvs_isIdBurpInst(codtyp,'atms' )) .or. &
+           (tvs_isIdBurpInst(codtyp,'amsua')) .or. &
+           (tvs_isIdBurpInst(codtyp,'amsub')) .or. &
+           (tvs_isIdBurpInst(codtyp,'mhs'  )) ) then
         mwDataPresent = .true.
       end if
     end do HEADER
@@ -945,7 +947,7 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('obsf_updateMissingObsFlags: this s/r is currently only compatible with BURP files')
       else
-        call brpr_updateMissingObsFlags(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
       end if
     end do FILELOOP
 
