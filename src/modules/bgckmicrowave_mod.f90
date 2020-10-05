@@ -402,7 +402,7 @@ contains
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
           if ( KCANO(nChannelIndex,nDataIndex) == channelForTopoFilter(indexFilteringTest) ) then
-            if ( MTINTRP(nDataIndex) == altitudeForTopoFilter(indexFilteringTest)  ) then
+            if ( MTINTRP(nDataIndex) >= altitudeForTopoFilter(indexFilteringTest)  ) then
               ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
               KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
               KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**18)
@@ -546,7 +546,7 @@ contains
     do nDataIndex=1,KNT
       do nChannelIndex=1,KNO
         if ( ISCNPOS(nDataIndex) < 1 .or. &
-            ISCNPOS(nDataIndex) >= maxScanAngleAMSU ) then
+            ISCNPOS(nDataIndex) > maxScanAngleAMSU ) then
           ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
           KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
           KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
@@ -2593,7 +2593,7 @@ contains
            pangl(i)   > 90.   .or. &
            plat(i)    < -90.  .or. &
            plat(i)    > 90.   .or. &
-           ilansea(i) > 0     .or. &
+           ilansea(i) < 0     .or. &
            ilansea(i) > 1        ) then
         ier(i) = 1
       else
@@ -2708,7 +2708,7 @@ contains
 
           !3.4) Ocean rain: 0=no rain; 1=rain.
           ! identify and remove sea ice
-          if ( absla > 50.  .and. &
+          if ( abslat > 50.  .and. &
               df1    >  0.0        ) then  
             rain(i) = nint(zmisgLocal)
           else                                   ! remove non-precipitating clouds
