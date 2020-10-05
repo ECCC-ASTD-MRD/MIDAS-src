@@ -247,7 +247,7 @@ contains
   !--------------------------------------------------------------------------
   !  extractParamForBennartzRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForBennartzRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+  subroutine extractParamForBennartzRun(KCANO, ptbo, ptbcor, KNT, KNO, &
                                      tb89, tb150, tb1831, tb1832, tb1833)
 
     !:Purpose: Extract Parameters required to run bennaertz for required channels:
@@ -259,7 +259,6 @@ contains
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)         ! observations channels
     real,        intent(in)               :: ptbo(KNO,KNT)          ! radiances
-    real,        intent(in)               :: ptbomp(KNO,KNT)        ! radiances o-p
     real,        intent(in)               :: ptbcor(KNO,KNT)        ! correction aux radiances
     integer,     intent(in)               :: KNO                    ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                    ! nombre de tovs
@@ -270,9 +269,9 @@ contains
     real,        intent(out)              :: tb1833(KNT)            ! radiance frequence ? Ghz  
 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
+    integer                               :: channelval
 
     do nDataIndex=1,KNT
       do nChannelIndex=1,KNO
@@ -775,7 +774,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, GROSSMIN, &
+  subroutine amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
@@ -936,7 +935,7 @@ contains
   !-------------------------------------------------------------------------
   ! amsubTest12DrynessIndexCheck
   !-------------------------------------------------------------------------
-  subroutine amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, tb1831, tb1833, &
+  subroutine amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
                                            ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:  12) test 12: Dryness index check
@@ -952,7 +951,6 @@ contains
     integer,     intent(in)               :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
-    logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)               :: tb1831(KNT)                    ! tb for channel  
     real,        intent(in)               :: tb1833(KNT)                    ! tb for channel  
     integer,     intent(in)               :: ktermer(:)                     ! mask terre-mer
@@ -961,7 +959,6 @@ contains
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
-    integer                               :: channelval
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
@@ -1082,7 +1079,7 @@ contains
 
 
 
-  subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, RESETQC, scatw, scatl, &
+  subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
                                                      KTERMER, GLINTRP, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
@@ -1098,7 +1095,6 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     integer,     intent(in)                :: KNO                            ! nombre canaux de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    logical,     intent(in)                :: RESETQC                        ! yes or not reset QC flag
     real,        intent(in)                :: scatw(KNT)                     ! scattering index 
     real,        intent(in)                :: scatl(KNT)                     ! scattering index 
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
@@ -1108,11 +1104,9 @@ contains
     integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
 
     ! Locals
-    integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
-    integer                                :: INDXCAN 
     real                                   :: ZSEUILSCATICE
     real                                   :: ZSEUILSCATL
     real                                   :: ZSEUILSCATW
@@ -1725,9 +1719,6 @@ contains
     integer                                :: snow(KNT)
     integer                                :: channelForTopoFilter(2)
     real                                   :: altitudeForTopoFilter(2)
-    logical                                :: GROSSERROR
-    logical                                :: FULLREJCT
-    logical                                :: SFCREJCT
     logical, save                          :: LLFIRST
 
     LLFIRST = .TRUE.
@@ -1853,7 +1844,7 @@ contains
     call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray) 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, GROSSMIN, &
+    call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
@@ -1931,7 +1922,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clw_avg, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
+                                globMarq, IMARQ, ident, clwOBS, clwFG, scatw, rejectionCodArray, STNID, RESETQC)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1979,13 +1970,13 @@ contains
     real, intent(in)                       :: MTINTRP(:)         ! topographie du modele
     real, intent(in)                       :: GLINTRP(:)         ! etendue de glace du modele
     real, intent(in)                       :: SATZEN(:)          ! angle zenith du satellite (deg.)
-    real, intent(in)                       :: ZLAT(:)            ! latitude
     character *9, intent(in)               :: STNID                ! identificateur du satellite
     logical, intent(in)                    :: RESETQC              ! reset du controle de qualite?
     integer, allocatable, intent(out)      :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
     !                                                                 =0, ok,
     !                                                                 >0, rejet,
-    real, allocatable,  intent(out)        :: clw_avg(:)            ! Averaged (Background + obs)retrieved cloud liquid water, 
+    real, allocatable, intent(out)         :: clwObs(:)            ! retrieved cloud liquid water from observation 
+    real, allocatable, intent(out)         :: clwFG(:)             ! retrieved cloud liquid water from background 
     !                                                                 from observation and background
     real, allocatable, intent(out)         :: scatw(:)              ! scattering index over water
 
@@ -2013,31 +2004,15 @@ contains
     integer, allocatable                   :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    real, allocatable                      :: clw(:)                ! obs retrieved cloud liquid water
-    integer                                :: MAXVAL
     integer                                :: JI
     integer                                :: JJ
-    integer                                :: INDX8
-    integer                                :: INDX12
-    integer                                :: INO
-    integer                                :: ICHN
-    integer                                :: JK
-    integer                                :: IBIT
-    integer                                :: JC
     integer                                :: INDX
-    integer                                :: INDXCAN
-    integer                                :: ITRN
-    integer                                :: alloc_status 
     integer                                :: ICLWREJ (MXCLWREJ)
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
     real                                   :: EPSILON
     real                                   :: MISGRODY
-    real                                   :: ZSEUILSCAT
-    real                                   :: APPROXIM
-    real                                   :: ANGDif
-    real                                   :: XCHECKVAL
     real                                   :: GROSSMIN(mwbg_maxNumChan)
     real                                   :: GROSSMAX(mwbg_maxNumChan) 
     real                                   :: ROGUEFAC(mwbg_maxNumChan)
@@ -2046,17 +2021,10 @@ contains
     real                                   :: tb1831 (KNT)
     real                                   :: tb1832 (KNT)
     real                                   :: tb1833 (KNT)
-    real                                   :: ice  (KNT)
-    real                                   :: tpw  (KNT)
     real                                   :: scatl(KNT)
     integer                                :: err (KNT)
-    integer                                :: rain(KNT)
-    integer                                :: snow(KNT)
     integer                                :: channelForTopoFilter(3)
     real                                   :: altitudeForTopoFilter(3)
-    logical                                :: GROSSERROR
-    logical                                :: FULLREJCT
-    logical                                :: SFCREJCT
     logical, save                          :: LLFIRST
 
     LLFIRST = .TRUE.
@@ -2095,7 +2063,8 @@ contains
     write(*,*) 'Initialization and Allocation:'
     ! Allocation
     call utl_reAllocate(scatw,   KNT)
-    call utl_reAllocate(clw_avg,   KNT)
+    call utl_reAllocate(clwObs,   KNT)
+    call utl_reAllocate(clwFG,   KNT)
 
     call utl_reAllocate(kchkprf, KNT)
     call utl_reAllocate(ident, KNT)
@@ -2120,12 +2089,12 @@ contains
 
     !     Bennartz parameters are   extract required channels:
     write(*,*) 'extractParamForBennartzRun STARTS....'
-    call extractParamForBennartzRun (KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+    call extractParamForBennartzRun (KCANO, ptbo, ptbcor, KNT, KNO, &
                                      tb89, tb150, tb1831, tb1832, tb1833)
     
     !  Run Bennartz AMSU-B algorithms.
     write(*,*) 'bennartz STARTS ...'
-    call bennartz (err, knt, tb89, tb150, satzen, ktermer, scatl, scatw, clw_avg)   
+    call bennartz (err, knt, tb89, tb150, satzen, ktermer, scatl, scatw, clwObs, clwFG)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2185,7 +2154,7 @@ contains
     ! call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray) 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, GROSSMIN, &
+    call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
     ! 12) test 12:  Dryness index check 
     !The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -2193,11 +2162,11 @@ contains
     ! are sensitive to the surface.
     ! Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5
     !  over land and ice
-    call amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, tb1831, tb1833, &
+    call amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
                                        ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
     ! 13) test 13: Bennartz scattering index check (full)
 
-    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, RESETQC, scatw, scatl, &
+    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
                                                   KTERMER, GLINTRP, KMARQ, ICHECK, rejectionCodArray)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -2850,7 +2819,7 @@ contains
 !------------------------------------------------------------------------------------
 ! bennartz aubroutine
 !------------------------------------------------------------------------------------
-  subroutine bennartz (ier, knt, tb89, tb150, pangl, ktermer, scatl, scatw, clw_avg)
+  subroutine bennartz (ier, knt, tb89, tb150, pangl, ktermer, scatl, scatw, clwObs, clwFG)
 
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !          - scattering index (over land and ocean).*
@@ -2869,7 +2838,8 @@ contains
     integer, intent(in)  :: ktermer(:)       ! land/sea indicator (0=land;1=ocean)
     real,    intent(out) :: scatl(:)         ! scattering index over land
     real,    intent(out) :: scatw(:)         ! scattering index over water
-    real,    intent(out) :: clw_avg(:)       ! cloud liquid water content (not computed for NOW)
+    real,    intent(out) :: clwObs(:)        ! obs cloud liquid water content (not computed for NOW)
+    real,    intent(out) :: clwFG(:)         ! first guess cloud liquid water content (not computed for NOW)
 
     !     Notes: In the case where an output parameter cannot be calculated, the
     !     value of this parameter is to to the missing value, i.e. -99.
@@ -2882,7 +2852,8 @@ contains
     do i = 1, knt 
       scatl(i) = zmisg
       scatw(i) = zmisg
-      clw_avg(i) = zmisg
+      clwObs(i) = zmisg
+      clwFG(i) = zmisg
     end do
 
     !____2) Validate input parameters:**    -----------------------------*
@@ -5318,11 +5289,6 @@ end subroutine bennartz
       call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLatitude, &
                                                   obsLongitude, modelInterpTerrain,     &
                                                   modelInterpGroundIce, modelInterpSeaIce)
-      write(*,*) 'mwbg_readGeophysicFieldsAndInterpolate OK '
-      write(*,*) '    obsLatitude =  ', obsLatitude
-      write(*,*) '    obsLongitude =  ', obsLongitude
-      write(*,*) '    MT =  ', modelInterpTerrain
-      write(*,*) '    MG =  ', modelInterpGroundIce
       !###############################################################################
       ! STEP 4) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       !###############################################################################
@@ -5340,15 +5306,15 @@ end subroutine bennartz
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                                 RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        write(*,*) ' mwbg_tovCheckAmsub STARTS: '
         call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, satIdentifier, landQualifierIndice,&
                                 satOrbit, obsChannels, obsTb, obsTbBiasCorr, &
                                 ompTb, qcIndicator, numChannelUsed, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
-                                obsGlobalMarker, obsFlags, newInformationFlag, cloudLiquidWaterPath,       &
+                                obsGlobalMarker, obsFlags, newInformationFlag,        & 
+                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
-                                RESETQC, obsLatitude)
+                                RESETQC)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &

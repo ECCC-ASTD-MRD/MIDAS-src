@@ -3,13 +3,12 @@
 / 
 &NAMBGCK
   instName = 'AMSUB'
-  debug = .true.
+  debug = .false.
   RESETQC = .false.
   maxNumSat  = 9
   channelOffset = 42
   maxNumTest = 15
   maxNumChan = 47
-  allowStateDepSigmaObs = .false.
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.false.
 /

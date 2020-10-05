@@ -3781,7 +3781,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, indClwFG, ind13208, ind25174, indtmp
+    integer                :: ind13209, indClwFG, ind13208, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4242,10 +4242,7 @@ CONTAINS
           end if ! hyper Spectral
 
           if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-               (tvs_isIdBurpInst(idatyp,'amsua')) .or. & 
-               (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
-               (tvs_isIdBurpInst(idatyp,'mhs'  )) ) then 
-            write(*,*) 'brpr_addCloudParametersAndEmissivity for ELE = ', idatyp
+               (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
             ! info block (btyp = 0001 100000X XXXX) 
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
@@ -4387,9 +4384,7 @@ CONTAINS
           write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
         end if
       else if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-                (tvs_isIdBurpInst(idatyp,'amsua')) .or. &
-                (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
-                (tvs_isIdBurpInst(idatyp,'mhs'  )) ) then 
+                (tvs_isIdBurpInst(idatyp,'amsua'  )) ) then 
         if ( flag_passage1 == 0 ) then
           write(*,*)
           write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
@@ -4509,14 +4504,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! brpr_updateMissingObsFlags
   !--------------------------------------------------------------------------
-  subroutine brpr_updateMissingObsFlags( obsSpaceData, fileIndex, burpFile )
+  subroutine brpr_updateMissingObsFlags( fileIndex, burpFile )
     !
     ! :Purpose: Open burp file and set missing data flags to 2048.
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
     integer, intent(in)              :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
 
@@ -4598,29 +4592,6 @@ CONTAINS
              report    = inputReport,          &
              REF       = address(reportIndex), &
              iostat    = error)
-
-        if (reportIndex == 1) then
-          call BURP_Get_Property(inputReport, IDTYP=idatyp)
-          write(*,*) "brpr_updateMissingObsFlags idatyp ", idatyp
-          idata = -1
-          call obs_set_current_header_list(obsSpaceData, 'TO')
-          HEADER: do
-            headerIndex = obs_getHeaderIndex(obsSpaceData)
-            if (headerIndex < 0) exit HEADER
-            if  ( obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
-                  obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
-              idata = headerIndex
-              exit HEADER
-            end if
-          end do HEADER
-          if (idata == -1) then
-            write(*,*) "datyp ",idatyp," not found in input file !"
-            write(*,*) "Nothing to do here ! Exiting ..."
-            call  cleanup()
-            return
-          end if
-        end if
-
 
         ! Find bad/missing TB. 
 
