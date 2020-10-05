@@ -20,7 +20,6 @@ build:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - v_3.4
-    - 408-fix-the-ci-for-branch-v_3-4
   tags:
     - hpcr-u1
 
@@ -41,7 +40,6 @@ runtests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - v_3.4
-     - 408-fix-the-ci-for-branch-v_3-4
    tags:
      - hpcr-u1
 
@@ -69,6 +67,5 @@ doc_sphinx:
     - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - v_3.4
-    - 408-fix-the-ci-for-branch-v_3-4
   tags:
     - hpcr-u1
