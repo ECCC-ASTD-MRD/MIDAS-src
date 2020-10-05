@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added quality control for AMSUB data to `obsSelection` (#398 and !386)
  * Added control on minimum HU value for ensemble B matrix (#399 and !379)
    * Note: The namelist variable `huMinValue` must now appear in NAMBEN,
      otherwise the program will abort.

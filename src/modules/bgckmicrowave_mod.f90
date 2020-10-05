@@ -125,11 +125,10 @@ contains
 
   end subroutine mwbg_init 
 
-
   !--------------------------------------------------------------------------
-  !  ISRCHEQI function
+  ! ISRCHEQI function
   !--------------------------------------------------------------------------
-  function ISRCHEQI (KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
+  function ISRCHEQI(KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
     !OBJET          Rechercher un element dans une liste (valeurs entieres).
     !ARGUMENTS      - indx    - output -  position de l'element recherche:
     !                                   =0, element introuvable,
@@ -157,7 +156,7 @@ contains
   end function ISRCHEQI
 
   !--------------------------------------------------------------------------
-  !  extractParamForGrodyRun
+  ! extractParamForGrodyRun
   !--------------------------------------------------------------------------  
   subroutine extractParamForGrodyRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
@@ -242,13 +241,13 @@ contains
       end do
     end do
 
-    end subroutine extractParamForGrodyRun
+  end subroutine extractParamForGrodyRun
 
   !--------------------------------------------------------------------------
-  !  extractParamForBennartzRun
+  ! extractParamForBennartzRun
   !--------------------------------------------------------------------------  
   subroutine extractParamForBennartzRun(KCANO, ptbo, ptbcor, KNT, KNO, &
-                                     tb89, tb150, tb1831, tb1832, tb1833)
+                                        tb89, tb150, tb1831, tb1832, tb1833)
 
     !:Purpose: Extract Parameters required to run bennaertz for required channels:
     !          extract required channels:        
@@ -306,12 +305,13 @@ contains
       end do
     end do
 
-    end subroutine extractParamForBennartzRun
+  end subroutine extractParamForBennartzRun
 
-    !--------------------------------------------------------------------------
-    !  amsuABTest10RttovRejectCheck
-    !--------------------------------------------------------------------------
-    subroutine amsuABTest10RttovRejectCheck(KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK, rejectionCodArray)
+  !--------------------------------------------------------------------------
+  ! amsuABTest10RttovRejectCheck
+  !--------------------------------------------------------------------------
+  subroutine amsuABTest10RttovRejectCheck(KCANO, KNOSAT, KNO, KNT, RESETQC, &
+                                          STNID, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:               10) test 10: RTTOV reject check (single)
     !                        Rejected datum flag has bit #9 on.
@@ -358,9 +358,9 @@ contains
   end subroutine amsuABTest10RttovRejectCheck
 
   !--------------------------------------------------------------------------
-  !  amsuABTest1TopographyCheck
+  ! amsuABTest1TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest1TopographyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
+  subroutine amsuABTest1TopographyCheck(KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                         channelForTopoFilter, altitudeForTopoFilter, KMARQ, &
                                         ICHECK, rejectionCodArray)
 
@@ -425,7 +425,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest2LandSeaQualifierCheck 
   !--------------------------------------------------------------------------
-  subroutine amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest2LandSeaQualifierCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
+                                              KTERMER, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                      2) test 2: "Land/sea qualifier" code check (full)
     !                                  allowed values are: 0, land,
@@ -472,7 +473,8 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest3TerrainTypeCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest3TerrainTypeCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
+                                         ITERRAIN, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     3) test 3: "Terrain type" code check (full)
     !                                 allowed values are: -1, missing,
@@ -521,7 +523,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest4FieldOfViewCheck 
   !--------------------------------------------------------------------------
-  subroutine amsuABTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest4FieldOfViewCheck(KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, &
+                                         maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                          4) test 4: Field of view number check (full)
     !                                      Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
@@ -565,7 +568,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest5ZenithAngleCheck 
   !--------------------------------------------------------------------------
-  subroutine amsuABTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest5ZenithAngleCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
+                                         SATZEN, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                   5) test 5: Satellite zenith angle check (full)
     !                               Satellite zenith angle acceptable range is [0.,60.].
@@ -612,7 +616,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest6ZenAngleAndFovConsistencyCheck 
   !--------------------------------------------------------------------------
-  subroutine amsuABTest6ZenAngleAndFovConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  ZANGL, &
+  subroutine amsuABTest6ZenAngleAndFovConsistencyCheck(KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  ZANGL, &
                                                   ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                            6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
@@ -669,7 +673,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
+  subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
                                                                         KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
@@ -725,7 +729,8 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest9UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest9UncorrectedTbCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
+                                           RESETQC, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                  9) test 9: Uncorrected Tb check (single)
     !                              Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -772,10 +777,10 @@ contains
   end subroutine amsuABTest9UncorrectedTbCheck
  
   !--------------------------------------------------------------------------
-  !  amsuABTest11RadianceGrossValueCheck
+  ! amsuABTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
-                                      GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuABTest11RadianceGrossValueCheck(KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
+                                                 GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
     !                                               Change this test from full to single. jh nov 2000.
@@ -827,11 +832,11 @@ contains
   end subroutine amsuABTest11RadianceGrossValueCheck 
   
   !--------------------------------------------------------------------------
-  !  amsuaTest12GrodyClwCheck
+  ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
-                                clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
-                                ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest12GrodyClwCheck(KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
+                                      clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
+                                      ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
     !                                 For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
@@ -935,8 +940,8 @@ contains
   !-------------------------------------------------------------------------
   ! amsubTest12DrynessIndexCheck
   !-------------------------------------------------------------------------
-  subroutine amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
-                                           ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsubTest12DrynessIndexCheck(KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
+                                          ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:  12) test 12: Dryness index check
     !           The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -1014,10 +1019,10 @@ contains
   end subroutine amsubTest12DrynessIndexCheck
 
   !--------------------------------------------------------------------------
-  !  amsuaTest13GrodyScatteringIndexCheck
+  ! amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
-                                              MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest13GrodyScatteringIndexCheck(KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
+                                                  MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                  13) test 13: Grody scattering index check (partial)
     !                               For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
@@ -1074,7 +1079,7 @@ contains
  
 
   !--------------------------------------------------------------------------
-  !amsubTest13BennartzScatteringIndexCheck
+  ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
                                                      KTERMER, GLINTRP, KMARQ, ICHECK, rejectionCodArray)
@@ -1159,11 +1164,11 @@ contains
   end subroutine amsubTest13BennartzScatteringIndexCheck
 
   !--------------------------------------------------------------------------
-  !  amsuaTest14RogueCheck
+  ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
-                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
-                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsuaTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
+                                   useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
+                                   MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full). Les observations, dont le residu (O-P) 
@@ -1280,10 +1285,10 @@ contains
   end subroutine amsuaTest14RogueCheck
 
   !--------------------------------------------------------------------------
-  !  amsubTest14RogueCheck
+  ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
-                                    ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, rejectionCodArray)
+  subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
+                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single)
@@ -1368,9 +1373,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  !  amsuABTest15ChannelSelectionWithIutilst
+  ! amsuABTest15ChannelSelectionWithIutilst
   !--------------------------------------------------------------------------
-  subroutine amsuABTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
+  subroutine amsuABTest15ChannelSelectionWithIutilst(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
                                               GLINTRP, IUTILST, MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
 
     !:Purpose:                         ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
@@ -1459,10 +1464,12 @@ contains
 
   end subroutine amsuABTest15ChannelSelectionWithIutilst
 
-
+  !--------------------------------------------------------------------------
+  ! amsuaTest16ExcludeExtremeScattering
+  !--------------------------------------------------------------------------
   subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, &
-                                                PTBO, btClear2D, PTBOMP, KMARQ, ICHECK, &
-                                                rejectionCodArray)
+                                                 PTBO, btClear2D, PTBOMP, KMARQ, ICHECK, &
+                                                 rejectionCodArray)
     !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
 
@@ -1541,7 +1548,7 @@ contains
   end subroutine amsuaTest16ExcludeExtremeScattering
 
   !--------------------------------------------------------------------------
-  !  copy1Dimto2DimRealArray
+  ! copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Real Array into 2D real array given dim1 and dim2 
@@ -1568,7 +1575,7 @@ contains
   end subroutine copy1Dimto2DimRealArray
 
   !--------------------------------------------------------------------------
-  !  copy1Dimto2DimIntegerArray
+  ! copy1Dimto2DimIntegerArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Integer Array into 2D Integer array given dim1 and dim2 
@@ -1595,7 +1602,7 @@ contains
   end subroutine copy1Dimto2DimIntegerArray
 
   !--------------------------------------------------------------------------
-  !  mwbg_tovCheckAmsua
+  ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                 IUTILST, KTERMER, ICANO, ZO, btClear, ZCOR, &
@@ -1911,11 +1918,10 @@ contains
 
   end subroutine mwbg_tovCheckAmsua
 
-
   !--------------------------------------------------------------------------
-  !  mwbg_tovCheckAmsub
+  ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ZO, ZCOR, &
+  subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwOBS, clwFG, scatw, rejectionCodArray, STNID, RESETQC)
 
@@ -1948,10 +1954,8 @@ contains
     !                                                               2 (assimilate over open water only)
     real(8), intent(in)                    :: TOVERRST(:,:)      ! l'erreur totale des TOVS
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
-    integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
-    integer, intent(in)                    :: KORBIT(:)          ! numero d'orbite
     integer, intent(in)                    :: ICANO(:)           ! canaux des observations
     integer, intent(inout)                 :: ITERRAIN(:)        ! indicateur du type de terrain
     integer, intent(in)                    :: KNO                ! nombre de canaux des observations 
@@ -2219,7 +2223,7 @@ contains
   end subroutine mwbg_tovCheckAmsub
 
   !--------------------------------------------------------------------------
-  !  mwbg_qcStats
+  ! mwbg_qcStats
   !--------------------------------------------------------------------------
   subroutine mwbg_qcStats(instName, ICHECK, ICAN, KNOSAT, &
                               KNO, KNT, satelliteId, LDprint, rejectionCodArray, rejectionCodArray2)
@@ -2409,7 +2413,7 @@ contains
   end subroutine mwbg_qcStats
 
   !--------------------------------------------------------------------------
-  !  resetQcC
+  ! resetQcC
   !--------------------------------------------------------------------------
   subroutine resetQcCases(RESETQC, KCHKPRF, globMarq)
     !:Purpose:        allumer la bit (6) indiquant que l'observation a un element
@@ -2445,7 +2449,7 @@ contains
   end  subroutine resetQcCases
 
   !--------------------------------------------------------------------------
-  !  setTerrainTypeToSeaIce
+  ! setTerrainTypeToSeaIce
   !--------------------------------------------------------------------------
   subroutine setTerrainTypeToSeaIce(GLINTRP, KTERMER, ITERRAIN)
 
@@ -2484,7 +2488,7 @@ contains
   end  subroutine setTerrainTypeToSeaIce
 
   !--------------------------------------------------------------------------
-  !  GRODY
+  ! GRODY
   !--------------------------------------------------------------------------
   subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, tb23_P, tb31_P, &
                    pangl, plat, ilansea, ice, tpw, clwObs, clwFG, &
@@ -2811,7 +2815,7 @@ contains
   end subroutine GRODY
 
   !------------------------------------------------------------------------------------
-  ! bennartz aubroutine
+  ! bennartz
   !------------------------------------------------------------------------------------
   subroutine bennartz (ier, knt, tb89, tb150, pangl, ktermer, scatl, scatw, clwObs, clwFG)
 
@@ -2888,7 +2892,7 @@ contains
 end subroutine bennartz
 
   !--------------------------------------------------------------------------
-  !  atmsTest1Flagbit7Check
+  ! atmsTest1Flagbit7Check
   !--------------------------------------------------------------------------
   subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK, rejectionCodArray)
 
@@ -2938,11 +2942,11 @@ end subroutine bennartz
   end subroutine atmsTest1Flagbit7Check
 
   !--------------------------------------------------------------------------
-  !  atmsTest2TopographyCheck
+  ! atmsTest2TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
-                                   ICHECK, rejectionCodArray, rejectionCodArray2)
+  subroutine atmsTest2TopographyCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
+                                      KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
+                                      ICHECK, rejectionCodArray, rejectionCodArray2)
 
     !:Purpose:               1) test 2: Topography check (partial)
 
@@ -2998,10 +3002,10 @@ end subroutine bennartz
   end subroutine atmsTest2TopographyCheck
 
   !--------------------------------------------------------------------------
-  !  atmsTest3UncorrectedTbCheck
+  ! atmsTest3UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                          KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+  subroutine atmsTest3UncorrectedTbCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
+                                         KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
 
     !:Purpose:                       Test 3: Uncorrected Tb check (single)
     !                                Uncorrected datum (flag bit #6 off). 
@@ -3057,11 +3061,11 @@ end subroutine bennartz
   end subroutine atmsTest3UncorrectedTbCheck
 
   !--------------------------------------------------------------------------
-  !  atmsTest4RogueCheck
+  ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                  IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                  KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+  subroutine atmsTest4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
+                                 IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
+                                 KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
 
     !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full).
@@ -3193,7 +3197,7 @@ end subroutine bennartz
   end subroutine atmsTest4RogueCheck 
 
   !--------------------------------------------------------------------------
-  !  atmsTest5ChannelSelectionUsingIutilst
+  ! atmsTest5ChannelSelectionUsingIutilst
   !--------------------------------------------------------------------------
   subroutine atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                    IUTILST, KMARQ, ICHECK, rejectionCodArray)
@@ -3839,7 +3843,7 @@ end subroutine bennartz
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
 
   !--------------------------------------------------------------------------
-  !  mwbg_landIceMaskAtms
+  ! mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
@@ -4158,7 +4162,7 @@ end subroutine bennartz
   end subroutine mwbg_grossValueCheck
 
   !--------------------------------------------------------------------------
-  !  mwbg_firstQcCheckAtms
+  ! mwbg_firstQcCheckAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, &
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
@@ -4396,7 +4400,7 @@ end subroutine bennartz
   end subroutine mwbg_firstQcCheckAtms
 
   !--------------------------------------------------------------------------
-  !  mwbg_nrlFilterAtms
+  ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(ni, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
                                 grossrej, clw, clw2, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
@@ -4636,7 +4640,7 @@ end subroutine bennartz
   ! mwbg_flagDataUsingNrlCriteria 
   !--------------------------------------------------------------------------
   subroutine mwbg_flagDataUsingNrlCriteria(nt,ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
-                                          useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
+                                           useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
     !                                BIT    Meaning
@@ -4782,7 +4786,7 @@ end subroutine bennartz
   end subroutine mwbg_flagDataUsingNrlCriteria
 
   !--------------------------------------------------------------------------
-  !  mwbg_reviewAllcriteriaforFinalFlags
+  ! mwbg_reviewAllcriteriaforFinalFlags
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
                                                  scatbg, iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
@@ -4956,11 +4960,9 @@ end subroutine bennartz
 
   end function calcStateDepObsErr_r4
 
-
   !--------------------------------------------------------------------------
-  !  mwbg_updateObsSpaceAfterQc
+  ! mwbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
-
   subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                         atmScatteringIndex, obsGlobalMarker, &
@@ -5007,18 +5009,16 @@ end subroutine bennartz
 
   end subroutine mwbg_updateObsSpaceAfterQc  
    
-
   !--------------------------------------------------------------------------
   !  mwbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
-
   subroutine mwbg_readObsFromObsSpace(instName, headerIndex, &
-                                satIdentifier, satZenithAngle, landQualifierIndice, &
-                                terrainTypeIndice, obsLatitude, obsLongitude, &
-                                satScanPosition, obsQcFlag1, satOrbit, & 
-                                obsGlobalMarker, burpFileSatId, obsTb, btClear, &
-                                obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                obsFlags, sensorIndex, obsSpaceData)
+                                      satIdentifier, satZenithAngle, landQualifierIndice, &
+                                      terrainTypeIndice, obsLatitude, obsLongitude, &
+                                      satScanPosition, obsQcFlag1, satOrbit, & 
+                                      obsGlobalMarker, burpFileSatId, obsTb, btClear, &
+                                      obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
+                                      obsFlags, sensorIndex, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -5159,10 +5159,10 @@ end subroutine bennartz
   end subroutine mwbg_readObsFromObsSpace 
 
   !--------------------------------------------------------------------------
-  !  mwbg_mwbg_bgCheckMW
+  ! mwbg_mwbg_bgCheckMW
   !--------------------------------------------------------------------------
-
   subroutine mwbg_bgCheckMW( obsSpaceData )
+
     !:Purpose:        do the quality controle for ATMS, AMSUA and AMSUB
 
     implicit None
@@ -5302,8 +5302,8 @@ end subroutine bennartz
                                 atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
                                 RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, satIdentifier, landQualifierIndice,&
-                                satOrbit, obsChannels, obsTb, obsTbBiasCorr, &
+        call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, landQualifierIndice,&
+                                obsChannels, obsTb, obsTbBiasCorr, &
                                 ompTb, qcIndicator, numChannelUsed, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
