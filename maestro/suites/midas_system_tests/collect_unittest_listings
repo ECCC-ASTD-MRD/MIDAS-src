@@ -33,29 +33,40 @@ if [[ -z "${unittests}" ]]; then
     unittests=$(cd ${SEQ_EXP_HOME}/resources/Tests; find . -name UnitTest | xargs -L1 dirname | cut -c3-)
 fi
 
-for unittest in ${unittests}; do
-    config=${SEQ_EXP_HOME}/config/Tests/${unittest}.cfg
-    if [[ ! -f "${config}" ]]; then
-	echo "Le fichier '${config}' n'existe pas (ce doit etre le path complet vers un fichier de configuration)"
-	continue
+if [ -n "${collect_unittest_listings_workdir}" ]; then
+    if [ ! -d "${collect_unittest_listings_workdir}" ]; then
+        mkdir -p ${collect_unittest_listings_workdir}
+    fi
+    cd ${collect_unittest_listings_workdir}
+else
+    cd ${TMPDIR}
+fi
+
+function result_dir {
+    set -e
+    __result_dir_unittest__=$1
+
+    __result_dir_config__=${SEQ_EXP_HOME}/config/Tests/${__result_dir_unittest__}.cfg
+    if [[ ! -f "${__result_dir_config__}" ]]; then
+	echo "Le fichier '${__result_dir_config__}' n'existe pas (ce doit etre le path complet vers un fichier de configuration)"
+	return
     fi
     unset UnitTest_reference
-    eval $(grep UnitTest_reference ${config})
+    eval $(grep UnitTest_reference ${__result_dir_config__})
     if [ -z "${UnitTest_reference}" ]; then
-	echo "La variable 'UnitTest_reference' n'a pas ete initialisee dans le fichier ${config}"
-	continue
+	echo "La variable 'UnitTest_reference' n'a pas ete initialisee dans le fichier ${__result_dir_config__}"
+	return
     fi
-    results=${collect_unittest_listings_output:-${UnitTest_reference##*:}}
-    cd ${results}
-    if [ -f listings_${gittag}.ca ]; then
-	if [ "${overwrite_listings}" != 'yes' ]; then
-	    echo "Le fichier '$PWD/listings_${gittag}.ca' existe deja.  On ne l'efface pas"
-	    cmcarc -f listings_${gittag}.ca -t -v
-	    continue
-	else
-	    rm -v listings_${gittag}.ca
-	fi
+    if [ -n "${collect_unittest_listings_output}" ]; then
+        echo ${collect_unittest_listings_output}/${__result_dir_unittest__}
+    else
+        echo ${UnitTest_reference##*:}
     fi
+
+    unset __result_dir_unittest__ __result_dir_config__ UnitTest_reference
+}
+
+for unittest in ${unittests}; do
     echo "travail avec '${unittest}' (tag ${gittag}) dans le repertoire $PWD"
     for task in ${tasks}; do
 	nodename=/Tests/${unittest}/UnitTest/${task}
@@ -64,6 +75,24 @@ for unittest in ${unittests}; do
 	cmcarc -f listings_${gittag}.ca -a ${filename}
 	rm ${filename}
     done
-    cmcarc -f listings_${gittag}.ca -t -v
-    chmod -wx listings_${gittag}.ca
+
+    result=$(result_dir ${unittest})/listings_${gittag}.ca
+    if [ -z "${result}" ]; then
+        continue
+    elif [ -f "${result}" ]; then
+	if [ "${overwrite_listings}" != 'yes' ]; then
+	    echo "Le fichier '${result}' existe deja.  On ne l'efface pas"
+	    cmcarc -f ${result} -t -v
+	    continue
+	else
+            chmod u+w ${result}
+	    rm -v ${result}
+	fi
+    elif [ ! -d "${result%/*}" ]; then
+        mkdir -p ${result%/*}
+    fi
+
+    mv listings_${gittag}.ca ${result}
+    cmcarc -f ${result} -t -v
+    chmod -wx ${result}
 done

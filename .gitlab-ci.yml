@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
-    MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
 
 stages:
    - build
@@ -33,7 +34,7 @@ runtests:
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - ./collect_unittest_listings
+     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
@@ -46,11 +47,11 @@ doc_f90doc:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl000/public_html/midas-doc
+    midasdoc: /home/sanl888/public_html/midas-doc
   script:
-  - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
-  - rm -fv $midasdoc/latest
-  - ln -sv $midasdoc/$docname $midasdoc/latest
+    - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
+    - rm -fv $midasdoc/latest
+    - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
 
@@ -58,12 +59,12 @@ doc_sphinx:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl000/public_html/midas-sphinx-doc
+    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
   script:
-  - cd scripts/sphinx
-  - ./build_html.sh ../../src $midasdoc/$docname
-  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+    - cd scripts/sphinx
+    - ./build_html.sh ../../src $midasdoc/$docname
+    - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+    - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - v_3.4
   tags:
