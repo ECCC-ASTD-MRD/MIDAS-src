@@ -4504,14 +4504,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! brpr_updateMissingObsFlags
   !--------------------------------------------------------------------------
-  subroutine brpr_updateMissingObsFlags( fileIndex, burpFile )
+  subroutine brpr_updateMissingObsFlags( burpFile )
     !
     ! :Purpose: Open burp file and set missing data flags to 2048.
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
 
     ! Locals:
@@ -4525,11 +4524,9 @@ CONTAINS
     integer, allocatable   :: btobs(:,:)
     logical, allocatable   :: goodTB(:,:)
     integer                :: nbele,nvale,nte
-    integer                :: headerIndex, valIndex, tIndex, reportIndex
+    integer                :: valIndex, tIndex, reportIndex
     integer                :: ind012163,ind212163
-    integer                :: idata
     integer                :: flag_passage, flagval
-    integer                :: idatyp
     character(len=9)       :: station_id
 
     write(*,*) '----------------------------------------------------------'

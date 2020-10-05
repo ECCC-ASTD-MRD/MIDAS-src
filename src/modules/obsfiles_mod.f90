@@ -947,7 +947,7 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('obsf_updateMissingObsFlags: this s/r is currently only compatible with BURP files')
       else
-        call brpr_updateMissingObsFlags( fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
       end if
     end do FILELOOP
 
