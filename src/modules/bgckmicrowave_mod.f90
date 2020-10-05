@@ -1415,7 +1415,7 @@ contains
       ITRN = ITERRAIN(nDataIndex)
       if ( KTERMER (nDataIndex) == 1    .and. &
            ITERRAIN(nDataIndex) == -1   .and. &
-           GLINTRP (nDataIndex) == 0.01       ) then
+           GLINTRP (nDataIndex) >= 0.01       ) then
          ITRN = 0
       end if        
       do nChannelIndex=1,KNO
