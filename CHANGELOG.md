@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * One must use the login profile `1.11.0` (`/fs/ssm/eccc/mrd/ordenv/profile/1.11.0`)
     * On XC50, we compile using Intel compile `19.0.5` and `module load craype-hugepages16M`.
     * On PPP, we compile using `eccc/mrd/rpn/code-tools/1.5.0`.
- * Use the compiler options `-warn all -warn errors` to remove unused variables
+ * Use the compiler options `-warn all -warn errors` to remove unused variables (#401 and !383)
    * Get rid of the namelist variable `rejectTdZeroC` from `thin_raobs` namelist since it was not used.
    * Added `-fp-speculation=safe -init=snan,arrays` for debug mode
  * Copy the slant profile shape of GPSRO obs from input to output burp files. (#395 and !377)
