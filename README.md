@@ -11,7 +11,7 @@ This change is backward compatible for your suites but you absolutely
 need to update your profile to compile any MIDAS code after version
 `v_3.6.0-a1`.
 
-To know if your code if after `v_3.6.0-a1`, you can execute:
+To know if your code is after `v_3.6.0-a1`, you can execute:
 ```bash
 git describe
 ```
