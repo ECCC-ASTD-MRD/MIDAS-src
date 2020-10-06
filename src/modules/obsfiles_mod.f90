@@ -411,6 +411,8 @@ contains
     clvalu(81) = 'brpcrisfsr4'
     clvalu(82) = 'obscrisfsr3'
     clvalu(83) = 'obscrisfsr4'
+    clvalu(84) = 'obsmwhs2'
+    clvalu(85) = 'brpmwhs2'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -497,6 +499,8 @@ contains
     cfami(81)  = 'TO'
     cfami(82)  = 'TO'
     cfami(83)  = 'TO'
+    cfami(84)  = 'TO'
+    cfami(85)  = 'TO'
 
     obsDirectory = 'obs'
 

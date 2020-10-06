@@ -1085,24 +1085,26 @@ CONTAINS
 
               levels: do j=1,nvale
 
-                if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
-                IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
-                INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
-
-                if ((j == 1 .or. HIRES) .and. INLV > 0) then
-                  if (allocated(PPPandVNM))     deallocate(PPPandVNM)
-                  if (allocated(bodyIndexList)) deallocate(bodyIndexList)
-                  allocate(PPPandVNM(2,INLV))
-                  allocate(bodyIndexList(INLV))
-                  bodyCount = 0
-                  do LK = IRLN, IRLN+INLV-1
-                    bodyCount = bodyCount + 1
-                    PPPandVNM(1,bodyCount) = obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
-                    PPPandVNM(2,bodyCount) = real(obs_bodyElem_i(obsdat,OBS_VNM,LK),8)
-                    bodyIndexList(bodyCount) = lk
-                  end do
-                  if (associated(tree)) call kdtree2_destroy(tree)
-                  tree => kdtree2_create(PPPandVNM, sort=.true., rearrange=.true.)
+                if (OBSN > obs_numHeader(obsdat)) then 
+                  write(*,*) ' debordement  altitude OBSN=',OBSN
+                else
+                  IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
+                  INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
+                  if ((j == 1 .or. HIRES) .and. INLV > 0) then
+                    if (allocated(PPPandVNM))     deallocate(PPPandVNM)
+                    if (allocated(bodyIndexList)) deallocate(bodyIndexList)
+                    allocate(PPPandVNM(2,INLV))
+                    allocate(bodyIndexList(INLV))
+                    bodyCount = 0
+                    do LK = IRLN, IRLN+INLV-1
+                      bodyCount = bodyCount + 1
+                      PPPandVNM(1,bodyCount) = obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
+                      PPPandVNM(2,bodyCount) = real(obs_bodyElem_i(obsdat,OBS_VNM,LK),8)
+                      bodyIndexList(bodyCount) = lk
+                    end do
+                    if (associated(tree)) call kdtree2_destroy(tree)
+                      tree => kdtree2_create(PPPandVNM, sort=.true., rearrange=.true.)
+                  end if 
                 end if
 
                 !pikpik

@@ -641,6 +641,8 @@ contains
 !**       TERRA  to  EOS1
 !**       AQUA   to  EOS2
 !**       NPP    to  NPP0
+!**       FY-3C  to  FY3-3
+
     do J = 1, tvs_nsensors
       if    ( tvs_satelliteName(J) == 'TERRA' ) THEN
         TEMPOCSATID = 'eos1'
@@ -652,6 +654,8 @@ contains
         TEMPOCSATID = 'jpss0'
       else if ( tvs_satelliteName(J)(1:6) == 'HMWARI'  ) THEN
         TEMPOCSATID = 'himawari' // trim(tvs_satelliteName(J) (7:15))
+      else if ( tvs_satelliteName(J) == 'FY-3C'  ) then
+        TEMPOCSATID = 'FY3-3'
       else
         call up2low(tvs_satelliteName(J),TEMPOCSATID)
       end if
