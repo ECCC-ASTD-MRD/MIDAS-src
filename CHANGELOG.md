@@ -8,7 +8,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added ability to assimilate MWHS2 data (#407 !274)
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.4.3]
+
+### Added
+
+ * Added ability to assimilate MWHS2 data (#407 and !274)
 
 ### Changed
 
@@ -21,10 +39,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fix the CI to run again for release branch `v_3.4` (#408 and !385)
  * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#400 and !384).
  * Increased tvs_maxNumberOfSensors to 100 + security check (#404 and !381).
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.4.2]
 
@@ -297,7 +311,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.3...v_3.4
+[3.4.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...v_3.4.3
 [3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
 [3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
 [3.4.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...v_3.4.0
