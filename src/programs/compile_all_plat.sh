@@ -58,7 +58,7 @@ echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
 
 cd ${toplevel}/tools/splitobs
-make
+make splitobs_\${ORDENV_PLAT}
 if [ -n "${MIDAS_ABS}" ]; then
     make install PGM=${MIDAS_ABS}/midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
 fi
