@@ -1,3 +1,12 @@
+ &namObsSelection
+   doThinning = .true.
+/
+ &THIN_HYPER
+   removeUnCorrected = .true.
+   deltmax = 22
+   deltax  = 150
+   deltrad = 45
+/
  &NAMCT0
    NCONF = 111
 /
@@ -406,8 +415,8 @@
   &NAMSQLiasi
   listElem='12163'
   numberElem=1
-  sqlExtraDat=' and obsvalue is not null '
-  sqlExtraHeader="  "
+  sqlExtraDat=' and obsvalue is not null  '
+  sqlExtraHeader="   "
 /
   &NAMSQLairs
   listElem='12163'
@@ -415,14 +424,15 @@
   sqlExtraDat=' and obsvalue is not null '
 /
   &NAMSQLUPDATE
-  numberUpdateItems=2
-  itemUpdateList(1)='OMP'
+  numberUpdateItems=4
+  itemUpdateList(4)='OMP'
   itemUpdateList(2)='COR'
+  itemUpdateList(1)='VAR'
   itemUpdateList(3)='EMI'
 /
   &NAMSQLInsert
 /
-&NAMBIAS
+&NAMBIASSAT
     biasActive=.TRUE.,
     BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
     biasmode="apply",

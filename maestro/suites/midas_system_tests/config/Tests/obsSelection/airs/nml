@@ -1,3 +1,12 @@
+ &namObsSelection
+   doThinning = .true.
+/
+ &THIN_HYPER
+   removeUnCorrected = .true.
+   deltmax = 22
+   deltax  = 150
+   deltrad = 45
+/
  &NAMCT0
    NCONF = 111
 /
@@ -421,7 +430,7 @@
 /
   &NAMSQLInsert
 /
-&NAMBIAS
+&NAMBIASSAT
     biasActive=.TRUE.,
     BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
     biasmode="apply",
