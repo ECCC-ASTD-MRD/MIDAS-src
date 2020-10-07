@@ -105,12 +105,9 @@ contains
     if ( idatyp == codtyp_get_codtyp('ssmis') ) then
       azimuthAngle = obs_missingValue_R
     end if
-    ! put the last lat/lon at the surface
-    latSlantLev_T(nlev_T) = lat
-    lonSlantLev_T(nlev_T) = lon
 
-    ! loop through rest of thermo levels
-    do lev_T = 1, nlev_T-1
+    ! loop through all thermo levels
+    do lev_T = 1, nlev_T
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
@@ -120,6 +117,8 @@ contains
       doIteration = .true.
       numIteration = 0
       while_doIteration: do while (doIteration)
+
+        numIteration = numIteration + 1
 
         call tmg_start(196,'findIntersectLatlon')
         call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
@@ -134,20 +133,14 @@ contains
         if ( heightDiff_r4 > toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
 
-        numIteration = numIteration + 1
-
       end do while_doIteration
 
       latSlantLev_T(lev_T) = latSlant
       lonSlantLev_T(lev_T) = lonSlant
     end do
 
-    ! put the last lat/lon at the surface
-    latSlantLev_M(nlev_M) = lat
-    lonSlantLev_M(nlev_M) = lon
-
-    ! loop through rest of momentum levels
-    do lev_M = 1, nlev_M-1
+    ! loop through all momentum levels
+    do lev_M = 1, nlev_M
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
@@ -157,6 +150,8 @@ contains
       doIteration = .true.
       numIteration = 0
       while_doIteration2: do while (doIteration)
+
+        numIteration = numIteration + 1
 
         call tmg_start(196,'findIntersectLatlon')
         call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
@@ -170,8 +165,6 @@ contains
         heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
         if ( heightDiff_r4 > toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
-
-        numIteration = numIteration + 1
 
       end do while_doIteration2
 
@@ -231,7 +224,7 @@ contains
       ! Geometric altitude
       geometricHeight = real(height_r4,8)
 
-    ! distance along line of sight
+      ! distance along line of sight
       distAlongPath = geometricHeight / cos(zenithAngle_rad)
 
       slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
