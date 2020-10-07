@@ -130,7 +130,7 @@ contains
         call tmg_stop(197)
 
         heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
-        if ( heightDiff_r4 > toleranceHeightDiff .or. &
+        if ( heightDiff_r4 < toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
 
       end do while_doIteration
@@ -163,7 +163,7 @@ contains
         call tmg_stop(197)
 
         heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
-        if ( heightDiff_r4 > toleranceHeightDiff .or. &
+        if ( heightDiff_r4 < toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
 
       end do while_doIteration2
