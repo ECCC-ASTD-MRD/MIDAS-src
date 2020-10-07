@@ -59,9 +59,9 @@ yes '' | head -n ${number_of_programs} | ./compile_all.sh
 
 cd ${toplevel}/tools/splitobs
 make splitobs_\${ORDENV_PLAT}
-if [ -n "${MIDAS_ABS}" ]; then
-    make install PGM=${MIDAS_ABS}/midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
-fi
+
+splitobs_pgm=midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
+make install PGM=${MIDAS_ABS:-../../compiledir/midas_abs}/\${splitobs_pgm}
 
 EOF
 

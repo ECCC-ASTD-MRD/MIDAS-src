@@ -73,7 +73,7 @@ def _install(b):
          progname=midas.monitor
          absname=${progname}_${MIDAS_VERSION}.Abs
          cp ${BH_MIDAS_ABS}/${absname} ${INSTALL_DIR}
-         ln -sf ${absname} ${INSTALL_DIR}/${program}.Abs
+         ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
         )""")
     else:
         b.shell("""
