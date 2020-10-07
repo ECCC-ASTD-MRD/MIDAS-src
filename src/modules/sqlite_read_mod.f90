@@ -199,7 +199,7 @@ contains
 
     real, allocatable        :: matdata(:,:)
 
-    REAL(OBS_REAL) :: CFRAC,MOYRAD,STDRAD
+    REAL(pre_obsReal) :: CFRAC,MOYRAD,STDRAD
 
     character(len=*), parameter :: myName = 'sqlr_readSqlite_avhrr'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -452,12 +452,12 @@ contains
         if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
-        columnsData = trim(columnsData)//", surf_emiss, bias_corr "
+        columnsData = trim(columnsData)//", ifnull(surf_emiss,.95), bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
-        columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
+        columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth,FANION_QUAL_IASI_SYS_IND,INDIC_NDX_QUAL_GEOM  "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
@@ -662,6 +662,10 @@ contains
           call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
 
         end if
+        if ( trim(rdbSchema) == 'iasi'  ) then
+          call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = FANION_QUAL_IASI_SYS_IND, INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = INDIC_NDX_QUAL_GEOM,      INT_MISSING=MPC_missingValue_INT )
+        end if
 
         if ( instrument == 420 ) obsSat  = 784
         if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
@@ -795,7 +799,7 @@ contains
             if ( obsvalue /=0.) then
               call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
             else
-              call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,OBS_REAL), obsVarno, obsFlag, vertCoordType, bodyIndex)
+              call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
             endif
           else if (trim(rdbSchema) == 'radvel') then
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
@@ -1000,6 +1004,7 @@ contains
     query = ' update data set flag = ? '//trim(itemChar)
     query = trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
+    call   fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
@@ -1013,7 +1018,6 @@ contains
       headPrimaryKey = obs_headPrimaryKey( obsdat, headerIndex )
       obsRln = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
-
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
@@ -1022,7 +1026,6 @@ contains
         call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
         ITEMS: do itemId = 1, numberUpdateItems
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-
           if ( obsValue /= obs_missingValue_R ) then  
             romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
             if ( romp == obs_missingValue_R ) then
@@ -1346,8 +1349,7 @@ contains
     character(len=*), parameter :: myName = 'sqlr_cleanSqlite:'
     character(len=*), parameter :: myError = myName //' ERROR: '
 
-    character(len = 128) :: query
-    type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
+    character(len = 300) :: cmds
     type(fSQL_STATUS)    :: status
 
     call fSQL_open(db, fileName, status)
@@ -1356,14 +1358,10 @@ contains
     end if
 
     ! Mark for deletion all records with bit 11 (2048) set
-    query = ' delete from data where flag & 2048;'
-    call fSQL_prepare(db, query, statement, status)
-    if (fSQL_error(status) /= FSQL_OK) &
-      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
-    call fSQL_begin(db)
-    call fSQL_exec_stmt(statement)
-    call fSQL_finalize(statement)
-    call fSQL_commit(db)
+    write(*,*) myName//' Thinning file: ', trim(fileName)
+    cmds='PRAGMA synchronous = OFF; PRAGMA journal_mode = OFF;delete from header where id_obs not in (select id_obs from data where obsvalue is not null group by 1 having sum(flag & 2048 =2048)  <  count(*) ) ; delete from data where  id_obs not in ( select id_obs from header) ;'
+    call   fSQL_do_many( db,cmds, status )
+    write(*,*) myName//' Thinning sql: ', trim( cmds)
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
