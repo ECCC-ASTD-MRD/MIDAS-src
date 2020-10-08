@@ -21,6 +21,7 @@ fi
 
 toplevel=$(git rev-parse --show-toplevel)
 suite=${toplevel}/maestro/suites/midas_system_tests
+compiledir_main=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}
 
 if [ -z "${COMPILING_MACHINE_PPP}" -o -z "${COMPILING_MACHINE_SUPER}" ]; then
     ${toplevel}/set_resources_def.sh
@@ -61,7 +62,7 @@ cd ${toplevel}/tools/splitobs
 make splitobs_\${ORDENV_PLAT}
 
 splitobs_pgm=midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
-make install PGM=${MIDAS_ABS:-../../compiledir/midas_abs}/\${splitobs_pgm}
+make install PGM=${MIDAS_ABS:-${compiledir_main}/midas_abs}/\${splitobs_pgm}
 
 EOF
 
