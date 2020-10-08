@@ -128,7 +128,7 @@ module tovs_nl_mod
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
-  integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
+  integer, parameter :: tvs_maxNumberOfSensors  = 100   ! Max no sensors to be used
   integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
 
   ! Module variables

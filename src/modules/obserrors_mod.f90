@@ -370,6 +370,11 @@ contains
     read(ILUTOV,*) INUMSAT
     read(ILUTOV,*)
 
+    if ( inumsat > tvs_maxNumberOfSensors ) then
+      write(*,'(A)') ' Number of sensors in stats_tovs file is greater than maximum allowed (tvs_maxNumberOfSensors)'
+      call utl_abort('oer_readObsErrorsTOVS')
+    end if
+
     !
     !     4. Read the satellite identification, the number of channels,
     !        the observation errors and the utilization flags
