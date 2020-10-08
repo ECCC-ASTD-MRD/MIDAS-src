@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Increased tvs_maxNumberOfSensors and added check on the number of sensors in stats_tovs file (#404 and !390)
  * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
 
 ### Removed
