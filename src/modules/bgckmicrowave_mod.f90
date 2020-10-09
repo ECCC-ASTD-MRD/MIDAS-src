@@ -313,7 +313,7 @@ contains
   ! amsuABTest10RttovRejectCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest10RttovRejectCheck(KCANO, KNOSAT, KNO, KNT, RESETQC, &
-                                          STNID, KMARQ, ICHECK, rejectionCodArray)
+                                          STNID, KMARQ, ICHECK)
 
     !:Purpose:               10) test 10: RTTOV reject check (single)
     !                        Rejected datum flag has bit #9 on.
@@ -328,7 +328,6 @@ contains
     character *9, intent(in)               :: STNID                          ! identificateur du satellite
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -364,7 +363,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest1TopographyCheck(KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                         channelForTopoFilter, altitudeForTopoFilter, KMARQ, &
-                                        ICHECK, rejectionCodArray)
+                                        ICHECK)
 
     !:Purpose:               1) test 1: Topography check (partial)
     !                        Channel 6 is rejected for topography >  250m.
@@ -382,7 +381,6 @@ contains
     real,        intent(in)                :: MTINTRP(KNT)                   ! topo aux point d'obs
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -428,7 +426,7 @@ contains
   ! amsuABTest2LandSeaQualifierCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest2LandSeaQualifierCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
-                                              KTERMER, KMARQ, ICHECK, rejectionCodArray)
+                                              KTERMER, KMARQ, ICHECK)
 
     !:Purpose:                      2) test 2: "Land/sea qualifier" code check (full)
     !                                  allowed values are: 0, land,
@@ -445,7 +443,6 @@ contains
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifier
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -476,7 +473,7 @@ contains
   !  amsuABTest3TerrainTypeCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest3TerrainTypeCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
-                                         ITERRAIN, KMARQ, ICHECK, rejectionCodArray)
+                                         ITERRAIN, KMARQ, ICHECK)
 
     !:Purpose:                     3) test 3: "Terrain type" code check (full)
     !                                 allowed values are: -1, missing,
@@ -493,7 +490,6 @@ contains
     integer,     intent(in)               :: ITERRAIN(KNT)                  ! terrain type
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -526,7 +522,7 @@ contains
   ! amsuABTest4FieldOfViewCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest4FieldOfViewCheck(KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, &
-                                         maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
+                                         maxScanAngleAMSU, KMARQ, ICHECK)
 
     !:Purpose:                          4) test 4: Field of view number check (full)
     !                                      Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
@@ -541,7 +537,6 @@ contains
     integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -571,7 +566,7 @@ contains
   ! amsuABTest5ZenithAngleCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest5ZenithAngleCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
-                                         SATZEN, KMARQ, ICHECK, rejectionCodArray)
+                                         SATZEN, KMARQ, ICHECK)
 
     !:Purpose:                   5) test 5: Satellite zenith angle check (full)
     !                               Satellite zenith angle acceptable range is [0.,60.].
@@ -585,7 +580,6 @@ contains
     real,        intent(in)               :: SATZEN(KNT)                    ! satellite zenith angle 
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -619,7 +613,7 @@ contains
   ! amsuABTest6ZenAngleAndFovConsistencyCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest6ZenAngleAndFovConsistencyCheck(KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  ZANGL, &
-                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
+                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK)
 
     !:Purpose:                            6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     !                                        Acceptable difference between "Satellite zenith angle"  and
@@ -638,7 +632,6 @@ contains
     integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -676,7 +669,7 @@ contains
   !  amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
-                                                                        KMARQ, ICHECK, rejectionCodArray)
+                                                                        KMARQ, ICHECK)
 
     !:Purpose:                    7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     !                                Acceptable conditions are:
@@ -696,7 +689,6 @@ contains
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -732,7 +724,7 @@ contains
   !  amsuABTest9UncorrectedTbCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest9UncorrectedTbCheck(KCANO, KNOSAT, KNO, KNT, STNID, &
-                                           RESETQC, KMARQ, ICHECK, rejectionCodArray)
+                                           RESETQC, KMARQ, ICHECK)
 
     !:Purpose:                  9) test 9: Uncorrected Tb check (single)
     !                              Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -747,7 +739,6 @@ contains
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -782,7 +773,7 @@ contains
   ! amsuABTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest11RadianceGrossValueCheck(KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
-                                                 GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
+                                                 GROSSMAX, KMARQ, ICHECK)
 
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
     !                                               Change this test from full to single. jh nov 2000.
@@ -799,7 +790,6 @@ contains
     real,        intent(in)               :: GROSSMAX(:)                  ! Gross val max 
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -838,7 +828,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest12GrodyClwCheck(KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
                                       clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
-                                      ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
+                                      ICLWREJ, KMARQ, ICHECK)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
     !                                 For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
@@ -859,7 +849,6 @@ contains
     integer,     intent(in)               :: ICLWREJ(MXCLWREJ)              !
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: channelval
     integer                               :: nDataIndex
@@ -943,7 +932,7 @@ contains
   ! amsubTest12DrynessIndexCheck
   !-------------------------------------------------------------------------
   subroutine amsubTest12DrynessIndexCheck(KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
-                                          ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
+                                          ktermer, glintrp, KMARQ, ICHECK)
 
     !:Purpose:  12) test 12: Dryness index check
     !           The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -964,7 +953,6 @@ contains
     real,        intent(in)               :: glintrp(:)                     ! topo interpolated to obs point
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -1024,7 +1012,7 @@ contains
   ! amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest13GrodyScatteringIndexCheck(KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
-                                                  MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
+                                                  MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK)
 
     !:Purpose:                  13) test 13: Grody scattering index check (partial)
     !                               For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
@@ -1044,7 +1032,6 @@ contains
     integer,     intent(in)                :: ISCATREJ(MXSCATREJ)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -1084,7 +1071,7 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
-                                                     KTERMER, GLINTRP, KMARQ, ICHECK, rejectionCodArray)
+                                                     KTERMER, GLINTRP, KMARQ, ICHECK)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
     !                               For Scattering Index > 40 sea ice
@@ -1105,7 +1092,6 @@ contains
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
 
     ! Locals
     integer                                :: nDataIndex
@@ -1170,7 +1156,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
-                                   MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+                                   MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full). Les observations, dont le residu (O-P) 
@@ -1199,7 +1185,6 @@ contains
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1290,7 +1275,7 @@ contains
   ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
-                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, rejectionCodArray)
+                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single)
@@ -1313,7 +1298,6 @@ contains
     integer,     intent(in)                :: ICH2OMPREJ(MXCH2OMPREJ)                 !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1378,7 +1362,7 @@ contains
   ! amsuABTest15ChannelSelectionWithIutilst
   !--------------------------------------------------------------------------
   subroutine amsuABTest15ChannelSelectionWithIutilst(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
-                                              GLINTRP, IUTILST, MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
+                                              GLINTRP, IUTILST, MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
 
     !:Purpose:                         ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !                                    IUTILST = 0 (blacklisted)
@@ -1406,7 +1390,6 @@ contains
     integer,     intent(in)                :: ISFCREJ2(MXSFCREJ2)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1470,8 +1453,7 @@ contains
   ! amsuaTest16ExcludeExtremeScattering
   !--------------------------------------------------------------------------
   subroutine amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, &
-                                                 PTBO, btClear2D, PTBOMP, KMARQ, ICHECK, &
-                                                 rejectionCodArray)
+                                                 PTBO, btClear2D, PTBOMP, KMARQ, ICHECK)
     !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
 
@@ -1487,7 +1469,6 @@ contains
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(out)               :: rejectionCodArray(:,:,:)       ! cumul of reject element 
     ! Locals
     integer :: channelval
     integer :: nDataIndex
@@ -1609,7 +1590,7 @@ contains
   subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                 IUTILST, KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clwObs, clwFG, scatw, rejectionCodArray, STNID, RESETQC, ZLAT)
+                                globMarq, IMARQ, ident, clwObs, clwFG, scatw, STNID, RESETQC, ZLAT)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1671,9 +1652,6 @@ contains
 
     integer, allocatable, intent(out)      :: ident(:)                 !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                                   FOR AMSUA just fill with zeros
-
-    integer, intent(inout)                 :: rejectionCodArray(mwbg_maxNumTest, &
-                                              mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
     integer, parameter                     :: maxScanAngleAMSU= 30 
@@ -1797,47 +1775,47 @@ contains
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest10RttovRejectCheck (KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
     ! Channel 7 is rejected for topography > 2000m.
     call amsuABTest1TopographyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                         channelForTopoFilter, altitudeForTopoFilter, KMARQ, &
-                                        ICHECK, rejectionCodArray)
+                                        ICHECK)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
     !                       1, sea,
     !                       2, coast.
-    call amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK)
 
     ! 3) test 3: "Terrain type" code check (full)
     !   allowed values are: -1, missing,
     !                        0, sea-ice,
     !                        1, snow on land.
-    call amsuABTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, KMARQ, ICHECK)
  
     ! 4) test 4: Field of view number check (full)
     !
     ! Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
-    call amsuABTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK)
 
     ! 5) test 5: Satellite zenith angle check (full)
     ! Satellite zenith angle acceptable range is [0.,60.].
-    call amsuABTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, KMARQ, ICHECK)
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
     call amsuABTest6ZenAngleAndFovConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  ZANGL, &
-                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray) 
+                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK) 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
     !       a) both over ocean (ktermer=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (ktermer=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
     call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
-                                                               KMARQ, ICHECK, rejectionCodArray)
+                                                               KMARQ, ICHECK)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -1849,27 +1827,27 @@ contains
     
     ! 9) test 9: Uncorrected Tb check (single)
     ! Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray) 
+    call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK) 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
     call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
-                                      GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
+                                      GROSSMAX, KMARQ, ICHECK)
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     call amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, clwObs, &
                                 clwFG, useStateDepSigmaObs, ktermer, MISGRODY, MXCLWREJ, &
-                                ICLWREJ, KMARQ, ICHECK, rejectionCodArray)
+                                ICLWREJ, KMARQ, ICHECK)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
     call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
-                                              MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, rejectionCodArray)
+                                              MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
                                     useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
-                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, rejectionCodArray)
+                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
@@ -1883,12 +1861,11 @@ contains
     !  or sea-ice REGARDLESS of IUTILST value (but IUTILST=0 always for
     !  these unassimilated channels).
     call amsuABTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, IUTILST, &
-                                              MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
+                                              MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
     call amsuaTest16ExcludeExtremeScattering(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, &
-                                        PTBO, btClear2D, PTBOMP,  KMARQ, ICHECK, &
-                                        rejectionCodArray)
+                                        PTBO, btClear2D, PTBOMP,  KMARQ, ICHECK) 
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -1929,7 +1906,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clwOBS, clwFG, scatw, rejectionCodArray, STNID, RESETQC)
+                                globMarq, IMARQ, ident, clwOBS, clwFG, scatw, STNID, RESETQC)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1988,8 +1965,6 @@ contains
     integer, allocatable, intent(out)       :: ident(:)          !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                               FOR AMSUA just fill with zeros
 
-    integer, intent(inout)                   :: rejectionCodArray(mwbg_maxNumTest, &
-                                                mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
     integer, parameter                     :: maxScanAngleAMSU= 90 
@@ -2106,7 +2081,7 @@ contains
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest10RttovRejectCheck (KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 3- 45 is rejected for topography >  2500m.
@@ -2114,40 +2089,40 @@ contains
     ! Channel 5 - 47 is rejected for topography > 1000m.
     call amsuABTest1TopographyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                         channelForTopoFilter, altitudeForTopoFilter, KMARQ, &
-                                        ICHECK, rejectionCodArray)
+                                        ICHECK)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
     !                       1, sea,
     !                       2, coast.
-    call amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK)
 
     ! 3) test 3: "Terrain type" code check (full)
     !   allowed values are: -1, missing,
     !                        0, sea-ice,
     !                        1, snow on land.
-    call amsuABTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, KMARQ, ICHECK)
  
     ! 4) test 4: Field of view number check (full)
     !
     ! Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
-    call amsuABTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK)
 
     ! 5) test 5: Satellite zenith angle check (full)
     ! Satellite zenith angle acceptable range is [0.,60.].
-    call amsuABTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, KMARQ, ICHECK, rejectionCodArray)
+    call amsuABTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, KMARQ, ICHECK)
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
     call amsuABTest6ZenAngleAndFovConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  ZANGL, &
-                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK, rejectionCodArray) 
+                                                  ISCNPOS, maxScanAngleAMSU, KMARQ, ICHECK) 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
     !       a) both over ocean (ktermer=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (ktermer=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
     call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
-                                                               KMARQ, ICHECK, rejectionCodArray)
+                                                               KMARQ, ICHECK)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -2159,11 +2134,11 @@ contains
     
     ! 9) test 9: Uncorrected Tb check (single) SKIP FOR NOW
     ! Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    ! call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, rejectionCodArray) 
+    ! call amsuABTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK) 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
     call amsuABTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, PTBO, GROSSMIN, &
-                                      GROSSMAX, KMARQ, ICHECK, rejectionCodArray)
+                                      GROSSMAX, KMARQ, ICHECK)
     ! 12) test 12:  Dryness index check 
     !The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
     !of "dryness" of the atmosphere. In extreme dry conditions, channels AMSUB-3 4 and 5
@@ -2171,18 +2146,18 @@ contains
     ! Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5
     !  over land and ice
     call amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
-                                       ktermer, glintrp, KMARQ, ICHECK, rejectionCodArray)
+                                       ktermer, glintrp, KMARQ, ICHECK)
     ! 13) test 13: Bennartz scattering index check (full)
 
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
-                                                  KTERMER, GLINTRP, KMARQ, ICHECK, rejectionCodArray)
+                                                  KTERMER, GLINTRP, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
 
     call amsubTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
-                                    ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, rejectionCodArray)
+                                    ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
@@ -2197,7 +2172,7 @@ contains
     !  these unassimilated channels).
 
     call amsuABTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, IUTILST, &
-                                                 MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, rejectionCodArray)
+                                                 MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
     !            =0, aucun rejet,
@@ -2236,15 +2211,13 @@ contains
   ! mwbg_qcStats
   !--------------------------------------------------------------------------
   subroutine mwbg_qcStats(instName, ICHECK, ICAN, KNOSAT, &
-                              KNO, KNT, satelliteId, LDprint, rejectionCodArray, rejectionCodArray2)
+                              KNO, KNT, satelliteId, LDprint)
 
     !:Purpose:          Cumuler ou imprimer des statistiques decriptives
     !                   des rejets tovs.
     implicit none 
     !Arguments:
     character(*), intent(in)               :: instName                           ! Instrument Name
-    integer, intent(in)                    :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)       ! Nombre d'element rejetes par type de test
-    integer, intent(in), optional          :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)      ! Nombre d'element rejetes par type de test
     integer, intent(in)                    :: ICHECK(:,:)                        ! indicateur controle de qualite tovs par canal 
     !                                                                              =0, ok,
     !                                                                              >0, rejet,
@@ -2904,7 +2877,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! atmsTest1Flagbit7Check
   !--------------------------------------------------------------------------
-  subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK, rejectionCodArray)
+  subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK)
 
     !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms program
     !                        Includes observations flagged for cloud liquid water, scattering index,
@@ -2921,7 +2894,6 @@ end subroutine bennartz
     character *9,intent(in)                                   :: STNID                    ! identificateur du satellite
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)          ! indicateur du QC par canal
-    integer,     intent(inout)                                :: rejectionCodArray(:,:,:) ! cumul of reject element 
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -2956,7 +2928,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   subroutine atmsTest2TopographyCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                       KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
-                                      ICHECK, rejectionCodArray, rejectionCodArray2)
+                                      ICHECK)
 
     !:Purpose:               1) test 2: Topography check (partial)
 
@@ -2974,8 +2946,6 @@ end subroutine bennartz
     real ,       intent(in)                                   :: ZCRIT(MXTOPO)
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
-    integer,     intent(inout)                                :: rejectionCodArray(:,:,:)       ! cumul of reject element 
-    integer,     intent(inout)                                :: rejectionCodArray2(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -3015,7 +2985,7 @@ end subroutine bennartz
   ! atmsTest3UncorrectedTbCheck
   !--------------------------------------------------------------------------
   subroutine atmsTest3UncorrectedTbCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                         KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+                                         KMARQ, B7CHCK, ICHECK)
 
     !:Purpose:                       Test 3: Uncorrected Tb check (single)
     !                                Uncorrected datum (flag bit #6 off). 
@@ -3032,8 +3002,6 @@ end subroutine bennartz
     integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
-    integer,     intent(inout)                                :: rejectionCodArray(:,:,:)       ! cumul of reject element 
-    integer,     intent(inout)                                :: rejectionCodArray2(:,:,:)       ! cumul of reject element 
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -3075,7 +3043,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   subroutine atmsTest4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
                                  IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                 KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+                                 KMARQ, B7CHCK, ICHECK)
 
     !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full).
@@ -3105,8 +3073,6 @@ end subroutine bennartz
     integer,     intent(inout)           :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)           :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)           :: B7CHCK(KNO,KNT)          ! 
-    integer,     intent(inout)           :: rejectionCodArray(:,:,:)       ! cumul of reject element 
-    integer,     intent(inout)           :: rejectionCodArray2(:,:,:)       ! cumul of reject element 
 
     ! Locals
     integer                              :: channelval
@@ -3210,7 +3176,7 @@ end subroutine bennartz
   ! atmsTest5ChannelSelectionUsingIutilst
   !--------------------------------------------------------------------------
   subroutine atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                                   IUTILST, KMARQ, ICHECK, rejectionCodArray)
+                                                   IUTILST, KMARQ, ICHECK)
 
     !:Purpose:                         test 5: Channel selection using array IUTILST(chan,sat)
     !                                  IUTILST = 0 (blacklisted)
@@ -3226,7 +3192,6 @@ end subroutine bennartz
     integer,     intent(in)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(in)               :: IUTILST(:,:)          !  channsl selection
     integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(inout)            :: rejectionCodArray(:,:,:)       ! cumul of reject element 
 
     ! Locals
     integer                               :: channelval
@@ -3266,7 +3231,7 @@ end subroutine bennartz
                                zenith, qcflag2, qcflag1, ICANO, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, rclw2, riwv, &
-                               rejectionCodArray, rejectionCodArray2, STNID, RESETQC)
+                               STNID, RESETQC)
                                
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
@@ -3305,11 +3270,7 @@ end subroutine bennartz
     !                                                            =0, ok,
     !                                                            >0, rejet,
     integer, intent(inout)           :: IMARQ(:)               ! marqueurs des radiances
-    integer, intent(inout)           :: rejectionCodArray(mwbg_maxNumTest, &
-                                        mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet par 
     !                                                          satellite, critere et par canal
-    integer, intent(inout)           :: rejectionCodArray2(mwbg_maxNumTest, &
-                                        mwbg_maxNumChan,mwbg_maxNumSat)  ! cumul du nombre de rejet 
     !                                                             (chech n2) par satellite, critere et par canal
     real, allocatable, intent(out)   :: rclw (:)
     real, allocatable, intent(out)   :: rclw2 (:)
@@ -3498,16 +3459,15 @@ end subroutine bennartz
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
     call atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
-                                 STNID,  B7CHCK, rejectionCodArray)
+                                 STNID,  B7CHCK)
 
     ! 2) test 2: Topography check (partial)
     call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
-                                   ICHECK, rejectionCodArray, rejectionCodArray2) 
+                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK) 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                      KMARQ, B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2) 
+                                      KMARQ, B7CHCK, ICHECK) 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
     !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac) 
@@ -3518,13 +3478,13 @@ end subroutine bennartz
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
                               IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                              KMARQ,  B7CHCK, ICHECK, rejectionCodArray, rejectionCodArray2)
+                              KMARQ,  B7CHCK, ICHECK)
  
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
     call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                               IUTILST, KMARQ, ICHECK, rejectionCodArray)
+                                               IUTILST, KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -5074,10 +5034,6 @@ end subroutine bennartz
     integer                              :: isat, iplatf
     integer                              :: instr
     logical                              :: sensorIndexFound
-    integer, save                        :: numberofChannel
-    logical, save                        :: ifFirstCall = .true.
-
-
 
    ! find tvs_sensor index corresponding to current obs
 
@@ -5099,13 +5055,7 @@ end subroutine bennartz
     if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
 
     ! find actual Number of channels
-
-    if (ifFirstCall) then 
-      numberOfChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-      write(*,*) 'Instrument actual Number of Channels = ', numberOfChannel
-      ifFirstCall = .false.
-    end if 
-    actualNumChannel = numberOfChannel
+    actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
 
     headerCompt = 1 
     numObsToProcess = 1
@@ -5311,8 +5261,7 @@ end subroutine bennartz
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
-                                atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
-                                RESETQC, obsLatitude)
+                                atmScatteringIndex, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
@@ -5321,8 +5270,7 @@ end subroutine bennartz
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag,        & 
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
-                                atmScatteringIndex, rejectionCodArray, burpFileSatId,     &
-                                RESETQC)
+                                atmScatteringIndex, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
@@ -5332,8 +5280,7 @@ end subroutine bennartz
                                newInformationFlag, satScanPosition,   &
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                               atmScatteringIndex, rejectionCodArray, &
-                               rejectionCodArray2, burpFileSatId, RESETQC)
+                               atmScatteringIndex, burpFileSatId, RESETQC)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
@@ -5343,7 +5290,7 @@ end subroutine bennartz
       !###############################################################################
       call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,       &
                         actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), &
-                        .FALSE., rejectionCodArray, rejectionCodArray2)
+                        .FALSE.)
 
       !###############################################################################
       ! STEP 6) Update Flags and obs in obsspace data
@@ -5359,7 +5306,7 @@ end subroutine bennartz
     !###############################################################################
     call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,              &
                       actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
-                      .TRUE.,rejectionCodArray, rejectionCodArray2)
+                      .TRUE.)
 
     call tmg_stop(33)
 
