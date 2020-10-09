@@ -118,6 +118,7 @@ module tovs_nl_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW
+  public :: tvs_getNumberOfChannels
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -934,6 +935,36 @@ contains
     end if
 
   end subroutine sensors
+
+
+  !--------------------------------------------------------------------------
+  !  tvs_getNumberOfChannels
+  !--------------------------------------------------------------------------
+  integer function tvs_getNumberOfChannels(sensorIndex)
+    !
+    ! :Purpose: Function to return the number of channels (from coefficient file)
+    !           (not very efficient shoud be called only for non hyperspectral instruments)
+    implicit none
+    ! Argument:
+    integer, intent(in) :: sensorIndex
+    ! Locals:
+    type(rttov_coefs)   :: tmpCoeffs
+    integer             :: errorCode
+    type(rttov_options) :: tmpOpts    
+
+
+    call rttov_read_coefs ( &
+         errorCode,         &! out
+         tmpCoeffs,         &
+         tmpOpts,           &
+         instrument=tvs_listSensors(:,sensorIndex) ) 
+
+    tvs_getNumberOfChannels = tmpCoeffs%coef%fmv_chn
+
+    call rttov_dealloc_coefs(errorCode, tmpCoeffs )
+
+  end function tvs_getNumberOfChannels
+
 
   !--------------------------------------------------------------------------
   !  tvs_getAllIdBurpTovs

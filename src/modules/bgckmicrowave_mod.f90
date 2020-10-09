@@ -48,9 +48,6 @@ module bgckmicrowave_mod
   real    :: mwbg_cloudyClwThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
-  integer :: mwbg_maxNumChan
-  integer :: mwbg_maxNumSat 
-  integer :: mwbg_maxNumTest
 
   integer, parameter :: mwbg_maxScanAngle=96
   real,    parameter :: mwbg_realMissing=-99. 
@@ -71,6 +68,19 @@ module bgckmicrowave_mod
   real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
 
+  integer, parameter :: mwbg_maxNumSat  = 13
+  integer, parameter :: mwbg_maxNumChan = 100
+  integer, parameter :: mwbg_maxNumTest = 16
+
+  integer            :: rejectionCodArray (mwbg_maxNumTest, &
+                                           mwbg_maxNumChan, &
+                                           mwbg_maxNumSat) ! number of rejection 
+  !                                                          per sat. per channl per test
+  integer            :: rejectionCodArray2 (mwbg_maxNumTest, &
+                                           mwbg_maxNumChan, &
+                                           mwbg_maxNumSat) ! number of rejection per channl per test
+  !                                                          for ATMS 2nd category of tests
+
   ! namelist variables
   character(len=9)              :: instName                      ! instrument name
   real                          :: clwQcThreshold                ! 
@@ -78,16 +88,11 @@ module bgckmicrowave_mod
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: debug                         ! debug mode
-  integer                       :: maxNumSat
-  integer                       :: channelOffset
-  integer                       :: maxNumChan
-  integer                       :: MaxNumTest
 
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
-                    maxNumSat, channelOffset, maxNumTest, &
-                    maxNumChan, cloudyClwThresholdBcorr 
+                    cloudyClwThresholdBcorr 
 
 contains
 
@@ -119,9 +124,6 @@ contains
     mwbg_clwQcThreshold = clwQcThreshold
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = cloudyClwThresholdBcorr
-    mwbg_maxNumChan = maxNumChan
-    mwbg_maxNumSat  = maxNumSat
-    mwbg_maxNumTest = maxNumTest
 
   end subroutine mwbg_init 
 
@@ -792,9 +794,9 @@ contains
     integer,     intent(in)               :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
-    real,        intent(in)               :: PTBO(KNO,KNT)                      ! radiances 
-    real,        intent(in)               :: GROSSMIN(mwbg_maxNumChan)                ! Gross val min 
-    real,        intent(in)               :: GROSSMAX(mwbg_maxNumChan)                ! Gross val max 
+    real,        intent(in)               :: PTBO(KNO,KNT)                  ! radiances 
+    real,        intent(in)               :: GROSSMIN(:)                  ! Gross val min 
+    real,        intent(in)               :: GROSSMAX(:)                  ! Gross val max 
     integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(out)              :: rejectionCodArray(:,:,:)       ! cumul of reject element 
@@ -810,7 +812,7 @@ contains
       do nChannelIndex=1,KNO
         if ( KCANO(nChannelIndex,nDataIndex) /= 20     .and. &
             KCANO(nChannelIndex,nDataIndex) >=  1     .and. &
-            KCANO(nChannelIndex,nDataIndex) <=  mwbg_maxNumChan       ) then  
+            KCANO(nChannelIndex,nDataIndex) <=  KNO       ) then  
           if ( PTBO(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
              ( PTBO(nChannelIndex,nDataIndex) < GROSSMIN(KCANO(nChannelIndex,nDataIndex)).or. &
                PTBO(nChannelIndex,nDataIndex) > GROSSMAX(KCANO(nChannelIndex,nDataIndex))     ) ) then
@@ -1183,7 +1185,7 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)      ! rogue factor 
+    real,        intent(in)                :: ROGUEFAC(:)      ! rogue factor 
     real(8),     intent(in)                :: TOVERRST(:,:)      !  erreur totale TOVs
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     real(8),     intent(in)                :: clwThreshArr(:,:,:) ! cloud threshold err
@@ -1302,7 +1304,7 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(mwbg_maxNumChan)      ! rogue factor 
+    real,        intent(in)                :: ROGUEFAC(:)      ! rogue factor 
     real(8),     intent(in)                :: TOVERRST(:,:)                  !  erreur totale TOVs
     integer,     intent(in)                :: ktermer(KNT)                   !
     integer,     intent(in)                :: iterrain(KNT)                  !
@@ -1700,9 +1702,9 @@ contains
     integer                                :: ISCATREJ(MXSCATREJ)
     real                                   :: EPSILON
     real                                   :: MISGRODY
-    real                                   :: GROSSMIN(mwbg_maxNumChan)
-    real                                   :: GROSSMAX(mwbg_maxNumChan) 
-    real                                   :: ROGUEFAC(mwbg_maxNumChan)
+    real, allocatable                      :: GROSSMIN(:)
+    real, allocatable                      :: GROSSMAX(:) 
+    real, allocatable                      :: ROGUEFAC(:)
     real                                   :: tb23 (KNT)
     real                                   :: tb31 (KNT)
     real                                   :: tb50 (KNT)
@@ -1726,6 +1728,8 @@ contains
     LLFIRST = .TRUE.
     EPSILON = 0.01
     MISGRODY = -99.
+
+    call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) =(/ 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, 2.0, 2.0, &
@@ -1735,7 +1739,8 @@ contains
     ISFCREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
     ISCATREJ(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
     ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
-                   
+
+    call utl_reAllocate(GROSSMIN, KNO+tvs_channelOffset(KNOSAT))
     GROSSMIN(:) = (/ 200., 190., 190., 180., 180., 180., 170., &
                     170., 180., 170., 170., 170., 180., 180., &
                     180., 180., 170., 180., 180., 000., 120., &
@@ -1743,6 +1748,7 @@ contains
                     120., 160., 190., 190., 200., 190., 180., &
                     180., 180., 180., 190., 190., 200., 130./)
 
+    call utl_reAllocate(GROSSMAX, KNO+tvs_channelOffset(KNOSAT))
     GROSSMAX(:) = (/ 270., 250., 250., 250., 260., 280., 290., &
                     320., 300., 320., 300., 280., 320., 300., &
                     290., 280., 330., 350., 350., 000., 310., &
@@ -2011,9 +2017,9 @@ contains
     integer                                :: ISFCREJ2(MXSFCREJ2)
     real                                   :: EPSILON
     real                                   :: MISGRODY
-    real                                   :: GROSSMIN(mwbg_maxNumChan)
-    real                                   :: GROSSMAX(mwbg_maxNumChan) 
-    real                                   :: ROGUEFAC(mwbg_maxNumChan)
+    real, allocatable                      :: GROSSMIN(:)
+    real, allocatable                      :: GROSSMAX(:) 
+    real, allocatable                      :: ROGUEFAC(:)
     real                                   :: tb89 (KNT)
     real                                   :: tb150 (KNT)
     real                                   :: tb1831 (KNT)
@@ -2028,17 +2034,19 @@ contains
     LLFIRST = .TRUE.
     EPSILON = 0.01
     MISGRODY = -99.
+
+    call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) =(/ 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
-                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
-                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, 2.0, 2.0, &
-                     3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
-                     4.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0/)
+                    4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
+                    4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, 2.0, 2.0, &
+                    3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
+                    4.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0/)
 
     ICLWREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
     ISFCREJ(:) = (/ 43, 44 /)
     ISFCREJ2(:) = (/ 43 /)
     ICH2OMPREJ(:) = (/ 44, 45, 46, 47 /)
-                   
+    call utl_reAllocate(GROSSMIN, KNO+tvs_channelOffset(KNOSAT))
     GROSSMIN(:) = (/ 200., 190., 190., 180., 180., 180., 170., &
                     170., 180., 170., 170., 170., 180., 180., &
                     180., 180., 170., 180., 180., 000., 120., &
@@ -2046,7 +2054,7 @@ contains
                     120., 160., 190., 190., 200., 190., 180., &
                     180., 180., 180., 190., 190., 200., 130., &
                     130., 130., 130., 130., 130./)
-
+    call utl_reAllocate(GROSSMAX, KNO+tvs_channelOffset(KNOSAT))
     GROSSMAX(:) = (/ 270., 250., 250., 250., 260., 280., 290., &
                     320., 300., 320., 300., 280., 320., 300., &
                     290., 280., 330., 350., 350., 000., 310., &
@@ -2059,6 +2067,8 @@ contains
     altitudeForTopoFilter(:) = (/ 2500., 2000., 1000./)
 
     write(*,*) 'Initialization and Allocation:'
+    write(*,*) 'Nchan = ', KNT
+    write(*,*) 'NObs = ', KNO
     ! Allocation
     call utl_reAllocate(scatw,   KNT)
     call utl_reAllocate(clwObs,   KNT)
@@ -2337,14 +2347,14 @@ contains
            "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
             INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
 
-        if (instName == "AMSUA") then         
+        if (instName == "AMSUA" .or. instName == "AMSUB") then         
           write(*,'(//,1x,114("-"))')
            write(*,'(t10,"|",t47,"REJECTION CATEGORIES")')
           write(*,'(" CHANNEL",t10,"|",105("-"))')
-          write(*,'(t10,"|",15i7)') (JI,JI=1,mwbg_maxNumTest)
+          write(*,'(t10,"|",16i7)') (JI,JI=1,mwbg_maxNumTest)
           write(*,'(1x,"--------|",105("-"))')
-          do JJ = 1, mwbg_maxNumChan
-             write(*,'(3X,I2,t10,"|",15I7)') JJ,(rejectionCodArray(JI,JJ,JK), &
+          do JJ = 1, KNO 
+             write(*,'(3X,I2,t10,"|",16I7)') JJ,(rejectionCodArray(JI,JJ,JK), &
                                       JI=1,mwbg_maxNumTest)
           end do
           write(*,'(1x,114("-"))')
@@ -2378,7 +2388,7 @@ contains
           write(*,'(" CHANNEL",t10,"|",50("-"))')
           write(*,'(t10,"|",5i7)') (JI,JI=1,mwbg_maxNumTest)
           write(*,'(1x,"--------|",50("-"))')
-          do JJ = 1, mwbg_maxNumChan
+          do JJ = 1, KNO 
             write(*,'(3X,I2,t10,"|",5I7)') JJ,(rejectionCodArray(JI,JJ,JK), &
                                         JI=1,mwbg_maxNumTest)
           end do
@@ -2388,7 +2398,7 @@ contains
           write(*,'(" CHANNEL",t10,"|",50("-"))') 
           write(*,'(t10,"|",5i7)') (JI,JI=1,mwbg_maxNumTest)
           write(*,'(1x,"--------|",50("-"))')
-          do JJ = 1, mwbg_maxNumChan
+          do JJ = 1, KNO
             write(*,'(3X,I2,t10,"|",5I7)') JJ,(rejectionCodArray2(JI,JJ,JK), &
                                         JI=1,mwbg_maxNumTest)          
           end do
@@ -3084,8 +3094,8 @@ end subroutine bennartz
     integer,     intent(in)              :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)              :: KNT                            ! nombre de tovs
     character *9,intent(in)              :: STNID                          ! identificateur du satellite
-    real,        intent(in)              :: ROGUEFAC(mwbg_maxNumChan)                  ! rogue factor 
-    real(8),     intent(in)              :: TOVERRST(:,:)          !  erreur totale TOVs
+    real,        intent(in)              :: ROGUEFAC(:)                  ! rogue factor 
+    real(8),     intent(in)              :: TOVERRST(:,:)                  !  erreur totale TOVs
     real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident  
     integer,     intent(in)              :: MXSFCREJ                       ! cst 
@@ -3338,7 +3348,7 @@ end subroutine bennartz
     integer                          :: ISFCREJ(MXSFCREJ)
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                          :: B7CHCK(KNO,KNT)
-    real                             :: ROGUEFAC(mwbg_maxNumChan)
+    real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest) 
     integer                          :: ICHTOPO(MXTOPO) 
@@ -3356,7 +3366,7 @@ end subroutine bennartz
     !                                                                     over water due bad data 
 
     LLFIRST = .true.
-
+    call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
                     2.0, 4.0, 4.0, 4.0, 4.0, 4.0/)
@@ -3377,8 +3387,9 @@ end subroutine bennartz
     ZCRIT(:) = (/250., 2000., 2000., 2250., 2500./)
 
     !  Test selection (0=skip test, 1=do test)
-    !             1  2  3  4  5 
-    ITEST(:) = (/1, 1, 1, 1, 1/)
+    !              1  2  3  4  5 
+    ITEST(:)  = 0
+    ITEST(1:5) = (/1, 1, 1, 1, 1/)
        
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3410,10 +3421,10 @@ end subroutine bennartz
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.    
     !###############################################################################
 
-    call mwbg_grossValueCheck(KNT,ztb,grossrej)
+    call mwbg_grossValueCheck(KNT, KNO, ztb, grossrej)
      
     !###############################################################################
-    ! STEP 3 ) Preliminary QC checks --> set lqc(nt,mwbg_maxNumChan)=.true. 
+    ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true. 
     !          for data that fail QC     
     !###############################################################################
 
@@ -3424,7 +3435,7 @@ end subroutine bennartz
     if ( reportHasMissingTb ) numReportWithMissigTb = numReportWithMissigTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,KNT
-      if ( COUNT(lqc(kk,:)) == mwbg_maxNumChan ) grossrej(kk) = .true.
+      if ( COUNT(lqc(kk,:)) == KNO ) grossrej(kk) = .true.
     end do
 
     !###############################################################################
@@ -3434,7 +3445,7 @@ end subroutine bennartz
     !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
  
-    call mwbg_nrlFilterAtms(KNT, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
+    call mwbg_nrlFilterAtms(KNT, KNO, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
                             grossrej, rclw, rclw2, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
@@ -3445,7 +3456,7 @@ end subroutine bennartz
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
     
-    call mwbg_flagDataUsingNrlCriteria(KNT, ztb, biasCorr, rclw, scatec, scatbg, &
+    call mwbg_flagDataUsingNrlCriteria(KNT, KNO, ztb, biasCorr, rclw, scatec, scatbg, &
                                        SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
 
@@ -4131,7 +4142,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_grossValueCheck  
   !--------------------------------------------------------------------------
-  subroutine mwbg_grossValueCheck(npts,ztb,grossrej)
+  subroutine mwbg_grossValueCheck(npts,KNO, ztb,grossrej)
 
     !:Purpose: Check Tbs for values that are missing or outside physical limits.
     !          **NOTE: REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
@@ -4139,6 +4150,7 @@ end subroutine bennartz
 
     ! Arguments
     integer, intent(in)               :: npts             ! number of obs pts to process
+    integer, intent(in)               :: KNO              ! number of ichannels
     real,    intent(in)               :: ztb(:)           ! bs from input BURP file
     logical, intent(out), allocatable :: grossrej(:)      ! ogical array defining which obs are to be rejected
 
@@ -4151,7 +4163,7 @@ end subroutine bennartz
     indx1 = 1
     do ii = 1, npts
 
-      indx2 = ii*mwbg_maxNumChan
+      indx2 = ii*KNO
       if ( all( ztb(indx1:indx2) > 50.0 ) .and. all( ztb(indx1:indx2) < 380.0 ) ) then
         grossrej(ii) = .false.
       end if
@@ -4168,7 +4180,7 @@ end subroutine bennartz
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
                                    ican, reportHasMissingTb)
     !  This routine performs basic quality control checks on the data. It sets array
-    !  lqc(nt,mwbg_maxNumChan) elements to .true. to flag data with failed checks.
+    !  lqc(nt,nval) elements to .true. to flag data with failed checks.
     !
     !  The 7 QC checks are:
     !                 - 1) Invalid land/sea qualifier or terrain type,
@@ -4183,7 +4195,7 @@ end subroutine bennartz
     !                 - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 
     !
-    !  In most cases, lqc(ii,mwbg_maxNumChan) is set to .true. for all channels at point ii
+    !  In most cases, lqc(ii,nval) is set to .true. for all channels at point ii
     !  if the check detects a problem. In addition, Tb (ztb) is set to missing_value 
     !  for checks 3 and 4 fails.
     implicit none
@@ -4205,7 +4217,7 @@ end subroutine bennartz
     real,                 intent(inout)             :: ztb(:)
     real,                 intent(inout)             :: zenith(:)
     logical,              intent(out)               :: reportHasMissingTb ! true if Tb(ztb) are set to missing_value
-    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,mwbg_maxNumChan), lqc = .false. on input
+    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,nval), lqc = .false. on input
 
     ! Locals
     integer :: ii, jj, indx1, icount
@@ -4217,26 +4229,26 @@ end subroutine bennartz
     ! Global rejection checks
 
     ! Check if number of channels is correct
-    if ( nval /= mwbg_maxNumChan ) then
-      write(*,*) 'WARNING: Number of channels (',nval, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
-      write(*,*) '         All data flagged as bad and returning to calling routine!'
-      lqc(:,:) = .true.  ! flag all data in report as bad
-      return
-    end if
+    !if ( nval /= mwbg_maxNumChan ) then
+    !  write(*,*) 'WARNING: Number of channels (',nval, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
+    !  write(*,*) '         All data flagged as bad and returning to calling routine!'
+    !  lqc(:,:) = .true.  ! flag all data in report as bad
+    !  return
+    !end if
 
     ! Check for errors in channel numbers (should be 1-22 for each location ii)
     indx1 = 1
     fail = .false.
     do ii = 1,nt
-      do jj = 1,mwbg_maxNumChan
+      do jj = 1, nval
         if ( ican(indx1+jj-1) /= jj ) fail = .true.
       end do
-      indx1 = indx1 + mwbg_maxNumChan
+      indx1 = indx1 + nval
     end do
     if ( fail ) then
       write(*,*) 'WARNING: Bad channel number(s) detected!'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
-      write(*,*) '  ican(nt*mwbg_maxNumChan) array = ', ican(:)
+      write(*,*) '  ican(nt*nval) array = ', ican(:)
       lqc(:,:) = .true.  ! flag all data in report as bad
       return
     end if
@@ -4295,13 +4307,13 @@ end subroutine bennartz
         zenith(ii) = mwbg_realMissing
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_maxNumChan
+      do jj = 1,nval
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_maxNumChan
+      indx1 = indx1 + nval
     end do
 
     ! 4) Lat,lon check
@@ -4317,13 +4329,13 @@ end subroutine bennartz
         icount =  icount + 1
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_maxNumChan
+      do jj = 1, nval
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_maxNumChan
+      indx1 = indx1 + nval
     end do
     if ( icount > 0 ) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
 
@@ -4336,13 +4348,13 @@ end subroutine bennartz
         icount =  icount + 1
         reportHasMissingTb = .true.
       end if
-      do jj = 1,mwbg_maxNumChan
+      do jj = 1, nval
         if ( fail ) then
           lqc(ii,jj) = .true.
           ztb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
-      indx1 = indx1 + mwbg_maxNumChan
+      indx1 = indx1 + nval
     end do
     if ( icount > 0 ) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
 
@@ -4379,7 +4391,7 @@ end subroutine bennartz
         fail1 = .true.
         if ( grossrej(ii) ) write(*,*) ' NOTE: grossrej is also true for this point!'
       end if
-      do jj = 1,mwbg_maxNumChan
+      do jj = 1, nval
         fail2 = .false.
         if ( qcflag2(indx1+jj-1) >= 4 ) then
           !write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 = ', qcflag2(indx1+jj-1)
@@ -4391,18 +4403,18 @@ end subroutine bennartz
         if ( fail2 .or. fail1 ) lqc(ii,jj) = .true.
       end do
       if ( fail ) write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 >= 4 for one or more channels! lat, lon = ', zlat(ii), zlon(ii)
-      indx1 = indx1 + mwbg_maxNumChan
+      indx1 = indx1 + nval
     end do
      
     write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
-               nt*mwbg_maxNumChan, count(lqc)
+               nt*nval, count(lqc)
 
   end subroutine mwbg_firstQcCheckAtms
 
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterAtms(ni, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
+  subroutine mwbg_nrlFilterAtms(ni, KNO, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
                                 grossrej, clw, clw2, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
     !                  - sea ice, 
@@ -4456,6 +4468,7 @@ end subroutine bennartz
     integer    ::  i
 
     integer, intent(in)                   ::  ni
+    integer, intent(in)                   ::  KNO
     integer, intent(out)                  ::  iNumSeaIce
     integer, intent(in)                   ::  ilansea(:)
     integer, intent(inout)                ::  iglace(:)
@@ -4519,7 +4532,7 @@ end subroutine bennartz
 
     indx1 = 1
     do ii = 1, ni
-      indx2 = ii*mwbg_maxNumChan
+      indx2 = ii*KNO
       tb23(ii)      = ztbcor(indx1)
       bcor23(ii)    = biasCorr(indx1)
       tb31(ii)      = ztbcor(indx1+1)
@@ -4639,7 +4652,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCriteria 
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCriteria(nt,ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
+  subroutine mwbg_flagDataUsingNrlCriteria(nt, nval, ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
                                            useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
@@ -4659,6 +4672,7 @@ end subroutine bennartz
 
     ! Arguments
     integer, intent(in)                        :: nt  
+    integer, intent(in)                        :: nval 
     real, intent(in)                           :: ztbcor(:)
     real, intent(in)                           :: biasCorr(:)
     real, intent(in)                           :: rclw (:)
@@ -4710,7 +4724,7 @@ end subroutine bennartz
 
     indx1 = 1
     do ii = 1, nt
-      indx2 = ii*mwbg_maxNumChan
+      indx2 = ii*nval
       ztb_amsub3(ii) = ztbcor(indx1+21)
       bcor_amsub3(ii) = biasCorr(indx1+21)
       ztb_amsub5(ii) = ztbcor(indx1+17)
@@ -4725,7 +4739,7 @@ end subroutine bennartz
     riwv = -99.0
     indx1 = 1
     do ii = 1, nt
-      indx2 = ii*mwbg_maxNumChan
+      indx2 = ii*nval
       if (.not.grossrej(ii)) then
         if ( useUnbiasedObsForClw ) then
           ztb183(1) = ztbcor(indx1+17)
@@ -4987,9 +5001,6 @@ end subroutine bennartz
     integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
     integer                                 :: currentChannelNumber 
-    integer                                 :: ChannelNum
-
-    channelNum = mwbg_maxNumChan - tvs_channelOffset(sensorIndex)
     
     call obs_headSet_r(obsSpaceData, OBS_CLWO,  headerIndex, cloudLiquidWaterPathObs(1))
 
@@ -5002,7 +5013,7 @@ end subroutine bennartz
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
     obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+      currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(currentChannelNumber))
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY
@@ -5018,7 +5029,7 @@ end subroutine bennartz
                                       satScanPosition, obsQcFlag1, satOrbit, & 
                                       obsGlobalMarker, burpFileSatId, obsTb, btClear, &
                                       obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                      obsFlags, sensorIndex, obsSpaceData)
+                                      obsFlags, sensorIndex, actualNumChannel, obsSpaceData)
     
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
 
@@ -5045,7 +5056,8 @@ end subroutine bennartz
     integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
     integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
     integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
-    integer,              intent(out)    :: sensorIndex     ! find tvs_sensor index corresponding to current obs
+    integer,              intent(out)    :: sensorIndex            ! find tvs_sensor index corresponding to current obs
+    integer,              intent(out)    :: actualNumChannel       ! actual Num channel
 
     type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
 
@@ -5056,13 +5068,14 @@ end subroutine bennartz
     integer                              :: headerCompt 
     integer                              :: currentChannelNumber  
     integer                              :: channelIndex
-    integer                              ::  numChannelUsed      
     integer                              :: numObsToProcess       
     integer                              :: iplatform
     integer                              :: instrum
     integer                              :: isat, iplatf
     integer                              :: instr
     logical                              :: sensorIndexFound
+    integer, save                        :: numberofChannel
+    logical, save                        :: ifFirstCall = .true.
 
 
 
@@ -5085,7 +5098,15 @@ end subroutine bennartz
     end do
     if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
 
-    numChannelUsed = mwbg_maxNumChan - tvs_channelOffset(sensorIndex)
+    ! find actual Number of channels
+
+    if (ifFirstCall) then 
+      numberOfChannel = tvs_getNumberOfChannels(sensorIndex)
+      write(*,*) 'Instrument actual Number of Channels = ', numberOfChannel
+      ifFirstCall = .false.
+    end if 
+    actualNumChannel = numberOfChannel
+
     headerCompt = 1 
     numObsToProcess = 1
     ! Allocate Header elements
@@ -5100,13 +5121,13 @@ end subroutine bennartz
     call utl_reAllocate(satOrbit, numObsToProcess)
     call utl_reAllocate(obsQcFlag1, numObsToProcess,3)
     ! Allocate Body elements
-    call utl_reAllocate(obsTb, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(btClear, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(ompTb, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(obsTbBiasCorr, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(obsFlags, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(obsChannels, numObsToProcess*numChannelUsed)
-    call utl_reAllocate(obsQcFlag2, numObsToProcess*numChannelUsed)
+    call utl_reAllocate(obsTb, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(btClear, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsTbBiasCorr, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsChannels, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsQcFlag2, numObsToProcess*actualNumChannel)
     !initialization
     obsTb(:) = mwbg_realMissing
     btClear(:) = mwbg_realMissing
@@ -5140,7 +5161,7 @@ end subroutine bennartz
     obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
       if ( tvs_mwAllskyAssim ) then
         btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_BTCL, bodyIndex )
@@ -5151,8 +5172,8 @@ end subroutine bennartz
       obsQcFlag2(currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
       
     end do BODY
-    do channelIndex=1,numChannelUsed
-      obsChannels(channelIndex)    = channelIndex+channelOffset
+    do channelIndex=1, actualNumChannel
+      obsChannels(channelIndex)    = channelIndex+tvs_channelOffset(sensorIndex)
     end do
       
 
@@ -5172,9 +5193,9 @@ end subroutine bennartz
 
     ! Locals
     integer                       :: numObsToProcess               ! number of obs in current report
-    integer                       :: numChannelUsed                ! "      "   channels "      "
     integer                       :: headerIndex                   !header Index 
-    integer                       :: sensorIndex            ! satellite index in obserror file
+    integer                       :: sensorIndex                   ! satellite index in obserror file
+    integer                       :: actualNumChannel              ! iactual Number of channel for instrument
     integer                       :: codtyp                        ! codetype
     character(len=9)              :: burpFileSatId                 ! station id in burp file
     real, allocatable             :: modelInterpTerrain(:)         ! topo in standard file interpolated to obs point
@@ -5197,10 +5218,6 @@ end subroutine bennartz
     integer, allocatable          :: obsFlags(:)                   ! obs. flag
     integer, allocatable          :: satOrbit(:)                   ! orbit
     integer, allocatable          :: obsGlobalMarker(:)            ! global marker
-    integer, allocatable          :: rejectionCodArray(:,:,:)      ! number of rejection 
-                                                                   !  per sat. per channl per test
-    integer, allocatable          :: rejectionCodArray2(:,:,:)     ! number of rejection per channl per test
-    !                                                                for ATMS 2nd category of tests
     integer, allocatable          :: qcIndicator(:,:)              ! indicateur controle de qualite tovs par canal 
     !                                                                =0, ok,
     !                                                                >0, rejet,
@@ -5239,15 +5256,11 @@ end subroutine bennartz
     ! read nambgck
     call mwbg_init()
 
-    ! Allocate some variables for diagnosyic purpose
-    call utl_reAllocate(rejectionCodArray,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
-    call utl_reAllocate(rejectionCodArray2,mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)
 
     !Quality Control loop over all observations
     !
     ! loop over all header indices of the specified family with surface obs
     numObsToProcess = 1
-    numChannelUsed = maxNumChan - channelOffset
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
@@ -5277,7 +5290,7 @@ end subroutine bennartz
                                    satScanPosition, obsQcFlag1, satOrbit,             &
                                    obsGlobalMarker, burpFileSatId, obsTb, btClear,    &
                                    obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
-                                   obsFlags, sensorIndex, obsSpaceData)
+                                   obsFlags, sensorIndex, actualNumChannel, obsSpaceData)
 
       !###############################################################################
       ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
@@ -5293,8 +5306,7 @@ end subroutine bennartz
         call mwbg_tovCheckAmsua(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, &
-                                ompTb, qcIndicator, numChannelUsed, numObsToProcess,       &
-                                sensorIndex, &
+                                ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
@@ -5303,8 +5315,8 @@ end subroutine bennartz
                                 RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, landQualifierIndice,&
-                                obsChannels, obsTb, obsTbBiasCorr, &
-                                ompTb, qcIndicator, numChannelUsed, numObsToProcess, sensorIndex, &
+                                obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
+                                qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag,        & 
@@ -5315,9 +5327,8 @@ end subroutine bennartz
         call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, &
-                               obsChannels, obsTb, obsTbBiasCorr, ompTb,    &
-                               qcIndicator, numChannelUsed,          &
-                               numObsToProcess, sensorIndex,          &
+                               obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
+                               actualNumChannel, numObsToProcess, sensorIndex,          &
                                newInformationFlag, satScanPosition,   &
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -5331,7 +5342,7 @@ end subroutine bennartz
       ! STEP 5) Accumuler Les statistiques sur les rejets
       !###############################################################################
       call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,       &
-                        numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), &
+                        actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), &
                         .FALSE., rejectionCodArray, rejectionCodArray2)
 
       !###############################################################################
@@ -5347,7 +5358,7 @@ end subroutine bennartz
     ! STEP 7) Print the statistics in listing file 
     !###############################################################################
     call mwbg_qcStats(instName, qcIndicator, obsChannels, sensorIndex,              &
-                      numChannelUsed, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
+                      actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
                       .TRUE.,rejectionCodArray, rejectionCodArray2)
 
     call tmg_stop(33)
