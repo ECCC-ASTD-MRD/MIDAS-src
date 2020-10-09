@@ -2,10 +2,6 @@
   instName = 'ATMS'
   debug = .false.
   RESETQC = .false.
-  maxNumSat  = 2
-  maxNumTest = 5
-  maxNumChan = 22
-  channelOffset = 0
   clwQcThreshold = 0.3
   useUnbiasedObsForClw =.true.
 /

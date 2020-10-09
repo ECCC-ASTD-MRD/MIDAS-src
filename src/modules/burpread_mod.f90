@@ -4924,6 +4924,7 @@ CONTAINS
       call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
 
+      if (station_id(1:2) == '>>') cycle
       if ( .not. beSilent ) then
         if ( count == 1 ) then
           write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
