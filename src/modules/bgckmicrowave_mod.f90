@@ -5101,7 +5101,7 @@ end subroutine bennartz
     ! find actual Number of channels
 
     if (ifFirstCall) then 
-      numberOfChannel = tvs_getNumberOfChannels(sensorIndex)
+      numberOfChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
       write(*,*) 'Instrument actual Number of Channels = ', numberOfChannel
       ifFirstCall = .false.
     end if 
