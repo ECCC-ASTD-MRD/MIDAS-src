@@ -51,17 +51,10 @@ program midas_ensPostProcess
   logical :: readAnlEnsemble  ! activate reading of analysis ensemble
   NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ensPostProcess               --",/,' //   &
-        '14x,"-- Program for post-processing of LETKF analysis ensemble --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   !
   !- 0. MPI, TMG and misc. initialization
   !
-  call mpi_initialize
+  call mpi_initialize('ensPostProcess','Program for post-processing of LETKF analysis ensemble')
   call tmg_init(mpi_myid, 'TMG_LETKF')
 
   call tmg_start(1,'MAIN')

@@ -66,13 +66,6 @@ program midas_ensembleH
   integer  :: nEns
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ENSEMBLEH             --",/,' //   &
-        '14x,"-- Program for applying H to ensemble --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
   obsMpiStrategy = 'LIKESPLITFILES'
@@ -80,7 +73,7 @@ program midas_ensembleH
   !
   !- 0. MPI, TMG initialization
   !
-  call mpi_initialize
+  call mpi_initialize('ensembleH','Program for applying H to ensemble')
   call tmg_init(mpi_myid, 'TMG_ENSEMBLEH' )
 
   call tmg_start(1,'MAIN')

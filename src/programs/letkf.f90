@@ -98,14 +98,6 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      obsTimeInterpType, mpiDistribution
 
-
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-LETKF               --",/,' //   &
-        '14x,"-- Program for Local Ensemble Transform Kalman Filter --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! Some high-level configuration settings
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -114,7 +106,7 @@ program midas_letkf
   !
   !- 0. MPI, TMG and misc. initialization
   !
-  call mpi_initialize
+  call mpi_initialize('letkf','Program for Local Ensemble Transform Kalman Filter')
   call tmg_init(mpi_myid, 'TMG_LETKF' )
 
   call tmg_start(1,'MAIN')

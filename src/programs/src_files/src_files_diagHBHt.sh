@@ -1,6 +1,6 @@
 SRC_FILES=""
 SRC_FILES="$SRC_FILES clib_interfaces_mod.ftn90"
-SRC_FILES="$SRC_FILES utilities_mod.f90"
+SRC_FILES="$SRC_FILES utilities_mod.f90 version_mod.f90"
 SRC_FILES="$SRC_FILES bufr_mod.f90 codeprecision_mod.ftn90 mathphysconstants_mod.f90 mpi_mod.f90 "
 SRC_FILES="$SRC_FILES varnamelist_mod.f90"
 SRC_FILES="$SRC_FILES earthconstants_mod.f90 obsspacedata_mod.f90 presprofileoperators_mod.f90 verticalcoord_mod.f90"

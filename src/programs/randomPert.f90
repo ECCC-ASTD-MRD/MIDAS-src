@@ -70,17 +70,10 @@ program midas_randomPert
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
                     smoothVariances, mpiTopoIndependent, numBits
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-RANDOMPERT           --",/,' //   &
-        '14x,"-- Generation of random perturbations --",/, ' //  &
-        '14x,"-- VAR Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   !
   !- 0. MPI, tmg initialization
   !
-  call mpi_initialize
+  call mpi_initialize('randomPert','Generation of random perturbations')
   call tmg_init(mpi_myid, 'TMG_RANDOMPERT' )
 
   call tmg_start(1,'MAIN')

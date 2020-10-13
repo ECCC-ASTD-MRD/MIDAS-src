@@ -64,19 +64,12 @@ program midas_advector
                          steeringFlowNumStep , steeringFlowDelThour, advectFactor, &
                          dateStart, direction
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM advector      ---"
-  write(*,*) " ---  Propagation based on advection      ---"
-  write(*,*) " --------------------------------------------"
-
   !
   !- 1.  Settings and module initializations
   !
-  write(*,*)
-  write(*,*) '> midas-advector: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize  
+  call mpi_initialize('advector','Propagation based on advection')
 
   !- 1.2 timings
   call tmg_init(mpi_myid, 'TMG_ADVECTOR' )

@@ -43,15 +43,8 @@ program midas_thinning
 
   istamp = exdb('THINNING','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-THINNING: --",/,' //   &
-            '14x,"-- OBSERVATION THINNING          --",/, ' //&
-            '14x,"-- VAR Revision number   ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! MPI initilization
-  call mpi_initialize
+  call mpi_initialize('thinning','Observation thinning')
 
   call tmg_init(mpi_myid, 'TMG_THIN' )
   call tmg_start(1,'MAIN')

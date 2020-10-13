@@ -38,14 +38,8 @@ program midas_ominusf
   type(struct_columnData),target  :: trlColumnOnTrlLev
   type(struct_obs),       target  :: obsSpaceData
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM midas-oMinusF ---"
-  write(*,*) " ---  Computation of the innovation       ---"
-  write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
-  write(*,*) " --------------------------------------------"
-
   !- 1.0 mpi
-  call mpi_initialize
+  call mpi_initialize('oMinusF','Computation of the innovation')
 
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_OMINUSF' )

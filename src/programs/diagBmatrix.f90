@@ -97,13 +97,8 @@ program midas_diagBmatrix
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lonlat, &
                     oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
-  write(*,*) " ------------------------------------------------"
-  write(*,*) " --- START OF MAIN PROGRAM midas-diagBmatrix  ---"
-  write(*,*) " --- Diagnositcs of the B matrix              ---"
-  write(*,*) " ------------------------------------------------"
-
   ! MPI, tmg initialization
-  call mpi_initialize 
+  call mpi_initialize('diagBmatrix','Diagnositcs of the B matrix')
   call tmg_init(mpi_myid, 'TMG_DIAGBMATRIX' )
   call tmg_start(1,'MAIN')
   ierr = fstopc('MSGLVL','ERRORS',0)

@@ -63,15 +63,8 @@ program midas_var
 
   istamp = exdb('VAR','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-VAR: --",/,' //   &
-            '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //&
-            '14x,"-- Revision : ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! MPI initialization
-  call mpi_initialize  
+  call mpi_initialize('var','Variational Assimilation')
 
   call tmg_init(mpi_myid, 'TMG_VAR' )
 

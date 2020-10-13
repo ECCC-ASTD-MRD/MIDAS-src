@@ -55,19 +55,12 @@ program midas_adjointTest
 
   integer :: get_max_rss, ierr, cvDim
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM ajointTest    ---"
-  write(*,*) " ---  Adjoint Test                        ---"
-  write(*,*) " --------------------------------------------"
-
   !
   !- 1.  Settings and module initializations
   !
-  write(*,*)
-  write(*,*) '> midas-adjointTest: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize  
+  call mpi_initialize('adjointTest','Various tests of adjoint codes')
 
   !- 1.2 timings
   call tmg_init(mpi_myid, 'TMG_ADJOINTTEST' )

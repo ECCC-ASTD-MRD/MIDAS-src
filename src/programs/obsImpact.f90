@@ -82,15 +82,8 @@ program midas_obsimpact
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-OBSIMPACT           --",/,' //   &
-        '14x,"-- Calculation of observation impact  --",/, ' //  &
-        '14x,"-- VAR Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! MPI initilization
-  call mpi_initialize
+  call mpi_initialize('obsImpact','Calculation of observation impact')
 
   call tmg_init(mpi_myid, 'TMG_OBSIMPACT' )
 

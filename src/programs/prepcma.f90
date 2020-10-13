@@ -67,14 +67,8 @@ program midas_prepcma
   real(8) :: nsc_pmax(1) = (/ 0.0 /)
   real(8) :: nto_pmax(1) = (/ 0.0 /)
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM midas-prepcma ---"
-  write(*,*) " ---  Prepare observations for EnKF       ---"
-  write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
-  write(*,*) " --------------------------------------------"
-
   !- 1.0 mpi
-  call mpi_initialize
+  call mpi_initialize('prepcma','Prepare observations for LETKF')
 
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_PREPCMA' )

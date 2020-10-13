@@ -52,15 +52,10 @@ program midas_calcstats
   !
   !- 1.  Initilization
   !
-  write(*,*)
-  write(*,*) '-----------------------'
-  write(*,*) '> STARTING CALCSTATS '
-  write(*,*) '-----------------------'
-
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI and TMG
-  call mpi_initialize
+  call mpi_initialize('calcStats','Compute the homogeneous-isotropic stats')
   call tmg_init(mpi_myid, 'TMG_CALCSTATS')
 
   call tmg_start(1,'MAIN')

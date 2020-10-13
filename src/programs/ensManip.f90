@@ -92,17 +92,10 @@ program midas_ensManip
                         recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
                         imposeRttovHuLimits, imposeSaturationLimit, humidityClipping, scaleFactor
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ENSMANIP             --",/,' //   &
-        '14x,"-- Program for general manipulation of ensembles --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   !
   !- 0. MPI, TMG initialization
   !
-  call mpi_initialize
+  call mpi_initialize('ensManip','Program for general manipulation of ensembles')
   call tmg_init(mpi_myid, 'TMG_ENSMANIP')
 
   call tmg_start(1,'MAIN')

@@ -59,15 +59,8 @@ program midas_gencoeff
 
   istamp = exdb('GENCOEFF','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-GENCOEFF: --",/,' //   &
-            '14x,"-- BIAS CORRECTION COEFFICIENT COMPUTATION  --",/, ' //&
-            '14x,"-- Revision : ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! MPI initialization
-  call mpi_initialize  
+  call mpi_initialize('genCoeff','Bias Correction Coefficient Computation')
 
   call tmg_init(mpi_myid, 'TMG_GENCOEFF' )
 

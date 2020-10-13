@@ -57,13 +57,8 @@ program midas_obsSelection
 
   namelist /namObsSelection/ doThinning
 
-  write(*,*) ' -------------------------------------------------'
-  write(*,*) ' ---  START OF MAIN PROGRAM midas-obsSelection ---'
-  write(*,*) ' ---  Computation of the innovation            ---'
-  write(*,*) ' -------------------------------------------------'
-
   !- 1.0 mpi
-  call mpi_initialize
+  call mpi_initialize('obsSelection','Obs Quality Control and Thinning')
 
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_OBSSELECTION' )
