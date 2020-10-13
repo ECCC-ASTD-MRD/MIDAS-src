@@ -125,7 +125,7 @@ module tovs_nl_mod
   real(8), parameter :: o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
   real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
   real(8), parameter :: minClwValue = 1.0d-9
-  real(8), parameter :: minDelClwValue = 1.0d-12
+  real(8), parameter :: minClwAtSfc = 1.0d-12
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
@@ -2083,7 +2083,9 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
             clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
-            if ( profileType == "tlad" ) clw(levelIndex,profileCount) = max(clw(levelIndex,profileCount),minDelClwValue)
+            if ( profileType == "tlad" .and. levelIndex == nlv_T ) then
+              clw(levelIndex,profileCount) = max(clw(levelIndex,profileCount),minClwAtSfc)
+            end if
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
         end do
