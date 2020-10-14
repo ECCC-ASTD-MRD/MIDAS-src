@@ -2041,9 +2041,6 @@ contains
     channelForTopoFilter(:) = (/ 45, 46, 47 /)
     altitudeForTopoFilter(:) = (/ 2500., 2000., 1000./)
 
-    write(*,*) 'Initialization and Allocation:'
-    write(*,*) 'Nchan = ', KNT
-    write(*,*) 'NObs = ', KNO
     ! Allocation
     call utl_reAllocate(scatw,   KNT)
     call utl_reAllocate(clwObs,   KNT)
@@ -2062,8 +2059,8 @@ contains
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
-       rejectionCodArray(:,:,:) = 0
-       LLFIRST = .FALSE.
+      rejectionCodArray(:,:,:) = 0
+      LLFIRST = .FALSE.
     end if
     ! fill ident with zeros ONLY for consistency with ATMS
     ident(:) = 0
@@ -2071,12 +2068,10 @@ contains
     if ( RESETQC ) KMARQ(:,:) = 0
 
     !     Bennartz parameters are   extract required channels:
-    write(*,*) 'extractParamForBennartzRun STARTS....'
     call extractParamForBennartzRun (KCANO, ptbo, ptbcor, KNT, KNO, &
                                      tb89, tb150, tb1831, tb1832, tb1833)
     
     !  Run Bennartz AMSU-B algorithms.
-    write(*,*) 'bennartz STARTS ...'
     call bennartz (err, knt, tb89, tb150, satzen, ktermer, scatl, scatw, clwObs, clwFG)   
 
     ! 10) test 10: RTTOV reject check (single)
@@ -2239,10 +2234,10 @@ contains
     integer, allocatable, save             :: INTOTRJP(:)!INTOTRJP(mwbg_maxNumSat)
     integer                                :: KCANO(KNO,KNT)                      ! canaux des observations
 
-
     logical, save                          :: LLFIRST = .True.
     logical                                :: FULLREJCT
     logical                                :: FULLACCPT
+
     ! Initialize
     if ( LLFIRST ) then
       call utl_reallocate(INTOT, mwbg_maxNumSat)
@@ -2393,6 +2388,7 @@ contains
         end if 
       end do
     end if
+
   end subroutine mwbg_qcStats
 
   !--------------------------------------------------------------------------
