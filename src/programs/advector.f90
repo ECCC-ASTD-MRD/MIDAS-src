@@ -19,6 +19,7 @@ program midas_advector
   ! :Purpose: Main program for the propagation of fields based on 
   !           Lagrangian advection
   !
+  use version_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -64,12 +65,16 @@ program midas_advector
                          steeringFlowNumStep , steeringFlowDelThour, advectFactor, &
                          dateStart, direction
 
+  call ver_printNameAndVersion('advector','Propagation based on advection')
+
   !
   !- 1.  Settings and module initializations
   !
+  write(*,*)
+  write(*,*) '> midas-advector: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize('advector','Propagation based on advection')
+  call mpi_initialize
 
   !- 1.2 timings
   call tmg_init(mpi_myid, 'TMG_ADVECTOR' )

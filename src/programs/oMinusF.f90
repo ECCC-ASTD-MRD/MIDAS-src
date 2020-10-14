@@ -18,6 +18,7 @@ program midas_ominusf
   !
   ! :Purpose: Main program for Observation minus Forecast (O-F) computation
   !
+  use version_mod
   use oMinusF_mod
   use obsSpaceData_mod
   use obsSpaceErrorStdDev_mod
@@ -38,8 +39,10 @@ program midas_ominusf
   type(struct_columnData),target  :: trlColumnOnTrlLev
   type(struct_obs),       target  :: obsSpaceData
 
+  call ver_printNameAndVersion('oMinusF','Computation of the innovation')
+
   !- 1.0 mpi
-  call mpi_initialize('oMinusF','Computation of the innovation')
+  call mpi_initialize
 
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_OMINUSF' )

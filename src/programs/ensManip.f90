@@ -31,6 +31,7 @@ program midas_ensManip
   !              - compute mean of input ensemble, subtract from ensemble,
   !              and write out resulting ensemble perturbations
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -92,10 +93,12 @@ program midas_ensManip
                         recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
                         imposeRttovHuLimits, imposeSaturationLimit, humidityClipping, scaleFactor
 
+  call ver_printNameAndVersion('ensManip','Program for general manipulation of ensembles')
+
   !
   !- 0. MPI, TMG initialization
   !
-  call mpi_initialize('ensManip','Program for general manipulation of ensembles')
+  call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_ENSMANIP')
 
   call tmg_start(1,'MAIN')

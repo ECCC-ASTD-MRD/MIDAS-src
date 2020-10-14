@@ -20,6 +20,7 @@ program midas_letkf
   !           subroutine enkf_LETKFanalyses.
   !           Many aspects of this program are controlled throught the namelist
   !           block NAMLETKF.
+  use version_mod
   use mpi_mod
   use mathPhysConstants_mod
   use fileNames_mod
@@ -103,10 +104,12 @@ program midas_letkf
   obsColumnMode = 'ENKFMIDAS'
   obsMpiStrategy = 'LIKESPLITFILES'
 
+  call ver_printNameAndVersion('letkf','Program for Local Ensemble Transform Kalman Filter')
+
   !
   !- 0. MPI, TMG and misc. initialization
   !
-  call mpi_initialize('letkf','Program for Local Ensemble Transform Kalman Filter')
+  call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_LETKF' )
 
   call tmg_start(1,'MAIN')

@@ -19,6 +19,7 @@ program midas_calcstats
   ! :Purpose: Main program for computing background-error covariance file
   !           based on homogeneous and isotropic correlations.
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use fileNames_mod
@@ -49,13 +50,15 @@ program midas_calcstats
   NAMELIST /NAMCONF/mode
   NAMELIST /NAMENS/nens,ip2
 
+  call ver_printNameAndVersion('calcStats','Compute the homogeneous-isotropic stats')
+
   !
   !- 1.  Initilization
   !
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI and TMG
-  call mpi_initialize('calcStats','Compute the homogeneous-isotropic stats')
+  call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_CALCSTATS')
 
   call tmg_start(1,'MAIN')

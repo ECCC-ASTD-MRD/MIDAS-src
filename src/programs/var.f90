@@ -19,6 +19,7 @@ program midas_var
   ! :Purpose: Main program for variational minimization or background check 
   !           (depending on the mode selected in the namelist).
   !
+  use version_mod
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
@@ -63,8 +64,10 @@ program midas_var
 
   istamp = exdb('VAR','DEBUT','NON')
 
+  call ver_printNameAndVersion('var','Variational Assimilation')
+
   ! MPI initialization
-  call mpi_initialize('var','Variational Assimilation')
+  call mpi_initialize
 
   call tmg_init(mpi_myid, 'TMG_VAR' )
 

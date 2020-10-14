@@ -21,7 +21,6 @@ module mpi_mod
   ! :Purpose: Subroutine and public variables related to general aspects of mpi.
   !
   use utilities_mod
-  use version_mod
   implicit none
   save
   private
@@ -48,23 +47,11 @@ module mpi_mod
 
   contains
 
-  subroutine mpi_initialize(progName, progDescription)
+  subroutine mpi_initialize()
     implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: progName
-    character(len=*), intent(in) :: progDescription
-
-    ! Locals:
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: npex,npey,ierr
     integer :: rpn_comm_comm, rpn_comm_datyp
-
-    write(*,*) " --------------------------------------------"
-    write(*,*) " ---  START OF MAIN PROGRAM midas-", trim(progName), " ---"
-    write(*,*) " ---  ", trim(progDescription), " ---"
-    write(*,*) " ---  Revision: ", trim(ver_version)
-    write(*,*) " --------------------------------------------"
 
     ! Initilize MPI
     npex=0

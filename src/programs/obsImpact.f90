@@ -18,6 +18,7 @@ program midas_obsimpact
   !
   ! :Purpose: Main program for Observation Impact computation (FSOI)
   !
+  use version_mod
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
@@ -82,8 +83,10 @@ program midas_obsimpact
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
 
+  call ver_printNameAndVersion('obsImpact','Calculation of observation impact')
+
   ! MPI initilization
-  call mpi_initialize('obsImpact','Calculation of observation impact')
+  call mpi_initialize
 
   call tmg_init(mpi_myid, 'TMG_OBSIMPACT' )
 
