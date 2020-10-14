@@ -19,6 +19,7 @@ program midas_diagHBHt
   ! :Purpose: Main program for computing background error variance in observation
   !           space.
   !
+  use version_mod
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
@@ -58,15 +59,10 @@ program midas_diagHBHt
 
   istamp = exdb('diagHBHt','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-diagHBHt: --",/,' //   &
-            '14x,"-- RANDOMIZED DIAGNOSTIC of HBHt         --",/,' //   &
-            '14x,"-- VAR Revision number   ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
 
   ! MPI initilization
-  call mpi_initialize  
+  call mpi_initialize 
 
   call tmg_init(mpi_myid, 'TMG_VAR' )
 

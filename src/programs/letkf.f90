@@ -20,6 +20,7 @@ program midas_letkf
   !           subroutine enkf_LETKFanalyses.
   !           Many aspects of this program are controlled throught the namelist
   !           block NAMLETKF.
+  use version_mod
   use mpi_mod
   use mathPhysConstants_mod
   use fileNames_mod
@@ -98,18 +99,12 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      obsTimeInterpType, mpiDistribution
 
-
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-LETKF               --",/,' //   &
-        '14x,"-- Program for Local Ensemble Transform Kalman Filter --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   ! Some high-level configuration settings
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
   obsMpiStrategy = 'LIKESPLITFILES'
+
+  call ver_printNameAndVersion('letkf','Program for Local Ensemble Transform Kalman Filter')
 
   !
   !- 0. MPI, TMG and misc. initialization

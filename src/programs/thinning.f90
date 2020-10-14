@@ -23,6 +23,7 @@ program midas_thinning
   !           for which bit 11 is set. So far, most NWP obs types except radiosonde
   !           ssmis and surface are treated.
   !
+  use version_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -43,12 +44,7 @@ program midas_thinning
 
   istamp = exdb('THINNING','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-THINNING: --",/,' //   &
-            '14x,"-- OBSERVATION THINNING          --",/, ' //&
-            '14x,"-- VAR Revision number   ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('thinning','Observation thinning')
 
   ! MPI initilization
   call mpi_initialize

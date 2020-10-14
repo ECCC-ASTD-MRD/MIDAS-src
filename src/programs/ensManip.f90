@@ -31,6 +31,7 @@ program midas_ensManip
   !              - compute mean of input ensemble, subtract from ensemble,
   !              and write out resulting ensemble perturbations
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -92,12 +93,7 @@ program midas_ensManip
                         recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
                         imposeRttovHuLimits, imposeSaturationLimit, humidityClipping, scaleFactor
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ENSMANIP             --",/,' //   &
-        '14x,"-- Program for general manipulation of ensembles --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('ensManip','Program for general manipulation of ensembles')
 
   !
   !- 0. MPI, TMG initialization

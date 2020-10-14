@@ -20,6 +20,7 @@ program midas_obsSelection
   !
   !           (O-F => Observation minus Forecast, i.e. y-H(x))
   !
+  use version_mod
   use ramDisk_mod
   use mpi_mod
   use utilities_mod
@@ -57,10 +58,7 @@ program midas_obsSelection
 
   namelist /namObsSelection/ doThinning
 
-  write(*,*) ' -------------------------------------------------'
-  write(*,*) ' ---  START OF MAIN PROGRAM midas-obsSelection ---'
-  write(*,*) ' ---  Computation of the innovation            ---'
-  write(*,*) ' -------------------------------------------------'
+  call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
   !- 1.0 mpi
   call mpi_initialize

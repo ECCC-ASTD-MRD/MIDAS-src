@@ -21,6 +21,7 @@ program midas_prepcma
   !           format. All observations will collected in a single ObsSpaceData
   !           structure. The structure is output in binary format.
   !
+  use version_mod
   use obsSpaceData_mod
   use obsFiles_mod
   use obsFilter_mod
@@ -67,11 +68,7 @@ program midas_prepcma
   real(8) :: nsc_pmax(1) = (/ 0.0 /)
   real(8) :: nto_pmax(1) = (/ 0.0 /)
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM midas-prepcma ---"
-  write(*,*) " ---  Prepare observations for EnKF       ---"
-  write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
-  write(*,*) " --------------------------------------------"
+  call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 
   !- 1.0 mpi
   call mpi_initialize

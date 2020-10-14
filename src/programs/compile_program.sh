@@ -119,7 +119,7 @@ if [ $mode == full ] ; then
   cd ${compiledir}
 
   # Add revision number to the main routine
-  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" ${program}.f90
+  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" version_mod.f90
 
   echo "..."
   echo "... > STARTING COMPILATION AT: $(date)"

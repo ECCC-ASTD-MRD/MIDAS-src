@@ -19,6 +19,7 @@ program midas_ensembleH
   ! :Purpose: Main program for applying the observation operator to an ensemble
   !           of states as the first step for most EnKF algorithms.
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -66,16 +67,11 @@ program midas_ensembleH
   integer  :: nEns
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ENSEMBLEH             --",/,' //   &
-        '14x,"-- Program for applying H to ensemble --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
-
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
   obsMpiStrategy = 'LIKESPLITFILES'
+
+  call ver_printNameAndVersion('ensembleH','Program for applying H to ensemble')
 
   !
   !- 0. MPI, TMG initialization

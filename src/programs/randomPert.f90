@@ -20,6 +20,7 @@ program midas_randomPert
   !           based on the B matrix (can be homogeneous/isotropic or
   !           ensemble-based).
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -70,12 +71,7 @@ program midas_randomPert
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
                     smoothVariances, mpiTopoIndependent, numBits
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-RANDOMPERT           --",/,' //   &
-        '14x,"-- Generation of random perturbations --",/, ' //  &
-        '14x,"-- VAR Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('randomPert','Generation of random perturbations')
 
   !
   !- 0. MPI, tmg initialization

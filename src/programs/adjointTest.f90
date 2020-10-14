@@ -19,6 +19,7 @@ program midas_adjointTest
   ! :Purpose: Main program for adjoint test applications: 
   !           <x,L(y)> = <L^T(x),y>
   !
+  use version_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -55,10 +56,7 @@ program midas_adjointTest
 
   integer :: get_max_rss, ierr, cvDim
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM ajointTest    ---"
-  write(*,*) " ---  Adjoint Test                        ---"
-  write(*,*) " --------------------------------------------"
+  call ver_printNameAndVersion('adjointTest','Various tests of adjoint codes')
 
   !
   !- 1.  Settings and module initializations
@@ -67,7 +65,7 @@ program midas_adjointTest
   write(*,*) '> midas-adjointTest: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize  
+  call mpi_initialize
 
   !- 1.2 timings
   call tmg_init(mpi_myid, 'TMG_ADJOINTTEST' )

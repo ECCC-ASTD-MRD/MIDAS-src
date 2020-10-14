@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added allsky obs filenames for amsua: `to_amsua_allsky` (#414 and !393)
+   * Also added printing of MIDAS revision number for all programs
 
 ### Changed
 

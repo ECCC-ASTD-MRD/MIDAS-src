@@ -93,6 +93,7 @@ module stateToColumn_mod
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, parameter :: maxNumWrites = 50
+  logical, parameter :: verbose = .false.
 
   ! "special" values of the footprint radius
   real(4), parameter :: nearestNeighbourFootprint = -2.0
@@ -1599,7 +1600,7 @@ contains
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
                                   inputStateVectorType='nl' )
-        if ( mpi_myid == 0 ) then
+        if ( mpi_myid == 0 .and. verbose ) then
           do stepIndex = 1, numStep
             write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)

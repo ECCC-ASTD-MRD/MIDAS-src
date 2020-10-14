@@ -18,6 +18,7 @@ program midas_diagBmatrix
   !
   ! :Purpose: Main program for computing diagnostics of the B and L matrices
   !
+  use version_mod
   use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
@@ -97,13 +98,10 @@ program midas_diagBmatrix
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lonlat, &
                     oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
-  write(*,*) " ------------------------------------------------"
-  write(*,*) " --- START OF MAIN PROGRAM midas-diagBmatrix  ---"
-  write(*,*) " --- Diagnositcs of the B matrix              ---"
-  write(*,*) " ------------------------------------------------"
+  call ver_printNameAndVersion('diagBmatrix','Diagnositcs of the B matrix')
 
   ! MPI, tmg initialization
-  call mpi_initialize 
+  call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_DIAGBMATRIX' )
   call tmg_start(1,'MAIN')
   ierr = fstopc('MSGLVL','ERRORS',0)

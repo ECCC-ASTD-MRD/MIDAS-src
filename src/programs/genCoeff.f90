@@ -18,6 +18,7 @@ program midas_gencoeff
   !
   ! :Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
+  use version_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -59,15 +60,10 @@ program midas_gencoeff
 
   istamp = exdb('GENCOEFF','DEBUT','NON')
 
-  write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-GENCOEFF: --",/,' //   &
-            '14x,"-- BIAS CORRECTION COEFFICIENT COMPUTATION  --",/, ' //&
-            '14x,"-- Revision : ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('genCoeff','Bias Correction Coefficient Computation')
 
   ! MPI initialization
-  call mpi_initialize  
+  call mpi_initialize
 
   call tmg_init(mpi_myid, 'TMG_GENCOEFF' )
 

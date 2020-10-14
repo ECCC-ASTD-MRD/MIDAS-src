@@ -18,6 +18,7 @@ program midas_ensPostProcess
   ! :Purpose: Post-processing program for the local ensemble transform Kalman filter (LETKF).
   !           Many aspects of this program are controlled throught the namelist
   !           block namEnsPostProc defined in epp_postProcess.
+  use version_mod
   use mpi_mod
   use fileNames_mod
   use ensembleStateVector_mod
@@ -51,12 +52,7 @@ program midas_ensPostProcess
   logical :: readAnlEnsemble  ! activate reading of analysis ensemble
   NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble
 
-  write(*,'(/,' //  &
-        '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MIDAS-ensPostProcess               --",/,' //   &
-        '14x,"-- Program for post-processing of LETKF analysis ensemble --",/, ' //  &
-        '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+  call ver_printNameAndVersion('ensPostProcess','Program for post-processing of LETKF analysis ensemble')
 
   !
   !- 0. MPI, TMG and misc. initialization
