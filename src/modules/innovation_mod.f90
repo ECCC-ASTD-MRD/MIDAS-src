@@ -369,6 +369,15 @@ contains
             columng_ptr(jlev) = max(columng_ptr(jlev),col_rhumin)
           enddo
         end do
+
+      ! Imposing minimum value for LWCR at surface
+      else if ( vnl_varNameList3D(jvar) == 'LWCR') then
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr => col_getColumn(columng,columnIndex,'LWCR')
+          jlev = col_getNumLev(columng,'TH')
+          columng_ptr(jlev) = max(columng_ptr(jlev),col_minClwAtSfc)
+        end do
+
       else if (trim(vnl_varKindFromVarname(vnl_varNameList3D(jvar))) == 'CH') then
         ! Imposing boundary values for CH kind variables. This is to prevent
         ! undesired values usually from vertical extrapolation.

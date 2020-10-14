@@ -35,7 +35,7 @@ module columnData_mod
   private
 
   ! public variables and types
-  public :: col_rhumin, col_minValVarKindCH, struct_columnData
+  public :: col_rhumin, col_minValVarKindCH, col_minClwAtSfc, struct_columnData
 
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
@@ -58,8 +58,8 @@ module columnData_mod
     real(8), pointer  :: lat(:)
   end type struct_columnData
 
-  real(8) :: rhumin, col_rhumin
-  logical varExistList(vnl_numvarmax)
+  real(8) :: rhumin, col_rhumin, col_minClwAtSfc
+  logical :: varExistList(vnl_numvarmax)
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
   ! Minimum values for variables of CH kind
@@ -75,13 +75,14 @@ contains
     integer :: varIndex, loopIndex
     integer :: fnom,fclos,nulnam,ierr
     integer :: numVar3D, numVar2D
+    real(8) :: minClwAtSfc
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
     logical :: conversionVarKindCHtoMicrograms
     logical :: abortOnMpiImbalance
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance
+                       minValVarKindCH, abortOnMpiImbalance, minClwAtSfc
 
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
@@ -93,6 +94,7 @@ contains
 
     anlvar(:) = '    '
     rhumin = MPC_MINIMUM_HU_R8
+    minClwAtSfc = 1.0d-12
     anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
@@ -107,6 +109,7 @@ contains
     ierr=fclos(nulnam)
 
     col_rhumin = rhumin
+    col_minClwAtSfc = minClwAtSfc
     col_minValVarKindCH(:)=minValVarKindCH(:)
 
     if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
