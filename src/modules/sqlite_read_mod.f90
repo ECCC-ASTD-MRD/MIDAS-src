@@ -194,7 +194,7 @@ contains
     integer                  :: avhrrSqlite
     integer                  :: obsIdo
     character(len=128)       :: querySqlite,avhrrSqliteCharacter
-    integer                  :: i, headerIndex, count,iobs
+    integer                  :: i, headerIndex, iobs
     integer                  :: numberRows ,  numberColumns
 
     real, allocatable        :: matdata(:,:)

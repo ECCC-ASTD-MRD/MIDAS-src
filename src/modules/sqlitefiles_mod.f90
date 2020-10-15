@@ -119,7 +119,7 @@ module sqliteFiles_mod
 
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName), fileIndex )
+    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
     if ( trim(familyType) == 'TO' ) then
