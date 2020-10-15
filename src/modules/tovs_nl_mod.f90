@@ -605,7 +605,7 @@ contains
     mWAtlasId = 1 !Default to TELSEM-2
     mwInstrumUsingCLW_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
-    regLimitExtrap = .false.
+    regLimitExtrap = .true.
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
 

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Changed default value for NAMTOV section namelist parameter regLimitExtrap from .false. to .true. (#415 and !394)
 
 ### Fixed
 

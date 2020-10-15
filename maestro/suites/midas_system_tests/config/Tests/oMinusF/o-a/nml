@@ -102,6 +102,7 @@
    CINSTRUMENTID(30) = 'AHI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   regLimitExtrap=.false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7

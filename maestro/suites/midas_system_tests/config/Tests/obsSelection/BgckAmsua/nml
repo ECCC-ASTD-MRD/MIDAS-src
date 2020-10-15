@@ -68,6 +68,7 @@
    INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
    MWINSTRUMUSINGCLW_TL = .true.
    cloudScaleFactor = 0.5D0
+   regLimitExtrap=.false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
