@@ -2086,11 +2086,6 @@ contains
           end if
         end do
         
-        if (  runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
-          column_ptr => col_getColumn(columnghr, headerIndex,'LWCR' )
-          clw (:,profileCount) = column_ptr(:)
-        end if
-
         if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
           column_ptr => col_getColumn(columnghr, headerIndex, trim(ozoneVarName) )
           ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.

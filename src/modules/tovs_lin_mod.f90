@@ -234,7 +234,7 @@ contains
 
         ! using the zero CLW value for land FOV
         if ( runObsOperatorWithClw_tl ) then 
-          if ( surfTypeIsWater(profileCount) ) then
+          if ( surfTypeIsWater(profileIndex) ) then
             delCLW => col_getColumn(column,sensorHeaderIndexes(profileIndex),'LWCR')
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = delCLW(:)
           else
@@ -686,10 +686,9 @@ contains
         end if
       end if
 
-      surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
-
       if ( runObsOperatorWithClw_ad ) then
         do  profileIndex = 1 , profileCount 
+          surfTypeIsWater(profileIndex) = ( tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea )
           if ( surfTypeIsWater(profileIndex) ) then
             clw_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'LWCR')
             do levelIndex = 1, col_getNumLev(column,'TH')

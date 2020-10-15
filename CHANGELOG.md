@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
 
 ### Removed
 
