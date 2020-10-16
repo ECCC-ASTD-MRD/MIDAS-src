@@ -53,7 +53,7 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-  public :: obsf_updateMissingObsFlags
+  public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -181,14 +181,13 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, obsFileClean_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt )
   implicit none
 
   ! arguments
   type(struct_obs)  :: obsSpaceData
   real(8), optional :: HXens_mpiglobal_opt(:,:)
   logical, optional :: asciDumpObs_opt
-  logical, optional :: obsFileClean_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
@@ -236,22 +235,9 @@ contains
       if ( obsFileType == 'BURP'   ) then
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
-        if ( present(obsFileClean_opt) ) then
-          if ( obsFileClean_opt ) then
-            call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
-          end if
-        end if
-      end if
-
-      if ( obsFileType == 'SQLITE' ) then
+      else if ( obsFileType == 'SQLITE' ) then
         call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
-        if ( present(obsFileClean_opt) ) then
-          if ( obsFileClean_opt ) then
-            call sqlf_cleanFile( obsf_cfilnam(fileIndex), &
-                                 obsf_cfamtyp(fileIndex) )
-          end if
-        end if
       end if
 
     end do
@@ -284,6 +270,38 @@ contains
 
   end if
   end subroutine obsf_writeFiles
+
+
+  subroutine obsf_cleanObsFiles( obsSpaceData )
+    implicit none
+
+    ! arguments
+    type(struct_obs)  :: obsSpaceData
+    ! locals
+    integer           :: fileIndex
+    character(len=10) :: obsFileType
+
+    if ( .not.initialized ) call utl_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
+   
+    call obsf_determineFileType(obsFileType)
+
+    if ( obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE' ) then
+      write(*,*) 'obsf_cleanObsFiles: obsFileType=', obsFileType, &
+                ' is not BURP nor SQLITE. Return.' 
+      return
+    end if
+
+    do fileIndex = 1, obsf_nfiles
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+
+      if ( obsFileType == 'BURP' ) then
+        call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+      else if ( obsFileType == 'SQLITE' ) then
+        call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+      end if
+    end do
+
+  end subroutine obsf_cleanObsFiles 
 
 
   subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)

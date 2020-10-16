@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
 
+ * Clean observation files at the end of program, after all updating finished, in obsf_cleanObsFiles (#416 and !395)
+
 ### Removed
 
  * (Nothing yet)

@@ -961,7 +961,7 @@ module gridStateVector_mod
       if ( mpi_myid == 0 .and. (numCalls <= 5) ) then
         write(*,*) '============================================================='
         write(*,*)
-        write(*,*) 'gsv_allocate: WARNING: bad choice of mpi topology!'
+        write(*,*) 'gsv_checkMpiDistribution: WARNING: bad choice of mpi topology!'
         write(*,*) '              mpi x, y dimensions = ', mpi_npex, mpi_npey
         write(*,*) '              min(lonPerPE) = ', minval(statevector%allLonPerPE)
         write(*,*) '              max(lonPerPE) = ', maxval(statevector%allLonPerPE)
@@ -998,16 +998,14 @@ module gridStateVector_mod
         end if
 
         write(*,*) '============================================================='
+      else
+        ! After 5 calls, just give a short message
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'gsv_checkMpiDistribution: WARNING: bad choice of mpi topology!'
+        end if
       end if
 
-      if (abortOnMpiImbalance) call utl_abort('gsv_allocate: Please choose a better mpi topology')
-    else
-
-      ! After 5 calls, just give a short message
-      if ( mpi_myid ==0 ) then
-        write(*,*) 'gsv_allocate: WARNING: bad choice of mpi topology!'
-      end if
-
+      if (abortOnMpiImbalance) call utl_abort('gsv_checkMpiDistribution: Please choose a better mpi topology')
     end if
 
   end subroutine gsv_checkMpiDistribution
