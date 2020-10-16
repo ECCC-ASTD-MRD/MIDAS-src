@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+
+## [3.6.0-a3]
+
+### Added
+
  * Added allsky obs filenames for amsua: `to_amsua_allsky` (#414 and !393)
    * Also added printing of MIDAS revision number for all programs
 
@@ -20,10 +39,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
 
  * Clean observation files at the end of program, after all updating finished, in obsf_cleanObsFiles (#416 and !395)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.6.0-a2]
 
@@ -610,7 +625,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...HEAD
+[3.6.0-a3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...v_3.6.0-a3
 [3.6.0-a2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...v_3.6.0-a2
 [3.6.0-a1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0-a1
 [3.5.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...v_3.5.2
