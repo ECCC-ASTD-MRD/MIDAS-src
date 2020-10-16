@@ -109,7 +109,8 @@ program midas_thinning
   end if
 
   !- Update obs files and remove rejected obs (bit 11) from file (obsFileClean)
-  call obsf_writeFiles(obsSpaceData, obsFileClean_opt=.true.)
+  call obsf_writeFiles(obsSpaceData)
+  call obsf_cleanObsFiles(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! 4. Job termination

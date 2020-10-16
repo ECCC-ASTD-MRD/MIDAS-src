@@ -182,7 +182,8 @@ program midas_prepcma
 
   !- Write to burp/sqlite files if requested
   if (writeObsFiles) then
-    call obsf_writeFiles( obsSpaceData, obsFileClean_opt=obsClean )
+    call obsf_writeFiles(obsSpaceData)
+    if ( obsClean ) call obsf_cleanObsFiles(obsSpaceData)
   end if
 
   if (writeAsciiCmaFiles) then
