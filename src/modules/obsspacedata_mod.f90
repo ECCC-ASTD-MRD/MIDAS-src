@@ -574,17 +574,19 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_XTR = OBS_LYR+1  ! anal variables to obs'n location
    integer, parameter, public :: OBS_IDD = OBS_XTR+1  ! data id. no.
    integer, parameter, public :: OBS_QCF2= OBS_IDD+1  ! TOVs Data Level Qc Flag
-                                             ! flag values for btyp=9248 block ele 033081
+                                                      ! flag values for btyp=9248 block ele 033081
+   integer, parameter, public :: OBS_CLA= OBS_QCF2+1  ! csr cloud amount btyp 9248 ele 020081
 
    ! the last column index for integer body variables defined just above
-   integer, parameter :: NBDY_INT_END = OBS_QCF2
+   integer, parameter :: NBDY_INT_END = OBS_CLA
    integer, parameter :: NBDY_INT_SIZE = NBDY_INT_END - NBDY_INT_BEG + 1
 
    !
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ','IDD ', 'QCFL ' /)  
+      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ','IDD ', 'QCFL ', &
+          'CLA '/)  
 
    !
    ! REAL-BODY COLUMN NUMBERS
@@ -733,7 +735,7 @@ module ObsDataColumn_mod
 
    integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
       (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD, &
-        OBS_QCF2 /)
+        OBS_QCF2, OBS_CLA /)
    integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
         OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_ROLA,OBS_ROLO /)
@@ -1037,7 +1039,7 @@ contains
 
          bdy_int_column_list= &
             (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
-              OBS_XTR, OBS_QCF2, (0,ii=10,100) /)
+              OBS_XTR, OBS_QCF2, OBS_CLA, (0,ii=11,100) /)
 
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
@@ -1480,7 +1482,7 @@ module ObsSpaceData_mod
    public :: OBS_SCAT
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
-   public :: OBS_XTR, OBS_IDD, OBS_QCF2
+   public :: OBS_XTR, OBS_IDD, OBS_QCF2, OBS_CLA
 
    !    real-body column numbers
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT

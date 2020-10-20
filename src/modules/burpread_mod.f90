@@ -1701,6 +1701,8 @@ CONTAINS
     INTEGER, ALLOCATABLE   :: PHASE(:,:)
     INTEGER, ALLOCATABLE   :: dataQcFlagLEV(:),dataQcFlag2(:,:)
     integer                :: dataQcFlagLEV_sfc(1)
+    INTEGER, ALLOCATABLE   :: dataCloudFracLEV(:),dataCloudFrac(:,:)
+    integer                :: dataCloudFracLEV_sfc(1)
     real   , ALLOCATABLE   :: HLAT_SFC(:),HLON_SFC(:),HTIME_SFC(:)
 
     real   , ALLOCATABLE   :: RINFO(:,:)
@@ -1723,7 +1725,7 @@ CONTAINS
     integer                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al,IND5001,IND6001
     integer                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR,IND_PHASE,IND_BCOR_TT,IND_BCOR_HU
     integer                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
-    integer                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2 
+    integer                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2, IND_dataCloudFrac 
 
     integer                :: vcord_type(10),SUM,vcoord_type
     REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
@@ -2084,6 +2086,10 @@ CONTAINS
         if (allocated(dataQcFlag2)) deallocate(dataQcFlag2)
         if (allocated(dataQcFlagLEV)) deallocate(dataQcFlagLEV)
         
+        ! Ensure the dataCloudFrac arrays are not allocated before looping over blocks
+        if (allocated(dataCloudFrac)) deallocate(dataCloudFrac)
+        if (allocated(dataCloudFracLEV)) deallocate(dataCloudFracLEV)
+        
         ref_blk = 0
 
         HIRES=.FALSE.
@@ -2309,7 +2315,7 @@ CONTAINS
                 IND_dataQcFlag2 = IND_dataQcFlag1
               end if
             end if
-
+            
             ! Allocate arrays for dataQcFlag if they are found in the file
             if (IND_dataQcFlag2 > 0) then
               allocate(dataQcFlag2(nvale,nte))
@@ -2317,6 +2323,20 @@ CONTAINS
               dataQcFlag2(:,:) = MPC_missingValue_INT
               dataQcFlagLEV(:) = MPC_missingValue_INT
             end if
+
+            ! if CSR data idtyp = 185, then read ele 020081
+            IND_dataCloudFrac = -1
+            if ( idtyp == 185) then
+              IND_cloudFrac = BURP_Find_Element(Block_in, ELEMENT=020081,IOSTAT=error)
+            end if 
+            ! Allocate arrays for dataCloudFrac if they are found in the file
+            if (IND_dataCloudFrac > 0) then
+              allocate(dataCloudFrac(nvale,nte))
+              allocate(dataCloudFracLEV(nvale))
+              dataCloudFrac(:,:) = MPC_missingValue_INT
+              dataCloudFracLEV(:) = MPC_missingValue_INT
+            end if
+
 
             allocate(EMIS(nvale,nte))
             allocate(SURF_EMIS(nvale))
@@ -2372,6 +2392,9 @@ CONTAINS
                   end if
                   if ( IND_dataQcFlag2 > 0 ) then
                     dataQcFlag2(j,k) = BURP_Get_Tblval(Block_in,NELE_IND = IND_dataQcFlag2,NVAL_IND = j,NT_IND = k)
+                  end if
+                  if ( IND_dataCloudFrac > 0 ) then
+                    dataCloudFrac(j,k) = BURP_Get_Tblval(Block_in,NELE_IND = IND_dataCloudFrac,NVAL_IND = j,NT_IND = k)
                   end if
                   IF (IND_EMIS > 0) THEN
                     EMIS(j,k) = BURP_Get_Rval(Block_in,NELE_IND = IND_EMIS,NVAL_IND = j,NT_IND = k)
@@ -2750,10 +2773,12 @@ CONTAINS
 
               ! dataQcFlagLev does not exist for surface data
               dataQcFlagLev_sfc(:) = MPC_missingValue_INT
+              dataCloudFracLev_sfc(:) = MPC_missingValue_INT
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type, &
                                    OBSERV_SFC,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC, &
-                                   dataQcFlagLEV_sfc,ROLAT,ROLON,BiasCorrection_opt=BCOR_SFC)
+                                   dataQcFlagLEV_sfc,dataCloudFracLev_sfc, ROLAT,ROLON,& 
+                                   BiasCorrection_opt=BCOR_SFC)
 
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
@@ -2788,12 +2813,18 @@ CONTAINS
                 dataQcFlagLEV(:) = MPC_missingValue_INT
               end if
 
+              if (.not. allocated(dataCloudFrac)) then
+                if (.not. allocated(dataCloudFracLEV)) allocate(dataCloudFracLEV(1))
+                dataCloudFracLEV(:) = MPC_missingValue_INT
+              end if
+
               ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
               do  JJ =1,nval
                 OBSERV(1:NELE,1:1) = obsvalue(1:NELE,jj:jj,k)
                 if (allocated(BCOR2))  BiasCorrection2(1:NELE,1:1) = BCOR2(1:NELE,jj:jj,k)
                 if (allocated(qcflag)) QCFLAGS(1:NELE,1:1) = qcflag(1:NELE,jj:jj,k)
                 if (allocated(dataQcFlag2)) dataQcFlagLEV(1:NVAL) = dataQcFlag2(1:NVAL,k)
+                if (allocated(dataCloudFrac)) dataCloudFracLEV(1:NVAL) = dataCloudFrac(1:NVAL,k)
 
                 XLAT=HLAT(jj,k);XLON=HLON(jj,k);XTIME=HTIME(jj,k)
                 IF ( XLON  < 0. ) XLON  = 360. + XLON
@@ -2809,17 +2840,15 @@ CONTAINS
                 VCORD(1)=VCOORD(jj,k)
                 if (allocated(BCOR)) then
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
-                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
-                                    SURF_EMIS_opt=SURF_EMIS, &
-                                    BiasCorrection_opt=BiasCorrection)
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, &
+                                    ROLAT,ROLON, SURF_EMIS_opt=SURF_EMIS, BiasCorrection_opt=BiasCorrection)
                 elseif (allocated(BCOR2)) then
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
-                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
-                                    SURF_EMIS_opt=SURF_EMIS, &
-                                    BiasCorrection_opt=BiasCorrection2)
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, &
+                                    ROLAT,ROLON, SURF_EMIS_opt=SURF_EMIS, BiasCorrection_opt=BiasCorrection2)
                 else
                   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type, &
-                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                    OBSERV,qcflags,NELE,1,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, ROLAT,ROLON, &
                                     SURF_EMIS_opt=SURF_EMIS)
                 end if
 
@@ -2894,10 +2923,12 @@ CONTAINS
 
               ! dataQcFlagLev does not exist for surface data
               dataQcFlagLev_sfc(:) = MPC_missingValue_INT
+              dataCloudFracLev_sfc(:) = MPC_missingValue_INT
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type, &
                                    OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC, &
-                                   dataQcFlagLEV_sfc,ROLAT,ROLON,BiasCorrection_opt=BCOR_SFC)
+                                   dataQcFlagLEV_sfc,dataCloudFracLev_sfc, ROLAT,ROLON, &
+                                   BiasCorrection_opt=BCOR_SFC)
 
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
@@ -2928,22 +2959,28 @@ CONTAINS
                 if (.not. allocated(dataQcFlagLev)) allocate(dataQcFlagLEV(1))
                 dataQcFlagLEV(:) = MPC_missingValue_INT
               end if
+              if (allocated(dataCloudFrac)) then
+                dataCloudFracLEV(1:NVAL) = dataCloudFrac(1:NVAL,k)
+              else
+                if (.not. allocated(dataCloudFracLev)) allocate(dataCloudFracLEV(1))
+                dataCloudFracLEV(:) = MPC_missingValue_INT
+              end if
 
               VCORD(1:NVAL) = VCOORD(1:NVAL,k)
 
               !CASES DEPENDING ON WETHER ON NOT WE HAVE MW DATA
               if (allocated(BCOR)) then
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
-                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV,ROLAT,ROLON, &
                                   SURF_EMIS_opt=SURF_EMIS,BiasCorrection_opt=BiasCorrection)
               elseif (allocated(BCOR2)) then
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
-                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, ROLAT,ROLON, &
                                   SURF_EMIS_opt=SURF_EMIS,BiasCorrection_opt=BiasCorrection2)
               else
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV, &
-                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
-                                  SURF_EMIS_opt=SURF_EMIS)
+                                  qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, &
+                                  ROLAT,ROLON, SURF_EMIS_opt=SURF_EMIS)
               end if
               
               IF (NDATA > 0) THEN
@@ -3072,6 +3109,12 @@ CONTAINS
         if ( allocated(dataQcFlagLEV) ) then
           deallocate (dataQcFlagLEV)
         end if
+        if ( allocated(dataCloudFrac) ) then
+          deallocate (dataCloudFrac)
+        end if
+        if ( allocated(dataCloudFracLEV) ) then
+          deallocate (dataCloudFracLEV)
+        end if
         if (allocated(azimuth)) then
           deallocate(azimuth)
         end if
@@ -3147,8 +3190,8 @@ CONTAINS
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
-                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,ROLAT,ROLON, &
-                      SURF_EMIS_opt,BiasCorrection_opt)
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV, &
+                      dataCloudFracLEV, ROLAT,ROLON, SURF_EMIS_opt,BiasCorrection_opt)
 
     implicit none
 
@@ -3162,19 +3205,21 @@ CONTAINS
     REAL   , allocatable,optional ::  SURF_EMIS_opt(:)
     REAL   , allocatable,optional ::  BiasCorrection_opt(:,:)
     integer, intent(in)           ::  dataQcFlagLEV(:)
+    integer, intent(in)           ::  dataCloudFracLEV(:)
 
     ! Locals:
     CHARACTER(len=2)  :: FAMTYP
     REAL              :: ELEVFACT,VCOORD,ZEMFACT
     INTEGER           :: NELE,NVAL,VCO,NONELEV
     integer           :: LISTE_ELE(:),NOBS,VARNO,IL,J,COUNT,NLV
-    INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon
+    INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon,cloudFrac
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat1,rolon1
-    LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2
+    LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2, L_dataCloudFrac
     
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
     L_dataQcFlag2 = any(dataQcFlagLEV(:) /= MPC_missingValue_INT)
+    L_dataCloudFrac = any(dataCloudFracLEV(:) /= MPC_missingValue_INT)
 
     NONELEV  =-1
     MISG=MPC_missingValue_R4
@@ -3281,6 +3326,9 @@ CONTAINS
         if ( L_dataQcFlag2 )  then
           IFLAG2  =  dataQcFlagLEV(j)
         end if
+        if ( L_dataCloudFrac )  then
+          cloudFrac  =  dataCloudFracLEV(j)
+        end if
         IFLAG = INT(qCflag(il,j))
 
         if(iand(iflag,BITSflagoff) /= 0) cycle
@@ -3308,6 +3356,10 @@ CONTAINS
 
           if ( L_dataQcFlag2 ) then
              call obs_bodySet_i(obsdat,OBS_QCF2,count,IFLAG2)
+          end if
+
+          if ( L_dataCloudFrac ) then
+             call obs_bodySet_i(obsdat,OBS_CLA,count,cloudFrac)
           end if
 
           if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
