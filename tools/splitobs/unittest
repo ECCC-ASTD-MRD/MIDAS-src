@@ -71,6 +71,7 @@ unittest () {
     echo "unittest() begins"
 
     if [ "${TESTS2RUN}" = burp -o "${TESTS2RUN}" = all ]; then
+	test_burp_maximum_unit_number || return 1
 	test_burp_regional_standard || return 1
 	test_burp_regional_with_imax_imin_jmax_jmin || return 1
 	test_robustness_for_mrbcvt || return 1
@@ -1016,6 +1017,33 @@ test_burp_latbands () {
 
     echo "test_burp_latbands() ends"
 } ## End of function 'test_burp_latbands'
+
+
+test_burp_maximum_unit_number () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_burp_maximum_unit_number() begins"
+
+    test_burp_maximum_unit_number_ndigits=4
+    test_burp_maximum_unit_number_npex=17
+    test_burp_maximum_unit_number_npey=59
+
+    filein=2011070112_sw
+
+    status=0
+
+    program_status=0
+    ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
+		-x 15 -y 1 -npex ${test_burp_maximum_unit_number_npex} -npey ${test_burp_maximum_unit_number_npey} \
+                -ndigits ${test_burp_maximum_unit_number_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_burp_maximum_unit_number filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+
+    unset test_burp_maximum_unit_number_npex test_burp_maximum_unit_number_npey test_burp_maximum_unit_number_ndigits
+    echo "test_burp_maximum_unit_number() ends"
+} ## End of function 'test_burp_maximum_unit_number'
 
 
 test_burp_cherrypick_roundrobin () {

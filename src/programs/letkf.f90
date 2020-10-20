@@ -194,7 +194,8 @@ program midas_letkf
   !- 2.4 Initialize the Ensemble grid
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
-  call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
+  call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1, &
+                        copyToRamDisk_opt=.false. )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then

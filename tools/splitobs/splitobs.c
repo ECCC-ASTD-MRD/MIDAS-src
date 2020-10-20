@@ -1202,12 +1202,12 @@ int f77name(splitobs)(int argc, char** argv) {
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
 	  int id=ilonband*opt.npey+jlatband;
 
-	  iouts[id] = iout++;
-
           /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
           if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
             if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
               continue;
+
+	  iouts[id] = iout++;
 
 	  sprintf(npex_str,format_digits,ilonband+1);
 	  sprintf(npey_str,format_digits,jlatband+1);
@@ -1217,11 +1217,15 @@ int f77name(splitobs)(int argc, char** argv) {
 	    printf("Fonction main: appel de 'brp_open' sur le fichier '%s' pour id=%d\n", burpout, id);
 
 	  status = access(burpout,F_OK);
-	  if ( status==0 ) {
+	  if ( status==0 || iouts[id]>999 ) {
 	    int ilonbandtmp, jlatbandtmp;
 
-	    fprintf(stderr,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
-		    "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
+            if ( status==0 )
+              fprintf(stderr,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
+                      "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
+            else if ( iouts[id]>999 )
+              fprintf(stderr,"Fonction main: Comme iouts[%d]=%d, la commande 'brp_open(...)' "
+                      "n'acceptera pas cette valeur puisqu'elle est plus grande que 999\n", id, iouts[id]);
 
 	    status = brp_close(iun);
 	    if (status<0)
