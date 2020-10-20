@@ -90,9 +90,11 @@ program midas_ensPostProcess
 
   ! Setup timeCoord module, set dateStamp with value from trial or analysis ensemble member 1
   if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   else
-    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   end if
   call tim_setup(fileNameForDate_opt=ensFileName)
   allocate(dateStampList(tim_nstepobsinc))
@@ -112,9 +114,11 @@ program midas_ensPostProcess
   if (targetGridFileExists) then
     gridFileName = 'targetgrid'
   else if (readTrlEnsemble) then
-    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt=1)
+    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   else
-    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1)
+    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   end if
   if (mpi_myid == 0) then
     write(*,*) 'midas-ensPostProcess: file use to define grid = ', trim(gridFileName)
@@ -135,9 +139,11 @@ program midas_ensPostProcess
 
   !- Read the sfc height from trial ensemble member 1
   if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   else
-    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1)
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
+                         copyToRamDisk_opt=.false.)
   end if
   call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
