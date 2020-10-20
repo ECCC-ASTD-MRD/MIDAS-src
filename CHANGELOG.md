@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Reduce usage of ramdisk in `letkf` program (#417 and !396)
 
 ### Fixed
 
