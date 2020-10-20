@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Allow `midas.splitobs.Abs` to manage splitting in more than 800 MPI tiles (#417 and !396)
 
 ### Removed
 
