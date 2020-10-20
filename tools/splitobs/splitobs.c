@@ -1202,12 +1202,12 @@ int f77name(splitobs)(int argc, char** argv) {
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
 	  int id=ilonband*opt.npey+jlatband;
 
-	  iouts[id] = iout++;
-
           /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
           if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
             if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
               continue;
+
+	  iouts[id] = iout++;
 
 	  sprintf(npex_str,format_digits,ilonband+1);
 	  sprintf(npey_str,format_digits,jlatband+1);
