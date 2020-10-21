@@ -33,19 +33,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Changed default value for NAMTOV section namelist parameter regLimitExtrap from .false. to .true. (#415 and !394)
+ * Changed default value for `NAMTOV` section namelist parameter `regLimitExtrap` from `.false.` to `.true.` (#415 and !394)
 
 ### Fixed
 
  * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
-
- * Clean observation files at the end of program, after all updating finished, in obsf_cleanObsFiles (#416 and !395)
+ * Clean observation files at the end of program, after all updating finished, in `obsf_cleanObsFiles` (#416 and !395)
 
 ## [3.6.0-a2]
 
 ### Fixed
 
- * Increased tvs_maxNumberOfSensors and added check on the number of sensors in stats_tovs file (#404 and !390)
+ * Increased `tvs_maxNumberOfSensors` and added check on the number of sensors in `stats_tovs` file (#404 and !390)
  * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
 
 ### Removed
