@@ -291,6 +291,7 @@ contains
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
     logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
+    logical :: doSetup3dHeights
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
@@ -450,10 +451,13 @@ contains
     nlev_T = gsv_getNumLev(stateVector,'TH')
     nlev_M = gsv_getNumLev(stateVector,'MM')
 
+    doSetup3dHeights = doSlantPath .and.  &
+                       (headerIndexBeg == 1) .and. (numHeaderUsedMax > 0) .and. &
+                       stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
+                       stateVector%varExistList(vnl_varListIndex('Z_M')) 
+
     ! prepare for extracting the 3D height for slant-path calculation
-    if ( doSlantPath .and. (headerIndexBeg == 1) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+    if ( doSetup3dHeights ) then
 
       write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType 
 
