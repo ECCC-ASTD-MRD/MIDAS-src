@@ -285,7 +285,6 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
-    logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
@@ -658,10 +657,6 @@ contains
         end do header_loop3
 
         ! MPI communication for the slant-path lat/lon
-        ! all tasks are senders
-        do procIndex = 1, mpi_nprocs
-          thisProcIsAsender(procIndex) = .true.
-        end do
 
         maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
         numkToSend = min(mpi_nprocs,stateVector%nk)
@@ -678,25 +673,23 @@ contains
         ! only send the data from tasks with data, same amount to all
         sendsizes(:) = 0
         do procIndex = 1, numkToSend
-          sendsizes(procIndex) = numHeaderUsedMax
+          sendsizes(procIndex) = numHeaderUsed
         end do
         senddispls(1) = 0
         do procIndex = 2, mpi_nprocs
-          senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+          senddispls(procIndex) = senddispls(procIndex-1) + numHeaderUsedMax
         end do
 
         ! all tasks recv only from those with data
         recvsizes(:) = 0
         if ( (1+mpi_myid) <= numkToSend ) then
           do procIndex = 1, mpi_nprocs
-            if ( thisProcIsAsender(procIndex) ) then
-              recvsizes(procIndex) = numHeaderUsedMax
-            end if
+            recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
           end do
         end if
         recvdispls(1) = 0
         do procIndex = 2, mpi_nprocs
-          recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+          recvdispls(procIndex) = recvdispls(procIndex-1) + numHeaderUsedMax
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
