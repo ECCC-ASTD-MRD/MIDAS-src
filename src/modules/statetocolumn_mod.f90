@@ -680,13 +680,6 @@ contains
           senddispls(procIndex) = senddispls(procIndex-1) + numHeaderUsedMax
         end do
 
-        ! all tasks recv only from those with data
-        recvsizes(:) = 0
-        if ( (1+mpi_myid) <= numkToSend ) then
-          do procIndex = 1, mpi_nprocs
-            recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
-          end do
-        end if
         recvdispls(1) = 0
         do procIndex = 2, mpi_nprocs
           recvdispls(procIndex) = recvdispls(procIndex-1) + numHeaderUsedMax
@@ -695,6 +688,8 @@ contains
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
         call tmg_start(190,'s2c_slantMpiComm')
         do kIndexCount = 1, maxkCount
+
+          sendsizes(:) = 0
           do procIndex = 1, mpi_nprocs
             ! compute kIndex value being sent
             kIndex = kIndexCount + allkBeg(procIndex) - 1
@@ -704,15 +699,30 @@ contains
                 call utl_abort('ERROR: with numkToSend?')
               end if
 
-              lat_send_r8(:,procIndex) = latColumn(:,kIndex)
-              lon_send_r8(:,procIndex) = lonColumn(:,kIndex)
+              lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,kIndex)
+              lon_send_r8(1:numHeaderUsed,procIndex) = lonColumn(1:numHeaderUsed,kIndex)
+              sendsizes(procIndex) = numHeaderUsed
+            else
+              sendsizes(procIndex) = 0
             end if
           end do
 
+          ! all tasks recv only from those with data
+          kIndex = kIndexCount + mykBeg - 1
+          if ( kIndex <= stateVector%mykEnd ) then
+            do procIndex = 1, mpi_nprocs
+              recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
+            end do
+          else
+            recvsizes(:) = 0
+          end if
+
+          call tmg_start(195,'s2c_slantAlltoAll')
           call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
                              lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
           call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
                              lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+          call tmg_stop(195)
 
           do procIndex = 1, mpi_nprocs
             ! all tasks copy the received step data into correct slot
