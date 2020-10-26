@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Reduce usage of ramdisk in `letkf` program (#417 and !396)
  * Reduce usage of ramdisk in `ensPostProcess` program (#418 and !397)
+ * Increase of `nMaxGst` in  `globalspectraltransform_mod` module from 10 to 20 (#241 and !399)
 
 ### Fixed
 
