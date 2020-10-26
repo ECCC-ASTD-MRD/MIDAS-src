@@ -88,7 +88,7 @@ module globalSpectralTransform_mod
     logical               :: lonLatDivisible
   end type T_gst
 
-  integer,parameter :: nMaxGst = 10
+  integer,parameter :: nMaxGst = 20
   integer      :: gstIdDefault = -1
   integer      :: nGstAlreadyAllocated = 0
   integer      :: gstID = 0
