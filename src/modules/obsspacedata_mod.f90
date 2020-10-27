@@ -733,7 +733,7 @@ module ObsDataColumn_mod
    integer, target :: columnIndexFromActiveIndex_RB(NBDY_REAL_SIZE)
    integer, target :: columnIndexFromActiveIndex_RH(NHDR_REAL_SIZE)
 
-   integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
+   integer, public, parameter :: odc_ENKF_bdy_int_column_list(9) = &
       (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD, &
         OBS_QCF2, OBS_CLA /)
    integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &

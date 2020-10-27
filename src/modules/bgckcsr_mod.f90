@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE end --------------------------------------
 
 module bgckcsr_mod
-  ! MODULE bgckmicrowave_mod (prefix='csrbg' category='1. High-level functionality')
+  ! MODULE bgckcsr_mod(prefix='csrbg' category='1. High-level functionality')
   !
   ! :Purpose: To perform CSR data background Check
   !
@@ -41,10 +41,49 @@ module bgckcsr_mod
   save
   private
 
+  real,    parameter :: mwbg_realMissing=-99.
+  integer, parameter :: mwbg_intMissing=-1
+  
   ! Public functions/subroutines
+
   public :: csrbg_bgCheckCSR
   
   real, parameter :: csrbg_ompThreshold = 4.2
+  integer, parameter :: maxNumsat  = 20     ! nb max de satellites
+  integer, parameter :: maxNumchan = 15     ! nb max de canaux
+
+  ! namelist variables
+  character (len=9)  :: burpSatName(maxNumSat)
+  integer            :: numberOfchannel(maxNumSat)
+  integer            :: channelOffset(maxNumsat)
+  integer            :: satCloudCoverLimit(maxNumSat,maxNumchan)
+
+  namelist /namcsr/burpSatName,numberOfchannel,channelOffset,satCloudCoverLimit
+
+contains
+
+  !----------------------------------------------------------------------------------------
+  ! csrbg_init
+  !----------------------------------------------------------------------------------------
+  subroutine csrbg_init()
+    !
+    !:Purpose: This subroutine reads the namelist section NAMCSR
+    !          for the module.
+    implicit none
+
+    ! Locals:
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namcsr, iostat=ierr)
+    if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
+    if (mpi_myid == 0) write(*, nml=namcsr)
+    ierr = fclos(nulnam)
+
+  end subroutine csrbg_init
+  
   !----------------------------------------------------------------------------------------
   ! csrbg_bgCheckCSR
   !----------------------------------------------------------------------------------------
@@ -69,20 +108,19 @@ module bgckcsr_mod
     integer, allocatable  :: obsDate(:)          ! date YYYYMMDD
     integer, allocatable  :: obsHour(:)          ! Hour HHMM
     integer               :: sensorIndex         ! find tvs_sensor index corresponding to current obs
-    integer               :: actualNumChannel    ! actual Num channel
-    character(*)          :: burpFileSatId       ! Platform Name
+    character(len=9)          :: burpFileSatId       ! Platform Name
 
     ! Data derived from elements read in obspace data
 
-    integer               :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
-    integer               :: topographicData(:)  ! data flagged as topo data
-    integer               :: nonCorrectedData(:) ! data non corrected by bias corr
-    integer               :: isTbPresent(:)      ! non missing data
-    integer               :: isClearSky(:)       ! clear sky obs
-    integer               :: strayLight(:)       !
-    integer               :: geosMidi(:)         ! goes noon
-    integer               :: isToAssim(:)            ! is channel assimilable
-    integer               :: ompOutOfRange(:)        
+    integer, allocatable  :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    integer, allocatable  :: topographicData(:)  ! data flagged as topo data
+    integer, allocatable  :: nonCorrectedData(:) ! data non corrected by bias corr
+    integer, allocatable  :: isTbPresent(:)      ! non missing data
+    integer, allocatable  :: isClearSky(:)       ! clear sky obs
+    integer, allocatable  :: strayLight(:)       !
+    integer, allocatable  :: goesMidi(:)         ! goes noon
+    integer, allocatable  :: isToAssim(:)            ! is channel assimilable
+    integer, allocatable  :: ompOutOfRange(:)        
     integer               :: categorieRejet(7)        
     integer               :: headerIndex 
     integer               :: codtyp
@@ -93,7 +131,7 @@ module bgckcsr_mod
     call tmg_start(33,'BGCHECK_CSR')
 
     categorieRejet(:) = 0
-    mwDataPresent = .false.
+    csrDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -101,13 +139,15 @@ module bgckcsr_mod
         codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
         if ( codtyp == 185 ) csrDataPresent = .true.
       end do HEADER0
+
       if ( .not. csrDataPresent ) then
         write(*,*) 'WARNING: WILL NOT RUN csrbg_bgCheckCSR since no CSR Data'
         return
       end if
       write(*,*) ' CSRBG QC PROGRAM STARTS ....'
 
-    end do HEADER0
+    ! Read Namelist
+    call csrbg_init()
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
@@ -123,27 +163,28 @@ module bgckcsr_mod
       ! STEP 1) read obs from obsSpacedata to start QC                               !
       !###############################################################################
 
-      call csrbg_readObsFromObsSpace(obsSpaceData, obsTb, ompTb, satZenitAngle, obsFlags, cloudAmount, &
+      call csrbg_readObsFromObsSpace(obsSpaceData, headerIndex, obsTb, ompTb, satZenithAngle, obsFlags, cloudAmount, &
                                      obsChannels, sensorIndex, obsDate, obsHour, burpFileSatId, &
                                      maxAngleReached, topographicData, nonCorrectedData, isTbPresent, &
-                                     isClearSky, strayLight, geosMidi, isToAssim, ompOutOfRange) 
+                                     isClearSky, strayLight, goesMidi, isToAssim, ompOutOfRange) 
 
       !###############################################################################
       ! STEP 2) Controle de qualite des CSR. Data QC flags (obsFlags) are modified here!
       !###############################################################################
 
-      call csrbg_csrCheckQc(obsFlags, categorierejet, maxAngleReached, topographicData, nonCorrectedData, & 
-                            isTbPresent,  isClearSky, strayLight, geosMidi, isToAssim, ompOutOfRange)
+      call csrbg_csrCheckQc(obsFlags, categorierejet, maxAngleReached, topographicData, &
+                            nonCorrectedData, isTbPresent, isClearSky, strayLight, goesMidi, isToAssim, &
+                            ompOutOfRange)
 
       !###############################################################################
       ! STEP 3) Update Flags and obs in obsspace data
       !###############################################################################
 
-      call csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, sensorIndex)
+      call csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, headerIndex, sensorIndex)
 
     end do HEADER 
 
-
+  
     write(*,*) "Nombre de donnees rejetees"
     write(*,*) "Attention, une donnee peut etre rejetee pour plusieurs raisons"
     write(*,*) "Maxangle, straylight ou goesmid    " , categorieRejet(1)
@@ -155,16 +196,17 @@ module bgckcsr_mod
     write(*,*) "Ciel non clair                     " , categorieRejet(7)
     write(*,*) "*******"
 
+    call tmg_stop(33)
   end subroutine csrbg_bgCheckCSR
 
   !--------------------------------------------------------------------------
   !  csrbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
 
-  subroutine csrbg_readObsFromObsSpace(obsSpaceData, obsTb, ompTb, satZenitAngle, obsFlags, cloudAmount, &
+  subroutine csrbg_readObsFromObsSpace(obsSpaceData, headerIndex, obsTb, ompTb, satZenithAngle, obsFlags, cloudAmount, &
                                        obsChannels, sensorIndex, obsDate, obsHour, burpFileSatId, &
                                        maxAngleReached, topographicData, nonCorrectedData, isTbPresent, &
-                                       isClearSky, strayLight, geosMidi, isToAssim, ompOutOfRange)
+                                       isClearSky, strayLight, goesMidi, isToAssim, ompOutOfRange)
 
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
     !                 compute some parameters from the read variables
@@ -172,6 +214,7 @@ module bgckcsr_mod
     implicit None
 
     
+    integer , intent(in)                 :: headerIndex         ! current header index
     real   , allocatable, intent(out)    :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163)
     real   , allocatable, intent(out)    :: ompTb(:)            ! OMP values
     real   , allocatable, intent(out)    :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
@@ -181,22 +224,21 @@ module bgckcsr_mod
     integer, allocatable, intent(out)    :: obsDate(:)          ! date YYYYMMDD
     integer, allocatable, intent(out)    :: obsHour(:)          ! Hour HHMM
     integer,              intent(out)    :: sensorIndex         ! find tvs_sensor index corresponding to current obs
-    integer,              intent(out)    :: actualNumChannel    ! actual Num channel
     character(*),intent(out)             :: burpFileSatId       ! Platform Name
     type(struct_obs),     intent(inout)  :: obsSpaceData        ! obspaceData Object
 
     ! Data derived from elements read in obspace data
 
-    integer,              intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
-    integer,              intent(out)    :: topographicData(:)  ! data flagged as topo data
-    integer,              intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
-    integer,              intent(out)    :: isTbPresent(:)      ! non missing data
-    integer,              intent(out)    :: isClearSky(:)       ! clear sky obs
-    integer,              intent(out)    :: strayLight(:)       !
-    integer,              intent(out)    :: geosMidi(:)         ! goes noon
-    integer,              intent(out)    :: isToAssim(:)            ! is channel assimilable
-    integer,              intent(out)    :: ompOutOfRange(:)            ! 
-    
+    integer, allocatable, intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    integer, allocatable, intent(out)    :: topographicData(:)  ! data flagged as topo data
+    integer, allocatable, intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
+    integer, allocatable, intent(out)    :: isTbPresent(:)      ! non missing data
+    integer, allocatable, intent(out)    :: isClearSky(:)       ! clear sky obs
+    integer, allocatable, intent(out)    :: strayLight(:)       !
+    integer, allocatable, intent(out)    :: goesMidi(:)         ! goes noon
+    integer, allocatable, intent(out)    :: isToAssim(:)        ! is channel assimilable
+    integer, allocatable, intent(out)    :: ompOutOfRange(:)    ! 
+  
     ! Locals
     integer                              :: bodyIndex
     integer                              :: obsNumCurrentLoc
@@ -204,7 +246,7 @@ module bgckcsr_mod
     integer                              :: headerCompt
     integer                              :: currentChannelNumber
     integer                              :: channelIndex
-    integer                              :: numChannelUsed
+    integer                              :: actualnumChannel
     integer                              :: numObsToProcess
     integer                              :: iplatform
     integer                              :: instrum
@@ -214,7 +256,10 @@ module bgckcsr_mod
     integer                              :: jour
     integer                              :: heure
     integer                              :: midnight
+    integer                              :: dataIndex
+    integer                              :: indexSat
     logical                              :: sensorIndexFound
+    logical                              :: indexSatFound
     real                                 :: errorThreshold
 
 
@@ -241,6 +286,7 @@ module bgckcsr_mod
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
+    
 
     headerCompt = 1
     numObsToProcess = 1
@@ -275,7 +321,8 @@ module bgckcsr_mod
     obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-channelOffset
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - & 
+                             tvs_channelOffset(sensorIndex)
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
@@ -288,11 +335,21 @@ module bgckcsr_mod
     end do
 
 
+    ! Get index for satCloudCoverLimit for current current sat  
+    indexSatFound = .false.
+    do indexSat = 1, maxNumChan
+       if (trim(burpSatName(indexSat)) == trim(burpFileSatId)) then
+         indexSatFound = .true.
+         exit
+       end if 
+    end do
+    if ( .not. indexSatFound ) call utl_abort('csrbg_readObsFromObsSpace: Cloud Cover Limit Not & 
+                                               Found for ' // trim(burpFileSatId))
     ! compute data for QC
     call utl_reAllocate(topographicData, numObsToProcess)
     call utl_reAllocate(maxAngleReached, numObsToProcess)
     call utl_reAllocate(strayLight, numObsToProcess)
-    call utl_reAllocate(geosMidi, numObsToProcess)
+    call utl_reAllocate(goesMidi, numObsToProcess)
     call utl_reAllocate(isTbPresent, numObsToProcess*actualNumChannel)
     call utl_reAllocate(nonCorrectedData, numObsToProcess*actualNumChannel)
     call utl_reAllocate(isClearSky, numObsToProcess*actualNumChannel)
@@ -302,12 +359,19 @@ module bgckcsr_mod
     isTbPresent(:) = 0
     isClearSky(:) = 0
     nonCorrectedData = 0
-
+    
+    write(*,*)'SATELLITE = ', burpFileSatId
+    write(*,*) 'ACTUAL CHANNEL NUMBER FOR ', tvs_satelliteName(sensorIndex), ' = ', actualNumChannel
     do channelIndex=1, numObsToProcess*actualNumChannel
+      if (obsTb(channelIndex) /= mwbg_realMissing) then 
+        write(*,*) 'TB = ',obsTb(channelIndex) 
+      else 
+        write(*,*) 'TB is ABSENT WITH VALUE = ',obsTb(channelIndex)
+      end if 
       if (obsTb(channelIndex) /= mwbg_realMissing) isTbPresent(channelIndex) = 1
-      if (cloudAmount(channelIndex) /= mwbg_realMissing .and. cloudAmount(channelIndex) < limit) &
+      if (cloudAmount(channelIndex) /= mwbg_realMissing .and. cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) &
           isClearSky(channelIndex) = 1
-      if (btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = 1
+      if (.not. btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = 1
     end do
 
     topographicData(:) = 0
@@ -322,6 +386,9 @@ module bgckcsr_mod
     ompOutOfRange(:) = 0
     isToAssim(:) = 0
     do  channelIndex=1, numObsToProcess*actualNumChannel
+      write(*,*) 'channel = ', obsChannels(channelIndex)
+      write(*,*) 'tov_utils = ', oer_tovutil(obsChannels(channelIndex), sensorIndex)
+      write(*,*) 'errorThreshold = ',  oer_toverrst(obsChannels(channelIndex), sensorIndex)
       if (oer_tovutil(obsChannels(channelIndex), sensorIndex) == 0) then
         isToAssim(channelIndex) = 0
       else
@@ -332,20 +399,20 @@ module bgckcsr_mod
     end do
     
     strayLight(:) = 0
-    geosMidi(:) = 0  
+    goesMidi(:) = 0  
     do  dataIndex = 1, numObsToProcess
       mois  = (obsDate(dataIndex)/100) - (obsDate(dataIndex)/10000)*100
       jour  = (obsDate(dataIndex)/100) -  (obsDate(dataIndex)/100)*100
       heure = obsHour(dataIndex)/100 
       if (burpFileSatId == '^METSAT7') then
-        if ( heure == 21 ) straylight(iobs) = 1
+        if ( heure == 21 ) straylight(dataIndex) = 1
         if ( (heure == 20) .or. (heure == 22) ) then
-          if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(iobs) = 1
-          if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(iobs) = 1
+          if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(dataIndex) = 1
+          if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(dataIndex) = 1
         end if
       end if
       if (burpFileSatId == '^GOES11' .or.  burpFileSatId == '^GOES15') midnight = 9
-      if (burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') nidnight = 5
+      if (burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') midnight = 5
       if (burpFileSatId == '^GOES11' .or.  burpFileSatId == '^GOES15' .or. &
           burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') then
         if ( (heure == (midnight - 1)) .or. (heure == midnight) ) goesMidi(dataIndex) = 1
@@ -359,8 +426,9 @@ module bgckcsr_mod
   !  csrbg_csrCheckQc
   !--------------------------------------------------------------------------
 
-  subroutine csrbg_csrCheckQc(obsFlags, categorieRejet, maxAngleReached, topographicData, nonCorrectedData, &
-                              isTbPresent, isClearSky, strayLight, geosMidi, isToAssim, ompOutOfRange)
+  subroutine csrbg_csrCheckQc(obsFlags, categorieRejet, maxAngleReached, topographicData, &
+                              nonCorrectedData, isTbPresent, isClearSky, strayLight, goesMidi, isToAssim, &
+                              ompOutOfRange)
 
     !:Purpose:        Modify obsFlags
 
@@ -375,31 +443,36 @@ module bgckcsr_mod
     integer,              intent(in)        :: isTbPresent(:)      ! non missing data
     integer,              intent(in)        :: isClearSky(:)       ! clear sky obs
     integer,              intent(in)        :: strayLight(:)       !
-    integer,              intent(in)        :: geosMidi(:)         ! goes noon
+    integer,              intent(in)        :: goesMidi(:)         ! goes noon
     integer,              intent(in)        :: isToAssim(:)        ! is channel assimilable
     integer,              intent(in)        :: ompOutOfRange(:)    ! abs of omp greater than threshold 
     
     ! Locals
     integer                                 :: currentChannelNumber
     integer                                 :: channelIndex
-    integer                                 :: numChannelUsed
     integer                                 :: numObsToProcess
     integer                                 :: numData
+    integer                                 :: dataIndex
 
 
     numObsToProcess = 1
     currentChannelNumber = size(obsFlags)/numObsToProcess
+
+    write(*,*) 'Non CORRIGEES = ', nonCorrectedData
+    write(*,*) 'TB Present = ', isTbPresent
+    write(*,*) 'CLEAR SKY = ', isClearSky
+    write(*,*)'is To ASSIMILATE = ', isToAssim
+    write(*,*) 'OMP out of range = ',ompOutOfRange
     
     !! tests de controle de qualite sur les profils et canaux
     numData = 0
     do dataIndex = 1, numObsToProcess
       do channelIndex = 1, currentChannelNumber
         numData = numData+1
-
         !! !Maxangle & Straylight & Goesmid : Bit 7 et 9 pour tous les canaux
-        if (maxAngleReached(dataIndex) == 1 .or. 
-            strayLight(dataIndex)      == 1 .or. 
-            geosMidi(dataIndex)        == 1) then 
+        if (maxAngleReached(dataIndex) == 1 .or. & 
+            strayLight(dataIndex)      == 1 .or. & 
+            goesMidi(dataIndex)        == 1) then 
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(1) =  categorieRejet(1) + 1
@@ -413,33 +486,33 @@ module bgckcsr_mod
         end if 
 
         !Pas corrige : bit 11
-        if (nonCorrectedData(dataIndex) == 1) then
+        if (nonCorrectedData(numData) == 1) then
           obsFlags(numData) = ibset(obsFlags(numData),11) 
           categorieRejet(3) =  categorieRejet(3) + 1
         end if 
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
-        if (isTbPresent(dataIndex) == 1) then 
+        if (isTbPresent(numData) /= 1) then 
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
         !omp Out of range: Bit 9 et 16 pour les canaux concernés
-        if (ompOutOfRange(dataIndex) == 1) then 
+        if (ompOutOfRange(numData) == 1) then 
           obsFlags(numData) = ibset(obsFlags(numData),9)
           obsFlags(numData) = ibset(obsFlags(numData),16)
           categorieRejet(5) =  categorieRejet(5) + 1
         end if
 
         !Assim: Bit 11 pour les canaux concernés
-        if (isToAssim(dataIndex) == 1) then 
+        if (isToAssim(numData) /= 1) then 
           obsFlags(numData) = ibset(obsFlags(numData),11)
           categorieRejet(6) =  categorieRejet(6) + 1
         end if 
 
         !Clearsky : Bit 7 & Bit 9
-        if (isClearSky(dataIndex) == 1) then 
+        if (isClearSky(numData) /= 1) then 
           obsFlags(numData) = ibset(obsFlags(numData),7)
           obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(7) =  categorieRejet(7) + 1
@@ -447,12 +520,15 @@ module bgckcsr_mod
       end do
     end do    
 
+    write(*,*)'synthese : ', &
+              'FLAGS = ', obsFlags 
+
   end subroutine csrbg_csrCheckQc
 
   !--------------------------------------------------------------------------
   ! csrbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
-  subroutine csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, sensorIndex)
+  subroutine csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, headerIndex, sensorIndex)
 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     implicit None
@@ -461,18 +537,22 @@ module bgckcsr_mod
     type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
     integer,              intent(in)        :: obsFlags(:)            ! data flags
     integer,              intent(in)        :: sensorIndex            ! sensor Index 
+    integer,              intent(in)        :: headerIndex            ! sensor Index 
     ! Locals
     integer                                 :: bodyIndex
     integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
     integer                                 :: currentChannelNumber
 
-
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
     obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    
+
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
+      write(*,*) 'OLD FLAGS = ', obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
+      write(*,*) 'NEW FLAGS = ', obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
     end do BODY
 
   end subroutine csrbg_updateObsSpaceAfterQc

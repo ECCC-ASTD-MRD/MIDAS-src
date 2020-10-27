@@ -2327,7 +2327,7 @@ CONTAINS
             ! if CSR data idtyp = 185, then read ele 020081
             IND_dataCloudFrac = -1
             if ( idtyp == 185) then
-              IND_cloudFrac = BURP_Find_Element(Block_in, ELEMENT=020081,IOSTAT=error)
+              IND_dataCloudFrac = BURP_Find_Element(Block_in, ELEMENT=020081,IOSTAT=error)
             end if 
             ! Allocate arrays for dataCloudFrac if they are found in the file
             if (IND_dataCloudFrac > 0) then

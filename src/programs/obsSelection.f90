@@ -182,7 +182,7 @@ program midas_obsSelection
     ! Do the TO background check
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
     call mwbg_bgCheckMW(obsSpaceData)
-    call csr_bgCheckCSR(obsSpaceData)
+    call csrbg_bgCheckCSR(obsSpaceData)
 
   end if
 
