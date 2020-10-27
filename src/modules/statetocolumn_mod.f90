@@ -285,12 +285,12 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
-    logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
     logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
+    logical :: doSetup3dHeights
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
@@ -450,10 +450,13 @@ contains
     nlev_T = gsv_getNumLev(stateVector,'TH')
     nlev_M = gsv_getNumLev(stateVector,'MM')
 
+    doSetup3dHeights = doSlantPath .and.  &
+                       (headerIndexBeg == 1) .and. (numHeaderUsedMax > 0) .and. &
+                       stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
+                       stateVector%varExistList(vnl_varListIndex('Z_M')) 
+
     ! prepare for extracting the 3D height for slant-path calculation
-    if ( doSlantPath .and. (headerIndexBeg == 1) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+    if ( doSetup3dHeights ) then
 
       write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType 
 
@@ -654,10 +657,6 @@ contains
         end do header_loop3
 
         ! MPI communication for the slant-path lat/lon
-        ! all tasks are senders
-        do procIndex = 1, mpi_nprocs
-          thisProcIsAsender(procIndex) = .true.
-        end do
 
         maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
         numkToSend = min(mpi_nprocs,stateVector%nk)
@@ -674,30 +673,23 @@ contains
         ! only send the data from tasks with data, same amount to all
         sendsizes(:) = 0
         do procIndex = 1, numkToSend
-          sendsizes(procIndex) = numHeaderUsedMax
+          sendsizes(procIndex) = numHeaderUsed
         end do
         senddispls(1) = 0
         do procIndex = 2, mpi_nprocs
-          senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+          senddispls(procIndex) = senddispls(procIndex-1) + numHeaderUsedMax
         end do
 
-        ! all tasks recv only from those with data
-        recvsizes(:) = 0
-        if ( (1+mpi_myid) <= numkToSend ) then
-          do procIndex = 1, mpi_nprocs
-            if ( thisProcIsAsender(procIndex) ) then
-              recvsizes(procIndex) = numHeaderUsedMax
-            end if
-          end do
-        end if
         recvdispls(1) = 0
         do procIndex = 2, mpi_nprocs
-          recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+          recvdispls(procIndex) = recvdispls(procIndex-1) + numHeaderUsedMax
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
         call tmg_start(190,'s2c_slantMpiComm')
         do kIndexCount = 1, maxkCount
+
+          sendsizes(:) = 0
           do procIndex = 1, mpi_nprocs
             ! compute kIndex value being sent
             kIndex = kIndexCount + allkBeg(procIndex) - 1
@@ -707,22 +699,41 @@ contains
                 call utl_abort('ERROR: with numkToSend?')
               end if
 
-              lat_send_r8(:,procIndex) = latColumn(:,kIndex)
-              lon_send_r8(:,procIndex) = lonColumn(:,kIndex)
+              lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,kIndex)
+              lon_send_r8(1:numHeaderUsed,procIndex) = lonColumn(1:numHeaderUsed,kIndex)
+              sendsizes(procIndex) = numHeaderUsed
+            else
+              sendsizes(procIndex) = 0
             end if
           end do
 
+          ! all tasks recv only from those with data
+          kIndex = kIndexCount + mykBeg - 1
+          if ( kIndex <= stateVector%mykEnd ) then
+            do procIndex = 1, mpi_nprocs
+              recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
+            end do
+          else
+            recvsizes(:) = 0
+          end if
+
+          call tmg_start(195,'s2c_slantAlltoAll')
           call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
+                             mpi_comm_grid, ierr)
           call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
+                             mpi_comm_grid, ierr)
+          call tmg_stop(195)
 
           do procIndex = 1, mpi_nprocs
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = &
+                   lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = &
+                   lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             end if
           end do
 

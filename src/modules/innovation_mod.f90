@@ -215,20 +215,30 @@ contains
     character(len=4), pointer :: anlVar(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
-    NAMELIST /NAMINN/timeInterpType_nl
+    integer           :: numObsBatches      ! number of batches for calling interp setup
+
+    NAMELIST /NAMINN/timeInterpType_nl, numObsBatches
 
     write(*,*) 'inn_setupBackgroundColumns: START'
     nullify(hco_trl,vco_trl)
 
-    timeInterpType_nl='NEAREST'
+    timeInterpType_nl = 'NEAREST'
+    numObsBatches     = 20
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    if(ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error opening file flnml')
-    read(nulnam,nml=naminn,iostat=ierr)
-    if(ierr /= 0) write(*,*) 'WARNING: namelist block NAMINN not found, use the default values'
-    write(*,nml=naminn)
-    ierr = fclos(nulnam)
+    if (utl_isNamelistPresent('naminn','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error opening file flnml')
+      read(nulnam,nml=naminn,iostat=ierr)
+      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=naminn)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'inn_setupBackgroundColumns: Namelist block NAMINN is missing in the namelist.'
+      write(*,*) '                            The default values will be taken.'
+      if (mpi_myid == 0) write(*,nml=naminn)
+    end if
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
@@ -275,7 +285,8 @@ contains
     end if
 
     call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
-                 moveObsAtPole_opt=.true., numObsBatches_opt=20, dealloc_opt=deallocInterpInfo )
+                 moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
+                 dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVectorTrial)
 
     if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'Z_T ') ) then
