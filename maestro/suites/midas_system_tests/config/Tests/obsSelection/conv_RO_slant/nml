@@ -23,6 +23,9 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
+ &NAMINN
+  numObsBatches = 10
+/
  &NAMRMAT
 /
  &NAMTIME

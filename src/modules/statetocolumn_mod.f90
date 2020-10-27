@@ -719,17 +719,21 @@ contains
 
           call tmg_start(195,'s2c_slantAlltoAll')
           call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
+                             mpi_comm_grid, ierr)
           call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
+                             mpi_comm_grid, ierr)
           call tmg_stop(195)
 
           do procIndex = 1, mpi_nprocs
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = &
+                   lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = &
+                   lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             end if
           end do
 
