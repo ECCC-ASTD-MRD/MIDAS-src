@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.6.0-a4]
+
+### Changed
+
  * Remove unnecessary setups of 3D heights for slant path (#419 and !398)
    * Also add `numObsBatches` in namelist `NAMINN` to balance memory vs. mpi costs
  * Reduce usage of ramdisk in `letkf` program (#417 and !396)
@@ -21,11 +35,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Allow `midas.splitobs.Abs` to manage splitting in more than 800 MPI tiles (#417 and !396)
-
-### Removed
-
- * (Nothing yet)
-
 
 ## [3.6.0-a3]
 
@@ -628,7 +637,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...HEAD
+[3.6.0-a4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...v_3.6.0-a4
 [3.6.0-a3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...v_3.6.0-a3
 [3.6.0-a2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...v_3.6.0-a2
 [3.6.0-a1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0-a1
