@@ -136,15 +136,15 @@ contains
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER0
-        codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if ( codtyp == 185 ) csrDataPresent = .true.
-      end do HEADER0
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( codtyp == 185 ) csrDataPresent = .true.
+    end do HEADER0
 
-      if ( .not. csrDataPresent ) then
-        write(*,*) 'WARNING: WILL NOT RUN csrbg_bgCheckCSR since no CSR Data'
-        return
-      end if
-      write(*,*) ' CSRBG QC PROGRAM STARTS ....'
+    if ( .not. csrDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN csrbg_bgCheckCSR since no CSR Data'
+      return
+    end if
+    write(*,*) ' CSRBG QC PROGRAM STARTS ....'
 
     ! Read Namelist
     call csrbg_init()
@@ -183,8 +183,6 @@ contains
       call csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, headerIndex, sensorIndex)
 
     end do HEADER 
-
-  
     write(*,*) "Nombre de donnees rejetees"
     write(*,*) "Attention, une donnee peut etre rejetee pour plusieurs raisons"
     write(*,*) "Maxangle, straylight ou goesmid    " , categorieRejet(1)
@@ -360,14 +358,7 @@ contains
     isClearSky(:) = 0
     nonCorrectedData = 0
     
-    write(*,*)'SATELLITE = ', burpFileSatId
-    write(*,*) 'ACTUAL CHANNEL NUMBER FOR ', tvs_satelliteName(sensorIndex), ' = ', actualNumChannel
     do channelIndex=1, numObsToProcess*actualNumChannel
-      if (obsTb(channelIndex) /= mwbg_realMissing) then 
-        write(*,*) 'TB = ',obsTb(channelIndex) 
-      else 
-        write(*,*) 'TB is ABSENT WITH VALUE = ',obsTb(channelIndex)
-      end if 
       if (obsTb(channelIndex) /= mwbg_realMissing) isTbPresent(channelIndex) = 1
       if (cloudAmount(channelIndex) /= mwbg_realMissing .and. cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) &
           isClearSky(channelIndex) = 1
@@ -386,9 +377,6 @@ contains
     ompOutOfRange(:) = 0
     isToAssim(:) = 0
     do  channelIndex=1, numObsToProcess*actualNumChannel
-      write(*,*) 'channel = ', obsChannels(channelIndex)
-      write(*,*) 'tov_utils = ', oer_tovutil(obsChannels(channelIndex), sensorIndex)
-      write(*,*) 'errorThreshold = ',  oer_toverrst(obsChannels(channelIndex), sensorIndex)
       if (oer_tovutil(obsChannels(channelIndex), sensorIndex) == 0) then
         isToAssim(channelIndex) = 0
       else
@@ -458,12 +446,6 @@ contains
     numObsToProcess = 1
     currentChannelNumber = size(obsFlags)/numObsToProcess
 
-    write(*,*) 'Non CORRIGEES = ', nonCorrectedData
-    write(*,*) 'TB Present = ', isTbPresent
-    write(*,*) 'CLEAR SKY = ', isClearSky
-    write(*,*)'is To ASSIMILATE = ', isToAssim
-    write(*,*) 'OMP out of range = ',ompOutOfRange
-    
     !! tests de controle de qualite sur les profils et canaux
     numData = 0
     do dataIndex = 1, numObsToProcess
@@ -520,9 +502,6 @@ contains
       end do
     end do    
 
-    write(*,*)'synthese : ', &
-              'FLAGS = ', obsFlags 
-
   end subroutine csrbg_csrCheckQc
 
   !--------------------------------------------------------------------------
@@ -550,9 +529,7 @@ contains
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      write(*,*) 'OLD FLAGS = ', obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
-      write(*,*) 'NEW FLAGS = ', obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
     end do BODY
 
   end subroutine csrbg_updateObsSpaceAfterQc
