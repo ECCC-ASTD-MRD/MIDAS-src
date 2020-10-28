@@ -207,7 +207,7 @@ process_jdate () {
 	-pxt px_target \
 	-d target_MM \
 	-etiket ${CETIK} \
-	-var ${PXS2PXT_CUB_UV} \
+	-var ${MIDAS_INTERPENSTRIALS_VARS_MOMENTUM:-${PXS2PXT_CUB_UV}} \
         -pxt_levels ${PXT_LEVELS_M} \
 	-above 0.0
 
@@ -217,7 +217,7 @@ process_jdate () {
 	-pxt px_target \
 	-d target_TH \
 	-etiket ${CETIK} \
-	-var CUB_TT LIN_HU \
+	-var ${MIDAS_INTERPENSTRIALS_VARS_THERMO:-'CUB_TT LIN_HU'} \
         -pxt_levels ${PXT_LEVELS_T} \
 	-above 0.0
 
