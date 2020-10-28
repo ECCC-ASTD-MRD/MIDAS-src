@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * `tools/midas_scripts/midas.interpEnsTrials.ksh` (#423 and !400)
+   * Two new environment variables are added to control which
+     variables are interpolated in `midas.interpEnsTrials.ksh` (see
+     [`README.md`](tools/midas_scripts/README.md) for more details):
+     * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`
+     * `MIDAS_INTERPENSTRIALS_VARS_THERMO`
 
 ### Changed
 
