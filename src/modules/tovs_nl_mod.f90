@@ -1954,8 +1954,6 @@ contains
       if ( .not. allocated( tvs_profiles_nl) ) then
         allocate(tvs_profiles_nl(tvs_nobtov) , stat=allocStatus(1) )
         call utl_checkAllocationStatus(allocStatus(1:1), " tvs_fillProfiles tvs_profiles_nl")
-      else
-        return
       end if
     else if ( profileType == "tlad" ) then
       if ( .not. allocated( tvs_profiles_tlad) ) then
