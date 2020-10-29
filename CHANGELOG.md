@@ -8,12 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * `tools/midas_scripts/midas.interpEnsTrials.ksh` (#423 and !400)
-   * Two new environment variables are added to control which
-     variables are interpolated in `midas.interpEnsTrials.ksh` (see
-     [`README.md`](tools/midas_scripts/README.md) for more details):
-     * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`
-     * `MIDAS_INTERPENSTRIALS_VARS_THERMO`
+ * (Nothing yet)
 
 ### Changed
 
@@ -21,11 +16,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * LETKF program was not correctly assimilating radiances (#424 and !401)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.6.0-a5]
+
+### Added
+
+ * `tools/midas_scripts/midas.interpEnsTrials.ksh` (#423 and !400)
+   * Two new environment variables are added to control which
+     variables are interpolated in `midas.interpEnsTrials.ksh` (see
+     [`README.md`](tools/midas_scripts/README.md) for more details):
+     * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`
+     * `MIDAS_INTERPENSTRIALS_VARS_THERMO`
+
+### Fixed
+
+ * LETKF program was not correctly assimilating radiances (#424 and !401)
 
 ## [3.6.0-a4]
 
@@ -642,7 +652,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...HEAD
+[3.6.0-a5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...v_3.6.0-a5
 [3.6.0-a4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...v_3.6.0-a4
 [3.6.0-a3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...v_3.6.0-a3
 [3.6.0-a2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...v_3.6.0-a2
