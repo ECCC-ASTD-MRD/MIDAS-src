@@ -8,9 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add robustness to `tools/midas_scripts/midas.mpi` to catch cases
-   where the MPI does not start but `r.run_in_parallel` does not
-   return any error (#428 and !402)
+ * (Nothing yet)
 
 ### Changed
 
@@ -18,12 +16,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * An empty `MIDAS_INTERPENSTRIALS_VARS_THERMO` was giving wrong
-   arguments to `d.pxs2pxt` (#427 and !403)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.6.0-b1]
+
+### Added
+
+ * Add robustness to `tools/midas_scripts/midas.mpi` to catch cases
+   where the MPI does not start but `r.run_in_parallel` does not
+   return any error (#428 and !402)
+
+### Fixed
+
+ * An empty `MIDAS_INTERPENSTRIALS_VARS_THERMO` was giving wrong
+   arguments to `d.pxs2pxt` (#427 and !403)
 
 ## [3.6.0-a5]
 
@@ -655,7 +665,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...HEAD
+[3.6.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...v_3.6.0-b1
 [3.6.0-a5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...v_3.6.0-a5
 [3.6.0-a4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...v_3.6.0-a4
 [3.6.0-a3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...v_3.6.0-a3
