@@ -26,6 +26,18 @@ Les variables d'environnement suivantes sont possibles:
    trials d'ensemble dans le script `midas.interpEnsTrials.ksh`.  La
    parallélisation est faite sur les dates contenues dans chacun des
    trials d'ensemble.  Par défaut, cette variable est égale à 1.
+ * `MIDAS_INTERPENSTRIALS_VARS_THERMO`: Argument `-var` donné à
+   `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
+   verticaux thermodynamiques dans le script
+   `midas.interpEnsTrials.ksh`.  Par défaut, elle est égale à `CUB_TT
+   LIN_HU`.
+ * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`: Argument `-var` donné à
+   `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
+   verticaux momentum dans le script `midas.interpEnsTrials.ksh`.  Par
+   défaut, on utilise soit `CUB_UV` ou `CUB_UU CUB_VV` dépendemment
+   des inputs.  Pour plus de détails, veuillez consulter le script
+   [`tools/midas_scripts/interpEnsTrials.ksh`](tools/midas_scripts/interpEnsTrials.ksh)
+   dans la partie `Prepare px_target`.
 
 ## midas.launch
 
