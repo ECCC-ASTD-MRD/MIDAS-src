@@ -567,7 +567,8 @@ CONTAINS
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
-    type(rttov_profile), pointer :: profiles(:) 
+    type(rttov_profile), pointer :: profiles(:)
+    logical          :: verbose = .false.
 
     call eob_setAssFlag(ensObs)
 
@@ -647,7 +648,7 @@ CONTAINS
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
                                 channelIndex, profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
-          if(mpi_myid == 0) then
+          if(mpi_myid == 0 .and. verbose) then
             write(*,*) 'eob_setLogPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
           end if
         else

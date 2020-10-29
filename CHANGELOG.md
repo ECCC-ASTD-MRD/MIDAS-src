@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * LETKF program was not correctly assimilating radiances (#424 and !401)
 
 ### Removed
 
