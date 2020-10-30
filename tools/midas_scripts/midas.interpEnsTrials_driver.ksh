@@ -182,7 +182,7 @@ while [ "${base}" -lt "${index}" ]; do
     echo num_procs=$num_procs
 
     abort=0
-    ${INTERPENSTRIALS_MPIRUN} "Lauching interpolation with ${INTERPENSTRIALS_INTERP_SCRIPT}" "${mpi_ssm}" ${omp_stacksize} ${TASK_BIN}/r.run_in_parallel -pgm ./task.sh -npex ${num_procs} -nompi pseudo_mpi -extrapath ${LOCAL_BIN} -tmpdir ${PWD}/interp_mpi_tmpdir || abort=1
+    ${INTERPENSTRIALS_MPIRUN} ./task.sh "Lauching interpolation with ${INTERPENSTRIALS_INTERP_SCRIPT}" "${mpi_ssm}" ${omp_stacksize} ${TASK_BIN}/r.run_in_parallel -npex ${num_procs} -nompi pseudo_mpi -extrapath ${LOCAL_BIN} -tmpdir ${PWD}/interp_mpi_tmpdir || abort=1
 
     job=${base}
     while [ "${job}" -lt "$((base+num_procs))" ]; do

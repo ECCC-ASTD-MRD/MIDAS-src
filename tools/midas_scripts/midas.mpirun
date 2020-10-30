@@ -5,6 +5,8 @@
 
 set -ex
 
+__midas_mpirun_pgm__=$1
+shift
 __midas_mpirun_msg__=$1
 shift
 __midas_mpirun_ssm__=$1
@@ -12,7 +14,7 @@ shift
 __midas_mpirun_OMP_STACKSIZE__=$1
 shift
 ## Cette variable doit inclure l'appel a 'r.run_in_parallel' comme par exemple
-##     ${TASK_BIN}/r.run_in_parallel -pgm ./midas.Abs -npex 10 -npey 10
+##     ${TASK_BIN}/r.run_in_parallel -npex 10 -npey 10
 __midas_mpirun_call_program__=$@
 
 if [ -x ${SEQ_BIN}/nodelogger ]; then
@@ -71,8 +73,46 @@ else
     exit 1
 fi
 
-${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose
-unset __midas_mpirun_call_program__
+cat > midas.mpi_script.sh <<EOF
+#!/bin/bash
+
+set -ex
+
+SECONDS=0
+
+touch ${PWD}/touch.before.launch.\${MP_CHILD}
+
+status=0
+${__midas_mpirun_pgm__} \$@ || status=1
+
+if [ "\${status}" -ne 0 ]; then
+    echo "The MPI execution aborted!"
+    exit 1
+fi
+
+rm ${PWD}/touch.before.launch.\${MP_CHILD}
+
+echo SECONDS=\${SECONDS}
+
+EOF
+chmod u+x midas.mpi_script.sh
+
+status=0
+${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
+unset __midas_mpirun_call_program__ __midas_mpirun_pgm__
+
+if [ "${status}" -ne 0 ]; then
+    echo "The whole MPI execution aborted!"
+    exit 1
+fi
+
+## Check if all individual MPI tiles ran without errors
+abortedRanks=$(/bin/ls touch.before.launch.* 2>/dev/null || true)
+if [ -n "${abortedRanks}" ]; then
+    echo "Some MPI ranks aborted!"
+    echo ${abortedRanks}
+    exit 1
+fi
 
 if [ -n "${__midas_mpirun_OMP_OLD_STACKSIZE__}" ]; then
     export OMP_STACKSIZE=${__midas_mpirun_OMP_OLD_STACKSIZE__}
