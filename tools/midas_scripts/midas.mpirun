@@ -70,14 +70,35 @@ else
     exit 1
 fi
 
+## find 'npex' and 'npey' in '${__midas_mpirun_call_program__}'
+npex=1
+npey=1
+set -- ${__midas_mpirun_call_program__}
+while [ $# -ne 0 ]; do
+    case $1 in
+        -npex)
+            npex=$2
+            shift
+            ;;
+        -npey)
+            npey=$2
+            shift
+            ;;
+    esac
+    shift
+done
+
+## create indiviual trace for each rank
+for rank in $(seq 0 $((npex*npey-1))); do
+    touch touch.before.launch.${rank}
+done
+
 cat > midas.mpi_script.sh <<EOF
 #!/bin/bash
 
 set -ex
 
 SECONDS=0
-
-touch ${PWD}/touch.before.launch.\${MP_CHILD}
 
 status=0
 ${__midas_mpirun_pgm__} \$@ || status=1
