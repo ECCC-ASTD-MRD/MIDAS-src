@@ -32,9 +32,6 @@ fi
 ${__midas_mpirun_nodelogger__} -n $SEQ_NODE -s infox -m  "Launching program ${__midas_mpirun_msg__}"
 unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 
-if [ -n "${OMP_STACKSIZE}" ]; then
-    __midas_mpirun_OMP_OLD_STACKSIZE__=${OMP_STACKSIZE}
-fi
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
@@ -112,11 +109,4 @@ if [ -n "${abortedRanks}" ]; then
     echo "Some MPI ranks aborted!"
     echo ${abortedRanks}
     exit 1
-fi
-
-if [ -n "${__midas_mpirun_OMP_OLD_STACKSIZE__}" ]; then
-    export OMP_STACKSIZE=${__midas_mpirun_OMP_OLD_STACKSIZE__}
-    unset __midas_mpirun_OMP_OLD_STACKSIZE__
-else
-    unset OMP_STACKSIZE
 fi
