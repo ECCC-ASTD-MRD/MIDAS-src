@@ -90,7 +90,7 @@ done
 
 ## create indiviual trace for each rank
 for rank in $(seq 0 $((npex*npey-1))); do
-    touch touch.before.launch.${rank}
+    date +%Y%m%d:%H:%M:%S.%N > touch.before.launch.${rank}
 done
 
 cat > midas.mpi_script.sh <<EOF
@@ -108,7 +108,9 @@ if [ "\${status}" -ne 0 ]; then
     exit 1
 fi
 
-rm ${PWD}/touch.before.launch.\${MP_CHILD}
+$(which echo) MP_CHILD=\${MP_CHILD} \$($(which date) +%Y%m%d:%H:%M:%S.%N) before erasing touch.before.launch.\${MP_CHILD}
+$(which rm)   ${PWD}/touch.before.launch.\${MP_CHILD}
+$(which echo) MP_CHILD=\${MP_CHILD} \$($(which date) +%Y%m%d:%H:%M:%S.%N) after erasing touch.before.launch.\${MP_CHILD}
 
 echo SECONDS=\${SECONDS}
 
