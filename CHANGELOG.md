@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add robustness to `tools/midas_scripts/midas.mpi` to catch cases
+   where the MPI does not start but `r.run_in_parallel` does not
+   return any error (#428 and !402)
 
 ### Changed
 
