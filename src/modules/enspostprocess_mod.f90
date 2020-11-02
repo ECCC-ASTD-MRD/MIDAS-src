@@ -50,7 +50,7 @@ contains
   !----------------------------------------------------------------------
   ! epp_postProcess
   !----------------------------------------------------------------------
-  subroutine epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
+  subroutine epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble)
     !
     !:Purpose:  Perform numerous post-processing steps to the ensemble
     !           produced by the LETKF algorithm.
@@ -61,6 +61,7 @@ contains
     type(struct_ens), pointer :: ensembleTrl
     type(struct_ens)          :: ensembleAnl
     type(struct_gsv)          :: stateVectorHeightSfc
+    logical                   :: writeTrlEnsemble
 
     ! Locals
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
@@ -463,6 +464,16 @@ contains
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
+
+      ! output the trial ensemble if requested (because it was interpolated)
+      if (writeTrlEnsemble) then
+        call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+        call tmg_start(104,'LETKF-writeEns')
+        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_TRL', 'P',  &
+                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                               containsFullField_opt=.true.)
+        call tmg_stop(104)
+      end if
     end if
 
     ! all outputs related to analysis ensemble

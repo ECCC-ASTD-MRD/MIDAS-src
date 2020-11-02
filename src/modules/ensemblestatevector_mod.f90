@@ -2587,7 +2587,8 @@ CONTAINS
             end if
             ensFileExtLength = 4
           else
-            call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, &
+            call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, &
+                                  ensFileNamePrefix_opt=ensFileNamePrefix, &
                                   shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength )
           end if
 

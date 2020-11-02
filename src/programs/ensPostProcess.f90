@@ -50,7 +50,8 @@ program midas_ensPostProcess
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
   logical :: readAnlEnsemble  ! activate reading of analysis ensemble
-  NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble
+  logical :: writeTrlEnsemble ! activate writing of the trial ensemble (useful when it's interpolated)
+  NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble, writeTrlEnsemble
 
   call ver_printNameAndVersion('ensPostProcess','Program for post-processing of LETKF analysis ensemble')
 
@@ -71,8 +72,9 @@ program midas_ensPostProcess
 
   !- Setting default namelist variable values
   nEns = 256
-  readTrlEnsemble = .true.
-  readAnlEnsemble = .true.
+  readTrlEnsemble  = .true.
+  readAnlEnsemble  = .true.
+  writeTrlEnsemble = .false.
 
   !- Read the namelist
   nulnam = 0
@@ -84,6 +86,14 @@ program midas_ensPostProcess
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
     call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
+  end if
+
+  if (writeTrlEnsemble .and. .not.readTrlEnsemble) then
+    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble if it is not read')
+  end if
+
+  if (writeTrlEnsemble .and. readAnlEnsemble) then
+    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble when Analysis ensemble is read')
   end if
 
   !- 1. Initialize date/time-related info
@@ -125,9 +135,6 @@ program midas_ensPostProcess
   end if
   call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, gridFileName)
-  if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
-    call utl_abort('midas-ensPostProcess: nLev_M /= nLev_T - currently not supported')
-  end if
 
   if ( hco_ens % global ) then
     call agd_SetupFromHCO( hco_ens ) ! IN
@@ -171,7 +178,7 @@ program midas_ensPostProcess
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')
-  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
+  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble)
   call tmg_stop(8)
 
   !
