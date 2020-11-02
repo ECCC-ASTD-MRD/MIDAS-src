@@ -88,10 +88,12 @@ while [ $# -ne 0 ]; do
     shift
 done
 
+SECONDS=0
 ## create indiviual trace for each rank
 for rank in $(seq 0 $((npex*npey-1))); do
     date +%Y%m%d:%H:%M:%S.%N > touch.before.launch.${rank}
 done
+echo "The files 'touch.before.launch.*' have been created in ${SECONDS} seconds"
 
 cat > midas.mpi_script.sh <<EOF
 #!/bin/bash
@@ -117,9 +119,16 @@ echo SECONDS=\${SECONDS}
 EOF
 chmod u+x midas.mpi_script.sh
 
+
 status=0
+
+SECONDS=0
 ${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
+echo "The whole MPI execution took ${SECONDS} seconds"
+
 unset __midas_mpirun_call_program__ __midas_mpirun_pgm__
+
+SECONDS=0
 
 if [ "${status}" -ne 0 ]; then
     echo "The whole MPI execution aborted!"
@@ -131,5 +140,8 @@ abortedRanks=$(/bin/ls touch.before.launch.* 2>/dev/null || true)
 if [ -n "${abortedRanks}" ]; then
     echo "Some MPI ranks aborted!"
     echo ${abortedRanks}
+    echo "The execution verification took ${SECONDS} seconds"
     exit 1
 fi
+
+echo "The execution verification took ${SECONDS} seconds"
