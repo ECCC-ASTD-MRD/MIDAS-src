@@ -55,7 +55,7 @@ fi
 let nprocs=npex*npey
 base=0
 while [ "${base}" -lt "${number_of_families2process}" ]; do
-    ${midas_mpirun} "Launching reunir_obs with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_reunir_obs_mpi} \
+    ${midas_mpirun} "${midas_reunir_obs_mpi}" "Launching reunir_obs with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} \
         -nompi pseudo_mpi -npex ${nprocs} -tmpdir ${PWD}/reunirobs_mpi_tmpdir_${base} \
         -args                                                                         \
              =-obsin              ${obsin}                                            \

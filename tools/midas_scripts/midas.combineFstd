@@ -94,4 +94,4 @@ EOF
 
 chmod +x mpi_script.sh
 
-${midas_mpirun} "Launching midas.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./mpi_script.sh -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi
+${midas_mpirun} ./mpi_script.sh "Launching midas.combineFstd" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -tmpdir ${PWD}/combineFstd_mpi_tmpdir -nompi pseudo_mpi

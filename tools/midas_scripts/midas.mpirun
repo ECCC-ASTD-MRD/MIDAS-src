@@ -5,6 +5,8 @@
 
 set -ex
 
+__midas_mpirun_pgm__=$1
+shift
 __midas_mpirun_msg__=$1
 shift
 __midas_mpirun_ssm__=$1
@@ -12,7 +14,7 @@ shift
 __midas_mpirun_OMP_STACKSIZE__=$1
 shift
 ## Cette variable doit inclure l'appel a 'r.run_in_parallel' comme par exemple
-##     ${TASK_BIN}/r.run_in_parallel -pgm ./midas.Abs -npex 10 -npey 10
+##     ${TASK_BIN}/r.run_in_parallel -npex 10 -npey 10
 __midas_mpirun_call_program__=$@
 
 if [ -x ${SEQ_BIN}/nodelogger ]; then
@@ -30,9 +32,6 @@ fi
 ${__midas_mpirun_nodelogger__} -n $SEQ_NODE -s infox -m  "Launching program ${__midas_mpirun_msg__}"
 unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 
-if [ -n "${OMP_STACKSIZE}" ]; then
-    __midas_mpirun_OMP_OLD_STACKSIZE__=${OMP_STACKSIZE}
-fi
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
@@ -71,12 +70,78 @@ else
     exit 1
 fi
 
-${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose
-unset __midas_mpirun_call_program__
+## find 'npex' and 'npey' in '${__midas_mpirun_call_program__}'
+npex=1
+npey=1
+set -- ${__midas_mpirun_call_program__}
+while [ $# -ne 0 ]; do
+    case $1 in
+        -npex)
+            npex=$2
+            shift
+            ;;
+        -npey)
+            npey=$2
+            shift
+            ;;
+    esac
+    shift
+done
 
-if [ -n "${__midas_mpirun_OMP_OLD_STACKSIZE__}" ]; then
-    export OMP_STACKSIZE=${__midas_mpirun_OMP_OLD_STACKSIZE__}
-    unset __midas_mpirun_OMP_OLD_STACKSIZE__
-else
-    unset OMP_STACKSIZE
+SECONDS=0
+## create indiviual trace for each rank
+for rank in $(seq 0 $((npex*npey-1))); do
+    date +%Y%m%d:%H:%M:%S.%N > touch.before.launch.${rank}
+done
+echo "The files 'touch.before.launch.*' have been created in ${SECONDS} seconds"
+
+cat > midas.mpi_script.sh <<EOF
+#!/bin/bash
+
+set -ex
+
+SECONDS=0
+
+status=0
+${__midas_mpirun_pgm__} \$@ || status=1
+
+if [ "\${status}" -ne 0 ]; then
+    echo "The MPI execution aborted!"
+    exit 1
 fi
+
+$(which echo) MP_CHILD=\${MP_CHILD} \$($(which date) +%Y%m%d:%H:%M:%S.%N) before erasing touch.before.launch.\${MP_CHILD}
+$(which rm)   ${PWD}/touch.before.launch.\${MP_CHILD}
+$(which echo) MP_CHILD=\${MP_CHILD} \$($(which date) +%Y%m%d:%H:%M:%S.%N) after erasing touch.before.launch.\${MP_CHILD}
+
+echo SECONDS=\${SECONDS}
+
+EOF
+chmod u+x midas.mpi_script.sh
+
+
+status=0
+
+SECONDS=0
+${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
+echo "The whole MPI execution took ${SECONDS} seconds"
+
+unset __midas_mpirun_call_program__ __midas_mpirun_pgm__
+
+SECONDS=0
+
+if [ "${status}" -ne 0 ]; then
+    echo "The whole MPI execution aborted!"
+    exit 1
+fi
+
+## Check if all individual MPI tiles ran without errors
+abortedRanks=$(/bin/ls touch.before.launch.* 2>/dev/null || true)
+if [ -n "${abortedRanks}" ]; then
+    echo "Some MPI ranks aborted!"
+    echo ${abortedRanks}
+    echo "The execution verification took ${SECONDS} seconds"
+    exit 1
+fi
+
+echo "The execution verification took ${SECONDS} seconds"

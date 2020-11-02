@@ -438,8 +438,8 @@ cat > which_hostname <<EOF
 echo midas.launch executing \${MP_CHILD} \$(hostname)
 EOF
 chmod +x which_hostname
-which_hostname_listing=$(${midas_mpirun} "Getting the hostnames for each MPI tile" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${PWD}/which_hostname \
-    -npex ${npex} -npey ${npey} -tmpdir ${PWD}/hostname_mpi_tmpdir)
+which_hostname_listing=$(${midas_mpirun} ${PWD}/which_hostname "Getting the hostnames for each MPI tile" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} \
+    -npex ${npex} -npey ${npey} -tmpdir ${PWD}/hostname_mpi_tmpdir | grep 'midas.launch executing')
 
 child_hostnames=$(printf "${which_hostname_listing}" | awk '/^oe-[0-9]*-[0-9]*: midas.launch executing / {print $4, $5}')
 
@@ -471,7 +471,7 @@ fi
 
 ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
 
-${midas_mpirun} "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ${midas_mpi} -npex ${npex} -npey ${npey} \
+${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
     -args                                                                \
                             ${observations_files}                        \
