@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * An empty `MIDAS_INTERPENSTRIALS_VARS_THERMO` was giving wrong
+   arguments to `d.pxs2pxt` (#427 and !403)
 
 ### Removed
 

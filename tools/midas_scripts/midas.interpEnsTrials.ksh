@@ -200,6 +200,9 @@ process_jdate () {
         PXT_LEVELS_T=THERMO
     fi
 
+    vars_momentum=${MIDAS_INTERPENSTRIALS_VARS_MOMENTUM:-${PXS2PXT_CUB_UV}}
+    vars_thermo=${MIDAS_INTERPENSTRIALS_VARS_THERMO:-"CUB_TT LIN_HU"}
+
     ${rm_cmd} -f target_MM target_TH
     ${pxs2pxt} \
 	-s   file_datev.fst \
@@ -207,7 +210,7 @@ process_jdate () {
 	-pxt px_target \
 	-d target_MM \
 	-etiket ${CETIK} \
-	-var ${MIDAS_INTERPENSTRIALS_VARS_MOMENTUM:-${PXS2PXT_CUB_UV}} \
+	-var ${vars_momentum} \
         -pxt_levels ${PXT_LEVELS_M} \
 	-above 0.0
 
@@ -217,7 +220,7 @@ process_jdate () {
 	-pxt px_target \
 	-d target_TH \
 	-etiket ${CETIK} \
-	-var ${MIDAS_INTERPENSTRIALS_VARS_THERMO:-'CUB_TT LIN_HU'} \
+	-var ${vars_thermo} \
         -pxt_levels ${PXT_LEVELS_T} \
 	-above 0.0
 
