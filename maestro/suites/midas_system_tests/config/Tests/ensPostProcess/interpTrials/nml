@@ -1,5 +1,5 @@
   &namEnsPostProc
-   nEns                  = 256
+   nEns                  = 60
    readTrlEnsemble       = .true.
    readAnlEnsemble       = .false.
    writeTrlEnsemble      = .true.

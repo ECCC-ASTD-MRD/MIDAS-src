@@ -2270,8 +2270,14 @@ CONTAINS
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
 
-        end if ! locally read one member
+          ! copy over some time related parameters
+          ens%statevector_work%deet                      = statevector_member_r4%deet
+          ens%statevector_work%dateOriginList(stepIndex) = statevector_member_r4%dateOriginList(1)
+          ens%statevector_work%npasList(stepIndex)       = statevector_member_r4%npasList(1)
+          ens%statevector_work%ip2List(stepIndex)        = statevector_member_r4%ip2List(1)
+          ens%statevector_work%etiket                    = statevector_member_r4%etiket
 
+        end if ! locally read one member
 
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
         if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
@@ -2383,8 +2389,9 @@ CONTAINS
 
       end do ! memberIndex
 
-
     end do ! time
+
+    call gsv_communicateTimeParams(ens%statevector_work)
 
     deallocate(datestamplist)
     call hco_deallocate(hco_file)
@@ -2403,7 +2410,8 @@ CONTAINS
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
                                etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
-                               ip3_opt, containsFullField_opt, numBits_opt)
+                               ip3_opt, containsFullField_opt, numBits_opt, &
+                               resetTimeParams_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -2420,6 +2428,7 @@ CONTAINS
     integer, optional :: ip3_opt, numBits_opt
     logical, optional :: etiketAppendMemberNumber_opt
     logical, optional :: containsFullField_opt
+    logical, optional :: resetTimeParams_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
@@ -2463,6 +2472,12 @@ CONTAINS
       ip3 = ip3_opt
     else
       ip3 = 0
+    end if
+
+    if (present(resetTimeParams_opt)) then
+      if (resetTimeParams_opt) then
+        call gsv_resetTimeParams(ens%statevector_work)
+      end if
     end if
 
     lonPerPE    = ens%statevector_work%lonPerPE
@@ -2512,6 +2527,13 @@ CONTAINS
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
                         varNames_opt=varNamesInEns, dataKind_opt=4)
+
+      ! copy over some time related parameters
+      statevector_member_r4%deet              = ens%statevector_work%deet
+      statevector_member_r4%dateOriginList(1) = ens%statevector_work%dateOriginList(stepIndex)
+      statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
+      statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
+      statevector_member_r4%etiket            = ens%statevector_work%etiket
 
       do memberIndex = 1, ens%numMembers
 

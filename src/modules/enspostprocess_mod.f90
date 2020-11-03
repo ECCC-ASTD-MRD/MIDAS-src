@@ -590,7 +590,7 @@ contains
         call tmg_start(104,'LETKF-writeEns')
         call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.false.)
+                               containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
                                     etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
@@ -633,7 +633,7 @@ contains
         call tmg_start(104,'LETKF-writeEns')
         call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.false.)
+                               containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                     ens_getNumMembers(ensembleAnlSubSample),  &

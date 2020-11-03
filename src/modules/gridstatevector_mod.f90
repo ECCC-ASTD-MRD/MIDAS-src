@@ -55,6 +55,7 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
+  public :: gsv_communicateTimeParams, gsv_resetTimeParams
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -101,6 +102,10 @@ module gridStateVector_mod
     integer, pointer    :: allUVkCount(:), allUVkBeg(:), allUVkEnd(:)
     integer, pointer    :: dateStampList(:) => null()
     integer, pointer    :: dateStamp3d
+    integer, pointer    :: dateOriginList(:)
+    integer, pointer    :: npasList(:), ip2List(:)
+    integer             :: deet
+    character(len=12)   :: etiket
     logical             :: allocated=.false.
     type(struct_vco), pointer :: vco => null()
     type(struct_hco), pointer :: hco => null()
@@ -395,10 +400,10 @@ module gridStateVector_mod
 
     ANLVAR(1:vnl_numvarmax) = '    '
     ANLTIME_BIN = 'MIDDLE'
-    rhumin = MPC_MINIMUM_HU_R8
+    rhumin = mpc_minimum_hu_r8
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
-    minValVarKindCH(:) = MPC_missingValue_R8
+    minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
     nulnam=0
@@ -443,20 +448,20 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       if ( trim(AnlVar(varIndex)) == '' ) exit
       if ( vnl_varKindFromVarname(AnlVar(varIndex)) == 'CH' ) then
-        if ( minValVarKindCH(varIndex) < 0.99d0 * MPC_missingValue_R8 ) then
+        if ( minValVarKindCH(varIndex) < 0.99d0 * mpc_missingValue_r8 ) then
           if ( trim(AnlVar(varIndex)) == 'AF' .or. trim(AnlVar(varIndex)) == 'AC' ) then
             ! Set for particulate matter in micrograms/cm^3
-            minValVarKindCH(varIndex) = MPC_MINIMUM_PM_R8
+            minValVarKindCH(varIndex) = mpc_minimum_pm_r8
           else
             ! Set for concentrations in micrograms/kg
-            minValVarKindCH(varIndex) = MPC_MINIMUM_CH_R8
+            minValVarKindCH(varIndex) = mpc_minimum_ch_r8
           end if
         end if
       end if
     end do
 
     ! Assign min values to apply
-    gsv_minValVarKindCH(:) = MPC_missingValue_R8
+    gsv_minValVarKindCH(:) = mpc_missingValue_r8
     do varIndex = 1, vnl_numvarmax
       if ( varExistList(varIndex) ) then
         do loopIndex = 1, vnl_numvarmax
@@ -846,6 +851,11 @@ module gridStateVector_mod
     else
       nullify(statevector%dateStamplist)
     end if
+    allocate(statevector%dateOriginList(numStep))
+    allocate(statevector%npasList(numStep))
+    allocate(statevector%ip2List(numStep))
+
+    call gsv_resetTimeParams(statevector)
 
     if (statevector%dataKind == 8) then
       allocate(statevector%gd_r8(statevector%myLonBeg:statevector%myLonEnd,  &
@@ -932,6 +942,62 @@ module gridStateVector_mod
     statevector%allocated=.true.
 
   end subroutine gsv_allocate
+
+  !--------------------------------------------------------------------------
+  ! gsv_communicateTimeParams
+  !--------------------------------------------------------------------------
+  subroutine gsv_communicateTimeParams(statevector)
+    !
+    ! :Purpose: Ensure all mpi tasks have certain time parameters
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector
+    ! locals
+    integer :: deet, ierr
+    integer :: ip2List(statevector%numStep), npasList(statevector%numStep)
+    integer :: dateOriginList(statevector%numStep)
+
+    call rpn_comm_allreduce(statevector%deet, deet, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    statevector%deet = deet
+    call rpn_comm_allreduce(statevector%ip2List, ip2List, statevector%numStep,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    statevector%ip2List(:) = ip2List(:)
+    call rpn_comm_allreduce(statevector%npasList, npasList, statevector%numStep,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    statevector%npasList(:) = npasList(:)
+    call rpn_comm_allreduce(statevector%dateOriginList, dateOriginList, statevector%numStep,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    statevector%dateOriginList(:) = dateOriginList(:)
+
+    write(*,*) 'gsv_communicateTimeParams: deet = ', deet
+    write(*,*) 'gsv_communicateTimeParams: ip2List = ', ip2List(:)
+    write(*,*) 'gsv_communicateTimeParams: npasList = ', npasList(:)
+    write(*,*) 'gsv_communicateTimeParams: dateOriginList = ', dateOriginList(:)
+
+  end subroutine gsv_communicateTimeParams
+
+  !--------------------------------------------------------------------------
+  ! gsv_resetTimeParams
+  !--------------------------------------------------------------------------
+  subroutine gsv_resetTimeParams(statevector)
+    !
+    ! :Purpose: Reset certain time parameters to "missing" values
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector
+
+    statevector%dateOriginList(:) =  mpc_missingValue_int
+    statevector%npasList(:)       =  mpc_missingValue_int
+    statevector%ip2List(:)        =  mpc_missingValue_int
+    statevector%deet              =  mpc_missingValue_int
+    statevector%etiket            =  "UNDEFINED"
+
+  end subroutine gsv_resetTimeParams
 
   !--------------------------------------------------------------------------
   ! gsv_checkMpiDistribution
@@ -1527,6 +1593,25 @@ module gridStateVector_mod
       step2 = statevector_out%numStep
     end if
 
+    ! copy over some time related parameters
+    statevector_out%deet   = statevector_in%deet
+    statevector_out%etiket = statevector_in%etiket
+    do stepIndex = step1, step2
+      if (present(stepIndexOut_opt)) then
+        stepIn = 1
+      else if(timeMismatch) then
+        stepIn_Loop0: do stepIn = 1, statevector_in%numStep
+          if (statevector_in%dateStampList(stepIn) ==  &
+              statevector_out%dateStampList(stepIndex)) exit stepIn_loop0
+        end do stepIn_Loop0
+      else
+        stepIn = stepIndex
+      end if
+      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIn)
+      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIn)
+      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIn)
+    end do
+
     if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
       statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
@@ -1920,6 +2005,15 @@ module gridStateVector_mod
     if ( kBeg /= statevector_out%mykBeg .or. kEnd /= statevector_out%mykEnd) then
       call utl_abort('gsv_hPad: Vertical levels are not compatible')
     end if
+
+    ! copy over some time related parameters
+    statevector_out%deet   = statevector_in%deet
+    statevector_out%etiket = statevector_in%etiket
+    do stepIndex = 1, statevector_out%numStep
+      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+    end do
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
@@ -2384,6 +2478,9 @@ module gridStateVector_mod
       deallocate(statevector%dateStampList)
       nullify(statevector%dateStampList)
     end if
+    deallocate(statevector%dateOriginList)
+    deallocate(statevector%npasList)
+    deallocate(statevector%ip2List)
     deallocate(statevector%varOffset)
     deallocate(statevector%varNumLev)
 
@@ -3327,7 +3424,6 @@ module gridStateVector_mod
             foundVarNameInFile = .true.
         end if   
 
-
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
         if ( .not. foundVarNameInFile ) then
           varname = 'P0'
@@ -3411,6 +3507,17 @@ module gridStateVector_mod
           end if
         end if
 
+        ierr = fstprm( ikey,                                                               & ! IN
+                       dateo_var, deet_var, npas_var, ni_var, nj_var, nk_var, nbits_var,   & ! OUT
+                       datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
+                       etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
+                       lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
+        statevector%deet                      = deet_var
+        statevector%ip2List(stepIndex)        = ip2_var
+        statevector%npasList(stepIndex)       = npas_var
+        statevector%dateOriginList(stepIndex) = dateo_var
+        statevector%etiket                    = etiket_var
+
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
@@ -3423,11 +3530,6 @@ module gridStateVector_mod
           if (statevector%hco%global) then
             call utl_abort('gsv_readFile: This is not allowed in global mode!')
           end if
-          ierr = fstprm( ikey,                                                               & ! IN
-                         dateo_var, deet_var, npas_var, ni_var, nj_var, nk_var, nbits_var,   & ! OUT
-                         datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
-                         etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
-                         lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
 
           EZscintID_var  = ezqkdef( ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile ) ! IN
 
@@ -3450,10 +3552,10 @@ module gridStateVector_mod
           select case (trim(varName))
           case ('LVIS')
             field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
+                 log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),mpc_maximum_vis_r4),mpc_minimum_vis_r4))
           case ('LPR')
             field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(MPC_MINIMUM_PR_R4 + max(0.0,gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)))
+                 log(mpc_minimum_pr_r4 + max(0.0,gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)))
           case default
             call utl_abort('gsv_readFile: Oups! This should not happen... Check the code.')
           end select
@@ -3528,16 +3630,16 @@ module gridStateVector_mod
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
-          multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
+          multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
         else if ( trim(varName) == 'P0' ) then
-          multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
+          multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
         else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
           if ( conversionVarKindCHtoMicrograms ) then
             if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
               ! Convert from volume mixing ratio to micrograms/kg
               ! Standard ozone input would not require this conversion as it is already in micrograms/kg
               multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
-                           /MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+                           /mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
             else
               multFactor = 1.0d0 ! no conversion
             end if
@@ -3553,15 +3655,15 @@ module gridStateVector_mod
         end if
 
         if ( (trim(varName) == 'TT' .or. trim(varName) == 'TM') .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + mpc_k_c_degree_offset_r8, 4 )
         end if
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
+          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),mpc_maximum_vis_r4)
         end if
 
         if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
-          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*MPC_missingValue_R8 ) &
+          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*mpc_missingValue_r8 ) &
             field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
               real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
         end if
@@ -3573,7 +3675,7 @@ module gridStateVector_mod
 
       ! Do unit conversion for extra copy of winds, if present
       if ( statevector%extraUVallocated ) then
-        multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
+        multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
 
         !$OMP PARALLEL DO PRIVATE (kIndex)
         do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
@@ -4474,6 +4576,13 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate: before interpolation (no mpi)'
 
       step_loop: do stepIndex = 1, statevector_out%numStep
+        ! copy over some time related parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+
         ! Do horizontal interpolation for mpi global statevectors
         var_loop: do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
@@ -4613,6 +4722,13 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate_r4: before interpolation (no mpi)'
 
       step_loop: do stepIndex = 1, statevector_out%numStep
+        ! copy over some time related parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+
         ! Do horizontal interpolation for mpi global statevectors
         var_loop: do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
@@ -4764,6 +4880,13 @@ module gridStateVector_mod
 
     step_loop: do stepIndex = 1, statevector_out%numStep
 
+      ! copy over some time related parameters
+      statevector_out%deet                      = statevector_in%deet
+      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+      statevector_out%etiket                    = statevector_in%etiket
+
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
       else
@@ -4771,7 +4894,7 @@ module gridStateVector_mod
         psfc_in(:,:) = field_in(:,:,1,stepIndex)
       end if
       if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R8
+        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r8
       end if
 
       var_loop: do varIndex = 1, vnl_numvarmax
@@ -4912,6 +5035,13 @@ module gridStateVector_mod
 
     step_loop: do stepIndex = 1, statevector_out%numStep
 
+      ! copy over some time related parameters
+      statevector_out%deet                      = statevector_in%deet
+      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+      statevector_out%etiket                    = statevector_in%etiket
+
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
       else
@@ -4919,7 +5049,7 @@ module gridStateVector_mod
         psfc_in(:,:) = field_in(:,:,1,stepIndex)
       end if
       if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R4
+        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r4
       end if
 
       var_loop: do varIndex = 1, vnl_numvarmax
@@ -5107,13 +5237,39 @@ module gridStateVector_mod
     end if
 
     ! initialization of parameters for writing to file
-    dateo  = statevector%dateStampList(stepIndex)
-    deet   = 0
-    npas   = 0
+    if (statevector%dateOriginList(stepIndex) /= mpc_missingValue_int) then
+      dateo = statevector%dateOriginList(stepIndex)
+    else
+      dateo  = statevector%dateStampList(stepIndex)
+    end if
+
+    if (statevector%deet /= mpc_missingValue_int) then
+      deet = statevector%deet
+    else
+      deet = 0
+    end if
+
+    if (statevector%npasList(stepIndex) /= mpc_missingValue_int) then
+      npas = statevector%npasList(stepIndex)
+    else
+      npas = 0
+    end if
+
+    if (statevector%ip2List(stepIndex) /= mpc_missingValue_int) then
+      ip2 = statevector%ip2List(stepIndex)
+    else
+      ip2 = 0
+    end if
+
+    if (statevector%etiket /= 'UNDEFINED') then
+      etiket = statevector%etiket
+    else
+      etiket = trim(etiket_in)
+    end if
+
     ni     = statevector%ni
     nj     = statevector%nj
     nk     = 1
-    ip2    = 0
     if ( present(typvar_opt) ) then
       typvar = trim(typvar_opt)
     else
@@ -5122,7 +5278,6 @@ module gridStateVector_mod
     if ( allocated(statevector%hco%mask) ) then
       typvar(2:2) = '@'
     end if
-    etiket = trim(Etiket_in)
     grtyp  = statevector%hco%grtyp
     ig1    = statevector%hco%ig1
     ig2    = statevector%hco%ig2
@@ -5305,7 +5460,7 @@ module gridStateVector_mod
 
             if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField ) then 
               ! Impose lower limits
-              if ( gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01*MPC_missingValue_R8 ) &
+              if ( gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01*mpc_missingValue_r8 ) &
                 work2d_r4(:,:) = max( work2d_r4(:,:), real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))) )
             end if
  
@@ -5313,7 +5468,7 @@ module gridStateVector_mod
             if ( unitConversion ) then
 
               if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-                factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
+                factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
               else if ( trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
                         trim(nomvar) == 'PB' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
@@ -5321,7 +5476,7 @@ module gridStateVector_mod
                 if ( conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
                   if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
-                    factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4 &
+                    factor_r4 = 1.0E-9*mpc_molar_mass_dry_air_r4 &
                               /vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
                   else
                     factor_r4 = 1.0d0 ! no conversion
@@ -5343,7 +5498,7 @@ module gridStateVector_mod
 
             !- Convert Kelvin to Celcius only if full field
             if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')  ) then
-              work2d_r4(:,:) = work2d_r4(:,:) - MPC_K_C_DEGREE_OFFSET_R4
+              work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
             end if
 
             !- Writing to file
@@ -5431,12 +5586,12 @@ module gridStateVector_mod
       ig3      =  ig3_tictac
       ig4      =  ig4_tictac
 
-      ier = utl_fstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+      ier = utl_fstecr(statevector%hco%lon*mpc_degrees_per_radian_r8, npak, &
                        iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
                        ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
                        ig2, ig3, ig4, datyp, .true.)
 
-      ier = utl_fstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+      ier = utl_fstecr(statevector%hco%lat*mpc_degrees_per_radian_r8, npak, &
                        iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
                        ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                        ig2, ig3, ig4, datyp, .true.)
@@ -5469,12 +5624,12 @@ module gridStateVector_mod
       ig3      =  ig3_tictac
       ig4      =  ig4_tictac
 
-      ier = utl_fstecr(statevector%hco%lon2d_4*MPC_DEGREES_PER_RADIAN_R8, npak, &
+      ier = utl_fstecr(statevector%hco%lon2d_4*mpc_degrees_per_radian_r8, npak, &
                        iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
                        ip1, ip2, ip3, typvar, '>>', etiket, grtyp,          &
                        ig1, ig2, ig3, ig4, datyp, .true.)
 
-      ier = utl_fstecr(statevector%hco%lat2d_4*MPC_DEGREES_PER_RADIAN_R8, npak, &
+      ier = utl_fstecr(statevector%hco%lat2d_4*mpc_degrees_per_radian_r8, npak, &
                        iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
                        ip1, ip2, ip3, typvar, '^^', etiket, grtyp,          &
                        ig1, ig2, ig3, ig4, datyp, .true.)
@@ -6607,9 +6762,9 @@ module gridStateVector_mod
     nullify(Press_T,Press_M)
 
     ! the factors for TT, HU and Ps (for wind is 1)
-    tfac = MPC_CP_DRY_AIR_R8/T_r                                 ! temperature factor (c_p/T_r)
-    qfac = MPC_HEAT_CONDENS_WATER_R8**2/(MPC_CP_DRY_AIR_R8*T_r)  ! humidity factor ( (l_p*l_p)/(c_p*T_r) )
-    pfac = MPC_RGAS_DRY_AIR_R8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
+    tfac = mpc_cp_dry_air_r8/T_r                                 ! temperature factor (c_p/T_r)
+    qfac = mpc_heat_condens_water_r8**2/(mpc_cp_dry_air_r8*T_r)  ! humidity factor ( (l_p*l_p)/(c_p*T_r) )
+    pfac = mpc_rgas_dry_air_r8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_multEnergyNorm: gridStateVector_inout not yet allocated')
@@ -6994,7 +7149,7 @@ module gridStateVector_mod
 
       if (nlongout > 1) then    
         plong2 = xlongout(ilongout)
-        if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
+        if (plong2 < 0.0) plong2 = 2.D0*mpc_pi_r8 + plong2
         do ilon = 2,nlong
           if  (xlong(ilon-1) < xlong(ilon)) then
             if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
@@ -7231,7 +7386,7 @@ module gridStateVector_mod
               smoothedField(lonIndex,latIndex) =  &
                    smoothedField(lonIndex,latIndex) / real(count,8)
             else
-              if (maskNegatives) smoothedField(lonIndex,latIndex) = MPC_missingValue_R8
+              if (maskNegatives) smoothedField(lonIndex,latIndex) = mpc_missingValue_r8
             end if
           end do
         end do
