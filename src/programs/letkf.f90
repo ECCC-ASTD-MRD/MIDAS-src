@@ -430,7 +430,7 @@ program midas_letkf
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
     call tmg_start(8,'LETKF-postProcess')
-    call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
+    call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble=.false.)
     call tmg_stop(8)
   else
     ! just write the raw analysis ensemble to files

@@ -50,7 +50,10 @@ program midas_ensPostProcess
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
   logical :: readAnlEnsemble  ! activate reading of analysis ensemble
-  NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble
+  logical :: writeTrlEnsemble ! activate writing of the trial ensemble (useful when it's interpolated)
+  character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
+  NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble, &
+                           writeTrlEnsemble, hInterpolationDegree
 
   call ver_printNameAndVersion('ensPostProcess','Program for post-processing of LETKF analysis ensemble')
 
@@ -71,8 +74,10 @@ program midas_ensPostProcess
 
   !- Setting default namelist variable values
   nEns = 256
-  readTrlEnsemble = .true.
-  readAnlEnsemble = .true.
+  readTrlEnsemble  = .true.
+  readAnlEnsemble  = .true.
+  writeTrlEnsemble = .false.
+  hInterpolationDegree = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
 
   !- Read the namelist
   nulnam = 0
@@ -84,6 +89,14 @@ program midas_ensPostProcess
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
     call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
+  end if
+
+  if (writeTrlEnsemble .and. .not.readTrlEnsemble) then
+    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble if it is not read')
+  end if
+
+  if (writeTrlEnsemble .and. readAnlEnsemble) then
+    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble when Analysis ensemble is read')
   end if
 
   !- 1. Initialize date/time-related info
@@ -125,9 +138,6 @@ program midas_ensPostProcess
   end if
   call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, gridFileName)
-  if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
-    call utl_abort('midas-ensPostProcess: nLev_M /= nLev_T - currently not supported')
-  end if
 
   if ( hco_ens % global ) then
     call agd_SetupFromHCO( hco_ens ) ! IN
@@ -147,7 +157,7 @@ program midas_ensPostProcess
   end if
   call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                    hInterpolateDegree_opt = 'LINEAR', &
+                    hInterpolateDegree_opt=hInterpolationDegree, &
                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
   call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                         containsFullField_opt=.true., readHeightSfc_opt=.true.)
@@ -157,7 +167,8 @@ program midas_ensPostProcess
   !- Allocate ensembles, read the Anl ensemble
   if (readAnlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-    call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
+    call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
+                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
     call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
   end if
 
@@ -165,13 +176,14 @@ program midas_ensPostProcess
   allocate(ensembleTrl)
   if (readTrlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
+    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
+                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')
-  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc)
+  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble)
   call tmg_stop(8)
 
   !

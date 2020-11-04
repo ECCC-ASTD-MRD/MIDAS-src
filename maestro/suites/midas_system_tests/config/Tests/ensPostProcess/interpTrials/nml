@@ -1,0 +1,29 @@
+  &namEnsPostProc
+   nEns                  = 60
+   readTrlEnsemble       = .true.
+   readAnlEnsemble       = .false.
+   writeTrlEnsemble      = .true.
+   hInterpolationDegree  = 'CUBIC'
+/
+  &namEnsPostProcModule
+/
+ &NAMBHI
+/
+ &NAMBEN
+/
+ &NAMTIME
+   DSTEPOBS    = 1.0d0
+   DSTEPOBSINC = 1.0d0
+/
+ &NAMSTATE
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/
+ &NAMPHY
+  NEW_TETENS_COEFS=.true.
+/
