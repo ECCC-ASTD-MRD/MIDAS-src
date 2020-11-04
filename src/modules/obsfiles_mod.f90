@@ -934,12 +934,12 @@ contains
     ! Locals:
     integer           :: fileIndex
     character(len=10) :: obsFileType
-    logical           :: mwDataPresent
+    logical           :: toDataPresent
     integer           :: headerIndex
     integer           :: codtyp 
 
 
-    mwDataPresent = .false.
+    toDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -948,13 +948,14 @@ contains
       if ( (tvs_isIdBurpInst(codtyp,'atms' )) .or. &
            (tvs_isIdBurpInst(codtyp,'amsua')) .or. &
            (tvs_isIdBurpInst(codtyp,'amsub')) .or. &
-           (tvs_isIdBurpInst(codtyp,'mhs'  )) ) then
-        mwDataPresent = .true.
+           (tvs_isIdBurpInst(codtyp,'mhs'  )) .or. & 
+           (tvs_isIdBurpInst(codtyp,'radianceclear'  )) ) then
+        toDataPresent = .true.
       end if
     end do HEADER
 
-    if ( .not. mwDataPresent ) then
-      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingObsFlags since no ATMS or AMSUA'
+    if ( .not. toDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN obsf_updateMissingObsFlags since no ATMS or AMSUA, CSR, AMSUB, MHS'
       return
     end if
 

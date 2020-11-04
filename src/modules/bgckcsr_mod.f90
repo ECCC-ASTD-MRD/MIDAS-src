@@ -137,7 +137,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER0
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( codtyp == 185 ) csrDataPresent = .true.
+      if (tvs_isIdBurpInst(codtyp,'radianceclear'  )) csrDataPresent = .true.
     end do HEADER0
 
     if ( .not. csrDataPresent ) then
@@ -154,7 +154,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( codtyp /= 185 ) then 
+      if ( .not. tvs_isIdBurpInst(codtyp,'radianceclear') ) then 
         write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not '
         cycle HEADER
       end if
@@ -324,7 +324,7 @@ contains
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-      cloudAmount(currentChannelNumber)     = obs_bodyElem_i( obsSpaceData, OBS_CLA, bodyIndex)
+      cloudAmount(currentChannelNumber)    = obs_bodyElem_i( obsSpaceData, OBS_CLA, bodyIndex)
 
     end do BODY
 
@@ -369,7 +369,7 @@ contains
     maxAngleReached(:) = 0
     do dataIndex=1, numObsToProcess
       if (btest(obsFlags(dataIndex), 18)) topographicData(dataIndex) = 1
-      if (satZenithAngle(dataIndex) > 15250) maxAngleReached = 1
+      if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = 1
     end do
 
     !!! check O-P of Tb and set assim flag for each channel of satellite numsat using stat_iutilst

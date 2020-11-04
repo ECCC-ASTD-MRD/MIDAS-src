@@ -1,18 +1,6 @@
  &NAMCT0
    NCONF  = 121,
 / 
-&NAMBGCK
-  instName = 'AMSUA',
-  debug = .false.,
-  RESETQC = .false.,
-  maxNumSat  = 9,
-  maxNumTest = 16,
-  maxNumChan = 42,
-  channelOffset = 27,
-  clwQcThreshold = 0.6,
-  useUnbiasedObsForClw =.false.,
-  cloudyClwThresholdBcorr = 0.05,
-/
  &namObsSelection
   doThinning = .false.
 /
