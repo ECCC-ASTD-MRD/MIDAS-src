@@ -3,6 +3,7 @@
    readTrlEnsemble       = .true.
    readAnlEnsemble       = .false.
    writeTrlEnsemble      = .true.
+   hInterpolationDegree  = 'CUBIC'
 /
   &namEnsPostProcModule
 /
