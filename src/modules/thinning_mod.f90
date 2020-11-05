@@ -6214,7 +6214,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         end if
       end do BODY1
 
-      ! extract cloud fraction
+      ! read the new element 20081 in obsspacedata OBS_CLA
       CHANNELS: do channelIndex = 1, numChannel(headerIndex)
         obsCloud(channelIndex, headerIndex) = -1.0
 
@@ -6224,13 +6224,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY2
 
-          ! skip if not this is not cloud
-          if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex) /= bufr_cloudInSeg) then
-            cycle BODY2
-          end if
           ! check if channel number matches
           if (nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)) == channelList(channelIndex)) then
-            obsCloud(channelIndex, headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsCloud(channelIndex, headerIndex) = real(obs_bodyElem_i(obsdat, OBS_CLA, bodyIndex))
             cycle CHANNELS
           end if
         end do BODY2
