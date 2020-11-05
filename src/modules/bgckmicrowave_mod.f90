@@ -326,8 +326,8 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     logical,     intent(in)                :: RESETQC                        ! yes or not reset QC flag
     character *9, intent(in)               :: STNID                          ! identificateur du satellite
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -379,8 +379,8 @@ contains
     integer,     intent(in)                :: channelForTopoFilter(:)        ! channel list for filter
     real,        intent(in)                :: altitudeForTopoFilter(:)       ! altitude threshold
     real,        intent(in)                :: MTINTRP(KNT)                   ! topo aux point d'obs
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -441,8 +441,8 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifier
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -488,8 +488,8 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     integer,     intent(in)               :: ITERRAIN(KNT)                  ! terrain type
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -535,8 +535,8 @@ contains
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     integer,     intent(in)               :: ISCNPOS(KNT)                   ! position sur le "scan" 
     integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -578,8 +578,8 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     real,        intent(in)               :: SATZEN(KNT)                    ! satellite zenith angle 
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -630,8 +630,8 @@ contains
     real,        intent(in)               :: ZANGL                          ! satellite constant param
     integer,     intent(in)               :: ISCNPOS(KNT)                   ! position sur le "scan" 
     integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -687,8 +687,8 @@ contains
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     real,        intent(in)                :: MGINTRP(KNT)                   ! glace mer 
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -737,8 +737,8 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -788,8 +788,8 @@ contains
     real,        intent(in)               :: PTBO(KNO,KNT)                  ! radiances 
     real,        intent(in)               :: GROSSMIN(:)                  ! Gross val min 
     real,        intent(in)               :: GROSSMAX(:)                  ! Gross val max 
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -847,8 +847,8 @@ contains
     real,        intent(in)               :: MISGRODY                       ! MISGRODY
     integer,     intent(in)               :: MXCLWREJ                       ! cst 
     integer,     intent(in)               :: ICLWREJ(MXCLWREJ)              !
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: channelval
     integer                               :: nDataIndex
@@ -951,8 +951,8 @@ contains
     real,        intent(in)               :: tb1833(KNT)                    ! tb for channel  
     integer,     intent(in)               :: ktermer(:)                     ! mask terre-mer
     real,        intent(in)               :: glintrp(:)                     ! topo interpolated to obs point
-    integer,     intent(out)              :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)              :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -1030,8 +1030,8 @@ contains
     real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSCATREJ                       ! cst 
     integer,     intent(in)                :: ISCATREJ(MXSCATREJ)              !
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -1090,8 +1090,8 @@ contains
     real,        intent(in)                :: scatl(KNT)                     ! scattering index 
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
 
     ! Locals
     integer                                :: nDataIndex
@@ -1183,8 +1183,8 @@ contains
     real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1296,8 +1296,8 @@ contains
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(in)                :: MXCH2OMPREJ                !
     integer,     intent(in)                :: ICH2OMPREJ(MXCH2OMPREJ)                 !
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1388,8 +1388,8 @@ contains
     integer,     intent(in)                :: IUTILST(:,:)          !  channel selection
     integer,     intent(in)                :: MXSFCREJ2                       ! cst 
     integer,     intent(in)                :: ISFCREJ2(MXSFCREJ2)              !
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1467,8 +1467,8 @@ contains
     real,        intent(in)                :: PTBO(KNO,KNT)                  ! radiance o
     real,        intent(in)                :: btClear2D(KNO,KNT)             ! clear-radiance o
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
-    integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     ! Locals
     integer :: channelval
     integer :: nDataIndex
