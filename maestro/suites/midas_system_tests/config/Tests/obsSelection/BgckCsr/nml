@@ -59,6 +59,7 @@
    CINSTRUMENTID(9) = 'ABI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   regLimitExtrap = .false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
