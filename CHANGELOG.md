@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to copy lowest level during vertical interpolation (#429 and !407)
  * Added quality control for CSR data to `obsSelection` (#409 and !406)
  * Add ability to write interpolated Trial ensemble with `ensPostProcess` (#425 and !405)
 
