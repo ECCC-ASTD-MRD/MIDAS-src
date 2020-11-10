@@ -125,6 +125,7 @@ module gridStateVector_mod
   real(8) :: rhumin, gsv_rhumin
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
+  logical :: vInterpCopyLowestLevel
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -385,9 +386,10 @@ module gridStateVector_mod
   subroutine gsv_setup
     implicit none
     integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
-    CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
-    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance
+    real(8) :: minClwAtSfc
+    character(len=4) :: anlvar(vnl_numVarMax)
+    NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
 
     if (initialized) return
 
@@ -398,13 +400,15 @@ module gridStateVector_mod
 
     ! Read namelist NAMSTATE to find which fields are needed
 
-    ANLVAR(1:vnl_numvarmax) = '    '
-    ANLTIME_BIN = 'MIDDLE'
+    anlvar(:) = '    '
     rhumin = mpc_minimum_hu_r8
+    minClwAtSfc = 1.0d-12
+    anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
+    vInterpCopyLowestLevel = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -4966,6 +4970,11 @@ module gridStateVector_mod
         end do
         !$OMP END PARALLEL DO
 
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
+
         deallocate(pres_out)
         deallocate(pres_in)
 
@@ -5120,6 +5129,11 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
+
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
 
         deallocate(pres_out)
         deallocate(pres_in)

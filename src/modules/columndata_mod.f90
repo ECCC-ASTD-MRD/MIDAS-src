@@ -80,10 +80,10 @@ contains
     character(len=8) :: anltime_bin
     logical :: conversionVarKindCHtoMicrograms
     logical :: abortOnMpiImbalance
+    logical :: vInterpCopyLowestLevel
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, minClwAtSfc
-
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -98,8 +98,9 @@ contains
     anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
-    minValVarKindCH(:) = MPC_missingValue_R8
-    abortOnMpiImbalance = .false.
+    minValVarKindCH(:) = mpc_missingValue_r8
+    abortOnMpiImbalance = .true.
+    vInterpCopyLowestLevel = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
