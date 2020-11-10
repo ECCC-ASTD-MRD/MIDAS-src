@@ -243,7 +243,7 @@ program midas_obsSelection
   end if
 
   ! cleaning the observation files
-  if ( doThinning ) call obsf_cleanObsFiles(obsSpaceData)
+  if ( doThinning ) call obsf_cleanObsFiles()
 
   !
   ! 4.  Ending

@@ -272,11 +272,9 @@ contains
   end subroutine obsf_writeFiles
 
 
-  subroutine obsf_cleanObsFiles( obsSpaceData )
+  subroutine obsf_cleanObsFiles()
     implicit none
 
-    ! arguments
-    type(struct_obs)  :: obsSpaceData
     ! locals
     integer           :: fileIndex
     character(len=10) :: obsFileType
