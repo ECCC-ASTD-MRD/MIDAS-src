@@ -41,8 +41,7 @@ module bgckcsr_mod
   save
   private
 
-  real,    parameter :: mwbg_realMissing=-99.
-  integer, parameter :: mwbg_intMissing=-1
+  real,    parameter :: csrbg_realMissing=-99.
   
   ! Public functions/subroutines
 
@@ -54,11 +53,9 @@ module bgckcsr_mod
 
   ! namelist variables
   character (len=9)  :: burpSatName(maxNumSat)
-  integer            :: numberOfchannel(maxNumSat)
-  integer            :: channelOffset(maxNumsat)
   integer            :: satCloudCoverLimit(maxNumSat,maxNumchan)
 
-  namelist /namcsr/burpSatName,numberOfchannel,channelOffset,satCloudCoverLimit
+  namelist /namcsr/burpSatName,satCloudCoverLimit
 
 contains
 
@@ -78,7 +75,7 @@ contains
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
     read(nulnam, nml=namcsr, iostat=ierr)
-    if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
+    if (ierr /= 0) call utl_abort('csrbg_init: Error reading namelist')
     if (mpi_myid == 0) write(*, nml=namcsr)
     ierr = fclos(nulnam)
 
@@ -112,15 +109,15 @@ contains
 
     ! Data derived from elements read in obspace data
 
-    integer, allocatable  :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
-    integer, allocatable  :: topographicData(:)  ! data flagged as topo data
-    integer, allocatable  :: nonCorrectedData(:) ! data non corrected by bias corr
-    integer, allocatable  :: isTbPresent(:)      ! non missing data
-    integer, allocatable  :: isClearSky(:)       ! clear sky obs
-    integer, allocatable  :: strayLight(:)       !
-    integer, allocatable  :: goesMidi(:)         ! goes noon
-    integer, allocatable  :: isToAssim(:)            ! is channel assimilable
-    integer, allocatable  :: ompOutOfRange(:)        
+    logical, allocatable  :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    logical, allocatable  :: topographicData(:)  ! data flagged as topo data
+    logical, allocatable  :: nonCorrectedData(:) ! data non corrected by bias corr
+    logical, allocatable  :: isTbPresent(:)      ! non missing data
+    logical, allocatable  :: isClearSky(:)       ! clear sky obs
+    logical, allocatable  :: strayLight(:)       !
+    logical, allocatable  :: goesMidi(:)         ! goes noon
+    logical, allocatable  :: isToAssim(:)            ! is channel assimilable
+    logical, allocatable  :: ompOutOfRange(:)        
     integer               :: categorieRejet(7)        
     integer               :: headerIndex 
     integer               :: codtyp
@@ -128,7 +125,7 @@ contains
     logical               :: csrDataPresent
 
 
-    call tmg_start(33,'BGCHECK_CSR')
+    
 
     categorieRejet(:) = 0
     csrDataPresent = .false.
@@ -144,8 +141,9 @@ contains
       write(*,*) 'WARNING: WILL NOT RUN csrbg_bgCheckCSR since no CSR Data'
       return
     end if
-    write(*,*) ' CSRBG QC PROGRAM STARTS ....'
 
+    call tmg_start(33,'BGCHECK_CSR')
+    write(*,*) ' CSRBG QC PROGRAM STARTS ....'
     ! Read Namelist
     call csrbg_init()
 
@@ -155,7 +153,7 @@ contains
       if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. tvs_isIdBurpInst(codtyp,'radianceclear') ) then 
-        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not '
+        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not a CSR data'
         cycle HEADER
       end if
 
@@ -227,19 +225,18 @@ contains
 
     ! Data derived from elements read in obspace data
 
-    integer, allocatable, intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
-    integer, allocatable, intent(out)    :: topographicData(:)  ! data flagged as topo data
-    integer, allocatable, intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
-    integer, allocatable, intent(out)    :: isTbPresent(:)      ! non missing data
-    integer, allocatable, intent(out)    :: isClearSky(:)       ! clear sky obs
-    integer, allocatable, intent(out)    :: strayLight(:)       !
-    integer, allocatable, intent(out)    :: goesMidi(:)         ! goes noon
-    integer, allocatable, intent(out)    :: isToAssim(:)        ! is channel assimilable
-    integer, allocatable, intent(out)    :: ompOutOfRange(:)    ! 
+    logical, allocatable, intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    logical, allocatable, intent(out)    :: topographicData(:)  ! data flagged as topo data
+    logical, allocatable, intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
+    logical, allocatable, intent(out)    :: isTbPresent(:)      ! non missing data
+    logical, allocatable, intent(out)    :: isClearSky(:)       ! clear sky obs
+    logical, allocatable, intent(out)    :: strayLight(:)       !
+    logical, allocatable, intent(out)    :: goesMidi(:)         ! goes noon
+    logical, allocatable, intent(out)    :: isToAssim(:)        ! is channel assimilable
+    logical, allocatable, intent(out)    :: ompOutOfRange(:)    ! 
   
     ! Locals
     integer                              :: bodyIndex
-    integer                              :: obsNumCurrentLoc
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt
     integer                              :: currentChannelNumber
@@ -275,8 +272,8 @@ contains
       if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
            isat      ==  tvs_satellites(sensorIndex) .and. &
            instrum   == tvs_instruments(sensorIndex)       ) then
-          sensorIndexFound = .true.
-         exit
+        sensorIndexFound = .true.
+        exit
       end if
     end do
     
@@ -301,10 +298,10 @@ contains
     call utl_reAllocate(obsChannels, numObsToProcess*actualNumChannel)
 
     !initialization
-    obsTb(:) = mwbg_realMissing
-    ompTb(:) = mwbg_realMissing
-    obsChannels(:) = mwbg_realMissing
-    cloudAmount(:) = mwbg_realMissing
+    obsTb(:) = csrbg_realMissing
+    ompTb(:) = csrbg_realMissing
+    obsChannels(:) = csrbg_realMissing
+    cloudAmount(:) = csrbg_realMissing
     !
     ! Header elements
     !
@@ -316,9 +313,8 @@ contains
     ! Body elements
     !
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
 
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) - 1
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - & 
                              tvs_channelOffset(sensorIndex)
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
@@ -336,10 +332,10 @@ contains
     ! Get index for satCloudCoverLimit for current current sat  
     indexSatFound = .false.
     do indexSat = 1, maxNumChan
-       if (trim(burpSatName(indexSat)) == trim(burpFileSatId)) then
-         indexSatFound = .true.
-         exit
-       end if 
+      if (trim(burpSatName(indexSat)) == trim(burpFileSatId)) then
+        indexSatFound = .true.
+        exit
+      end if 
     end do
     if ( .not. indexSatFound ) call utl_abort('csrbg_readObsFromObsSpace: Cloud Cover Limit Not & 
                                                Found for ' // trim(burpFileSatId))
@@ -354,40 +350,40 @@ contains
     call utl_reAllocate(ompOutOfRange, numObsToProcess*actualNumChannel)
     call utl_reAllocate(isToAssim, numObsToProcess*actualNumChannel)
     
-    isTbPresent(:) = 0
-    isClearSky(:) = 0
-    nonCorrectedData = 0
+    isTbPresent(:) = .false.
+    isClearSky(:) = .false.
+    nonCorrectedData = .false.
     
     do channelIndex=1, numObsToProcess*actualNumChannel
-      if (obsTb(channelIndex) /= mwbg_realMissing) isTbPresent(channelIndex) = 1
-      if (cloudAmount(channelIndex) /= mwbg_realMissing .and. cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) &
-          isClearSky(channelIndex) = 1
-      if (.not. btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = 1
+      if (obsTb(channelIndex) /= csrbg_realMissing) isTbPresent(channelIndex) = .true.
+      if (cloudAmount(channelIndex) /= csrbg_realMissing .and. & 
+          cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
+        isClearSky(channelIndex) = .true.
+      end if 
+      if (.not. btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = .true.
     end do
 
-    topographicData(:) = 0
-    maxAngleReached(:) = 0
+    topographicData(:) = .false.
+    maxAngleReached(:) = .false.
     do dataIndex=1, numObsToProcess
-      if (btest(obsFlags(dataIndex), 18)) topographicData(dataIndex) = 1
-      if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = 1
+      if (btest(obsFlags(dataIndex), 18)) topographicData(dataIndex) = .true.
+      if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = .true.
     end do
 
     !!! check O-P of Tb and set assim flag for each channel of satellite numsat using stat_iutilst
     !!! If channel not found in stats file, NO ASSIMILATE flag is set and O-P check is skipped
-    ompOutOfRange(:) = 0
-    isToAssim(:) = 0
+    ompOutOfRange(:) = .false.
+    isToAssim(:) = .false.
     do  channelIndex=1, numObsToProcess*actualNumChannel
-      if (oer_tovutil(obsChannels(channelIndex), sensorIndex) == 0) then
-        isToAssim(channelIndex) = 0
-      else
-        isToAssim(channelIndex) = 1
+      if ( .not. oer_tovutil(obsChannels(channelIndex), sensorIndex) == 0) then
+        isToAssim(channelIndex) = .true.
       end if
       errorThreshold = oer_toverrst(obsChannels(channelIndex), sensorIndex)*csrbg_ompThreshold
-      if (abs(ompTb(channelIndex)) > errorThreshold) ompOutOfRange(channelIndex) = 1
+      if (abs(ompTb(channelIndex)) > errorThreshold) ompOutOfRange(channelIndex) = .true.
     end do
     
-    strayLight(:) = 0
-    goesMidi(:) = 0  
+    strayLight(:) = .false.
+    goesMidi(:) = .false.
     do  dataIndex = 1, numObsToProcess
       mois  = (obsDate(dataIndex)/100) - (obsDate(dataIndex)/10000)*100
       jour  = (obsDate(dataIndex)/100) -  (obsDate(dataIndex)/100)*100
@@ -395,15 +391,15 @@ contains
       if (burpFileSatId == '^METSAT7') then
         if ( heure == 21 ) straylight(dataIndex) = 1
         if ( (heure == 20) .or. (heure == 22) ) then
-          if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(dataIndex) = 1
-          if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(dataIndex) = 1
+          if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(dataIndex) = .true.
+          if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(dataIndex) = .true.
         end if
       end if
       if (burpFileSatId == '^GOES11' .or.  burpFileSatId == '^GOES15') midnight = 9
       if (burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') midnight = 5
       if (burpFileSatId == '^GOES11' .or.  burpFileSatId == '^GOES15' .or. &
           burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') then
-        if ( (heure == (midnight - 1)) .or. (heure == midnight) ) goesMidi(dataIndex) = 1
+        if ( (heure == (midnight - 1)) .or. (heure == midnight) ) goesMidi(dataIndex) = .true.
       end if 
     end do
     
@@ -425,15 +421,15 @@ contains
 
     integer,              intent(inout)     :: obsFlags(:)         ! obs Flags to update
     integer,              intent(inout)     :: categorieRejet(7)   ! the 7 categories of rejections
-    integer,              intent(in)        :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
-    integer,              intent(in)        :: topographicData(:)  ! data flagged as topo data
-    integer,              intent(in)        :: nonCorrectedData(:) ! data non corrected by bias corr
-    integer,              intent(in)        :: isTbPresent(:)      ! non missing data
-    integer,              intent(in)        :: isClearSky(:)       ! clear sky obs
-    integer,              intent(in)        :: strayLight(:)       !
-    integer,              intent(in)        :: goesMidi(:)         ! goes noon
-    integer,              intent(in)        :: isToAssim(:)        ! is channel assimilable
-    integer,              intent(in)        :: ompOutOfRange(:)    ! abs of omp greater than threshold 
+    logical,              intent(in)        :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
+    logical,              intent(in)        :: topographicData(:)  ! data flagged as topo data
+    logical,              intent(in)        :: nonCorrectedData(:) ! data non corrected by bias corr
+    logical,              intent(in)        :: isTbPresent(:)      ! non missing data
+    logical,              intent(in)        :: isClearSky(:)       ! clear sky obs
+    logical,              intent(in)        :: strayLight(:)       !
+    logical,              intent(in)        :: goesMidi(:)         ! goes noon
+    logical,              intent(in)        :: isToAssim(:)        ! is channel assimilable
+    logical,              intent(in)        :: ompOutOfRange(:)    ! abs of omp greater than threshold 
     
     ! Locals
     integer                                 :: currentChannelNumber
@@ -446,55 +442,55 @@ contains
     numObsToProcess = 1
     currentChannelNumber = size(obsFlags)/numObsToProcess
 
-    !! tests de controle de qualite sur les profils et canaux
+    ! tests de controle de qualite sur les profils et canaux
     numData = 0
     do dataIndex = 1, numObsToProcess
       do channelIndex = 1, currentChannelNumber
         numData = numData+1
-        !! !Maxangle & Straylight & Goesmid : Bit 7 et 9 pour tous les canaux
-        if (maxAngleReached(dataIndex) == 1 .or. & 
-            strayLight(dataIndex)      == 1 .or. & 
-            goesMidi(dataIndex)        == 1) then 
+        !Maxangle & Straylight & Goesmid : Bit 7 et 9 pour tous les canaux
+        if (maxAngleReached(dataIndex) == .true. .or. & 
+            strayLight(dataIndex)      == .true. .or. & 
+            goesMidi(dataIndex)        == .true. ) then 
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(1) =  categorieRejet(1) + 1
         end if
 
         !Topo : bit 9 et 18 sont déjà là provenant du EnVar
-        if (topographicData(dataIndex) == 1) then
+        if (topographicData(dataIndex) == .true.) then
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           obsFlags(numData) = ibset(obsFlags(numData),18) 
           categorieRejet(2) =  categorieRejet(2) + 1
         end if 
 
         !Pas corrige : bit 11
-        if (nonCorrectedData(numData) == 1) then
+        if (nonCorrectedData(numData) == .true.) then
           obsFlags(numData) = ibset(obsFlags(numData),11) 
           categorieRejet(3) =  categorieRejet(3) + 1
         end if 
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
-        if (isTbPresent(numData) /= 1) then 
+        if (isTbPresent(numData) == .false.) then 
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
         !omp Out of range: Bit 9 et 16 pour les canaux concernés
-        if (ompOutOfRange(numData) == 1) then 
+        if (ompOutOfRange(numData) == .true.) then 
           obsFlags(numData) = ibset(obsFlags(numData),9)
           obsFlags(numData) = ibset(obsFlags(numData),16)
           categorieRejet(5) =  categorieRejet(5) + 1
         end if
 
         !Assim: Bit 11 pour les canaux concernés
-        if (isToAssim(numData) /= 1) then 
+        if (isToAssim(numData) == .false.) then 
           obsFlags(numData) = ibset(obsFlags(numData),11)
           categorieRejet(6) =  categorieRejet(6) + 1
         end if 
 
         !Clearsky : Bit 7 & Bit 9
-        if (isClearSky(numData) /= 1) then 
+        if (isClearSky(numData) == .false.) then 
           obsFlags(numData) = ibset(obsFlags(numData),7)
           obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(7) =  categorieRejet(7) + 1
@@ -519,15 +515,12 @@ contains
     integer,              intent(in)        :: headerIndex            ! sensor Index 
     ! Locals
     integer                                 :: bodyIndex
-    integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
     integer                                 :: currentChannelNumber
 
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-    
 
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) - 1
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY

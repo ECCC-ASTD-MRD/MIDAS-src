@@ -524,57 +524,35 @@
 /
  &NAMCSR
   burpSatName(1)  = '^GOES11',
-  numberOfchannel(1)           = 4,
-  channelOffset(1)          = 18,
   satCloudCoverLimit(1,:)         = 15*90,
 
   burpSatName(2)  = '^GOES13',
-  numberOfchannel(2)           = 4,
-  channelOffset(2)          = 18,
   satCloudCoverLimit(2,:)         = 15*90,
 
   burpSatName(3)  = '^GOES14',
-  numberOfchannel(3)           = 4,
-  channelOffset(3)          = 18,
   satCloudCoverLimit(3,:)         = 15*90,
 
   burpSatName(4)  = '^GOES15',
-  numberOfchannel(4)           = 4,
-  channelOffset(4)          = 18,
   satCloudCoverLimit(4,:)         = 15*90,
 
   burpSatName(5)  = '^METSAT8',
-  numberOfchannel(5)           = 8,
-  channelOffset(5)          = 3,
   satCloudCoverLimit(5,:)         = 15*5,
 
   burpSatName(6)  = '^METSAT9',
-  numberOfchannel(6)           = 8,
-  channelOffset(6)          = 3,
   satCloudCoverLimit(6,:)         = 15*5,
 
   burpSatName(7)  = '^METSAT10',
-  numberOfchannel(7)           = 8,
-  channelOffset(7)          = 3,
   satCloudCoverLimit(7,:)         = 15*5,
 
   burpSatName(8)  = '^METSAT11',
-  numberOfchannel(8)           = 8,
-  channelOffset(8)          = 3,
   satCloudCoverLimit(8,:)         = 15*5,
 
   burpSatName(9) = '^HMWARI-8',
-  numberOfchannel(9)          = 10,
-  channelOffset(9)         = 0,
   satCloudCoverLimit(9,:)        = 15*1,
 
   burpSatName(10) = '^HMWARI-9',
-  numberOfchannel(10)          = 10,
-  channelOffset(10)         = 0
   satCloudCoverLimit(10,:)        = 15*1,
 
   burpSatName(11)  = '^GOES16',
-  numberOfchannel(11)           = 10,
-  channelOffset(11)          = 0,
   satCloudCoverLimit(11,:)         = 15*25,
 /
