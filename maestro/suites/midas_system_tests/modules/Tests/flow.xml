@@ -149,6 +149,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckCsr"/>
+    <FAMILY  name="BgckCsr">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="conv"/>
     <FAMILY  name="conv">
       <SUBMITS sub_name="UnitTest"/>

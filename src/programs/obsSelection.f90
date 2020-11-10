@@ -40,7 +40,7 @@ program midas_obsSelection
   use biasCorrectionConv_mod
   use thinning_mod
   use bgckmicrowave_mod
-
+  use bgckcsr_mod
   implicit none
 
   integer :: datestamp, headerIndex, ierr, nulnam
@@ -179,9 +179,10 @@ program midas_obsSelection
     call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,'TO') ! Apply bias correction to OBS
     call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,'TO') ! Apply bias correction to O-F
 
-    ! Do the IR background check
+    ! Do the TO background check
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
     call mwbg_bgCheckMW(obsSpaceData)
+    call csrbg_bgCheckCSR(obsSpaceData)
 
   end if
 
@@ -242,7 +243,7 @@ program midas_obsSelection
   end if
 
   ! cleaning the observation files
-  if ( doThinning ) call obsf_cleanObsFiles(obsSpaceData)
+  if ( doThinning ) call obsf_cleanObsFiles()
 
   !
   ! 4.  Ending
