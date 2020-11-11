@@ -1023,6 +1023,7 @@ contains
        
     HEADER: do  
 
+
        headerIndex = obs_getHeaderIndex(obsSpaceData)  
        if (headerIndex < 0) exit HEADER
         
