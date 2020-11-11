@@ -1,0 +1,9 @@
+# Machine stuff
+FRONTEND=eccc-ppp1
+BACKEND=hare
+
+BACKEND_DEFAULT_Q=development
+FRONTEND_DEFAULT_Q=development
+
+BACKEND_XFER_Q=xfer
+FRONTEND_XFER_Q=xfer
