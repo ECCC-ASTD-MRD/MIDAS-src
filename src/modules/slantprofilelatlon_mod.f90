@@ -35,7 +35,7 @@ module slantprofilelatlon_mod
   private
 
   ! public procedures
-  public :: slp_calcLatLonTovs, slp_calcLatLonRO
+  public :: slp_calcLatLonTovs, slp_calcLatLonRO, slp_calcLatLonRadar, slp_radar_getlatlonHRfromRange, slp_radar_getRangefromH, slp_radar_getHfromRange
 
   ! private module variables and derived types
   real(4), save :: toleranceHeightDiff
@@ -565,5 +565,174 @@ contains
     deallocate(Lon_Obs, Lat_Obs, Hgt_Obs)
 
   end subroutine slp_calcLatLonRO
+ 
+ 
+ subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+    !
+    ! :Purpose: call the computation of lat/lon on the slant path for radar 
+    !           observations, iteratively. To replace the vertical columns with 
+    !           line-of-sight slanted columns.
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs), intent(in) :: obsSpaceData
+    type(struct_hco), intent(in) :: hco 
+    integer, intent(in)  :: headerIndex
+    real(4), intent(in)  :: height3D_T_r4(:,:,:)
+    real(4), intent(in)  :: height3D_M_r4(:,:,:)
+    real(8), intent(out)  :: latSlantLev_T(:)
+    real(8), intent(out)  :: lonSlantLev_T(:)
+    real(8), intent(out)  :: latSlantLev_M(:)
+    real(8), intent(out)  :: lonSlantLev_M(:)
+    ! Locals:
+    real(8) :: lat, lon, latSlant, lonSlant, rele, rzam, ralt, rans, rane, h_int
+    integer :: subGridIndex, lonIndex, latIndex
+    integer :: ierr, fnom, fclos, nulnam
+    integer :: nlev_T, lev_T, nlev_M, lev_M
+
+    nlev_M = size(height3D_M_r4,3)
+    nlev_T = size(height3D_T_r4,3)
+
+    lat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+    lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+    if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
+    if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
+
+    rele = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) *  MPC_RADIANS_PER_DEGREE_R8
+  
+    
+    
+    rzam = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) *  MPC_RADIANS_PER_DEGREE_R8
+    ralt = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
+    rans = obs_headElem_r(obsSpaceData, OBS_RANS, headerIndex)
+    rane = obs_headElem_r(obsSpaceData, OBS_RANE, headerIndex)
+   
+   ! put the last lat/lon at the surface of thermo level
+    latSlantLev_T(nlev_T) = lat
+    lonSlantLev_T(nlev_T) = lon
+    ! Loop through rest of thermo level
+    do lev_T = 1, nlev_T-1
+       call findIntersectLatlonRadar(lat, lon, rele, rzam,  ralt, rans, rane, hco, height3D_T_r4(:,:,lev_T), latSlant, lonSlant)
+       latSlantLev_T(lev_T) = latSlant
+       lonSlantLev_T(lev_T) = lonSlant
+    end do
+    
+    
+    ! put the last lat/lon at the surface of momentum levels
+    latSlantLev_M(nlev_M) = lat
+    lonSlantLev_M(nlev_M) = lon
+    ! loop through rest of momentum levels
+    do lev_M = 1, nlev_M-1
+       ! find the intersection 
+       call findIntersectLatlonRadar(lat, lon, rele, rzam,  ralt, rans, rane, hco, height3D_M_r4(:,:,lev_M), latSlant, lonSlant)
+       latSlantLev_M(lev_M) = latSlant
+       lonSlantLev_M(lev_M) = lonSlant
+    end do
+
+  end subroutine slp_calcLatLonRadar
+
+  subroutine findIntersectLatlonRadar(lat, lon, rele, rzam,  ralt, rans, rane,  hco, field2d_height, latSlant, lonSlant)
+    !
+    !   Purpose: Computation of lat lon  of the intersection of radar beam with the model levels
+    !       
+    implicit none
+    !Argument
+    type(struct_hco), intent(in)        :: hco
+    real(8), intent(in)                 :: lat, lon, rele, rzam, ralt, rans, rane
+    real(4), intent(in)                 :: field2d_height(hco%ni,hco%nj)
+    real(8)                             :: upper_bound, lower_bound, tolerance
+    real(8), intent(out)                :: latSlant,lonSlant
+    ! Local
+    real(8)                             :: h_radar, mid, ym, d_radar
+    integer                             :: iteration
+    real(4)                             :: heightInterp_r4
+
+    
+    lower_bound  = rans ! m max useable range for weather radars
+    upper_bound  = rane ! m minimum range
+    tolerance = 1       ! tolerance of the bisection method f
+    iteration = 0
+    ! bisection method 
+    mid=0.
+    do while ((abs((upper_bound - lower_bound)/2.).gt.tolerance).or.(iteration>30))
+       mid = (upper_bound + lower_bound)/2
+       call slp_radar_getlatlonHRfromRange(lat, lon, rele, rzam, ralt, mid, latSlant, lonSlant, h_radar, d_radar)
+       call heightBilinearInterp(latSlant, lonSlant, hco, field2d_height, heightInterp_r4)
+       ym = h_radar-heightInterp_r4
+       if (ym .gt. 0.) then 
+          upper_bound = mid
+       else
+          lower_bound = mid
+       end if 
+          iteration = iteration+1
+    end do
+   
+    if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
+    if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
+  
+  end subroutine findIntersectLatlonRadar
+ 
+  subroutine slp_radar_getlatlonHRfromRange(lat, lon, rele, rzam, ralt, r_radar, latSlant,lonSlant, h_radar,d_radar)
+    !
+    !   Purpose: Computation of  lat-lon and height of the path along the radar beam from radar range
+    !
+    implicit none
+    !Argument 
+    real(8), intent(in)  :: lat, lon, rele, rzam, ralt
+    real(8), intent(in)  :: r_radar
+    real(8), intent(out) :: latSlant, lonSlant, h_radar,d_radar
+    ! Local
+    real(8)              :: Re
+    real(8), parameter   :: Radius   = 6371007.2
+
+    ! efective radius of the earth
+    Re = Radius * (4./3.)
+    ! height radar beam  from range at rele and ralt 
+    h_radar = sqrt(r_radar**2.+(Radius+ralt)**2.+(2.*r_radar*(Radius+ralt)*sin(rele)))-(Radius) 
+    ! distance radar beam  from range at rele and ralt 
+    d_radar = atan(r_radar*cos(rele)/(r_radar*sin(rele)+Re+ralt))*Re
+    !second version -Book:Doppler Radar and Wheather Observation (Doviak and Zrnic)
+    !             d_radar = asin(r_range*cos(ele)/(Radius+alt))*Re    
+    ! lat lon of the path along the radar beam  
+    latSlant = asin( sin(lat)*cos(d_radar/Radius) + cos(lat)*sin(d_radar/Radius)*cos(rzam))
+    lonSlant = lon + atan2(sin(rzam)*sin(d_radar/Radius)*cos(lat), cos(d_radar/Radius)-sin(lat)*sin(latSlant))
+
+  end subroutine slp_radar_getlatlonHRfromRange
+
+  subroutine slp_radar_getHfromRange(r_radar, altitud, elevation, h_radar)
+    !
+    !   Purpose: Computation of height beam from radar range
+    !
+    implicit none
+    !Argument 
+    real(8) , intent(in)  :: r_radar, altitud, elevation
+    ! Local
+    real(8) , intent(out) :: h_radar
+    real(8)               :: Re
+    real(8), parameter    :: Radius   = 6371007.1809
+
+    Re = Radius*(4./3.)
+    h_radar = sqrt(r_radar**2.+(Radius+altitud)**2.+2.*r_radar*(Radius+altitud)*sin(elevation))-(Radius)
+
+  end subroutine slp_radar_getHfromRange
+
+  subroutine slp_radar_getRangefromH(h_radar, altitud, elevation, r_radar)
+    !
+    !   Purpose: Computation of radar range from height beam
+    !
+    implicit none
+    ! Argument
+    real(8) , intent(in)  :: h_radar,  altitud, elevation
+    real(8) , intent(out) :: r_radar 
+    ! Local
+    real(8), parameter    :: Radius   = 6371007.1809
+    real(8)               :: a, b, c
+
+    a = 1.
+    b = 2.*(Radius+altitud)*sin(elevation)
+    c = -(Radius+h_radar)**2+(Radius+altitud)**2.
+    r_radar  = (-b+sqrt(b**2-4*a*c))/2*a
+     
+  end subroutine slp_radar_getRangefromH
 
 end module slantprofilelatlon_mod

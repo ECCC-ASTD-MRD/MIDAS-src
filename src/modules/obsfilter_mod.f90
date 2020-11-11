@@ -57,11 +57,11 @@ module obsFilter_mod
   real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
        (/     50.d0,    50.d0,     50.d0,      50.d0,     50.d0,    800.d0,    800.d0,  &
              800.d0,   800.d0,   1000.d0,      50.d0,     50.d0,     50.d0,     50.d0,  &
-              50.d0,    50.d0,     50.d0,      50.d0,     50.d0,      50.d0 /)
+              50.d0,    50.d0,     50.d0,      50.d0,     50.d0,      50.d0,   1000.d0 /)
   integer, parameter :: elemList(numElem) =  &
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
           BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
-          BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis , bufr_logVis, bufr_gust /)
+          BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis , bufr_logVis, bufr_gust, BUFR_RADAR /)
 
   real(8) :: surfaceBufferZone_Pres
   real(8) :: surfaceBufferZone_Height
