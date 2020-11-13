@@ -810,9 +810,8 @@ contains
 
     end do step_loop2
 
-    if ( doSlantPath .and. (headerIndexEnd == obs_numheader(obsSpaceData)) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+    if ( stateVector_1Step%allocated .and. &
+        (headerIndexEnd == obs_numheader(obsSpaceData)) ) then
       write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
       call gsv_deallocate(stateVector_1Step)
     end if
