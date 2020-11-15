@@ -129,6 +129,9 @@ module obsSpaceErrorStdDev_mod
     !namelist
     NAMELIST /NAMHBHT/hybrid_mode
 
+    ! return if there is no observation.
+    if ( obs_numheader(obsSpaceData) == 0 ) return
+
     !- 1.  Compute HBHT (sigma_b in observation space) or OmP error std dev
 
     !- 1.1 Compute error std dev from static statistics
