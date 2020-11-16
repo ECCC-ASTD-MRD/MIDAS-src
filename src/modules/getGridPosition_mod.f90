@@ -84,12 +84,14 @@ contains
 
       if (grtyp == 'Y') then
 
-         ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+        !$omp critical
+        ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+        !$omp end critical
 
       else
 
         ! Not a Yin-Yang grid, call the standard ezscint routine
-         ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+        ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
       end if
 
@@ -98,8 +100,10 @@ contains
     else
 
       ! This is a Yin-Yang grid, do something different
-
-      ierr = gpos_xyfll_yinYangGrid(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, subGridIndex)
+      !$omp critical
+      ierr = gpos_xyfll_yinYangGrid(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                    lat_deg_r4, lon_deg_r4, subGridIndex)
+      !$omp end critical
 
     end if    
 
