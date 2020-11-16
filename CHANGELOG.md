@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
 
 ### Removed
 
