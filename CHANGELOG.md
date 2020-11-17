@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * The script 'tools/midas_scripts/midas.mpirun' was considering both
-   `ubuntu-18.04-skylake-64` and `rhel-8-icelake-64` at the same time (#610 and !565)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.7.0-rc2]
+
+### Fixed
+
+ * The script 'tools/midas_scripts/midas.mpirun' was considering both
+   `ubuntu-18.04-skylake-64` and `rhel-8-icelake-64` at the same time (#610 and !565)
 
 ## [3.7.0-rc1]
 
@@ -755,7 +761,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc2...HEAD
+[3.7.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc1...v_3.7.0-rc2
+[3.7.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0-rc1
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
 [3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6
