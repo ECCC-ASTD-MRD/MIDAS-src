@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed the calculation of control member increment (#434 and !411)
  * Fixed calls to routines in `getGridPosition_mod` that are not thread safe (#433 and !410)
  * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
 

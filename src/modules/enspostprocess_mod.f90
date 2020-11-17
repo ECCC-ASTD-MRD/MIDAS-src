@@ -50,7 +50,9 @@ contains
   !----------------------------------------------------------------------
   ! epp_postProcess
   !----------------------------------------------------------------------
-  subroutine epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble)
+  subroutine epp_postProcess(ensembleTrl, ensembleAnl, &
+                             stateVectorHeightSfc, stateVectorCtrlTrl, &
+                             writeTrlEnsemble)
     !
     !:Purpose:  Perform numerous post-processing steps to the ensemble
     !           produced by the LETKF algorithm.
@@ -60,7 +62,7 @@ contains
     ! Arguments
     type(struct_ens), pointer :: ensembleTrl
     type(struct_ens)          :: ensembleAnl
-    type(struct_gsv)          :: stateVectorHeightSfc
+    type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
     logical                   :: writeTrlEnsemble
 
     ! Locals
@@ -206,17 +208,6 @@ contains
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
       if (ens_allocated(ensembleTrl)) then
-        !- Allocate and compute mean increment
-        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
-                           dateStamp_opt=tim_getDateStamp(), &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           allocHeight_opt=.false., allocPressure_opt=.false. )
-        call gsv_zero(stateVectorMeanInc)
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-        call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-
         !- Apply RTPP, if requested
         if (alphaRTPP > 0.0D0) then
           call epp_RTPP(ensembleAnl, ensembleTrl, stateVectorMeanAnl, &
@@ -249,11 +240,6 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-          if (ens_allocated(ensembleTrl)) then
-            ! And recompute mean increment
-            call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-            call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-          end if
           call tmg_stop(102)
         end if
       end if
@@ -265,11 +251,6 @@ contains
         ! And recompute analysis mean
         call ens_computeMean(ensembleAnl)
         call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-        if (ens_allocated(ensembleTrl)) then
-          ! And recompute mean increment
-          call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-          call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-        end if
         ! And recompute the analysis spread stddev
         call ens_computeStdDev(ensembleAnl)
         call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
@@ -288,11 +269,6 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-          if (ens_allocated(ensembleTrl)) then
-            ! And recompute mean increment
-            call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-            call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-          end if
           call tmg_stop(102)
         end if
       end if
@@ -419,7 +395,7 @@ contains
 
         ! And compute mean increment with respect to mean of full trial ensemble
         call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
-        call gsv_add(stateVectorMeanTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
+        call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
 
       end if
 
@@ -539,17 +515,17 @@ contains
       ! convert transformed to model variables for ensemble mean of analysis and trial
       call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       if (ens_allocated(ensembleTrl)) then
-        call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+        call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         ! and recompute mean increment for converted model variables (e.g. VIS and PR)
         nullify(varNames)
         call gsv_varNamesList(varNames, stateVectorMeanAnl)
-        call gsv_deallocate( stateVectorMeanInc )
-        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+                           dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
         call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-        call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+        call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
         deallocate(varNames)
 
         ! output ensemble mean increment
