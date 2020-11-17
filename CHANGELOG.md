@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.6.0-rc1]
+
+### Added
+
  * Add ability to copy lowest level during vertical interpolation (#429 and !407)
    * New namelist variable `vInterpCopyLowestLevel` activates it (default is false)
  * Added quality control for CSR data to `obsSelection` (#409 and !406)
@@ -23,10 +41,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fixed the calculation of control member increment (#434 and !411)
  * Fixed calls to routines in `getGridPosition_mod` that are not thread safe (#433 and !410)
  * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.6.0-b1]
 
@@ -671,7 +685,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...HEAD
+[3.6.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...v_3.6.0-rc1
 [3.6.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...v_3.6.0-b1
 [3.6.0-a5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...v_3.6.0-a5
 [3.6.0-a4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...v_3.6.0-a4
