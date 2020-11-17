@@ -23,53 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * (Nothing yet)
 
 
-## [3.6.0-rc7]
-
-### Fixed
-
- * Fix uninitialized `statevector` object in `gsv_readTrials` and activation of
-   horizontal padding for limited-area ensembles (#451 and !423)
- * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
-
-## [3.6.0-rc6]
-
-### Fixed
-
- * Fixed bug in `obsTimeInterp_mod` for reject of obs beyond time window (#442 and !420)
-
-## [3.6.0-rc5]
-
-### Fixed
-
- * Fixed problem with MW thinning when one mpi task has no obs (#440 and !419)
-
-## [3.6.0-rc4]
-
-### Changed
-
- * Make case-insentive some `grep` commands which dig into namelists in `tools/midas_scripts/midas.*` scripts
-
-### Fixed
-
- * Fix reading of special ATMS QC flags needed for background check (#439 and !418)
-
-## [3.6.0-rc3]
-
-### Fixed
-
- * Fixed `thn_hyperByLatLonBoxes` when no obs on mpi task for a platform (#437 and !415)
-
-## [3.6.0-rc2]
-
-### Changed
-
- * Changed the BUFR table element number for the bias corrections applied to GB-GPS ZTD data from `015033` to `015234` (#388 and !413)
-
-### Fixed
-
- * Fixed `stateToColumn_mod` when no obs on mpi task and slant path (#435 and !414)
-
-## [3.6.0-rc1]
+## [3.6.0]
 
 ### Added
 
@@ -77,95 +31,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * New namelist variable `vInterpCopyLowestLevel` activates it (default is false)
  * Added quality control for CSR data to `obsSelection` (#409 and !406)
  * Add ability to write interpolated Trial ensemble with `ensPostProcess` (#425 and !405)
-
-### Changed
-
- * Use `craype-hugepages16M` in system tests and in `tools/midas_scripts/midas.mpirun` (#433 and !410)
- * Use `cmdn/utils` and `pxs2pxt` SSM domains compiled with `rpn/libs/19.6.0` (#430 and !412)
-
-### Fixed
-
- * Fixed the calculation of control member increment (#434 and !411)
- * Fixed calls to routines in `getGridPosition_mod` that are not thread safe (#433 and !410)
- * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
-
-## [3.6.0-b1]
-
-### Added
-
  * Add robustness to `tools/midas_scripts/midas.mpi` to catch cases
    where the MPI does not start but `r.run_in_parallel` does not
    return any error (#428 and !402)
-
-### Fixed
-
- * An empty `MIDAS_INTERPENSTRIALS_VARS_THERMO` was giving wrong
-   arguments to `d.pxs2pxt` (#427 and !403)
-
-## [3.6.0-a5]
-
-### Added
-
  * `tools/midas_scripts/midas.interpEnsTrials.ksh` (#423 and !400)
    * Two new environment variables are added to control which
      variables are interpolated in `midas.interpEnsTrials.ksh` (see
      [`README.md`](tools/midas_scripts/README.md) for more details):
      * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`
      * `MIDAS_INTERPENSTRIALS_VARS_THERMO`
-
-### Fixed
-
- * LETKF program was not correctly assimilating radiances (#424 and !401)
-
-## [3.6.0-a4]
-
-### Changed
-
- * Remove unnecessary setups of 3D heights for slant path (#419 and !398)
-   * Also add `numObsBatches` in namelist `NAMINN` to balance memory vs. mpi costs
- * Reduce usage of ramdisk in `letkf` program (#417 and !396)
- * Reduce usage of ramdisk in `ensPostProcess` program (#418 and !397)
- * Increase of `nMaxGst` in  `globalspectraltransform_mod` module from 10 to 20 (#421 and !399)
-
-### Fixed
-
- * Allow `midas.splitobs.Abs` to manage splitting in more than 800 MPI tiles (#417 and !396)
-
-## [3.6.0-a3]
-
-### Added
-
  * Added allsky obs filenames for amsua: `to_amsua_allsky` (#414 and !393)
    * Also added printing of MIDAS revision number for all programs
-
-### Changed
-
- * Changed default value for `NAMTOV` section namelist parameter `regLimitExtrap` from `.false.` to `.true.` (#415 and !394)
-
-### Fixed
-
- * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
- * Clean observation files at the end of program, after all updating finished, in `obsf_cleanObsFiles` (#416 and !395)
-
-## [3.6.0-a2]
-
-### Fixed
-
- * Increased `tvs_maxNumberOfSensors` and added check on the number of sensors in `stats_tovs` file (#404 and !390)
- * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
-
-### Removed
-
- * Removed namelist variables from `NAMBGCK` (#411 and !391).  The variables removed are:
-   * `maxNumSat`
-   * `maxNumTest`
-   * `maxNumChan`
-   * `channelOffset`
-
-## [3.6.0-a1]
-
-### Added
-
  * Added quality control for AMSUB data to `obsSelection` (#398 and !386)
  * Added control on minimum HU value for ensemble B matrix (#399 and !379)
    * Note: The namelist variable `huMinValue` must now appear in NAMBEN,
@@ -217,6 +93,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Make case-insentive some `grep` commands which dig into namelists in `tools/midas_scripts/midas.*` scripts
+ * Changed the BUFR table element number for the bias corrections applied to GB-GPS ZTD data from `015033` to `015234` (#388 and !413)
+ * Use `craype-hugepages16M` in system tests and in `tools/midas_scripts/midas.mpirun` (#433 and !410)
+ * Use `cmdn/utils` and `pxs2pxt` SSM domains compiled with `rpn/libs/19.6.0` (#430 and !412)
+ * Remove unnecessary setups of 3D heights for slant path (#419 and !398)
+   * Also add `numObsBatches` in namelist `NAMINN` to balance memory vs. mpi costs
+ * Reduce usage of ramdisk in `letkf` program (#417 and !396)
+ * Reduce usage of ramdisk in `ensPostProcess` program (#418 and !397)
+ * Increase of `nMaxGst` in  `globalspectraltransform_mod` module from 10 to 20 (#421 and !399)
+ * Changed default value for `NAMTOV` section namelist parameter `regLimitExtrap` from `.false.` to `.true.` (#415 and !394)
  * Using `rpn/libs/19.6.0` to compile which does not change the results (#382 and !378)
     * One must use the login profile `1.11.0` (`/fs/ssm/eccc/mrd/ordenv/profile/1.11.0`)
     * On XC50, we compile using Intel compile `19.0.5` and `module load craype-hugepages16M`.
@@ -234,6 +120,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix uninitialized `statevector` object in `gsv_readTrials` and activation of
+   horizontal padding for limited-area ensembles (#451 and !423)
+ * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
+ * Fixed bug in `obsTimeInterp_mod` for reject of obs beyond time window (#442 and !420)
+ * Fixed problem with MW thinning when one mpi task has no obs (#440 and !419)
+ * Fix reading of special ATMS QC flags needed for background check (#439 and !418)
+ * Fix reading of special ATMS QC flags needed for background check (#439 and !418)
+ * Fixed `thn_hyperByLatLonBoxes` when no obs on mpi task for a platform (#437 and !415)
+ * Fixed `stateToColumn_mod` when no obs on mpi task and slant path (#435 and !414)
+ * Fixed the calculation of control member increment (#434 and !411)
+ * Fixed calls to routines in `getGridPosition_mod` that are not thread safe (#433 and !410)
+ * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
+ * An empty `MIDAS_INTERPENSTRIALS_VARS_THERMO` was giving wrong
+   arguments to `d.pxs2pxt` (#427 and !403)
+ * LETKF program was not correctly assimilating radiances (#424 and !401)
+ * Allow `midas.splitobs.Abs` to manage splitting in more than 800 MPI tiles (#417 and !396)
+ * Using correct cloud profile and surface type in RTTOV for AMSUA all-sky assimilation (#413 and !392)
+ * Clean observation files at the end of program, after all updating finished, in `obsf_cleanObsFiles` (#416 and !395)
+ * Increased `tvs_maxNumberOfSensors` and added check on the number of sensors in `stats_tovs` file (#404 and !390)
+ * Fix the publishing of the program `midas.monitor.Abs` in SSM domain (#410 and !388)
  * Fixed a bug in ozone climatology interpolation affecting all infrared radiances (#394 and !375)
  * Fixed a bug in `tools/midas_scripts/midas.mpi` (#393 and !373):
    * When an observation file contained less records than the number of MPI tiles, that script was aborting.
@@ -246,6 +152,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Removed namelist variables from `NAMBGCK` (#411 and !391).  The variables removed are:
+   * `maxNumSat`
+   * `maxNumTest`
+   * `maxNumChan`
+   * `channelOffset`
  * Remove program `bgckMW` since the same functionality now in `obsSelection` (#335 and !320)
  * Remove the programs `write_subdomains` and `reunir_obs` from SSM domain publication (#360, #361 and !345)
  * Compile using only one precision and remove the publication of the MIDAS library (#358 and !344)
@@ -732,20 +643,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc7...HEAD
-[3.6.0-rc7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc6...v_3.6.0-rc7
-[3.6.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc5...v_3.6.0-rc6
-[3.6.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc4...v_3.6.0-rc5
-[3.6.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc3...v_3.6.0-rc4
-[3.6.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc2...v_3.6.0-rc3
-[3.6.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...v_3.6.0-rc2
-[3.6.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...v_3.6.0-rc1
-[3.6.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...v_3.6.0-b1
-[3.6.0-a5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...v_3.6.0-a5
-[3.6.0-a4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a3...v_3.6.0-a4
-[3.6.0-a3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a2...v_3.6.0-a3
-[3.6.0-a2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a1...v_3.6.0-a2
-[3.6.0-a1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0-a1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...HEAD
+[3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0
 [3.5.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...v_3.5.2
 [3.5.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
 [3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...v_3.5.0
