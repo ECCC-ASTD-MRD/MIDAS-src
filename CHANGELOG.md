@@ -12,15 +12,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+
+## [3.6.0-rc4]
+
+### Changed
+
  * Make case-insentive some `grep` commands which dig into namelists in `tools/midas_scripts/midas.*` scripts
 
 ### Fixed
 
  * Fix reading of special ATMS QC flags needed for background check (#439 and !418)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.6.0-rc3]
 
@@ -701,7 +712,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc4...HEAD
+[3.6.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc3...v_3.6.0-rc4
 [3.6.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc2...v_3.6.0-rc3
 [3.6.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...v_3.6.0-rc2
 [3.6.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...v_3.6.0-rc1
