@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix bug affecting background check of GZ observations (#468 and !443)
- * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !438)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.6.3]
+
+### Fixed
+
+ * Fix bug affecting background check of GZ observations (#468 and !443)
+ * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !438)
 
 ## [3.6.2]
 
@@ -672,7 +678,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...HEAD
+[3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.3
 [3.6.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.1...v_3.6.2
 [3.6.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...v_3.6.1
 [3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0
