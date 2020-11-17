@@ -174,7 +174,7 @@ CONTAINS
     ILEMU=11003
     ILEMV=11004
     ILEMD=11001
-    ILEMZBCOR=15033 ! bcor element for GP  ZTD observations
+    ILEMZBCOR=15234 ! bcor element for GP  ZTD observations
     ILEMTBCOR=12204 ! bcor element for altitude TT observations
     ILEMHBCOR=99999 ! bcor element for altitude ES observations (doesn't exist yet)
     ELEVFACT=0.
@@ -1759,7 +1759,7 @@ CONTAINS
     NELE=0
     BNBITSOFF=0
     BNBITSON=0
-    ILEMZBCOR=15033 ! bcor element for GP  ZTD observations
+    ILEMZBCOR=15234 ! bcor element for GP  ZTD observations
     ILEMTBCOR=12204 ! bcor element for altitude TT observations
     ILEMHBCOR=99999 ! bcor element for altitude ES observations (doesn't exist yet)
     ENFORCE_CLASSIC_SONDES=.false.
@@ -4880,7 +4880,7 @@ CONTAINS
       BTYP10obs = 289 !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
       BTYP10mrq = 481 !MRQ block 481 = 2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
     case("GP")
-      icodele = 15033
+      icodele = 15234
       BTYP10obs = 1
       BTYP10mrq = 193
     case default
