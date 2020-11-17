@@ -12,15 +12,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.6.0-rc2]
+
+### Changed
+
  * Changed the BUFR table element number for the bias corrections applied to GB-GPS ZTD data from `015033` to `015234` (#388 and !413)
 
 ### Fixed
 
  * Fixed `stateToColumn_mod` when no obs on mpi task and slant path (#435 and !414)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.6.0-rc1]
 
@@ -685,7 +695,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc2...HEAD
+[3.6.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...v_3.6.0-rc2
 [3.6.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-b1...v_3.6.0-rc1
 [3.6.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a5...v_3.6.0-b1
 [3.6.0-a5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-a4...v_3.6.0-a5
