@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 ## Ce script est un wrapper autour de `r.run_in_parallel` pour rassembler
 ## le code qui doit être exécuté avant de lancer le MPI.
@@ -64,7 +64,9 @@ elif [ "${EC_ARCH}" = sles-11-amd64-64/PrgEnv-intel-5.2.82 -o "${EC_ARCH}" = sle
     export CCLARGS=$(which cclargs)
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
-    export TBB_MALLOC_USE_HUGE_PAGES=1
+    ## export TBB_MALLOC_USE_HUGE_PAGES=1
+    module load craype-hugepages16M
+    export FOR_DISABLE_KMP_MALLOC=0
 else
     echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'AIX-powerpc7', 'Linux_x86-64', 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' and 'sles-11-amd64-64/PrgEnv-intel-5.2.82' are)"
     exit 1
