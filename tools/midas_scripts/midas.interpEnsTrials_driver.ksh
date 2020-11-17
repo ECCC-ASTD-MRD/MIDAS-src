@@ -50,13 +50,6 @@ which midas.interpEnsTrials.ksh || . ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
 . ssmuse-sh -d ${INTERPENSTRIALS_VGRID_PACKAGE} ## get d.add_toctoc
 . ssmuse-sh -d ${INTERPENSTRIALS_CMDN_PACKAGE}  ## get d.pxs2pxt
 
-if [ -z "${INTERPENSTRIALS_WRITE_SUBDOMAINS_PROGRAM}" ]; then
-    if [ -z "$(which write_subdomains.Abs || true)" ]; then
-	. ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
-    fi
-    INTERPENSTRIALS_WRITE_SUBDOMAINS_PROGRAM=$(which write_subdomains.Abs || true)
-fi
-
 if [ -d "${WORKDIR}" ]; then
     rm -rf ${WORKDIR}
 fi

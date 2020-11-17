@@ -325,46 +325,7 @@ else ## else relie au 'if [ "${INTERPENSTRIALS_DO_INTERPOLATION}" = yes ]'
     ${cp_cmd} ${jfile} target.fst
 fi ## Fin du else relie 'if [ "${INTERPENSTRIALS_DO_INTERPOLATION}" = yes ]'
 
-if [ "${npex}" = 1 -a "${npey}" = 1 ]; then
-    ${cp_cmd} target.fst ${dir_out}/${file_out}
-else
-    # Now split horizontally to a set of latitude bands and possibly longitude bands
-    ${rm_cmd} -f subdomain_*
-    time ${INTERPENSTRIALS_WRITE_SUBDOMAINS_PROGRAM:-$(which write_subdomains.Abs)} target.fst ${npex} ${npey} subdomain_
-
-    ## Les sorties auront le nom 'subdomain_0012_0005.fst'
-    typeset -i latband
-
-    typeset -i lonband=1
-    while [[ "${lonband}" -le "${npex}" ]]; do
-	latband=1
-	lonband_str=`${printf_cmd} "%.4d" ${lonband}`
-	while [[ "${latband}" -le "${npey}" ]]; do
-	    latband_str=`${printf_cmd} "%.4d" ${latband}`
-	    subdomain=${lonband_str}_${latband_str}
-
-	    ${mkdir_cmd} -p ${dir_out}/subdomain_${subdomain}
-
-	    if [ "${__INTERPENSTRIALS_MODE__}" = stg2nonstg ]; then
-	    # Add toc-toc from prototype to the output file
-		${echo_cmd} " exclure(-1,'!!')" > edit.dir
-		${echo_cmd} "  end" >> edit.dir
-		${editfst} -s subdomain_${subdomain}.fst -d subdomain_${subdomain}_final.fst -n -i edit.dir
-		${rm_cmd} -f subdomain_${subdomain}.fst
-	    elif [ "${__INTERPENSTRIALS_MODE__}" = stg2stg ]; then
-		${mv_cmd} subdomain_${subdomain}.fst subdomain_${subdomain}_final.fst
-	    else
-		${echo_cmd} "The interpolation mode variable '\${__INTERPENSTRIALS_MODE__}' can only be 'stg2nonstg' or 'stg2stg' and not '${__INTERPENSTRIALS_MODE__}'"
-		exit 1
-	    fi
-
-	    ${mv_cmd} subdomain_${subdomain}_final.fst ${dir_out}/subdomain_${subdomain}/${file_out}
-
-	    let latband=latband+1
-	done
-	let lonband=lonband+1
-    done
-fi ## Fin du 'if [ "${npex}" != 1 -o "${npey}" != 1 ]'
+${cp_cmd} target.fst ${dir_out}/${file_out}
 
 [ -f file_datev.fst ]        && ${rm_cmd} -f file_datev.fst
 [ -f file_datev_int_gg.fst ] && ${rm_cmd} -f file_datev_int_gg.fst
