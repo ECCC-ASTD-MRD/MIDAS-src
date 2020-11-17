@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.8.0]
+
+### Added
+
  * Added thinning for SSMIS (#452 and !606)
  * S2C consistency check (#645 and !602) 
  * Introduction of the ability to use ensemble B matrix to the 1Dvar.Abs code (#533 and !579)
@@ -129,6 +148,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Retrocompatibility maintained until next release
 
 ### Fixed
+
  * S2C consistency check v2 (#650 and !603)
  * SST-analysis related bugs (#635 and !595)
  * Fix bug of inconsistent ID_REPORT column in the MIDAS_HEADER_OUTPUT ObsDB table (#637 and !592)
@@ -921,7 +941,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...HEAD
+[3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...v_3.8.0
 [3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
 [3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
