@@ -8,13 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Namelist variables have been added for blocks `NAMLETKF` and
-   `namEnsPostProcModule` to control the etikets in each of the output
-   files of the programs `midas-letkf` and `midas-ensPostProcess` (#516 and !490)
+ * (Nothing yet)
 
 ### Changed
 
- * Avoid copying the `.ssm` files under `/fs/ssm/eccc/mrd/rpn/anl/midas` to save disk space (#512 and !483)
+ * (Nothing yet)
 
 ### Fixed
 
@@ -23,6 +21,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.6.7]
+
+### Added
+
+ * Namelist variables have been added for blocks `NAMLETKF` and
+   `namEnsPostProcModule` to control the etikets in each of the output
+   files of the programs `midas-letkf` and `midas-ensPostProcess` (#516 and !490)
+
+### Changed
+
+ * Avoid copying the `.ssm` files under `/fs/ssm/eccc/mrd/rpn/anl/midas` to save disk space (#512 and !483)
 
 ## [3.6.6]
 
@@ -717,7 +727,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...HEAD
+[3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
 [3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6
 [3.6.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.4...v_3.6.5
 [3.6.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.4
