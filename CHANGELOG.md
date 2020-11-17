@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
 
+
+## [3.6.0-rc7]
+
+### Fixed
+
+ * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
 
 ## [3.6.0-rc6]
 
@@ -724,7 +730,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc6...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc7...HEAD
+[3.6.0-rc7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc6...v_3.6.0-rc7
 [3.6.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc5...v_3.6.0-rc6
 [3.6.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc4...v_3.6.0-rc5
 [3.6.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc3...v_3.6.0-rc4
