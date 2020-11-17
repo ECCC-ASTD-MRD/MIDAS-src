@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.7.0-rc1]
+
+### Added
+
  * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
    * As expected, this change has minor impact on results
 
@@ -17,10 +35,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Implement the SSM packaging using shell scripts (#561 and !532)
  * Improve the documentation on how to start a branch associated to an
    issue from the release branch (#553 and !523)
-
-### Fixed
-
- * (Nothing yet)
 
 ### Removed
 
