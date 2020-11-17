@@ -16,12 +16,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
 
+## [3.6.1]
+
+### Fixed
+
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
 
 ## [3.6.0]
 
@@ -658,7 +663,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.1...HEAD
+[3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...v_3.6.1
 [3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0
 [3.5.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.1...v_3.5.2
 [3.5.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...v_3.5.1
