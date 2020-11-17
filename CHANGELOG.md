@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Updated radiative transfer code from RTTOV-12 to RTTOV-13. Minor impact on results (#508 and !601)
+ * (Nothing yet)
 
 ### Fixed
 
@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.8.1]
+
+ * Updated radiative transfer code from RTTOV-12 to RTTOV-13. Minor impact on results (#508 and !601)
 
 ## [3.8.0]
 
@@ -941,7 +945,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...HEAD
+[3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
 [3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...v_3.8.0
 [3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
 [3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
