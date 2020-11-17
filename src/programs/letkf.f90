@@ -54,6 +54,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorMeanAnl
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorHeightSfc
+  type(struct_gsv)          :: stateVectorCtrlTrl
   type(struct_columnData)   :: column
 
   type(struct_eob) :: ensObs, ensObs_mpiglobal
@@ -62,12 +63,12 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, middleStepIndex, randomSeedObs
+  integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
-  character(len=256) :: ensFileName
+  character(len=256) :: ensFileName, ctrlFileName
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
@@ -429,8 +430,23 @@ program midas_letkf
 
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
+    !- Allocate and read the Trl control member
+    call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt=0, &
+                         copyToRamDisk_opt=.false.)
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
+
     call tmg_start(8,'LETKF-postProcess')
-    call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble=.false.)
+    call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
+                         writeTrlEnsemble=.false.)
     call tmg_stop(8)
   else
     ! just write the raw analysis ensemble to files

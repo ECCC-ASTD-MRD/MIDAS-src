@@ -37,13 +37,13 @@ program midas_ensPostProcess
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
-  type(struct_gsv)          :: stateVectorHeightSfc
+  type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
-  character(len=256) :: ensFileName, gridFileName
+  character(len=256) :: ensFileName, gridFileName, ctrlFileName
   integer, allocatable :: dateStampList(:)
-  integer :: ierr, nulnam
+  integer :: ierr, nulnam, stepIndex
   logical :: targetGridFileExists
   integer, external :: get_max_rss, fstopc, fnom, fclos
 
@@ -179,11 +179,32 @@ program midas_ensPostProcess
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                       dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
+
+  end if
+
+  !- Allocate and read the Trl control member
+  if (readTrlEnsemble .and. readAnlEnsemble) then
+    !- Allocate and read control member Trl
+    call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       hInterpolateDegree_opt=hInterpolationDegree, &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt=0, &
+                         copyToRamDisk_opt=.false.)
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')
-  call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, writeTrlEnsemble)
+  call epp_postProcess(ensembleTrl, ensembleAnl, &
+                       stateVectorHeightSfc, stateVectorCtrlTrl, &
+                       writeTrlEnsemble)
   call tmg_stop(8)
 
   !
