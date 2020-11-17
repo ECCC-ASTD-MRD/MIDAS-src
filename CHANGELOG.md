@@ -8,11 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Activate the CI on HPCR-U2 (#596 and !582)
+ * (Nothing yet)
 
 ### Changed
 
- * Remove `pbsdsh :` (#628 and !584)
+ * (Nothing yet)
 
 ### Fixed
 
@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.7.1]
+
+### Added
+
+ * Activate the CI on HPCR-U2 (#596 and !582)
+
+### Changed
+
+ * Remove `pbsdsh :` (#628 and !584)
 
 ## [3.7.0]
 
@@ -767,7 +777,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...HEAD
+[3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
 [3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
