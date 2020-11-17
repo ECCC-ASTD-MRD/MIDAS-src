@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.7.0]
+
+### Changed
+
  * Several improvements (#614 and #618 and !574):
    * convert all scripts to Python 3
    * upgrade to `maestro/1.8.2`
@@ -21,10 +35,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Use the environment variable `${PBSTMPFSDIR}` to get the path to the RAMDisk on each node (#598 and !575)
    * The user must use at least this environment profile:  `/fs/ssm/eccc/mrd/ordenv/profile/1.16.0`
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.7.0-rc2]
 
@@ -766,7 +776,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...HEAD
+[3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc2...v_3.7.0
 [3.7.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc1...v_3.7.0-rc2
 [3.7.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0-rc1
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
