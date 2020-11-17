@@ -16,14 +16,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Avoid writing any block from the resume record in the routine `brpr_addElementsToBurp` (#868 and !770)
- * Fix some potential out of bounds array access in midas-obsSelection and midas-genCoeff programs (#701 and !647)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
 
+## [3.7.3]
+
+### Fixed
+
+ * Avoid writing any block from the resume record in the routine `brpr_addElementsToBurp` (#868 and !770)
+ * Fix some potential out of bounds array access in midas-obsSelection and midas-genCoeff programs (#701 and !647)
+
 ## [3.7.2]
+
+### Added
 
  * Add allsky cases for sql diagnostic files (#500 and !471)
  * Add ability to include FSO in diagnostic sqlite files (#487 and !463)
@@ -784,7 +792,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.3...HEAD
+[3.7.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.2...v_3.7.3
 [3.7.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...v_3.7.2
 [3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
 [3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
