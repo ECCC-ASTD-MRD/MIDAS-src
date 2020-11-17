@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Use `craype-hugepages16M` in system tests (#433 and !410)
 
 ### Fixed
 
+ * Fixed calls to routines in `getGridPosition_mod` that are not thread safe (#433 and !410)
  * Fixed two simple bugs that caused aborts during testing (#432 and !409, #431 and !408)
 
 ### Removed
