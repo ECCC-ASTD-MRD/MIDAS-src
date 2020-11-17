@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Use `craype-hugepages16M` in system tests (#433 and !410)
+ * Use `craype-hugepages16M` in system tests and in `tools/midas_scripts/midas.mpirun` (#433 and !410)
+ * Use `cmdn/utils` and `pxs2pxt` SSM domains compiled with `rpn/libs/19.6.0` (#430 and !412)
 
 ### Fixed
 

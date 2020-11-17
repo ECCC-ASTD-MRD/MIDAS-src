@@ -16,8 +16,8 @@ INTERPENSTRIALS_RAMDISKPATH=${INTERPENSTRIALS_RAMDISKPATH-${TMPDIR}}
 export INTERPENSTRIALS_DO_INTERPOLATION=${INTERPENSTRIALS_DO_INTERPOLATION:-'yes'}
 export INTERPENSTRIALS_INTERP2GAUSS=${INTERPENSTRIALS_INTERP2GAUSS:-'no'} ## si different de 'no' alors ce doit etre un chiffre qui indique la troncature
 
-export INTERPENSTRIALS_VGRID_PACKAGE=${INTERPENSTRIALS_VGRID_PACKAGE:-eccc/cmd/cmdn/utils/20190812/07/default}
-export INTERPENSTRIALS_CMDN_PACKAGE=${INTERPENSTRIALS_CMDN_PACKAGE:-eccc/cmd/cmdn/pxs2pxt/3.16.6/default}
+export INTERPENSTRIALS_VGRID_PACKAGE=${INTERPENSTRIALS_VGRID_PACKAGE:-eccc/cmd/cmdn/utils/20190812/09/default}
+export INTERPENSTRIALS_CMDN_PACKAGE=${INTERPENSTRIALS_CMDN_PACKAGE:-eccc/cmd/cmdn/pxs2pxt/3.17.4/default}
 
 #
 # launch using: ord_soumet stg2nonstg_cub_enkf_driver_${VERSION_SCRIPT}.ksh -mach hadar -t 1800 -cpus 192x1 -mpi -args "script arguments"
@@ -49,13 +49,6 @@ fi
 which midas.interpEnsTrials.ksh || . ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
 . ssmuse-sh -d ${INTERPENSTRIALS_VGRID_PACKAGE} ## get d.add_toctoc
 . ssmuse-sh -d ${INTERPENSTRIALS_CMDN_PACKAGE}  ## get d.pxs2pxt
-
-if [ -z "${INTERPENSTRIALS_WRITE_SUBDOMAINS_PROGRAM}" ]; then
-    if [ -z "$(which write_subdomains.Abs || true)" ]; then
-	. ssmuse-sh -d ${INTERPENSTRIALS_SSM_DOMAIN}
-    fi
-    INTERPENSTRIALS_WRITE_SUBDOMAINS_PROGRAM=$(which write_subdomains.Abs || true)
-fi
 
 if [ -d "${WORKDIR}" ]; then
     rm -rf ${WORKDIR}
