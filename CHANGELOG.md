@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fixed problem with MW thinning when one mpi task has no obs (#440 and !419)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
 
+
+## [3.6.0-rc5]
+
+### Fixed
+
+ * Fixed problem with MW thinning when one mpi task has no obs (#440 and !419)
 
 ## [3.6.0-rc4]
 
@@ -712,7 +718,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc5...HEAD
+[3.6.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc4...v_3.6.0-rc5
 [3.6.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc3...v_3.6.0-rc4
 [3.6.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc2...v_3.6.0-rc3
 [3.6.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0-rc1...v_3.6.0-rc2
