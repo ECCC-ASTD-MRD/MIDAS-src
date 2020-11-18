@@ -241,7 +241,7 @@ contains
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
-                                  inputStateVectorType )
+                                  inputStateVectorType, lastCall_opt )
     ! :Purpose: Setup all of the information needed to quickly
     !           perform the horizontal interpolation to the observation
     !           locations.
@@ -257,6 +257,7 @@ contains
     logical                    :: rejectOutsideObs
     character(len=*)           :: timeInterpType
     character(len=*)           :: inputStateVectorType
+    logical, optional          :: lastCall_opt
 
     ! locals
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
@@ -290,7 +291,7 @@ contains
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
     logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
-    logical :: doSetup3dHeights
+    logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
@@ -299,6 +300,12 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
+
+    if (present(lastCall_opt)) then
+      lastCall = lastCall_opt
+    else
+      lastCall = .false.
+    end if
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -451,7 +458,7 @@ contains
     nlev_M = gsv_getNumLev(stateVector,'MM')
 
     doSetup3dHeights = doSlantPath .and.  &
-                       (headerIndexBeg == 1) .and. (numHeaderUsedMax > 0) .and. &
+                       .not. stateVector_1Step%allocated .and. &
                        stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
                        stateVector%varExistList(vnl_varListIndex('Z_M')) 
 
@@ -810,8 +817,7 @@ contains
 
     end do step_loop2
 
-    if ( stateVector_1Step%allocated .and. &
-        (headerIndexEnd == obs_numheader(obsSpaceData)) ) then
+    if ( stateVector_1Step%allocated .and. lastCall ) then
       write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
       call gsv_deallocate(stateVector_1Step)
     end if
@@ -1609,7 +1615,8 @@ contains
         call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
-                                  inputStateVectorType='nl' )
+                                  inputStateVectorType='nl', &
+                                  lastCall_opt=(obsBatchIndex==numObsBatches))
         if ( mpi_myid == 0 .and. verbose ) then
           do stepIndex = 1, numStep
             write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &

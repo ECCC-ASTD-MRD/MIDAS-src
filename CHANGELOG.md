@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed `stateToColumn_mod` when no obs on mpi task and slant path (#435 and !414)
 
 ### Removed
 
