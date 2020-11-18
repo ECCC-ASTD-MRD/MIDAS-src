@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Changed the BUFR table element number for the bias corrections applied to GB-GPS ZTD data from `015033` to `015234` (#388 and !413)
 
 ### Fixed
 
