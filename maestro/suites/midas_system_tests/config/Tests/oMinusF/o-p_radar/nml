@@ -6,8 +6,11 @@
    ADDHBHT   = .FALSE.
 /
  &NAMS2C
-  SLANTPATH_NL   = .TRUE.,
-  SLANTPATH_TLAD = .TRUE.,
+   SLANTPATH_TO_NL   = .FALSE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .FALSE.,
+   SLANTPATH_RA_NL   = .TRUE.,
+   calcHeightPressIncrOnColumn = .FALSE.,
 /
  &NAMDIMO
    NMXOBS=400000,
