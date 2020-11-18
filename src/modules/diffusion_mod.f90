@@ -74,7 +74,7 @@ module diffusion_mod
 
 contains
 
-  integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, corr_len, stab, nsamp, limplicit)
+  integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, corr_len, stab, numberSamples, limplicit)
 
     implicit none
 
@@ -86,13 +86,13 @@ contains
     real,                      intent(in) :: corr_len             ! Horizontal correlation length scale (km);
                                                                   ! if it is equal to -1, a 2D field of it is read from a file
     real,                      intent(in) :: stab                 ! Stability criteria (definitely < 0.5)
-    integer,                   intent(in) :: nsamp                ! Number samples to estimate normalization factors by randomization.
+    integer,                   intent(in) :: numberSamples        ! Number of samples to estimate normalization factors by randomization.
     logical,                   intent(in) :: limplicit            ! Indicate to use the implicit formulation
 
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
     real(4), allocatable :: buf2d(:,:)
-    integer :: lonIndex, latIndex, isamp, k, l, timeStep
+    integer :: lonIndex, latIndex, sampleIndex, k, l, timeStep
     real(8) :: mindxy, maxL, currentMin, currentLatSpacing, currentLonSpacing
     real(8) :: a,b
     real(8), allocatable :: Lcorr(:,:)
@@ -101,7 +101,6 @@ contains
     real(8), allocatable :: m(:,:)
     real(8), allocatable :: xin(:,:)
     real(8), allocatable :: lambdaLocal(:,:) ! auxiliary variable to to MPI_ALLREDUCE of diff % Lambda
-    
 
     ! diff_norm_fact is the name of the RPN format file for the normalization factors.
     character(len=*), parameter :: diff_norm_fact = './diffusmod.std'
@@ -172,12 +171,13 @@ contains
     write(*,*) myName//' ni/nj: ', ni, nj   
     write(*,*) myName//' ### MPI domain partitionning ###:'
     write(*,*) myName//' [ myLonBeg, myLonEnd ]: [ ', myLonBeg, ' ', myLonEnd, ' ]'  
-    write(*,*) myName//' [ myLatBeg, myLatEnd ]: [ ', myLatBeg, ' ', myLatEnd, ' ]'  
+    write(*,*) myName//' [ myLatBeg, myLatEnd ]: [ ', myLatBeg, ' ', myLatEnd, ' ]'
+    
+    if ( limplicit .and.  mpi_nprocs > 1 ) &
+    call utl_abort( myName//' Error: the code of the implicit formulation of the diffusion operator cannot be run using MPI! Restart MIDAS on ONE processor.' )
     
     allocate( diff( diffID ) % cosyhalf ( nj         ), diff( diffID ) % cosyinv ( nj )       , diff( diffID ) % cosyinvsq ( nj )    )
-    
     allocate( diff( diffID ) % Winv     ( ni    , nj ), diff( diffID ) % Wsqrt   ( ni, nj )   , diff( diffID ) % Winvsqrt  ( ni, nj ))
-    
     allocate( diff( diffID ) % khalfx   ( ni - 1, nj ), diff( diffID ) % khalfy  ( ni, nj -1 ) )
     allocate( diff( diffID ) % mhalfx   ( ni - 1, nj ), diff( diffID ) % mhalfy  ( ni, nj -1 ) )
     allocate( diff( diffID ) % Lambda   ( ni    , nj ) )
@@ -323,14 +323,13 @@ contains
     ! this is the matrix necessary for defining the inner product: for lat-lon grid, only cos(y)
     ! Actually, only the diagonal of the matrix is stored in the array W, since the matrix is diagonal.
     W(1,:) = cos( latr(:) )
-    
     do lonIndex = 2, ni
       W( lonIndex, : ) = W( 1, : )
     end do
     diff( diffID ) % Winv(:,:)     = 1.0d0 / W(:,:)
     diff( diffID ) % Wsqrt(:,:)    = sqrt( W(:,:) )
-    diff( diffID ) % Winvsqrt(:,:) = 1.0d0 / diff( diffID ) % Wsqrt(:,:)    
-    
+    diff( diffID ) % Winvsqrt(:,:) = 1.0d0 / diff( diffID ) % Wsqrt(:,:)
+
     ! specify number of timesteps and timestep length for implicit 1D diffusion
     if ( limplicit ) then
       diff( diffID ) % numt = 5
@@ -430,148 +429,103 @@ contains
       seed = 1 
       call rng_setup( abs( seed + mpi_myid ))
 
-      write(*,*) myName//': nsamp, ni * nj: ', nsamp, ni * nj
+      write(*,*) myName//': Number of samples, ni * nj: ', numberSamples, ni * nj
 
-      if (nsamp < ni * nj ) then
 
-        ! compute normalization:  Lambda = inverse stddev of (Diffuse * W^-1/2)
-        write(*,*)  myName//': Estimate normalization factors for diffusion...'
-        write(*,*)  myName//': will use ',nsamp,' samples.',' ni and nj: ', ni, nj
-        call flush(6)
-        diff( diffID ) % Lambda = 0.0d0
-	lambdaLocal             = 0.0d0
+      ! compute normalization:  Lambda = inverse stddev of (Diffuse * W^-1/2)
+      write(*,*)  myName//': Estimate normalization factors for diffusion using randomization method...'
+      write(*,*)  myName//': will use ', numberSamples,' samples.',' ni and nj: ', ni, nj
+      call flush(6)
+      diff( diffID ) % Lambda = 0.0d0
+      lambdaLocal             = 0.0d0
 
-        do isamp = 1, nsamp
+      SAMPLE: do sampleIndex = 1, numberSamples
 
-          if (modulo(isamp, 100) == 0 ) write(*,*) myName//': Computing isamp = ', isamp
-	  
-          do latIndex = myLatBeg, myLatEnd
-            do lonIndex = myLonBeg, myLonEnd
-              xin( lonIndex, latIndex ) = diff( diffID ) % Winvsqrt( lonIndex, latIndex ) * rng_gaussian()
-            end do
-          end do
-
-          if ( limplicit ) then
-       
-            do timeStep = 1, diff( diffID ) % numt
-	    
-              call diffusion1x_implicit( diffID, xin, xin )
-              call diffusion1y_implicit( diffID, xin, xin )
-	      
-            end do
-       
-          else
-	  
-            call diffusion_explicit( diffID, xin )
-	    
-          end if
-       
-          do latIndex = myLatBeg, myLatEnd
-            do lonIndex = myLonBeg, myLonEnd
-	    
-              diff( diffID ) % Lambda( lonIndex, latIndex ) = diff( diffID ) % Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
-	      
-	    end do
-	  end do
-
-        end do
+        if ( modulo( sampleIndex, 100 ) == 0 ) write(*,*) myName//': Computing sample: ', sampleIndex
 
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-
-            diff( diffID ) % Lambda( lonIndex, latIndex ) = sqrt( diff( diffID ) % Lambda( lonIndex, latIndex ) / dble( nsamp - 1 ) ) ! normalization: inverse of rms of ens
-
-            if ( diff( diffID ) % Lambda( lonIndex, latIndex ) > 0.0d0 ) then
-              diff( diffID ) % Lambda( lonIndex, latIndex ) = 1.0d0 / diff( diffID ) % Lambda( lonIndex, latIndex )
-            end if
-
+            xin( lonIndex, latIndex ) = diff( diffID ) % Winvsqrt( lonIndex, latIndex ) * rng_gaussian()
           end do
         end do
 
-       else
-
-         write(*,*)  myName//': exact calculation of the normalization for diffusion...'
-         call flush(6)
-
-         do latIndex = myLatBeg, myLatEnd
-           write(*,*)  myName//': doing row latIndex = ', latIndex, ' of ', nj
-           call flush(6)
-
-           do lonIndex = myLonBeg, myLonEnd
-
-             !xin = 0.0d0
-             xin( lonIndex, latIndex ) = 1.0d0
-	     
-             if ( limplicit ) then
-               do timeStep = 1, diff( diffID ) % numt
-                 call diffusion1x_implicit( diffID, xin, xin )
-                 call diffusion1y_implicit( diffID, xin, xin )
-               end do
-             else
-               call diffusion_explicit( diffID, xin )
-             end if
-           
-             xin( lonIndex, latIndex  ) = diff( diffID ) % Winvsqrt( lonIndex, latIndex  ) * xin( lonIndex, latIndex  )
-             diff( diffID ) % Lambda( lonIndex, latIndex ) = 0.0d0
-
-             !do l = 1, nj
-             !  do k = 1, ni        
-             !    diff( diffID ) % Lambda( lonIndex, latIndex ) = diff( diffID ) % Lambda( lonIndex, latIndex ) + xin( k, l ) * xin( k, l )
-             !  end do
-             !end do
-	     
-             diff( diffID ) % Lambda( lonIndex, latIndex ) = diff( diffID ) % Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
-
-             diff( diffID ) % Lambda( lonIndex, latIndex ) = sqrt( diff( diffID ) % Lambda( lonIndex, latIndex ) )
-             if ( diff( diffID ) % Lambda( lonIndex, latIndex ) > 0.0d0 ) then
-               diff( diffID ) % Lambda( lonIndex, latIndex ) = 1.0d0 / diff( diffID ) % Lambda( lonIndex, latIndex )
-             end if
-
-           end do
-         end do
-
-       end if
-
-       lambdaLocal( myLonBeg : myLonEnd, myLatBeg : myLatEnd ) = diff( diffID ) % Lambda( myLonBeg : myLonEnd, myLatBeg : myLatEnd )    
-       nsize = ni * nj
-       call rpn_comm_allreduce( lambdaLocal, diff( diffID ) % Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr )
-
-       if ( mpi_myid == 0 ) then
+        if ( limplicit ) then
        
-	 write(*,*)  myName//': Save normalization coefficient on proc ', mpi_myid, ' into the file: ', trim(diff_norm_fact)
-         npak = 0
-         dateo = 0
-         deet = 0
-         npas = 0
-         ip1 = 0
-         ip2 = 0
-         ip3 = 0
-         typvar = 'X'
-         grtyp = 'X'
-         ig1 = 0
-         ig2 = 0
-         ig3 = 0
-         ig4 = 0
-         datyp = 1
-         rewrit = .FALSE.
-
-         if ( limplicit ) then
-           write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
-         else
-           write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
-         end if
+          do timeStep = 1, diff( diffID ) % numt
+	    
+            call diffusion1x_implicit( diffID, xin, xin )
+            call diffusion1y_implicit( diffID, xin, xin )
+	      
+          end do
        
-         ierr = fnom( std_unit, diff_norm_fact, 'RND', 0 )
-         nmax = fstouv( std_unit, 'RND')
+        else
+	  
+          call diffusion_explicit( diffID, xin, xin )
+	    
+        end if
+       
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+	    
+            diff( diffID ) % Lambda( lonIndex, latIndex ) = diff( diffID ) % Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
+	      
+	  end do
+	end do
 
-         ierr = fstecr( real(diff( diffID ) % Lambda ), dumwrk, npak, std_unit,          &
-                        dateo, deet, npas, NI, NJ, 1, ip1, ip2, ip3,                     &
-                        typvar, 'LAMB', etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit )
+      end do SAMPLE
+
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+
+          diff( diffID ) % Lambda( lonIndex, latIndex ) = sqrt( diff( diffID ) % Lambda( lonIndex, latIndex ) / dble( numberSamples - 1 ) ) ! normalization: inverse of rms of ens
+
+          if ( diff( diffID ) % Lambda( lonIndex, latIndex ) > 0.0d0 ) then
+            diff( diffID ) % Lambda( lonIndex, latIndex ) = 1.0d0 / diff( diffID ) % Lambda( lonIndex, latIndex )
+          end if
+
+        end do
+      end do
+
+      lambdaLocal( myLonBeg : myLonEnd, myLatBeg : myLatEnd ) = diff( diffID ) % Lambda( myLonBeg : myLonEnd, myLatBeg : myLatEnd )    
+      nsize = ni * nj
+      call rpn_comm_allreduce( lambdaLocal, diff( diffID ) % Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr )
+
+      if ( mpi_myid == 0 ) then
+       
+	write(*,*)  myName//': Save normalization coefficient on proc ', mpi_myid, ' into the file: ', trim(diff_norm_fact)
+        npak = 0
+        dateo = 0
+        deet = 0
+        npas = 0
+        ip1 = 0
+        ip2 = 0
+        ip3 = 0
+        typvar = 'X'
+        grtyp = 'X'
+        ig1 = 0
+        ig2 = 0
+        ig3 = 0
+        ig4 = 0
+        datyp = 1
+        rewrit = .FALSE.
+
+        if ( limplicit ) then
+          write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
+        else
+          write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
+        end if
+       
+        ierr = fnom( std_unit, diff_norm_fact, 'RND', 0 )
+        nmax = fstouv( std_unit, 'RND')
+
+        ierr = fstecr( real(diff( diffID ) % Lambda ), dumwrk, npak, std_unit,          &
+                       dateo, deet, npas, NI, NJ, 1, ip1, ip2, ip3,                     &
+                       typvar, 'LAMB', etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit )
  
-         ierr = fstfrm( std_unit )
-         ierr = fclos( std_unit )
+        ierr = fstfrm( std_unit )
+        ierr = fclos( std_unit )
 
-       end if 
+      end if 
 
     end if
 
@@ -581,7 +535,7 @@ contains
     deallocate( kappa )
     deallocate( Lcorr )
     deallocate( latr )
-    deallocate( lambdaLocal)
+    deallocate( lambdaLocal )
 
     diff_setup = diffID
 
@@ -617,19 +571,19 @@ contains
   end subroutine diff_finalize
 
 
-  subroutine diffusion_explicit( diffID, xinout )
+  subroutine diffusion_explicit( diffID, xin, xout )
     !
     !:Purpose: To compute Lsqrt*xin (diffusion over numt/2 timesteps), and to
     !          specify initial conditions
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: diffID
-    real(8), intent(inout) :: xinout ( :, : )
-    !real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
-
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin ( :, : )
+    real(8), intent(out) :: xout( :, : )
+    
     ! Locals:
-    integer :: tIndex, latIndex, lonIndex
+    integer :: timeIndex, latIndex, lonIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: myLonBegNoB, myLonEndNoB, myLatBegNoB, myLatEndNoB
     integer :: lonPerPE, latPerPE
@@ -638,7 +592,7 @@ contains
     real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8), allocatable :: sendBufLon(:), recvBufLon(:), sendBufLat(:), recvBufLat(:)
 
-    call tmg_start(192, 'diffusion_explicit' )
+    call tmg_start(200, 'diffusion_explicit' )
 
     lonPerPE = diff( diffID ) % lonPerPE
     latPerPE = diff( diffID ) % latPerPE
@@ -662,9 +616,10 @@ contains
 
     xhalo(:,:) = 0.0d0
     xlast(:,:) = 0.0d0
-    xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd ) = xinout(:,:)
+    xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd ) = xin(:,:)
+    
     ! iterate difference equations
-    do tIndex = 1, diff( diffID ) % numt / 2
+    TIME: do timeIndex = 1, diff( diffID ) % numt / 2
 
       ! exchange 4 arrays of halo information between mpi tasks
 
@@ -767,7 +722,7 @@ contains
       !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
       do latIndex = myLatBegNoB, myLatEndNoB
         do lonIndex = myLonBegNoB, myLonEndNoB
-          xhalo(lonIndex,latIndex) = xlast(lonIndex,latIndex) + diff(diffID)%dt *                                                              &
+          xhalo(lonIndex,latIndex) = xlast(lonIndex,latIndex) + diff(diffID)%dt *                                                             &
                 ( diff(diffID)%cosyinvsq(latIndex) *                                                                                          &
                   ( diff(diffID)%mhalfx(lonIndex,latIndex) * diff(diffID)%khalfx(lonIndex,latIndex) *                                         &
                     ( xlast(lonIndex+1,latIndex) - xlast(lonIndex,latIndex) ) / diff(diffID)%dlon -                                           &
@@ -787,16 +742,16 @@ contains
 
       xlast(:,:) = xhalo(:,:)
 
-    end do
+    end do TIME
 
-    xinout(:,:) = xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd )
+    xout(:,:) = xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd )
 
     deallocate(sendBufLon)
     deallocate(recvBufLon)
     deallocate(sendBufLat)
     deallocate(recvBufLat)
 
-    call tmg_stop(192)
+    call tmg_stop(200)
 
   end subroutine diffusion_explicit
 
@@ -825,7 +780,7 @@ contains
         call diffusion1y_implicit( diffID, xout, xout )
       end do
     else
-      call diffusion_explicit ( diffID, xout )
+      call diffusion_explicit ( diffID, xout, xout )
     end if
 
     xout(:,:) = xout(:,:) *  &
@@ -860,7 +815,7 @@ contains
         call diffusion1x_implicit( diffID, xout, xout )
       end do
     else
-      call diffusion_explicit( diffID, xout )
+      call diffusion_explicit( diffID, xout, xout )
     end if
     xout(:,:) = xout(:,:) * diff( diffID ) % Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
