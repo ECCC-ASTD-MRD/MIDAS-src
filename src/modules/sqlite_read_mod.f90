@@ -274,7 +274,10 @@ contains
     else if ( trim(familyType) == 'GL' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else if ( trim(familyType) == 'RA' ) then
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES  "
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
+      if (rdbSchema == "radvel") then
+        columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES  "
+      end if 
       vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -396,7 +399,9 @@ contains
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case( 'ra' )
-        columnsHeader = trim(columnsHeader) 
+        if (rdbSchema == "radvel") then
+          columnsHeader = trim(columnsHeader) 
+        end if
         read(nulnam, nml = NAMSQLradar, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
