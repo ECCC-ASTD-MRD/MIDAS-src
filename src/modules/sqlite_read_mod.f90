@@ -632,7 +632,7 @@ contains
                  trackCellNum, modelWindSpeed,                                                    &       
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), &
                  real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )
-          end if
+           end if
 
           lastId = rowIndex + 1
           obsIdd = int(matdata(rowIndex,1))

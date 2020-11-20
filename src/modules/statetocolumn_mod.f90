@@ -280,6 +280,7 @@ contains
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     real(8), allocatable :: allLatOneLev(:,:)
     real(8), allocatable :: allLonOneLev(:,:)
+    logical :: obsOutsideGrid
     character(len=4), pointer :: varNames(:)
     character(len=4)          :: varLevel
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
@@ -287,6 +288,7 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
+    logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
@@ -302,6 +304,12 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
   
+    if (present(lastCall_opt)) then
+      lastCall = lastCall_opt
+    else
+      lastCall = .false.
+    end if
+
     if (present(lastCall_opt)) then
       lastCall = lastCall_opt
     else
