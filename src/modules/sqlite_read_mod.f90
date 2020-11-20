@@ -161,13 +161,15 @@ contains
          call obs_headSet_i( obsdat, OBS_FOV, headerIndex, trackCellNum   )
          call obs_headSet_r( obsdat, OBS_MWS, headerIndex, modelWindSpeed    )
       end if
-      if ( trim(familyType) == 'RA' ) then 
-        call obs_headSet_r( obsdat, OBS_RZAM, headerIndex, obsrzam      )
-        call obs_headSet_r( obsdat, OBS_RELE, headerIndex, obsrele      )
-        call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
-        call obs_headSet_r( obsdat, OBS_RANE, headerIndex, obsrane      )
-        call obs_headSet_r( obsdat, OBS_RDEL, headerIndex, obsrdel      )
-       end if   
+      if ( trim(familyType) == 'RA' ) then
+        if ( trim(rdbSchema) == 'radvel') then
+          call obs_headSet_r( obsdat, OBS_RZAM, headerIndex, obsrzam      )
+          call obs_headSet_r( obsdat, OBS_RELE, headerIndex, obsrele      )
+          call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
+          call obs_headSet_r( obsdat, OBS_RANE, headerIndex, obsrane      )
+          call obs_headSet_r( obsdat, OBS_RDEL, headerIndex, obsrdel      )
+        end if
+      end if   
     end if
 
   end subroutine sqlr_initHeader
@@ -565,7 +567,7 @@ contains
           modelWindSpeed = modelWindSpeed_R8
         end if
 
-      else if ( trim(familyType) == 'RA' ) then
+      else if ( trim(familyType) == 'RA'.and. trim(rdbSchema) == 'radvel') then
 
          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
          elevReal=elev
@@ -672,8 +674,8 @@ contains
           if ( trim(familyType) == 'TO' ) then
 
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
-          else if ( trim(familyType) == 'RA') then
-
+          else if ( trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') then
+     
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
           else ! CONV

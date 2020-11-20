@@ -582,7 +582,7 @@ contains
     !        GEOMETRIC HEIGHT - ALADIN WINDS
     !------------------------------
     call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOALADIN, 'AL', destObsColumn)
-    !        RADAR
+    !        RADAR DVEL
     !-------------------------------
     call oop_raDvel_nl(columnhr,obsSpaceData, beSilent,ZJORADVEL,'RA', destObsColumn)
     !
