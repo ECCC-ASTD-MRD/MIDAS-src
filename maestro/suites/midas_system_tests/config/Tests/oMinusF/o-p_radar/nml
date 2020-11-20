@@ -11,7 +11,6 @@
    SLANTPATH_RO_NL   = .FALSE.,
    SLANTPATH_RA_NL   = .TRUE.,
    calcHeightPressIncrOnColumn = .FALSE.,
-
 /
  &NAMDIMO
    NMXOBS=400000,
