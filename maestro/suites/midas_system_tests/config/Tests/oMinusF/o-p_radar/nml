@@ -6,8 +6,12 @@
    ADDHBHT   = .FALSE.
 /
  &NAMS2C
-  SLANTPATH_NL   = .TRUE.,
-  SLANTPATH_TLAD = .TRUE.,
+   SLANTPATH_TO_NL   = .FALSE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .FALSE.,
+   SLANTPATH_RA_NL   = .TRUE.,
+   calcHeightPressIncrOnColumn = .FALSE.,
+
 /
  &NAMDIMO
    NMXOBS=400000,
@@ -40,7 +44,7 @@
    ANLVAR(3)   ='TT'
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
- 
+   ANLVAR(6)   ='TG'
 /
  &NAMTOV
    NSENSORS         =  24,

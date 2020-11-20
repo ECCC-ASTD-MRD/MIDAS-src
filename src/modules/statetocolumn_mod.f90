@@ -295,7 +295,6 @@ contains
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
-
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
