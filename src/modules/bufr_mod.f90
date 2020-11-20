@@ -87,7 +87,7 @@ module bufr_mod
  integer, parameter :: bufr_gust        = 11041
  integer, parameter :: bufr_riverFlow   = 23040
  integer, parameter :: bufr_cloudInSeg  = 20081
- integer, parameter :: bufr_raDvel      = 21014 ! Vitesse doppler moyenne, Radiale
+ integer, parameter :: bufr_radvel      = 21014 ! Vitesse doppler moyenne, Radiale
 
  !
  ! Table C-14: (for Code Table 08046)

@@ -567,12 +567,12 @@ contains
   end subroutine slp_calcLatLonRO
  
  
- subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+ subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M)
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radar 
     !           observations, iteratively. To replace the vertical columns with 
     !           line-of-sight slanted columns.
-    !
+    !:w!
     implicit none
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData
@@ -580,15 +580,13 @@ contains
     integer, intent(in)  :: headerIndex
     real(4), intent(in)  :: height3D_T_r4(:,:,:)
     real(4), intent(in)  :: height3D_M_r4(:,:,:)
-    real(8), intent(out)  :: latSlantLev_T(:)
-    real(8), intent(out)  :: lonSlantLev_T(:)
-    real(8), intent(out)  :: latSlantLev_M(:)
-    real(8), intent(out)  :: lonSlantLev_M(:)
+    real(8), intent(out) :: latSlantLev_T(:)
+    real(8), intent(out) :: lonSlantLev_T(:)
+    real(8), intent(out) :: latSlantLev_M(:)
+    real(8), intent(out) :: lonSlantLev_M(:)
     ! Locals:
-    real(8) :: lat, lon, latSlant, lonSlant, rele, rzam, ralt, rans, rane, h_int
-    integer :: subGridIndex, lonIndex, latIndex
-    integer :: ierr, fnom, fclos, nulnam
-    integer :: nlev_T, lev_T, nlev_M, lev_M
+    real(8) :: lat, lon, latSlant, lonSlant, rele, rzam, ralt, rans, rane
+    integer :: nlev_M,lev_M, nlev_T,lev_T
 
     nlev_M = size(height3D_M_r4,3)
     nlev_T = size(height3D_T_r4,3)
@@ -599,9 +597,6 @@ contains
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
 
     rele = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) *  MPC_RADIANS_PER_DEGREE_R8
-  
-    
-    
     rzam = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) *  MPC_RADIANS_PER_DEGREE_R8
     ralt = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
     rans = obs_headElem_r(obsSpaceData, OBS_RANS, headerIndex)

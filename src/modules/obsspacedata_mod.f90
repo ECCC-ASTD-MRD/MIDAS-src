@@ -2693,7 +2693,7 @@ contains
          obs_headElem_r(obsdat, OBS_RZAM , kobs), &
          obs_headElem_r(obsdat, OBS_RELE , kobs), &
          obs_headElem_r(obsdat, OBS_RANS , kobs), &
-         obs_headElem_r(obsdat, OBS_RANE , kobs)
+         obs_headElem_r(obsdat, OBS_RANE , kobs), &
          obs_headElem_r(obsdat, OBS_RDEL , kobs)
   
       write(kulout,fmt=9201) & 

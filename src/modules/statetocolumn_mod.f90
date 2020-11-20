@@ -301,6 +301,12 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
+  
+    if (present(lastCall_opt)) then
+      lastCall = lastCall_opt
+    else
+      lastCall = .false.
+    end if
 
     if (present(lastCall_opt)) then
       lastCall = lastCall_opt
@@ -633,7 +639,7 @@ contains
               firstHeaderSlantPathRA = .false.
             end if
             
-             ! calculate lat/lon along the dar beam obs
+             ! calculate lat/lon along the radar beam obs
              call slp_calcLatLonRadar( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,                 & ! IN
                                      latLev_T, lonLev_T,                           & ! OUT
