@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed `thn_hyperByLatLonBoxes` when no obs on mpi task for a platform (#437 and !415)
 
 ### Removed
 

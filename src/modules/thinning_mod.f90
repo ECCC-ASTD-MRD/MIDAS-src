@@ -6481,8 +6481,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, lenStnId 
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
-    integer :: lonBinIndex, latBinIndex, timeBinIndex
+    integer :: lonBinIndex, latBinIndex, timeBinIndex, charIndex
     integer :: ierr, nsize, procIndex, countHeader, countHeaderMpi
     real(4) :: latInRadians, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
@@ -6492,13 +6493,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, parameter :: lonLength = 40000
     real(4), allocatable :: gridLats(:)
     integer, allocatable :: numGridLons(:)
+    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
     integer, allocatable :: headerIndexKeep(:,:,:), numChannelsKeep(:,:,:)
     integer, allocatable :: headerIndexKeepMpi(:,:,:,:), numChannelsKeepMpi(:,:,:,:)
     integer, allocatable :: delMinutesKeep(:,:,:), delMinutesKeepMpi(:,:,:,:)
     integer, allocatable :: procIndexKeep(:,:,:)
     real(4), allocatable :: distanceKeep(:,:,:), distanceKeepMpi(:,:,:,:)
     logical, allocatable :: rejectThisHeader(:)
-    logical :: keepThisObs
+    logical :: keepThisObs, stnIdFoundInList
     integer :: obsLonBurpFile, obsLatBurpFile
     integer, parameter :: numStnIdMax = 10
     integer :: numStnId, stnIdIndexFound, stnIdIndex, countMpi, numObsStnId(numStnIdMax)
@@ -6508,34 +6510,32 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
     write(*,*)
 
-    ! loop over all header indices of the specified family
+    numHeader = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max', 'grid', ierr)
+
+    lenStnId = len(stnId)
+    allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    stnIdInt(:,:) = 0
+    stnIdIntMpi(:,:) = 0
+
+    ! loop over all header indices of the specified family and get integer stnId
     countHeader = 0
-    numStnId = 0
     call obs_set_current_header_list(obsdat,trim(familyType))
-    HEADER0: do
+    HEADER: do
       headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER0
-      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER0
+      if (headerIndex < 0) exit HEADER
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER
 
       countHeader = countHeader + 1
-      stnid = obs_elem_c(obsdat,'STID',headerIndex)
 
-      if (numStnId < numStnIdMax ) then
-        stnIdIndexFound = -1
-        do stnIdIndex = 1, numStnId
-          if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
-        end do
-        if ( stnIdIndexFound == -1 ) then
-          numStnId = numStnId + 1
-          stnidList(numStnId) = stnid
-          stnIdIndexFound = numStnId
-        end if
-        numObsStnId(stnIdIndexFound) = numObsStnId(stnIdIndexFound) + 1
-      else
-        call utl_abort('thn_hyperByLatLonBoxes: numStnId too large')
-      end if
-
-    end do HEADER0
+      ! convert and store stnId as integer array
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+      do charIndex = 1, lenStnId
+        stnIdInt(charIndex,headerIndex) = iachar(stnId(charIndex:charIndex))
+      end do
+    end do HEADER
 
     ! return if no observations for this instrument
     call rpn_comm_allReduce(countHeader, countHeaderMpi, 1, 'mpi_integer', &
@@ -6544,6 +6544,61 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       write(*,*) 'thn_hyperByLatLonBoxes: no observations for this instrument'
       return
     end if
+
+    ! Gather stnIdInt from all MPI tasks
+    nsize = lenStnId * numHeaderMaxMpi
+    call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
+                            stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
+
+    ! build a global stnIdList
+    numStnId = 0
+    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
+    HEADER4: do headerIndex = 1, numHeaderMpi
+      if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER4
+
+      ! Station ID converted back to character string
+      do charIndex = 1, lenStnId
+        stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex))
+      end do
+
+      stnIdFoundInList = .false.
+      if ( numStnId == 0 ) then
+        stnIdFoundInList = .true.
+        numStnId = numStnId + 1
+        stnidList(numStnId) = stnId
+      else
+        do stnIdIndex = 1, numStnId
+          if ( stnidList(stnIdIndex) == stnId ) cycle HEADER4
+        end do
+      end if
+
+      if ( .not. stnIdFoundInList ) then
+        numStnId = numStnId + 1
+        stnidList(numStnId) = stnId
+      end if
+
+      if ( numStnId >= numStnIdMax ) then
+        call utl_abort('thn_hyperByLatLonBoxes: numStnId too large')
+      end if
+
+    end do HEADER4
+
+    ! loop over local headers to find numObs for each stnId
+    call obs_set_current_header_list(obsdat,trim(familyType))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) /= codtyp) cycle HEADER0
+
+      stnId = obs_elem_c(obsdat,'STID',headerIndex)
+
+      do stnIdIndex = 1, numStnId
+        if ( stnidList(stnIdIndex) == stnId ) then
+          numObsStnId(stnIdIndex) = numObsStnId(stnIdIndex) + 1
+        end if
+      end do
+
+    end do HEADER0
 
     ! Initial setup
     numLat = nint( 2. * real(latLength) / real(deltax) )
@@ -6865,6 +6920,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     deallocate(distanceKeepMpi)
     deallocate(delMinutesKeepMpi)
     deallocate(procIndexKeep)
+    deallocate(stnIdIntMpi)
+    deallocate(stnIdInt)
 
     write(*,*)
     write(*,*) 'thn_hyperByLatLonBoxes: Finished'
