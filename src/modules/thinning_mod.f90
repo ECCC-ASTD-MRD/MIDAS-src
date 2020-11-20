@@ -6592,15 +6592,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
 
-      if (numStnId < numStnIdMax ) then
-        do stnIdIndex = 1, numStnId
-          if ( stnidList(stnIdIndex) == stnId ) then
-            numObsStnId(stnIdIndex) = numObsStnId(stnIdIndex) + 1
-          end if
-        end do
-      else
-        call utl_abort('thn_hyperByLatLonBoxes: numStnId too large')
-      end if
+      do stnIdIndex = 1, numStnId
+        if ( stnidList(stnIdIndex) == stnId ) then
+          numObsStnId(stnIdIndex) = numObsStnId(stnIdIndex) + 1
+        end if
+      end do
 
     end do HEADER0
 
