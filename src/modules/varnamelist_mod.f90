@@ -288,7 +288,7 @@ module varNameList_mod
         varname='WGE'
       case ( bufr_riverFlow )
         varname='QO1'
-      case ( BUFR_NEFS, bufr_raDvel) 
+      case ( BUFR_NEFS, bufr_radvel) 
         varname='UV'
       case default
         !
