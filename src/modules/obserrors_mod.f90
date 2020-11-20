@@ -1416,7 +1416,7 @@ contains
             else if ( codeType == 147 ) then ! moored buoys
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
-      
+ 
             else if ( codeType == 150 ) then ! bogus pseudo observations
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 6, 1 ) )
@@ -1529,7 +1529,7 @@ contains
             if ( ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
               ! Temporary hardcoded value for log-transformed radar precipitation
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
-            else if ( ityp == BUFR_raDvel ) then
+            else if ( ityp == BUFR_radvel ) then
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
             else
               write(*,*) 'varnum = ', ityp
