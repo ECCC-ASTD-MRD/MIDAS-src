@@ -612,7 +612,6 @@ contains
        lonSlantLev_T(lev_T) = lonSlant
     end do
     
-    
     ! put the last lat/lon at the surface of momentum levels
     latSlantLev_M(nlev_M) = lat
     lonSlantLev_M(nlev_M) = lon

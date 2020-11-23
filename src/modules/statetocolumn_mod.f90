@@ -358,7 +358,6 @@ contains
     endif
     if ( slantPath_RA_nl   .and. inputStateVectorType == 'nl' ) then
       doSlantPath = .true.
-      SlantRO     = .true.
       SlantRA     = .true.
     endif
     write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO, SlantRA = ', &
@@ -644,8 +643,8 @@ contains
               firstHeaderSlantPathRA = .false.
             end if
             
-            ! calculate lat/lon along the dar beam obs
-            call slp_calcLatLonRadar( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+             ! calculate lat/lon along the radar beam obs
+             call slp_calcLatLonRadar( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,                 & ! IN
                                      latLev_T, lonLev_T,                           & ! OUT
                                      latLev_M, lonLev_M )                            ! OUT          
