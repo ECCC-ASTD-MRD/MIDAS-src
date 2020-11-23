@@ -359,6 +359,7 @@ contains
     if ( slantPath_RA_nl   .and. inputStateVectorType == 'nl' ) then
       doSlantPath = .true.
       SlantRO     = .true.
+      SlantRA     = .true.
     endif
     write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO, SlantRA = ', &
                doSlantPath, SlantTO, SlantRO, SlantRA
