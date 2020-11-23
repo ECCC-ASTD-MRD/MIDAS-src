@@ -5,6 +5,7 @@
    ADDSIGMAO = .FALSE.
    ADDHBHT   = .FALSE.
 /
+<<<<<<< HEAD
  &NAMS2C
    SLANTPATH_TO_NL   = .FALSE.,
    SLANTPATH_TO_TLAD = .FALSE.,
@@ -12,6 +13,8 @@
    SLANTPATH_RA_NL   = .TRUE.,
    calcHeightPressIncrOnColumn = .FALSE.,
 / 
+=======
+>>>>>>> Issue #177 Rebase
  &NAMDIMO
    NMXOBS=400000,
    NDATAMX=7000000,

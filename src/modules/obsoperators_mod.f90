@@ -1014,37 +1014,6 @@ contains
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer          :: bufrCode, headerIndex, bodyIndex
-    integer          :: idate, imonth
-    integer          :: trackCellNum
-    real(8)          :: obsValue, backValue
-    real(8)          :: conc
-    character(len=4) :: varName
-    character(len=8) :: ccyymmdd
-
-    if (.not. beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
-
-    jobs = 0.d0
-
-    ! loop over all body indices
-    call obs_set_current_body_list( obsSpaceData, cdfam )
-
-    BODY: do
-
-      bodyIndex = obs_getBodyIndex( obsSpaceData )
-
-    !
-    implicit none
-
-    ! arguments
-    type(struct_columnData), intent(in)    :: columnhr
-    type(struct_obs)       , intent(inout) :: obsSpaceData
-    logical                , intent(in)    :: beSilent
-    real(8)                , intent(out)   :: jobs         ! contribution to Jo
-    character(len=*)       , intent(in)    :: cdfam        ! family of observation
-    integer                , intent(in)    :: destObsColumn
-
-    ! locals
     integer :: bodyIndex, headerIndex, jl, nwndlev
     real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, d_radar, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
@@ -1054,7 +1023,6 @@ contains
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
        
     HEADER: do  
-
 
        headerIndex = obs_getHeaderIndex(obsSpaceData)  
        if (headerIndex < 0) exit HEADER
