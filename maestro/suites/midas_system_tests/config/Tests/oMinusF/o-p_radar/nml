@@ -11,18 +11,14 @@
    SLANTPATH_RO_NL   = .FALSE.,
    SLANTPATH_RA_NL   = .TRUE.,
    calcHeightPressIncrOnColumn = .FALSE.,
-/ 
+/
  &NAMDIMO
    NMXOBS=400000,
    NDATAMX=7000000,
 /
  &NAMTIME
   DSTEPOBS = 1.0D0
-<<<<<<< HEAD
-=======
   DWINDOWSIZE = 1.0D0
-
->>>>>>> d73560f03d5894bc2d7411e0fcf2165cca9e686a
 /
  &NAMFILT
   NELEMS = 1,
