@@ -584,7 +584,7 @@ contains
     call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOALADIN, 'AL', destObsColumn)
     !        RADAR DVEL
     !-------------------------------
-    call oop_raDvel_nl(columnhr,obsSpaceData, beSilent,ZJORADVEL,'RA', destObsColumn)
+    !call oop_raDvel_nl(columnhr,obsSpaceData, beSilent,ZJORADVEL,'RA', destObsColumn)
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
@@ -642,7 +642,7 @@ contains
     !
     !=======================================================================
     ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
-         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOALADIN + ZJOGPSRO + ZJOGPSGB + ZJOCHM + ZJORADVEL
+         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOALADIN + ZJOGPSRO + ZJOGPSGB + ZJOCHM! + ZJORADVEL
     !=======================================================================
 
     if ( .not.beSilent ) then
@@ -665,7 +665,7 @@ contains
       call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOSFCTM,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOSFCGL,'GRID')
-      call mpi_allreduce_sumreal8scalar(ZJORADVEL,'GRID')
+    !  call mpi_allreduce_sumreal8scalar(ZJORADVEL,'GRID')
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
       write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
@@ -841,7 +841,7 @@ contains
     familyList(7)='PR' ; scaleFactor(7)=1.00d0
     familyList(8)='RO' ; scaleFactor(8)=1.00d0
     familyList(9)='GP' ; scaleFactor(9)=1.00d0
-    familyList(10)='RA'; scaleFactor(10)=1.00d0    
+  !  familyList(10)='RA'; scaleFactor(10)=1.00d0    
 
     numPerturbations = numAnalyses
 

@@ -167,7 +167,7 @@ contains
           call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
           call obs_headSet_r( obsdat, OBS_RANE, headerIndex, obsrane      )
           call obs_headSet_r( obsdat, OBS_RDEL, headerIndex, obsrdel      )
-      end if
+      end if   
     end if
 
   end subroutine sqlr_initHeader
