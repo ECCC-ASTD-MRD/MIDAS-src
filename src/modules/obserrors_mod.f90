@@ -1416,7 +1416,7 @@ contains
             else if ( codeType == 147 ) then ! moored buoys
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
- 
+
             else if ( codeType == 150 ) then ! bogus pseudo observations
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 6, 1 ) )
