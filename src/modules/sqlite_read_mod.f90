@@ -617,7 +617,6 @@ contains
                trackCellNum, modelWindSpeed,                                                    &
                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                  &
                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) , real(obsrdel,kind=pre_obsReal) )
-                                              
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
@@ -674,7 +673,6 @@ contains
 
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
           else if ( trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') then
-     
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
           else ! CONV

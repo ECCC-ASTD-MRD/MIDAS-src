@@ -643,7 +643,7 @@ contains
     !=======================================================================
     ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
          ZJOSURFC + ZJOTOV + ZJOPROF + ZJOALADIN + ZJOGPSRO + ZJOGPSGB + ZJOCHM! + ZJORADVEL
->>>>>>> Issue #177 rebase
+
     !=======================================================================
 
     if ( .not.beSilent ) then
@@ -687,6 +687,7 @@ contains
       write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
       write(*,'(a15,f30.16)') 'JORADAR  = ',ZJORADVEL
+      write(*,'(a15,f30.16)') 'JORADAR  = ',ZJORADAR
     end if ! beSilent
 
     call mpi_allreduce_sumreal8scalar(ZJO,'GRID')

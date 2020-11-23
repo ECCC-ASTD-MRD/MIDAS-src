@@ -301,7 +301,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
-  
+
     if (present(lastCall_opt)) then
       lastCall = lastCall_opt
     else

@@ -572,7 +572,7 @@ contains
     ! :Purpose: call the computation of lat/lon on the slant path for radar 
     !           observations, iteratively. To replace the vertical columns with 
     !           line-of-sight slanted columns.
-    !:w!
+    !
     implicit none
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData
