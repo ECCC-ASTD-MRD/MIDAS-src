@@ -35,10 +35,7 @@
  &NAMRMAT
 /
  &NAMSTATE
-<<<<<<< HEAD
-=======
    addHeightSfcOffset = .FALSE.
->>>>>>> d73560f03d5894bc2d7411e0fcf2165cca9e686a
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
