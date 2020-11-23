@@ -161,14 +161,12 @@ contains
          call obs_headSet_i( obsdat, OBS_FOV, headerIndex, trackCellNum   )
          call obs_headSet_r( obsdat, OBS_MWS, headerIndex, modelWindSpeed    )
       end if
-      if ( trim(familyType) == 'RA' ) then
-        if ( trim(rdbSchema) == 'radvel') then
+      if ( trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel' ) then
           call obs_headSet_r( obsdat, OBS_RZAM, headerIndex, obsrzam      )
           call obs_headSet_r( obsdat, OBS_RELE, headerIndex, obsrele      )
           call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
           call obs_headSet_r( obsdat, OBS_RANE, headerIndex, obsrane      )
           call obs_headSet_r( obsdat, OBS_RDEL, headerIndex, obsrdel      )
-        end if
       end if   
     end if
 
