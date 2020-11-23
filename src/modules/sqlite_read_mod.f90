@@ -575,6 +575,7 @@ contains
          call fSQL_get_column( stmt, COL_INDEX = 19, REAL_VAR  = obsrans)
          call fSQL_get_column( stmt, COL_INDEX = 18, REAL_VAR  = obsrane)
          call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR  = obsrdel)
+         
       else  ! familyType = CONV
 
         call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
@@ -616,6 +617,7 @@ contains
                trackCellNum, modelWindSpeed,                                                    &
                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                  &
                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) , real(obsrdel,kind=pre_obsReal) )
+                                                          
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
@@ -630,7 +632,8 @@ contains
                  trackCellNum, modelWindSpeed,                                                    &       
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), &
                  real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )
-          end if
+                     
+           end if
 
           lastId = rowIndex + 1
           obsIdd = int(matdata(rowIndex,1))
