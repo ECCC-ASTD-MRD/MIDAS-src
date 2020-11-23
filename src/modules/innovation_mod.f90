@@ -643,6 +643,7 @@ contains
     !=======================================================================
     ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
          ZJOSURFC + ZJOTOV + ZJOPROF + ZJOALADIN + ZJOGPSRO + ZJOGPSGB + ZJOCHM! + ZJORADVEL
+>>>>>>> Issue #177 rebase
     !=======================================================================
 
     if ( .not.beSilent ) then
