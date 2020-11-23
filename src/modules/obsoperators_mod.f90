@@ -1000,7 +1000,8 @@ contains
 
     !
     ! Purpose: Computation of OMP to the observations
-    !           FOR RADAR DATA
+    !           FOR RADAR DATA after--> Computation of Jo and the residuals to the observations
+    !                                  +   
     !
     implicit none
 
@@ -1009,6 +1010,37 @@ contains
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
     real(8)                , intent(  out) :: jobs         ! contribution to Jo
+    character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    integer                , intent(in)    :: destObsColumn
+
+    ! locals
+    integer          :: bufrCode, headerIndex, bodyIndex
+    integer          :: idate, imonth
+    integer          :: trackCellNum
+    real(8)          :: obsValue, backValue
+    real(8)          :: conc
+    character(len=4) :: varName
+    character(len=8) :: ccyymmdd
+
+    if (.not. beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
+
+    jobs = 0.d0
+
+    ! loop over all body indices
+    call obs_set_current_body_list( obsSpaceData, cdfam )
+
+    BODY: do
+
+      bodyIndex = obs_getBodyIndex( obsSpaceData )
+
+    !
+    implicit none
+
+    ! arguments
+    type(struct_columnData), intent(in)    :: columnhr
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    real(8)                , intent(out)   :: jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
@@ -1054,10 +1086,8 @@ contains
           VV1 = col_getElem(columnhr,jl+1,headerIndex,'VV')
           VV2 = col_getElem(columnhr,jl,headerIndex,  'VV')
      
-          print *, Height2, Height1 ,   ralt, rele, range1
           call slp_radar_getRangefromH(Height1, ralt, rele, range1)
           call slp_radar_getRangefromH(Height2, ralt, rele, range2)
-          print *, Height2, Height1    
           UU_interpolated = UU1 +((h_radar-Height1)*((UU2-UU1)/(Height2-Height1)))
           VV_interpolated = VV1 +((h_radar-Height1)*((VV2-VV1)/(Height2-Height1)))
           SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
@@ -1068,7 +1098,8 @@ contains
           call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex, Dvel-SimulatedDoppler)
         
         end do BODY
-
+        ! contribution to jobs OMP tests will configure jobs
+        jobs = jobs+0.
     end do HEADER
     write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
 
