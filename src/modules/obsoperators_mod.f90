@@ -998,8 +998,8 @@ contains
   subroutine oop_raDvel_nl(columnhr,obsSpaceData, beSilent, jobs,cdfam, destObsColumn )
 
     !
-    ! Purpose: Computation of OMP to the observations
-    !           FOR RADAR DATA after--> Computation of Jo and the residuals to the observations
+    ! Purpose: Computation of OMP to the observation
+    !      Nothing more for RA now --> Computation of Jo and the residuals to the observations
     !                                     
     !
     implicit none
@@ -1063,8 +1063,8 @@ contains
           call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
 
         end do BODY
-        ! contribution to jobs OMP tests will configure jobs
-        jobs = jobs+0.
+        ! contribution to jobs 
+        jobs = 0.
     end do HEADER
     write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
 
