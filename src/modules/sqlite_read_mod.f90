@@ -161,7 +161,7 @@ contains
          call obs_headSet_i( obsdat, OBS_FOV, headerIndex, trackCellNum   )
          call obs_headSet_r( obsdat, OBS_MWS, headerIndex, modelWindSpeed    )
       end if
-      if ( trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel' ) then
+      if ( trim(rdbSchema) == 'radvel' ) then
           call obs_headSet_r( obsdat, OBS_RZAM, headerIndex, obsrzam      )
           call obs_headSet_r( obsdat, OBS_RELE, headerIndex, obsrele      )
           call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
@@ -273,11 +273,11 @@ contains
       vertCoordType = 3
     else if ( trim(familyType) == 'GL' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
-    else if ( trim(familyType) == 'RA' ) then
+    else if ( trim(rdbSchema) == 'ra' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
-      if (rdbSchema == "radvel") then
-        columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES  "
-      end if 
+      vertCoordType = 1
+    else if ( trim(rdbSchema) == 'radvel') then
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES  "
       vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -399,12 +399,14 @@ contains
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case( 'ra' )
-        if (rdbSchema == "radvel") then
-          columnsHeader = trim(columnsHeader) 
-        end if
         read(nulnam, nml = NAMSQLradar, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
+      case( 'radvel' )
+        columnsHeader = trim(columnsHeader) 
+        read(nulnam, nml = NAMSQLradar, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLradar )
       case DEFAULT
         write(*,*) myError//'Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//'Unsupported  SCHEMA in SQLITE file!' )
@@ -564,18 +566,20 @@ contains
           call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
           modelWindSpeed = modelWindSpeed_R8
         end if
+      else if ( trim(rdbSchema) == 'ra' ) then
 
-      else if ( trim(familyType) == 'RA'.and. trim(rdbSchema) == 'radvel') then
+        ! Nothing more to read for RA now.
+        ! It does not have the obsStatus column.
 
-         call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-         elevReal=elev
-
-         call fSQL_get_column( stmt, COL_INDEX = 14, REAL_VAR  = obsrzam)
-         call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR  = obsrele)
-         call fSQL_get_column( stmt, COL_INDEX = 19, REAL_VAR  = obsrans)
-         call fSQL_get_column( stmt, COL_INDEX = 18, REAL_VAR  = obsrane)
-         call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR  = obsrdel)
-         
+      else if ( trim(rdbSchema) == 'radvel') then
+          print *, "JAIN3" 
+          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+          elevReal=elev
+          call fSQL_get_column( stmt, COL_INDEX = 14, REAL_VAR  = obsrzam)
+          call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR  = obsrele)
+          call fSQL_get_column( stmt, COL_INDEX = 19, REAL_VAR  = obsrans)
+          call fSQL_get_column( stmt, COL_INDEX = 18, REAL_VAR  = obsrane)
+          call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR  = obsrdel)
       else  ! familyType = CONV
 
         call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
@@ -672,7 +676,7 @@ contains
           if ( trim(familyType) == 'TO' ) then
 
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
-          else if ( trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') then
+          else if (trim(rdbSchema) == 'radvel') then
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
           else ! CONV

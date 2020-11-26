@@ -66,7 +66,7 @@ module obsErrors_mod
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,6)
   real(8) :: xstd_pr(2)
-  real(8) :: xstd_sc(1), xstd_radar(1)
+  real(8) :: xstd_sc(1)
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
 
   ! CONSTITUENT/CHEMISTRY OBS ERROR STD DEV
@@ -1287,10 +1287,6 @@ contains
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 2.0d0 )
             end if
 
-       !   else if ( cfam == 'RA' ) then
-       !     xstd_radar(1)=0.001
-       !     call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex,xstd_radar(1))
-       
                 !***********************************************************************
                 !                             GPS RO DATA
                 !***********************************************************************
@@ -1420,7 +1416,7 @@ contains
             else if ( codeType == 147 ) then ! moored buoys
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
-
+           
             else if ( codeType == 150 ) then ! bogus pseudo observations
 
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, xstd_sst( 6, 1 ) )

@@ -217,8 +217,8 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="o-p_radar"/>
-    <FAMILY  name="o-p_radar">
+    <SUBMITS sub_name="o-p_radvel"/>
+    <FAMILY  name="o-p_radvel">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
