@@ -566,6 +566,7 @@ contains
           call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
           modelWindSpeed = modelWindSpeed_R8
         end if
+
       else if ( trim(rdbSchema) == 'ra' ) then
 
         ! Nothing more to read for RA now.

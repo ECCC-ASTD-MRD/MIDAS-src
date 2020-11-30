@@ -571,7 +571,7 @@ contains
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radar 
     !           observations, iteratively. To replace the vertical columns with 
-    !           line-of-sight slanted columns.
+    !           radar beans columns .
     !
     implicit none
     ! Arguments:
@@ -627,19 +627,20 @@ contains
 
   subroutine findIntersectLatlonRadar(lat, lon, rele, rzam,  ralt, rans, rane,  hco, field2d_height, latSlant, lonSlant)
     !
-    !   Purpose: Computation of lat lon  of the intersection of radar beam with the model levels
+    !   :Purpose: Computation of lat lon  of the intersection 
+    !             of radar beam with the levels model
     !       
     implicit none
     !Argument
-    type(struct_hco), intent(in)        :: hco
-    real(8), intent(in)                 :: lat, lon, rele, rzam, ralt, rans, rane
-    real(4), intent(in)                 :: field2d_height(hco%ni,hco%nj)
-    real(8)                             :: upper_bound, lower_bound, tolerance
-    real(8), intent(out)                :: latSlant,lonSlant
+    type(struct_hco), intent(in) :: hco
+    real(8), intent(in)          :: lat, lon, rele, rzam, ralt, rans, rane
+    real(4), intent(in)          :: field2d_height(hco%ni,hco%nj)
+    real(8)                      :: upper_bound, lower_bound, tolerance
+    real(8), intent(out)         :: latSlant,lonSlant
     ! Local
-    real(8)                             :: h_radar, mid, ym, d_radar
-    integer                             :: iteration
-    real(4)                             :: heightInterp_r4
+    real(8)                      :: h_radar, mid, ym, d_radar
+    integer                      :: iteration
+    real(4)                      :: heightInterp_r4
 
     
     lower_bound  = rans ! m max useable range for weather radars
@@ -668,7 +669,8 @@ contains
  
   subroutine slp_radar_getlatlonHRfromRange(lat, lon, rele, rzam, ralt, r_radar, latSlant,lonSlant, h_radar,d_radar)
     !
-    !   Purpose: Computation of  lat-lon and height of the path along the radar beam from radar range
+    !   Purpose: Computation of  lat-lon and height of the trajectory
+    !            along the radar beam from range of the radar beam
     !
     implicit none
     !Argument 
@@ -695,7 +697,8 @@ contains
 
   subroutine slp_radar_getHfromRange(r_radar, altitud, elevation, h_radar)
     !
-    !   Purpose: Computation of height beam from radar range
+    !   Purpose: Computation of height of the radar beam
+    !            from range of the radar beam
     !
     implicit none
     !Argument 
@@ -712,7 +715,7 @@ contains
 
   subroutine slp_radar_getRangefromH(h_radar, altitud, elevation, r_radar)
     !
-    !   Purpose: Computation of radar range from height beam
+    !   Purpose: Computation of range of the radar beam from height of the radar beam
     !
     implicit none
     ! Argument

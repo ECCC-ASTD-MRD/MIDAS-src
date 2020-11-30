@@ -999,7 +999,7 @@ contains
 
     !
     ! Purpose: Computation of OMP to the observation
-    !      Nothing more for RA now --> Computation of Jo and the residuals to the observations
+    !      Nothing more for RA now -->After computation of Jo and the residuals to the observation
     !                                     
     !
     implicit none
@@ -1056,8 +1056,7 @@ contains
           VV_interpolated = VV1 +((h_radar-Height1)*((VV2-VV1)/(Height2-Height1)))
           SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
 
-          if  (abs(range1-range2)>150000.d0) then
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex, Dvel-SimulatedDoppler)
+          if  (abs(range1-range2)>15000.d0) then
             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex),11))
           end if 
           call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
