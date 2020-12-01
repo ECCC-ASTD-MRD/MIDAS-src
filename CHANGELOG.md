@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Make case-insentive some `grep` commands which dig into namelists in `tools/midas_scripts/midas.*` scripts
 
 ### Fixed
 
