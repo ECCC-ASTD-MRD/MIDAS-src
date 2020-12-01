@@ -14,6 +14,7 @@
   SLANTPATH_TO_TLAD = .FALSE.,
   SLANTPATH_RO_NL   = .FALSE.,
   calcHeightPressIncrOnColumn = .FALSE.
+  USETOVSNMLFOOTPRINT = .TRUE.,
 /
  &NAMMIN
    NVAMAJ = 25,

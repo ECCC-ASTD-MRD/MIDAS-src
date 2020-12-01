@@ -106,6 +106,7 @@ module stateToColumn_mod
   logical :: slantPath_RO_nl
   logical :: slantPath_RA_nl
   logical, save :: calcHeightPressIncrOnColumn
+  logical :: useTovsNmlFootprint
 
   integer, external    :: get_max_rss
 
@@ -296,6 +297,7 @@ contains
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
+    namelist /nams2c/ useTovsNmlFootprint 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -317,6 +319,7 @@ contains
       slantPath_RO_nl   = .false.
       slantPath_RA_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
+      useTovsNmlFootprint = .false.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mpi_myid == 0 ) then
@@ -2685,6 +2688,10 @@ contains
 
       fpr = nearestNeighbourFootprint
 
+    else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
+
+      fpr = getTovsFootprintRadius(obsSpaceData, headerIndex)
+
     else
 
       fpr = bilinearFootprint
@@ -3554,5 +3561,64 @@ contains
     end if
 
   end subroutine latlonChecks
+
+  !--------------------------------------------------------------------------
+  ! getTovsFootprintRadius
+  !--------------------------------------------------------------------------
+  function getTovsFootprintRadius(obsSpaceData, headerIndex) result(footPrintRadius)
+    !
+    !:Purpose: calculate foot-print radius for TOVS observations
+    !
+    implicit none
+    real(8) :: footPrintRadius
+
+    ! Arguments
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: headerIndex
+    
+    ! local
+    integer :: codeType, sensorIndex 
+    real (8) :: alpha, satHeight 
+
+    ! get nominal satellite height
+    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
+
+    ! FOV angular diameter  
+    alpha = -1.0d0
+    codeType = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
+    select case(codeType)
+    case(164) ! amsua
+      alpha = 3.3d0
+    case(181) ! amsub
+      alpha = 1.1d0
+    case(182) ! mhs
+      alpha = 10.0d0 / 9.0d0
+    case(183) ! airs
+      alpha = 1.1d0
+    case(186) ! IASI
+      alpha = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case(185) ! CSR
+      alpha = 0.84d0 
+    case(168) ! SSMIS
+      alpha = 1.2d0
+    case(192) ! ATMS
+      alpha = 2.2d0
+    case(193) ! CrIS
+      alpha = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    end select
+    !case default
+    !  write(*,*) 'getTovsFootprintRadius: codeType=',codeType
+    !  call utl_abort('getTovsFootprintRadius: unknown codeType')
+    !end select
+
+    if ( alpha < 0.0d0 ) then 
+      footPrintRadius = bilinearFootprint
+    else
+      ! get foot print radius (meter) from angular diameter
+      footPrintRadius = 0.5 * alpha * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
+    end if
+
+  end function getTovsFootprintRadius
 
 end module stateToColumn_mod
