@@ -290,7 +290,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
     if [ -n "${ensfiles}" ]; then
         if [ -z "${NUMBER_OF_MEMBERS}" ]; then
             ## check if all ensemble members are present
-            NUMBER_OF_MEMBERS=$(grep 'NENS *=' ${namelist} | cut -d= -f2)
+            NUMBER_OF_MEMBERS=$(grep -i 'NENS *=' ${namelist} | cut -d= -f2)
             if [ "${NUMBER_OF_MEMBERS}" -lt 1 ]; then
                 ${nodelogger} -n $SEQ_NODE -s info -m "On ne peut determiner le nombre de membres a partir du namelist ${namelist}"
                 exit 1
