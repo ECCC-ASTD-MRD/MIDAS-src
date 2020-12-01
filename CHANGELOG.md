@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix reading of special ATMS QC flags needed for background check (#439 and !418)
 
 ### Removed
 

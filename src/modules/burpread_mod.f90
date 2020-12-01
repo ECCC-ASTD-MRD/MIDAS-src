@@ -1877,7 +1877,7 @@ CONTAINS
         call BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=25
+        NELE_INFO=27
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
