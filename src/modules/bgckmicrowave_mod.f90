@@ -4362,8 +4362,8 @@ end subroutine bennartz
       indx1 = indx1 + nval
     end do
      
-    write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
-               nt*nval, count(lqc)
+    !write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
+    !           nt*nval, count(lqc)
 
   end subroutine mwbg_firstQcCheckAtms
 

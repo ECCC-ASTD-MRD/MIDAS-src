@@ -4874,7 +4874,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
-    write(*,*) 'thn_tovsFilt: numHeader, numHeaderMaxMpi = ', numHeader, numHeaderMaxMpi
 
     ! Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
@@ -4888,15 +4887,16 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         end if
       end if
     end do
-    if (count(valid(:)) == 0) then
+
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
+    if (countObsMpi == 0) then
       write(*,*) 'thn_tovsFilt: no observations for this instrument'
       deallocate(valid)
       return
     end if
 
-    countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
     write(*,*) 'thn_tovsFilt: countObs initial                        = ', &
                countObs, countObsMpi
 
