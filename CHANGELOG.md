@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed problem with MW thinning when one mpi task has no obs (#440 and !419)
 
 ### Removed
 
