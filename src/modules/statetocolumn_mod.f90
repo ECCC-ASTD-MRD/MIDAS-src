@@ -630,7 +630,7 @@ contains
                                    latLev_T, lonLev_T,                         & ! OUT
                                    latLev_M, lonLev_M )                          ! OUT
             call tmg_stop(191)
-          else if (codeType == 163 .and. SlantRA ) then
+          else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RADAR. stepIndex=', &
                    stepIndex,' and numHeaderUsed=',numHeaderUsed

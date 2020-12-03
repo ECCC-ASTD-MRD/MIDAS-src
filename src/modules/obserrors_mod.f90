@@ -1529,7 +1529,7 @@ contains
             if ( ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
               ! Temporary hardcoded value for log-transformed radar precipitation
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
-            else if ( ityp == BUFR_radvel ) then
+            else if ( ityp == bufr_radvel ) then
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
             else
               write(*,*) 'varnum = ', ityp

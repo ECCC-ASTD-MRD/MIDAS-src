@@ -996,10 +996,11 @@ contains
   end subroutine oop_ice_nl
 
   subroutine oop_raDvel_nl(columnhr,obsSpaceData, beSilent, jobs,cdfam, destObsColumn )
-
     !
-    ! Purpose: Computation of OMP to the observation
-    !      Nothing more for RA now -->After computation of Jo and the residuals to the observation
+    ! :Purpose: Computation of OMP to the Radar observation (Doppler Velocity)
+    !  
+    ! :Note: Nothing more now for Radar observation(Doppler Velocity)
+    !        After computation of Jo and the residuals to the observation
     !                                     
     !
     implicit none
@@ -1008,62 +1009,70 @@ contains
     type(struct_columnData), intent(in)    :: columnhr
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
-    real(8)                , intent(  out) :: jobs         ! contribution to Jo
+    real(8)                , intent(out)   :: jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer :: bodyIndex, headerIndex, jl, nwndlev
+    integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode
     real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
-    real(8) :: SimulatedDoppler
+    real(8) :: SimulatedDoppler, interpolation_weight
            
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
-       
+    !
+    ! Loop over all header indices of the 'RA' family with schema 'radvel':
+    !
     HEADER: do  
 
-       headerIndex = obs_getHeaderIndex(obsSpaceData)  
-       if (headerIndex < 0) exit HEADER
-        
-       ralt  = obs_headElem_r(obsSpaceData,OBS_ALT , headerIndex)
-       rzam  = obs_headElem_r(obsSpaceData,OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-       rele  = obs_headElem_r(obsSpaceData,OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-       nwndlev=col_getNumLev(columnhr,'MM')
-       call obs_set_current_body_list(obsSpaceData, headerIndex)
+      headerIndex = obs_getHeaderIndex(obsSpaceData)  
+      if (headerIndex < 0) exit HEADER
+  
+      ralt  = obs_headElem_r(obsSpaceData,OBS_ALT , headerIndex)
+      rzam  = obs_headElem_r(obsSpaceData,OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      rele  = obs_headElem_r(obsSpaceData,OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      nwndlev=col_getNumLev(columnhr,'MM')
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
       
-       BODY: do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          r_radar = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
-          Dvel    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
-          call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        ! Check that this observation has the expected bufr element ID
+        bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if ( bufrCode /= bufr_radvel ) cycle BODY
+        r_radar = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
+        Dvel    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
+        call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
        
-          HEIGHT: do jl = 1, nwndlev-1
-             Height1 = col_getHeight(columnhr,jl+1,headerIndex,'MM')
-             Height2 = col_getHeight(columnhr,jl,headerIndex,'MM')
-             if ( h_radar > Height1) exit HEIGHT
-          end do HEIGHT
+        HEIGHT: do jl = 1, nwndlev-1
+          Height1 = col_getHeight(columnhr,jl+1,headerIndex,'MM')
+          Height2 = col_getHeight(columnhr,jl,headerIndex,'MM')
+          if ( h_radar > Height1) exit HEIGHT
+        end do HEIGHT
         
-          UU1 = col_getElem(columnhr,jl+1,headerIndex,'UU')
-          UU2 = col_getElem(columnhr,jl,headerIndex,  'UU')
-          VV1 = col_getElem(columnhr,jl+1,headerIndex,'VV')
-          VV2 = col_getElem(columnhr,jl,headerIndex,  'VV')
+        UU1 = col_getElem(columnhr,jl+1,headerIndex,'UU')
+        UU2 = col_getElem(columnhr,jl,headerIndex,  'UU')
+        VV1 = col_getElem(columnhr,jl+1,headerIndex,'VV')
+        VV2 = col_getElem(columnhr,jl,headerIndex,  'VV')
      
-          call slp_radar_getRangefromH(Height1, ralt, rele, range1)
-          call slp_radar_getRangefromH(Height2, ralt, rele, range2)
-          UU_interpolated = UU1 +((h_radar-Height1)*((UU2-UU1)/(Height2-Height1)))
-          VV_interpolated = VV1 +((h_radar-Height1)*((VV2-VV1)/(Height2-Height1)))
-          SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
+        call slp_radar_getRangefromH(Height1, ralt, rele, range1)
+        call slp_radar_getRangefromH(Height2, ralt, rele, range2)
 
-          if  (abs(range1-range2)>15000.d0) then
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex),11))
-          end if 
-          call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
+        interpolation_weight =(h_radar-Height1)/(Height2-Height1)
+        UU_interpolated = UU1+interpolation_weight*(UU2-UU1)
+        VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
+        SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
 
-        end do BODY
-        ! contribution to jobs 
-        jobs = 0.
+        if  (abs(range1-range2)>15000.d0) then
+          obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
+        end if 
+        call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
+
+      end do BODY
+      ! contribution to jobs 
+      jobs = 0.
     end do HEADER
     write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
 

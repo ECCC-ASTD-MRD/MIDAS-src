@@ -573,7 +573,6 @@ contains
         ! It does not have the obsStatus column.
 
       else if ( trim(rdbSchema) == 'radvel') then
-          print *, "JAIN3" 
           call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
           elevReal=elev
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL_VAR  = obsrzam)

@@ -531,7 +531,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Radar elevation
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Radar star range
    integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Radar end range
-   integer, parameter, public :: OBS_RDEL  = OBS_RANE +1 ! Delta Radar range
+   integer, parameter, public :: OBS_RDEL  = OBS_RANE +1 ! Radar delta range
 
    ! the last column index for real header variables defined just above
    integer, parameter :: NHDR_REAL_END = OBS_RDEL 

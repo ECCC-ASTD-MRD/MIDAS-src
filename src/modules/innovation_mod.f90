@@ -546,15 +546,11 @@ contains
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCUA, 'UA', destObsColumn)
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSC, 'SC', destObsColumn)
     call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGP, 'GP', destObsColumn)
-    if (obs_famExist(obsSpaceData,'RA')) then
-      if (trim(innovationMode) == 'analysis') then
-        call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCRA, 'RA', destObsColumn)
-      else
-    !        RADAR DVEL
-    !-------------------------------
-        call oop_raDvel_nl(columnhr,obsSpaceData, beSilent,ZJORADVEL,'RA', destObsColumn)
-      end if  
-    end if 
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCRA, 'RA', destObsColumn)
+    !
+    !        RADAR Doppler Velocity
+    !--------------------------------
+    call oop_raDvel_nl (columnhr,obsSpaceData, beSilent,ZJORADVEL,'RA', destObsColumn)  
     !
     !        SEA SURFACE TEMPERATURE
     !--------------------------------
@@ -831,7 +827,7 @@ contains
     ! Locals:
     integer :: numPerturbations
     integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily
-    integer, parameter :: numFamily=9
+    integer, parameter :: numFamily=10
     real*8  :: zmean,originalOmp
     real*8  :: scaleFactor(numFamily)
     character(len=2) :: familyList(numFamily)
