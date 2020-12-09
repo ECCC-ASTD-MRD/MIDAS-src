@@ -227,7 +227,7 @@ contains
                                obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
       ! leave all weights zero if obs time is out of range, otherwise set weights
 
-      if ( .not.tim_fullyUseExtremeTimeBins .and. (floor(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
+      if ( .not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
           write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
@@ -255,6 +255,10 @@ contains
               call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
             end if
           else if ( trim(interpType_opt) == 'NEAREST' ) then
+            if (nint(stepObsIndex) > numStep) then
+              write(*,*) 'stepObsIndex = ', stepObsIndex
+              call utl_abort('oti_setup: stepObsIndex is too large!')
+            end if
             call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
           else
             call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType_opt))
