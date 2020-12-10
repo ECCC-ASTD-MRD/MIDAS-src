@@ -37,7 +37,7 @@ source ${DOT_CONFIG}
 if [ "${ORDENV_PLAT}" = "${FRONTEND_PLAT}"  ]
 then
     which makedepf90  && echo "makedepf90 installed" \
-    ||  echo "makedepf90 unavailable on the system."
+    ||  echo "makedepf90 unavailable on the system." \
         echo "loading makedepf90 from conda..." ;\
         source ./load_makedepf90.dot.sh
 fi
