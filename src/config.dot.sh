@@ -30,16 +30,15 @@ set +x
 || ln -s ${DIR_BLD_ROOT} ${DIR_BLD_LINK}
 
 ##  sourcing compilation configuration and SSM packages
-source ${DOT_CONFIG}
+source ${DOT_CONFIG} || false
 
 
 ## check makedepf90 install
-if [ "${ORDENV_PLAT}" = "${FRONTEND_PLAT}"  ]
-then
-    which makedepf90  && echo "makedepf90 installed" \
-    ||  echo "makedepf90 unavailable on the system." \
-        echo "loading makedepf90 from conda..." ;\
-        source ./load_makedepf90.dot.sh
+if ! which makedepf90
+then 
+    echo "<!> makedepf90 unavailable on the system."
+    echo "Check ${DOT_CONFIG} for proper SSM package"
+    false 
 fi
 
 export BACKEND

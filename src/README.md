@@ -1,7 +1,7 @@
 Building MIDAS using make
 =========================
 
-The present `README` **assumes you are in the `./src` directory**.
+The present `README` **assumes you are in the `src` directory** (the directory in which is this `README`), meaning onward `./` points to the `src` directory.
 
 
 I just want to build!
@@ -12,8 +12,6 @@ From `PPP[34]`, edit `./config.dot.sh`, modify `BACKEND`, `FRONTEND` and maybe
 ```
 > ./build.sh
 ...
-makedepf90 unavailable on the system.
-loading makedepf90 from conda...
 ###########################
 ... Preparing dependencies
     > listing_depend
@@ -37,11 +35,6 @@ It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or
 `Banting`) submitting jobs with the number of cores specified in 
 `config.dot.sh` (8 seems to be optimal).
 
-Be aware that it is dependent on `makedepf90`, which [is installed but not *persistent* yet](https://gitlab.science.gc.ca/hpc_migrations/hpcr_upgrade_1/issues/980).
-It should be solved soon, but if you get an error, it could well be that.
-In the mean time, `makedepf90` is sourced using `conda` from `mad001` account
-(see `config.dot.sh`).
-
 
 
 
@@ -54,6 +47,7 @@ You'll first need to source (and edit if you want) the compilation environment:
 ```
 > source ./config.dot.sh
 ```
+Otherwise, only two targets will be available: `clean` and `help`.
 
 Then you're good to go!
 
@@ -70,7 +64,7 @@ TARGETS:
     %.f90                          preprocess an ftn90 file
     %.o                            compile an object 
     all                            compile all programs 
-    clean                          delete the build directory 
+    clean                          delete all build directories 
     cleanabs                       delete all absolutes
     cleandep                       delete all dependency file
     cleanobj                       delete all objects
@@ -103,9 +97,8 @@ all                            mathphysconstants_mod.o
 > make var<TAB>
 var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
-If `<TAB>` does not work (or just show you `all` and `clean*`), it is probably 
-because either you don't have `makedepf90` installed or did not 
-`source ./config.dot.sh`.
+If `<TAB>` does not work (or just show you `help` and `clean`), it is probably 
+because did not `source ./config.dot.sh`.
 Autocompletion does not work on the backends.
 
 When you ask `make` to build a target, it will determine everything that needs
@@ -136,8 +129,7 @@ Some frequently used phony targets are:
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
 * `info` : print information to stdout
-* `clean` : remove all objects, programs, intermediate files, everything that was produced
-  by `make`
+* `clean` : remove all objects, programs, intermediate files, everything that was produced by `make` **from all versions of MIDAS** in the build directory.
 * `cleanabs` : remove all but installed programs in `${DIR_BLD_ROOT}/midas_abs`
 * `cleanobj` : remove objects and dependencies
 * `cleandep` : remove dependencies files ([see Automatic dependencies below](#automatic-dependencies))
@@ -150,13 +142,9 @@ Calling `make install` **after** `make [all]` will copy the absolute **on the pr
 
 A complete install is then 
 ```
-make && make install
+(source ./config.dot.sh && make && make install)
 ```
 launched from all platforms (what is done by `./build.sh`).
-Also, after the frontend dependencies have been generated, these will need to be copied to the backend build directory using **from the frontend**:
-```
-./copy_depend_backend.sh
-```
 
 
 Calling make in parallel
@@ -177,11 +165,12 @@ will not start new jobs unless the load average on the node is a below 8.5.
 You can also use `ord_soumet` or if you are having a compile-open-house, ask for a interactive party node:
 ```
 > r.load /fs/ssm/main/opt/jobsubi/jobsubi-0.3
-> jobsubi --show-request  -r ncores=20 ppp4
+> jobsubi --show-request  -r ncores=${nCores} ppp4
 ...
 > cd ${YOUR_MIDAS_PROJECT}/src
 > make -j ${nCores} -O  
 ```
+(`nCores=8` is enough.)
 
 
 
@@ -196,6 +185,7 @@ You may modify that default in `./config.dot.sh`.
 
 Incremental builds
 ------------------
+
 
 If you modify a single source file, `make` will determine which targets (objects and absolutes) depend on it and will reprocess only those.
 For example, let say you have checked out and compiled all programs, then you work on `modules/varqc_mod.f90`.  When you are done, only `minimization_mod.o`, `var.o` will have to be recompiled and `var.Abs` relinked.  This is done using file time stamps and [automatically generated dependency files](#automatic-dependencies).
@@ -234,12 +224,13 @@ touch var.o
 > make -n | grep '^\-o'
 -o var.Abs
 ```
+(one can also use the phony target `objects` refering to all `.o` files.)
 Now we see that only the linking will be done.
 ```
 > make
 ...
 ```
-This has an anoying drawback, it creates empty files (here `minimization_mod.o`, `var.o`m the `make --touch` targetd) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
+This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
 It is an issue we are working on.
 
 
@@ -253,9 +244,6 @@ It is thought a better practice to find out about these dependencies automatical
 
 
 When `make` is called on a `clean` (or `cleandep`) state, it will determine its dependency trees using `makedepf90` and include it dynamically in the `Makefile` and then launch the build.
-
-`makedepf90` is not yet [permanently installed on the network yet](https://gitlab.science.gc.ca/hpc_migrations/hpcr_upgrade_1/issues/980), but is installed on `PPP4` head node and is available through conda([see #255](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/255#note_143881)) for those who would like to try out on interractive nodes (with `jobsubi`).
-It is loaded when sourcing `config.dot.sh`.
 
 Making only the dependencies: 
 ```
@@ -282,34 +270,8 @@ bgckAtms.o : bgckAtms.f90 bgckmicrowave_mod.o
 `dep.obj.inc` are generated by `makedepf90` and produce *superficial* dependencies, those needed to compile **objects**, but **not enough to link absolutes**.
 
 To proceed with linking we need the fully recursive dependencies.
-We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency files and deduce the fully recursive ones needed at link time; they are in `dep.abs.inc` files.
+We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency file and deduce the fully recursive ones needed at link time; they are in `dep.abs.inc` files.
 
-### Building dependencies on the backends
-
-Backends don't have `makedepf90` yet and probably won't have it.
-But dependencies are the same, so build dependency files on the frontends first and copy them in the backend build directory.
-This is done using the script `./copy_depend_backend.sh` (called automatically in `./build.sh`).
-```
-> ./copy_depend_backend.sh 
-...
-> tree ../compiledir
-../compiledir
-└── v_3.5.2-133-g111551f_M
-    ├── sles-15-skylake-64-xc50
-    │   └── PrgEnv-intel-6.0.5
-    │       ├── clib_interfaces_mod.f90
-    │       ├── codeprecision_mod.f90
-    │       ├── dep.abs.inc
-    │       ├── dep.obj.inc
-    │       └── rttov_interfaces_mod.f90
-    └── ubuntu-18.04-skylake-64
-        └── intel-19.0.3.199
-            ├── clib_interfaces_mod.f90
-            ├── codeprecision_mod.f90
-            ├── dep.abs.inc
-            ├── dep.obj.inc
-            └── rttov_interfaces_mod.f90
-```
 
 This is all well, but there is (at least) one case where a user could make that strategy fail.  **Once dependencies are evaluated, they are considered static**.  That means that if after having compiled, someone modify a module's dependencies (adding a `use` statement somewhere) and want to use the incremental awesome feature of `make` it will most probably fail, because the dependencies won't be automatically updated.
 There is no simple way to do that in Fortran 2003 (it is possible using Fortran 2008 submodules, but that would require a lot of refactoring.)
@@ -331,15 +293,12 @@ The second one contain external libraries that are needed at link time by the pr
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
 Each program need to be listed in the `PGM` make variable.
 
-So **when a new program is added** or when **external libraries change for an existing program** two things need to be done in the `./programs/programs.mk` file:
-1. if needed, add the program name in the `PGM` list variable
-2. list all external libraries (previously in `compile_setup_${PGM}.sh`)
-   as prerequisite of the absolute target, such as:
-   ```
-   var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
-           rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-           $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
-   ```
+So **when a new program is added** or when **external libraries change for an existing program**, edit the `./programs/programs.mk` file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
+```
+var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+         rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+         $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+ ```
 
 What is left to do
 ------------------

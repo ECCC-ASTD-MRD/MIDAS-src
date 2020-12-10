@@ -39,16 +39,14 @@
 ##	@DEV_NOTES
 ##		* inline comments starting with `#>` are interpreted for `make help`
 ##		  (search for `help:`)
-##		* need `makedepf90`
-##		  available on 
-##        [anaconda.org](https://anaconda.org/conda-forge/makedepf90)
-##		  (awaiting pending installation request on ppp)
-##		* prior to launching this make, `../programs/commons/compile_setup.sh`
+##		* prior to launching this make, `./programs/commons/compile_setup.sh`
 ##		  has to be sourced 
 ##		  (this exports `${COMPF}` `${GPP_OPTS}` and `${FOPTMIZ}`)
 ##
 ##
 ##	@TODO
+##		- [ ] ssm target
+##		- [x] `make clean` without sourcing cfg
 ##		- [ ] improve `recursiveDep.py` (output file as param so that 
 ##				stdout is used for other stuff)
 ##		- [x] install target, naming of absolute, etc.
@@ -68,7 +66,8 @@
 ##				with trailing spaces.
 ##		- [?] consider Busby 2017 2-pass approach 
 ##				(A Note on Compiling Fortran)
-##		- [?] automated configuration sourcing with a single make call 
+##		- [/] automated configuration sourcing with a single make call 
+##				with `build.sh`
 ##			  	(consider ENKF#19 strategy: it gets really messy.
 ##			  	Maybe a script calling make and passing it's arguments?)
 ##
@@ -88,17 +87,7 @@
 
 FILE_CFG := ./config.dot.sh
 
-##	build directory **with respect to Makefile**
-## 	can only be used in target.mk
-## 	can be initialized from parent shell
-ifneq ($(MAKECMDGOALS),help)
-   ifndef DIR_BLD_ROOT
-      $(error DIR_BLD_ROOT is not set, source $(FILE_CFG) )
-   endif
-endif
-
 VERSION_SCRIPT := ../midas.version.sh
-
 
 ## 	those can be used in both (**no absolute** path here)
 DIR_MOD_RELATIVE := modules
@@ -120,27 +109,25 @@ endif
 ##  remove all default recipes
 .SUFFIXES:
 
-##  cleaning target
+##	build directory **with respect to Makefile**
+## 	can only be used in target.mk
+## 	can be initialized from parent shell
+
+## extract DIR_BLD_ROOT for simple NOPREQ_GOALS target
+## (those that can be called without sourcing config)
+ifndef DIR_BLD_ROOT
+DIR_BLD_ROOT := $(shell cat $(FILE_CFG) | grep DIR_BLD_ROOT= | cut -d= -f2)
+endif
+
+##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean cleanabs cleanobj cleandep
+.PHONY: clean
 
-
-
-## TODO
-clean:	#> delete the build directories (keep the installed programs) 
-	@echo "Delete all build directories in $(DIR_BLD_ROOT) except midas_abs?"
+clean:	#> delete all build directories (keep the installed programs) 
+	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except midas_abs?"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 		find $(DIR_BLD_ROOT)/ -mindepth 1 \
 		! -regex '$(DIR_BLD_ROOT)/midas_abs\(/.*\)?' -delete
-
-cleanabs: cleanobj #> delete all absolutes
-	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.Abs
-
-cleanobj: cleandep #> delete all objects
-	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
-
-cleandep:	#> delete all dependency file
-	rm -rf $(DIR_BLD_ROOT)/*/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
 
 
 .PHONY: help
@@ -159,11 +146,10 @@ help:	#> print this help
 
 
 
-
 ##  Verification for some environment dependencies
-##	(not needed for some targets)
-ifneq ($(MAKECMDGOALS),help)
-ifeq ($(filter clean%,$(MAKECMDGOALS)),)
+##	(not needed for some targets, the NOPREQ_GOALS)
+NOPREQ_GOALS := help clean
+ifeq (,$(filter $(NOPREQ_GOALS), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
         $(error COMPF is not set, source $(FILE_CFG))
@@ -182,24 +168,10 @@ ifeq ($(filter clean%,$(MAKECMDGOALS)),)
     endif
 
 ## 	Verify if `makedepf90` is available
-##
-##  until makedepf90 is globally installed, this check stays commmented
-##  because `build.sh` will first make de dependencies on
-##  the frontend where `makedepf90` is loaded through `conda` 
-##  but compute node won't have it.
-## 
-#    ifeq ($(shell which makedepf90),)
-#		##  `makedepf90` not available on backend..
-#		##  dependencies have to be copied there before
-#	    ##	but when launched on backend we don't 
-#		##  want it to fail because `makedepf90` is not available
-#        ifeq ($(ORDENV_PLAT),ubuntu-18.04-skylake-64)
-#            $(error makedepf90 not available)
-#        endif
-#    endif
+    ifeq ($(shell which makedepf90),)
+        $(error makedepf90 not available)
+    endif
 endif
-endif
-
 
 ## TODO
 ##	END of Common block
@@ -407,6 +379,18 @@ info:	#>	print build configuration
 install: $(ABS_INSTALL)			#> install all programs
 
 depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
+
+## specific cleaning target (depends on the config)
+.PHONY: cleanabs cleanobj cleandep
+cleanabs: cleanobj #> delete all absolutes
+	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.Abs
+
+cleanobj: cleandep #> delete all objects
+	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
+
+cleandep:	#> delete all dependency file
+	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
+
 
 
 ##
