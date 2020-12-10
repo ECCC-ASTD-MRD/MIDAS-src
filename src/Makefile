@@ -271,7 +271,10 @@ SRC_FTN_F90 := $(notdir $(subst .ftn90,.f90,$(SRC_FTN)))
 SRC_ALL := $(SRC_F90) $(SRC_FTN_F90)  $(SRC_PGM) 
 OBJ := $(notdir $(subst .f90,.o,$(SRC_ALL)))
 
-##-- ABS defined in programs/programs.mk
+PGM := $(notdir $(subst .f90,,$(SRC_PGM)))
+##-- program dependencies in programs/programs.mk
+ABS := $(addsuffix .Abs,$(PGM)) 
+
 DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 

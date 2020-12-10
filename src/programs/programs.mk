@@ -1,14 +1,3 @@
-
-#===| DOUBLE PRECISION |=========================
-PGM := var thinning randomPert obsSelection obsImpact oMinusF\
-			letkf genCoeff ensembleH ensManip diagHBHt diagBmatrix\
-			calcStats bgckMW advector adjointTest\
-			ensPostProcess prepcma
-# TODO: automate that ^
-
-ABS := $(addsuffix .Abs,$(PGM)) 
-
-#--------------------------------------
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 		rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
@@ -72,9 +61,6 @@ diagBmatrix.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 calcStats.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB)
-
-#--------------------------------------
-bgckMW.Abs: LIBAPPL = burp_module irc $(MPILIB)
 
 #--------------------------------------
 advector.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB)
