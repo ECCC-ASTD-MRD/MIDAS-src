@@ -352,8 +352,6 @@ endif
 
 .PHONY: copy_depend_backend
 
-## `makedepf90` only available on frontend
-ifeq ($(ORDENV_PLAT),$(FRONTEND_PLAT))
 $(DEP_OBJ): $(SRC_ALL)
 	$(V) echo "Generating object dependencies > $@"	
 	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
@@ -365,14 +363,9 @@ $(DEP_OBJ): $(SRC_ALL)
 ##
 $(DEP_ABS): $(DEP_OBJ)
 	$(V) echo "Generating executables dependencies > $@"
-	$(V) $(SRC_ROOT)/recursiveDep.py '$(notdir $(ABS))' -d $^ > $@
+	$(V) $(SRC_ROOT)/recursiveDep.py $^ '$(notdir $(ABS))'  > $@
 
 
-else
-$(DEP_OBJ) $(DEP_ABS) copy_depend_backend:
-	@echo "<!> Dependency analysis only available on frontend"
-	@exit 1
-endif
 
 ##-----------------------------------------------
 ##	Phony global targets
