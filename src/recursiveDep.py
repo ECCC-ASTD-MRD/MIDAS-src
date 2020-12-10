@@ -4,27 +4,19 @@ Analyse dependencies of individual absolute files to deduce implicit dependencie
 contained in them that will need to be added at link time
 
 Usage: 
-   recursiveDep.py TARGETLIST 
-   [-v] [-s=<str>] [-d=<file>]
-   recursiveDep.py -h | --help
+   recursiveDep.py OBJ_DEP TARGETLIST 
 
 Arguments:
     TARGETLIST  target absolute file list
-
-Options:
-    -h, --help  show this screen and exit.
-    -v          toggle verbose mode
-    -s=<str>    absolute suffix [default: .Abs]
-    -d=<file>   prerequisite makefile include file [default: ./depend.inc]
+    OBJ_DEP     prerequisite makefile include file
 '''
 
 
 import re
 import sys
-from docopt import docopt, DocoptExit
 
 
-def recurseDep(target, depFile='depend.inc', uniqDep=None, verbose=False):
+def recurseDep(target, depFile='dep.obj.inc', uniqDep=None, verbose=False):
     if verbose: print('<<< %s'%target)
     if uniqDep == None: uniqDep=set()
     pattern = '^[^ ]*%s :'%target
@@ -46,27 +38,16 @@ def recurseDep(target, depFile='depend.inc', uniqDep=None, verbose=False):
         raise Exception('%s not in %s'%(target, depFile))
 
 ###| command arguments reading |#####################################
-try:
-    opt = docopt(__doc__, sys.argv[1:])
-except DocoptExit as inst:
-    print('Invalid command!')
-    print(inst)
-    sys.exit(1)
 
-
-targetList = (opt['TARGETLIST']).split()
-depFile = opt['-d']
-suffix = opt['-s']
-verbose = opt['-v']
-
-if verbose: 
-    print('Evaluating linking prerequisite for:')
-    print(targetList)
+depFile = sys.argv[1]
+targetList = sys.argv[2]
+targetList = targetList.split()
+suffix = '.Abs'
 
 depDict = dict()
 for target in targetList:
     obj=target.replace(suffix, '.o')
-    depDict[target] = recurseDep(   obj, depFile=depFile, verbose=verbose)
+    depDict[target] = recurseDep(   obj, depFile=depFile)
 
     ## output to stdout
     print('%s : %s'%(target, obj), end=' ')
