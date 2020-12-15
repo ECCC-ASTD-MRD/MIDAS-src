@@ -17,6 +17,18 @@ CLEAN=false
 DIRECT_FRONTEND_COMPILE=false
 FRONTEND_PLAT=ubuntu-18.04-skylake-64
 
+
+###########################################################
+##  SSM Packaging configuration 
+##
+SSM_TARGET=/fs/ssm/eccc/mrd/rpn/anl/midas
+SSM_PKGNAME=midas
+SSM_MAINTAINER=ervig.lapalme@canada.ca
+SSM_DESCRIPTION="The Modular and Integrated Data Assimilation System"
+SSM_GITREPO=https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git
+SSM_VERSION=3.6.0
+
+
 ###########################################################
 ##  compilation and SSM needed for compilation
 ##
@@ -50,3 +62,10 @@ export VERBOSE
 export CLEAN
 export DIRECT_FRONTEND_COMPILE
 export FRONTEND_PLAT
+
+export SSM_TARGET
+export SSM_PKGNAME
+export SSM_MAINTAINER
+export SSM_DESCRIPTION
+export SSM_GITREPO
+export SSM_VERSION

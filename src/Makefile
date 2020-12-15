@@ -45,7 +45,7 @@
 ##
 ##
 ##	@TODO
-##		- [ ] ssm target
+##		- [x] ssm target
 ##		- [x] `make clean` without sourcing cfg
 ##		- [ ] improve `recursiveDep.py` (output file as param so that 
 ##				stdout is used for other stuff)
@@ -342,7 +342,7 @@ $(DEP_ABS): $(DEP_OBJ)
 ##-----------------------------------------------
 ##	Phony global targets
 ##
-.PHONY: all absolutes objects info ssm doc diagrams install depend 
+.PHONY: all absolutes objects info doc diagrams install depend 
 
 all: absolutes	#> compile all programs 
 
@@ -350,7 +350,6 @@ absolutes: $(ABS)
 
 objects: $(OBJ)
 
-ssm:	#> build SSM package (not available yet)
 
 doc:	#> build documentation (not available yet)
 
@@ -392,6 +391,56 @@ cleandep:	#> delete all dependency file
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
 
 
+##-----------------------------------------------
+##	SSM packaging
+##
+.PHONY: ssm ssm_protect
+
+ssm: $(__ssm_target_version)		#> build SSM package 
+
+SSM_GOALS := ssm  ssm_protect
+ifneq (,$(filter $(SSM_GOALS), $(MAKECMDGOALS)))
+    ##  Verify if main environment variable set when needed
+    ifndef SSM_TARGET
+        $(error SSM_TARGET is not set, source $(FILE_CFG))
+    endif
+    ifndef SSM_VERSION
+        $(error SSM_VERSION is not set, source $(FILE_CFG))
+    endif
+endif
+SSM_PKGNAME ?= midas
+
+__ssm_target_version := $(SSM_TARGET)/$(SSM_VERSION)
+__ssm_workdir_base := $(DIR_BLD_ROOT)/$(VERSION)/ssm_build
+__ssm_fullname := $(SSM_PKGNAME)_$(SSM_VERSION)_$(ORDENV_PLAT)
+__ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
+
+
+$(__ssm_workdir_base)/$(__ssm_fullname).ssm: $(ABS)
+	test -d $(__ssm_target_version) || ssm created -d $(__ssm_target_version)
+	mkdir -p $(__ssm_workdir)/.ssm.d
+	mkdir -p $(__ssm_workdir)/bin
+	cp $(SRC_ROOT)/ssm.d/post-install $(__ssm_workdir)/.ssm.d/
+	sed -e "s|NAME|$(SSM_PKGNAME)|" -e "s|VERSION|$(SSM_VERSION)|" \
+        -e "s|PLATFORM|$(ORDENV_PLAT)|" -e "s|MAINTAINER|$(SSM_MAINTAINER)|" \
+        -e "s|BUILDINFO|$(VERSION)|" -e "s|DESCRIPTION|$(SSM_DESCRIPTION)|" \
+        -e "s|SUMMARY|$(SSM_GITREPO)|" $(SRC_ROOT)/ssm.d/control.json > \
+        $(__ssm_workdir)/.ssm.d/control.json
+	@echo ">>> building the tarball"
+	cp $^ $(__ssm_workdir)/bin/
+	cd $(__ssm_workdir_base) && tar cvfzh $(notdir $@) $(__ssm_fullname)
+
+$(__ssm_target_version): $(__ssm_workdir_base)/$(__ssm_fullname).ssm $(__ssm_target_version)
+	@echo ">>> installing SSM domain"
+	ssm install --debug -d $(__ssm_target_version) -f $<
+	@echo ">>> publishingi SSM domain"
+	ssm publish --debug -d $(__ssm_target_version) -p  $(__ssm_fullname)
+	@echo ">>> SSM package published at $(__ssm_target_version)"
+
+ssm_protect: $(__ssm_target_version)	#> protect SSM domain
+	ssm freezed -d $(__ssm_target_version) \
+        && chmod -R ugo-w $(__ssm_target_version)
+	@echo ">>> SSM package $(__ssm_target_version) protected"
 
 ##
 ##	END of Main make rules
@@ -399,5 +448,6 @@ cleandep:	#> delete all dependency file
 ##===================================================================
 ##===================================================================
 ##===================================================================
+
 endif
 # vim: set noexpandtab noautoindent nolist:
