@@ -1,11 +1,9 @@
-Building MIDAS using make
-=========================
+# Building MIDAS using make
 
 The present `README` **assumes you are in the `src` directory** (the directory in which is this `README`), meaning onward `./` points to the `src` directory.
 
 
-I just want to build!
----------------------
+## I just want to build
 
 From `PPP[34]`, edit `./config.dot.sh`, modify `BACKEND`, `FRONTEND` and maybe 
 `DIR_BLD_ROOT` if need be, then
@@ -38,8 +36,8 @@ It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or
 
 
 
-Using `make`
-------------
+## Using `make`
+
 If you want to have a more fine grained control, you can call `make` directly,
 I invite you to read its man pages (short and straight to the point).  
 
@@ -147,8 +145,7 @@ A complete install is then
 launched from all platforms (what is done by `./build.sh`).
 
 
-Calling make in parallel
-------------------------
+## Calling make in parallel
 
 To compile a target using multiple cores use
 ```
@@ -175,16 +172,14 @@ You can also use `ord_soumet` or if you are having a compile-open-house, ask for
 
 
 
-Out-of-tree compilation
------------------------
+## Out-of-tree compilation
 
 By default `make` will build in `${HOME}/data_maestro/ords/midas-bld` and will symlink it to `../compiledir`.  
 You may modify that default in `./config.dot.sh`.  
 
 
 
-Incremental builds
-------------------
+## Incremental builds
 
 
 If you modify a single source file, `make` will determine which targets (objects and absolutes) depend on it and will reprocess only those.
@@ -236,8 +231,7 @@ It is an issue we are working on.
 
 
 
-Automatic dependencies
-----------------------
+## Automatic dependencies
 
 `make` determine dependencies at build time.
 It is thought a better practice to find out about these dependencies automatically.
@@ -282,8 +276,8 @@ So if you find yourself in such a situation, rebuild explicitly the dependencies
 ```
 
 
-Adding a new program or changing external dependencies
-------------------------------------------------------
+## Adding a new program or changing external dependencies
+
 In the previous solution, when a new program is added, two files needed to be changed in `./programs/src_files/`:
 * `src_files_${PGM}.sh`
 * `compile_setup_${PGM}.sh`
@@ -300,14 +294,21 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
          $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
  ```
 
-What is left to do
-------------------
+
+## SSM packaging
+
+To publish the absolutes from a given architecture, one have to
+1. update `./config.dot.sh` `SSM_*` variables  
+   (making sure they have write privilege to `${SSM_TARGET}`)
+2. `(source ./config.dot.sh && make ssm [ && make ssm_protect ] )'
+
+
+## What is left to do
 
 Candies.  
 
 * `build.sh` autocompletion for passing make targets while conserving the 
   multi-plateform build
-* automated `ssm` packaging
 * automated `doc` building and `diagrams`, etc.
 
 But most of all... taking into account your input.  

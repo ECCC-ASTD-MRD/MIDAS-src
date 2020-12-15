@@ -1,0 +1,10 @@
+{
+   "name": "NAME",
+   "version": "VERSION",
+   "platform": "PLATFORM",
+   "maintainer": "MAINTAINER",
+   "summary": "SUMMARY",
+   "description": "DESCRIPTION",
+   "requires": "",
+   "x-buildinfo": "BUILDINFO"
+} 

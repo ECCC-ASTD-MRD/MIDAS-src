@@ -1,10 +1,31 @@
 #! /bin/sh
 
+
+##=========================================================
+##  functions
+function is_compilation_done_frontend {
+    set -e
+    __jobid=$1
+
+    while true; do
+        __status=0
+
+        jobchk -c ${FRONTEND} ${__jobid} || __status=$?
+        if [ "${__status}" -ne 0 ]; then
+            echo "Compilation on '${FRONTEND}' '${JOBNAME}' has finished."
+            __listing=$(/bin/ls -t ${JOBNAME}.${FRONTEND}-*-$(hostname)-*.out | head -1)
+            cat ${__listing}
+            rm ${__listing}
+            break
+        fi
+        sleep 5
+    done
+}
+##=========================================================
+
+
 ##  sourcing user configuration
 source ./config.dot.sh
-
-##  sourcing utilitary functions
-source ./func.dot.sh
 
 
 ##=========================================================
