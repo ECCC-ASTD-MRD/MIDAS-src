@@ -33,7 +33,7 @@ SSM_VERSION=3.6.0
 ##  compilation and SSM needed for compilation
 ##
 ## -- should not change that
-DOT_CONFIG=./programs/commons/compile_setup.sh
+DOT_CONFIG=${PWD}/programs/commons/compile_setup.sh
 set +x
 
 ##  linking the build directory where it used to be
