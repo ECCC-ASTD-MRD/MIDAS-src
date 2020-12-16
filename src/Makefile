@@ -123,7 +123,7 @@ endif
 ## 	(independent of environment: available anytime) 
 .PHONY: clean
 
-clean:	#> delete all build directories (keep the installed programs) 
+clean:	#> delete all build directories (keep installed programs) 
 	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except midas_abs?"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 		find $(DIR_BLD_ROOT)/ -mindepth 1 \
@@ -135,6 +135,9 @@ help:	#> print this help
 	@echo "USAGE:"
 	@echo "    source $(FILE_CFG)"
 	@echo '    make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]'
+	@echo ''
+	@echo '    Complete install on current architecture:'
+	@echo '	     make all && make install'
 	@echo "OPTIONS:"
 	@echo '    consult make manual: man make'
 	@echo "TARGETS:"
@@ -381,13 +384,13 @@ depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
 ## specific cleaning target (depends on the config)
 .PHONY: cleanabs cleanobj cleandep
-cleanabs: cleanobj #> delete all absolutes
+cleanabs: cleanobj #> delete all build files (for this version)
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.Abs
 
-cleanobj: cleandep #> delete all objects
+cleanobj: cleandep #> delete all objects and dependency files (for this version)
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
 
-cleandep:	#> delete all dependency file
+cleandep:	#> delete all dependency files (for this version)
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
 
 
@@ -396,7 +399,7 @@ cleandep:	#> delete all dependency file
 ##
 .PHONY: ssm ssm_protect
 
-ssm: $(__ssm_target_version)		#> build SSM package 
+ssm: $(__ssm_target_version)		#> build SSM package
 
 SSM_GOALS := ssm  ssm_protect
 ifneq (,$(filter $(SSM_GOALS), $(MAKECMDGOALS)))

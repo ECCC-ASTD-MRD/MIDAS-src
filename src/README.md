@@ -10,15 +10,12 @@ From `PPP[34]`, edit `./config.dot.sh`, modify `BACKEND`, `FRONTEND` and maybe
 ```
 > ./build.sh
 ...
-###########################
-... Preparing dependencies
-    > listing_depend
 #####################################
-... Launching compilation on BACKEND
+... Launching direct compilation on BACKEND
     > listing_daley
 ######################################
 ... Launching compilation on FRONTEND
-    > listing_ppp
+...
 =================== ord_soumet version 1.27 =================
 ...
 ######################################
@@ -297,10 +294,12 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 
 ## SSM packaging
 
-To publish the absolutes from a given architecture, one have to
+To publish the absolutes in a SSM domain, one have to
 1. update `./config.dot.sh` `SSM_*` variables  
    (making sure they have write privilege to `${SSM_TARGET}`)
-2. `(source ./config.dot.sh && make ssm [ && make ssm_protect ] )'
+2. for **each architecture** `(source ./config.dot.sh && make ssm)`
+3. once all architectures have been published, protect the domain:  
+   `(source ./config.dot.sh && make ssm_protect)`
 
 
 ## What is left to do

@@ -41,7 +41,7 @@ make install  -j ${NCORES} -O DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
 EOF
 
 echo "#####################################"
-echo "... Launching compilation on BACKEND"
+echo "... Launching direct compilation on BACKEND"
 echo "    > listing_${BACKEND}" 
 (cat .compile_job | ssh ${BACKEND} bash --login > listing_${BACKEND} 2>&1) &  
 PID_BACKEND=$!
@@ -51,15 +51,17 @@ echo "BACKEND compilation process: ${PID_BACKEND}"
 ##  Compilation on frontend
 echo "######################################"
 echo "... Launching compilation on FRONTEND"
-echo "    > listing_ppp"
 if ${DIRECT_FRONTEND_COMPILE}
 then
     ## compile directly on head node
+    echo "    > listing_ppp"
     make all -j ${NCORES} \
         DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
     make install -j ${NCORES} \
         DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} >> listing_ppp 2>&1
 else
+    echo "    submitting job:"
+    cat .compile_job
     ## use ord_soumet
     JOBID_FRONTEND=$(ord_soumet .compile_job -jn ${JOBNAME} -mach ${FRONTEND} \
                     -listing ${PWD} -w 60 -cpus ${NCORES}  -m 8G -shell /bin/bash)
@@ -67,7 +69,6 @@ else
     ## waiting for frontend compilation to terminate
     is_compilation_done_frontend ${JOBID_FRONTEND} || \
         echo "Something went wrong on ${FRONTEND} with ${JOBID_FRONTEND}:" ;\
-        cat .compile_job
 fi
 
 ## waiting for backend compilation to terminate
