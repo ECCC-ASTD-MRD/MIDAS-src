@@ -22,11 +22,26 @@ function is_compilation_done_frontend {
     done
 }
 ##=========================================================
+##  parsing input
+##
+##  @TODO: more than one target?
+typeset __target
+
+if [ $# -eq 0 ]
+then 
+    __target='all'  ## @TODO deal with make; make install
+elif [ $# -eq 1 ]
+then
+    __target=$1
+else
+    echo "Only one target can be passed to build.sh"
+    exit 1
+fi
 
 
+##=========================================================
 ##  sourcing user configuration
 source ./config.dot.sh
-
 
 ##=========================================================
 ##  Compilation on backend (in the background)
@@ -36,8 +51,7 @@ cat > .compile_job << EOF
 set -ex
 cd ${here}
 source ${DOT_CONFIG} 
-make all -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} && \
-make install  -j ${NCORES} -O DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
+make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
 EOF
 
 echo "#####################################"
@@ -55,10 +69,8 @@ if ${DIRECT_FRONTEND_COMPILE}
 then
     ## compile directly on head node
     echo "    > listing_ppp"
-    make all -j ${NCORES} \
+    make ${__target} -j ${NCORES} \
         DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
-    make install -j ${NCORES} \
-        DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} >> listing_ppp 2>&1
 else
     echo "    submitting job:"
     cat .compile_job
