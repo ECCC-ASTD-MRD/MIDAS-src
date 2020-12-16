@@ -5,8 +5,7 @@ The present `README` **assumes you are in the `src` directory** (the directory i
 
 ## I just want to build
 
-From `PPP[34]`, edit `./config.dot.sh`, modify `BACKEND`, `FRONTEND` and maybe 
-`DIR_BLD_ROOT` if need be, then
+From `PPP[34]`, you can edit `./config.dot.sh` and modify `BACKEND`, `FRONTEND` and `DIR_BLD_ROOT`, but the defaults should ne just fine, then
 ```
 > ./build.sh
 ...
@@ -68,7 +67,7 @@ TARGETS:
     doc                            build documentation (not available yet)
     help                           print this help
     install                        install all programs
-    ssm                            build SSM package (not available yet)
+    ssm                            build SSM package 
 ```
 
 
@@ -223,7 +222,7 @@ Now we see that only the linking will be done.
 ...
 ```
 This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
-It is an issue we are working on.
+It is an issue (#444) we are aware of.
 
 
 
@@ -307,7 +306,7 @@ To publish the absolutes in a SSM domain, one have to
 Candies.  
 
 * `build.sh` autocompletion for passing make targets while conserving the 
-  multi-plateform build
+  multi-plateform build: #443
 * automated `doc` building and `diagrams`, etc.
 
 But most of all... taking into account your input.  
