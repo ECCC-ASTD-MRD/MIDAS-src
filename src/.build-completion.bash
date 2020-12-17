@@ -1,4 +1,5 @@
 #/usr/bin/env bash
+
 _build_completions()
 {
     if [ "${#COMP_WORDS[@]}" != "2" ]; then
@@ -12,4 +13,4 @@ _build_completions()
     COMPREPLY+=($(compgen -W "$(ls modules/*.f90 |sed 's/modules\/\(.*\)_mod.f90/\1.o/')" -- "${COMP_WORDS[1]}"))
 
 }
-complete -F _build_completions ./build.sh
+complete -F _build_completions build_midas
