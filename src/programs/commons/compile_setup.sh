@@ -199,9 +199,9 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
 fi
 
-## loading makedep90 from temporary dev domain
-echo "... loading makedepf90 *** FROM TEMPORARY DOMAINE"
-. ssmuse-sh -d /home/mad001/ssmTest/2.8.9/
+## loading makedep90
+echo "... loading makedepf90"
+. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
 
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"

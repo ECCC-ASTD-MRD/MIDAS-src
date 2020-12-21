@@ -1,4 +1,29 @@
 #!/bin/bash
+
+###############################################################################
+##  `build_midas` auto-completion install
+##
+##  Provide bash auto-completion for `build_midas`.
+##  Need to be installed once; modify
+##      * `${HOME}/.bash_completion`
+##      * `${HOME}/.bash_completion.d/`
+##      * `${HOME}/.profile.d/interactive/post`
+##
+##  @SYNOPSIS
+##      ```
+##      ./install_build_completion.sh
+##      source ${HOME}/.bash_completion
+##      source ${HOME}/.profile.d/interactive/post
+##      ```
+##
+##  @REFERENCES 
+##      * `./README.md`
+##  
+##  @AUTHORS
+##      Martin Deshaies-Jacques (@mad001) - CMDA - December 2020
+##
+###############################################################################
+
 set -x
 typeset __here=$(pwd)
 typeset __bc_dir=${HOME}/.bash_completion.d
