@@ -46,6 +46,8 @@ set +x
 echo
 echo "Auto completion for build_midas installed"
 echo 
-echo "To use it directly:  \`source ${__profile_post}\`"
-echo "(it will be automatically loaded on next shells)"
+echo "To use it directly (in the present shell):"
+echo "   \`source ${__profile_post}\`"
+echo "   \`source ${HOME}/.bash_completion\`"
+echo "(in any case, it will be automatically loaded on next shells)"
 echo

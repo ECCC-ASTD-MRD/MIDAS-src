@@ -7,7 +7,7 @@ The present `README` **assumes you are in the `src` directory** (the directory i
 
 From `PPP[34]`, you can edit `./config.dot.sh` and modify `BACKEND`, `FRONTEND` and `DIR_BLD_ROOT`, but the defaults should ne just fine, then
 ```
-> ./build.sh
+> ./build_midas
 ...
 #####################################
 ... Launching direct compilation on BACKEND
@@ -28,24 +28,20 @@ From `PPP[34]`, you can edit `./config.dot.sh` and modify `BACKEND`, `FRONTEND` 
 It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or 
 `Banting`) submitting jobs with the number of cores specified in 
 `config.dot.sh` (8 seems to be optimal).
+It will then install (copy) the absolutes in the directory 
+`${DIR_BLD_ROOT}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
 
-
-
-
-## Using `make`
-
-If you want to have a more fine grained control, you can call `make` directly,
-I invite you to read its man pages (short and straight to the point).  
-
-You'll first need to source (and edit if you want) the compilation environment:
+## Using `build-midas` for specific targets
+`build-midas` is a wrapper around 
+[GNU `make`](https://www.gnu.org/software/make/); it defaults to compiling, 
+linking and installing all the absolutes on both architectures, but it can also
+be used to build specific targets by passing it as arguments:
 ```
-> source ./config.dot.sh
+> ./build_midas obsSelection.Abs var.Abs
 ```
-Otherwise, only two targets will be available: `clean` and `help`.
 
-Then you're good to go!
-
-You can call make to build any *target*.
+A *target* is something (often a file) to build; you can get information on
+available targets by calling
 ```
 > make help
 USAGE:
@@ -69,13 +65,58 @@ TARGETS:
     install                        install all programs
     ssm                            build SSM package 
 ```
+See [next section](#using-make) for more on targets.
 
+
+### Auto-completion
+
+`build_midas` comes with a bash auto-completion feature, such that argument 
+passing can be auto-completed by pressing `<TAB>`:
+```
+> build_midas <TAB><TAB>
+Display all 141 possibilities? (y or n)
+> build_midas obsImpact.<TAB><TAB>
+obsImpact.Abs  obsImpact.o
+```
+
+However, this feature needs to be installed:
+```
+./install_build_completion.sh
+...
+Auto completion for build_midas installed
+
+To use it directly (in the present shell):
+   `source /home/mad001/.profile.d/interactive/post`
+   `source /home/mad001/.bash_completion`
+(in any case, it will be automatically loaded on next shells)
+
+```
+This will create a file `~/.bash_completion` and a directory 
+`~/.bash_completion.d` in your home, and append the current directory to your
+`${PATH}` by adding a line to your `~/.profile.d/interactive/post`.
+For it to be functionnal in the present shell, you'll have to source the two
+files (it will be automatic in future shells).
+
+
+## Using `make`
+
+If you want to have a more fine grained control, you can call `make` directly,
+I invite you to read its man pages (short and straight to the point).  
+
+You'll first need to source (and edit if you want) the compilation environment:
+```
+> source ./config.dot.sh
+```
+Otherwise, only two targets will be available: `clean` and `help`.
+
+Then you're good to go!
+You can call make to build any target.
 
 A target may be an object file, a specific program or a label (or *phony* 
 target such as `all`, `clean` or other label that are not a file *per se*), you
 can always use autocompletion by pressing `<TAB>`:
 ```
-> make <TAB>
+> make <TAB><TAB>
 Display all 147 possibilities? (y or n) <y>
 Makefile                       install
 absolutes                      kdtree2_mod.o
@@ -93,7 +134,7 @@ var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
 If `<TAB>` does not work (or just show you `help` and `clean`), it is probably 
 because did not `source ./config.dot.sh`.
-Autocompletion does not work on the backends.
+Auto-completion does not work on the backends.
 
 When you ask `make` to build a target, it will determine everything that needs
 to be done to achieve that goal, for instance if want to build `var.Abs`:
@@ -138,14 +179,14 @@ A complete install is then
 ```
 (source ./config.dot.sh && make && make install)
 ```
-launched from all platforms (what is done by `./build.sh`).
+launched from all platforms (what is done by `./build_midas` without argument).
 
 
 ## Calling make in parallel
 
 To compile a target using multiple cores use
 ```
-make -j${NCORES} [-O] [<target>]
+make -j ${NCORES} [-O] [<target>]
 ```
 The `-O` ensure outputs are collected together rather that interspersed with output from other jobs (more in `man make` on that).
 
@@ -281,7 +322,6 @@ In the previous solution, when a new program is added, two files needed to be ch
 The first contains dependencies information and this is dealt with automatically ([see previous section](#automatic-dependencies)).
 The second one contain external libraries that are needed at link time by the programs.
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
-Each program need to be listed in the `PGM` make variable.
 
 So **when a new program is added** or when **external libraries change for an existing program**, edit the `./programs/programs.mk` file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
 ```
@@ -305,8 +345,6 @@ To publish the absolutes in a SSM domain, one have to
 
 Candies.  
 
-* `build.sh` autocompletion for passing make targets while conserving the 
-  multi-plateform build: #443
 * automated `doc` building and `diagrams`, etc.
 
 But most of all... taking into account your input.  

@@ -28,14 +28,12 @@ function is_compilation_done_frontend {
 typeset __target
 
 if [ $# -eq 0 ]
+## default: make all && make install
 then 
-    __target='all'  ## @TODO deal with make; make install
-elif [ $# -eq 1 ]
-then
-    __target=$1
+    __job="make all -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} && make install -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}"
 else
-    echo "Only one target can be passed to build.sh"
-    exit 1
+    __target=$@
+    __job="make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}"
 fi
 
 

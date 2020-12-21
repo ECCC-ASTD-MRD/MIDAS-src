@@ -125,9 +125,13 @@ endif
 
 clean:	#> delete all build directories (keep installed programs) 
 	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except midas_abs?"
+	@echo \`\`\`
+	@echo find $(DIR_BLD_ROOT)/ -mindepth 1 \
+		! -regex "$(DIR_BLD_ROOT)/midas_abs\(/.*\)?" -delete
+	@echo \`\`\`
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-		find $(DIR_BLD_ROOT)/ -mindepth 1 \
-		! -regex '$(DIR_BLD_ROOT)/midas_abs\(/.*\)?' -delete
+	find $(DIR_BLD_ROOT)/ -mindepth 1 \
+		! -regex "$(DIR_BLD_ROOT)/midas_abs\(/.*\)?" -delete
 
 
 .PHONY: help
