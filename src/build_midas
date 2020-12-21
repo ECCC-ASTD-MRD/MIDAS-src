@@ -1,5 +1,36 @@
 #! /bin/sh
 
+###############################################################################
+##  MIDAS automated build script
+##
+##  @SYNOPSIS
+##      * edit configuration: `./config.dot.sh`
+##
+##      * compile, link and install all programs on both architectures
+##        ```
+##        ./build_midas
+##        ```
+##      * build specific targets on both architectures
+##        ```
+##        ./build_midas [ <target_1> [ <target_2> [ ... ] ] ]
+##        ```
+##  
+##      * install auto-completion feature
+##        ```
+##        ./install_build_completion.sh
+##        source ${HOME}/.bash_completion
+##        source ${HOME}/.profile.d/interactive/post
+##        ```
+##
+##  @REFERENCES 
+##      * `./README.md`
+##      * `./Makefile`
+##  
+##  @AUTHORS
+##      Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
+##
+###############################################################################
+
 
 ##=========================================================
 ##  functions

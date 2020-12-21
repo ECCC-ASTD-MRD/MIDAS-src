@@ -29,6 +29,9 @@
 ##		3. object compilation
 ##		4. linking
 ##
+##  @REFERENCES 
+##      * `./README.md`
+##
 ##	@AUTHORS
 ##		- Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
 ## 		- Ervig Lapalm (@erv000), prior compilation solution
@@ -45,21 +48,6 @@
 ##
 ##
 ##	@TODO
-##		- [x] ssm target
-##		- [x] `make clean` without sourcing cfg
-##		- [ ] improve `recursiveDep.py` (output file as param so that 
-##				stdout is used for other stuff)
-##		- [x] install target, naming of absolute, etc.
-##		- [x] compilation on backends
-##		- [x] out-of-tree compilation
-##		- [x] move back in a single make (? versus recursive make calls)
-##		- [x] separate build directories for single and double precision
-##				- aggregate each Abs group and COMPF prerequisite in 
-##				  a single rule in `programs/programs.mk`
-##		- [x] complete `programs/programs.mk`
-##		- [x] can `seaIce` specific SSM be loaded with the others?
-##				`module load cray-netcdf` is already in the common script
-##				 -> passes Unit Tests
 ##		- [?] do we really need the automatic listings?
 ##			  	if so: careful with trailing space between 
 ##				target `$@` and `>`, it can produces buggy filename
@@ -258,8 +246,6 @@ DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
-#ABS_INSTALL_PRFX = $(SRC_ROOT)/$(DIR_BLD_ROOT)/midas_abs/midas-
-## DIR_BLD_ROOT is now absolute path
 ABS_INSTALL_DIR = $(DIR_BLD_ROOT)/midas_abs
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
@@ -354,6 +340,8 @@ $(DEP_ABS): $(DEP_OBJ)
 all: absolutes	#> compile all programs 
 
 absolutes: $(ABS) 
+
+depend:	$(DEP_ABS) #> build dependencies
 
 objects: $(OBJ)
 
