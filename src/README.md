@@ -5,9 +5,9 @@ The present `README` **assumes you are in the `src` directory** (the directory i
 
 ## I just want to build
 
-From `PPP[34]`, you can edit `./config.dot.sh` and modify `BACKEND`, `FRONTEND` and `DIR_BLD_ROOT`, but the defaults should ne just fine, then
+From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `BACKEND`, `FRONTEND` or `DIR_BLD_ROOT`), but the defaults should ne just fine, then
 ```
-> ./build_midas
+$ ./build_midas
 ...
 #####################################
 ... Launching direct compilation on BACKEND
@@ -37,13 +37,13 @@ It will then install (copy) the absolutes in the directory
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
 ```
-> ./build_midas obsSelection.Abs var.Abs
+$ ./build_midas obsSelection.Abs var.Abs
 ```
 
 A *target* is something (often a file) to build; you can get information on
 available targets by calling
 ```
-> make help
+$ make help
 USAGE:
     source ./config.dot.sh
     make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]
@@ -73,9 +73,9 @@ See [next section](#using-make) for more on targets.
 `build_midas` comes with a bash auto-completion feature, such that argument 
 passing can be auto-completed by pressing `<TAB>`:
 ```
-> build_midas <TAB><TAB>
+$ build_midas <TAB><TAB>
 Display all 141 possibilities? (y or n)
-> build_midas obsImpact.<TAB><TAB>
+$ build_midas obsImpact.<TAB><TAB>
 obsImpact.Abs  obsImpact.o
 ```
 
@@ -105,7 +105,7 @@ I invite you to read its man pages (short and straight to the point).
 
 You'll first need to source (and edit if you want) the compilation environment:
 ```
-> source ./config.dot.sh
+$ source ./config.dot.sh
 ```
 Otherwise, only two targets will be available: `clean` and `help`.
 
@@ -116,7 +116,7 @@ A target may be an object file, a specific program or a label (or *phony*
 target such as `all`, `clean` or other label that are not a file *per se*), you
 can always use autocompletion by pressing `<TAB>`:
 ```
-> make <TAB><TAB>
+$ make <TAB><TAB>
 Display all 147 possibilities? (y or n) <y>
 Makefile                       install
 absolutes                      kdtree2_mod.o
@@ -129,7 +129,7 @@ advector.Abs                   localizationfunction_mod.o
 advector.o                     localizationspectral_mod.o
 all                            mathphysconstants_mod.o
 ...
-> make var<TAB>
+$ make var<TAB>
 var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
 If `<TAB>` does not work (or just show you `help` and `clean`), it is probably 
@@ -139,7 +139,7 @@ Auto-completion does not work on the backends.
 When you ask `make` to build a target, it will determine everything that needs
 to be done to achieve that goal, for instance if want to build `var.Abs`:
 ```
-> make var.Abs --dry-run
+$ make var.Abs --dry-run
 Preprocessing codeprecision_mod.f90 inplace
 Preprocessing clib_interfaces_mod.f90 inplace
 Preprocessing rttov_interfaces_mod.f90 inplace
@@ -159,7 +159,7 @@ Some frequently used phony targets are:
 * `help` : print a short synopsis and important targets
 * `all` : compile all programs on current architecture 
 * `info` : print information to stdout
-* `install` : install all compiled programs 
+* `install` : install all compiled programs   
   Copy them in `${DIR_BLD_ROOT}/midas_abs/` and rename them with version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
@@ -193,16 +193,16 @@ The `-O` ensure outputs are collected together rather that interspersed with out
 Careful to not overload the head node.  
 One can specify a load average maximum when calling `make` in parallel using `-l`, for instance
 ```
-> make -j 10 -l 8.5
+$ make -j 10 -l 8.5
 ```
 will not start new jobs unless the load average on the node is a below 8.5.
 You can also use `ord_soumet` or if you are having a compile-open-house, ask for a interactive party node:
 ```
-> r.load /fs/ssm/main/opt/jobsubi/jobsubi-0.3
-> jobsubi --show-request  -r ncores=${nCores} ppp4
+$ r.load /fs/ssm/main/opt/jobsubi/jobsubi-0.3
+$ jobsubi --show-request  -r ncores=${nCores} ppp4
 ...
-> cd ${YOUR_MIDAS_PROJECT}/src
-> make -j ${nCores} -O  
+$ cd ${YOUR_MIDAS_PROJECT}/src
+$ make -j ${nCores} -O  
 ```
 (`nCores=8` is enough.)
 
@@ -226,12 +226,12 @@ What if you just modify the implementation of a function or subroutine without t
 You should not have to recompile other modules.
 But `make` won't know what you did, it will just look at the time stamp and decide to recompile everything that depends on the modified file.  Actually just touching the file, will make `make` thinks it needs to reprocess all dependent files:
 ```
-> make -n
+$ make -n
 ...
 make[2]: Nothing to be done for 'absolutes'
 ...
-> touch modules/varqc_mod.f90
-> make -n
+$ touch modules/varqc_mod.f90
+$ make -n
 s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/varqc_mod.f90 -o varqc_mod.o
 s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/minimization_mod.f90 -o minimization_mod.o
 s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/programs/var.f90 -o var.o
@@ -242,24 +242,24 @@ One solution to that is to first recompile the modified object (here
 `varqc_mod.o`) and `touch`  **the other intermediate targets** (using
 `make --touch` or `-t`) , making them newer that the dependencies:
 ```
-> make varqc_mod.o
+$ make varqc_mod.o
 ...
-> make -n | grep '^\-o'
+$ make -n | grep '^\-o'
 -o minimization_mod.o
 -o var.o
 -o var.Abs
-> make --touch minimization_mod.o var.o
+$ make --touch minimization_mod.o var.o
 touch minimization_mod.o
 touch var.o
 touch minimization_mod.o
 touch var.o
-> make -n | grep '^\-o'
+$ make -n | grep '^\-o'
 -o var.Abs
 ```
 (one can also use the phony target `objects` refering to all `.o` files.)
 Now we see that only the linking will be done.
 ```
-> make
+$ make
 ...
 ```
 This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
@@ -274,12 +274,12 @@ It is an issue (#444) we are aware of.
 It is thought a better practice to find out about these dependencies automatically.
 
 
-When `make` is called on a `clean` (or `cleandep`) state, it will determine its dependency trees using `makedepf90` and include it dynamically in the `Makefile` and then launch the build.
+When `make` is called on a `clean` (or `cleandep`) state, it will determine all objects dependencies using `makedepf90` and include it dynamically in the `Makefile` and then launch the build.
 
 Making only the dependencies: 
 ```
-> make depend 
-> tree ../compiledir
+$ make depend 
+$ tree ../compiledir
 ../compiledir
 └── v_3.5.2-133-g111551f_M
     └── ubuntu-18.04-skylake-64
@@ -309,7 +309,7 @@ There is no simple way to do that in Fortran 2003 (it is possible using Fortran 
 
 So if you find yourself in such a situation, rebuild explicitly the dependencies **before** rebuilding, using `cleandep`
 ```
-> make cleandep [depend|all|...]
+$ make cleandep [depend|all|...]
 ```
 
 
@@ -323,7 +323,7 @@ The first contains dependencies information and this is dealt with automatically
 The second one contain external libraries that are needed at link time by the programs.
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
 
-So **when a new program is added** or when **external libraries change for an existing program**, edit the `./programs/programs.mk` file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
+So **when a new program is added** or when **external libraries change for an existing program**, edit the [`./programs/programs.mk`](programs/programs.mk) file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
 ```
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
          rttov_parallel rttov_main rttov_emis_atlas rttov_other\
