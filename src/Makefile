@@ -294,6 +294,16 @@ _D_options=$(filter -D%,$(COMPF))
 %.o: $(DEP_OBJ) 
 %.Abs: $(DEP_ABS)
 
+
+## Compilation time modification to version_mod.f90
+.INTERMEDIATE:  version_mod.pp.f90
+
+version_mod.pp.f90: version_mod.f90
+	sed "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|$(VERSION)|g" $^ > $@ 
+version_mod.o: version_mod.pp.f90
+	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
+	-o $@
+
 ##-----------------------------------------------
 ## 	Dynamical include of automatically generated dependencies
 ## 		(see `depend` target)
