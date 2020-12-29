@@ -4580,9 +4580,11 @@ contains
     end if
 
     channelIndex_out = savedChannelIndexes(idsat,channelNumber_in)
+
     if (channelIndex_out == -1) then
       write(*,*) 'channel number requested = ', channelNumber_in
-      call utl_abort('tvs_getLocalChannelIndexFromChannelNumber: channel not found')
+      write(*,*) "idsat = ", idsat
+      write(*,*) "tvs_getLocalChannelIndexFromChannelNumber: warning channel not found"  
     end if
 
   end subroutine tvs_getLocalChannelIndexFromChannelNumber
