@@ -1201,7 +1201,7 @@ contains
           channelNumber = max(0, min(channelNumber, tvs_maxChannelNumber + 1))
           call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
           if (channelIndex == -1) then
-            write(*,*)`'Missing channel', id, channelNumber
+            write(*,*) 'Missing channel', id, channelNumber
             call utl_abort('irbg_doQualityControl')
           end if
           call obs_bodySet_r(obsSpaceData,OBS_SEM,bodyIndex,emi_sfc(channelIndex))
