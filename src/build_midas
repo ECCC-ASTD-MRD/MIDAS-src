@@ -118,7 +118,7 @@ wait ${PID_BACKEND}
 
 if ${CLEAN}
 then
-    make cleanabs DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
+    yes | make clean DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
     rm -rf .compile_job
 fi
 
