@@ -103,8 +103,13 @@ endif
 
 ## extract DIR_BLD_ROOT for simple NOPREQ_GOALS target
 ## (those that can be called without sourcing config)
+## extracting default value for DIR_* environment variables
+__sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
 ifndef DIR_BLD_ROOT
-DIR_BLD_ROOT := $(shell cat $(FILE_CFG) | grep DIR_BLD_ROOT= | cut -d= -f2)
+DIR_BLD_ROOT := $(shell cat $(FILE_CFG) | grep DIR_BLD_ROOT= | sed $(__sed_env_extr))
+endif
+ifndef DIR_ABS
+DIR_ABS := $(shell cat $(FILE_CFG) | grep DIR_ABS= | sed $(__sed_env_extr))
 endif
 
 ##  global cleaning target
@@ -112,14 +117,14 @@ endif
 .PHONY: clean
 
 clean:	#> delete all build directories (keep installed programs) 
-	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except midas_abs?"
+	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except $(DIR_ABS)?"
 	@echo \`\`\`
 	@echo find $(DIR_BLD_ROOT)/ -mindepth 1 \
-		! -regex "$(DIR_BLD_ROOT)/midas_abs\(/.*\)?" -delete
+		! -regex "$(DIR_BLD_ROOT)/$(DIR_ABS)\(/.*\)?" -delete
 	@echo \`\`\`
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 	find $(DIR_BLD_ROOT)/ -mindepth 1 \
-		! -regex "$(DIR_BLD_ROOT)/midas_abs\(/.*\)?" -delete
+		! -regex "$(DIR_BLD_ROOT)/$(DIR_ABS)\(/.*\)?" -delete
 
 
 .PHONY: help
@@ -246,7 +251,7 @@ DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
-ABS_INSTALL_DIR = $(DIR_BLD_ROOT)/midas_abs
+ABS_INSTALL_DIR = $(DIR_BLD_ROOT)/$(DIR_ABS)
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS)))
