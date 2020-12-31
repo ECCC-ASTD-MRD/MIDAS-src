@@ -391,13 +391,13 @@ depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
 ## specific cleaning target (depends on the config)
 .PHONY: cleanabs cleanobj cleandep
-cleanabs: cleanobj #> delete all build files (for this version)
+cleanabs:  #> delete all absolutes in build dir
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.Abs
 
-cleanobj: cleandep #> delete all objects and dependency files (for this version)
+cleanobj:  #> delete all objects in build dir
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
 
-cleandep:	#> delete all dependency files (for this version)
+cleandep:	#> delete all dependency files
 	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
 
 
