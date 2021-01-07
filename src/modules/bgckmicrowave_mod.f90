@@ -1170,15 +1170,15 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(:)      ! rogue factor 
-    real(8),     intent(in)                :: TOVERRST(:,:)      !  erreur totale TOVs
+    real,        intent(in)                :: ROGUEFAC(:)                    ! rogue factor 
+    real(8),     intent(in)                :: TOVERRST(:,:)                  !  erreur totale TOVs
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
-    real(8),     intent(in)                :: clwThreshArr(:,:,:) ! cloud threshold err
-    real(8),     intent(in)                :: sigmaObsErr(:,:,:) ! sigma obs  err
-    integer,     intent(in)                :: ktermer(KNT)              !
+    real(8),     intent(in)                :: clwThreshArr(:,:,:)            ! cloud threshold array
+    real(8),     intent(in)                :: sigmaObsErr(:,:,:)             ! sigma obs error
+    integer,     intent(in)                :: ktermer(KNT)                   ! land/sea identifier
     real,        intent(in)                :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
     real,        intent(in)                :: clwFG(KNT)                     ! retrieved cloud liquid water from background
-    real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
+    real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
     real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
@@ -3036,9 +3036,10 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                 IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                 KMARQ, B7CHCK, ICHECK)
+  subroutine atmsTest4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                                 clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                                 PTBOMP, clwObs, clwFG, IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                                 MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
     !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full).
@@ -3057,17 +3058,23 @@ end subroutine bennartz
     integer,     intent(in)              :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)              :: KNT                            ! nombre de tovs
     character *9,intent(in)              :: STNID                          ! identificateur du satellite
-    real,        intent(in)              :: ROGUEFAC(:)                  ! rogue factor 
-    real(8),     intent(in)              :: TOVERRST(:,:)                  !  erreur totale TOVs
+    real,        intent(in)              :: ROGUEFAC(:)                    ! rogue factor 
+    real(8),     intent(in)              :: TOVERRST(:,:)                  ! erreur totale TOVs
+    logical,     intent(in)              :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
+    real(8),     intent(in)              :: clwThreshArr(:,:,:)            ! cloud threshold array
+    real(8),     intent(in)              :: sigmaObsErr(:,:,:)             ! sigma obs error
+    logical,     intent(in)              :: waterobs(:)                    ! open water obs
     real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p 
+    real,        intent(in)              :: clwObs(:)
+    real,        intent(in)              :: clwFG(:)
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident  
     integer,     intent(in)              :: MXSFCREJ                       ! cst 
     integer,     intent(in)              :: ISFCREJ(MXSFCREJ)              !
-    integer,     intent(in)              :: MXCH2OMPREJ                       ! cst 
-    integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)              !
+    integer,     intent(in)              :: MXCH2OMPREJ                    ! cst 
+    integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)        !
     integer,     intent(inout)           :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)           :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(inout)           :: B7CHCK(KNO,KNT)          ! 
+    integer,     intent(inout)           :: B7CHCK(KNO,KNT)                ! 
 
     ! Locals
     integer                              :: channelval
@@ -3076,6 +3083,12 @@ end subroutine bennartz
     integer                              :: testIndex
     integer                              :: INDXCAN 
     real                                 :: XCHECKVAL
+    real                                 :: clwThresh1 
+    real                                 :: clwThresh2
+    real                                 :: sigmaThresh1 
+    real                                 :: sigmaThresh2
+    real                                 :: sigmaObsErrUsed  
+    real                                 :: clwObsFGaveraged 
     logical                              :: SFCREJCT
     logical                              :: CH2OMPREJCT
     logical                              :: IBIT 
@@ -3087,10 +3100,31 @@ end subroutine bennartz
         CH2OMPREJCT = .FALSE.
         do nChannelIndex=1,KNO
           channelval = KCANO(nChannelIndex,nDataIndex)
-          XCHECKVAL = ROGUEFAC(channelval) * &
-                     TOVERRST(channelval,KNOSAT) 
+          ! using state-dependent obs error only over water.
+          ! obs over sea-ice will be rejected in test 15.
+          if ( tvs_mwAllskyAssim .and. useStateDepSigmaObs(channelval,KNOSAT) &
+                .and. waterobs(nDataIndex) ) then
+            clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
+            clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
+            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
+            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
+            if ( clwObs(nDataIndex) == mwbg_realMissing ) then
+              sigmaObsErrUsed = MPC_missingValue_R4
+            else
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1, &
+                                                        sigmaThresh2,clwObsFGaveraged)
+            end if
+          else
+            sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
+          end if
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObs=mwbg_realMissing
+          ! in all-sky mode), the observation is flagged for rejection in 
+          ! mwbg_reviewAllcriteriaforFinalFlags.
+          XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      /= mwbg_realMissing    .and. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex))  >= XCHECKVAL     ) then
+              ABS(PTBOMP(nChannelIndex,nDataIndex))  >= XCHECKVAL .and. &
+              sigmaObsErrUsed /= MPC_missingValue_R4 ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
@@ -3222,10 +3256,10 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, zlat, zlon, ilq, itt, &
-                               zenith, qcflag2, qcflag1, ICANO, &
-                               ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                               ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, rclw2, riwv, &
+  subroutine mwbg_tovCheckAtms(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                               IUTILST, zlat, zlon, ilq, itt, zenith, qcflag2, qcflag1, &
+                               ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
+                               ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
                                STNID, RESETQC)
                                
 
@@ -3240,6 +3274,9 @@ end subroutine bennartz
     !                                                            2 (assimilate over open water only)
 
     real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
+    real(8), intent(in)              :: clwThreshArr(:,:,:)
+    real(8), intent(in)              :: sigmaObsErr(:,:,:)
+    logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, intent(in)              :: KNO                    ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                    ! nombre de tovs
     real,    intent(in)              :: zlat(:)
@@ -3267,8 +3304,8 @@ end subroutine bennartz
     integer, intent(inout)           :: IMARQ(:)               ! marqueurs des radiances
     !                                                          satellite, critere et par canal
     !                                                             (chech n2) par satellite, critere et par canal
-    real, allocatable, intent(out)   :: rclw (:)
-    real, allocatable, intent(out)   :: rclw2 (:)
+    real, allocatable, intent(out)   :: clwObs(:)
+    real, allocatable, intent(out)   :: clwFG(:)
     real, allocatable, intent(out)   :: riwv(:)
 
     !locals
@@ -3295,6 +3332,7 @@ end subroutine bennartz
     integer, parameter               :: MXSFCREJ   = 8 
     integer, parameter               :: MXCH2OMPREJ= 6  
     integer, parameter               :: MXTOPO     = 5 
+    integer, parameter               :: MXCLWREJ   = 6
     integer                          :: iRej 
     integer                          :: iNumSeaIce 
     integer                          :: JI
@@ -3307,6 +3345,7 @@ end subroutine bennartz
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest) 
+    integer                          :: ICLWREJ(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO) 
     logical, save                    :: LLFIRST
     integer, save                    :: numReportWithMissigTb
@@ -3346,6 +3385,9 @@ end subroutine bennartz
     !              1  2  3  4  5 
     ITEST(:)  = 0
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
+
+    ! Channels excluded from gen_bias_corr in all-sky mode
+    ICLWREJ(:) = (/ 1, 2, 3, 4, 5, 6/)
        
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3395,14 +3437,14 @@ end subroutine bennartz
     end do
 
     !###############################################################################
-    ! STEP 4 ) mwbg_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice 
-    !          detection missing value for  rclw, scatec, scatbg  is -99.0 (e.g. over
+    ! STEP 4 ) mwbg_nrlFilterAtms returns clwObs, clwFG, scatec, scatbg and also does sea-ice 
+    !          detection missing value for  clwObs, scatec, scatbg  is -99.0 (e.g. over
     !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
  
-    call mwbg_nrlFilterAtms(KNT, KNO, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
-                            grossrej, rclw, rclw2, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
+    call mwbg_nrlFilterAtms(KNT, KNO, ztb, zomp, biasCorr, zenith, zlat, lsq, trn, waterobs, &
+                            grossrej, clwObs, clwFG, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
       
@@ -3412,7 +3454,7 @@ end subroutine bennartz
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
     
-    call mwbg_flagDataUsingNrlCriteria(KNT, KNO, ztb, biasCorr, rclw, scatec, scatbg, &
+    call mwbg_flagDataUsingNrlCriteria(KNT, KNO, ztb, biasCorr, clwObs, scatec, scatbg, &
                                        SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
 
@@ -3428,10 +3470,11 @@ end subroutine bennartz
     !            for ch.20-22 over land)
     !###############################################################################
 
-    call mwbg_reviewAllcriteriaforFinalFlags(KNT,KNO, lqc, grossrej, waterobs, &
-                                             precipobs, rclw, scatec, scatbg, iwvreject, riwv, &
-                                             IMARQ, globMarq, zdi, ident, drycnt, landcnt, rejcnt, &
-                                             iwvcnt, pcpcnt, flgcnt)
+    call mwbg_reviewAllcriteriaforFinalFlags(KNT, KNO, lqc, grossrej, waterobs, &
+                                             precipobs, clwObs, clwFG, scatec, scatbg, &
+                                             iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
+                                             drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                             MXCLWREJ, ICLWREJ, icano)
 
     !###############################################################################
     ! PART 2 TESTS:
@@ -3471,9 +3514,10 @@ end subroutine bennartz
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
-    call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                              IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                              KMARQ,  B7CHCK, ICHECK)
+    call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                              clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                              PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                              MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
  
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
@@ -4373,20 +4417,21 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterAtms(ni, KNO, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
-                                grossrej, clw, clw2, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
+  subroutine mwbg_nrlFilterAtms(ni, KNO, ztbcor, zomp, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
+                                grossrej, clwObs, clwFG, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
     !                  - sea ice, 
-    !                  - cloud liquid water (clw), 
+    !                  - cloud liquid water from observation (clwObs), 
+    !                  - cloud liquid water from first guess (clwFG), 
     !                  - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
     !               The five channels used are: 23Ghz, 31Ghz, 50Ghz, 89Ghz, and 165Ghz.
     !
     !NOTES*
     !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
     !                   and iglace (itt or terrain type) is changed accordingly
-    !                - clw are missing when out-of-range parameters/Tb detected or grossrej = .true.
-    !                - clw and si only computed over open water away from coasts and sea-ice
-    !                - clw and si = -99.0 where value cannot be computed.
+    !                - clwObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !                - clwObs and si only computed over open water away from coasts and sea-ice
+    !                - clwObs and si = -99.0 where value cannot be computed.
     !
     !REFERENCES     Ben Ruston, NRL Monterey
     !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
@@ -4397,7 +4442,9 @@ end subroutine bennartz
     !                                        1, input parameter out of range or grossrej=.true. 
     !               - ni          - input  -  number of points to process (= NT)
     !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1
+    !               - tb23_P      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
     !               - tb31        - input  -  31Ghz brightness temperature (K) -- ch. 2
+    !               - tb31_P      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
     !               - tb50        - input  -  50Ghz brightness temperature (K) -- ch. 3
     !               - tb89        - input  -  89Ghz brightness temperature (K) -- ch. 16
     !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
@@ -4407,7 +4454,8 @@ end subroutine bennartz
     !               - iglace      - in/out -  terrain type (0=ice, -1 otherwise)
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
-    !               - clw         - output -  cloud liquid water (kg/m**2) from tb23 & tb31
+    !               - clwObs      - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
+    !               - clwFG       - output -  cloud liquid water from first guess (kg/m**2) from tb23_P & tb31_P
     !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
     !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
@@ -4438,11 +4486,12 @@ end subroutine bennartz
     logical, intent(inout)                ::  waterobs(:)
 
     real, intent(in)                      ::  ztbcor(:)
+    real, intent(in)                      ::  zomp(:)
     real, intent(in)                      ::  biasCorr(:)
     real, intent(in)                      ::  pangl(:)
     real, intent(in)                      ::  plat(:)
-    real, allocatable, intent(out)        ::  clw (:)
-    real, allocatable, intent(out)        ::  clw2 (:)
+    real, allocatable, intent(out)        ::  clwObs(:)
+    real, allocatable, intent(out)        ::  clwFG(:)
     real, allocatable, intent(out)        ::  si_ecmwf(:) 
     real, allocatable, intent(out)        ::  si_bg(:) 
     real, allocatable, intent(out)        ::  SeaIce(:) 
@@ -4451,7 +4500,9 @@ end subroutine bennartz
     integer                               :: ier(ni)
     real                                  ::  ice(ni)
     real                                  :: tb23(ni)
+    real                                  :: tb23_P(ni)
     real                                  :: tb31(ni)
+    real                                  :: tb31_P(ni)
     real                                  :: tb50(ni)
     real                                  :: tb89(ni)
     real                                  :: tb165(ni)
@@ -4468,15 +4519,17 @@ end subroutine bennartz
     real                                  :: abslat
     real                                  :: cosz
     real                                  :: t23
+    real                                  :: t23_P
     real                                  :: t31
+    real                                  :: t31_P
     real                                  :: t50
     real                                  :: t89
     real                                  :: t165
 
 
     ! Allocation
-    call utl_reAllocate(clw,ni)
-    call utl_reAllocate(clw2,ni)
+    call utl_reAllocate(clwObs,ni)
+    call utl_reAllocate(clwFG,ni)
     call utl_reAllocate(si_ecmwf,ni)
     call utl_reAllocate(si_bg,ni)
     call utl_reAllocate(SeaIce,ni)
@@ -4493,8 +4546,10 @@ end subroutine bennartz
     do ii = 1, ni
       indx2 = ii*KNO
       tb23(ii)      = ztbcor(indx1)
+      tb23_P(ii)    = ztbcor(indx1) - zomp(indx1)
       bcor23(ii)    = biasCorr(indx1)
       tb31(ii)      = ztbcor(indx1+1)
+      tb31_P(ii)    = ztbcor(indx1+1) - zomp(indx1+1)
       bcor31(ii)    = biasCorr(indx1+1)
       tb50(ii)      = ztbcor(indx1+2)
       bcor50(ii)    = biasCorr(indx1+2)
@@ -4506,15 +4561,12 @@ end subroutine bennartz
     end do
     
     ier = 0
-    ! 0) Allocation
-    ! a prevoir pour clw, si_ecmwf, si_bg, SeaIce
-
 
     ! 1) Initialise parameters:
     do i = 1, ni
       ice(i)      = mwbg_realMissing
-      clw(i)      = mwbg_realMissing
-      clw2(i)     = mwbg_realMissing
+      clwObs(i)   = mwbg_realMissing
+      clwFG(i)    = mwbg_realMissing
       si_ecmwf(i) = mwbg_realMissing
       si_bg(i)    = mwbg_realMissing
       SeaIce(i)   = 0.0
@@ -4559,6 +4611,8 @@ end subroutine bennartz
           t165 = tb165(i) - bcor165(i)
         end if
         deltb = t89 - t165
+        t23_P = tb23_P(i)
+        t31_P = tb31_P(i)
 
         ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
         if ( ilansea(i) == 1 ) then  ! water point
@@ -4579,16 +4633,20 @@ end subroutine bennartz
           
         end if
 
-        ! Compute CLW and Scattering Indices (over open water only)
+        ! Compute clwObs, clwFG, and Scattering Indices (over open water only)
         if ( waterobs(i) ) then
           if ( t23 < 284. .and. t31 < 284. ) then
-            aa = 8.24 - (2.622 - 1.846*cosz)*cosz
-            clw(i) = aa + 0.754*alog(285.0-t23) - 2.265*alog(285.0-t31)
-            clw(i) = clw(i)*cosz
-            if ( clw(i) .lt. 0.0 ) clw(i) = 0.0
+            aa = 8.24 - (2.622 - 1.846 * cosz) * cosz
+            clwObs(i) = aa + 0.754 * alog(285.0 - t23) - 2.265 * alog(285.0 - t31)
+            clwObs(i) = clwObs(i) * cosz
+            if ( clwObs(i) < 0.0 ) clwObs(i) = 0.0
+
+            clwFG(i) = aa + 0.754 * alog(285.0 - t23_P) - 2.265 * alog(285.0 - t31_P)
+            clwFG(i) = clwFG(i) * cosz
+            if ( clwFG(i) < 0.0 ) clwFG(i) = 0.0
           end if
-          si_ecmwf(i) = deltb - (-46.94 + 0.248*pangl(i))
-          si_bg(i)    = deltb - (-39.201 + 0.1104*pangl(i))
+          si_ecmwf(i) = deltb - (-46.94 + 0.248 * pangl(i))
+          si_bg(i)    = deltb - (-39.201 + 0.1104 * pangl(i))
         end if
 
       else  ! ier(i) .eq. 1 case
@@ -4598,10 +4656,10 @@ end subroutine bennartz
 
       if ( mwbg_debug .and. (i <= 100) ) then
         write(*,*) ' '
-        write(*,*) ' i,tb23(i),tb31(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i) = ', &
-     &             i,tb23(i),tb31(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i)
-        write(*,*) ' ier(i),ice(i),clw(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
-     &             clw(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
+        write(*,*) ' i,tb23(i),tb23_P(i),tb31(i),tb31_P(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i) = ', &
+     &             i,tb23(i),tb23_P(i),tb31(i),tb31_P(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i)
+        write(*,*) ' ier(i),ice(i),clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
+     &             clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
       end if
 
     end do   ! i loop over ni points
@@ -4611,7 +4669,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCriteria 
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCriteria(nt, nval, ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
+  subroutine mwbg_flagDataUsingNrlCriteria(nt, nval, ztbcor, biasCorr, clwObs, scatec, scatbg, SeaIce, grossrej, waterobs, &
                                            useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
@@ -4634,7 +4692,7 @@ end subroutine bennartz
     integer, intent(in)                        :: nval 
     real, intent(in)                           :: ztbcor(:)
     real, intent(in)                           :: biasCorr(:)
-    real, intent(in)                           :: rclw (:)
+    real, intent(in)                           :: clwObs (:)
     real, intent(in)                           :: scatec(:) 
     real, intent(in)                           :: scatbg(:) 
     real, intent(in)                           :: SeaIce (:)
@@ -4727,18 +4785,18 @@ end subroutine bennartz
 
     where ( grossrej ) ident = IBSET(ident,11)
     where ( scatec > scatec_atms_nrl_LTrej .or. scatbg > scatbg_atms_nrl_LTrej ) precipobs = .true.
-    n_cld = count(rclw > clw_atms_nrl_LTrej)
+    n_cld = count(clwObs > clw_atms_nrl_LTrej)
     cldcnt  = cldcnt  + n_cld
-    where ( (rclw > clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
+    where ( (clwObs > clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
     where ( waterobs )  ident = IBSET(ident,0)
     where ( iwvreject ) ident = IBSET(ident,5)
     where ( precipobs ) ident = IBSET(ident,4)
-    where ( rclw > clw_atms_nrl_LTrej) ident = IBSET(ident,3)
-    where ( rclw > clw_atms_nrl_UTrej) ident = IBSET(ident,6)
+    where ( clwObs > clw_atms_nrl_LTrej) ident = IBSET(ident,3)
+    where ( clwObs > clw_atms_nrl_UTrej) ident = IBSET(ident,6)
     where ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) ident = IBSET(ident,8)
     where ( SeaIce >= 0.55 ) ident = IBSET(ident,10)
       
-    where ( waterobs .and. (rclw == -99.) ) ident = IBSET(ident,2)
+    where ( waterobs .and. (clwObs == -99.) ) ident = IBSET(ident,2)
     where ( riwv == -99.)                   ident = IBSET(ident,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
@@ -4761,9 +4819,11 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_reviewAllcriteriaforFinalFlags
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
-                                                 scatbg, iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
-                                                 drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt)
+  subroutine mwbg_reviewAllcriteriaforFinalFlags(nt, nval, lqc, grossrej, waterobs, &
+                                                 precipobs, clwObs, clwFG, scatec, scatbg, &
+                                                 iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
+                                                 drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                                 MXCLWREJ, ICLWREJ, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
     !                            for assimilation and which are to be flagged for exclusion (lflagchn). 
@@ -4776,7 +4836,8 @@ end subroutine bennartz
     integer, intent(in)                        :: nt  
     integer, intent(in)                        :: nval 
     logical, intent(in)                        :: lqc(:,:)
-    real, intent(inout)                        :: rclw (:)
+    real, intent(inout)                        :: clwObs(:)
+    real, intent(inout)                        :: clwFG(:)
     real, intent(in)                           :: scatec(:) 
     real, intent(in)                           :: scatbg(:) 
     logical, intent(in)                        :: grossrej(:)
@@ -4794,10 +4855,14 @@ end subroutine bennartz
     integer, intent(inout)                     :: iwvcnt 
     integer, intent(inout)                     :: pcpcnt 
     integer, intent(inout)                     :: flgcnt 
+    integer, intent(in)                        :: MXCLWREJ
+    integer, intent(in)                        :: ICLWREJ(:)
+    integer, intent(in)                        :: icano(:)
 
     ! Locals
+    real                                       :: clwObsFGaveraged 
     logical, allocatable                       :: lflagchn(:,:)
-    integer                                    :: kk, j, ipos
+    integer                                    :: kk, j, ipos, INDXCAN
 
 
     ! Allocation
@@ -4838,7 +4903,13 @@ end subroutine bennartz
           end if
         end if
         ! OVER WATER,
-        !    -- reject ch. 1-6, 16-20 if CLW > clw_atms_nrl_LTrej or CLW = -99.0
+        !    in clear-sky mode:
+        !    -- reject ch. 5-6, if CLW > clw_atms_nrl_LTrej or CLW = -99.0
+        !    in all-sky mode:
+        !    -- reject ch. 5-6, if CLW > mwbg_clwQcThreshold or CLW = -99.0
+        !
+        !    -- reject ch. 1-4, if CLW > clw_atms_nrl_LTrej or CLW = -99.0
+        !    -- reject ch. 16-20 if CLW > clw_atms_nrl_LTrej or CLW = -99.0
         !    -- reject ch. 7-9, 21-22 if CLW > clw_atms_nrl_UTrej or CLW = -99.0
         !    -- reject ch. 1-6, 16-22 if scatec > 9  or scatec = -99.0
         !    -- reject ch. 7-9        if scatec > 18 or scatec = -99.0
@@ -4846,11 +4917,17 @@ end subroutine bennartz
         !    -- reject ch. 7-9        if scatbg > 15 or scatbg = -99.0
         !    -- reject ch. 16-22      if iwvreject = .true.   [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
         if  ( waterobs(kk) ) then
-          if ( rclw(kk)   >  clw_atms_nrl_LTrej )  then
-            lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel) = .true.
+          if ( clwObs(kk)   >  clw_atms_nrl_LTrej )  then
+            if ( tvs_mwAllskyAssim ) then
+              lflagchn(kk,1:4) = .true.
+              clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
+              if ( clwObsFGaveraged > mwbg_clwQcThreshold ) lflagchn(kk,5:6) = .true.
+            else
+              lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel) = .true.
+            end if
             lflagchn(kk,16:20) = .true. 
           end if
-          if ( rclw(kk)   >  clw_atms_nrl_UTrej )  then
+          if ( clwObs(kk)   >  clw_atms_nrl_UTrej )  then
             lflagchn(kk,7:9)   = .true.
             lflagchn(kk,21:22) = .true. 
           end if
@@ -4862,7 +4939,7 @@ end subroutine bennartz
           if ( scatbg(kk) >  scatbg_atms_nrl_LTrej ) lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           if ( scatbg(kk) >  scatbg_atms_nrl_UTrej ) lflagchn(kk,7:9) = .true.
           if ( iwvreject(kk) ) lflagchn(kk,16:22) = .true.
-          if ( rclw(kk) == -99. ) then
+          if ( clwObs(kk) == -99. ) then
             ident(kk) = IBSET(ident(kk),2)
             lflagchn(kk,1:9)   = .true.
             lflagchn(kk,16:22) = .true.
@@ -4872,7 +4949,7 @@ end subroutine bennartz
             lflagchn(kk,16:22) = .true.
           end if           
         end if
-    
+
       end if
 
       if ( .not. waterobs(kk) ) landcnt  = landcnt  + 1
@@ -4887,20 +4964,33 @@ end subroutine bennartz
 
     ! RESET riwv array to ECMWF scattering index for output to BURP file
     riwv(:) = scatec(:)
-     ! Set missing rclw and riwv to BURP missing value (mwbg_realMissing)
-    where (rclw == -99. ) rclw = mwbg_realMissing
+    ! Set missing clwObs and riwv to BURP missing value (mwbg_realMissing)
+    where (clwObs == -99. ) clwObs = mwbg_realMissing
+    where (clwObs == -99. ) clwFG = mwbg_realMissing
     where (riwv == -99. ) riwv = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data  
+    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when 
+    ! there is mismatch between clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
     do kk =1, nt
+      clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
+
       do j = 1, nval
         ipos = ipos + 1
         if (lflagchn(kk,j)) then
           IMARQ(ipos) = IBSET(IMARQ(ipos),7)
         end if
+
+        INDXCAN = ISRCHEQI(ICLWREJ, MXCLWREJ, ICANO(ipos))
+        if ( tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
+             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
+              clwObs(kk) == mwbg_realMissing) ) then
+          IMARQ(ipos) = IBSET(IMARQ(ipos),23)
+        end if
       end do
     end do
+
 
     ! Set bit 6 in 24-bit global flags if any data rejected  
     do kk =1, nt
@@ -5271,7 +5361,8 @@ end subroutine bennartz
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 atmScatteringIndex, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(oer_toverrst, oer_tovutil, obsLatitude, obsLongitude,&
+        call mwbg_tovCheckAtms(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+                               oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, &
                                obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
