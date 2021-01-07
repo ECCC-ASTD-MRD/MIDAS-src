@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
 
 ### Removed
 
