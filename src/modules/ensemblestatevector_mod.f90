@@ -2035,7 +2035,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
-    type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid
+    type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid, hco_compgrid
     type(struct_vco), pointer :: vco_file, vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
@@ -2153,10 +2153,18 @@ CONTAINS
     horizontalPaddingNeeded = .false.
     if ( .not. hco_file%global ) then
       hco_coregrid => agd_getHco('CoreGrid')
-      if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
-        if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
+      hco_compgrid => agd_getHco('ComputationalGrid')
+      if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj ) then
+        if (mpi_myid == 0) then
+          write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
+        end if
         horizontalInterpNeeded = .false.
-        horizontalPaddingNeeded = .true.
+        if ( hco_file%ni /= hco_compgrid%ni .or. hco_file%nj /= hco_compgrid%nj ) then
+          if (mpi_myid == 0) then
+            write(*,*) 'ens_readEnsemble: horizontal padding needed for limited-area ensemble'
+          end if
+          horizontalPaddingNeeded = .true.
+        end if
       end if
     end if
 
