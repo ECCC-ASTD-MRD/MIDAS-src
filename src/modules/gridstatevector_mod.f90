@@ -5894,6 +5894,7 @@ module gridStateVector_mod
                              allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
                              hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree,           &
                              hExtrapolateDegree_opt=stateVector_trial%hExtrapolateDegree)
+          call gsv_zero( stateVector_1step_r4 )
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
         end if

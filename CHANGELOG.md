@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix uninitialized `statevector` object in `gsv_readTrials` and activation of
+   horizontal padding for limited-area ensembles (#451 and !423)
  * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
 
 ## [3.6.0-rc6]
