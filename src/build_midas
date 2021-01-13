@@ -61,15 +61,15 @@ typeset __target
 if [ $# -eq 0 ]
 ## default: make all 
 then 
-    __job="make all -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT}  VERBOSE=${VERBOSE}"
+    __job="make all -j ${NCORES} -O  COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN}  VERBOSE=${VERBOSE}"
 else
     __target=$@
-    __job="make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}"
+    __job="make ${__target} -j ${NCORES} -O  COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN} VERBOSE=${VERBOSE}"
 fi
 
-if [ "${INSTALL_ALWAYS}" == "true" ]
+if [ "${__install_always_midas}" == "true" ]
 then 
-    __job="${__job} && make install -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} DIR_ABS=${DIR_ABS} VERBOSE=${VERBOSE}"
+    __job="${__job} && make install -j ${NCORES} -O  COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN} __exec_leafdir_midas=${__exec_leafdir_midas} VERBOSE=${VERBOSE}"
 fi
 
 ##=========================================================
@@ -125,7 +125,7 @@ wait ${PID_BACKEND}
 
 if ${CLEAN}
 then
-    yes | make clean DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
+    yes | make clean COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN} VERBOSE=${VERBOSE}
     rm -rf .compile_job
 fi
 
@@ -134,7 +134,7 @@ echo "######################################"
 echo "#"
 echo "#  MIDAS COMPILATION COMPLETED"
 echo "#"
-echo "#  > ${DIR_BLD_ROOT}"
+echo "#  > ${COMPILEDIR_MIDAS_MAIN}"
 echo "#"
 echo "######################################"
 

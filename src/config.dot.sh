@@ -9,10 +9,7 @@ set -x
 BACKEND=${BACKEND:-daley}
 FRONTEND=${FRONTEND:-eccc-ppp4}
 JOBNAME=${JOBNAME:-midasCompilation}
-DIR_BLD_ROOT=${DIR_BLD_ROOT:-${HOME}/data_maestro/ords/midas-bld}
-DIR_ABS=${DIR_ABS:-midas_abs}
-INSTALL_ALWAYS=${INSTALL_ALWAYS:-true}
-DIR_BLD_LINK=${DIR_BLD_LINK:-../compiledir}
+COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 NCORES=${NCORES:-8}
 VERBOSE=${VERBOSE:-2}
 CLEAN=${CLEAN:-false}
@@ -32,6 +29,17 @@ SSM_VERSION=${SSM_VERSION:-3.6.0}
 
 
 ###########################################################
+##  LESS-USER-FRIENDLY CONFIGURATION
+##
+##  these should not be changed unless you know what you're doing
+##  it can impact the maestro testing suite or the cleaning targets
+##  in unwated ways
+__exec_leafdir_midas=${__exec_leafdir_midas:-midas_abs}
+__install_always_midas=${__install_always_midas:-true}
+__compiledir_link=${__compiledir_link:-../compiledir}
+
+
+###########################################################
 ##  compilation and SSM needed for compilation
 ##
 ## -- should not change that
@@ -39,9 +47,9 @@ __midas_dot_cfg=${PWD}/programs/commons/compile_setup.sh
 set +x
 
 ##  linking the build directory where it used to be
-([ -d  ${DIR_BLD_LINK} ]||[ -L ${DIR_BLD_LINK} ]) \
-&& echo "${DIR_BLD_LINK}  already exists: not creating link." \
-|| ln -s ${DIR_BLD_ROOT} ${DIR_BLD_LINK}
+([ -d  ${__compiledir_link} ]||[ -L ${__compiledir_link} ]) \
+&& echo "${__compiledir_link}  already exists: not creating link." \
+|| ln -s ${COMPILEDIR_MIDAS_MAIN} ${__compiledir_link}
 
 ##  sourcing compilation configuration and SSM packages
 source ${__midas_dot_cfg} || false
@@ -58,8 +66,8 @@ fi
 export BACKEND
 export FRONTEND
 export JOBNAME
-export DIR_ABS
-export INSTALL_ALWAYS 
+export __exec_leafdir_midas
+export __install_always_midas 
 export NCORES
 export VERBOSE
 export CLEAN

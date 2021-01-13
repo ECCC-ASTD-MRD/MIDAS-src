@@ -5,7 +5,7 @@ The present `README` **assumes you are in the `src` directory** (the directory i
 
 ## I just want to build
 
-From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `BACKEND`, `FRONTEND` or `DIR_BLD_ROOT`), but the defaults should ne just fine, then
+From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `BACKEND`, `FRONTEND` or `COMPILEDIR_MIDAS_MAIN`), but the defaults should ne just fine, then
 ```
 $ ./build_midas
 ...
@@ -29,7 +29,7 @@ It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or
 `Banting`) submitting jobs with the number of cores specified in 
 `config.dot.sh` (8 seems to be optimal).
 It will then install (copy) the absolutes in the directory 
-`${DIR_BLD_ROOT}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
+`${COMPILEDIR_MIDAS_MAIN}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
 
 ## Using `build-midas` for specific targets
 `build-midas` is a wrapper around 
@@ -160,19 +160,19 @@ Some frequently used phony targets are:
 * `all` : compile all programs on current architecture 
 * `info` : print information to stdout
 * `install` : install all compiled programs   
-  Copy them in `${DIR_BLD_ROOT}/midas_abs/` and rename them with version number:  
+  Copy them in `${COMPILEDIR_MIDAS_MAIN}/midas_abs/` and rename them with version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
 * `info` : print information to stdout
 * `clean` : remove all objects, programs, intermediate files, everything that was produced by `make` **from all versions of MIDAS** in the build directory.
-* `cleanabs` : remove all but installed programs in `${DIR_BLD_ROOT}/midas_abs`
+* `cleanabs` : remove all but installed programs in `${COMPILEDIR_MIDAS_MAIN}/midas_abs`
 * `cleanobj` : remove objects and dependencies
 * `cleandep` : remove dependencies files ([see Automatic dependencies below](#automatic-dependencies))
 
 Omitting the target defaults to `all`.
 
 ### The `install` target
-Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${DIR_BLD_ROOT}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
+Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${COMPILEDIR_MIDAS_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
 
 
 A complete install is then 
