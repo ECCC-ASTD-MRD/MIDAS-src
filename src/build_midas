@@ -59,14 +59,21 @@ function is_compilation_done_frontend {
 typeset __target
 
 if [ $# -eq 0 ]
-## default: make all && make install
+## default: make all 
 then 
-    __job="make all -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} && make install -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}"
+    __job="make all -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT}  VERBOSE=${VERBOSE}"
 else
     __target=$@
     __job="make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}"
 fi
 
+if [ "${INSTALL_ALWAYS}" == "true" ]
+then 
+    __job="${__job} && make install -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} DIR_ABS=${DIR_ABS} VERBOSE=${VERBOSE}"
+fi
+
+##=========================================================
+##  Compilation on backend (in the background)
 
 ##=========================================================
 ##  sourcing user configuration
