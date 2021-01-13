@@ -101,15 +101,15 @@ endif
 ## 	can only be used in target.mk
 ## 	can be initialized from parent shell
 
-## extract DIR_BLD_ROOT for simple NOPREQ_GOALS target
+## extract COMPILEDIR_MIDAS_MAIN for simple NOPREQ_GOALS target
 ## (those that can be called without sourcing config)
 ## extracting default value for DIR_* environment variables
 __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
-ifndef DIR_BLD_ROOT
-DIR_BLD_ROOT := $(shell cat $(FILE_CFG) | grep DIR_BLD_ROOT= | sed $(__sed_env_extr))
+ifndef COMPILEDIR_MIDAS_MAIN
+COMPILEDIR_MIDAS_MAIN := $(shell cat $(FILE_CFG) | grep COMPILEDIR_MIDAS_MAIN= | sed $(__sed_env_extr))
 endif
-ifndef DIR_ABS
-DIR_ABS := $(shell cat $(FILE_CFG) | grep DIR_ABS= | sed $(__sed_env_extr))
+ifndef __exec_leafdir_midas
+__exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | sed $(__sed_env_extr))
 endif
 
 ##  global cleaning target
@@ -117,14 +117,14 @@ endif
 .PHONY: clean
 
 clean:	#> delete all build directories (keep installed programs) 
-	@echo "Delete **all build directories** in $(DIR_BLD_ROOT) except $(DIR_ABS)?"
+	@echo "Delete **all build directories** in $(COMPILEDIR_MIDAS_MAIN) except $(__exec_leafdir_midas)?"
 	@echo \`\`\`
-	@echo find $(DIR_BLD_ROOT)/ -mindepth 1 \
-		! -regex "$(DIR_BLD_ROOT)/$(DIR_ABS)\(/.*\)?" -delete
+	@echo find $(COMPILEDIR_MIDAS_MAIN)/ -mindepth 1 \
+		! -regex "$(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
 	@echo \`\`\`
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-	find $(DIR_BLD_ROOT)/ -mindepth 1 \
-		! -regex "$(DIR_BLD_ROOT)/$(DIR_ABS)\(/.*\)?" -delete
+	find $(COMPILEDIR_MIDAS_MAIN)/ -mindepth 1 \
+		! -regex "$(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
 
 
 .PHONY: help
@@ -187,7 +187,7 @@ endif
 ##		1. `make` is called from `./src`
 ##		2. gets here and `target.mk` is included
 ##		3. `target.mk` move us into the build directory:
-##         `$(DIR_BLD_ROOT)/$(revnum)/$(EC_ARCH)`
+##         `$(COMPILEDIR_MIDAS_MAIN)/$(revnum)/$(EC_ARCH)`
 ##		4. defines the relative position of the `Makefile` with
 ##		   $(SRC_ROOT) used in the `else` section
 ##		5. it calls `make` from there (allowing clean out-of-tree compilation)
@@ -251,7 +251,7 @@ DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
-ABS_INSTALL_DIR = $(DIR_BLD_ROOT)/$(DIR_ABS)
+ABS_INSTALL_DIR = $(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS)))
@@ -392,13 +392,13 @@ depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 ## specific cleaning target (depends on the config)
 .PHONY: cleanabs cleanobj cleandep
 cleanabs:  #> delete all absolutes in build dir
-	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.Abs
+	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.Abs
 
 cleanobj:  #> delete all objects in build dir
-	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.o $(DIR_BLD_ROOT)/*/*/*/*.mod 
+	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.o $(COMPILEDIR_MIDAS_MAIN)/*/*/*/*.mod 
 
 cleandep:	#> delete all dependency files
-	rm -rf $(DIR_BLD_ROOT)/$(VERSION)/*/*/*.inc $(DIR_BLD_ROOT)/*/*/*/*.f90
+	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.inc $(COMPILEDIR_MIDAS_MAIN)/*/*/*/*.f90
 
 
 ##-----------------------------------------------
@@ -421,7 +421,7 @@ endif
 SSM_PKGNAME ?= midas
 
 __ssm_target_version := $(SSM_TARGET)/$(SSM_VERSION)
-__ssm_workdir_base := $(DIR_BLD_ROOT)/$(VERSION)/ssm_build
+__ssm_workdir_base := $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/ssm_build
 __ssm_fullname := $(SSM_PKGNAME)_$(SSM_VERSION)_$(ORDENV_PLAT)
 __ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
 
