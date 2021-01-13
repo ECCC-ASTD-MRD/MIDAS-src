@@ -11,6 +11,7 @@ FRONTEND=${FRONTEND:-eccc-ppp4}
 JOBNAME=${JOBNAME:-midasCompilation}
 DIR_BLD_ROOT=${DIR_BLD_ROOT:-${HOME}/data_maestro/ords/midas-bld}
 DIR_ABS=${DIR_ABS:-midas_abs}
+INSTALL_ALWAYS=${INSTALL_ALWAYS:-true}
 DIR_BLD_LINK=${DIR_BLD_LINK:-../compiledir}
 NCORES=${NCORES:-8}
 VERBOSE=${VERBOSE:-2}
@@ -57,8 +58,8 @@ fi
 export BACKEND
 export FRONTEND
 export JOBNAME
-export DIR_BLD_ROOT
 export DIR_ABS
+export INSTALL_ALWAYS 
 export NCORES
 export VERBOSE
 export CLEAN
