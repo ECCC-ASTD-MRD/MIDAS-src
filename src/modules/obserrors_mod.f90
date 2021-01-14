@@ -59,6 +59,8 @@ module obsErrors_mod
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: oer_clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: clearClwThresholdSigmaObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: stateDepSigmaObsInflationCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
@@ -144,8 +146,6 @@ module obsErrors_mod
 
   logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, useTovsUtil
   logical :: mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
-  real(8) :: clearClwThresholdSigmaObsInflation(5)
-  real(8) :: stateDepSigmaObsInflationCoeff
 
   character(len=48) :: obserrorMode
 
@@ -192,8 +192,6 @@ contains
     integer :: fnom, fclos, ierr, nulnam  
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
-    namelist /namoer/ clearClwThresholdSigmaObsInflation
-    namelist /namoer/ stateDepSigmaObsInflationCoeff
 
     !
     !- 1.  Setup Mode
@@ -213,10 +211,6 @@ contains
     visAndGustAdded = .false.
     mwAllskyInflateByOmp = .false.
     mwAllskyInflateByClwDiff = .false.
-    clearClwThresholdSigmaObsInflation(:) = 0.03D0
-    clearClwThresholdSigmaObsInflation(1) = 0.05D0
-    clearClwThresholdSigmaObsInflation(4) = 0.02D0
-    stateDepSigmaObsInflationCoeff = 13.0D0
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
       nulnam = 0
@@ -324,6 +318,8 @@ contains
     real(8) :: clwThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: sigmaObsErrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(8) :: clearClwThresholdSigmaObsInflationInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(8) :: stateDepSigmaObsInflationCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
@@ -344,6 +340,10 @@ contains
     IUTILST(:,:) = 0
     useStateDepSigmaObs(:,:) = .false.
     useStateDepSigmaObsInput(:,:) = 0
+    clearClwThresholdSigmaObsInflation(:,:) = 0.0d0
+    clearClwThresholdSigmaObsInflationInput(:,:) = 0.0d0
+    stateDepSigmaObsInflationCoeff(:) = 0.0d0
+    stateDepSigmaObsInflationCoeffInput(:) = 0.0d0
 
     IPLATFORM(:) = 0
     NUMCHN(:) = 0
@@ -440,7 +440,7 @@ contains
         write(*,*) "CINSTR: ",CINSTR
         write(*,*) "CPLATF: ",CPLATF
         read(ILUTOV2,*)
-        read(ILUTOV2,*) ISATID2, NUMCHNIN2
+        read(ILUTOV2,*) ISATID2, NUMCHNIN2, stateDepSigmaObsInflationCoeffInput(JL)
         if ( ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL) ) &
           call utl_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
 
@@ -454,7 +454,11 @@ contains
           call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
-          read(ILUTOV2,*) ICHNIN2(JI), clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), useStateDepSigmaObsInput(ICHNIN2(JI),JL)
+          read(ILUTOV2,*) ICHNIN2(JI), &
+                clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
+                sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
+                clearClwThresholdSigmaObsInflationInput(ICHNIN2(JI),JL), &
+                useStateDepSigmaObsInput(ICHNIN2(JI),JL)
 
           if ( ICHNIN2(JI) /= ICHNIN(JI,JL) ) & 
             call utl_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
@@ -495,8 +499,13 @@ contains
               if ( tvs_mwAllskyAssim ) then
                 clwThreshArr(JI,JL,:) = clwThreshArrInput(JI,JM,:)
                 sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
+                clearClwThresholdSigmaObsInflation(JI,JL) = &
+                        clearClwThresholdSigmaObsInflationInput(JI,JM)
                 useStateDepSigmaObs(JI,JL) = &
                         ( useStateDepSigmaObsInput(JI,JM) == 1 )
+
+                if ( JI == 1 ) stateDepSigmaObsInflationCoeff(JL) = &
+                                stateDepSigmaObsInflationCoeffInput(JM)
 
                 ! inflate the sigmaObsErr in analysis mode
                 if ( obsErrorColumnIndex == analysisColumnIndex ) then
@@ -544,13 +553,16 @@ contains
         write(*,'(A,I2,4(A))') 'SENSOR #', JL, ', Platform: ', tvs_satelliteName(JL), &
                                 ', Instrument: ',tvs_instrumentName(JL)
         if ( tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)) ) then
-          write(*,'(A,5(2X,A8))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','use'
+          write(*,'(A,4(2X,A8),(1X,A9),(2X,A3))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','anlErrInf','use'
           do JI = 1, NUMCHN(JL)
-            write(*,'(I7,4(2X,F8.4),(2X,L8))') ICHN(JI,JL), &
+            write(*,'(I7,5(2X,F8.4),(2X,L3))') ICHN(JI,JL), &
               clwThreshArr(ICHN(JI,JL),JL,1), clwThreshArr(ICHN(JI,JL),JL,2), &
               sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
+              clearClwThresholdSigmaObsInflation(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
           end do
+          write(*,'(A,(2X,F8.4))') 'stateDepSigmaObsInflationCoeff=', &
+                stateDepSigmaObsInflationCoeff(JL) 
         else
           write(*,'(A,2X,A8)') 'Channel','sigmaO'
           do JI = 1, NUMCHN(JL)
@@ -1662,9 +1674,9 @@ contains
 
     ! error inflation for cloud placement 
     deltaE1 = 0.0D0
-    if ( mwAllskyInflateByOmp                                         .and. &
-         ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber)) *          &
-          (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber)) < 0) .and. &
+    if ( mwAllskyInflateByOmp .and. &
+         ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
+          (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
          abs(clwObs - clwFG) >= 0.005 ) then
       deltaE1 = abs(ompValue)
     end if
@@ -1672,7 +1684,7 @@ contains
     ! error inflation due to cloud liquid water difference
     deltaE2 = 0.0D0
     if ( mwAllskyInflateByClwDiff ) then
-      deltaE2 = stateDepSigmaObsInflationCoeff * abs(clwObs - clwFG) * &
+      deltaE2 = stateDepSigmaObsInflationCoeff(sensorIndex) * abs(clwObs - clwFG) * &
                       sigmaObsBeforeInflation
     end if
     deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
