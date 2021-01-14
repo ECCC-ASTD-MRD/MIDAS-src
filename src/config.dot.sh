@@ -34,9 +34,10 @@ SSM_VERSION=${SSM_VERSION:-3.6.0}
 ##  these should not be changed unless you know what you're doing
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
+__root=$(git rev-parse --show-toplevel)
 __exec_leafdir_midas=${__exec_leafdir_midas:-midas_abs}
 __install_always_midas=${__install_always_midas:-true}
-__compiledir_link=${__compiledir_link:-../compiledir}
+__compiledir_link=${__compiledir_link:-${__root}/compiledir}
 
 
 ###########################################################
