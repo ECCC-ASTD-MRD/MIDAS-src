@@ -25,6 +25,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [3.6.0]
 
+### Highlights
+
+ * RRTOV now operates directly on the model levels instead of pressure levels
+ * Background check now in `midas-obsSelection` for all obs types except SSMIS
+   * Includes bias correction, QC and thinning
+ * Added all-sky approach for AMSU-A radiances over ocean
+ * Added slant-path interpolation for GPS-RO obs
+ * Added program `midas-ensPostProcess` for all processing of ensembles 
+   (replaces `midas-ensManip`)
+ * For sea-ice and ocean: can read background state on "Y" grid and explicit
+   diffusion solver now MPI compatible
+ * Several MIDAS-related scripts and tools were migrated into the git repository
+ * Numerous other modifications, bug fixes and efficiency improvements in 
+   preparation for the IC3 operational delivery
+
 ### Added
 
  * Add ability to copy lowest level during vertical interpolation (#429 and !407)
