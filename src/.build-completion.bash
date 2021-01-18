@@ -8,4 +8,4 @@ _build_completions()
     COMPREPLY+=($(compgen -W "$(ls modules/*.f90 |sed 's/modules\/\(.*\).f90/\1.o/')" -- "${COMP_WORDS[COMP_CWORD]}"))
 
 }
-complete -F _build_completions build_midas
+complete -F _build_completions midas_build

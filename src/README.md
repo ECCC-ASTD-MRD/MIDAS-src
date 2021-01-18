@@ -5,15 +5,17 @@ The present `README` **assumes you are in the `src` directory** (the directory i
 
 ## I just want to build
 
-From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `BACKEND`, `FRONTEND` or `COMPILEDIR_MIDAS_MAIN`), but the defaults should ne just fine, then
+From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `MIDAS_COMPILE_BACKEND`, `MIDAS_COMPILE_FRONTEND` or `MIDAS_COMPILE_DIR_MAIN`).
+Notice that we are **uniformizing the MIDAS compilation environment variable naming convention**, please consult [this section](#new-environment-variable-convention) if you used to define compilation variable in your profile.
+then
 ```
-$ ./build_midas
+$ ./midas_build
 ...
 #####################################
-... Launching direct compilation on BACKEND
+... Launching direct compilation on daley
     > listing_daley
 ######################################
-... Launching compilation on FRONTEND
+... Launching compilation on eccc-ppp3
 ...
 =================== ord_soumet version 1.27 =================
 ...
@@ -29,7 +31,7 @@ It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or
 `Banting`) submitting jobs with the number of cores specified in 
 `config.dot.sh` (8 seems to be optimal).
 It will then install (copy) the absolutes in the directory 
-`${COMPILEDIR_MIDAS_MAIN}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
+`${MIDAS_COMPILE_DIR_MAIN}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
 
 ## Using `build-midas` for specific targets
 `build-midas` is a wrapper around 
@@ -37,7 +39,7 @@ It will then install (copy) the absolutes in the directory
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
 ```
-$ ./build_midas obsSelection.Abs var.Abs
+$ ./midas_build obsSelection.Abs var.Abs
 ```
 
 A *target* is something (often a file) to build; you can get information on
@@ -46,7 +48,7 @@ available targets by calling
 $ make help
 USAGE:
     source ./config.dot.sh
-    make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]
+    make [-j ${MIDAS_COMPILE_NCORES} -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]
 OPTIONS:
     consult make manual: man make
 TARGETS:
@@ -70,12 +72,12 @@ See [next section](#using-make) for more on targets.
 
 ### Auto-completion
 
-`build_midas` comes with a bash auto-completion feature, such that argument 
+`midas_build` comes with a bash auto-completion feature, such that argument 
 passing can be auto-completed by pressing `<TAB>`:
 ```
-$ build_midas <TAB><TAB>
+$ midas_build <TAB><TAB>
 Display all 141 possibilities? (y or n)
-$ build_midas obsImpact.<TAB><TAB>
+$ midas_build obsImpact.<TAB><TAB>
 obsImpact.Abs  obsImpact.o
 ```
 
@@ -83,7 +85,7 @@ However, this feature needs to be installed:
 ```
 ./install_build_completion.sh
 ...
-Auto completion for build_midas installed
+Auto completion for midas_build installed
 
 To use it directly (in the present shell):
    `source /home/mad001/.profile.d/interactive/post`
@@ -97,6 +99,19 @@ This will create a file `~/.bash_completion` and a directory
 For it to be functionnal in the present shell, you'll have to source the two
 files (it will be automatic in future shells).
 
+### New environment variable convention
+In the spirit of uniformizing environment variable convention across our 
+different tools, we decided to change some variable names used in the previous 
+compilation strategy.
+All environment variables now **start** with the prefix `MIDAS_`.
+These former variables have been renamed:
+
+* `COMPILEDIR_MIDAS_MAIN` is now `MIDAS_COMPILE_DIR_MAIN`
+* `COMPILE_MIDAS_COMPF_GLOBAL` is now `MIDAS_COMPILE_COMPF_GLOBAL`
+* `COMPILE_MIDAS_ADD_DEBUG_OPTIONS` is now `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`
+
+If any of those are defined in your profile, you should change them to respect 
+this new convention in order to obtain the expected result.
 
 ## Using `make`
 
@@ -160,33 +175,33 @@ Some frequently used phony targets are:
 * `all` : compile all programs on current architecture 
 * `info` : print information to stdout
 * `install` : install all compiled programs   
-  Copy them in `${COMPILEDIR_MIDAS_MAIN}/midas_abs/` and rename them with version number:  
+  Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
 * `info` : print information to stdout
 * `clean` : remove all objects, programs, intermediate files, everything that was produced by `make` **from all versions of MIDAS** in the build directory.
-* `cleanabs` : remove all but installed programs in `${COMPILEDIR_MIDAS_MAIN}/midas_abs`
+* `cleanabs` : remove all but installed programs in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`
 * `cleanobj` : remove objects and dependencies
 * `cleandep` : remove dependencies files ([see Automatic dependencies below](#automatic-dependencies))
 
 Omitting the target defaults to `all`.
 
 ### The `install` target
-Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${COMPILEDIR_MIDAS_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
+Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
 
 
 A complete install is then 
 ```
 (source ./config.dot.sh && make && make install)
 ```
-launched from all platforms (what is done by `./build_midas` without argument).
+launched from all platforms (what is done by `./midas_build` without argument).
 
 
 ## Calling make in parallel
 
 To compile a target using multiple cores use
 ```
-make -j ${NCORES} [-O] [<target>]
+make -j ${MIDAS_COMPILE_NCORES} [-O] [<target>]
 ```
 The `-O` ensure outputs are collected together rather that interspersed with output from other jobs (more in `man make` on that).
 
@@ -334,8 +349,8 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 ## SSM packaging
 
 To publish the absolutes in a SSM domain, one have to
-1. update `./config.dot.sh` `SSM_*` variables  
-   (making sure they have write privilege to `${SSM_TARGET}`)
+1. update `./config.dot.sh` `MIDAS_SSM_*` variables  
+   (making sure they have write privilege to `${MIDAS_SSM_TARGET}`)
 2. for **each architecture** `(source ./config.dot.sh && make ssm)`
 3. once all architectures have been published, protect the domain:  
    `(source ./config.dot.sh && make ssm_protect)`

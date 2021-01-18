@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ###############################################################################
-##  `build_midas` auto-completion install
+##  `midas_build` auto-completion install
 ##
-##  Provide bash auto-completion for `build_midas`.
+##  Provide bash auto-completion for `midas_build`.
 ##  Need to be installed once; modify
 ##      * `${HOME}/.bash_completion`
 ##      * `${HOME}/.bash_completion.d/`
@@ -51,13 +51,13 @@ EOF
 
 ## Create ~/.bash_completion.d and copy bc script
 mkdir -p ${__bc_dir}
-cp .build-completion.bash ${__bc_dir}/build_midas.bc
+cp .build-completion.bash ${__bc_dir}/midas_build.bc
 
-## Adding build_midas to PATH
+## Adding midas_build to PATH
 if [ -z "$(cat ~/.profile.d/interactive/post  | grep PATH | grep $(pwd))" ]
 then 
     cat >> ${__profile_post} << EOF
-## Adding ${__here} to PATH for build_midas auto-completion
+## Adding ${__here} to PATH for midas_build auto-completion
 export PATH=\${PATH}:${__here}
 EOF
     ## does not propagate outside of the install shell
@@ -69,7 +69,7 @@ set +x
 
 
 echo
-echo "Auto completion for build_midas installed"
+echo "Auto completion for midas_build installed"
 echo 
 echo "To use it directly (in the present shell):"
 echo "   \`source ${__profile_post}\`"
