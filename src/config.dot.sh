@@ -1,31 +1,36 @@
 #! /bin/sh
 
+__toplevel=$(git rev-parse --show-toplevel)
+
+## env. variable new naming convention + retrocompatibility
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
+
 ###########################################################
 ##
 ##  USER CONFIGURATION
 ##
 ###########################################################
 set -x
-BACKEND=${BACKEND:-daley}
-FRONTEND=${FRONTEND:-eccc-ppp4}
-JOBNAME=${JOBNAME:-midasCompilation}
-COMPILEDIR_MIDAS_MAIN=${COMPILEDIR_MIDAS_MAIN:-${HOME}/data_maestro/ords/midas-bld}
-NCORES=${NCORES:-8}
-VERBOSE=${VERBOSE:-2}
-CLEAN=${CLEAN:-false}
-DIRECT_FRONTEND_COMPILE=${DIRECT_FRONTEND_COMPILE:-false}
-FRONTEND_PLAT=${FRONTEND_PLAT:-ubuntu-18.04-skylake-64}
+MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
+MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-eccc-ppp4}
+MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME:-midasCompilation}
+MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
+MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
+MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
+MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-false}
+MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE=${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE:-false}
+MIDAS_COMPILE_MIDAS_COMPILE_FRONTEND_PLAT=${MIDAS_COMPILE_MIDAS_COMPILE_FRONTEND_PLAT:-ubuntu-18.04-skylake-64}
 
 
 ###########################################################
 ##  SSM Packaging configuration 
 ##
-SSM_TARGET=${SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
-SSM_PKGNAME=${SSM_PKGNAME:-midas}
-SSM_MAINTAINER=${SSM_MAINTAINER:-ervig.lapalme@canada.ca}
-SSM_DESCRIPTION=${SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
-SSM_GITREPO=${SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
-SSM_VERSION=${SSM_VERSION:-3.6.0}
+MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
+MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
+MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER:-ervig.lapalme@canada.ca}
+MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
+MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
+MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-3.6.0}
 
 
 ###########################################################
@@ -44,13 +49,13 @@ __compiledir_link=${__compiledir_link:-${__root}/compiledir}
 ##  compilation and SSM needed for compilation
 ##
 ## -- should not change that
-__midas_dot_cfg=${PWD}/programs/commons/compile_setup.sh
+__midas_dot_cfg=${__toplevel}/src/programs/commons/compile_setup.sh
 set +x
 
 ##  linking the build directory where it used to be
 ([ -d  ${__compiledir_link} ]||[ -L ${__compiledir_link} ]) \
 && echo "${__compiledir_link}  already exists: not creating link." \
-|| ln -s ${COMPILEDIR_MIDAS_MAIN} ${__compiledir_link}
+|| ln -s ${MIDAS_COMPILE_DIR_MAIN} ${__compiledir_link}
 
 ##  sourcing compilation configuration and SSM packages
 source ${__midas_dot_cfg} || false
@@ -64,20 +69,20 @@ then
     false 
 fi
 
-export BACKEND
-export FRONTEND
-export JOBNAME
+export MIDAS_COMPILE_BACKEND
+export MIDAS_COMPILE_FRONTEND
+export MIDAS_COMPILE_JOBNAME
 export __exec_leafdir_midas
 export __install_always_midas 
-export NCORES
-export VERBOSE
-export CLEAN
-export DIRECT_FRONTEND_COMPILE
-export FRONTEND_PLAT
+export MIDAS_COMPILE_NCORES
+export MIDAS_COMPILE_VERBOSE
+export MIDAS_COMPILE_CLEAN
+export MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE
+export MIDAS_COMPILE_MIDAS_COMPILE_FRONTEND_PLAT
 
-export SSM_TARGET
-export SSM_PKGNAME
-export SSM_MAINTAINER
-export SSM_DESCRIPTION
-export SSM_GITREPO
-export SSM_VERSION
+export MIDAS_SSM_TARGET
+export MIDAS_SSM_PKGNAME
+export MIDAS_SSM_MAINTAINER
+export MIDAS_SSM_DESCRIPTION
+export MIDAS_SSM_GITREPO
+export MIDAS_SSM_VERSION

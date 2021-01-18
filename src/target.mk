@@ -7,7 +7,7 @@
 
 revnum := $(shell $(VERSION_SCRIPT))
 
-DIR_TARGET := $(COMPILEDIR_MIDAS_MAIN)/$(revnum)/$(EC_ARCH)
+DIR_TARGET := $(MIDAS_COMPILE_DIR_MAIN)/$(revnum)/$(EC_ARCH)
 
 MAKETARGET = $(MAKE) --no-print-directory -C $@ -f $(CURDIR)/Makefile \
 				SRC_ROOT=$(CURDIR) VERSION=$(revnum) \

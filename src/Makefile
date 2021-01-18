@@ -10,7 +10,7 @@
 ##		* Build all programs (on a given architecture):
 ##		  ```
 ##		  source ./config.dot.sh
-##		  make [-j${NCPUS} -O] [VERBOSE=(1|2)]
+##		  make [-j${NCORES} -O] [MIDAS_COMPILE_VERBOSE=(1|2)]
 ##		  make install
 ##		  ```
 ##
@@ -73,9 +73,14 @@
 #.DEFAULT_GOAL := help
 
 
-FILE_CFG := ./config.dot.sh
+## will be redefined by target.mk
+ifndef SRC_ROOT
+SRC_ROOT=.
+endif
 
-VERSION_SCRIPT := ../midas.version.sh
+FILE_CFG := $(SRC_ROOT)/config.dot.sh
+
+VERSION_SCRIPT := $(SRC_ROOT)/../midas.version.sh
 
 ## 	those can be used in both (**no absolute** path here)
 DIR_MOD_RELATIVE := modules
@@ -86,10 +91,10 @@ DIR_PGM_RELATIVE := programs
 ##  (does not work as expected when called recursively
 ##  for preproc of ftn90 for instance)
 override V := @
-ifdef VERBOSE
+ifdef MIDAS_COMPILE_VERBOSE
     V :=
-    export VERBOSE
-    ifeq ($(VERBOSE), 2)
+    export MIDAS_COMPILE_VERBOSE
+    ifeq ($(MIDAS_COMPILE_VERBOSE), 2)
         export Verbose=1 ## for s.f90
     endif
 endif 
@@ -101,12 +106,12 @@ endif
 ## 	can only be used in target.mk
 ## 	can be initialized from parent shell
 
-## extract COMPILEDIR_MIDAS_MAIN for simple NOPREQ_GOALS target
+## extract MIDAS_COMPILE_DIR_MAIN for simple __nopreq_goals target
 ## (those that can be called without sourcing config)
 ## extracting default value for DIR_* environment variables
 __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
-ifndef COMPILEDIR_MIDAS_MAIN
-COMPILEDIR_MIDAS_MAIN := $(shell cat $(FILE_CFG) | grep COMPILEDIR_MIDAS_MAIN= | sed $(__sed_env_extr))
+ifndef MIDAS_COMPILE_DIR_MAIN
+MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
 endif
 ifndef __exec_leafdir_midas
 __exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | sed $(__sed_env_extr))
@@ -117,21 +122,21 @@ endif
 .PHONY: clean
 
 clean:	#> delete all build directories (keep installed programs) 
-	@echo "Delete **all build directories** in $(COMPILEDIR_MIDAS_MAIN) except $(__exec_leafdir_midas)?"
+	@echo "Delete **all build directories** in $(MIDAS_COMPILE_DIR_MAIN) except $(__exec_leafdir_midas)?"
 	@echo \`\`\`
-	@echo find $(COMPILEDIR_MIDAS_MAIN)/ -mindepth 1 \
-		! -regex "$(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
+	@echo find $(MIDAS_COMPILE_DIR_MAIN)/ -mindepth 1 \
+		! -regex "$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
 	@echo \`\`\`
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-	find $(COMPILEDIR_MIDAS_MAIN)/ -mindepth 1 \
-		! -regex "$(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
+	find $(MIDAS_COMPILE_DIR_MAIN)/ -mindepth 1 \
+		! -regex "$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
 
 
 .PHONY: help
 help:	#> print this help
 	@echo "USAGE:"
 	@echo "    source $(FILE_CFG)"
-	@echo '    make [-j NCPUS -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]'
+	@echo '    make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)]'
 	@echo ''
 	@echo '    Complete install on current architecture:'
 	@echo '	     make all && make install'
@@ -147,9 +152,9 @@ help:	#> print this help
 
 
 ##  Verification for some environment dependencies
-##	(not needed for some targets, the NOPREQ_GOALS)
-NOPREQ_GOALS := help clean
-ifeq (,$(filter $(NOPREQ_GOALS), $(MAKECMDGOALS)))
+##	(not needed for some targets, the __nopreq_goals)
+__nopreq_goals := help clean
+ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
         $(error COMPF is not set, source $(FILE_CFG))
@@ -173,6 +178,23 @@ ifeq (,$(filter $(NOPREQ_GOALS), $(MAKECMDGOALS)))
     endif
 endif
 
+__ssm_goals := ssm  ssm_protect
+ifneq (,$(filter $(__ssm_goals), $(MAKECMDGOALS)))
+    ##  Verify if main environment variable set when needed
+    ifndef MIDAS_SSM_TARGET
+        $(error MIDAS_SSM_TARGET is not set, source $(FILE_CFG))
+    endif
+    ifndef MIDAS_SSM_VERSION
+        $(error MIDAS_SSM_VERSION is not set, source $(FILE_CFG))
+    endif
+endif
+MIDAS_SSM_PKGNAME ?= midas
+
+__ssm_target_version := $(MIDAS_SSM_TARGET)/$(MIDAS_SSM_VERSION)
+__ssm_workdir_base := $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/ssm_build
+__ssm_fullname := $(MIDAS_SSM_PKGNAME)_$(MIDAS_SSM_VERSION)_$(ORDENV_PLAT)
+__ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
+
 ## TODO
 ##	END of Common block
 ##
@@ -187,7 +209,7 @@ endif
 ##		1. `make` is called from `./src`
 ##		2. gets here and `target.mk` is included
 ##		3. `target.mk` move us into the build directory:
-##         `$(COMPILEDIR_MIDAS_MAIN)/$(revnum)/$(EC_ARCH)`
+##         `$(MIDAS_COMPILE_DIR_MAIN)/$(revnum)/$(EC_ARCH)`
 ##		4. defines the relative position of the `Makefile` with
 ##		   $(SRC_ROOT) used in the `else` section
 ##		5. it calls `make` from there (allowing clean out-of-tree compilation)
@@ -251,7 +273,7 @@ DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
-ABS_INSTALL_DIR = $(COMPILEDIR_MIDAS_MAIN)/$(__exec_leafdir_midas)
+ABS_INSTALL_DIR = $(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS)))
@@ -392,13 +414,13 @@ depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 ## specific cleaning target (depends on the config)
 .PHONY: cleanabs cleanobj cleandep
 cleanabs:  #> delete all absolutes in build dir
-	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.Abs
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.Abs
 
 cleanobj:  #> delete all objects in build dir
-	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.o $(COMPILEDIR_MIDAS_MAIN)/*/*/*/*.mod 
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.o $(MIDAS_COMPILE_DIR_MAIN)/*/*/*/*.mod 
 
 cleandep:	#> delete all dependency files
-	rm -rf $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/*/*/*.inc $(COMPILEDIR_MIDAS_MAIN)/*/*/*/*.f90
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.inc $(MIDAS_COMPILE_DIR_MAIN)/*/*/*/*.f90
 
 
 ##-----------------------------------------------
@@ -408,22 +430,6 @@ cleandep:	#> delete all dependency files
 
 ssm: $(__ssm_target_version)		#> build SSM package
 
-SSM_GOALS := ssm  ssm_protect
-ifneq (,$(filter $(SSM_GOALS), $(MAKECMDGOALS)))
-    ##  Verify if main environment variable set when needed
-    ifndef SSM_TARGET
-        $(error SSM_TARGET is not set, source $(FILE_CFG))
-    endif
-    ifndef SSM_VERSION
-        $(error SSM_VERSION is not set, source $(FILE_CFG))
-    endif
-endif
-SSM_PKGNAME ?= midas
-
-__ssm_target_version := $(SSM_TARGET)/$(SSM_VERSION)
-__ssm_workdir_base := $(COMPILEDIR_MIDAS_MAIN)/$(VERSION)/ssm_build
-__ssm_fullname := $(SSM_PKGNAME)_$(SSM_VERSION)_$(ORDENV_PLAT)
-__ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
 
 
 $(__ssm_workdir_base)/$(__ssm_fullname).ssm: $(ABS)
@@ -431,10 +437,10 @@ $(__ssm_workdir_base)/$(__ssm_fullname).ssm: $(ABS)
 	mkdir -p $(__ssm_workdir)/.ssm.d
 	mkdir -p $(__ssm_workdir)/bin
 	cp $(SRC_ROOT)/ssm.d/post-install $(__ssm_workdir)/.ssm.d/
-	sed -e "s|NAME|$(SSM_PKGNAME)|" -e "s|VERSION|$(SSM_VERSION)|" \
-        -e "s|PLATFORM|$(ORDENV_PLAT)|" -e "s|MAINTAINER|$(SSM_MAINTAINER)|" \
-        -e "s|BUILDINFO|$(VERSION)|" -e "s|DESCRIPTION|$(SSM_DESCRIPTION)|" \
-        -e "s|SUMMARY|$(SSM_GITREPO)|" $(SRC_ROOT)/ssm.d/control.json > \
+	sed -e "s|NAME|$(MIDAS_SSM_PKGNAME)|" -e "s|VERSION|$(MIDAS_SSM_VERSION)|" \
+        -e "s|PLATFORM|$(ORDENV_PLAT)|" -e "s|MAINTAINER|$(MIDAS_SSM_MAINTAINER)|" \
+        -e "s|BUILDINFO|$(VERSION)|" -e "s|DESCRIPTION|$(MIDAS_SSM_DESCRIPTION)|" \
+        -e "s|SUMMARY|$(MIDAS_SSM_GITREPO)|" $(SRC_ROOT)/ssm.d/control.json > \
         $(__ssm_workdir)/.ssm.d/control.json
 	@echo ">>> building the tarball"
 	cp $^ $(__ssm_workdir)/bin/

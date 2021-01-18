@@ -1,0 +1,161 @@
+#! /bin/sh
+
+###############################################################################
+##  MIDAS automated build script
+##
+##  @SYNOPSIS
+##      * edit configuration: `./config.dot.sh`
+##
+##      * compile, link and install all programs on both architectures
+##        ```
+##        ./midas_build
+##        ```
+##      * build specific targets on both architectures
+##        ```
+##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
+##        ```
+##  
+##      * install auto-completion feature
+##        ```
+##        ./install_build_completion.sh
+##        source ${HOME}/.bash_completion
+##        source ${HOME}/.profile.d/interactive/post
+##        ```
+##
+##  @REFERENCES 
+##      * `./README.md`
+##      * `./Makefile`
+##  
+##  @AUTHORS
+##      Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
+##
+###############################################################################
+
+
+##=========================================================
+##  functions
+function is_compilation_done_frontend {
+    set -e
+    __jobid=$1
+
+    while true; do
+        __status=0
+
+        jobchk -c ${MIDAS_COMPILE_FRONTEND} ${__jobid} || __status=$?
+        if [ "${__status}" -ne 0 ]; then
+            echo "Compilation on '${MIDAS_COMPILE_FRONTEND}' '${MIDAS_COMPILE_JOBNAME}' has finished."
+            __listing=$(/bin/ls -t ${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-$(hostname)-*.out | head -1)
+            cat ${__listing}
+            rm ${__listing}
+            break
+        fi
+        sleep 5
+    done
+}
+
+##=========================================================
+## some prior defitions and checks
+typeset __target
+typeset __job
+typeset __job_header
+typeset __here
+
+## check if called from midas/src
+##   install_build_completion.sh make midas_build visible from PATH
+##   but won't work unless called in midas/src
+__here=$(pwd)
+if [ ! "$(echo ${__here} | rev|  cut -d'/' -f 1,2 | rev)" = "midas/src" ]
+then
+    echo "`midas_build` need to be called from `midas/src`"
+    exit 1
+fi 
+
+##=========================================================
+##  sourcing user configuration
+source ${__here}/config.dot.sh
+
+##=========================================================
+##  parsing input
+##
+##  @TODO: more than one target?
+
+
+if [ $# -eq 0 ]
+## default: make all 
+then 
+    __job="make all -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
+else
+    __target=$@
+    __job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
+fi
+
+if [ "${__install_always_midas}" == "true" ]
+then 
+    __job="${__job} && make install -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} __exec_leafdir_midas=${__exec_leafdir_midas} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
+fi
+
+##=========================================================
+##  Compilation on backend (in the background)
+
+##=========================================================
+##  sourcing user configuration
+source ./config.dot.sh
+
+##=========================================================
+##  Compilation on backend (in the background)
+here=$(pwd)
+cat > .compile_job << EOF
+#! /bin/bash
+set -ex
+cd ${here}
+source ${DOT_CONFIG} 
+make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
+EOF
+
+echo "#####################################"
+echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
+echo "    > listing_${MIDAS_COMPILE_BACKEND}" 
+(cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > listing_${MIDAS_COMPILE_BACKEND} 2>&1) &  
+__pid_backend=$!
+echo "MIDAS_COMPILE_BACKEND compilation process: ${__pid_backend}"
+
+##=========================================================
+##  Compilation on frontend
+echo "######################################"
+echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
+if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
+then
+    ## compile directly on head node
+    echo "    > listing_ppp"
+    make ${__target} -j ${NCORES} \
+        DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
+else
+    echo "    submitting job:"
+    cat .compile_job
+    ## use ord_soumet
+    __jobid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} -mach ${MIDAS_COMPILE_FRONTEND} \
+                    -listing ${PWD} -w 60 -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
+
+    ## waiting for frontend compilation to terminate
+    is_compilation_done_frontend ${__jobid_frontend} || \
+        echo "Something went wrong on ${MIDAS_COMPILE_FRONTEND} with ${__jobid_frontend}:" ;\
+fi
+
+## waiting for backend compilation to terminate
+echo "waiting for ${MIDAS_COMPILE_BACKEND} (${__pid_backend}) compilation to finish"
+wait ${__pid_backend}
+
+if ${MIDAS_COMPILE_CLEAN}
+then
+    yes | make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
+    rm -rf .compile_job
+fi
+
+
+echo "######################################"
+echo "#"
+echo "#  MIDAS COMPILATION COMPLETED"
+echo "#"
+echo "#  > ${MIDAS_COMPILE_DIR_MAIN}"
+echo "#"
+echo "######################################"

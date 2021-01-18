@@ -1,6 +1,10 @@
 #!/bin/bash
 
 set -e
+__toplevel=$(git rev-parse --show-toplevel)
+
+## env. variable new naming convention + retrocompatibility
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
 
 # set the resources.def file, which depends on the TRUE_HOST name
 ../../set_resources_def.sh
@@ -19,12 +23,11 @@ else
     exit 1
 fi
 
-toplevel=$(git rev-parse --show-toplevel)
-suite=${toplevel}/maestro/suites/midas_system_tests
-compiledir_main=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}
+suite=${__toplevel}/maestro/suites/midas_system_tests
+compiledir_main=${MIDAS_COMPILE_DIR_MAIN:-"../../compiledir"}
 
 if [ -z "${COMPILING_MACHINE_PPP}" -o -z "${COMPILING_MACHINE_SUPER}" ]; then
-    ${toplevel}/set_resources_def.sh
+    ${__toplevel}/set_resources_def.sh
     . ${suite}/set_machine_list.dot
 
     if [ -z "${COMPILING_MACHINE_PPP}" ]; then
@@ -41,7 +44,7 @@ else
     PLAT_SUPER=sles-15-skylake-64-xc50
 fi
 
-rev=${CI_BUILD_REF:-$(${toplevel}/midas.version.sh)}
+rev=${CI_BUILD_REF:-$(${__toplevel}/midas.version.sh)}
 jobname=${rev}_midasCompile
 
 ## get the number of programs
@@ -52,13 +55,13 @@ cat > compile_job <<EOF
 
 set -ex
 
-export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
+export MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG:-no}
 
 cd ${codedir}
 echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
 
-cd ${toplevel}/tools/splitobs
+cd ${__toplevel}/tools/splitobs
 make splitobs_\${ORDENV_PLAT}
 
 splitobs_pgm=midas.splitobs_\${ORDENV_PLAT}-\$(../../midas.version.sh).Abs
@@ -86,7 +89,7 @@ if [ "${status}" -ne 0 ]; then
 fi
 
 for host in ${COMPILING_MACHINE_PPP}; do
-    ${toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
+    ${__toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
 done
 
 status=0
