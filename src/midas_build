@@ -64,9 +64,9 @@ typeset __here
 ##   install_build_completion.sh make midas_build visible from PATH
 ##   but won't work unless called in midas/src
 __here=$(pwd)
-if [ ! "$(echo ${__here} | rev|  cut -d'/' -f 1,2 | rev)" = "midas/src" ]
+if [ ! "$(realpath $0)" == "$(pwd -P)/midas_build" ]
 then
-    echo "`midas_build` need to be called from `midas/src`"
+    echo '`midas_build` need to be called from `src`'
     exit 1
 fi 
 
