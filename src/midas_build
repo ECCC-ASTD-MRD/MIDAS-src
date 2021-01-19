@@ -34,24 +34,42 @@
 
 ##=========================================================
 ##  functions
-function is_compilation_done_frontend {
+function is_compilation_done {
     set -e
-    __jobid=$1
+    jobid_front=$1
+    pid_back=$2
 
+    __sleep_interval=3
+    __front_done=0
+    __back_done=0
     while true; do
         __status=0
 
-        jobchk -c ${MIDAS_COMPILE_FRONTEND} ${__jobid} || __status=$?
-        if [ "${__status}" -ne 0 ]; then
-            echo "Compilation on '${MIDAS_COMPILE_FRONTEND}' '${MIDAS_COMPILE_JOBNAME}' has finished."
-            __listing=$(/bin/ls -t ${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-$(hostname)-*.out | head -1)
-            cat ${__listing}
-            rm ${__listing}
+        if [ "${__front_done}" = 0 ]; then 
+            jobchk -c ${MIDAS_COMPILE_FRONTEND} ${jobid_front} || __status=$?
+            if [ "${__status}" -ne 0 ]; then
+                echo "Compilation on ${MIDAS_COMPILE_FRONTEND} (jobid: ${jobid_front}) has finished."
+                __front_done=1
+            fi
+        fi
+
+        ## that check does not work
+        ## the process `pid_back` is not the compilation process
+        if [ "${__back_done}" = 0 ]; then
+            if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
+                echo "Compilation on ${MIDAS_COMPILE_BACKEND} (pid: ${pid_back}) has finished."
+                __back_done=1
+            
+            fi
+        fi
+
+        if  [[ ${__front_done} == 1  &&  ${__back_done} == 1 ]]; then 
             break
         fi
-        sleep 5
+        sleep ${__sleep_interval}
     done
 }
+
 
 ##=========================================================
 ## some prior defitions and checks
@@ -64,6 +82,7 @@ typeset __here
 ##   install_build_completion.sh make midas_build visible from PATH
 ##   but won't work unless called in midas/src
 __here=$(pwd)
+__date=$(date +%Y%m%d%H%S)
 if [ ! "$(realpath $0)" == "$(pwd -P)/midas_build" ]
 then
     echo '`midas_build` need to be called from `src`'
@@ -72,7 +91,9 @@ fi
 
 ##=========================================================
 ##  sourcing user configuration
-source ${__here}/config.dot.sh
+source ${__here}/config.dot.sh  &> .tmp.config.out
+__listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
+mv .tmp.config.out ${__listing_config}
 
 ##=========================================================
 ##  parsing input
@@ -112,12 +133,14 @@ source ${DOT_CONFIG}
 make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
 EOF
 
+__listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
 echo "#####################################"
 echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
-echo "    > listing_${MIDAS_COMPILE_BACKEND}" 
-(cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > listing_${MIDAS_COMPILE_BACKEND} 2>&1) &  
+echo "    > listing_${__listing_backend}" 
+(cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > \
+    ${__listing_backend} 2>&1) &  
 __pid_backend=$!
-echo "MIDAS_COMPILE_BACKEND compilation process: ${__pid_backend}"
+echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
 
 ##=========================================================
 ##  Compilation on frontend
@@ -126,24 +149,36 @@ echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
 if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
 then
     ## compile directly on head node
-    echo "    > listing_ppp"
-    make ${__target} -j ${NCORES} \
-        DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE} > listing_ppp 2>&1 
+    __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+    echo "    > ${__listing_frontend}"
+    echo ${__job}
+    ${__job} >  ${__listing_frontend} 2>&1 &
+    __pid_frontend=$!
 else
-    echo "    submitting job:"
-    cat .compile_job
     ## use ord_soumet
-    __jobid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} -mach ${MIDAS_COMPILE_FRONTEND} \
-                    -listing ${PWD} -w 60 -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
-
-    ## waiting for frontend compilation to terminate
-    is_compilation_done_frontend ${__jobid_frontend} || \
-        echo "Something went wrong on ${MIDAS_COMPILE_FRONTEND} with ${__jobid_frontend}:" ;\
+    __jobid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 \
+        -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
+    __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-${MIDAS_COMPILE_FRONTEND}-$(date +%Y%m%d%H)*.out"
 fi
 
 ## waiting for backend compilation to terminate
-echo "waiting for ${MIDAS_COMPILE_BACKEND} (${__pid_backend}) compilation to finish"
-wait ${__pid_backend}
+echo 
+echo "Compilation underway in working directory: ${__build_dir_version}"
+echo 
+
+if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
+then
+    wait ${__pid_backend}
+    echo 
+    echo "Compilation completed successfully on ${MIDAS_COMPILE_BACKEND}"
+    wait ${__pid_frontend}
+    echo 
+    echo "Compilation completed successfully on ${MIDAS_COMPILE_FRONTEND}"
+else
+    is_compilation_done ${__jobid_frontend} ${__pid_backend} 
+fi
+
 
 if ${MIDAS_COMPILE_CLEAN}
 then
@@ -151,6 +186,17 @@ then
     rm -rf .compile_job
 fi
 
+## Organizing logs
+if [ -z ${__listing_frontend+x} ]
+then 
+    __listing_frontend=$(ls -rt ${__listing_frontend_search} | tail -1) 
+fi
+cat ${__listing_frontend} >> ${__listing_config}
+mv ${__listing_config} ${__listing_frontend}
+if [ "${__keep_jobsubmit_ofile}" = false ]
+then
+    rm -rf ${__listing_frontend}.o
+fi
 
 echo "######################################"
 echo "#"
