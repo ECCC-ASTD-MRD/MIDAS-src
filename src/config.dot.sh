@@ -5,12 +5,12 @@ __toplevel=$(git rev-parse --show-toplevel)
 ## env. variable new naming convention + retrocompatibility
 source ${__toplevel}/src/programs/commons/retroComp_warning.sh
 
+set -x
 ###########################################################
 ##
 ##  USER CONFIGURATION
 ##
 ###########################################################
-set -x
 MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-eccc-ppp4}
 MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME:-midasCompilation}
@@ -39,11 +39,12 @@ MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-3.6.0}
 ##  these should not be changed unless you know what you're doing
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
-__root=$(git rev-parse --show-toplevel)
-__exec_leafdir_midas=${__exec_leafdir_midas:-midas_abs}
-__install_always_midas=${__install_always_midas:-true}
-__compiledir_link=${__compiledir_link:-${__root}/compiledir}
-
+__exec_leafdir_midas=midas_abs
+__install_always_midas=true
+__compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
+__revnum=$(${__toplevel}/midas.version.sh)
+__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/${__revnum}
+__keep_jobsubmit_ofile=false
 
 ###########################################################
 ##  compilation and SSM needed for compilation
