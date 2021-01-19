@@ -2,8 +2,9 @@
   instName = 'ATMS'
   debug = .false.
   RESETQC = .false.
-  clwQcThreshold = 0.3
+  clwQcThreshold = 0.6
   useUnbiasedObsForClw =.true.
+  cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
   doThinning = .false.
@@ -40,6 +41,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
    NSENSORS         =  2,
@@ -49,6 +51,10 @@
    CINSTRUMENTID(2) = 'ATMS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
+   instrumentNamesUsingCLW(1) = 'atms'
+   mwInstrumUsingCLW_tl = .true.
+   cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
 /
  &NAMSAT
@@ -262,6 +268,9 @@
  &NAMGPSRO
 /
  &NAMGPSGB
+/
+ &NAMADDTOBURP
+  clwFgElementId=13109,
 /
  &NAMBURP_FILTER_SFC
   BNBITSOFF=0,
@@ -501,4 +510,7 @@
    PCO2MAX=321.5d0,
    NIGHT_ANG=100.d0,
 /
-
+ &NAMOER
+  mwAllskyInflateByOmp = .true.,
+  mwAllskyInflateByClwDiff = .true.,
+/
