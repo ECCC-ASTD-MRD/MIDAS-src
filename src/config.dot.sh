@@ -2,9 +2,6 @@
 
 __toplevel=$(git rev-parse --show-toplevel)
 
-## env. variable new naming convention + retrocompatibility
-source ${__toplevel}/src/programs/commons/retroComp_warning.sh
-
 set -x
 ###########################################################
 ##
