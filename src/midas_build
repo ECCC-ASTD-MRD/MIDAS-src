@@ -91,6 +91,12 @@ fi
 
 ##=========================================================
 ##  sourcing user configuration
+
+## env. variable new naming convention + retrocompatibility
+__toplevel=$(git rev-parse --show-toplevel)
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
+##--------------------------------------------------------
+
 source ${__here}/config.dot.sh  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 mv .tmp.config.out ${__listing_config}
