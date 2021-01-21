@@ -188,7 +188,7 @@ else
     __jobid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
         -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
-    __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-${MIDAS_COMPILE_FRONTEND}-$(date +%Y%m%d%H)*.out"
+    __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-${TRUE_HOST}-$(date +%Y%m%d%H)*.out"
 fi
 
 ## waiting for backend compilation to terminate
