@@ -34,41 +34,44 @@
 
 ##=========================================================
 ##  functions
-function is_compilation_done {
+function are_jobs_completed {
     set -e
-    jobid_front=$1
-    pid_back=$2
+    typeset jobid_front=$1
+    typeset pid_back=$2
 
-    __sleep_interval=3
-    __front_done=0
-    __back_done=0
+    typeset __sleep_interval=3
+    typeset __front_done=0
+    typeset __back_done=0
     while true; do
         __status=0
 
         if [ "${__front_done}" = 0 ]; then 
             jobchk -c ${MIDAS_COMPILE_FRONTEND} ${jobid_front} || __status=$?
             if [ "${__status}" -ne 0 ]; then
-                echo "Compilation on ${MIDAS_COMPILE_FRONTEND} (jobid: ${jobid_front}) has finished."
+                echo "Compilation on ${MIDAS_COMPILE_FRONTEND}\
+                    (jobid: ${jobid_front}) has finished."
                 __front_done=1
-            fi
-        fi
+        fi; fi
 
-        ## that check does not work
-        ## the process `pid_back` is not the compilation process
         if [ "${__back_done}" = 0 ]; then
-            if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
-                echo "Compilation on ${MIDAS_COMPILE_BACKEND} (pid: ${pid_back}) has finished."
+        if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
+                echo "Compilation on ${MIDAS_COMPILE_BACKEND}\
+                (pid: ${pid_back}) has finished."
                 __back_done=1
-            
-            fi
-        fi
+        fi; fi
 
-        if  [[ ${__front_done} == 1  &&  ${__back_done} == 1 ]]; then 
-            break
-        fi
+        [ ${__front_done} == 1 -a ${__back_done} == 1 ] && break
         sleep ${__sleep_interval}
     done
 }
+
+function abs_path {
+    abs_name=${1}
+    platform=${2}
+    typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}/midas-
+    echo ${__abs_prfx}${abs_name}_${platform}-${__revnum}.Abs
+}
+
 
 
 ##=========================================================
@@ -77,6 +80,7 @@ typeset __target
 typeset __job
 typeset __job_header
 typeset __here
+typeset __abs_exist_list
 
 ## check if called from midas/src
 ##   install_build_completion.sh make midas_build visible from PATH
@@ -101,18 +105,20 @@ source ${__here}/config.dot.sh  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 mv .tmp.config.out ${__listing_config}
 
-##=========================================================
-##  parsing input
-##
-##  @TODO: more than one target?
 
+##=========================================================
+##  parsing input and build job submissions
+##
 
 if [ $# -eq 0 ]
 ## default: make all 
 then 
+    __abs_exist_list=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
     __job="make all -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 else
     __target=$@
+    __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
+    ## ^ there must be a simpler solution
     __job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 fi
 
@@ -120,6 +126,18 @@ if [ "${__install_always_midas}" == "true" ]
 then 
     __job="${__job} && make install -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} __exec_leafdir_midas=${__exec_leafdir_midas} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 fi
+
+##=========================================================
+##  Check prior existence of absolutes
+##  - remove them first
+[ ! -z "${__abs_exist_list}" ] && echo "Checking prior existence of absolutes"
+for __abs in ${__abs_exist_list}; do
+for __plat in ${ORDENV_PLAT} ${__plat_super}; do
+    typeset __abs_full=$(abs_path ${__abs} ${__plat})
+    [ -f  "${__abs_full}" ] && ( echo "${__abs_full} exists; removing it" ; rm ${__abs_full} )
+done; done
+
+
 
 ##=========================================================
 ##  Compilation on backend (in the background)
@@ -182,7 +200,7 @@ then
     echo 
     echo "Compilation completed successfully on ${MIDAS_COMPILE_FRONTEND}"
 else
-    is_compilation_done ${__jobid_frontend} ${__pid_backend} 
+    are_jobs_completed ${__jobid_frontend} ${__pid_backend} 
 fi
 
 
@@ -191,6 +209,42 @@ then
     yes | make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
     rm -rf .compile_job
 fi
+
+
+
+## checking if linking has been successful
+if [ ! -z "${__abs_exist_list}" ]; then 
+    echo
+    echo "Checking existence of linked absolutes"
+    typeset __status=0
+    for __abs in ${__abs_exist_list}; do
+    for __plat in ${ORDENV_PLAT} ${__plat_super}; do
+        typeset __abs_full=$(abs_path ${__abs} ${__plat})
+        if [ ! -f  "${__abs_full}" ]; then
+            echo "    ${__abs_full} not found"
+            __status=1
+        fi
+    done; done
+
+    if [ "${__status}" -eq 0 ]; then
+        echo "    All programs have been compiled correctly!"
+        echo
+        echo "######################################"
+        echo "#"
+        echo "#  MIDAS COMPILATION COMPLETED"
+        echo "#"
+        echo "#  > ${MIDAS_COMPILE_DIR_MAIN}"
+        echo "#"
+        echo "######################################"
+    else
+        echo
+        echo "<!> Some programs could not compile <!>"
+        echo 
+        exit 1
+    fi
+fi
+
+
 
 ## Organizing logs
 if [ -z ${__listing_frontend+x} ]
@@ -203,11 +257,3 @@ if [ "${__keep_jobsubmit_ofile}" = false ]
 then
     rm -rf ${__listing_frontend}.o
 fi
-
-echo "######################################"
-echo "#"
-echo "#  MIDAS COMPILATION COMPLETED"
-echo "#"
-echo "#  > ${MIDAS_COMPILE_DIR_MAIN}"
-echo "#"
-echo "######################################"
