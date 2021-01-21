@@ -209,11 +209,6 @@ else
 fi
 
 
-if ${MIDAS_COMPILE_CLEAN}
-then
-    yes | make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
-    rm -rf .compile_job
-fi
 
 
 
@@ -244,8 +239,16 @@ if [ ! -z "${__abs_exist_list}" ]; then
         echo "║                             ║"
         echo "╚═════════════════════════════╝"
         echo
-        echo "  > ${MIDAS_COMPILE_DIR_MAIN}"
+        echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}"
         echo
+        if ${MIDAS_COMPILE_CLEAN}
+        then
+            echo 
+            echo "MIDAS_COMPILE_CLEAN=true (in config.dot.sh)"
+            echo " ... cleaning build directory "
+            make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} \
+                MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
+        fi
     else
         echo
         echo "<!> Some programs could not compile <!>"
@@ -265,3 +268,4 @@ cat ${__listing_frontend} >> ${__listing_config}
 mv ${__listing_config} ${__listing_frontend}
 [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
+rm -rf .compile_job
