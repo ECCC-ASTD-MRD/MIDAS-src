@@ -42,6 +42,7 @@ __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __revnum=$(${__toplevel}/midas.version.sh)
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/${__revnum}
 __keep_jobsubmit_ofile=false
+__plat_super=sles-15-skylake-64-xc50
 
 ###########################################################
 ##  compilation and SSM needed for compilation
