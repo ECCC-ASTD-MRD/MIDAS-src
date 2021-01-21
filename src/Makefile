@@ -7,6 +7,10 @@
 ##        ```
 ##        make help
 ##        ```
+##		* Clean some build elements
+##        ```
+##        make clean|cleanabs|cleanall|cleandep|cleanobj
+##        ```
 ##		* Build all programs (on a given architecture):
 ##		  ```
 ##		  source ./config.dot.sh
@@ -43,15 +47,11 @@
 ##		* inline comments starting with `#>` are interpreted for `make help`
 ##		  (search for `help:`)
 ##		* prior to launching this make, `./programs/commons/compile_setup.sh`
-##		  has to be sourced 
+##		  has to be sourced (except for help and clean* targets) 
 ##		  (this exports `${COMPF}` `${GPP_OPTS}` and `${FOPTMIZ}`)
 ##
 ##
 ##	@TODO
-##		- [?] do we really need the automatic listings?
-##			  	if so: careful with trailing space between 
-##				target `$@` and `>`, it can produces buggy filename
-##				with trailing spaces.
 ##		- [?] consider Busby 2017 2-pass approach 
 ##				(A Note on Compiling Fortran)
 ##		- [/] automated configuration sourcing with a single make call 
@@ -109,37 +109,55 @@ endif
 ## extract MIDAS_COMPILE_DIR_MAIN for simple __nopreq_goals target
 ## (those that can be called without sourcing config)
 ## extracting default value for DIR_* environment variables
+ifndef VERSION
+VERSION := $(shell $(VERSION_SCRIPT))
+endif
 __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
 ifndef MIDAS_COMPILE_DIR_MAIN
 MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
 endif
 ifndef __exec_leafdir_midas
-__exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | sed $(__sed_env_extr))
+__exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | cut -d'=' -f2)
 endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean
+.PHONY: clean  cleanall cleanabs cleanobj cleandep
 
-clean:	#> delete all build directories (keep installed programs) 
-	@echo "Delete **all build directories** in $(MIDAS_COMPILE_DIR_MAIN) except $(__exec_leafdir_midas)?"
-	@echo \`\`\`
-	@echo find $(MIDAS_COMPILE_DIR_MAIN)/ -mindepth 1 \
-		! -regex "$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
-	@echo \`\`\`
+
+clean:	#> delete current build directory (keep installed programs) 
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)
+
+cleanall:	#> delete ALL build directories (keep installed programs) 
+	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-	find $(MIDAS_COMPILE_DIR_MAIN)/ -mindepth 1 \
-		! -regex "$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)\(/.*\)?" -delete
+		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*
+
+## specific cleaning target 
+.PHONY: cleanabs cleanobj cleandep
+cleanabs:  #> delete all absolutes in current build directory
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
+
+cleanobj:  #> delete all objects in current build directory
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
+
+cleandep:	#> delete all dependency files in current build directory
+	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+
 
 
 .PHONY: help
 help:	#> print this help
 	@echo "USAGE:"
-	@echo "    source $(FILE_CFG)"
-	@echo '    make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)]'
+	@echo '    - Build directories cleaning targets:'
+	@echo "       make clean|cleanabs|cleanall|cleandep|cleanobj"
+	@echo 
+	@echo '    - For all targets but `clean` or `help`:'
+	@echo "       source $(FILE_CFG)"
+	@echo '       make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)]'
 	@echo ''
-	@echo '    Complete install on current architecture:'
-	@echo '	     make all && make install'
+	@echo '    - Complete install on current architecture:'
+	@echo '       make all && make install'
 	@echo "OPTIONS:"
 	@echo '    consult make manual: man make'
 	@echo "TARGETS:"
@@ -153,7 +171,7 @@ help:	#> print this help
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
-__nopreq_goals := help clean
+__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep
 ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
@@ -191,7 +209,7 @@ endif
 MIDAS_SSM_PKGNAME ?= midas
 
 __ssm_target_version := $(MIDAS_SSM_TARGET)/$(MIDAS_SSM_VERSION)
-__ssm_workdir_base := $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/ssm_build
+__ssm_workdir_base := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/ssm_build
 __ssm_fullname := $(MIDAS_SSM_PKGNAME)_$(MIDAS_SSM_VERSION)_$(ORDENV_PLAT)
 __ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
 
@@ -209,7 +227,7 @@ __ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
 ##		1. `make` is called from `./src`
 ##		2. gets here and `target.mk` is included
 ##		3. `target.mk` move us into the build directory:
-##         `$(MIDAS_COMPILE_DIR_MAIN)/$(revnum)/$(EC_ARCH)`
+##         `$(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(revnum)/$(EC_ARCH)`
 ##		4. defines the relative position of the `Makefile` with
 ##		   $(SRC_ROOT) used in the `else` section
 ##		5. it calls `make` from there (allowing clean out-of-tree compilation)
@@ -411,16 +429,6 @@ install: $(ABS_INSTALL)			#> install all programs
 
 depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
-## specific cleaning target (depends on the config)
-.PHONY: cleanabs cleanobj cleandep
-cleanabs:  #> delete all absolutes in build dir
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.Abs
-
-cleanobj:  #> delete all objects in build dir
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.o $(MIDAS_COMPILE_DIR_MAIN)/*/*/*/*.mod 
-
-cleandep:	#> delete all dependency files
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(VERSION)/*/*/*.inc $(MIDAS_COMPILE_DIR_MAIN)/*/*/*/*.f90
 
 
 ##-----------------------------------------------

@@ -49,14 +49,14 @@ function are_jobs_completed {
             jobchk -c ${MIDAS_COMPILE_FRONTEND} ${jobid_front} || __status=$?
             if [ "${__status}" -ne 0 ]; then
                 echo "Compilation on ${MIDAS_COMPILE_FRONTEND}\
-                    (jobid: ${jobid_front}) has finished."
+(jobid: ${jobid_front}) has finished."
                 __front_done=1
         fi; fi
 
         if [ "${__back_done}" = 0 ]; then
         if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
                 echo "Compilation on ${MIDAS_COMPILE_BACKEND}\
-                (pid: ${pid_back}) has finished."
+(pid: ${pid_back}) has finished."
                 __back_done=1
         fi; fi
 
@@ -130,12 +130,17 @@ fi
 ##=========================================================
 ##  Check prior existence of absolutes
 ##  - remove them first
-[ ! -z "${__abs_exist_list}" ] && echo "Checking prior existence of absolutes"
-for __abs in ${__abs_exist_list}; do
-for __plat in ${ORDENV_PLAT} ${__plat_super}; do
-    typeset __abs_full=$(abs_path ${__abs} ${__plat})
-    [ -f  "${__abs_full}" ] && ( echo "${__abs_full} exists; removing it" ; rm ${__abs_full} )
-done; done
+if [ ! -z "${__abs_exist_list}" ]; then
+    echo "Checking prior existence of target absolutes"
+    for __abs in ${__abs_exist_list}; do
+    for __plat in ${ORDENV_PLAT} ${__plat_super}; do
+        typeset __abs_full=$(abs_path ${__abs} ${__plat})
+        [ -f  "${__abs_full}" ] && \
+        ( echo "${__abs_full} exists; removing it" >>  ${__listing_config}
+        rm ${__abs_full} )
+    done; done
+    echo
+fi
 
 
 
@@ -158,7 +163,7 @@ make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE
 EOF
 
 __listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
-echo "#####################################"
+echo "========================================================================"
 echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
 echo "    > listing_${__listing_backend}" 
 (cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > \
@@ -168,7 +173,7 @@ echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
 
 ##=========================================================
 ##  Compilation on frontend
-echo "######################################"
+echo "========================================================================"
 echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
 if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
 then
@@ -215,7 +220,9 @@ fi
 ## checking if linking has been successful
 if [ ! -z "${__abs_exist_list}" ]; then 
     echo
-    echo "Checking existence of linked absolutes"
+    echo "Checking existence of target absolutes:"
+    echo ${__abs_exist_list}
+    echo
     typeset __status=0
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
@@ -223,19 +230,22 @@ if [ ! -z "${__abs_exist_list}" ]; then
         if [ ! -f  "${__abs_full}" ]; then
             echo "    ${__abs_full} not found"
             __status=1
+        else
+            echo "${__abs_full} installed" >> .checkAbs 
         fi
     done; done
 
     if [ "${__status}" -eq 0 ]; then
         echo "    All programs have been compiled correctly!"
         echo
-        echo "######################################"
-        echo "#"
-        echo "#  MIDAS COMPILATION COMPLETED"
-        echo "#"
-        echo "#  > ${MIDAS_COMPILE_DIR_MAIN}"
-        echo "#"
-        echo "######################################"
+        echo "╔═════════════════════════════╗"
+        echo "║                             ║"
+        echo "║ MIDAS COMPILATION COMPLETED ║"
+        echo "║                             ║"
+        echo "╚═════════════════════════════╝"
+        echo
+        echo "  > ${MIDAS_COMPILE_DIR_MAIN}"
+        echo
     else
         echo
         echo "<!> Some programs could not compile <!>"
@@ -253,7 +263,5 @@ then
 fi
 cat ${__listing_frontend} >> ${__listing_config}
 mv ${__listing_config} ${__listing_frontend}
-if [ "${__keep_jobsubmit_ofile}" = false ]
-then
-    rm -rf ${__listing_frontend}.o
-fi
+[ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
+[ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
