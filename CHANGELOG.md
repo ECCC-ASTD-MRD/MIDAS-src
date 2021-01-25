@@ -135,6 +135,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#456 and !425)
  * Fix uninitialized `statevector` object in `gsv_readTrials` and activation of
    horizontal padding for limited-area ensembles (#451 and !423)
  * Fixed bug in hypespectral infrared background check related to missing IASI shortwave channels (#446 and !422)
