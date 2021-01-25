@@ -10,28 +10,46 @@ Notice that we are **uniformizing the MIDAS compilation environment variable nam
 then
 ```
 $ ./midas_build
-...
-#####################################
+Checking prior existence of target absolutes
+
+========================================================================
 ... Launching direct compilation on daley
-    > listing_daley
-######################################
-... Launching compilation on eccc-ppp3
-...
-=================== ord_soumet version 1.27 =================
-...
-######################################
-#
-#  MIDAS COMPILATION COMPLETED
-#
-#  > /home/mad001/data_maestro/ords/midas-bld
-#
-######################################
+    > listing_midasCompilation.daley-202101252007.out
+    daley compilation process id: 843378
+========================================================================
+... Launching compilation on eccc-ppp4
+=================== ord_soumet version 1.28 =================
+...<ord_soumet output>...
+
+Compilation underway in working directory: /home/mad001/data_maestro/ords/midas-bld/midas_bld-v_3.6.0-54-g2488f14
+
+Compilation on daley (pid: 843378) has finished.
+Compilation on eccc-ppp4 (jobid: 110928281.cs4fe01) has finished.
+
+
+Checking existence of target absolutes:
+adjointTest advector calcStats diagBmatrix diagHBHt ensembleH ensManip ensPostProcess genCoeff letkf obsImpact obsSelection oMinusF prepcma randomPert thinning var
+
+    All programs have been compiled correctly!
+
+╔═════════════════════════════╗
+║                             ║
+║ MIDAS COMPILATION COMPLETED ║
+║                             ║
+╚═════════════════════════════╝
+
+  > /home/mad001/data_maestro/ords/midas-bld/midas_abs
+
+
+MIDAS_COMPILE_CLEAN=true (in config.dot.sh)
+ ... cleaning build directory
+rm -rf /home/mad001/data_maestro/ords/midas-bld/midas_bld-v_3.6.0-54-g2488f14
 ```
 It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or 
 `Banting`) submitting jobs with the number of cores specified in 
 `config.dot.sh` (8 seems to be optimal).
 It will then install (copy) the absolutes in the directory 
-`${MIDAS_COMPILE_DIR_MAIN}/midas-bld` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs`. 
+`${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs` and since `MIDAS_COMPILE_CLEAN=true` by default, will delete the build directory (directory `midas_bld-${VERSION}`).
 
 ## Using `build-midas` for specific targets
 `build-midas` is a wrapper around 
@@ -43,30 +61,7 @@ $ ./midas_build obsSelection.Abs var.Abs
 ```
 
 A *target* is something (often a file) to build; you can get information on
-available targets by calling
-```
-$ make help
-USAGE:
-    source ./config.dot.sh
-    make [-j ${MIDAS_COMPILE_NCORES} -O] [OPTIONS] [TARGETS] [VERBOSE=(1|2)]
-OPTIONS:
-    consult make manual: man make
-TARGETS:
-    %.Abs                          link an absolute 
-    %.f90                          preprocess an ftn90 file
-    %.o                            compile an object 
-    all                            compile all programs 
-    clean                          delete all build directories 
-    cleanabs                       delete all absolutes
-    cleandep                       delete all dependency file
-    cleanobj                       delete all objects
-    depend                         generate all dependency files
-    diagrams                       build diagrams (not available yet)
-    doc                            build documentation (not available yet)
-    help                           print this help
-    install                        install all programs
-    ssm                            build SSM package 
-```
+available targets by calling `make help`.
 See [next section](#using-make) for more on targets.
 
 
@@ -76,7 +71,7 @@ See [next section](#using-make) for more on targets.
 passing can be auto-completed by pressing `<TAB>`:
 ```
 $ midas_build <TAB><TAB>
-Display all 141 possibilities? (y or n)
+Display all 143 possibilities? (y or n)
 $ midas_build obsImpact.<TAB><TAB>
 obsImpact.Abs  obsImpact.o
 ```
@@ -107,11 +102,11 @@ All environment variables now **start** with the prefix `MIDAS_`.
 These former variables have been renamed:
 
 * `COMPILEDIR_MIDAS_MAIN` is now `MIDAS_COMPILE_DIR_MAIN`
-* `COMPILE_MIDAS_COMPF_GLOBAL` is now `MIDAS_COMPILE_COMPF_GLOBAL`
 * `COMPILE_MIDAS_ADD_DEBUG_OPTIONS` is now `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`
 
-If any of those are defined in your profile, you should change them to respect 
-this new convention in order to obtain the expected result.
+If any of those are defined in your profile, you will see a corresponding 
+warning and should change them to respect this new convention in order to
+obtain the expected result.
 
 ## Using `make`
 
@@ -122,7 +117,8 @@ You'll first need to source (and edit if you want) the compilation environment:
 ```
 $ source ./config.dot.sh
 ```
-Otherwise, only two targets will be available: `clean` and `help`.
+Otherwise, only a few targets will be available: `clean`, `cleanabs`, 
+`cleanall`, `cleandep`, `cleanobj`  and `help`.
 
 Then you're good to go!
 You can call make to build any target.
@@ -132,17 +128,14 @@ target such as `all`, `clean` or other label that are not a file *per se*), you
 can always use autocompletion by pressing `<TAB>`:
 ```
 $ make <TAB><TAB>
-Display all 147 possibilities? (y or n) <y>
-Makefile                       install
-absolutes                      kdtree2_mod.o
-addIncrement.Abs               lambmatrixhi_mod.o
-addIncrement.o                 lamspectraltransform_mod.o
-adjointTest.Abs                letkf.Abs
-adjointTest.o                  letkf.o
-advection_mod.o                localization_mod.o
-advector.Abs                   localizationfunction_mod.o
-advector.o                     localizationspectral_mod.o
-all                            mathphysconstants_mod.o
+Display all 156 possibilities? (y or n) <y>
+absolutes                       install
+adjointTest.Abs                 kdtree2_mod.o
+adjointTest.o                   lambmatrixhi_mod.o
+advection_mod.o                 lamspectraltransform_mod.o
+advector.Abs                    letkf.Abs
+advector.o                      letkf.o
+all                             localizationfunction_mod.o
 ...
 $ make var<TAB>
 var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
@@ -173,18 +166,27 @@ The option `--dry-run` (or `-n`) only prints what it would be doing without actu
 Some frequently used phony targets are:
 * `help` : print a short synopsis and important targets
 * `all` : compile all programs on current architecture 
-* `info` : print information to stdout
+* `info` : print information about compilation setup
 * `install` : install all compiled programs   
-  Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with version number:  
+  Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with 
+  version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
   `../midas.version.sh` script.
-* `info` : print information to stdout
-* `clean` : remove all objects, programs, intermediate files, everything that was produced by `make` **from all versions of MIDAS** in the build directory.
-* `cleanabs` : remove all but installed programs in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`
-* `cleanobj` : remove objects and dependencies
-* `cleandep` : remove dependencies files ([see Automatic dependencies below](#automatic-dependencies))
+* `clean` : remove the build directory for the current version 
+* `cleanabs` : remove programs in the current build directory
+* `cleanobj` : remove objects in the current build directory
+* `cleandep` : remove dependencies files in the current build directory
+  ([see Automatic dependencies below](#automatic-dependencies))
+* `cleanall` : remove **all** build directories
 
 Omitting the target defaults to `all`.
+
+
+There is however [a pending bug (#453)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/453) that is triggered by sourcing 
+`src/programs/commons/compile_setup.sh` (sourced in `config.dot.sh`).
+After the config sourcing, the shell is unstable with respect to some 
+auto-completion features.
+
 
 ### The `install` target
 Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
@@ -296,7 +298,7 @@ Making only the dependencies:
 $ make depend 
 $ tree ../compiledir
 ../compiledir
-└── v_3.5.2-133-g111551f_M
+└── midas_bld-v_3.5.2-133-g111551f_M
     └── ubuntu-18.04-skylake-64
         └── intel-19.0.3.199
             ├── clib_interfaces_mod.f90
@@ -349,11 +351,21 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 ## SSM packaging
 
 To publish the absolutes in a SSM domain, one have to
-1. update `./config.dot.sh` `MIDAS_SSM_*` variables  
-   (making sure they have write privilege to `${MIDAS_SSM_TARGET}`)
-2. for **each architecture** `(source ./config.dot.sh && make ssm)`
-3. once all architectures have been published, protect the domain:  
-   `(source ./config.dot.sh && make ssm_protect)`
+1. make sure to keep the build directory by setting `MIDAS_COMPILE_CLEAN=false`
+   in `config.dot.sh` or by exporting it's value in your shell and build: 
+   ```
+   (export MIDAS_COMPILE_CLEAN=false ; midas_build)
+   ```
+1. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the 
+   shell (making sure they have write privilege to `${MIDAS_SSM_TARGET}`)
+2. for **each architecture**
+   ```
+   (source ./config.dot.sh && make ssm)
+   ```
+3. once all architectures have been published, protect the domain:
+   ```
+   (source ./config.dot.sh && make ssm_protect)
+   ```
 
 
 ## What is left to do
