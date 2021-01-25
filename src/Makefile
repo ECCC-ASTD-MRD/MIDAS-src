@@ -46,7 +46,7 @@
 ##	@DEV_NOTES
 ##		* inline comments starting with `#>` are interpreted for `make help`
 ##		  (search for `help:`)
-##		* prior to launching this make, `./programs/commons/compile_setup.sh`
+##		* prior to launching this make, `./config.dot.sh`
 ##		  has to be sourced (except for help and clean* targets) 
 ##		  (this exports `${COMPF}` `${GPP_OPTS}` and `${FOPTMIZ}`)
 ##
@@ -54,10 +54,6 @@
 ##	@TODO
 ##		- [?] consider Busby 2017 2-pass approach 
 ##				(A Note on Compiling Fortran)
-##		- [/] automated configuration sourcing with a single make call 
-##				with `build.sh`
-##			  	(consider ENKF#19 strategy: it gets really messy.
-##			  	Maybe a script calling make and passing it's arguments?)
 ##
 ###############################################################################
 
@@ -70,7 +66,6 @@
 ##-----------------------------------------------
 ## 	default target declaration
 .DEFAULT_GOAL := all 
-#.DEFAULT_GOAL := help
 
 
 ## will be redefined by target.mk
@@ -473,7 +468,7 @@ $(__ssm_target_version): $(__ssm_workdir_base)/$(__ssm_fullname).ssm $(__ssm_tar
 	ssm publish --debug -d $(__ssm_target_version) -p  $(__ssm_fullname)
 	@echo ">>> SSM package published at $(__ssm_target_version)"
 
-ssm_protect: $(__ssm_target_version)	#> protect SSM domain
+ssm_protect: 	#> protect SSM domain
 	ssm freezed -d $(__ssm_target_version) \
         && chmod -R ugo-w $(__ssm_target_version)
 	@echo ">>> SSM package $(__ssm_target_version) protected"
