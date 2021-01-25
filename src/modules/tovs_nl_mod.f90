@@ -285,7 +285,6 @@ contains
         tvs_tovsIndex (headerIndex) = tvs_nobtov
       else
         write(*,*) " tvs_setupAlloc: Warning Invalid Sensor ", iplatform, isat, instrum, " skipping ..."
-        cycle HEADER
       end if
 
       ! Loop over all body indices (still in the 'TO' family)
@@ -294,24 +293,28 @@ contains
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
-
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-          channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-          channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
+        if (nosensor > 0) then
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+            channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
           
-          channelNumber = channelNumber - tvs_channelOffset(nosensor)
+            channelNumber = channelNumber - tvs_channelOffset(nosensor)
 
-          channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),channelNumber)
-          if ( channelIndex == 0 ) then
-            tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
-            tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
+            channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),channelNumber)
+            if ( channelIndex == 0 ) then
+              tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
+              tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
+            end if
+            
+            if ( tvs_debug .and. mpi_myid == 0 .and. &
+                 trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
+              write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
+                   tvs_satelliteName(nosensor), channelNumber, channelIndex
+            end if
           end if
-
-          if ( tvs_debug .and. mpi_myid == 0 .and. &
-                trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
-            write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
-                        tvs_satelliteName(nosensor), channelNumber, channelIndex
-          end if
+        else           
+          ! set to notAssimilated if instrument not in NAMTOV namelist
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
         end if
       end do BODY
     end do HEADER
