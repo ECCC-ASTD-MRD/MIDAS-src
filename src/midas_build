@@ -36,26 +36,34 @@
 ##  functions
 function are_jobs_completed {
     set -e
-    typeset jobid_front=$1
+    typeset job_or_pid_front=$1
     typeset pid_back=$2
+    typeset headnode_frontend=$3
 
     typeset __sleep_interval=3
     typeset __front_done=0
     typeset __back_done=0
     while true; do
-        __status=0
+        typeset __status=0
 
         if [ "${__front_done}" = 0 ]; then 
-            jobchk -c ${MIDAS_COMPILE_FRONTEND} ${jobid_front} || __status=$?
+            if [ "${headnode_frontend}" == true ]; then
+                [ $(ps ${job_or_pid_front} | wc -l) -le 1 ] && __status=1
+                __id_type="pid"
+            else
+                jobchk -c ${MIDAS_COMPILE_FRONTEND} ${job_or_pid_front} \
+                    || __status=$?
+                __id_type="jobid"
+            fi
             if [ "${__status}" -ne 0 ]; then
-                echo "Compilation on ${MIDAS_COMPILE_FRONTEND}\
-(jobid: ${jobid_front}) has finished."
+                echo "Compilation on ${MIDAS_COMPILE_FRONTEND} \
+(${__id_type}: ${job_or_pid_front}) has finished."
                 __front_done=1
         fi; fi
 
         if [ "${__back_done}" = 0 ]; then
         if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
-                echo "Compilation on ${MIDAS_COMPILE_BACKEND}\
+                echo "Compilation on ${MIDAS_COMPILE_BACKEND} \
 (pid: ${pid_back}) has finished."
                 __back_done=1
         fi; fi
@@ -175,20 +183,20 @@ echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
 ##  Compilation on frontend
 echo "========================================================================"
 echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
-if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
+if ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 then
     ## compile directly on head node
     __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
     echo "    > ${__listing_frontend}"
-    echo ${__job}
     ${__job} >  ${__listing_frontend} 2>&1 &
-    __pid_frontend=$!
+    __job_or_pid_frontend=$!
+    echo "    ${MIDAS_COMPILE_FRONTEND} (headnode) compilation process id: ${__job_or_pid_frontend}"
 else
     ## use ord_soumet
-    __jobid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
+    __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
         -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
-    __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-${TRUE_HOST}-$(date +%Y%m%d%H)*.out"
+    __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-$(date +%Y%m%d%H)*.out"
 fi
 
 ## waiting for backend compilation to terminate
@@ -196,20 +204,17 @@ echo
 echo "Compilation underway in working directory: ${__build_dir_version}"
 echo 
 
-if ${MIDAS_COMPILE_ON_MIDAS_COMPILE_FRONTEND_HEADNODE}
-then
-    wait ${__pid_backend}
-    echo 
-    echo "Compilation completed successfully on ${MIDAS_COMPILE_BACKEND}"
-    wait ${__pid_frontend}
-    echo 
-    echo "Compilation completed successfully on ${MIDAS_COMPILE_FRONTEND}"
-else
-    are_jobs_completed ${__jobid_frontend} ${__pid_backend} 
+are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
+    ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+
+
+## Organizing logs
+if [ -z ${__listing_frontend+x} ]
+then 
+    __listing_frontend=$(ls -rt ${__listing_frontend_search} | tail -1) 
 fi
-
-
-
+cat ${__listing_frontend} >> ${__listing_config}
+mv ${__listing_config} ${__listing_frontend}
 
 
 ## checking if linking has been successful
@@ -229,6 +234,7 @@ if [ ! -z "${__abs_exist_list}" ]; then
             echo "${__abs_full} installed" >> .checkAbs 
         fi
     done; done
+    [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
     if [ "${__status}" -eq 0 ]; then
         echo "    All programs have been compiled correctly!"
@@ -251,21 +257,25 @@ if [ ! -z "${__abs_exist_list}" ]; then
         fi
     else
         echo
-        echo "<!> Some programs could not compile <!>"
-        echo 
+        echo "╔═════════════════════════════════╗"
+        echo "║                                 ║"
+        echo "║ SOME PROGRAMS COULD NOT COMPILE ║"
+        echo "║                                 ║"
+        echo "╚═════════════════════════════════╝"
+        echo
+        echo "<!> Searching for useful error messages in ${__listing_frontend}"
+        echo
+        grep -En 'error #|undefined' ${__listing_frontend}
+        echo
+        echo "<!> Searching for useful error messages in ${__listing_backend}"
+        echo
+        grep -En 'error #|undefined' ${__listing_backend}
+        echo
         exit 1
     fi
 fi
 
 
-
-## Organizing logs
-if [ -z ${__listing_frontend+x} ]
-then 
-    __listing_frontend=$(ls -rt ${__listing_frontend_search} | tail -1) 
-fi
-cat ${__listing_frontend} >> ${__listing_config}
-mv ${__listing_config} ${__listing_frontend}
-[ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
+## Some final clean up
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
 rm -rf .compile_job
