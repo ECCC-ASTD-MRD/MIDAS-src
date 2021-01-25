@@ -30,8 +30,8 @@ version of the profile which is
 
 The documentation for officially supported branches is available:
 * [`master` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
-* [`v_3.3` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.3)
-* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4)
+* [`v_3.6` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.6) (IC-3)
+* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4) (IC-2)
 
 # Contributing
 
@@ -44,7 +44,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the master branch
@@ -52,9 +52,15 @@ or if one is interested in the latest version of the master branch
 clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-master
 ```
 
-## Getting code related to operational system
+## Getting code related to IC-3 system
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
+clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.6
+```
+
+## Getting code related to IC-2 (operational) system
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
 clone_projet --no-central -c v_3.4 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.4
 ```
 
