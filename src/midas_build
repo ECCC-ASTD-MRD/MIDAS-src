@@ -155,20 +155,10 @@ fi
 ##=========================================================
 ##  Compilation on backend (in the background)
 
-##=========================================================
-##  sourcing user configuration
-source ./config.dot.sh
+__job_header="#! /bin/bash"$'\n'"set -ex"$'\n'"cd ${__here}"$'\n'"source ${__midas_dot_cfg}"
 
-##=========================================================
-##  Compilation on backend (in the background)
-here=$(pwd)
-cat > .compile_job << EOF
-#! /bin/bash
-set -ex
-cd ${here}
-source ${DOT_CONFIG} 
-make ${__target} -j ${NCORES} -O  DIR_BLD_ROOT=${DIR_BLD_ROOT} VERBOSE=${VERBOSE}
-EOF
+echo "${__job_header}" > .compile_job
+echo "${__job}" >> .compile_job
 
 __listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
 echo "========================================================================"
