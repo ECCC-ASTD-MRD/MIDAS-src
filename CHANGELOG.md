@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#456 and !425)
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
 
 ### Removed
 
