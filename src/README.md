@@ -321,15 +321,6 @@ To proceed with linking we need the fully recursive dependencies.
 We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency file and deduce the fully recursive ones needed at link time; they are in `dep.abs.inc` files.
 
 
-This is all well, but there is (at least) one case where a user could make that strategy fail.  **Once dependencies are evaluated, they are considered static**.  That means that if after having compiled, someone modify a module's dependencies (adding a `use` statement somewhere) and want to use the incremental awesome feature of `make` it will most probably fail, because the dependencies won't be automatically updated.
-There is no simple way to do that in Fortran 2003 (it is possible using Fortran 2008 submodules, but that would require a lot of refactoring.)
-
-So if you find yourself in such a situation, rebuild explicitly the dependencies **before** rebuilding, using `cleandep`
-```
-$ make cleandep [depend|all|...]
-```
-
-
 ## Adding a new program or changing external dependencies
 
 In the previous solution, when a new program is added, two files needed to be changed in `./programs/src_files/`:
