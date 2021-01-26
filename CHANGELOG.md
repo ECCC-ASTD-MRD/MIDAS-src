@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * New compilation solution based on GNU make (#255, #443 and !317)
 
 ### Changed
 
- * (Nothing yet)
+ * Change to some environment variable naming convention: start with `MIDAS_`
+   (#255, #443 and !317)
+   * Retrocompatibility maintained until next release
 
 ### Fixed
 
