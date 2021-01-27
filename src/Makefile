@@ -24,7 +24,7 @@
 ##
 ##		* To build a single target (object, absolute or dependency file) 
 ##		  ```
-##		  . ./programs/commons/compile_setup.sh 
+##		  source ./config.dot.sh
 ##		  make spectralfilter_mod.o 
 ##		  ```
 ##	@SEQUENCE
@@ -158,12 +158,12 @@ help:	#> print this help
 	@echo '    - Build directories cleaning targets:'
 	@echo "       make clean|cleanabs|cleanall|cleandep|cleanobj"
 	@echo 
-	@echo '    - For all targets but `clean` or `help`:'
-	@echo "       source $(FILE_CFG)"
-	@echo '       make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)]'
+	@echo '    - For all targets but `clean*` or `help`:'
+	@echo "       (source $(FILE_CFG) &&\\" 
+	@echo '       make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)])'
 	@echo ''
 	@echo '    - Complete install on current architecture:'
-	@echo '       make all && make install'
+	@echo "       (source $(FILE_CFG) && make all && make install)"
 	@echo "OPTIONS:"
 	@echo '    consult make manual: man make'
 	@echo "TARGETS:"
@@ -326,7 +326,7 @@ _D_options=$(filter -D%,$(COMPF))
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
 
-%.Abs: 	#> link an absolute 
+%.Abs: 	#> compile and link a program 
 	$(FC) $(COMPF) -O $(FOPTMIZ) \
 	$(addprefix -l, $(LIBAPPL) $(LIBSYS) $(LIBRMN)) $^ \
 	-o $@
@@ -376,8 +376,6 @@ endif
 ##	* conda pakage at [conda-forge](https://anaconda.org/conda-forge/makedepf90)
 ##	* Debian or Ubuntu pakages
 
-.PHONY: copy_depend_backend
-
 $(DEP_OBJ): $(SRC_ALL)
 	$(V) echo "Generating object dependencies > $@"	
 	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
@@ -396,20 +394,13 @@ $(DEP_ABS): $(DEP_OBJ)
 ##-----------------------------------------------
 ##	Phony global targets
 ##
-.PHONY: all absolutes objects info doc diagrams install depend 
+.PHONY: all absolutes objects info install depend 
 
-all: absolutes	#> compile all programs 
+all: absolutes	#> compile and link all programs 
 
 absolutes: $(ABS) 
 
-depend:	$(DEP_ABS) #> build dependencies
-
-objects: $(OBJ)
-
-
-doc:	#> build documentation (not available yet)
-
-diagrams:	#> build diagrams (not available yet)
+objects: $(OBJ) #> compile all objects
 
 .PHONY: printAbs
 printAbs:

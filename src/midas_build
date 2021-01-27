@@ -19,7 +19,6 @@
 ##        ```
 ##        ./install_build_completion.sh
 ##        source ${HOME}/.bash_completion
-##        source ${HOME}/.profile.d/interactive/post
 ##        ```
 ##
 ##  @REFERENCES 
@@ -83,7 +82,7 @@ function abs_path {
 
 
 ##=========================================================
-## some prior defitions and checks
+## some prior defitions 
 typeset __target
 typeset __job
 typeset __job_header
@@ -107,7 +106,7 @@ mv .tmp.config.out ${__listing_config}
 
 
 ##=========================================================
-##  parsing input and build job submissions
+##  parsing input and building job for submissions
 ##
 
 if [ $# -eq 0 ]
