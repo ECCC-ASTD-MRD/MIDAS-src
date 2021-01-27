@@ -141,7 +141,6 @@ cleanall:	#> delete ALL build directories (keep installed programs)
 		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*
 
 ## specific cleaning target 
-.PHONY: cleanabs cleanobj cleandep
 cleanabs:  #> delete all absolutes in current build directory
 	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
 

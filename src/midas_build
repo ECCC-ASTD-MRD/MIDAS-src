@@ -207,7 +207,8 @@ cat ${__listing_frontend} >> ${__listing_config}
 mv ${__listing_config} ${__listing_frontend}
 
 
-## checking if linking has been successful
+##=========================================================
+## Checking if compilation and linking have been successful
 if [ ! -z "${__abs_exist_list}" ]; then 
     echo
     echo "Checking existence of target absolutes:"
@@ -263,9 +264,39 @@ if [ ! -z "${__abs_exist_list}" ]; then
         echo
         exit 1
     fi
+else
+    ## checking compilation for errors
+    typeset __err_comp=0
+    typeset __err_back=$(grep -En 'error #|undefined' ${__listing_frontend})
+    typeset __err_front=$(grep -En 'error #|undefined' ${__listing_backend})
+    if [ ! -z "${__err_front}" ]; then 
+        echo
+        echo "<!> some error found in ${__listing_frontend}"
+        echo "${__err_front}"
+        __err_comp=1
+    fi
+    if [ ! -z "${__err_back}" ]; then 
+        echo
+        echo "<!> some error found in ${__listing_backend}"
+        echo "${__err_back}"
+        __err_comp=1
+    fi
+    if [ "${__err_comp}" == "1" ]; then
+        exit 1
+    fi
+
 fi
 
 
-## Some final clean up
+##=========================================================
+## Some final clean up if compilation (and possibly linking)
+## was successful
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
+
+if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then 
+    echo "MIDAS_COMPILE_KEEP_LISTING=false (in config.dot.sh)" 
+    echo " ... removing listings"
+    rm -rf ${__listing_frontend} ${__listing_backend}
+fi
+
 rm -rf .compile_job
