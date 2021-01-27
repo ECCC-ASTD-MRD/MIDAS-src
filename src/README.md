@@ -2,58 +2,83 @@
 
 The present `README` **assumes you are in the `src` directory** (the directory in which is this `README`), meaning onward `./` points to the `src` directory.
 
+The former compilation solution is still functionning, although there is a 
+change in the [environment variable naming convention](#new-environment-variable-convention).
 
-## I just want to build
 
-From `PPP[34]`, you can edit `./config.dot.sh` (for instance to modify `MIDAS_COMPILE_BACKEND`, `MIDAS_COMPILE_FRONTEND` or `MIDAS_COMPILE_DIR_MAIN`).
-Notice that we are **uniformizing the MIDAS compilation environment variable naming convention**, please consult [this section](#new-environment-variable-convention) if you used to define compilation variable in your profile.
-then
+## Using midas_build - for most use cases
+
+Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), we provide a fully automated build wrapper script that should be used in most use cases: **`midas_build`**.  It builds MIDAS executables on both front and backend using multicore compilation and does some error checking.
+
+### Configuring the compilation and linking process
+
+The compilation and linking is configured through some environment variables.
+You can either modify and export them in your shell or add them to your profile.
+Here are these variables and their default values in parentheses:
+
+* `MIDAS_COMPILE_BACKEND (daley)` and `MIDAS_COMPILE_FRONTEND (eccc-ppp4)`: 
+  machines used for each architecture
+* `MIDAS_COMPILE_JOBNAME (midasCompilation)`: name for the job submission
+  and the prefix for listings
+* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)`: 
+  directory where build directories and the executables directory will be.
+  Each git version will have its build directory 
+  `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables 
+  **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
+  version included in the absolute name.
+* `MIDAS_COMPILE_NCORES (8)`: numbers of cores to be used on each machine to 
+  compile (more than 8 provide no significant improvement).
+* `MIDAS_COMPILE_VERBOSE (2)`: verbosity level
+* `MIDAS_COMPILE_CLEAN (true)`: if `true`, remove the build directory after the
+  installation of the absolutes
+* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)`: if `true`, frontend multicore 
+  compilation is done directly on headnode, this should only be used on a 
+  dedicated node obtained through `jobsubi` 
+  (see (this section)[#calling-make-in-parallel] for instructions.)
+* `MIDAS_COMPILE_KEEP_LISTING (false)`: if `true`, remove listings on 
+  successful compilation (and linking if applicable)
+
+These variables are declared in `./config.dot.sh`, but it is suggested not to 
+modify directly that file since it is part of the versioned repository.
+
+Notice that we are **uniformizing the MIDAS compilation environment variable 
+naming convention**, please consult 
+[this section](#new-environment-variable-convention) if you used to define 
+compilation variable in your profile.  
+
+
+### Building all
+
+Simply execute **`./midas_build`** from a frontend machine.
+
+Successful compilation, linking and installing will be confirmed with the 
+display
 ```
-$ ./midas_build
-Checking prior existence of target absolutes
-
-========================================================================
-... Launching direct compilation on daley
-    > listing_midasCompilation.daley-202101252007.out
-    daley compilation process id: 843378
-========================================================================
-... Launching compilation on eccc-ppp4
-=================== ord_soumet version 1.28 =================
-...<ord_soumet output>...
-
-Compilation underway in working directory: /home/mad001/data_maestro/ords/midas-bld/midas_bld-v_3.6.0-54-g2488f14
-
-Compilation on daley (pid: 843378) has finished.
-Compilation on eccc-ppp4 (jobid: 110928281.cs4fe01) has finished.
-
-
-Checking existence of target absolutes:
-adjointTest advector calcStats diagBmatrix diagHBHt ensembleH ensManip ensPostProcess genCoeff letkf obsImpact obsSelection oMinusF prepcma randomPert thinning var
-
-    All programs have been compiled correctly!
-
 ╔═════════════════════════════╗
 ║                             ║
 ║ MIDAS COMPILATION COMPLETED ║
 ║                             ║
 ╚═════════════════════════════╝
-
-  > /home/mad001/data_maestro/ords/midas-bld/midas_abs
-
-
-MIDAS_COMPILE_CLEAN=true (in config.dot.sh)
- ... cleaning build directory
-rm -rf /home/mad001/data_maestro/ords/midas-bld/midas_bld-v_3.6.0-54-g2488f14
 ```
-It will build MIDAS executables on both `PPP4` (or `PPP3`) and `Daley` (or 
-`Banting`) submitting jobs with the number of cores specified in 
-`config.dot.sh` (8 seems to be optimal).
-It will then install (copy) the absolutes in the directory 
-`${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format `midas-$(program)_$(ORDENV_PLAT)-$(VERSION).Abs` and since `MIDAS_COMPILE_CLEAN=true` by default, will delete the build directory (directory `midas_bld-${VERSION}`).
 
-## Using `build-midas` for specific targets
-`build-midas` is a wrapper around 
-[GNU `make`](https://www.gnu.org/software/make/); it defaults to compiling, 
+It will 
+1. build MIDAS executables on both architectures using the number of cores 
+   specified 
+2. install (copy) the absolutes in the directory 
+   `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format 
+   `midas-${program}_${ORDENV_PLAT}-${VERSION}.Abs`
+3. if `MIDAS_COMPILE_CLEAN=true`, will delete the build directory if the 
+   compilation was successful 
+   (directory `midas_bld-${VERSION}`)
+4. if `MIDAS_COMPILE_KEEP_LISTING=false`, will delete the listings if the 
+   compilation was successful
+
+
+Please remember to remove listings (`./midasCompilitation.*`) that are in the
+`src` directory.
+
+### Using midas_build for specific targets
+`build-midas` is a wrapper around `make`; it defaults to compiling, 
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
 ```
@@ -108,7 +133,31 @@ If any of those are defined in your profile, you will see a corresponding
 warning and should change them to respect this new convention in order to
 obtain the expected result.
 
-## Using `make`
+
+## Adding a new program or changing external dependencies
+
+In the previous solution, when a new program is added, two files needed to be changed in `./programs/src_files/`:
+* `src_files_${PGM}.sh`
+* `compile_setup_${PGM}.sh`
+
+The first contains dependencies information and this is dealt with automatically ([see previous section](#automatic-dependencies)).
+The second one contain external libraries that are needed at link time by the programs.
+The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
+
+So **when a new program is added** or when **external libraries change for an existing program**, edit the [`./programs/programs.mk`](programs/programs.mk) file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
+```
+var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+         rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+         $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+ ```
+
+
+
+--------
+
+
+
+## Using make - advanced use cases
 
 If you want to have a more fine grained control, you can call `make` directly,
 I invite you to read its man pages (short and straight to the point).  
@@ -188,7 +237,7 @@ After the config sourcing, the shell is unstable with respect to some
 auto-completion features.
 
 
-### The `install` target
+### The install target
 Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
 
 
@@ -199,7 +248,7 @@ A complete install is then
 launched from all platforms (what is done by `./midas_build` without argument).
 
 
-## Calling make in parallel
+### Calling make in parallel
 
 To compile a target using multiple cores use
 ```
@@ -226,14 +275,14 @@ $ make -j ${nCores} -O
 
 
 
-## Out-of-tree compilation
+### Out-of-tree compilation
 
 By default `make` will build in `${HOME}/data_maestro/ords/midas-bld` and will symlink it to `../compiledir`.  
 You may modify that default in `./config.dot.sh`.  
 
 
 
-## Incremental builds
+### Incremental builds
 
 
 If you modify a single source file, `make` will determine which targets (objects and absolutes) depend on it and will reprocess only those.
@@ -285,7 +334,7 @@ It is an issue (#444) we are aware of.
 
 
 
-## Automatic dependencies
+### Automatic dependencies
 
 `make` determine dependencies at build time.
 It is thought a better practice to find out about these dependencies automatically.
@@ -319,24 +368,6 @@ bgckAtms.o : bgckAtms.f90 bgckmicrowave_mod.o
 
 To proceed with linking we need the fully recursive dependencies.
 We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) the superficial dependency file and deduce the fully recursive ones needed at link time; they are in `dep.abs.inc` files.
-
-
-## Adding a new program or changing external dependencies
-
-In the previous solution, when a new program is added, two files needed to be changed in `./programs/src_files/`:
-* `src_files_${PGM}.sh`
-* `compile_setup_${PGM}.sh`
-
-The first contains dependencies information and this is dealt with automatically ([see previous section](#automatic-dependencies)).
-The second one contain external libraries that are needed at link time by the programs.
-The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
-
-So **when a new program is added** or when **external libraries change for an existing program**, edit the [`./programs/programs.mk`](programs/programs.mk) file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
-```
-var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
-         rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-         $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
- ```
 
 
 ## SSM packaging
