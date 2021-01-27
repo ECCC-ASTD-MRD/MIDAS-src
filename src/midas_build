@@ -90,16 +90,8 @@ typeset __job_header
 typeset __here
 typeset __abs_exist_list
 
-## check if called from midas/src
-##   install_build_completion.sh make midas_build visible from PATH
-##   but won't work unless called in midas/src
 __here=$(pwd)
 __date=$(date +%Y%m%d%H%S)
-if [ ! "$(realpath $0)" == "$(pwd -P)/midas_build" ]
-then
-    echo '`midas_build` need to be called from `src`'
-    exit 1
-fi 
 
 ##=========================================================
 ##  sourcing user configuration
