@@ -14,7 +14,9 @@ Although the present build strategy is based on [GNU make](https://www.gnu.org/s
 
 The compilation and linking is configured through some environment variables.
 You can either modify and export them in your shell or add them to your profile.
-Here are these variables and their default values in parentheses:
+Here are these variables.
+
+Their default values (in parentheses), **should be good for most users**.
 
 * `MIDAS_COMPILE_BACKEND (daley)` and `MIDAS_COMPILE_FRONTEND (eccc-ppp4)`: 
   machines used for each architecture
@@ -34,12 +36,14 @@ Here are these variables and their default values in parentheses:
 * `MIDAS_COMPILE_HEADNODE_FRONTEND (false)`: if `true`, frontend multicore 
   compilation is done directly on headnode, this should only be used on a 
   dedicated node obtained through `jobsubi` 
-  (see (this section)[#calling-make-in-parallel] for instructions.)
-* `MIDAS_COMPILE_KEEP_LISTING (false)`: if `true`, remove listings on 
+  (see [this section](#calling-make-in-parallel) for instructions.)
+* `MIDAS_COMPILE_KEEP_LISTING (false)`: if `false`, remove listings on 
   successful compilation (and linking if applicable)
+* `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : add debug options to compiler if
+  set to `yes`.
 
-These variables are declared in `./config.dot.sh`, but it is suggested not to 
-modify directly that file since it is part of the versioned repository.
+These variables are declared in `./config.dot.sh`, but it is suggested **not to 
+modify directly that file** since it is part of the versioned repository.
 
 Notice that we are **uniformizing the MIDAS compilation environment variable 
 naming convention**, please consult 
@@ -78,7 +82,7 @@ Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
 ### Using midas_build for specific targets
-`build-midas` is a wrapper around `make`; it defaults to compiling, 
+`midas_build` is a wrapper around `make`; it defaults to compiling, 
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
 ```
@@ -87,7 +91,7 @@ $ ./midas_build obsSelection.Abs var.Abs
 
 A *target* is something (often a file) to build; you can get information on
 available targets by calling `make help`.
-See [next section](#using-make) for more on targets.
+See [this section](#using-make-advanced-use-cases) for more on targets.
 
 
 ### Auto-completion
@@ -108,8 +112,8 @@ However, this feature needs to be installed:
 Auto completion for midas_build installed
 
 To use it directly (in the present shell):
-   `source /home/mad001/.profile.d/interactive/post`
-   `source /home/mad001/.bash_completion`
+   `source /home/${USER}/.profile.d/interactive/post`
+   `source /home/${USER}/.bash_completion`
 (in any case, it will be automatically loaded on next shells)
 
 ```
@@ -140,7 +144,7 @@ In the previous solution, when a new program is added, two files needed to be ch
 * `src_files_${PGM}.sh`
 * `compile_setup_${PGM}.sh`
 
-The first contains dependencies information and this is dealt with automatically ([see previous section](#automatic-dependencies)).
+The first contains dependencies information and this is dealt with automatically ([see this section](#automatic-dependencies)).
 The second one contain external libraries that are needed at link time by the programs.
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
 
@@ -159,17 +163,25 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 
 ## Using make - advanced use cases
 
+
 If you want to have a more fine grained control, you can call `make` directly,
+but for **most users,** `midas_build` **should do just fine**.
 I invite you to read its man pages (short and straight to the point).  
 
-You'll first need to source (and edit if you want) the compilation environment:
+You'll first need to source the compilation environment (if you want to modify
+environment variable values, do it in your profile or through explicit `export`
+in the shell - don't modify `config.dot.sh`):
 ```
 $ source ./config.dot.sh
 ```
 Otherwise, only a few targets will be available: `clean`, `cleanabs`, 
 `cleanall`, `cleandep`, `cleanobj`  and `help`.
 
-Then you're good to go!
+There is however [a pending bug (#453)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/453) that is **triggered by sourcing 
+`src/programs/commons/compile_setup.sh`** (sourced in `config.dot.sh`).
+After the config sourcing, the shell becomes unstable with respect to some 
+command and/or auto-completion features.
+
 You can call make to build any target.
 
 A target may be an object file, a specific program or a label (or *phony* 
@@ -202,10 +214,10 @@ Preprocessing clib_interfaces_mod.f90 inplace
 Preprocessing rttov_interfaces_mod.f90 inplace
 Generating object dependencies > dep.obj.inc
 Generating executables dependencies > dep.abs.inc
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/clib_interfaces_mod.f90 -o clib_interfaces_mod.o > /dev/null 
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/utilities_mod.f90 -o utilities_mod.o > /dev/null 
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/clib_interfaces_mod.f90 -o clib_interfaces_mod.o > /dev/null 
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/utilities_mod.f90 -o utilities_mod.o > /dev/null 
 ...
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/programs/var.f90 -o var.o > /dev/null 
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/programs/var.f90 -o var.o > /dev/null 
 s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4\
     -lf90sqlite ... obsfilter_mod.o -o var.Abs
 ```
@@ -231,10 +243,6 @@ Some frequently used phony targets are:
 Omitting the target defaults to `all`.
 
 
-There is however [a pending bug (#453)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/453) that is triggered by sourcing 
-`src/programs/commons/compile_setup.sh` (sourced in `config.dot.sh`).
-After the config sourcing, the shell is unstable with respect to some 
-auto-completion features.
 
 
 ### The install target
@@ -275,11 +283,6 @@ $ make -j ${nCores} -O
 
 
 
-### Out-of-tree compilation
-
-By default `make` will build in `${HOME}/data_maestro/ords/midas-bld` and will symlink it to `../compiledir`.  
-You may modify that default in `./config.dot.sh`.  
-
 
 
 ### Incremental builds
@@ -298,9 +301,9 @@ make[2]: Nothing to be done for 'absolutes'
 ...
 $ touch modules/varqc_mod.f90
 $ make -n
-s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/varqc_mod.f90 -o varqc_mod.o
-s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/modules/minimization_mod.f90 -o minimization_mod.o
-s.f90 ... -c /fs/homeu1/eccc/aq/arqi/mad001/code/midas/src/programs/var.f90 -o var.o
+s.f90 ... -c .../midas/src/modules/varqc_mod.f90 -o varqc_mod.o
+s.f90 ... -c .../midas/src/modules/minimization_mod.f90 -o minimization_mod.o
+s.f90 ... -c .../midas/src/programs/var.f90 -o var.o
 s.f90 ... -o var.Abs
 ```
 
@@ -373,18 +376,19 @@ We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) t
 ## SSM packaging
 
 To publish the absolutes in a SSM domain, one have to
-1. make sure to keep the build directory by setting `MIDAS_COMPILE_CLEAN=false`
-   in `config.dot.sh` or by exporting it's value in your shell and build: 
+1. make sure to keep the build directory by exporting 
+   `MIDAS_COMPILE_CLEAN=false` in your shell and build: 
    ```
    (export MIDAS_COMPILE_CLEAN=false ; midas_build)
    ```
-1. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the 
-   shell (making sure they have write privilege to `${MIDAS_SSM_TARGET}`)
-2. for **each architecture**
+2. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the 
+   shell (making sure you have write privilege to `${MIDAS_SSM_TARGET}`)
+3. for **each architecture**
    ```
    (source ./config.dot.sh && make ssm)
    ```
-3. once all architectures have been published, protect the domain:
+4. **once all architectures have been published**, protect the domain
+   (only need to be done once, from either front or backend):
    ```
    (source ./config.dot.sh && make ssm_protect)
    ```
@@ -392,8 +396,11 @@ To publish the absolutes in a SSM domain, one have to
 
 ## What is left to do
 
-Candies.  
 
+* understand the shell instability triggered by the sourcing of 
+  `programs/commons/compile_setup.sh` (#453) that hinders the direct use of 
+  `make`
+* address the `make --touch` spurious empty file bug (#444)
 * automated `doc` building and `diagrams`, etc.
 
 But most of all... taking into account your input.  
