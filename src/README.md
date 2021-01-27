@@ -99,9 +99,9 @@ See [this section](#using-make-advanced-use-cases) for more on targets.
 `midas_build` comes with a bash auto-completion feature, such that argument 
 passing can be auto-completed by pressing `<TAB>`:
 ```
-$ midas_build <TAB><TAB>
+$ ./midas_build <TAB><TAB>
 Display all 143 possibilities? (y or n)
-$ midas_build obsImpact.<TAB><TAB>
+$ ./midas_build obsImpact.<TAB><TAB>
 obsImpact.Abs  obsImpact.o
 ```
 
@@ -112,16 +112,14 @@ However, this feature needs to be installed:
 Auto completion for midas_build installed
 
 To use it directly (in the present shell):
-   `source /home/${USER}/.profile.d/interactive/post`
-   `source /home/${USER}/.bash_completion`
+   source ${HOME}/.bash_completion
 (in any case, it will be automatically loaded on next shells)
 
 ```
 This will create a file `~/.bash_completion` and a directory 
-`~/.bash_completion.d` in your home, and append the current directory to your
-`${PATH}` by adding a line to your `~/.profile.d/interactive/post`.
-For it to be functionnal in the present shell, you'll have to source the two
-files (it will be automatic in future shells).
+`~/.bash_completion.d` in your home.
+For it to be functionnal in the present shell, you'll have to source 
+`~/.bash_completion.d` (it will be automatic in future shells).
 
 ### New environment variable convention
 In the spirit of uniformizing environment variable convention across our 
@@ -182,11 +180,10 @@ There is however [a pending bug (#453)](https://gitlab.science.gc.ca/atmospheric
 After the config sourcing, the shell becomes unstable with respect to some 
 command and/or auto-completion features.
 
-You can call make to build any target.
-
-A target may be an object file, a specific program or a label (or *phony* 
-target such as `all`, `clean` or other label that are not a file *per se*), you
-can always use autocompletion by pressing `<TAB>`:
+You can call `make` to build any target; target may be an object file, a
+specific program or a label (or *phony* target such as `all`, `objects` or other 
+label that are not a file *per se*), you can always use autocompletion by 
+pressing `<TAB>`:
 ```
 $ make <TAB><TAB>
 Display all 156 possibilities? (y or n) <y>
@@ -379,7 +376,7 @@ To publish the absolutes in a SSM domain, one have to
 1. make sure to keep the build directory by exporting 
    `MIDAS_COMPILE_CLEAN=false` in your shell and build: 
    ```
-   (export MIDAS_COMPILE_CLEAN=false ; midas_build)
+   (export MIDAS_COMPILE_CLEAN=false ; ./midas_build)
    ```
 2. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the 
    shell (making sure you have write privilege to `${MIDAS_SSM_TARGET}`)

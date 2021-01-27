@@ -7,13 +7,11 @@
 ##  Need to be installed once; modify
 ##      * `${HOME}/.bash_completion`
 ##      * `${HOME}/.bash_completion.d/`
-##      * `${HOME}/.profile.d/interactive/post`
 ##
 ##  @SYNOPSIS
 ##      ```
 ##      ./install_build_completion.sh
 ##      source ${HOME}/.bash_completion
-##      source ${HOME}/.profile.d/interactive/post
 ##      ```
 ##
 ##  @REFERENCES 
@@ -28,7 +26,6 @@ set -x
 typeset __here=$(pwd)
 typeset __bc_dir=${HOME}/.bash_completion.d
 typeset __check_line="## produced by MIDAS install_build_completion.sh"
-typeset __profile_post=${HOME}/.profile.d/interactive/post
 
 ## Check existing ~/.bash_completion
 if [ -f ${HOME}/.bash_completion ]
@@ -53,17 +50,6 @@ EOF
 mkdir -p ${__bc_dir}
 cp .build-completion.bash ${__bc_dir}/midas_build.bc
 
-## Adding midas_build to PATH
-if [ -z "$(cat ~/.profile.d/interactive/post  | grep PATH | grep $(pwd))" ]
-then 
-    cat >> ${__profile_post} << EOF
-## Adding ${__here} to PATH for midas_build auto-completion
-export PATH=\${PATH}:${__here}
-EOF
-    ## does not propagate outside of the install shell
-    #source ${__profile_post}
-fi
-
 source ${HOME}/.bash_completion
 set +x
 
@@ -72,7 +58,6 @@ echo
 echo "Auto completion for midas_build installed"
 echo 
 echo "To use it directly (in the present shell):"
-echo "   \`source ${__profile_post}\`"
-echo "   \`source ${HOME}/.bash_completion\`"
+echo '   source ${HOME}/.bash_completion'
 echo "(in any case, it will be automatically loaded on next shells)"
 echo
