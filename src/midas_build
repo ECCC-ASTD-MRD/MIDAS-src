@@ -130,10 +130,6 @@ else
     __job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 fi
 
-if [ "${__install_always_midas}" == "true" ]
-then 
-    __job="${__job} && make install -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} __exec_leafdir_midas=${__exec_leafdir_midas} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
-fi
 
 ##=========================================================
 ##  Check prior existence of absolutes
@@ -198,6 +194,10 @@ are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
     ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 
 
+
+
+##====| POST make processing |==================================================
+
 ## Organizing logs
 if [ -z ${__listing_frontend+x} ]
 then 
@@ -206,29 +206,58 @@ fi
 cat ${__listing_frontend} >> ${__listing_config}
 mv ${__listing_config} ${__listing_frontend}
 
-
 ##=========================================================
 ## Checking if compilation and linking have been successful
-if [ ! -z "${__abs_exist_list}" ]; then 
+typeset __err_comp=0
+typeset __err_back=$(grep -En 'error #|undefined' ${__listing_frontend})
+typeset __err_front=$(grep -En 'error #|undefined' ${__listing_backend})
+if [ ! -z "${__err_front}" ]; then 
     echo
-    echo "Checking existence of target absolutes:"
-    echo ${__abs_exist_list}
+    echo "<!> some error found in ${__listing_frontend}"
+    echo "${__err_front}"
+    __err_comp=1
+fi
+if [ ! -z "${__err_back}" ]; then 
     echo
+    echo "<!> some error found in ${__listing_backend}"
+    echo "${__err_back}"
+    __err_comp=1
+fi
+if [ "${__err_comp}" == "1" ]; then
+    exit 1
+fi
+
+
+
+##========================================================
+##  Installing (copying + renaming) target programs
+if [ ! -z "${__abs_exist_list}" -a  "${__install_always_midas}" == "true" ]
+then
+    ##  Copying target programs to the install directory
+    echo 
+    echo "Installing target programs"
     typeset __status=0
+    typeset __abs_name
+    typeset __plat
+    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}
+    [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir} 
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
-        typeset __abs_full=$(abs_path ${__abs} ${__plat})
-        if [ ! -f  "${__abs_full}" ]; then
-            echo "    ${__abs_full} not found"
+        typeset __abs_installed=$(abs_path ${__abs} ${__plat})
+        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
+        find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
+        if [ ! -f  "${__abs_installed}" ]; then
+            echo "  <!> ${__abs} not found in ${__install_dir}"
             __status=1
         else
-            echo "${__abs_full} installed" >> .checkAbs 
+            echo "  ${__abs_installed} installed" >> .checkAbs 
         fi
+
     done; done
     [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
     if [ "${__status}" -eq 0 ]; then
-        echo "    All programs have been compiled correctly!"
+        echo "    All target programs have been installed correctly!"
         echo
         echo "╔═════════════════════════════╗"
         echo "║                             ║"
@@ -248,49 +277,20 @@ if [ ! -z "${__abs_exist_list}" ]; then
         fi
     else
         echo
-        echo "╔═════════════════════════════════╗"
-        echo "║                                 ║"
-        echo "║ SOME PROGRAMS COULD NOT COMPILE ║"
-        echo "║                                 ║"
-        echo "╚═════════════════════════════════╝"
-        echo
-        echo "<!> Searching for useful error messages in ${__listing_frontend}"
-        echo
-        grep -En 'error #|undefined' ${__listing_frontend}
-        echo
-        echo "<!> Searching for useful error messages in ${__listing_backend}"
-        echo
-        grep -En 'error #|undefined' ${__listing_backend}
+        echo "╔══════════════════════════════════════╗"
+        echo "║                                      ║"
+        echo "║ SOME PROGRAMS COULD NOT BE INSTALLED ║"
+        echo "║                                      ║"
+        echo "╚══════════════════════════════════════╝"
         echo
         exit 1
     fi
-else
-    ## checking compilation for errors
-    typeset __err_comp=0
-    typeset __err_back=$(grep -En 'error #|undefined' ${__listing_frontend})
-    typeset __err_front=$(grep -En 'error #|undefined' ${__listing_backend})
-    if [ ! -z "${__err_front}" ]; then 
-        echo
-        echo "<!> some error found in ${__listing_frontend}"
-        echo "${__err_front}"
-        __err_comp=1
-    fi
-    if [ ! -z "${__err_back}" ]; then 
-        echo
-        echo "<!> some error found in ${__listing_backend}"
-        echo "${__err_back}"
-        __err_comp=1
-    fi
-    if [ "${__err_comp}" == "1" ]; then
-        exit 1
-    fi
-
 fi
 
 
 ##=========================================================
-## Some final clean up if compilation (and possibly linking)
-## was successful
+## Some final clean up if compilation (and possibly linking 
+## and installation) was successful
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
 
 if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then 
