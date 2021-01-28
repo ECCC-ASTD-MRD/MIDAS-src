@@ -3362,7 +3362,7 @@ end subroutine bennartz
 
     LLFIRST = .true.
     call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
-    ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
+    ROGUEFAC(:) = (/3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
                     2.0, 4.0, 4.0, 4.0, 4.0, 4.0/)
 
