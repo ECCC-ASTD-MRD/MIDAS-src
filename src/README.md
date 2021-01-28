@@ -175,11 +175,6 @@ $ source ./config.dot.sh
 Otherwise, only a few targets will be available: `clean`, `cleanabs`, 
 `cleanall`, `cleandep`, `cleanobj`  and `help`.
 
-There is however [a pending bug (#453)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/453) that is **triggered by sourcing 
-`src/programs/commons/compile_setup.sh`** (sourced in `config.dot.sh`).
-After the config sourcing, the shell becomes unstable with respect to some 
-command and/or auto-completion features.
-
 You can call `make` to build any target; target may be an object file, a
 specific program or a label (or *phony* target such as `all`, `objects` or other 
 label that are not a file *per se*), you can always use autocompletion by 
@@ -394,9 +389,6 @@ To publish the absolutes in a SSM domain, one have to
 ## What is left to do
 
 
-* understand the shell instability triggered by the sourcing of 
-  `programs/commons/compile_setup.sh` (#453) that hinders the direct use of 
-  `make`
 * address the `make --touch` spurious empty file bug (#444)
 * automated `doc` building and `diagrams`, etc.
 
