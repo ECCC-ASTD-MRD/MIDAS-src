@@ -14,6 +14,7 @@
   <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
+  <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -429,4 +430,11 @@
     </FAMILY>
   </FAMILY>
 
+  <FAMILY  name="extractBmatrixFor1Dvar">
+    <SUBMITS sub_name="for1Dvar"/>
+    <FAMILY  name="for1Dvar">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
 </MODULE>
