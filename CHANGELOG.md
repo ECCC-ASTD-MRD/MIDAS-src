@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
+ * Fix shell instablity in `src/programs/commons/compile_setup.sh` (#453 and !317)
 
 ### Removed
 
