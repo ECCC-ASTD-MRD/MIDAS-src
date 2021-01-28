@@ -1,5 +1,9 @@
 #!/bin/bash
 set -e
+__toplevel=$(git rev-parse --show-toplevel)
+
+## env. variable new naming convention + retrocompatibility
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
 
 # set the resources.def file, which depends on the TRUE_HOST name
 ../../set_resources_def.sh
@@ -12,7 +16,7 @@ program=$(basename $1 .f90)
 mode=$2
 deleteCompileDir=$3
 
-export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
+export MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG:-no}
 . ./commons/compile_setup.sh
 
 echo "..."
@@ -61,14 +65,13 @@ modulesDir=$PWD/../modules
 depotDir=$PWD/..
 
 # Get revision number
-toplevel=$(git rev-parse --show-toplevel)
-revnum=$(${toplevel}/midas.version.sh)
+revnum=$(${__toplevel}/midas.version.sh)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 
 # Set compiledir
-compiledir_main=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}
-compiledir_ID=${COMPILEDIR_MIDAS_ID:-$revnum}
+compiledir_main=${MIDAS_COMPILE_DIR_MAIN:-"../../compiledir"}
+compiledir_ID=${MIDAS_COMPILE_DIR_ID:-$revnum}
 compiledir=${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
 mkdir -p $compiledir
 cd $compiledir
@@ -97,6 +100,10 @@ midasAbs=midas-${program}_${ORDENV_PLAT}-${revnum}.Abs
 # LIBAPPL defined in "src_files" script
 LIBSYS="hpcoperf sqlite3"
 LIBRMN=rmnMP
+##  #255:   I can probably replace the `src_files_${program}.sh`
+##          with the makedepf90 dependencies generation
+##          but not sure about the `${LIBAPPL}` defined in 
+##          `compile_setup_${program}.sh`
 . ${programsDir}/src_files/compile_setup_${program}.sh
 . ${programsDir}/src_files/src_files_${program}.sh
 
@@ -105,6 +112,7 @@ for thislib in ${LIBAPPL} ${LIBSYS} ${LIBRMN} ${LIBIRC}; do
     LINK_LIBS="${LINK_LIBS} -l${thislib}"
 done
 
+##  #255:   the rest would be replaced by the Makefile
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90

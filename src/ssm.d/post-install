@@ -1,0 +1,41 @@
+#!/bin/bash
+# post-install <domainHome> <packageHome>
+
+domainHome=$1
+packageHome=$2
+
+# create profiles
+packageName=`basename ${packageHome}`
+profileDirPath=${packageHome}/etc/profile.d
+profilePath=${profileDirPath}/${packageName}.sh
+loginPath=${profileDirPath}/${packageName}.csh
+
+rm -f ${profilePath} ${loginPath}
+mkdir -p ${profileDirPath}
+
+echo "Post install effectuee: ${packageHome}" 
+cat > ${profilePath} << EOF
+    echo "Sourcing ${packageName}.sh"
+EOF
+
+#export SPI_LIB="${packageHome}"
+#export EC_INCLUDE_PATH="${packageHome}/include \${EC_INCLUDE_PATH}"
+#export EC_LD_LIBRARY_PATH="${packageHome}/lib \${EC_LD_LIBRARY_PATH}"
+#
+##----- GDAL data
+#export GDAL_PAM_ENABLED=NO
+#export CPL_LOG=/dev/null
+#
+#EOF
+#
+#cat > ${loginPath} << EOF
+#setenv SPI_LIB="${packageHome}"
+#setenv EC_INCLUDE_PATH="${packageHome}/include \${EC_INCLUDE_PATH}"
+#setenv EC_LD_LIBRARY_PATH="${packageHome}/lib \${EC_LD_LIBRARY_PATH}"
+#
+##----- GDAL data
+#setenv GDAL_PAM_ENABLED=NO
+#setenv CPL_LOG=/dev/null
+#
+#EOF
+

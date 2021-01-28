@@ -8,15 +8,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * New compilation solution based on GNU make (#255, #443 and !317)
 
 ### Changed
 
- * (Nothing yet)
+ * Change to some environment variable naming convention: start with `MIDAS_`
+   (#255, #443 and !317)
+   * Retrocompatibility maintained until next release
 
 ### Fixed
 
- * (Nothing yet)
+ * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
+ * Fix shell instablity in `src/programs/commons/compile_setup.sh` (#453 and !317)
 
 ### Removed
 
