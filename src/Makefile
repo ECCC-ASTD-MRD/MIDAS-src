@@ -382,7 +382,7 @@ endif
 ##	* conda pakage at [conda-forge](https://anaconda.org/conda-forge/makedepf90)
 ##	* Debian or Ubuntu pakages
 
-$(DEP_OBJ): $(SRC_ALL)
+$(DEP_OBJ): $(SRC_ALL) $(SRC_ROOT)/programs/programs.mk
 	$(V) echo "Generating object dependencies > $@"	
 	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
 		sed  's/\([^ ]* :\)/\n\1/g' > $@
