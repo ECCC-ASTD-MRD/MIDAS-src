@@ -126,10 +126,13 @@ endif
 ifndef __exec_leafdir_midas
 __exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | cut -d'=' -f2)
 endif
+ifndef MIDAS_COMPILE_JOBNAME
+MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
+endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean  cleanall cleanabs cleanobj cleandep
+.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst
 
 
 clean:	#> delete current build directory (keep installed programs) 
@@ -142,13 +145,16 @@ cleanall:	#> delete ALL build directories (keep installed programs)
 
 ## specific cleaning target 
 cleanabs:  #> delete all absolutes in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
 
 cleanobj:  #> delete all objects in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
 
 cleandep:	#> delete all dependency files in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+
+cleanlst:	#> delete all listings
+	rm -f  $(MIDAS_COMPILE_JOBNAME).*.{out,o}
 
 
 
@@ -410,7 +416,7 @@ printAbs:
 printObj:
 	@echo $(OBJ)
 
-info:	#>	print build configuration
+info:	#> print build configuration
 	@echo
 	@echo '===| INFO |================================='
 	@echo version: $(VERSION)
