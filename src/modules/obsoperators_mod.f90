@@ -1390,7 +1390,7 @@ contains
     integer :: jl, nlev_T, nobs2p
     integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode, lfsl
-    character(9) :: cstnid
+    character(len=12) :: cstnid
     type(gps_profilezd)    :: prf
     type(gps_diff)         :: ztdopv
     !
@@ -1431,7 +1431,7 @@ contains
     jobs = 0.d0
 
     nlev_T = col_getNumLev(columnhr,'TH')
-    if (ltestop .and. .not.beSilent) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T
+    if (ltestop .and. .not.beSilent) write(*,*) '  col_getNumLev[columnhr,TH] = ',nlev_T
 
     !
     ! Initializations
@@ -2462,6 +2462,7 @@ contains
       real(8) :: columnVarB,columnVarT,columngVarB,columngVarT
       integer, parameter :: NUMFAMILY=2
       character(len=2) :: listFamily(NUMFAMILY)
+      character(len=2) :: cfam
       character(len=4) :: varLevel
 
       listFamily(1) = 'PR'
@@ -2496,9 +2497,9 @@ contains
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
             if(bufrCode == BUFR_NEES) then
+              cfam = obs_getfamily(obsSpaceData,headerIndex)
               write(*,*) 'CANNOT ASSIMILATE ES!!!', &
-                         bufrCode,obs_getfamily(obsSpaceData,headerIndex), &
-                         headerIndex,bodyIndex
+                         bufrCode,cfam,headerIndex,bodyIndex
               call utl_abort('oop_H')
 
             else if(bufrCode == BUFR_NEAL) then
@@ -2562,6 +2563,7 @@ contains
       INTEGER JL, NFLEV, status, iztd, icount
 
       LOGICAL      ASSIM
+      character(len=12) :: cstnid
 
       NFLEV  = col_getNumLev(columng,'TH')
 
@@ -2630,13 +2632,14 @@ contains
                   call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZHX)
                   icount = icount + 1
                   if ( icount <= 3 .and. LTESTOP ) then
-                     write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex)
-                     write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,4*NFLEV)
-                     write(*,*) 'DTT(JL)  = ', (DX(JL),JL=1,NFLEV)
-                     write(*,*) 'DHU(JL)  = ', (DX(JL),JL=NFLEV+1,2*NFLEV)
-                     write(*,*) 'DAL(JL)  = ', (DX(JL),JL=2*NFLEV+1,3*NFLEV)
-                     write(*,*) 'DP (JL)  = ', (DX(JL),JL=3*NFLEV+1,4*NFLEV)
-                     write(*,*) 'ZHX (mm) = ', ZHX*1000.D0
+                    cstnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+                    write(*,*) iztd, cstnid
+                    write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,4*NFLEV)
+                    write(*,*) 'DTT(JL)  = ', (DX(JL),JL=1,NFLEV)
+                    write(*,*) 'DHU(JL)  = ', (DX(JL),JL=NFLEV+1,2*NFLEV)
+                    write(*,*) 'DAL(JL)  = ', (DX(JL),JL=2*NFLEV+1,3*NFLEV)
+                    write(*,*) 'DP (JL)  = ', (DX(JL),JL=3*NFLEV+1,4*NFLEV)
+                    write(*,*) 'ZHX (mm) = ', ZHX*1000.D0
                   end if
                END IF
             END DO BODY_2
@@ -3781,6 +3784,7 @@ contains
     TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2
 
     type(struct_vco), pointer :: vco_anl
+    character(len=12) :: cstnid
 
     logical, save :: lfirstGB = .true.
 
@@ -3810,7 +3814,7 @@ contains
 
     write(*,*) 'oop_calcGPSGBJacobian: Storing Jacobians for GPS ZTD data ...'
     write(*,*) '   INFO: Analysis grid iversion = ', vcode
-    write(*,*) '         col_getNumLev(columng,TH) = ', NFLEV
+    write(*,*) '         col_getNumLev[columng,TH] = ', NFLEV
     write(*,*) '         numGPSZTD = ', numGPSZTD
 
     icount = 0
@@ -3869,7 +3873,8 @@ contains
 
         if ( icount <= 3 .and. LTESTOP ) then
           write(*,*) '--------------------------------------------------------- '
-          write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex),'ZTDopv (m) = ', ZTDopv%Var
+          cstnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+          write(*,*) iztd, cstnid, 'ZTDopv (m) = ', ZTDopv%Var
           CALL gps_pw(PRF,ZPWMOD)
 
           sfcfield = ZP0B + 50.0d0

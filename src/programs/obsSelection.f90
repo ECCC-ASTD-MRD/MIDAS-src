@@ -40,6 +40,7 @@ program midas_obsSelection
   use biasCorrectionConv_mod
   use thinning_mod
   use bgckmicrowave_mod
+  use bgckssmis_mod
   use bgckcsr_mod
   implicit none
 
@@ -135,6 +136,10 @@ program midas_obsSelection
   call inn_setupObs(obsSpaceData, 'ALL', 'LIKESPLITFILES', 'bgck')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! if ssmis, compute the surface type ele and update obspacedata
+
+  call ssbg_computeSsmisSurfaceType(obsSpaceData)
+
   !
   !- Basic setup of columnData module
   !
@@ -183,6 +188,7 @@ program midas_obsSelection
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
     call mwbg_bgCheckMW(obsSpaceData)
     call csrbg_bgCheckCSR(obsSpaceData)
+    call ssbg_bgCheckSsmis(obsSpaceData)
 
   end if
 

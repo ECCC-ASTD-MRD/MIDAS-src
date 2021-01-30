@@ -20,6 +20,7 @@ module obsFilter_mod
   ! :Purpose: Various types of filters that are applied to the observations
   !           mostly to reject them so that they will not be assimilated.
   !
+  use codePrecision_mod
   use mpi_mod
   use mpivar_mod
   use EarthConstants_mod
@@ -324,7 +325,9 @@ contains
       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
       !
       if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
-        if ( tvs_isIdBurpTovs(idburp) ) then
+        ! Here we have to exclude the ssmis data since the burp file does not contain the ele 8021 land_sea
+        if ( ( tvs_isIdBurpTovs(idburp) ) .and. & 
+             ( idburp /= codtyp_get_codtyp('ssmis') ) ) then
           ilansea  = tvs_ChangedStypValue( obsSpaceData,  headerIndex )
           if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
         end if
@@ -1152,6 +1155,8 @@ end subroutine filt_topoAISW
     INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT
     character(len=2), dimension(2) :: list_family
     integer :: index_family, index_header, index_body
+    character(len=12) :: stnid
+    real(pre_obsReal) :: obsLAT, obsLON, obsPPP
 
     DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
     !
@@ -1223,11 +1228,12 @@ end subroutine filt_topoAISW
                          END IF
                       END DO
                       IF(LLPRINT .and. .not.beSilent ) THEN
-                         WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP &
-                              ,obs_elem_c(obsSpaceData,'STID',INDEX_HEADER),IDBURP &
-                              ,obs_headElem_r(obsSpaceData,OBS_LAT,INDEX_HEADER) &
-                              ,obs_headElem_r(obsSpaceData,OBS_LON,INDEX_HEADER) &
-                              ,obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+                        stnid = obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
+                        obsLAT = obs_headElem_r(obsSpaceData,OBS_LAT,INDEX_HEADER)
+                        obsLON = obs_headElem_r(obsSpaceData,OBS_LON,INDEX_HEADER)
+                        obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+                        WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP,stnid, &
+                             IDBURP, obsLAT, obsLON, obsPPP
                       END IF
                    END IF
                 END DO
