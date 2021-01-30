@@ -324,7 +324,9 @@ contains
       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
       !
       if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
-        if ( tvs_isIdBurpTovs(idburp) ) then
+        ! Here we have to exclude the ssmis data since the burp file does not contain the ele 8021 land_sea
+        if ( ( tvs_isIdBurpTovs(idburp) ) .and. & 
+             ( idburp /= codtyp_get_codtyp('ssmis') ) ) then
           ilansea  = tvs_ChangedStypValue( obsSpaceData,  headerIndex )
           if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
         end if

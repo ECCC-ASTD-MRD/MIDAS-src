@@ -1717,7 +1717,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(27),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(28),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1746,9 +1746,9 @@ CONTAINS
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     
     
-    LISTE_INFO(1:27) = (/ 1007,002019,007024,007025 ,005021, 005022, 008012, &
+    LISTE_INFO(1:28) = (/ 1007,002019,007024,007025 ,005021, 005022, 008012, &
         013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080 /)
+        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080,020029 /)
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1877,7 +1877,7 @@ CONTAINS
         call BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=27
+        NELE_INFO=28
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -3499,12 +3499,12 @@ CONTAINS
     integer     ::   CODTYP
     integer     ::   IL,NOBS
     integer     ::   SENSOR,ORBIT,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
-    integer     ::   TERRAIN_TYPE,QCFLAG1,QCFLAG2,QCFLAG3
+    integer     ::   TERRAIN_TYPE,QCFLAG1,QCFLAG2,QCFLAG3,RAINFLAG
     integer     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
     integer     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
-    real        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT,RQCFLAG1,RQCFLAG2,RQCFLAG3
+    real        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT,RQCFLAG1,RQCFLAG2,RQCFLAG3,RRAINFLAG
     real        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
-    real        ::   RORBIT
+    real        ::   RORBIT, RIWV
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     real        ::   RFOV
     REAL(pre_obsReal) ::   cloudLiquidWaterObs, cloudLiquidWaterFG
@@ -3523,6 +3523,7 @@ CONTAINS
     QCFLAG1    = 0
     QCFLAG2    = 0
     QCFLAG3    = 0
+    RAINFLAG   = 0
 
     IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
@@ -3531,6 +3532,7 @@ CONTAINS
     RTANGENT_RADIUS=real(MPC_missingValue_R8,pre_obsReal)
     RGEOID=real(MPC_missingValue_R8,pre_obsReal)
     TERRAIN_TYPE=-1
+    RIWV= MPC_missingValue_R4
     RCLOUD_COVER = MPC_missingValue_R4
     CONSTITUENT_TYPE = MPC_missingValue_INT
     IFOV = MPC_missingValue_INT
@@ -3589,6 +3591,13 @@ CONTAINS
           ELSE
             QCFLAG2 = NINT(RQCFLAG2)
           END IF
+        CASE( 020029)
+          RRAINFLAG = INFOV
+          if (RRAINFLAG == MPC_missingValue_R4 ) THEN
+            RAINFLAG = MPC_missingValue_INT
+          ELSE
+            RAINFLAG = NINT(RRAINFLAG)
+          END IF
         CASE( 33080)
           RQCFLAG3 = INFOV
           if (RQCFLAG3 == MPC_missingValue_R4 ) THEN
@@ -3645,6 +3654,11 @@ CONTAINS
             LAND_SEA=99
           ELSE
             LAND_SEA=NINT ( RLAND_SEA )
+          END IF
+        CASE( 13095)
+          RIWV=INFOV
+          if (RIWV == MPC_missingValue_R4 ) THEN
+            RIWV=0.
           END IF
         CASE( 13039)
           RTERRAIN_TYPE=INFOV
@@ -3717,6 +3731,7 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_AQF1)) call obs_headSet_i(obsdat,OBS_AQF1,nobs,QCFLAG1)
     if ( obs_columnActive_IH(obsdat,OBS_AQF2)) call obs_headSet_i(obsdat,OBS_AQF2,nobs,QCFLAG2)
     if ( obs_columnActive_IH(obsdat,OBS_AQF3)) call obs_headSet_i(obsdat,OBS_AQF3,nobs,QCFLAG3)
+    if ( obs_columnActive_IH(obsdat,OBS_RAIN)) call obs_headSet_i(obsdat,OBS_RAIN,nobs,RAINFLAG)
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
@@ -3733,6 +3748,7 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_SZA) ) call obs_headSet_r(obsdat,OBS_SZA,nobs,RZENITH )
     if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,RAZIMUTH )
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
+    if ( obs_columnActive_RH(obsdat,OBS_IWV))  call obs_headSet_r(obsdat,OBS_IWV,nobs,RIWV)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
     if (trim(FAMTYP) == trim('CH')) then
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
@@ -3831,9 +3847,10 @@ CONTAINS
     integer, allocatable   :: glbflag(:)
     integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
+    integer                :: ind5021, ind7024, ind13039
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
-    integer                :: ind13209, indClwFG, ind13208, indtmp
+    integer                :: ind13209, indClwFG, ind13208, ind13095, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
@@ -4389,6 +4406,183 @@ CONTAINS
             end if
           end if ! tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')
 
+          if (tvs_isIdBurpInst(idatyp,'ssmis' )) then
+            ! info block (btyp = 0001 100000X XXXX) 
+            ! 0001 100000X XXXX = 3072
+            btyp10    = ishft(btyp,-5)
+            btyp10inf = 96
+            if ( btyp10 == btyp10inf ) then
+              flag_passage2 = 1
+              indtmp = nbele
+
+              ! LAND SEA QUALIFIER ELE 8012
+              ind008012 = BURP_Find_Element(inputBlock, ELEMENT  = 008012, iostat   = error)
+              if (ind008012 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind008012 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind008012, ELEMENT=008012, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind008012 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 008012, &
+                     iostat   = error)
+              end if
+
+              ! TERRAIN TYPE ELE 13039
+              ind13039 = BURP_Find_Element(inputBlock, ELEMENT  = 13039, iostat   = error)
+              if (ind13039 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13039 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13039, ELEMENT=13039, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13039 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 13039, &
+                     iostat   = error)
+              end if
+              
+              ! SAT ZENITH ANGLE ELE 7024
+              ind7024 = BURP_Find_Element(inputBlock, ELEMENT  = 7024, iostat   = error)
+              if (ind7024 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind7024 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind7024, ELEMENT=7024, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind7024 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 7024, &
+                     iostat   = error)
+              end if
+              
+              ! SAT AZIMUTH ANGLE ELE 5021
+              ind5021 = BURP_Find_Element(inputBlock, ELEMENT  = 5021, iostat   = error)
+              if (ind5021 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind5021 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind5021, ELEMENT=5021, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind5021 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 5021, &
+                     iostat   = error)
+              end if
+
+              ! CLW
+              ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209, iostat=error)
+              if (ind13209 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13209 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13209, ELEMENT=013209, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13209 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013209, &
+                     iostat   = error)
+              end if
+              ! clwFG
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId, iostat=error)
+                if (indClwFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  if (error/=burp_noerr) then
+                    call handle_error("Erreur dans BURP_Resize_Block info")
+                  end if
+                  indClwFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indClwFG, ELEMENT=clwFgElementId, iostat=error)
+                  indtmp = indtmp + 1
+                else
+                  indClwFG = BURP_Find_Element(inputBlock, &
+                       ELEMENT  = clwFgElementId, &
+                       iostat   = error)
+                end if
+              end if
+              ! SSMIS INTEGRATED WATER VAPOR 
+              ind13095 = BURP_Find_Element(inputBlock, ELEMENT=013095, iostat=error)
+              if (ind13095 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13095 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13095, ELEMENT=013095, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13095 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013095, &
+                     iostat   = error)
+              end if
+              ! SCATERING INDEX
+              ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208, iostat=error)
+              if (ind13208 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                if (error/=burp_noerr) then
+                  call handle_error("Erreur dans BURP_Resize_Block info")
+                end if
+                ind13208 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
+                indtmp = indtmp + 1
+              else
+                ind13208 = BURP_Find_Element(inputBlock, &
+                     ELEMENT  = 013208, &
+                     iostat   = error)
+              end if
+
+              
+              do tIndex = 1, nte
+
+                if ( goodprof(tIndex) == 1 ) then
+
+                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    write(*,*) "Should not happen..."
+                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                  end if
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
+                  end if
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_IWV,idata2)),ind13095,1,tIndex)
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SZA,idata2)),ind7024,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_AZA,idata2)),ind5021,1,tIndex)
+                  idata2 = idata2 + 1
+                else
+                  call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
+                  end if
+                  call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  !call Insert_into_burp_r4(-1.0,ind13095,1,tIndex)
+                  call Insert_into_burp_i(-1,ind008012,1,tIndex)
+                  call Insert_into_burp_i(-1,ind13039,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind7024,1,tIndex)
+                  call Insert_into_burp_r4(-1.0,ind5021,1,tIndex)
+                end if
+              end do
+ 
+            end if
+          end if ! tvs_isIdBurpInst(idatyp,'ssmis')
+
           ! Add block into new report
 
           if ( btyp == 5120 ) then
@@ -4436,7 +4630,8 @@ CONTAINS
           write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
         end if
       else if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-                (tvs_isIdBurpInst(idatyp,'amsua'  )) ) then 
+                (tvs_isIdBurpInst(idatyp,'amsua')) .or. & 
+                (tvs_isIdBurpInst(idatyp,'ssmis')) ) then 
         if ( flag_passage1 == 0 ) then
           write(*,*)
           write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
