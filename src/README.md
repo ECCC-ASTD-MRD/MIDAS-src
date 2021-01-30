@@ -323,8 +323,7 @@ Now we see that only the linking will be done.
 $ make
 ...
 ```
-This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the [out-of-tree compilation](#out-of-tree-compilation)).
-It is an issue (#444) we are aware of.
+This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the out-of-tree compilation; it is an issue (#444) we are aware of.
 
 
 
