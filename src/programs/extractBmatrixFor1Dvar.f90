@@ -262,22 +262,26 @@ program midas_extractBmatrixFor1Dvar
           end if
           call rpn_comm_allreduce(idObsPointLocal, idObsPointGlobal,1,"mpi_integer","mpi_max","GRID",ierr)
         end do
+      end do
+
+      call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', idObsPointGlobal, 'GRID', ierr )
+      if (mpi_myId ==0) then
+        write(nulmat) latitude, longitude,  Bmatrix(:,:)
+      end if
+
     end do
-  end do
+    
+    ierr = fclos(nulmat)
 
-  call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', idObsPointGlobal, 'GRID', ierr )
-  if (mpi_myId ==0) then
-    write(nulmat) latitude, longitude,  Bmatrix(:,:)
-  end if
-  deallocate(Bmatrix)
-  deallocate(controlVector)
+    deallocate(Bmatrix)
+    deallocate(controlVector)
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  call gsv_deallocate(statevector)
+    call gsv_deallocate(statevector)
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
+  
   ! MPI, tmg finalize
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_EXTRACTBMATRIX' )
