@@ -92,7 +92,7 @@ program midas_diagHBHt
   call tmg_stop(2)
 
   ! Compute perturbed
-  call diagHBHt(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
+  call diagHBHt(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
   ! computations controlled by NAMOSD namelist in flnml)
   call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
