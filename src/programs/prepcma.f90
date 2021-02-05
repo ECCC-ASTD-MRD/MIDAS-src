@@ -52,7 +52,7 @@ program midas_prepcma
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
   integer :: ncmahdr, ncmahx, ncmabdy, ncmadim, nobsout, nbrpform
-  logical :: qcvar
+  logical :: qcvar, numHeader, numBody
   character(len=7) :: resumeType
 
   ! number of pressure ranges used for the thinning of aircraft (and other) data:
@@ -119,8 +119,10 @@ program midas_prepcma
   call obsf_readFiles( obsSpaceData )
   call tmg_stop(11)
 
-  write(*,*) 'midas-prepcma: obs_numheader(obsSpaceData)', obs_numheader(obsSpaceData)
-  write(*,*) 'midas-prepcma: obs_numbody(obsSpaceData)  ', obs_numbody  (obsSpaceData)
+  numHeader = obs_numheader(obsSpaceData)
+  numBody   = obs_numbody(obsSpaceData)
+  write(*,*) 'midas-prepcma: obs_numheader =', numheader
+  write(*,*) 'midas-prepcma: obs_numbody   =', numbody
 
   !- Determine if qcvar flag is expected to be present
   resumeType = brpr_getTypeResume() 

@@ -301,7 +301,7 @@ contains
     type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
-    integer                         :: dateStamp_fcst
+    integer                         :: dateStamp_fcst, dateStamp
     
     !for Observation space 
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
@@ -320,7 +320,8 @@ contains
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
-    write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'fso_ensemble: analysis datestamp = ',dateStamp
     write(*,*) 'fso_ensemble: forecast datestamp = ',dateStamp_fcst
 
     ! allocate control vector related arrays (these are all mpilocal)
@@ -408,14 +409,15 @@ contains
 
     type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
-    integer                         :: dateStamp_fcst
+    integer                         :: dateStamp_fcst, dateStamp
     
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
-    write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'fso_ensemble: analysis datestamp = ',dateStamp
     write(*,*) 'fso_ensemble: forecast datestamp = ',dateStamp_fcst
 
     ! read forecasts from the analysis and background state

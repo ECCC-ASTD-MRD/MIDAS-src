@@ -104,6 +104,7 @@ module sqliteFiles_mod
     integer                          :: fileIndex
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
+    integer :: numBody, numHeader
     character(len=*), parameter :: my_name = 'sqlf_readFile'
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
     character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
@@ -155,8 +156,10 @@ module sqliteFiles_mod
       call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
     end if
 
-    write(*,*) my_name//': obs_numheader(obsdat)', trim(familyType), obs_numheader(obsdat)
-    write(*,*) my_name//': obs_numbody(obsdat)  ', trim(familyType), obs_numbody  (obsdat)
+    numHeader = obs_numHeader(obsdat)
+    numBody   = obs_numBody(obsdat)
+    write(*,*) my_name//': obs_numheader', trim(familyType), numHeader
+    write(*,*) my_name//': obs_numbody  ', trim(familyType), numBody
     write(*,*)' '
     write(*,*)'      '//trim(my_name)//'     END                   '
     write(*,*)' '

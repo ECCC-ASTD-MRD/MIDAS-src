@@ -200,7 +200,8 @@ contains
     real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
-    integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
+    integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex
+    integer                  :: bitsFlagOn, bitsFlagOff, reportLocation, numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
     character(len=512)       :: query, queryData, queryHeader
     character(len=256)       :: cfgSqlite, csqlcrit, columnsHeader, columnsData
@@ -465,8 +466,10 @@ contains
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
     headerIndexStart = headerIndex
-    write(*,*) myName//' DEBUT numheader  =', obs_numHeader(obsdat)
-    write(*,*) myName//' DEBUT numbody    =', obs_numBody(obsdat)
+    numHeader = obs_numHeader(obsdat)
+    numBody   = obs_numBody(obsdat)
+    write(*,*) myName//' DEBUT numheader  =', numHeader
+    write(*,*) myName//' DEBUT numbody    =', numBody
     call fSQL_get_many( stmt2, nrows=numberRows, ncols=numberColumns, mode=FSQL_REAL8 )
     write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
     write(*,*) myName//'  rdbSchema = ', rdbSchema
@@ -734,8 +737,10 @@ contains
     end do HEADER ! HEADER
 
     deallocate(matdata)
-    write(*,*)  myName//' FIN numheader  =', obs_numHeader(obsdat)                    
-    write(*,*)  myName//' FIN numbody    =', obs_numBody(obsdat)
+    numHeader = obs_numHeader(obsdat)
+    numBody   = obs_numBody(obsdat)
+    write(*,*)  myName//' FIN numheader  =', numHeader
+    write(*,*)  myName//' FIN numbody    =', numBody
     write(*,*)  myName//' fin header '
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
@@ -953,7 +958,8 @@ contains
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
-    integer                :: numberInsert, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, obsIdf, insertItem
+    integer                :: numberInsert, headerIndex, bodyIndex, numHeader
+    integer                :: obsNlv, obsRln, obsIdd, obsIdo, obsIdf, insertItem
     character(len = 256)   :: query
     logical                :: llok    
     character(len=*), parameter :: myName = 'sqlr_insertSqlite:'
@@ -961,7 +967,8 @@ contains
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
     write(*,*)  myName//' --- Starting ---   '
-    write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
+    numHeader = obs_numHeader(obsdat)
+    write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', numHeader
     write(*,*)' fileName -> ', trim(fileName)   
 
     ! set default values of namelist variables

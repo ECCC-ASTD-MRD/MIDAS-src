@@ -624,7 +624,7 @@ contains
 
     !Locals:
     real(8), parameter :: epsilon=0.001
-    integer            :: headerIndex
+    integer            :: headerIndex, bodyElem_i
 
     ! codtypes for tovs: 164(AMSUA) 168 180 181 182 183 185 186 192 193
 
@@ -657,7 +657,8 @@ contains
          verticalIndex = 1
       case default
         ! unknown vertical coordinate
-        write(*,*) 'osd_getIndices: Unknown VCO! ',obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+        bodyElem_i = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+        write(*,*) 'osd_getIndices: Unknown VCO! ', bodyElem_i
         verticalIndex = -1
     end select
  
