@@ -98,6 +98,7 @@ contains
     logical, pointer :: calcemis(:)
     logical :: runObsOperatorWithClw_tl
     integer :: asw
+    real(8) :: obsOMP
     type (rttov_profile), pointer :: profiles(:)
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
@@ -332,9 +333,9 @@ contains
         call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, &
              radiancedata_tl % bt(btIndex) )
         if ( tvs_debug ) then
+          obsOMP = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
           write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
-               chanprof(btIndex)%chan,   radiancedata_tl % bt(btIndex), &
-               obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+               chanprof(btIndex)%chan, radiancedata_tl % bt(btIndex), obsOMP
         end if
         
       end do

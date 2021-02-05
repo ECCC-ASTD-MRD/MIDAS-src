@@ -45,7 +45,7 @@ do
     # one line write statements
     grep -ir '^ *write' |grep -i "$functionName *("
     # also try to detect write statements with line continuation
-    grep -irA 1 '^ *write.*& *$' |grep -i "$functionName *(" |grep -iv 'write'
+    grep -irA 2 '^ *write.*& *$' |grep -i "$functionName *(" |grep -iv 'write'
 done
 
 echo "DONE"

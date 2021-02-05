@@ -4860,12 +4860,13 @@ CONTAINS
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     character(len=codtyp_name_length) :: instrumName
+    integer                     :: instrumID
     integer                     :: icodele
     integer                     :: icodeleMrq 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
-    logical                     :: isDerialt
+    logical                     :: isDerialt, isInstrumUsingCLW
     logical                     :: beSilent
 
     namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
@@ -4990,10 +4991,12 @@ CONTAINS
         end if
 
         instrumName = codtyp_get_name(idatyp)
+        instrumID = tvs_getInstrumentId(instrumName)
+        isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
         write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
               ', instrumentName=', instrumName, &
-              ', instrumentId =', tvs_getInstrumentId(instrumName), &
-              ', isInstrumUsingCLW =', tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
+              ', instrumentId =', instrumID, &
+              ', isInstrumUsingCLW =', isInstrumUsingCLW
       end if
 
       ! check clwFG element is in the namelist in all-sky mode.

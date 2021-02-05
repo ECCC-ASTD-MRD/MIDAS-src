@@ -239,7 +239,7 @@ contains
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
     
-    real(pre_obsReal) :: zdtb
+    real(pre_obsReal) :: zdtb, obsPRM
     integer :: idatyp, channelNumber, ichobs_a
     integer :: headerIndex, bodyIndex, count
     real(8) :: obsIn(tvs_maxChannelNumber), obsOut(tvs_maxChannelNumber)
@@ -298,9 +298,10 @@ contains
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance (tovsIndex) % bt(channelIndex)
         if ( tvs_debug ) then
+          obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
                channelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
-               obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex), -zdtb
+               obsPRM, -zdtb
         end if
         call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
 
