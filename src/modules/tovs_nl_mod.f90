@@ -4415,7 +4415,7 @@ contains
     integer :: sensorIndex, channelIndex, tovsIndex
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(pre_obsReal) :: zdtb
+    real(pre_obsReal) :: zdtb, obsPRM
     integer nchanperline, startChannel, endChannel
     integer count, incanjo
     integer idatyp
@@ -4477,9 +4477,10 @@ contains
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance (tovsIndex) % bt(channelIndex)
         if ( tvs_debug ) then
+          obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' rttovChannelNumber,sim,obs,diff= ', &
                rttovChannelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
-               obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex), -zdtb
+               obsPRM, -zdtb
         end if
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
