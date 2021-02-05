@@ -151,6 +151,7 @@ module backgroundCheck_mod
       INTEGER :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
       LOGICAL :: LLOK, LLZD, LMODIF1020
+      character(len=12) :: stnid
 
       INTEGER :: i_ass,i_vco,i_vnm,i_oth,istyp,index_body_u,index_body_v,index_body_start
       real(8) :: uu_d,uu_r,uu_f,vv_d,vv_r,vv_f,duv2,duv2_lim,zslev
@@ -196,6 +197,8 @@ module backgroundCheck_mod
         HEADER: do
           index_header = obs_getHeaderIndex(lobsSpaceData)
           if (index_header < 0) exit HEADER
+
+          stnid = obs_elem_c(lobsSpaceData,'STID',index_header)
 
           ! 1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
           ! ----------------------------------------------------
@@ -251,19 +254,19 @@ module backgroundCheck_mod
                 ENDIF
                 IF ( ZOER < 1.0d-3 .AND. ITYP /= BUFR_NEZD ) THEN
                   WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
-                    obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
+                    stnid, ZOER
                   CALL utl_abort('BGCDATA: PROBLEM WITH OER.')
                 ENDIF
                 IF ( ZFGE < 1.0d-3 ) THEN
                   WRITE(*,*)' Problem for GP STNID FGE= ',  &
-                     obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
+                     stnid, ZFGE
                   ZFGE=1.0d-3
                 ENDIF
                 if ( zomper > 0.0d0 .and. zomper < 1.0d-3 ) zomper = 1.0d-3
               ELSE IF ( CDFAM == 'CH' ) THEN
                 IF ( ZFGE**2 + ZOER**2 < 1.0d-60)THEN
                   WRITE(*,*) ' Problem for STNID FGE ZOER=',  &
-                           obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                           stnid, ZFGE, ZOER
                   ZFGE=1.0d30
                   ZOER=1.0d-30
                 ENDIF
@@ -272,7 +275,7 @@ module backgroundCheck_mod
                 if ( zfge < 0.0d0 ) zfge = 0.0d0
                 IF ( ZFGE**2 + ZOER**2 < 1.0d-5)THEN
                   WRITE(*,*) ' Problem for STNID FGE ZOER=',  &
-                             obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                             stnid, ZFGE, ZOER
                   ZFGE=1.0d-5
                   ZOER=1.0d-5
                 ENDIF
@@ -312,16 +315,15 @@ module backgroundCheck_mod
                 LLZD = .TRUE.
               ENDIF
 
+              stnid = obs_elem_c(lobsSpaceData,'STID',index_header)
               IF (IFLAG .GE. 2 .OR. (LLZD .AND. LTESTOP)) THEN
                 IF (CDFAM.NE.'CH') THEN 
                   WRITE(*,122)  &
-                     obs_elem_c(lobsSpaceData,'STID',index_header),  &
-                     zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                     stnid,zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
                      ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
                 ELSE 
                   WRITE(*,124)  &
-                     obs_elem_c(lobsSpaceData,'STID',index_header),  &
-                     zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                     stnid,zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
                      ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
                 END IF
                 IF (IFLAG .GE. 2) INREJ = INREJ + 1

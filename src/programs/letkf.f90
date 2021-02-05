@@ -187,7 +187,7 @@ program midas_letkf
   allocate(dateStampListInc(tim_nstepobsinc))
   call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
 
-  write(*,*) 'midas-letkf: analysis dateStamp = ',tim_getDatestamp()
+  write(*,*) 'midas-letkf: analysis dateStamp = ',dateStamp
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup

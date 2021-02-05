@@ -1021,7 +1021,7 @@ contains
     integer :: ielem, icodtyp, header_prev
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
-    real(8) :: obsValue, obsStdDevError
+    real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: clwThresh1, clwThresh2, clw_avg, clwObs, clwFG
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(8), parameter :: minRetrievableClwValue = 0.0D0
@@ -1550,15 +1550,15 @@ contains
             write(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',cfam
 
             write(*,'(1X,"STNID= ",A10,"codeType= ",I5," LAT= ",F10.2," LON = ",F10.2)') &
-                 obs_elem_c( obsSpaceData, 'STID', headerIndex),    &
+                 cstnid,    &
                  codeType,                                           &
                  zlat*MPC_DEGREES_PER_RADIAN_R8,                   &
                  zlon*MPC_DEGREES_PER_RADIAN_R8
-            
+
+            obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+            obsOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
             write(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
-                 ityp,                                             &
-                 obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex), &
-                 obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                 ityp, obsPPP, obsOER
 
             call utl_abort(myName//': PROBLEM OBSERR VARIANCE.')
 
@@ -1961,7 +1961,7 @@ contains
 
       if( print_debug ) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
       
-    end do body
+    end do BODY
 
   end subroutine oer_sw
 
@@ -2414,6 +2414,7 @@ contains
 
     LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
     LOGICAL LLZWD
+    character(len=12) :: cstnid
 
     !
     REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, zlev, zval, ZZWD
@@ -2596,7 +2597,7 @@ contains
                 !  Ensure that error is not less than formal error ZTDERR
             IF (LLFER) then
               IF (DEBUG .and. ICOUNT  <=  50) then
-                write(*,*) obs_elem_c(obsSpaceData,'STID',headerIndex), &
+                write(*,*) cstnid, &
                      ' FORMAL ERR, OBS ERROR (mm) = ', &
                      ZTDERR*1000.D0, ZTDOER*1000.D0
               end if
@@ -2608,7 +2609,7 @@ contains
           IF (.NOT.analysisMode) call obs_bodySet_r(obsSpaceData,OBS_HPHT,IZTDJ, ZSTDOMP)
           IF (DEBUG .and. (ICOUNT2  <=  50) .and. LESTP) then
             write(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD     STDOMP'
-            write(*,*) 'ERRDEBUG ', obs_elem_c(obsSpaceData,'STID',headerIndex), &
+            write(*,*) 'ERRDEBUG ', cstnid, &
                  ZZTD*1000.D0, ZTDOER*1000.D0, zlev, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
           end if
         ELSE

@@ -341,7 +341,7 @@ contains
   subroutine check_loc()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
     integer :: numStepAmplitude, amp3dStepIndex, memberIndex
 
     type(struct_ens) :: ensAmplitude_x
@@ -362,7 +362,8 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
     write(*,*) 'JFC dateStampList = ', dateStampList(:)
 
     call ben_Setup( hco_anl, vco_anl, & ! IN
@@ -620,7 +621,7 @@ contains
   subroutine check_advectionENS()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
 
     type(struct_adv)  :: adv_analInc
 
@@ -642,7 +643,8 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
     write(*,*) 'JFC dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'
@@ -764,7 +766,7 @@ contains
   subroutine check_advectionGSV()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
 
     type(struct_adv)  :: adv_analInc
 
@@ -781,7 +783,8 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
     write(*,*) 'JFC dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'

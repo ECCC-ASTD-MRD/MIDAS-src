@@ -36,6 +36,7 @@ module codtyp_mod
   namelist /NAMCODTYP/ cnames, icod
 
   public :: codtyp_get_codtyp,codtyp_get_name
+  public :: codtyp_name_length
 
 contains
 
@@ -344,7 +345,7 @@ contains
     
   end function codtyp_get_codtyp
 
-  character (len=codtyp_name_length) function codtyp_get_name(codtyp)
+  character(len=codtyp_name_length) function codtyp_get_name(codtyp)
     !
     !:Purpose: Given a codtyp, return the family name
     !

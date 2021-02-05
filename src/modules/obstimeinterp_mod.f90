@@ -414,6 +414,7 @@ contains
 
     ! locals
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
+    integer :: obsDAT, obsETM
     integer, save :: numWrites = 0
 
     if ( .not.associated(oti%timeInterpWeight) ) then
@@ -427,8 +428,10 @@ contains
 
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
+          obsDAT = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
+          obsETM = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
           write(*,*) 'oti_flagObsOutsideWindow: Observation time outside assimilation window: ',  &
-               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+               obsDAT, obsETM
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_flagObsOutsideWindow: More rejects, but reached maximum number of writes to the listing.'
         end if
