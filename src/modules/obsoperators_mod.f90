@@ -1286,7 +1286,7 @@ contains
     integer :: jl, nlev_T, nobs2p
     integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode, lfsl
-    character(12) :: cstnid
+    character(len=12) :: cstnid
     type(gps_profilezd)    :: prf
     type(gps_diff)         :: ztdopv
     !
@@ -2459,7 +2459,7 @@ contains
       INTEGER JL, NFLEV, status, iztd, icount
 
       LOGICAL      ASSIM
-      character(12) :: cstnid
+      character(len=12) :: cstnid
 
       NFLEV  = col_getNumLev(columng,'TH')
 
@@ -3680,7 +3680,7 @@ contains
     TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2
 
     type(struct_vco), pointer :: vco_anl
-    character(12) :: cstnid
+    character(len=12) :: cstnid
 
     logical, save :: lfirstGB = .true.
 

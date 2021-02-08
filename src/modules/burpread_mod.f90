@@ -4860,7 +4860,7 @@ CONTAINS
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     character(len=codtyp_name_length) :: instrumName
-    integer                     :: instrumID
+    integer                     :: instrumID, previousInstrumID
     integer                     :: icodele
     integer                     :: icodeleMrq 
     integer                     :: btClearMrqElementID
@@ -4971,6 +4971,7 @@ CONTAINS
     count = 0
     ref_rpt = 0
     isDerialt = .false.
+    previousInstrumID = -1
     do
       ref_rpt = burp_find_report(inputFile, &
            report      = inputReport,       &
@@ -4993,10 +4994,13 @@ CONTAINS
         instrumName = codtyp_get_name(idatyp)
         instrumID = tvs_getInstrumentId(instrumName)
         isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
-        write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
-              ', instrumentName=', instrumName, &
-              ', instrumentId =', instrumID, &
-              ', isInstrumUsingCLW =', isInstrumUsingCLW
+        if (instrumID /= previousInstrumID) then
+          write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
+               ', instrumentName=', instrumName, &
+               ', instrumentId =', instrumID, &
+               ', isInstrumUsingCLW =', isInstrumUsingCLW
+          previousInstrumID = instrumID
+        end if
       end if
 
       ! check clwFG element is in the namelist in all-sky mode.
