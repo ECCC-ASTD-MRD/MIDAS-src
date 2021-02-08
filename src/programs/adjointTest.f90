@@ -363,17 +363,14 @@ contains
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
     dateStamp = tim_getDatestamp()
-    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    write(*,*) 'check_loc: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_loc: dateStampList = ', dateStampList(:)
 
     call ben_Setup( hco_anl, vco_anl, & ! IN
                     cvDimPerInstance )             ! OUT
 
     cvDim = cvDimPerInstance(1)
 
-    write(*,*) 'JFC ben_Setup done '
-    
-    
     loc => ben_getLoc(1)
     if ( cvDim /= loc%cvDim ) then
       call utl_abort('check_loc: cvDim /= loc%cvDim')
@@ -644,8 +641,8 @@ contains
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
     dateStamp = tim_getDatestamp()
-    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    write(*,*) 'check_advectionENS: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_advectionENS: dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'
     delT_hour = 1.0d0 !tim_dstepobsinc
@@ -784,8 +781,8 @@ contains
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
     dateStamp = tim_getDatestamp()
-    write(*,*) 'JFC tim_getDatestamp = ', dateStamp
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    write(*,*) 'check_advectionGSV: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_advectionGSV: dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'
     delT_hour = 1.0d0 !tim_dstepobsinc
