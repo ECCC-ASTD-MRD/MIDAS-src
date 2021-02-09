@@ -5183,6 +5183,7 @@ module gridStateVector_mod
     character(len=2)  :: typvar
     character(len=12) :: etiket
     character(len=4), pointer :: varNamesToRead(:)
+    character(len=4)  :: varLevel
     logical :: iDoWriting, unitConversion, containsFullField
     real(8), pointer :: field_r8(:,:,:,:)
     real(4), pointer :: field_r4(:,:,:,:)
@@ -5449,21 +5450,21 @@ module gridStateVector_mod
 
             ! Set the ip1 value
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'MM') then
-               ip1 = statevector%vco%ip1_M(levIndex)
+              ip1 = statevector%vco%ip1_M(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
-               ip1 = statevector%vco%ip1_T(levIndex)
+              ip1 = statevector%vco%ip1_T(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-               ip1 = 0
+              ip1 = 0
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFTH') then
-               ip1 = statevector%vco%ip1_T_2m
+              ip1 = statevector%vco%ip1_T_2m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFMM') then
-               ip1 = statevector%vco%ip1_M_10m
+              ip1 = statevector%vco%ip1_M_10m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
-               ip1 = vco_ip1_other(levIndex)
+              ip1 = vco_ip1_other(levIndex)
             else
-               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ',  &
-                          vnl_varLevelFromVarname(vnl_varNameList(varIndex))
-               call utl_abort('gsv_writeToFile')
+              varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
+              write(*,*) 'gsv_writeToFile: unknown type of vertical level: ', varLevel
+              call utl_abort('gsv_writeToFile')
             end if
 
             ! Set the output variable name

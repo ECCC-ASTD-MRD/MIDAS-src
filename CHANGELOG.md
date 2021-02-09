@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !427)
 
 ### Removed
 

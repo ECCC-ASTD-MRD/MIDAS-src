@@ -341,7 +341,7 @@ contains
   subroutine check_loc()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
     integer :: numStepAmplitude, amp3dStepIndex, memberIndex
 
     type(struct_ens) :: ensAmplitude_x
@@ -362,17 +362,15 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'check_loc: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_loc: dateStampList = ', dateStampList(:)
 
     call ben_Setup( hco_anl, vco_anl, & ! IN
                     cvDimPerInstance )             ! OUT
 
     cvDim = cvDimPerInstance(1)
 
-    write(*,*) 'JFC ben_Setup done '
-    
-    
     loc => ben_getLoc(1)
     if ( cvDim /= loc%cvDim ) then
       call utl_abort('check_loc: cvDim /= loc%cvDim')
@@ -620,7 +618,7 @@ contains
   subroutine check_advectionENS()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
 
     type(struct_adv)  :: adv_analInc
 
@@ -642,8 +640,9 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'check_advectionENS: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_advectionENS: dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'
     delT_hour = 1.0d0 !tim_dstepobsinc
@@ -764,7 +763,7 @@ contains
   subroutine check_advectionGSV()
     implicit none
 
-    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
 
     type(struct_adv)  :: adv_analInc
 
@@ -781,8 +780,9 @@ contains
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
-    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'check_advectionGSV: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_advectionGSV: dateStampList = ', dateStampList(:)
 
     directionAnlInc = 'fromFirstTimeIndex' !'towardFirstTimeIndexInverse'
     delT_hour = 1.0d0 !tim_dstepobsinc

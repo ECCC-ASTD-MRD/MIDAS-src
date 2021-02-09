@@ -122,7 +122,7 @@ CONTAINS
     INTEGER, ALLOCATABLE   :: ADDRESS(:)
     real                   :: VCOORD
 
-    integer                :: NBELE,NVALE,NTE
+    integer                :: NBELE,NVALE,NTE, numHeader
     integer                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
     integer                :: IND_ELE,IND_VCOORD
     integer                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
@@ -1448,7 +1448,8 @@ CONTAINS
               write(*,*) ' KOBSN=0  stnid=',stnid
             END IF
             IF ( .not. HIRES .and.  regrup .and. KOBSN == 0 ) THEN
-              write(*,*)' KOBSN=0 regrup stnid=',kk,stnid,obsn,obs_numHeader(obsdat)
+              numHeader = obs_numHeader(obsdat)
+              write(*,*)' KOBSN=0 regrup stnid=',kk,stnid,obsn,numHeader
             END IF
 
             IF (REGRUP) SAVE_OBS=OBS_START
@@ -1676,7 +1677,7 @@ CONTAINS
     integer                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10FLG_uni,BTYP10obs_uni 
     integer                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
 
-    integer                :: NB_RPTS,REF_RPT,REF_BLK,COUNT
+    integer                :: NB_RPTS,REF_RPT,REF_BLK,COUNT, numHeader
     INTEGER, ALLOCATABLE   :: ADDRESS(:)
 
     real   , ALLOCATABLE   :: OBSVALUE(:,:,:),OBSVALUE_SFC(:,:,:)
@@ -3183,7 +3184,8 @@ CONTAINS
     call BURP_Free(Rpt_in,       IOSTAT=error)
     call BURP_Free(Block_in,     IOSTAT=error)
 
-    write(*,*)' file   Nobs SUM = ',trim(brp_file),obs_numHeader(obsdat),SUM
+    numHeader = obs_numHeader(obsdat)
+    write(*,*)' file   Nobs SUM = ',trim(brp_file),numHeader,SUM
   end subroutine brpr_readBurp
 
 
@@ -3829,7 +3831,7 @@ CONTAINS
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
     integer, allocatable   :: glbflag(:)
-    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex
+    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex, headElem_i
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
     integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
@@ -4135,7 +4137,8 @@ CONTAINS
                 if ( goodprof(tIndex) == 1 ) then
 
                   if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                    write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                     end if
@@ -4203,8 +4206,9 @@ CONTAINS
                 if ( goodprof(tIndex) == 1 ) then
 
                   if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata3)
                     write(*,*) "File Inconsistency emissivity block", &
-                         obs_headElem_i(obsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                         headElem_i, fileIndex, idata3
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
@@ -4360,7 +4364,8 @@ CONTAINS
                 if ( goodprof(tIndex) == 1 ) then
 
                   if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                    write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
@@ -4854,12 +4859,14 @@ CONTAINS
     integer                     :: nulnam
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
+    character(len=codtyp_name_length) :: instrumName
+    integer                     :: instrumID, previousInstrumID
     integer                     :: icodele
     integer                     :: icodeleMrq 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
-    logical                     :: isDerialt
+    logical                     :: isDerialt, isInstrumUsingCLW
     logical                     :: beSilent
 
     namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
@@ -4964,6 +4971,7 @@ CONTAINS
     count = 0
     ref_rpt = 0
     isDerialt = .false.
+    previousInstrumID = -1
     do
       ref_rpt = burp_find_report(inputFile, &
            report      = inputReport,       &
@@ -4983,10 +4991,16 @@ CONTAINS
           write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
         end if
 
-        write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
-              ', instrumentName=', codtyp_get_name(idatyp), &
-              ', instrumentId =', tvs_getInstrumentId(codtyp_get_name(idatyp)), &
-              ', isInstrumUsingCLW =', tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp)))
+        instrumName = codtyp_get_name(idatyp)
+        instrumID = tvs_getInstrumentId(instrumName)
+        isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
+        if (instrumID /= previousInstrumID) then
+          write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
+               ', instrumentName=', instrumName, &
+               ', instrumentId =', instrumID, &
+               ', isInstrumUsingCLW =', isInstrumUsingCLW
+          previousInstrumID = instrumID
+        end if
       end if
 
       ! check clwFG element is in the namelist in all-sky mode.

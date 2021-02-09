@@ -945,7 +945,7 @@ module obsSpaceErrorStdDev_mod
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,ITYP,IK
       INTEGER INDEX_BODY
-      REAL*8 ZWB,ZWT
+      REAL*8 ZWB,ZWT, columnElem
       REAL*8 ZLEV,ZPB,ZPT
       character(len=4) :: varLevel
 
@@ -1000,10 +1000,14 @@ module obsSpaceErrorStdDev_mod
                if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
-                 write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',col_getElem(lcolumn,IPB,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG
-                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')*RG
+                 columnElem = col_getElem(lcolumn,IPB,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',columnElem
+                 columnElem = col_getElem(lcolumn,IPT,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',columnElem
+                 columnElem = col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG
+                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
+                 columnElem = col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')*RG
+                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
                  CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF
@@ -1210,10 +1214,11 @@ module obsSpaceErrorStdDev_mod
     type(struct_obs)        :: lobsSpaceData
 
     ! Locals
-    integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp
-    real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh
+    integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp, bodyElem_i
+    real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh, bodyElem_r, colElem1, colElem2
     character(len=2) :: cfam
     character(len=4) :: varLevel
+    character(len=12) :: stnid
     logical          :: ok
 
     ! loop over all body rows
@@ -1289,14 +1294,18 @@ module obsSpaceErrorStdDev_mod
 
               end if
 
-              if(obs_elem_c( lobsSpaceData, 'STID', headerIndex ) == '99999999' ) then
+              stnid = obs_elem_c( lobsSpaceData, 'STID', headerIndex )
+              if(stnid == '99999999' ) then
 
+                bodyElem_i = obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex )
                 write(*,*) 'setfgesurf: stn, ityp, xtr, ipt, ipb, zwt, zwb',  &
-                   obs_elem_c( lobsSpaceData, 'STID', headerIndex ), ityp, &
-                   obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ), ipt, ipb, zwt, zwb
+                   stnid, ityp, &
+                   bodyElem_i, ipt, ipb, zwt, zwb
+                bodyElem_r = obs_bodyElem_i( lobsSpaceData, OBS_HPHT, bodyIndex )
+                colElem1 = col_getElem( lcolumn, ipb, headerIndex )
+                colElem2 = col_getElem( lcolumn, ipt, headerIndex )
                 write(*,*) 'setfgesurf: gobs(ipb), gobs(ipt), fge',   &
-                    col_getElem( lcolumn, ipb, headerIndex ), col_getElem( lcolumn, ipt, headerIndex ), &
-                    obs_bodyElem_r( lobsSpaceData, OBS_HPHT, bodyIndex )
+                    colElem1, colElem2, bodyElem_r
 
               endif
 
@@ -1627,6 +1636,7 @@ module obsSpaceErrorStdDev_mod
 
       LOGICAL  ASSIM, OK, LSTAG
       CHARACTER*9  STN_JAC
+      character(len=12) :: stnid
       
       CHARACTER(len=4) :: varLevel
       
@@ -1759,10 +1769,11 @@ module obsSpaceErrorStdDev_mod
 
                            IF (icount .LE. INOBS_JAC) THEN
 !                           IF ( obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. STN_JAC ) THEN
-                             WRITE(*,'(A11,A9)') 'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                             stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                             WRITE(*,'(A11,A9)') 'SETFGEGPS: ', stnid
                              WRITE(*,*) '  ZTD, ZTD FGE = ', ZTDopv%Var, SQRT(ZLSUM)
                              WRITE(*,'(A11,A9,3(1x,f7.2))')   &
-                               'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV
+                               'SETFGEGPS: ',stnid,ZLAT,ZLON,ZLEV
                              WRITE(*,*) 'JL JACT JACQ FGE_T FGE_LQ QQ'
                              DO JL = 1, NFLEV_T
                                WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV_T)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
@@ -1886,7 +1897,8 @@ module obsSpaceErrorStdDev_mod
              DELTAH_TL = DELTAH_TL + JAC(JL)*DX(JL)
            ENDDO
 
-           WRITE(*,*) 'SETFGEGPS: GPS ZTD OBSOP TEST FOR SITE ', obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+           stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+           WRITE(*,*) 'SETFGEGPS: GPS ZTD OBSOP TEST FOR SITE ', stnid
            WRITE(*,*) ' '
            WRITE(*,*) '  DZ (M), MODEL LEVEL ABOVE = ', ZLEV-ZMT, ILYR
            WRITE(*,*) '  ZLEV (M), ZTOP (M), ZBOT (M) = ', ZLEV, ZTOP, ZBOT

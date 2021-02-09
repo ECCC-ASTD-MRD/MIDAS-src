@@ -4858,6 +4858,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:), numObsAssim(:)
     integer, allocatable :: headerIndexList(:), headerIndexList2(:)
     integer, allocatable :: obsIndexGrid(:), obsIndexLink(:)
+    character(len=codtyp_name_length) :: instrumName
 
     ! Local parameters:
     integer, parameter :: latLength=10000
@@ -4867,8 +4868,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
 
+    instrumName = codtyp_get_name(codtyp)
     write(*,*)
-    write(*,*) 'thn_tovsFilt: Starting, ', trim(codtyp_get_name(codtyp))
+    write(*,*) 'thn_tovsFilt: Starting, ', trim(instrumName)
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
@@ -6505,9 +6507,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, parameter :: numStnIdMax = 10
     integer :: numStnId, stnIdIndexFound, stnIdIndex, countMpi, numObsStnId(numStnIdMax)
     character(len=12) :: stnid, stnidList(numStnIdMax)
+    character(len=codtyp_name_length) :: instrumName
 
+    instrumName = codtyp_get_name(codtyp)
     write(*,*)
-    write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(codtyp_get_name(codtyp))
+    write(*,*) 'thn_hyperByLatLonBoxes: Starting, ', trim(instrumName)
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
@@ -6625,10 +6629,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! print some statistics before thinning
 
+    instrumName = codtyp_get_name(codtyp)
     write(*,*)
     write(*,'(a)')        ' == Input file == '
     write(*,*)
-    write(*,'(a,a4)')     ' Instrument = ', codtyp_get_name(codtyp)
+    write(*,'(a,a4)')     ' Instrument = ', trim(instrumName)
     write(*,'(a,i4)')     ' Codtyp     = ', codtyp
 
     write(*,*)
