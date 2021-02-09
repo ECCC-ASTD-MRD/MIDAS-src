@@ -22,6 +22,7 @@ module timeCoord_mod
   !
   use mpi_mod
   use mpivar_mod
+  use varNameList_mod
   use utilities_mod
   implicit none
   save
@@ -36,7 +37,7 @@ module timeCoord_mod
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile
 
-  character(len=4) :: varNameForDate = 'P0'
+  character(len=4) :: varNameForDate
   character(len=6) ::  tim_referencetime
   real(8)   :: tim_dstepobs
   real(8)   :: tim_dstepobsinc
@@ -193,15 +194,15 @@ contains
 
     ! locals
     integer :: nulFile, ierr
-    integer, parameter :: maxNumDates = 100
-    integer :: numDates, ikeys(maxNumDates)
+    integer, parameter :: maxNumDates = 2000
+    integer :: numDates, ikeys(maxNumDates), varIndex
     integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
     integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
-    logical :: fileExists, foundWindow
+    logical :: fileExists, foundWindow, foundVarNameInFile
     real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
-    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &
-               ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc,   &
-               iextra1, iextra2, iextra3
+    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
+    integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
+    integer :: iextra1, iextra2, iextra3
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
     character(len=12) :: etiket
@@ -214,6 +215,26 @@ contains
       if ( .not.fileExists ) then
         call utl_abort('tim_getDateStampFromFile: File not found')
       end if
+
+      ! Determine variable to use for the date (default is P0)
+      varNameForDate = 'P0'
+      
+      ! If P0 not present, look for another suitable variable in the file
+      if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(fileName)) ) then
+        foundVarNameInFile = .false.
+        do varIndex = 1, vnl_numvarmax
+          varNameForDate = vnl_varNameList(varIndex)
+          ! check if variable is in the file
+          if ( .not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName)) ) cycle
+          foundVarNameInFile = .true.
+          exit      
+        end do
+
+        if ( .not. foundVarNameInFile) then
+          call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
+        end if
+      end if
+      write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable= ', varNameForDate
 
       ! Extract the datestamp from the file
       nulFile = 0

@@ -24,6 +24,7 @@ module HorizontalCoord_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -84,10 +85,10 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
-    real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
+    real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    integer :: iu_template, numSubGrid
+    integer :: iu_template, numSubGrid, varIndex
     integer :: fnom, fstlir, fstouv, fstfrm, fclos, fstluk
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
     integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
@@ -99,7 +100,7 @@ module HorizontalCoord_mod
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
 
-    logical :: FileExist, global, rotated
+    logical :: FileExist, global, rotated, foundVarNameInFile
 
     character(len=4 ) :: nomvar
     character(len=2 ) :: typvar
@@ -113,7 +114,47 @@ module HorizontalCoord_mod
     endif
 
     !
-    !- 1.  Open/Check template file
+    !- 1.1  Determine which variable to use for defining the grid
+    !
+    if (present(varName_opt)) then
+
+      ! User specified variable name
+      nomvar = varName_opt
+
+    else
+
+      ! First try to use P0
+      nomvar = 'P0'
+      
+      if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) then
+        ! P0 not present, look for another suitable variable in the file
+
+        foundVarNameInFile = .false.
+        do varIndex = 1, vnl_numvarmax
+          nomvar = vnl_varNameList(varIndex)
+
+          ! check if variable is in the file
+          if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) cycle
+
+          ! adopt a variable on the full/dynamic LAM grid
+          !if ( .not. statevector_out%hco%global .and. (trim(nomvar) == 'TM' .or. trim(nomvar) == 'MG')) cycle
+
+          foundVarNameInFile = .true.
+
+          exit
+      
+        end do
+
+        if ( .not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
+
+      end if
+
+    end if
+
+    write(*,*) 'hco_SetupFromFile: defining hco by varname= ', nomvar
+
+    !
+    !- 1.2  Open/Check template file
     !
     inquire(file=trim(TemplateFile), exist=FileExist)
 
@@ -148,11 +189,6 @@ module HorizontalCoord_mod
     ip2    = -1
     ip3    = -1
     typvar = ' '
-    if (present(varName_opt)) then
-      nomvar = varName_opt
-    else
-      nomvar = 'P0'
-    end if
 
     key = fstinf( iu_template,                                & ! IN
                   ni, nj, nk,                                 & ! OUT
