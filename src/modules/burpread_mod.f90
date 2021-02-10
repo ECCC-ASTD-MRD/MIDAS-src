@@ -4554,7 +4554,8 @@ CONTAINS
                 if ( goodprof(tIndex) == 1 ) then
 
                   if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                    write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
