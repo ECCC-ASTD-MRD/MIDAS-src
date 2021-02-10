@@ -6,10 +6,10 @@ set -e
 platform=${1:-${ORDENV_PLAT}}
 midas_abs=${2}
 
-toplevel=$(git rev-parse --show-toplevel)
+__toplevel=$(git rev-parse --show-toplevel)
 
-absdir=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}/midas_abs
-revnum=$(${toplevel}/midas.version.sh)
+absdir=${MIDAS_COMPILE_DIR_MAIN:-"../../compiledir"}/midas_abs
+revnum=$(${__toplevel}/midas.version.sh)
 
 program_missing=0
 

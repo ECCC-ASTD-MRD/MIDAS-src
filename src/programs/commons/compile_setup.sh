@@ -5,12 +5,14 @@
 echo
 echo "... compile_setup.sh script"
 
+
+
 # User-specified compilation options
-#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
-#export COMPILE_MIDAS_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
-if [ -n "${COMPILE_MIDAS_COMPF_GLOBAL}" ];then
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
+if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
      echo "..."
-     echo "... Additional user-specified compilation options = ${COMPILE_MIDAS_COMPF_GLOBAL}"
+     echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
      echo "..."
 fi
 
@@ -71,13 +73,13 @@ vercomp () {
 }
 
 check_ec_atomic_profile_version () {
-    set -e
     if [ "$(vercomp 1.11.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
         echo "EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.11.0"
         echo "Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.11.0"
         exit 1
     fi
 }
+
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
@@ -198,7 +200,11 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
 fi
 
-COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
+## loading makedep90
+echo "... loading makedepf90"
+. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
+
+COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
     OPTF="-mkl ${OPTF}"
@@ -209,7 +215,7 @@ else
     exit 1
 fi
 
-if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
     COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
@@ -221,3 +227,11 @@ fi
 
 GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
 GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"
+
+export COMPF
+export FOPTMIZ
+export GPP_OPTS
+
+export LIBIRC
+export HDF5_LIBS
+export VGRID_LIBNAME

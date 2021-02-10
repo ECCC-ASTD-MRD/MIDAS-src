@@ -57,7 +57,6 @@ module bgckmicrowave_mod
 
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
   character(len=128), parameter :: glmg_file='fstglmg'  ! glace de mer file
-
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
   real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
   real,   parameter :: clw_atms_nrl_UTrej=0.2        ! upper trop chans 7-9, 21-22
@@ -3378,7 +3377,7 @@ end subroutine bennartz
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.    
     !###############################################################################
 
-    call mwbg_grossValueCheck(KNT, KNO, ztb, grossrej)
+    call mwbg_grossValueCheck(KNT, KNO, ztb, 50., 380., grossrej)
      
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true. 
@@ -4095,10 +4094,12 @@ end subroutine bennartz
 
   end subroutine mwbg_landIceMaskAtms
 
+
   !--------------------------------------------------------------------------
   ! mwbg_grossValueCheck  
   !--------------------------------------------------------------------------
-  subroutine mwbg_grossValueCheck(npts,KNO, ztb,grossrej)
+
+  subroutine mwbg_grossValueCheck(npts,KNO, ztb, ztbThresholdMin, ztbThresholdMax, grossrej)
 
     !:Purpose: Check Tbs for values that are missing or outside physical limits.
     !          **NOTE: REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
@@ -4108,6 +4109,8 @@ end subroutine bennartz
     integer, intent(in)               :: npts             ! number of obs pts to process
     integer, intent(in)               :: KNO              ! number of ichannels
     real,    intent(in)               :: ztb(:)           ! bs from input BURP file
+    real,    intent(in)               :: ztbThresholdMin  ! ztb threshold for rejection
+    real,    intent(in)               :: ztbThresholdMax  ! ztb threshold for rejection
     logical, intent(out), allocatable :: grossrej(:)      ! ogical array defining which obs are to be rejected
 
     ! Locals
@@ -4120,7 +4123,7 @@ end subroutine bennartz
     do ii = 1, npts
 
       indx2 = ii*KNO
-      if ( all( ztb(indx1:indx2) > 50.0 ) .and. all( ztb(indx1:indx2) < 380.0 ) ) then
+      if ( all( ztb(indx1:indx2) > ztbThresholdMin ) .and. all( ztb(indx1:indx2) < ztbThresholdMax ) ) then
         grossrej(ii) = .false.
       end if
       indx1 = indx2 + 1
