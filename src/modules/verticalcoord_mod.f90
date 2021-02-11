@@ -114,7 +114,7 @@ contains
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm,fstinl
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
-    integer :: ip1_sfc
+    integer :: ip1_sfc, ip1SeaLevel
     character(len=10) :: blk_S
     logical :: isExist_L, ip1_found, sfcFieldFound
     integer :: ni, nj, nk, varListIndex, IP1kind
@@ -197,7 +197,8 @@ contains
 
         ! check for record with surface data
         call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
-        if (ip1 == 0 .or. ip1 == ip1_sfc) then
+        call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
+        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == ip1SeaLevel) then
           sfcFieldFound = .true.
           cycle record_loop
         end if
