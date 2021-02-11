@@ -136,11 +136,7 @@ module HorizontalCoord_mod
           ! check if variable is in the file
           if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) cycle
 
-          ! adopt a variable on the full/dynamic LAM grid
-          !if ( .not. statevector_out%hco%global .and. (trim(nomvar) == 'TM' .or. trim(nomvar) == 'MG')) cycle
-
           foundVarNameInFile = .true.
-
           exit
       
         end do

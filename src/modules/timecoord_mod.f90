@@ -218,9 +218,9 @@ contains
 
       ! Determine variable to use for the date (default is P0)
       varNameForDate = 'P0'
-      
+
       ! If P0 not present, look for another suitable variable in the file
-      if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(fileName)) ) then
+      if ( .not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName)) ) then
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varNameForDate = vnl_varNameList(varIndex)

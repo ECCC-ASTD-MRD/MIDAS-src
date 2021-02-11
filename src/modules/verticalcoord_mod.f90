@@ -41,23 +41,28 @@ module verticalCoord_mod
   ! public entities accessed through inheritance (from module vgrid_descriptors)
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
+  integer, parameter :: maxNumOtherLevels = 20
+  integer :: vco_ip1_other(maxNumOtherLevels)
+
+  integer, parameter :: maxNumDepthLevels = 200
+
   type struct_vco
      logical :: initialized=.false.
      integer :: Vcode = -1
      integer :: nlev_T = 0
      integer :: nlev_M = 0
      integer :: nlev_Other(vnl_numvarmaxOther) = 0
+     integer :: nlev_Depth = 0
      integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
      integer :: ip1_T_2m  ! ip1 value for the 2m thermodynamic level
      integer :: ip1_M_10m ! ip1 value for the 10m momentum level
-     integer,pointer,dimension(:) :: ip1_T => null()
-     integer,pointer,dimension(:) :: ip1_M => null()  ! encoded IP1 levels (Thermo/Moment)
+     integer,pointer :: ip1_T(:) => null()
+     integer,pointer :: ip1_M(:) => null()  ! encoded IP1 levels (Thermo/Moment)
+     integer :: ip1_depth(maxNumDepthLevels) = 0  ! encoded IP1 levels (Ocean depth levels)
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
+     real(8) :: depths(maxNumDepthLevels)
   end type struct_vco
-
-  integer, parameter :: maxNumOtherLevels = 20
-  integer :: vco_ip1_other(maxNumOtherLevels)
 
 contains
   
@@ -74,21 +79,13 @@ contains
     type(struct_vco), pointer :: vco ! Vertical coordinate object
 
     ! locals
-    integer :: ilnk,stat,nl_stat
+    integer :: numLev
 
-    stat        = 0
+    numLev = vco_getNumLev(vco,'MM')
+    if (numLev > 0) allocate (vco%ip1_M(numLev))
 
-    ilnk = vco_getNumLev(vco,'MM')
-    allocate (vco%ip1_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-
-    ilnk = vco_getNumLev(vco,'TH')
-    allocate (vco%ip1_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-
-    if ( stat /= 0 ) then
-      call utl_abort('vco_allocateIp1: problem with allocate in vco ')
-    end if
+    numLev = vco_getNumLev(vco,'TH')
+    if (numLev > 0) allocate (vco%ip1_T(numLev))
 
   end subroutine vco_allocateIp1
 
@@ -116,11 +113,11 @@ contains
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     integer :: ip1_sfc, ip1SeaLevel
     character(len=10) :: blk_S
-    logical :: isExist_L, ip1_found, sfcFieldFound
+    logical :: isExist_L, ip1_found, sfcFieldFound, oceanFieldFound
     integer :: ni, nj, nk, varListIndex, IP1kind
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
-    real :: otherVertCoordValue
+    real :: otherVertCoordValue, vertCoordValue
 
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
@@ -181,7 +178,8 @@ contains
                        'in the supplied file')
       end if
       write(*,*) 'vco_setupFromFile: number of records found = ', numRecords
-      sfcFieldFound = .false.
+      sfcFieldFound   = .false.
+      oceanFieldFound = .false.
       record_loop: do recordIndex = 1, numRecords
         ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, ini, inj, &
                       ink, inbits, idatyp, ip1, ip2, ip3, &
@@ -195,11 +193,33 @@ contains
         if (trim(nomvar) == '^^' .or. trim(nomvar) == '>>' .or.  &
             trim(nomvar) == '^>') cycle record_loop
 
+        ! ignore any mask records
+        if (typvar == '@@') cycle record_loop
+
         ! check for record with surface data
         call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
         call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
         if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == ip1SeaLevel) then
           sfcFieldFound = .true.
+          cycle record_loop
+        end if
+
+        ! check for record with ocean data
+        call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
+        if (Ip1Kind == 0 .and. vertCoordValue > 0.0 .and. &
+            vnl_varKindFromVarname(trim(nomvar)) == 'OC' ) then
+          oceanFieldFound = .true.
+          ! check if we've NOT already recorded this depth level
+          if ( .not. any(vertCoordValue == vco%depths(1:vco%nLev_depth)) ) then
+            vco%nLev_depth = vco%nLev_depth + 1
+            vco%depths(vco%nLev_depth) = vertCoordValue
+            vco%ip1_depth(vco%nLev_depth) = ip1
+            if (mpi_myid == 0) then
+              write(*,*) 'vco_setupFromFile: found ocean record on height levels'
+              write(*,*) 'nLev_depth = ', vco%nLev_depth, 'varName = ', trim(nomvar), &
+                         ', value = ', vco%depths(vco%nLev_depth), ', kind = ', Ip1Kind
+            end if
+          end if
           cycle record_loop
         end if
 
@@ -209,8 +229,18 @@ contains
         call utl_abort('vco_setupFromFile: found a non-surface field')
 
       end do record_loop
-      if (.not. sfcFieldFound) call utl_abort('vco_setupFromFile: no surface field found')
-      write(*,*) 'vco_setupFromFile: found only surface fields, proceed without vgrid descriptor'
+
+      ! Check if ocean depth levels are in correct order
+      if ( oceanFieldFound .and. vco%nLev_depth > 1 ) then
+        if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
+          call utl_abort('vco_setupFromFile: some depth levels not in ascending order')
+        end if
+      end if
+
+      if (.not.sfcFieldFound .and. .not.oceanFieldFound) then
+        call utl_abort('vco_setupFromFile: no surface or ocean fields found')
+      end if
+      write(*,*) 'vco_setupFromFile: found only surface or ocean fields, proceed without vgrid descriptor'
       vco%vgridPresent = .false.
       vco%nlev_T = 0
       vco%nlev_M = 0
@@ -471,6 +501,8 @@ contains
       end if
       varListIndex = vnl_varListIndexOther(varName_opt)
       nlev = vco%nlev_Other(varListIndex)
+    else if (varLevel == 'DP') then
+      nlev = vco%nlev_depth
     else
       call utl_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
     end if

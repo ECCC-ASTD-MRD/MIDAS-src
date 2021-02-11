@@ -43,7 +43,7 @@ module varNameList_mod
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D    = 44
+  integer, parameter          :: VNLnumvarmax3D    = 48
   integer, parameter          :: VNLnumvarmax2D    = 34
   integer, parameter          :: VNLnumvarmaxOther =  6
 
@@ -58,7 +58,7 @@ module varNameList_mod
                                  'TO3 ','O3L ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
                                  'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',        &
                                  'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
-                                 'N2OL'/)
+                                 'N2OL','UUW ','VVW ','TM  ','SALW'/)
 
   character(len=4), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -67,7 +67,7 @@ module varNameList_mod
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',  'TH',          &
-                                 'TH'/)
+                                 'TH',  'DP',  'DP',  'DP',  'DP'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -76,11 +76,11 @@ module varNameList_mod
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'CH',          &
-                                 'CH'/)
+                                 'CH',  'OC',  'OC',  'OC',  'OC'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
-                                 'GL  ','WGE ','BIN ','MG  ','TM  ','QI1 ','QO1 ','STOR','ALFS', &
+                                 'GL  ','WGE ','BIN ','MG  ','SSH ','QI1 ','QO1 ','STOR','ALFS', &
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
                                  'DN  ','FB  ','FI  ','MSKC','LZS ','WT  ','LG  '/)
 
