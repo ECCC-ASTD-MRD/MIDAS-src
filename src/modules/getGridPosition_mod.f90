@@ -36,7 +36,7 @@ module getGridPosition_mod
   ! public procedures
   public :: gpos_getPositionXY
 
-  integer, parameter :: maxNumLocalGridPointsSearch = 100
+  integer, parameter :: maxNumLocalGridPointsSearch = 300
   integer, external  :: get_max_rss
 
   type(kdtree2), pointer :: tree => null()
