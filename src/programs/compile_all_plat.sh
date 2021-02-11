@@ -58,7 +58,7 @@ set -ex
 export MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG:-no}
 
 cd ${codedir}
-echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
+echo Launching compilation on "\${TRUE_HOST}" for platform "\${ORDENV_PLAT}"
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
 
 cd ${__toplevel}/tools/splitobs
@@ -93,9 +93,9 @@ for host in ${COMPILING_MACHINE_PPP}; do
 done
 
 status=0
-echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}' in ${MIDAS_ABS}"
+echo "Checking if all programs have been compiled on ${TRUE_HOST} for platform ${ORDENV_PLAT} in ${MIDAS_ABS}"
 ./check_if_all_programs_compiled.sh ${ORDENV_PLAT} ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}' in ${MIDAS_ABS}"
+echo "Checking if all programs have been compiled on ${host} for platform ${PLAT_SUPER} in ${MIDAS_ABS}"
 ./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
