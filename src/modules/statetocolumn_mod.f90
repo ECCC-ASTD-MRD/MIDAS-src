@@ -3619,6 +3619,8 @@ contains
       footPrintRadius = 0.5 * alpha * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
     end if
 
+    write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, ',satHeight=', satHeight, ',alpha=', alpha, ',codeType=', codeType, ',footPrintRadius=', footPrintRadius
+
   end function getTovsFootprintRadius
 
 end module stateToColumn_mod
