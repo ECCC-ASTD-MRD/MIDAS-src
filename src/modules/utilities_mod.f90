@@ -104,7 +104,7 @@ contains
 
     ! locals
     character(len=12) :: extrapDegree
-    integer           :: ierr, ezsetopt
+    integer           :: ierr, ezsetopt, ezsetval
 
     if ( trim(interpDegree) /= 'LINEAR' .and. &
          trim(interpDegree) /= 'CUBIC' .and. &
@@ -116,10 +116,13 @@ contains
     if ( present(extrapDegree_opt) ) then
       extrapDegree = extrapDegree_opt
     else
-      extrapDegree = 'MAXIMUM'
+      extrapDegree = 'VALUE'
     end if
 
     ierr = ezsetopt('INTERP_DEGREE', interpDegree)
+    if ( trim(extrapDegree) == 'VALUE' ) then
+      ierr = ezsetval('EXTRAP_VALUE', 0.0)
+    end if
     ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
 
   end subroutine utl_setezopt
@@ -1926,7 +1929,7 @@ contains
     end if
 
     key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
-    
+
     if ( key > 0 )  then
       found = .true.
     else
