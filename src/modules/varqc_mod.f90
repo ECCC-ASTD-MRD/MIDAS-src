@@ -457,12 +457,13 @@ module varqc_mod
     integer :: jfam, jitem, headerIndex
     integer :: bodyIndex, bodyIndex2, ISTART,ityp,ISTYP
     integer :: ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
-    integer :: IDBURP,IOTHER
+    integer :: IDBURP,IOTHER,obsONM
     real(8) :: ZVAR,ZFCST,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
     real(8) :: SPD,DEG,ZLEV,ZSLEV,ZCUT
     character(len=4)  :: CLITM(NUMITEM),CLDESC
     character(len=2)  :: CLUNITS
     character(len=21) :: CODTYPNAME
+    character(len=12) :: stnId
     logical :: LLOK,LLELREJ
     !
     !  ------NOTE----------
@@ -676,11 +677,11 @@ module varqc_mod
                      ICOUNT(10,JFAM) = ICOUNT(10,JFAM) + 1
                    end if
                    codtypname=codtyp_get_name(IDBURP)
-                   write(*,620) obs_elem_c(lobsSpaceData,'STID',headerIndex),  &
-                     IDBURP,codtypname,ZLAT,ZLON,  &
+                   stnId = obs_elem_c(lobsSpaceData,'STID',headerIndex)
+                   obsONM = obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)
+                   write(*,620) stnId,IDBURP,codtypname,ZLAT,ZLON,  &
                      ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,  &
-                     ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,  &
-                     headerIndex)
+                     ISPDA,ZPOST,obsONM
  620               FORMAT(A9,1X,i3,1x,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                      'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,  &
                      '/',I3,2X,F7.4,1X,I8)
@@ -796,9 +797,11 @@ module varqc_mod
                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
                    IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
                  codtypname=codtyp_get_name(IDBURP)
-                 write(*,630) obs_elem_c(lobsSpaceData,'STID',headerIndex),IDBURP,  &
+                 stnId = obs_elem_c(lobsSpaceData,'STID',headerIndex)
+                 obsONM = obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)
+                 write(*,630) stnId,IDBURP,  &
                    codtypname,ZLAT,ZLON,ILEV,CLUNITS,CLDESC, &
-                   ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)
+                   ZVAR,ZFCST,ZANA,ZPOST,obsONM
  630               FORMAT(A9,1X,I3,1X,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                     A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)
                end if

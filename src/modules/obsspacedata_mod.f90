@@ -1128,18 +1128,18 @@ contains
             value_i = odc_array%columns(column_index)%value_i(row_index)
             value_r = odc_array%columns(column_index)%value_r(row_index)
          else
-            write(message,*)'abort in odc_columnElem (' &
+            write(message,*)'abort in odc_columnElem [' &
                           // odc_array%odc_flavour%dataType //',' &
                           // odc_array%odc_flavour%headOrBody // &
-                          '): column not active: ', &
+                          ']: column not active: ', &
                           odc_array%odc_flavour%columnNameList(column_index)
             call odc_abort(message)
          endif
       else
-         write(message,*) 'abort in odc_columnElem (' &
+         write(message,*) 'abort in odc_columnElem [' &
                           // odc_array%odc_flavour%dataType //',' &
                           // odc_array%odc_flavour%headOrBody // &
-                          '): column index out of range: ', column_index
+                          ']: column index out of range: ', column_index
          call odc_abort(message); return
       endif
    end subroutine odc_columnElem
@@ -1234,18 +1234,18 @@ contains
             odc_array%columns(column_index)%value_i(row_index) = value_i
             odc_array%columns(column_index)%value_r(row_index) = value_r
          else
-            write(message,*) 'abort in odc_columnSet (' &
+            write(message,*) 'abort in odc_columnSet [' &
                           // odc_array%odc_flavour%dataType //',' &
                           // odc_array%odc_flavour%headOrBody // &
-                          '): column not active: ', &
+                          ']: column not active: ', &
                           odc_array%odc_flavour%columnNameList(column_index)
             call odc_abort(message)
          endif
       else
-         write(message,*) 'abort in odc_columnSet (' &
+         write(message,*) 'abort in odc_columnSet [' &
                           // odc_array%odc_flavour%dataType //',' &
                           // odc_array%odc_flavour%headOrBody // &
-                          '): column index out of range: ', column_index
+                          ']: column index out of range: ', column_index
          call odc_abort(message); return
       endif
 
@@ -2265,9 +2265,9 @@ contains
       enddo
 
       if(.not.lfound) then
-         write(message,*)'abort in obs_columnIndexFromName (' &
+         write(message,*)'abort in obs_columnIndexFromName [' &
                        // odc_flavour%dataType //','// odc_flavour%headOrBody //&
-                       '): name not found='// column_name
+                       ']: name not found='// column_name
          call obs_abort(message); return
       end if
    end function obs_columnIndexFromName
@@ -2648,7 +2648,7 @@ contains
    end subroutine obs_enkf_prntbdy
 
 
-   subroutine obs_enkf_prnthdr(obsdat,kobs,kulout)
+   subroutine obs_enkf_prnthdr(obsdata,kobs,kulout)
       !
       ! :Purpose: printing of the header of an observation record
       !
@@ -2658,39 +2658,45 @@ contains
       !
       implicit none
 
-      type(struct_obs), intent(in) :: obsdat
+      type(struct_obs), intent(in) :: obsdata
       integer,      intent(in)  :: kobs, kulout
+
+      integer :: obsRLN, obsONM, obsDAT, obsETM, obsINS, obsOTP, obsITY
+      integer :: obsNLV, obsPAS, obsREG, obsIP
+      real(pre_obsReal) ::obsLAT, obsLON, obsALT, obsBX, obsBY, obsBZ, obsAZA
 
       ! general information
 
-      write(kulout,fmt=9100)kobs,obsdat%cstnid(KOBS)
+      write(kulout,fmt=9100)kobs,obsdata%cstnid(KOBS)
 9100  format(//,2x,'-- observation record no.' &
          ,1x,i6,3x,' station id:',A12)
 
       ! print header's content
 
 9202  format(2x,'position within realBodies:',i6)
-      write(kulout,fmt=9200) &
-         obs_headElem_i(obsdat, OBS_RLN, kobs), &
-         obs_headElem_i(obsdat, OBS_ONM, kobs), &
-         obs_headElem_i(obsdat, OBS_DAT, kobs), &
-         obs_headElem_i(obsdat, OBS_ETM, kobs), &
-         obs_headElem_i(obsdat, OBS_INS, kobs), &
-         obs_headElem_i(obsdat, OBS_OTP, kobs), &
-         obs_headElem_i(obsdat, OBS_ITY, kobs), &
-         obs_headElem_r(obsdat, OBS_LAT, kobs), &
-         obs_headElem_r(obsdat, OBS_LON, kobs), &
-         obs_headElem_r(obsdat, OBS_ALT, kobs), &
-         obs_headElem_r(obsdat, OBS_BX , kobs), &
-         obs_headElem_r(obsdat, OBS_BY , kobs), &
-         obs_headElem_r(obsdat, OBS_BZ , kobs), &
-         obs_headElem_r(obsdat, OBS_AZA, kobs)
+      obsRLN = obs_headElem_i(obsdata, OBS_RLN, kobs)
+      obsONM = obs_headElem_i(obsdata, OBS_ONM, kobs)
+      obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
+      obsETM = obs_headElem_i(obsdata, OBS_ETM, kobs)
+      obsINS = obs_headElem_i(obsdata, OBS_INS, kobs)
+      obsOTP = obs_headElem_i(obsdata, OBS_OTP, kobs)
+      obsITY = obs_headElem_i(obsdata, OBS_ITY, kobs)
+      obsLAT = obs_headElem_r(obsdata, OBS_LAT, kobs)
+      obsLON = obs_headElem_r(obsdata, OBS_LON, kobs)
+      obsALT = obs_headElem_r(obsdata, OBS_ALT, kobs)
+      obsBX  = obs_headElem_r(obsdata, OBS_BX , kobs)
+      obsBY  = obs_headElem_r(obsdata, OBS_BY , kobs)
+      obsBZ  = obs_headElem_r(obsdata, OBS_BZ , kobs)
+      obsAZA = obs_headElem_r(obsdata, OBS_AZA, kobs)
+      write(kulout,fmt=9200) obsRLN, obsONM, obsDAT, obsETM, &
+           obsINS, obsOTP, obsITY, obsLAT, obsLON, obsALT, &
+           obsBX , obsBY , obsBZ , obsAZA
 
-      write(kulout,fmt=9201) & 
-         obs_headElem_i(obsdat, OBS_NLV, kobs), &
-         obs_headElem_i(obsdat, OBS_PAS, kobs), &
-         obs_headElem_i(obsdat, OBS_REG, kobs), &
-         obs_headElem_i(obsdat, OBS_IP , kobs)
+      obsNLV = obs_headElem_i(obsdata, OBS_NLV, kobs)
+      obsPAS = obs_headElem_i(obsdata, OBS_PAS, kobs)
+      obsREG = obs_headElem_i(obsdata, OBS_REG, kobs)
+      obsIP  = obs_headElem_i(obsdata, OBS_IP , kobs)
+      write(kulout,fmt=9201) obsNLV, obsPAS, obsREG, obsIP
          
 
 9200  format(2x,'position within realBodies:',i8,1x,'stn. number:',i6,1x,/, &
@@ -3119,7 +3125,7 @@ contains
      implicit none
 
      ! arguments
-     real(8), intent(out) :: realBodyColumn(:)
+     real(pre_obsReal), intent(out) :: realBodyColumn(:)
      type(struct_obs)     :: obsSpaceData
      integer              :: obsColumnIndex
 
@@ -3181,7 +3187,7 @@ contains
      implicit none
 
      ! arguments
-     real(8), intent(out) :: realHeaderColumn(:)
+     real(pre_obsReal), intent(out) :: realHeaderColumn(:)
      type(struct_obs)     :: obsSpaceData
      integer              :: obsColumnIndex
 
@@ -4020,6 +4026,9 @@ contains
       integer :: ipnt, idata, idata2, jdata, ivco
       character(len=13) :: ccordtyp(4)
 
+      integer :: obsVNM, obsFLG, obsASS
+      real(pre_obsReal) :: obsPPP, obsVAR, obsOMP, obsOMA, obsOER, obsHPHT, obsOMPE
+
       if ( present( unitout_opt ) ) then
         unitout_ = unitout_opt
       else
@@ -4056,18 +4065,20 @@ contains
         if ( obs_bodyElem_i( obsdat, OBS_ASS, jdata ) >= 0) then
           ivco = obs_bodyElem_i( obsdat, OBS_VCO, jdata )
           if ( ivco < 1 .or. ivco > 3 ) ivco = 4
-          write ( unitout_, fmt=9201 ) idata2 &
-             ,obs_bodyElem_i( obsdat,OBS_VNM ,jdata) &
-             ,ccordtyp(ivco) &
-             ,obs_bodyElem_r( obsdat, OBS_PPP , jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_VAR , jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_OMP , jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_OMA , jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_OER , jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_HPHT, jdata ) &
-             ,obs_bodyElem_r( obsdat, OBS_OMPE, jdata ) &
-             ,obs_bodyElem_i( obsdat, OBS_FLG , jdata ) &
-             ,obs_bodyElem_i( obsdat, OBS_ASS , jdata ) 
+          obsVNM = obs_bodyElem_i( obsdat, OBS_VNM , jdata )
+          obsPPP = obs_bodyElem_r( obsdat, OBS_PPP , jdata )
+          obsVAR = obs_bodyElem_r( obsdat, OBS_VAR , jdata )
+          obsOMP = obs_bodyElem_r( obsdat, OBS_OMP , jdata )
+          obsOMA = obs_bodyElem_r( obsdat, OBS_OMA , jdata )
+          obsOER = obs_bodyElem_r( obsdat, OBS_OER , jdata )
+          obsHPHT= obs_bodyElem_r( obsdat, OBS_HPHT, jdata )
+          obsOMPE= obs_bodyElem_r( obsdat, OBS_OMPE, jdata )
+          obsFLG = obs_bodyElem_i( obsdat, OBS_FLG , jdata )
+          obsASS = obs_bodyElem_i( obsdat, OBS_ASS , jdata )
+          write ( unitout_, fmt=9201 ) idata2, &
+               obsVNM, ccordtyp(ivco), &
+               obsPPP,obsVAR,obsOMP,obsOMA, &
+               obsOER,obsHPHT,obsOMPE,obsFLG,obsASS
         end if
       end do
 
@@ -4094,11 +4105,11 @@ contains
    end subroutine obs_prntbdy
 
 
-   subroutine obs_prnthdr( obsdat, index_hd, unitout_opt )
+   subroutine obs_prnthdr( obsdata, index_hd, unitout_opt )
       !
       ! :Purpose: Printing of the header of an observation record
       ! :Arguments:
-      !           :obsdat:  obsSpaceData object
+      !           :obsdata:  obsSpaceData object
       !           :index_hd: index of the header to be printed
       !           :unitout_opt: unit number on which to print
       !
@@ -4106,11 +4117,15 @@ contains
       implicit none
 
 
-      type(struct_obs), intent(in)           :: obsdat
+      type(struct_obs), intent(in)           :: obsdata
       integer         , intent(in)           :: index_hd
       integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
 
       integer :: unitout_
+      integer :: obsRLN, obsONM, obsINS, obsOTP, obsITY
+      integer :: obsDAT, obsETM, obsNLV, obsST1
+      real(pre_obsReal) :: obsLON, obsLAT, obsALT
+      character(len=12) :: stnid
 
       if ( present( unitout_opt ) ) then
          unitout_ = unitout_opt
@@ -4127,20 +4142,21 @@ contains
       !
       ! 2. PRINT HEADER'S CONTENT
       !
-      write(unitout_,fmt=9200)&
-          obs_headElem_i(obsdat,OBS_RLN,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_ONM,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_INS,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_OTP,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_ITY,index_hd) &
-         ,obs_headElem_r(obsdat,OBS_LAT,index_hd) &
-         ,obs_headElem_r(obsdat,OBS_LON,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_DAT,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_ETM,index_hd) &
-         ,obs_elem_c(obsdat,'STID',index_hd)      &
-         ,obs_headElem_r(obsdat,OBS_ALT,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_NLV,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_ST1,index_hd)
+      obsRLN = obs_headElem_i(obsdata,OBS_RLN,index_hd)
+      obsONM = obs_headElem_i(obsdata,OBS_ONM,index_hd)
+      obsINS = obs_headElem_i(obsdata,OBS_INS,index_hd)
+      obsOTP = obs_headElem_i(obsdata,OBS_OTP,index_hd)
+      obsITY = obs_headElem_i(obsdata,OBS_ITY,index_hd)
+      obsLAT = obs_headElem_r(obsdata,OBS_LAT,index_hd)
+      obsLON = obs_headElem_r(obsdata,OBS_LON,index_hd)
+      obsDAT = obs_headElem_i(obsdata,OBS_DAT,index_hd)
+      obsETM = obs_headElem_i(obsdata,OBS_ETM,index_hd)
+      obsALT = obs_headElem_r(obsdata,OBS_ALT,index_hd)
+      obsNLV = obs_headElem_i(obsdata,OBS_NLV,index_hd)
+      obsST1 = obs_headElem_i(obsdata,OBS_ST1,index_hd)
+      stnid  = obs_elem_c(obsdata,'STID',index_hd)
+      write(unitout_,fmt=9200) obsRLN, obsONM, obsINS, obsOTP, obsITY, &
+           obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, obsST1
 
 9200  format(6x,'Position within realBodies:',i6,1x,'OBS. NUMBER:',i6,1x &
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
@@ -5728,8 +5744,9 @@ contains
       integer,      intent(in) :: kobs
       integer,      intent(in) :: kulout
 
-      integer :: idata,idata2,ihaht,ihpht,ioer,ioma,ioma0,iomp,iomp6,ipnt, &
-         ippp, ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
+      integer  :: idata,idata2,ihaht,ihpht,ioer,ioma,ioma0,iomp,iomp6,ipnt
+      integer  :: ippp, ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
+      integer  :: obsVNM, obsASS, obsZHA, obsVCO, obsFLG
       integer  :: mrbcol,mrbcvt
       real     :: rppp
       character(len=100) :: message
@@ -5778,13 +5795,14 @@ contains
             return
          endif
 
-         write(kulout,fmt=9201) kobs,idata2, &
-            obs_bodyElem_i(obsdat, OBS_VNM, jdata),ippp, &
-            obs_bodyElem_i(obsdat, OBS_ASS, jdata), &
+         obsVNM = obs_bodyElem_i(obsdat, OBS_VNM, jdata)
+         obsASS = obs_bodyElem_i(obsdat, OBS_ASS, jdata)
+         obsZHA = obs_bodyElem_r(obsdat, OBS_ZHA, jdata)
+         obsVCO = obs_bodyElem_i(obsdat, OBS_VCO, jdata)
+         obsFLG = obs_bodyElem_i(obsdat, OBS_FLG, jdata)
+         write(kulout,fmt=9201) kobs,idata2, obsVNM, ippp, obsASS, &
             ivar,iomp,iomp6,ioma,ioma0,ioer,ihpht,ihaht,isigi,isigo,var3d,  &
-            obs_bodyElem_r(obsdat, OBS_ZHA, jdata), &
-            obs_bodyElem_i(obsdat, OBS_VCO, jdata), &
-            obs_bodyElem_i(obsdat, OBS_FLG, jdata)
+            obsZHA, obsVCO, obsFLG
       enddo
 
 9201  format(1x,i9,',',i3,2(',',i6),',',i3,10(',',i8), &
@@ -5794,29 +5812,31 @@ contains
    end subroutine obs_tosqlbdy
 
 
-   subroutine obs_tosqlhdr(obsdat,kobs,kulout)
+   subroutine obs_tosqlhdr(obsdata,kobs,kulout)
       !
       ! :Purpose: printing of the header of a station record for sql
       !
       !
       ! :Arguments:
-      !          :obsdat: obsSpaceData object
+      !          :obsdata: obsSpaceData object
       !          :kobs: no. of observation
       !          :kulout: unit used for output
       !
       implicit none
 
-      type (struct_obs), intent(inout) :: obsdat
+      type (struct_obs), intent(inout) :: obsdata
       integer, intent(in) :: kobs
       integer, intent(in) :: kulout
 
       integer :: ialt,idburp,ilon,ilat,iout
+      integer :: obsDAT, obsETM, obsRLN, obsONM, obsINS, obsOTP
+      integer :: obsNLV, obsPAS, obsREG, obsIP
       character(len=12) :: ccstnid
       real(8) :: torad 
 
       torad=4.d0*atan(1.d0)/180.d0
 
-      ccstnid=obsdat%cstnid(kobs)
+      ccstnid=obsdata%cstnid(kobs)
 
       ! Replace occasional appearance of "," by "b" in CCSTNID to avoid problem
       ! when converting this output to sqlite. - Xingxiu Deng, March 2009
@@ -5829,23 +5849,25 @@ contains
          endif
       enddo
 
-      ialt=obs_headElem_r(obsdat, OBS_ALT, kobs)+400
-      ilon=nint((obs_headElem_r(obsdat, OBS_LON, kobs)/torad)*100.0)
-      ilat=nint((obs_headElem_r(obsdat, OBS_LAT, kobs)/torad+90.0)*100.0)
+      ialt=obs_headElem_r(obsdata, OBS_ALT, kobs)+400
+      ilon=nint((obs_headElem_r(obsdata, OBS_LON, kobs)/torad)*100.0)
+      ilat=nint((obs_headElem_r(obsdata, OBS_LAT, kobs)/torad+90.0)*100.0)
 
-      idburp=mod(obs_headElem_i(obsdat, OBS_ITY, kobs),1000)
-      write(kulout,fmt=9200) kobs,CCSTNID, &
-         obs_headElem_i(obsdat, OBS_DAT, kobs), &
-         obs_headElem_i(obsdat, OBS_ETM, kobs), &
-         obs_headElem_i(obsdat, OBS_RLN, kobs), &
-         obs_headElem_i(obsdat, OBS_ONM, kobs), &
-         obs_headElem_i(obsdat, OBS_INS, kobs), &
-         obs_headElem_i(obsdat, OBS_OTP, kobs), &
-         idburp,ilat,ilon,ialt,                &
-         obs_headElem_i(obsdat, OBS_NLV, kobs), &
-         obs_headElem_i(obsdat, OBS_PAS, kobs), &
-         obs_headElem_i(obsdat, OBS_REG, kobs), &
-         obs_headElem_i(obsdat, OBS_IP , kobs)
+      idburp=mod(obs_headElem_i(obsdata, OBS_ITY, kobs),1000)
+      obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
+      obsETM = obs_headElem_i(obsdata, OBS_ETM, kobs)
+      obsRLN = obs_headElem_i(obsdata, OBS_RLN, kobs)
+      obsONM = obs_headElem_i(obsdata, OBS_ONM, kobs)
+      obsINS = obs_headElem_i(obsdata, OBS_INS, kobs)
+      obsOTP = obs_headElem_i(obsdata, OBS_OTP, kobs)
+      obsNLV = obs_headElem_i(obsdata, OBS_NLV, kobs)
+      obsPAS = obs_headElem_i(obsdata, OBS_PAS, kobs)
+      obsREG = obs_headElem_i(obsdata, OBS_REG, kobs)
+      obsIP  = obs_headElem_i(obsdata, OBS_IP , kobs)
+      write(kulout,fmt=9200) kobs, CCSTNID, obsDAT, obsETM, &
+           obsRLN, obsONM, obsINS, obsOTP, &
+           idburp,ilat,ilon,ialt,              &
+           obsNLV, obsPAS, obsREG, obsIP
 
 9200  format(2x,i9,',',a9,',',i10,',',i8,',',i6,',',i6, &
          ',',i12,',',i6,4(',',i8),4(',',i6))

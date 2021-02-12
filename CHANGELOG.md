@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !430)
  * Fix bug in call to local subroutine `diagHBHt` in program `diagHBHt` (#441 and !421)
  * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
  * Fix shell instablity in `src/programs/commons/compile_setup.sh` (#453 and !317)

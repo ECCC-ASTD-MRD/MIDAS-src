@@ -165,7 +165,7 @@ contains
 
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
-    logical :: burp_chem
+    logical :: burp_chem, numBody, numHeader
     real(pre_obsReal)  :: missingValue
 
     write(*,*) ' '
@@ -224,8 +224,10 @@ contains
       call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
     end if
 
-    write(*,*) 'brpf_readFile: obs_numheader(obsdat)', obs_numheader(obsdat)
-    write(*,*) 'brpf_readFile: obs_numbody(obsdat)  ', obs_numbody  (obsdat)
+    numHeader = obs_numHeader(obsdat)
+    numBody   = obs_numBody(obsdat)
+    write(*,*) 'brpf_readFile: obs_numheader', numHeader
+    write(*,*) 'brpf_readFile: obs_numbody  ', numBody
 
   end subroutine brpf_readFile
 

@@ -1,6 +1,6 @@
 SRC_FILES=""
 SRC_FILES="$SRC_FILES clib_interfaces_mod.ftn90"
-SRC_FILES="$SRC_FILES utilities_mod.f90 version_mod.f90"
+SRC_FILES="$SRC_FILES utilities_mod.f90"
 SRC_FILES="$SRC_FILES bufr_mod.f90 codeprecision_mod.ftn90 mathphysconstants_mod.f90 mpi_mod.f90 "
 SRC_FILES="$SRC_FILES varnamelist_mod.f90"
 SRC_FILES="$SRC_FILES earthconstants_mod.f90 obsspacedata_mod.f90 presprofileoperators_mod.f90 verticalcoord_mod.f90"
@@ -15,4 +15,4 @@ SRC_FILES="$SRC_FILES columnVariableTransforms_mod.f90 gridVariableTransforms_mo
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 obserrors_mod.f90 statetocolumn_mod.f90"
 SRC_FILES="$SRC_FILES controlvector_mod.f90 costfunction_mod.f90 localizationfunction_mod.f90 obsOperatorsChem_mod.f90 tovs_lin_mod.f90"
 SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90 randomnumber_mod.f90"
-SRC_FILES="$SRC_FILES ensembleobservations_mod.f90 innovation_mod.f90"
+SRC_FILES="$SRC_FILES ensembleobservations_mod.f90 innovation_mod.f90 version_mod.f90"
