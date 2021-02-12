@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to generate the continuous ice concentration field LG (#456 and !431)
  * Add ability to copy lowest level during vertical interpolation (#429 and !407)
    * New namelist variable `vInterpCopyLowestLevel` activates it (default is false)
  * Added quality control for CSR data to `obsSelection` (#409 and !406)
