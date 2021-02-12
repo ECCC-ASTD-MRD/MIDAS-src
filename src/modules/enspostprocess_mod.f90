@@ -1225,7 +1225,7 @@ contains
     character(len=4), allocatable :: nomvar_v(:)
     character(len=4)              :: varLevel
     real(8), allocatable          :: weight(:,:), scaleFactor(:)
-    real(4), allocatable          :: hyb_v(:)
+    real(4), allocatable          :: pressureOrDepth(:)
     integer :: ierr, lonIndex, latIndex, lonIndexP1, latIndexP1, nulFile
     integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
@@ -1240,7 +1240,7 @@ contains
 
     numK = gsv_getNumK(stateVectorStdDev)
     allocate(nomvar_v(numK))
-    allocate(hyb_v(numK))
+    allocate(pressureOrDepth(numK))
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
     allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
@@ -1283,37 +1283,59 @@ contains
       rmsvalue(kIndex) = rmsvalue(kIndex)**0.5
     end do
 
-    ! compute pressure for a column where Psfc=1000hPa
-    pSfc(1,1) = 1000.0D2 !1000 hPa
-    ! pressure on momentum levels
-    nullify(pressures_M)
-    ierr = vgd_levels(vco%vgrid,           &
-                      ip1_list=vco%ip1_M,  &
-                      levels=pressures_M,  &
-                      sfc_field=pSfc,      &
-                      in_log=.false.)
-    if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
-    ! pressure on thermodynamic levels
-    nullify(pressures_T)
-    ierr = vgd_levels(vco%vgrid,           &
-                      ip1_list=vco%ip1_T,  &
-                      levels=pressures_T,  &
-                      sfc_field=pSfc,      &
-                      in_log=.false.)
-    if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
+    if (vco%vgridPresent) then
+      ! compute pressure for a column where Psfc=1000hPa
+      pSfc(1,1) = 1000.0D2 !1000 hPa
+      ! pressure on momentum levels
+      nullify(pressures_M)
+      ierr = vgd_levels(vco%vgrid,           &
+                        ip1_list=vco%ip1_M,  &
+                        levels=pressures_M,  &
+                        sfc_field=pSfc,      &
+                        in_log=.false.)
+      if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
+      ! pressure on thermodynamic levels
+      nullify(pressures_T)
+      ierr = vgd_levels(vco%vgrid,           &
+                        ip1_list=vco%ip1_T,  &
+                        levels=pressures_T,  &
+                        sfc_field=pSfc,      &
+                        in_log=.false.)
+      if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
 
-    ! set the variable name, normalized pressure and scaleFactor for each element of column
+      ! set the variable name and pressure for each element of column
+      do kIndex = 1, numK
+        levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
+        nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
+        varLevel = vnl_varLevelFromVarname(nomvar_v(kIndex))
+        if (varLevel == 'MM') then
+          pressureOrDepth(kIndex) = pressures_M(1,1,levIndex)/Psfc(1,1)
+        else if (varLevel == 'TH') then
+          pressureOrDepth(kIndex) = pressures_T(1,1,levIndex)/Psfc(1,1)
+        else
+          pressureOrDepth(kIndex) = 1.0
+        end if
+      end do
+      deallocate(pressures_M)
+      deallocate(pressures_T)
+
+    else if (vco%nLev_depth > 0) then
+
+      ! set the variable name and depth for each element of column
+      do kIndex = 1, numK
+        nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
+        levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
+        pressureOrDepth(kIndex) = vco%depths(levIndex)
+      end do
+
+    else
+
+      call utl_abort('epp_printRmsStats: Unknown type of levels')
+
+    end if
+
+    ! set the scaleFactor and rmsvalue for each element of column
     do kIndex = 1, numK
-      levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
-      nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
-      varLevel = vnl_varLevelFromVarname(nomvar_v(kIndex))
-      if (varLevel == 'MM') then
-        hyb_v(kIndex) = pressures_M(1,1,levIndex)/Psfc(1,1)
-      else if (varLevel == 'TH') then
-        hyb_v(kIndex) = pressures_T(1,1,levIndex)/Psfc(1,1)
-      else
-        hyb_v(kIndex) = 1.0
-      end if
       if ( (nomvar_v(kIndex) == 'UU') .or. (nomvar_v(kIndex) == 'VV') ) then
         scaleFactor(kIndex) = MPC_KNOTS_PER_M_PER_S_R8
       else if (nomvar_v(kIndex) == 'P0') then
@@ -1340,25 +1362,23 @@ contains
           kIndexUU = levIndex
           kIndexVV = levIndex + nLev_M
           write(nulFile,100) &
-               elapsed,ftype,nEns,nomvar_v(kIndexUU),hyb_v(kIndexUU),rmsvalue(kIndexUU)
+               elapsed,ftype,nEns,nomvar_v(kIndexUU),pressureOrDepth(kIndexUU),rmsvalue(kIndexUU)
           write(nulFile,100) &
-               elapsed,ftype,nEns,nomvar_v(kIndexVV),hyb_v(kIndexVV),rmsvalue(kIndexVV)
+               elapsed,ftype,nEns,nomvar_v(kIndexVV),pressureOrDepth(kIndexVV),rmsvalue(kIndexVV)
         end do
       end if
       do kIndex = kIndexCount+1, numK
         write(nulFile,100) &
-             elapsed,ftype,nEns,nomvar_v(kIndex),hyb_v(kIndex),rmsvalue(kIndex)   
+             elapsed,ftype,nEns,nomvar_v(kIndex),pressureOrDepth(kIndex),rmsvalue(kIndex)   
       end do
       ierr = fclos(nulFile)
     end if
 
 100 format(f7.2,1x,A1,1x,I5,1x,A4,1x,f12.7,1x,(2E12.5))
 
-    deallocate(pressures_M)
-    deallocate(pressures_T)
     deallocate(weight)
     deallocate(nomvar_v)
-    deallocate(hyb_v)
+    deallocate(pressureOrDepth)
     deallocate(scaleFactor)
     deallocate(rmsvalue)
 

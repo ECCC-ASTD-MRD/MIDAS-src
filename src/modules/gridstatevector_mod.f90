@@ -2889,14 +2889,14 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
 
-      if (.not. gsv_varExist(statevector_out,varName)) cycle
-
+      if ( .not. gsv_varExist(statevector_out,varName) ) cycle
+write(*,*) 'varName = ', varName
       ! make sure variable is in the file
       if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
-
+write(*,*) 'found'
       ! adopt a variable on the full/dynamic LAM grid
       if ( .not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
-
+write(*,*) 'here'
       foundVarNameInFile = .true.
 
       exit
@@ -3487,7 +3487,10 @@ module gridStateVector_mod
           ip1 = vco_file%ip1_M_10m
         else if (varLevel == 'OT') then
           ip1 = vco_ip1_other(levIndex)
+        else if (varLevel == 'DP') then
+          ip1 = vco_file%ip1_depth(levIndex)
         else
+          write(*,*) 'varLevel =', varLevel
           call utl_abort('gsv_readFile: unknown varLevel')
         end if
 
@@ -5465,6 +5468,8 @@ module gridStateVector_mod
               ip1 = statevector%vco%ip1_M_10m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
               ip1 = vco_ip1_other(levIndex)
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
+              ip1 = statevector%vco%ip1_depth(levIndex)
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ', varLevel

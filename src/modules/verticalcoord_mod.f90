@@ -216,8 +216,9 @@ contains
             vco%ip1_depth(vco%nLev_depth) = ip1
             if (mpi_myid == 0) then
               write(*,*) 'vco_setupFromFile: found ocean record on height levels'
-              write(*,*) 'nLev_depth = ', vco%nLev_depth, 'varName = ', trim(nomvar), &
-                         ', value = ', vco%depths(vco%nLev_depth), ', kind = ', Ip1Kind
+              write(*,*) 'vco_setupFromFile: found ocean record: nLev_depth = ', &
+                   vco%nLev_depth, 'varName = ', trim(nomvar), &
+                   ', value = ', vco%depths(vco%nLev_depth)
             end if
           end if
           cycle record_loop

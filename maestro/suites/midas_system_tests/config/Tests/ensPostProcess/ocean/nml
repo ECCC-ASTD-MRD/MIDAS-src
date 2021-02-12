@@ -1,5 +1,5 @@
  &namEnsPostProc
-   nEns                  = 5
+   nEns                  = 80
    readTrlEnsemble       = .true.
    readAnlEnsemble       = .false.
 /
@@ -16,4 +16,5 @@
 /
  &NAMSTATE
    ANLVAR(1)    ='TM'
+   ANLVAR(2)    ='SALW'
 /

@@ -413,11 +413,7 @@ module HorizontalCoord_mod
     !- 2.5 Irregular structure
     elseif ( trim(grtyp) == 'Y' ) then
 
-      !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
-      lon_8(:) = -999.999d0
-      lat_8(:) = -999.999d0
-
-      !- 2.5.2 This grid type is not rotated
+      !- 2.5.1 This grid type is not rotated
       rotated = .false.
       xlat1_4 = 0.0
       xlon1_4 = 0.0
@@ -426,8 +422,14 @@ module HorizontalCoord_mod
 
       grtypTicTac = 'L'
 
-      !- 2.5.3 Generally not a global grid, but hard to test upfront
-      global = .false.
+      !- 2.5.2 Test using first row of longitudes (should work for ORCA grids)
+      lon_8(:) = hco%lon2d_4(:,1)
+      call global_or_lam( global,     & ! OUT
+                          lon_8, ni )   ! IN
+
+      !-  2.5.3 Initialize latitudes and longitudes to dummy values - should not be used!
+      lon_8(:) = -999.999d0
+      lat_8(:) = -999.999d0
 
     else
       write(*,*)
@@ -540,7 +542,8 @@ module HorizontalCoord_mod
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
 
-    if ( next_lon - lon(1) > 360.0d0 ) then
+    if ( next_lon - lon(1) > 360.0d0 .or. &
+         next_lon - lon(1) < 3.0*dx ) then
 
       global = .true.
       if ( lon(1) == lon(ni) ) then
