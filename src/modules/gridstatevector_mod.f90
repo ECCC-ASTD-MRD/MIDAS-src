@@ -3489,6 +3489,8 @@ write(*,*) 'here'
           ip1 = vco_ip1_other(levIndex)
         else if (varLevel == 'DP') then
           ip1 = vco_file%ip1_depth(levIndex)
+        else if (varLevel == 'SFDP') then
+          ip1 = vco_file%ip1_depth(1)
         else
           write(*,*) 'varLevel =', varLevel
           call utl_abort('gsv_readFile: unknown varLevel')
@@ -5470,6 +5472,8 @@ write(*,*) 'here'
               ip1 = vco_ip1_other(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
               ip1 = statevector%vco%ip1_depth(levIndex)
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFDP') then
+              ip1 = statevector%vco%ip1_depth(1)
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ', varLevel

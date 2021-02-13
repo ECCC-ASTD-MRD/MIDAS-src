@@ -231,7 +231,7 @@ contains
 
       end do record_loop
 
-      ! Check if ocean depth levels are in correct order
+      ! Check if ocean depth levels are in correct order (ascending in value)
       if ( oceanFieldFound .and. vco%nLev_depth > 1 ) then
         if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
           call utl_abort('vco_setupFromFile: some depth levels not in ascending order')
@@ -485,7 +485,8 @@ contains
 
     ! arguments:
     type(struct_vco), pointer              :: vco         ! Vertical coordinate object
-    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH' or 'OT'
+    character(len=*), intent(in)           :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM',
+                                                          ! 'SFTH', 'DP', 'SFDP' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
     ! locals:
     integer :: nlev, varListIndex
@@ -494,7 +495,8 @@ contains
       nlev = vco%nlev_M
     else if (varLevel == 'TH') then
       nlev = vco%nlev_T
-    else if (varLevel == 'SF' .or. varLevel == 'SFTH' .or. varLevel == 'SFMM') then
+    else if (varLevel == 'SF'   .or. varLevel == 'SFTH' .or. &
+             varLevel == 'SFMM' .or. varLevel == 'SFDP') then
       nlev = 1
     else if (varLevel == 'OT') then
       if (.not. present(varName_opt)) then
