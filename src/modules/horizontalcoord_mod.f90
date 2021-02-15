@@ -512,6 +512,12 @@ module HorizontalCoord_mod
       end do
     end do
 
+    !- 3.2 Compute maxGridSpacing 
+    deltaLat = maxval( abs(hco % lat2d_4(2:ni,2:nj) - hco % lat2d_4(1:(ni-1),1:(nj-1))) )
+    deltaLon = maxval( abs(hco % lon2d_4(2:ni,2:nj) - hco % lon2d_4(1:(ni-1),1:(nj-1))) * &
+                cos(hco % lat2d_4(2:ni,2:nj)) )
+    maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
+
     if ( mpi_myid == 0 ) then
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing
     end if
