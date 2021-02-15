@@ -636,33 +636,52 @@ contains
       
     else
 
-      ! Find which levels in column_in matches column_out
-      allocate(THlevelWanted(column_out%vco%nlev_T))
-      allocate(MMlevelWanted(column_out%vco%nlev_M))
+      if (column_out%vco%nlev_T > 0 .and. column_out%vco%nlev_M > 0) then
 
-      call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
-                                  column_out%vco, column_in%vco ) ! IN
+        ! Find which levels in column_in matches column_out
+        allocate(THlevelWanted(column_out%vco%nlev_T))
+        allocate(MMlevelWanted(column_out%vco%nlev_M))
 
-      if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
-        call utl_abort('col_vintprof: column_out is not a subsets of column_in!')
-      end if
+        call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
+                                    column_out%vco, column_in%vco ) ! IN
 
-      ! Transfer the corresponding data
-      do columnIndex = 1, col_getNumCol(column_out)
-        column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
-        column_ptr_out => col_getColumn(column_out,columnIndex,varName)
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          levelWanted => THlevelWanted
-        else
-          levelWanted => MMlevelWanted
+        if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
+          call utl_abort('col_vintprof: column_out is not a subsets of column_in!')
         end if
-        do jlevo = 1, col_getNumLev(column_out,varLevel)
-          column_ptr_out(jlevo) = column_ptr_in(levelWanted(jlevo))
-        end do
-      end do
 
-      deallocate(THlevelWanted)
-      deallocate(MMlevelWanted)
+        ! Transfer the corresponding data
+        do columnIndex = 1, col_getNumCol(column_out)
+          column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
+          column_ptr_out => col_getColumn(column_out,columnIndex,varName)
+          if (vnl_varLevelFromVarname(varName) == 'TH') then
+            levelWanted => THlevelWanted
+          else
+            levelWanted => MMlevelWanted
+          end if
+          do jlevo = 1, col_getNumLev(column_out,varLevel)
+            column_ptr_out(jlevo) = column_ptr_in(levelWanted(jlevo))
+          end do
+        end do
+
+        deallocate(THlevelWanted)
+        deallocate(MMlevelWanted)
+
+      else if (column_out%vco%nlev_depth > 0) then
+        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'      
+        if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
+          call utl_abort('col_vintprof: some depth levels not equal')
+        else
+          ! copy over depth levels
+          do columnIndex = 1, col_getNumCol(column_out)
+            column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
+            column_ptr_out => col_getColumn(column_out,columnIndex,varName)
+            do jlevo = 1, col_getNumLev(column_out,varLevel)
+              column_ptr_out(jlevo) = column_ptr_in(jlevo)
+            end do
+          end do
+        end if
+
+      end if
 
     end if
 

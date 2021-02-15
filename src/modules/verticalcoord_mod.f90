@@ -193,9 +193,6 @@ contains
         if (trim(nomvar) == '^^' .or. trim(nomvar) == '>>' .or.  &
             trim(nomvar) == '^>') cycle record_loop
 
-        ! ignore any mask records
-        if (typvar == '@@') cycle record_loop
-
         ! check for record with surface data
         call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
         call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
@@ -206,7 +203,7 @@ contains
 
         ! check for record with ocean data
         call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
-        if (Ip1Kind == 0 .and. vertCoordValue > 0.0 .and. &
+        if (Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
             vnl_varKindFromVarname(trim(nomvar)) == 'OC' ) then
           oceanFieldFound = .true.
           ! check if we've NOT already recorded this depth level
@@ -743,6 +740,15 @@ contains
           write(*,*) 'vco_equal: hybrid parameters are not equal'
           return
         end if
+      end if
+    end if
+
+    ! For ocean fields, check depth levels
+    if (vco1%nLev_depth > 0) then
+      equal = equal .and. all(vco1%depths(:) == vco2%depths(:))
+      if (.not. equal) then
+        write(*,*) 'vco_equal: ocean depth levels are not equal'
+        return
       end if
     end if
 
