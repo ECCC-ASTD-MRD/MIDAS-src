@@ -543,7 +543,11 @@ contains
     call rpn_comm_bcast(vco%ip1_sfc     , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%ip1_T_2m    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_depth , maxNumDepthLevels , 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%depths    , maxNumDepthLevels , 'MPI_REAL8'  , 0, 'GRID', ierr)
     if (vco%vgridPresent) then
       if ( mpi_myid == 0 ) then
         vgd_nlev_M = size(vco%ip1_M)
