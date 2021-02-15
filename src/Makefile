@@ -183,7 +183,7 @@ help:	#> print this help
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
-__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep
+__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst
 ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
