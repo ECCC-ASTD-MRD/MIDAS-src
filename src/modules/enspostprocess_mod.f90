@@ -428,6 +428,7 @@ contains
       call epp_getRmsEtiket(etiketMean, etiketStd, 'F', etiket0, nEns)
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
+      call ens_copyMaskToGsv(ensembleTrl, stateVectorMeanTrl)
       do stepIndex = 1, tim_nstepobsinc
         call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
                              typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
@@ -435,6 +436,7 @@ contains
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
+      call ens_copyMaskToGsv(ensembleTrl, stateVectorStdDevTrl)
       call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
                            typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
@@ -478,6 +480,7 @@ contains
       call epp_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
+      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       do stepIndex = 1, tim_nstepobsinc
         call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
@@ -485,6 +488,7 @@ contains
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
+      call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
       call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
@@ -496,6 +500,7 @@ contains
         call epp_getRmsEtiket(etiketMean, etiketStd, 'P', etiket0, nEns)
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertmean'
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
@@ -503,6 +508,7 @@ contains
         end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnlPert)
         call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
@@ -530,6 +536,7 @@ contains
 
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
@@ -543,6 +550,7 @@ contains
 
       ! output ensemble mean analysis state
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
+      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       do stepIndex = 1, tim_nstepobsinc
         call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &

@@ -43,7 +43,7 @@ module ensembleStateVector_mod
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
   public :: ens_computeMean, ens_removeMean, ens_recenter
   public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
-  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -1247,6 +1247,20 @@ CONTAINS
   end subroutine ens_insertMember
 
   !--------------------------------------------------------------------------
+  ! ens_copyMaskToGsv
+  !--------------------------------------------------------------------------
+  subroutine ens_copyMaskToGsv(ens,statevector)
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ens
+    type(struct_gsv) :: statevector
+
+    call gsv_copyMask(ens%statevector_work,statevector)
+
+  end subroutine ens_copyMaskToGsv
+
+  !--------------------------------------------------------------------------
   ! ens_varExist
   !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
@@ -2269,7 +2283,7 @@ CONTAINS
           end if
 
           ! unit conversion
-          call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField)
+          call gsv_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -2284,6 +2298,8 @@ CONTAINS
           ens%statevector_work%npasList(stepIndex)       = statevector_member_r4%npasList(1)
           ens%statevector_work%ip2List(stepIndex)        = statevector_member_r4%ip2List(1)
           ens%statevector_work%etiket                    = statevector_member_r4%etiket
+          ! if it exists, copy over mask from member read on task 0, which should always read
+          if(mpi_myid == 0) call gsv_copyMask(stateVector_member_r4, ens%stateVector_work)
 
         end if ! locally read one member
 
@@ -2400,6 +2416,7 @@ CONTAINS
     end do ! time
 
     call gsv_communicateTimeParams(ens%statevector_work)
+    call gsv_communicateMask(ens%statevector_work)
 
     deallocate(datestamplist)
     call hco_deallocate(hco_file)
@@ -2542,6 +2559,8 @@ CONTAINS
       statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
       statevector_member_r4%etiket            = ens%statevector_work%etiket
+      ! if it exists, copy over mask from work statevector to member being written
+      call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
 
       do memberIndex = 1, ens%numMembers
 
@@ -2628,7 +2647,7 @@ CONTAINS
             if (etiketAppendMemberNumber_opt) then
               write(ensFileExtLengthStr,"(I1)") ensFileExtLength
               write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
-              !! 12 is the maximum length of an etiket for RPN fstd files
+              ! 12 is the maximum length of an etiket for RPN fstd files
               maximumBaseEtiketLength = 12 - ensFileExtLength
               if ( len(trim(etiket)) >= maximumBaseEtiketLength ) then
                 etiketStr = etiket(1:maximumBaseEtiketLength) // trim(memberIndexStr)

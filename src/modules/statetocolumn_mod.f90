@@ -985,7 +985,7 @@ contains
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
-    if ( allocated(stateVector%hco%mask) ) then
+    if ( stateVector%maskPresent ) then
       call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
     end if
     
@@ -2908,11 +2908,11 @@ contains
       numSubGridsForInterp = 1
     end if
 
-    if ( allocated(stateVector%hco%mask) ) then
-      mask(1,1) = stateVector%hco%mask(lonIndex  ,latIndex)
-      mask(2,1) = stateVector%hco%mask(lonIndexP1,latIndex)
-      mask(1,2) = stateVector%hco%mask(lonIndex  ,latIndex + 1)
-      mask(2,2) = stateVector%hco%mask(lonIndexP1,latIndex + 1)
+    if ( stateVector%maskPresent ) then
+      mask(1,1) = stateVector%mask(lonIndex  ,latIndex)
+      mask(2,1) = stateVector%mask(lonIndexP1,latIndex)
+      mask(1,2) = stateVector%mask(lonIndex  ,latIndex + 1)
+      mask(2,2) = stateVector%mask(lonIndexP1,latIndex + 1)
     else
       mask(:,:) = 1
     end if
@@ -3067,8 +3067,8 @@ contains
       if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
-      if ( allocated(stateVector%hco%mask) ) then
-        if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
+      if ( stateVector%maskPresent ) then
+        if ( stateVector%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
       end if
 
       if ( .not. reject ) then
@@ -3138,8 +3138,8 @@ contains
                 if(dist < fpr) then
 
                   ! Ignore points that are masked out.
-                  if ( allocated(stateVector%hco%mask) ) then
-                    if (stateVector%hco%mask(lonIndex, latIndex) == 0) then
+                  if ( stateVector%maskPresent ) then
+                    if (stateVector%mask(lonIndex, latIndex) == 0) then
                       reject = .true.
                       exit WHILE_INSIDE
                     end if
@@ -3274,8 +3274,8 @@ contains
       if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
-      if ( allocated(stateVector%hco%mask) ) then
-        if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
+      if ( stateVector%maskPresent ) then
+        if ( stateVector%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
       end if
 
       if ( .not. reject ) then
@@ -3299,7 +3299,7 @@ contains
 
             do latIndex = max(1,l-1),min(l+1,statevector%nj)
               do lonIndex = max(1,k-1),min(k+1,statevector%ni)
-                if(stateVector%hco%mask(lonIndex,latIndex) == 1 .and. .not. lake(lonIndex,latIndex)) then
+                if(stateVector%mask(lonIndex,latIndex) == 1 .and. .not. lake(lonIndex,latIndex)) then
                   lake(lonIndex,latIndex) = .true.
                   gridptCount = gridptCount + 1
                   lonIndexVec(gridptCount) = lonIndex

@@ -50,7 +50,8 @@ module gridStateVector_mod
   public :: gsv_transposeVarsLevsToTiles
   public :: gsv_getField, gsv_getFieldUV, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D, gsv_copyHeightSfc
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
+  public :: gsv_copyHeightSfc, gsv_copyMask, gsv_communicateMask
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -83,6 +84,8 @@ module gridStateVector_mod
     real(8), pointer    :: gd3d_r8(:,:,:) => null()
     real(4), pointer    :: gd_r4(:,:,:,:) => null()
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
+    logical             :: maskPresent      = .false.
+    integer, pointer    :: mask(:,:)      => null()
     logical             :: heightSfcPresent = .false.
     real(8), pointer    :: HeightSfc(:,:) => null()  ! surface height, if VarsLevs then only on proc 0
     ! These are used when distribution is VarLevs to keep corresponding UV
@@ -1973,6 +1976,76 @@ module gridStateVector_mod
   end subroutine gsv_copyHeightSfc
 
   !--------------------------------------------------------------------------
+  ! gsv_copyMask
+  !--------------------------------------------------------------------------
+  subroutine gsv_copyMask(statevector_in,statevector_out)
+    implicit none
+    ! arguments
+    type(struct_gsv)  :: statevector_in, statevector_out
+
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_copyMask: gridStateVector_in not yet allocated')
+    end if
+    if (.not.statevector_out%allocated) then
+      call utl_abort('gsv_copyMask: gridStateVector_out not yet allocated')
+    end if
+
+    if (.not.statevector_in%maskPresent .or. .not.associated(statevector_in%mask)) then
+      write(*,*) 'gsv_copyMask: no input mask, do nothing'
+      return
+    end if
+
+    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco)) then
+      call utl_abort('gsv_copyMask: horizontal grids are not equal')
+    end if
+
+    if (statevector_out%maskPresent .and. associated(statevector_out%mask)) then
+      write(*,*) 'gsv_copyMask: mask already allocation in output'
+    else
+      allocate(statevector_out%mask(statevector_in%ni,statevector_in%nj))
+    end if
+
+    write(*,*) 'gsv_copyMask: copying over the horizontal mask'
+    statevector_out%mask(:,:) = statevector_in%mask(:,:)
+    statevector_out%maskPresent = .true.
+
+  end subroutine gsv_copyMask
+
+  !--------------------------------------------------------------------------
+  ! gsv_communicateMask
+  !--------------------------------------------------------------------------
+  subroutine gsv_communicateMask(statevector)
+    !
+    ! :Purpose: Copy mask fields from task 0 to all others
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector
+    ! locals
+    integer :: ierr
+
+    write(*,*) 'gsv_communicateMask: starting'
+
+    call rpn_comm_bcast(statevector%maskPresent, 1,  &
+                        'MPI_LOGICAL', 0, 'GRID', ierr)
+
+    if (.not.statevector%maskPresent) then
+      write(*,*) 'gsv_communicateMask: mask not present, return'
+      return
+    end if
+    
+    if (.not.associated(statevector%mask)) then
+      allocate(statevector%mask(statevector%ni,statevector%nj))
+    end if
+    call rpn_comm_bcast(statevector%mask, statevector%ni*statevector%nj,  &
+                        'MPI_INTEGER', 0, 'GRID', ierr)
+
+    write(*,*) 'gsv_communicateMask: finished'
+
+  end subroutine gsv_communicateMask
+
+  !--------------------------------------------------------------------------
   ! gsv_hPad
   !--------------------------------------------------------------------------
   subroutine gsv_hPad(statevector_in,statevector_out)
@@ -3387,8 +3460,8 @@ write(*,*) 'here'
         allocate(gd2d_file_r4(ni_file,nj_file))
         gd2d_file_r4(:,:) = 0.0d0
         ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                    -1,etiket_in,ip1,-1,-1,  &
-                    typvar_var,varName)
+                      -1,etiket_in,ip1,-1,-1,  &
+                      typvar_var,varName)
         if ( ierr < 0 ) then
           write(*,*) 'ip1 = ',ip1
           write(*,*) 'etiket_in = ',etiket_in
@@ -3414,7 +3487,7 @@ write(*,*) 'here'
           ! make sure variable is in the file
           if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
 
-          !! adopt a variable on the full/dynamic LAM grid
+          ! adopt a variable on the full/dynamic LAM grid
           if ( (trim(varName) == 'TM'   .or. trim(varName) == 'MG' ) ) cycle
 
           foundVarNameInFile = .true.
@@ -3498,7 +3571,7 @@ write(*,*) 'here'
 
         typvar_var = typvar_in
 
-        ! Make sure that the input variable has the same grid size than hco_file   
+        ! Make sure that the input variable has the same grid size than hco_file
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
                       statevector%datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varNameToRead)
@@ -3529,10 +3602,30 @@ write(*,*) 'here'
         statevector%dateOriginList(stepIndex) = dateo_var
         statevector%etiket                    = etiket_var
 
+        ! Check if we found a mask field by mistake - if yes, need to fix the code!
+        if (typvar_var == '@@') then
+          call utl_abort('gsv_readFile: read a mask file by mistake - need to modify file or fix the code')
+        end if
+
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_var,varNameToRead)
+                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        typvar_var,varNameToRead)
+
+          ! read the corresponding mask if it exists
+          if (typvar_var(2:2) == '@') then
+            write(*,*) 'gsv_readFile: read mask for variable name: ', nomvar_var
+            if (.not. associated(statevector%mask)) then
+              allocate(statevector%mask(hco_file%ni,hco_file%nj))
+              statevector%maskPresent = .true.
+              ierr = fstlir(statevector%mask(:,:),nulfile,ni_file, nj_file, nk_file,  &
+                            -1,' ',ip1,-1,-1,  &
+                            '@@',varNameToRead)
+              if (ierr < 0) then
+                call utl_abort('gsv_readFile: error when reading mask record')
+              end if              
+            end if
+          end if
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
@@ -3548,11 +3641,17 @@ write(*,*) 'here'
           gd2d_var_r4(:,:) = 0.0
 
           ierr = fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
-                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_in,varNameToRead)
+                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
           ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+
+          ! read the corresponding mask if it exists
+          if (typvar_var(2:2) == '@') then
+            write(*,*) 'gsv_readFile: read mask that needs interpolation for variable name: ', nomvar_var
+            call utl_abort('gsv_readFile: not implemented yet')
+          end if
 
           deallocate(gd2d_var_r4)
         end if
@@ -3582,14 +3681,14 @@ write(*,*) 'here'
         ! then we re-read the corresponding UV component and store it
         if ( statevector%extraUVallocated ) then
           if (varName == 'UU') then
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'VV')
+            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
+                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          typvar_in,'VV')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           else if (varName == 'VV') then
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'UU')
+            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
+                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          typvar_in,'UU')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           end if
         end if
@@ -5299,7 +5398,7 @@ write(*,*) 'here'
     else
       typvar = 'R'
     end if
-    if ( allocated(statevector%hco%mask) ) then
+    if ( statevector%maskPresent ) then
       typvar(2:2) = '@'
     end if
     grtyp  = statevector%hco%grtyp
@@ -5534,8 +5633,8 @@ write(*,*) 'here'
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
 
-            if ( allocated(statevector%hco%mask) ) then
-              ierr = fstecr(statevector%hco%mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
+            if ( statevector%maskPresent ) then
+              ierr = fstecr(statevector%mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, 2, .false.)
             end if
