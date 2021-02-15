@@ -485,25 +485,41 @@ module HorizontalCoord_mod
     deallocate(lon_8)
 
     !- 3.1 Compute maxGridSpacing
+    ! between all (i,j) and (i+1,j+1) grid points
     maxGridSpacing = 0.0d0
-    do lonIndex = 1, ni - 1
-      do latIndex = 1, nj - 1
-        deltaLat = hco % lat(latIndex+1) - hco % lat(latIndex)
-        meanLat = 0.5d0 * (hco % lat(latIndex+1) + hco % lat(latIndex))
-        deltaLon = (hco % lon(lonIndex+1) - hco % lon(lonIndex)) * cos(meanLat)
-
+    do lonIndex = 1, ni-1
+      do latIndex = 1, nj-1
+        deltaLat = hco % lat2d_4(lonIndex,latIndex) - hco % lat2d_4(lonIndex+1,latIndex+1)
+        meanLat = 0.5d0 * (hco % lat2d_4(lonIndex,latIndex) + hco % lat2d_4(lonIndex+1,latIndex+1))
+        deltaLon = (hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex+1,latIndex+1)) * &
+                cos(meanLat)
         if ( RA * sqrt(deltaLon ** 2 + deltaLat ** 2) > maxGridSpacing ) then 
           maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
         end if
       end do
     end do
-    if ( maxGridSpacing > 1.0d6 ) then
-      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
-    end if
+
+    ! between all (i,j) and (i-1,j+1) grid points
+    do lonIndex = 2, ni
+      do latIndex = 1, nj-1
+        deltaLat = hco % lat2d_4(lonIndex,latIndex) - hco % lat2d_4(lonIndex-1,latIndex+1)
+        meanLat = 0.5d0 * (hco % lat2d_4(lonIndex,latIndex) + hco % lat2d_4(lonIndex-1,latIndex+1))
+        deltaLon = (hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex-1,latIndex+1)) * &
+                cos(meanLat)
+        if ( RA * sqrt(deltaLon ** 2 + deltaLat ** 2) > maxGridSpacing ) then 
+          maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
+        end if
+      end do
+    end do
 
     if ( mpi_myid == 0 ) then
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing
     end if
+
+    if ( maxGridSpacing > 1.0d6 ) then
+      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
+    end if
+
     hco % maxGridSpacing = maxGridSpacing
 
     !
