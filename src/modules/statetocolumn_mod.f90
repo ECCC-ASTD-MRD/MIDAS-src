@@ -3565,7 +3565,7 @@ contains
   !--------------------------------------------------------------------------
   ! getTovsFootprintRadius
   !--------------------------------------------------------------------------
-  function getTovsFootprintRadius(obsSpaceData, headerIndex) result(footPrintRadius)
+  function getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt) result(footPrintRadius)
     !
     !:Purpose: calculate foot-print radius for TOVS observations
     !
@@ -3575,10 +3575,18 @@ contains
     ! Arguments
     type(struct_obs), intent(in)  :: obsSpaceData
     integer         , intent(in)  :: headerIndex
+    logical         , intent(in), optional :: beSilent_opt
     
     ! local
-    integer :: codeType, sensorIndex 
+    integer :: codtyp, sensorIndex 
     real (8) :: alpha, satHeight 
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
 
     ! get nominal satellite height
     sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
@@ -3586,8 +3594,8 @@ contains
 
     ! FOV angular diameter  
     alpha = -1.0d0
-    codeType = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
-    select case(codeType)
+    codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
+    select case(codtyp)
     case(164) ! amsua
       alpha = 3.3d0
     case(181) ! amsub
@@ -3599,7 +3607,7 @@ contains
     case(186) ! IASI
       alpha = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
     case(185) ! CSR
-      alpha = 0.84d0 
+      alpha = 0.125d0
     case(168) ! SSMIS
       alpha = 1.2d0
     case(192) ! ATMS
@@ -3608,8 +3616,8 @@ contains
       alpha = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
     end select
     !case default
-    !  write(*,*) 'getTovsFootprintRadius: codeType=',codeType
-    !  call utl_abort('getTovsFootprintRadius: unknown codeType')
+    !  write(*,*) 'getTovsFootprintRadius: codtyp=',codtyp
+    !  call utl_abort('getTovsFootprintRadius: unknown codtyp')
     !end select
 
     if ( alpha < 0.0d0 ) then 
@@ -3619,7 +3627,11 @@ contains
       footPrintRadius = 0.5 * alpha * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
     end if
 
-    write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, ',satHeight=', satHeight, ',alpha=', alpha, ',codeType=', codeType, ',footPrintRadius=', footPrintRadius
+    if ( .not. beSilent ) then
+      write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, &
+                ',satHeight=', satHeight, ',alpha=', alpha, ',codtyp=', codtyp, &
+                ',footPrintRadius=', footPrintRadius
+    end if
 
   end function getTovsFootprintRadius
 

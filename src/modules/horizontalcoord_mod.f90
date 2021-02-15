@@ -22,6 +22,7 @@ module HorizontalCoord_mod
   !
   use mpi_mod
   use mpivar_mod
+  use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
@@ -57,6 +58,7 @@ module HorizontalCoord_mod
      real(4), allocatable :: lon2d_4(:,:) ! in radians
      real(8)              :: dlat   ! in radians
      real(8)              :: dlon   ! in radians
+     real(8)              :: maxGridSpacing ! in meter
      logical              :: global
      logical              :: rotated
      real(8)              :: xlat1, xlat1_yan
@@ -84,6 +86,7 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
+    real(8) :: meanLat, deltaLat, deltaLon, maxGridSpacing 
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
@@ -98,6 +101,7 @@ module HorizontalCoord_mod
     integer :: ig1, ig2, ig3, ig4
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
+    integer :: latIndex, lonIndex
 
     logical :: FileExist, global, rotated, foundVarNameInFile
 
@@ -479,6 +483,28 @@ module HorizontalCoord_mod
 
     deallocate(lat_8)
     deallocate(lon_8)
+
+    !- 3.1 Compute maxGridSpacing
+    maxGridSpacing = 0.0d0
+    do lonIndex = 1, ni - 1
+      do latIndex = 1, nj - 1
+        deltaLat = hco % lat(latIndex+1) - hco % lat(latIndex)
+        meanLat = 0.5d0 * (hco % lat(latIndex+1) + hco % lat(latIndex))
+        deltaLon = (hco % lon(lonIndex+1) - hco % lon(lonIndex)) * cos(meanLat)
+
+        if ( RA * sqrt(deltaLon ** 2 + deltaLat ** 2) > maxGridSpacing ) then 
+          maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
+        end if
+      end do
+    end do
+    if ( maxGridSpacing > 1.0d6 ) then
+      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
+    end if
+
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing
+    end if
+    hco % maxGridSpacing = maxGridSpacing
 
     !
     !- 4.  Close the input file
