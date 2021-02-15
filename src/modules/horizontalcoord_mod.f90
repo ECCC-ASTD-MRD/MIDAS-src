@@ -86,7 +86,7 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    real(8) :: meanLat, deltaLat, deltaLon, maxGridSpacing 
+    real(8) :: deltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
@@ -514,9 +514,22 @@ module HorizontalCoord_mod
 
     !- 3.2 Compute maxGridSpacing 
     deltaLat = maxval( abs(hco % lat2d_4(2:ni,2:nj) - hco % lat2d_4(1:(ni-1),1:(nj-1))) )
-    deltaLon = maxval( abs(hco % lon2d_4(2:ni,2:nj) - hco % lon2d_4(1:(ni-1),1:(nj-1))) * &
-                cos(hco % lat2d_4(2:ni,2:nj)) )
-    maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
+    maxDeltaLon = 0.0d0
+    do lonIndex = 2, ni
+      do latIndex = 2, nj
+        deltaLon = abs(hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex-1,latIndex-1))
+
+        if ( deltaLon > 180.0d0 * MPC_RADIANS_PER_DEGREE_R8 ) then 
+          deltaLon = deltaLon - 360.0d0 * MPC_RADIANS_PER_DEGREE_R8
+        end if
+
+        deltaLon = deltaLon * cos(hco % lat2d_4(lonIndex,latIndex))
+
+        if ( deltaLon > maxDeltaLon ) maxDeltaLon = deltaLon
+      end do 
+    end do 
+
+    maxGridSpacing = RA * sqrt(maxDeltaLon ** 2 + deltaLat ** 2)
 
     if ( mpi_myid == 0 ) then
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing
