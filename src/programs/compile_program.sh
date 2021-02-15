@@ -16,7 +16,7 @@ program=$(basename $1 .f90)
 mode=$2
 deleteCompileDir=$3
 
-export MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG:-no}
+export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 . ./commons/compile_setup.sh
 
 echo "..."
