@@ -527,11 +527,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CLWB  = OBS_CLWO +1 ! cloud liquid water retrieved from background
    integer, parameter, public :: OBS_MWS   = OBS_CLWB +1 ! model wind speed (in ASCAT data)
    integer, parameter, public :: OBS_SCAT  = OBS_MWS  +1 ! atmospheric scatering index
-   integer, parameter, public :: OBS_RZAM  = OBS_SCAT +1 ! Radar averange azimuth
-   integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Radar elevation
-   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Radar star range
-   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Radar end range
-   integer, parameter, public :: OBS_RDEL  = OBS_RANE +1 ! Radar delta range
+   integer, parameter, public :: OBS_RZAM  = OBS_SCAT +1 ! Azimuth of the Radar beam
+   integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam  
+   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam
+   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam 
+   integer, parameter, public :: OBS_RDEL  = OBS_RANE +1 ! Delta range of the Radar beam
 
    ! the last column index for real header variables defined just above
    integer, parameter :: NHDR_REAL_END = OBS_RDEL 

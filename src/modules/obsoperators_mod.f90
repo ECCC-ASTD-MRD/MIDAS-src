@@ -997,10 +997,7 @@ contains
 
   subroutine oop_raDvel_nl(columnhr,obsSpaceData, beSilent, jobs,cdfam, destObsColumn )
     !
-    ! :Purpose: Computation of OMP to the Radar observation (Doppler Velocity)
-    !  
-    ! :Note: Nothing more now for Radar observation(Doppler Velocity)
-    !        After computation of Jo and the residuals to the observation
+    ! :Purpose: Computation of Jo and  OMP to the Radar observation (Doppler Velocity)
     !                                     
     !
     implicit none
@@ -1014,11 +1011,24 @@ contains
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode
+    integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode, fnom, fclos, nulnam, ierr
     real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
-    real(8) :: SimulatedDoppler, interpolation_weight
-           
+    real(8) :: SimulatedDoppler, interpolation_weight, interpolation_length, zinc, zoer, maxRangeInterp
+    logical :: RangeInterp
+
+    namelist /namradvel/ maxRangeInterp, RangeInterp
+    RangeInterp = .false.
+
+    ! reading namelist variables
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam, nml = namradvel, iostat = ierr)
+    if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
+    ierr = fclos(nulnam)
+   
+    ! Maximum value of the interpolation interval that determines which observations are marked.   
+    ! Maximum value of the interpolation interval that determines which observations are marked.     
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
     !
@@ -1034,13 +1044,18 @@ contains
       rele  = obs_headElem_r(obsSpaceData,OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
       nwndlev=col_getNumLev(columnhr,'MM')
       call obs_set_current_body_list(obsSpaceData, headerIndex)
-      
+      !
+      ! Loop over all body indices of the 'RA' family with schema 'radvel':
+      !
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
         ! Check that this observation has the expected bufr element ID
         bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         if ( bufrCode /= bufr_radvel ) cycle BODY
+        ! only process observations flagged to be assimilated
+        if (obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
+        
         r_radar = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
         Dvel    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
         call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
@@ -1063,16 +1078,22 @@ contains
         UU_interpolated = UU1+interpolation_weight*(UU2-UU1)
         VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
         SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
-
-        if  (abs(range1-range2)>15000.d0) then
-          obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
-        end if 
+        ! Check on the maximum value of the interpolation interval
+        if (RangeInterp == .true.) then
+          if  (abs(range1-range2)>maxRangeInterp) then
+            obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
+          end if
+        end if
         call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
+        ! Observation error
+        zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+        ! Normalized increment
+        zinc = (SimulatedDoppler - Dvel) / zoer
+        ! Total jobs
+        jobs = jobs + 0.5d0 * zinc * zinc 
 
       end do BODY
-      ! contribution to jobs 
-      jobs = 0.
     end do HEADER
     write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
 

@@ -12,13 +12,17 @@
    SLANTPATH_RA_NL   = .TRUE.,
    calcHeightPressIncrOnColumn = .FALSE.,
 /
+ &NAMRADVEL 
+   RangeInterp    = .TRUE.,
+   maxRangeInterp = 15000.0D0,
+/
  &NAMDIMO
    NMXOBS=400000,
    NDATAMX=7000000,
 /
  &NAMTIME
-  DSTEPOBS = 1.0D0
-  DWINDOWSIZE = 1.0D0
+  DSTEPOBS = 6.0D0
+  DWINDOWSIZE = 6.0D0
 /
  &NAMFILT
   NELEMS = 1,

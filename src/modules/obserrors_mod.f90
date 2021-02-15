@@ -1530,6 +1530,7 @@ contains
               ! Temporary hardcoded value for log-transformed radar precipitation
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
             else if ( ityp == bufr_radvel ) then
+              ! Temporary hardcoded value for radar Doppler velocity
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
             else
               write(*,*) 'varnum = ', ityp
