@@ -9,3 +9,4 @@ _build_completions()
 
 }
 complete -F _build_completions ./midas_build
+complete -F _build_completions midas_build
