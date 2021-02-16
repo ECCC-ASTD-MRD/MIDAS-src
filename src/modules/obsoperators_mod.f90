@@ -1020,17 +1020,21 @@ contains
     namelist /namradvel/ maxRangeInterp, RangeInterp
     RangeInterp = .false.
 
-    ! reading namelist variables
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml = namradvel, iostat = ierr)
-    if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
-    ierr = fclos(nulnam)
-   
-    ! Maximum value of the interpolation interval that determines which observations are marked.   
-    ! Maximum value of the interpolation interval that determines which observations are marked.     
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
+
+    ! reading namelist variables
+    if (utl_isNamelistPresent('namradvel','./flnml')) then
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namradvel,iostat=ierr)
+      if (ierr /= 0) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+      if (.not.beSilent) write(*,nml=namradvel)
+      ierr=fclos(nulnam)
+    else if (.not. beSilent) then
+      write(*,*)
+      write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
+    end if
     !
     ! Loop over all header indices of the 'RA' family with schema 'radvel':
     !
@@ -1078,7 +1082,7 @@ contains
         UU_interpolated = UU1+interpolation_weight*(UU2-UU1)
         VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
         SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
-        ! Check on the maximum value of the interpolation interval
+        ! Flag the obs when the  maximum value of the interpolation interval is used
         if (RangeInterp == .true.) then
           if  (abs(range1-range2)>maxRangeInterp) then
             obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
