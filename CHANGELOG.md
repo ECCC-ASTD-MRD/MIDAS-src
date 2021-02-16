@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added two tools that were maintained separately before: (#363 and !346)
    * `midas.monitor` which monitors a file to react to its content and
    * `midas.findTrials` which finds the trial name extensions in an assimilation window.
- * Add the capability to calculate OMP from radar observation for Doppler velocity (#177) 
+ * Added the capability to calculate OMP from radar observation for Doppler velocity (#177) 
 
 ### Changed
 
