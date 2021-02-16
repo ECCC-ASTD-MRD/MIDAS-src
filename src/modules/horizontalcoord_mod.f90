@@ -86,7 +86,7 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    real(8) :: deltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
+    real(8) :: maxDeltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
@@ -101,7 +101,7 @@ module HorizontalCoord_mod
     integer :: ig1, ig2, ig3, ig4
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
-    integer :: latIndex, lonIndex
+    integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd  
 
     logical :: FileExist, global, rotated, foundVarNameInFile
 
@@ -513,15 +513,22 @@ module HorizontalCoord_mod
     end do
 
     !- 3.2 Compute maxGridSpacing 
-    deltaLat = maxval( abs(hco % lat2d_4(2:ni,2:nj) - hco % lat2d_4(1:(ni-1),1:(nj-1))) )
-    maxDeltaLon = 0.0d0
-    do lonIndex = 2, ni
-      do latIndex = 2, nj
-        deltaLon = abs(hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex-1,latIndex-1))
+    if ( trim(grtyp) == 'U' ) then
+      latIndexBeg = 1
+      latIndexEnd = nj / 2
+    else
+      latIndexBeg = 1
+      latIndexEnd = nj
+    end if
 
-        if ( deltaLon > 180.0d0 * MPC_RADIANS_PER_DEGREE_R8 ) then 
-          deltaLon = deltaLon - 360.0d0 * MPC_RADIANS_PER_DEGREE_R8
-        end if
+    maxDeltaLat = maxval( abs(hco % lat2d_4(2:ni,(latIndexBeg+1):latIndexEnd) - &
+                           hco % lat2d_4(1:(ni-1),latIndexBeg:(latIndexEnd-1))) )
+    maxDeltaLon = 0.0d0
+    do lonIndex = 1, ni - 1
+      do latIndex = latIndexBeg, latIndexEnd - 1
+        deltaLon = abs(hco % lon2d_4(lonIndex+1,latIndex+1) - hco % lon2d_4(lonIndex,latIndex))
+
+        if ( deltaLon > MPC_PI_R8 ) deltaLon = deltaLon - 2.0d0 * MPC_PI_R8 
 
         deltaLon = deltaLon * cos(hco % lat2d_4(lonIndex,latIndex))
 
@@ -529,11 +536,11 @@ module HorizontalCoord_mod
       end do 
     end do 
 
-    maxGridSpacing = RA * sqrt(maxDeltaLon ** 2 + deltaLat ** 2)
+    maxGridSpacing = RA * sqrt(maxDeltaLon ** 2 + maxDeltaLat ** 2)
 
-    if ( mpi_myid == 0 ) then
-      write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing
-    end if
+    write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+    write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+    write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
 
     if ( maxGridSpacing > 1.0d6 ) then
       call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
