@@ -564,7 +564,8 @@ contains
         numHeaderUsed = numHeaderUsed + 1
         headerIndexVec(numHeaderUsed,stepIndex) = headerIndex
 
-        footprintRadiusVec_r4(numHeaderUsed) = s2c_getFootprintRadius(obsSpaceData, headerIndex)
+        footprintRadiusVec_r4(numHeaderUsed) = s2c_getFootprintRadius(obsSpaceData, &
+                                                                stateVector, headerIndex)
 
       end do header_loop2
 
@@ -2613,7 +2614,7 @@ contains
   !------------------------------------------------------------------
   ! s2c_getFootprintRadius
   !------------------------------------------------------------------
-  function s2c_getFootprintRadius( obsSpaceData, headerIndex ) result(fpr)
+  function s2c_getFootprintRadius( obsSpaceData, stateVector, headerIndex ) result(fpr)
     !
     !:Purpose: To determine the footprint radius (metres) of the observation.
     !          In the case of bilinear horizontal interpolation,
@@ -2624,6 +2625,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
+    type(struct_gsv), intent(in)  :: stateVector
     integer         , intent(in)  :: headerIndex
 
     ! locals
@@ -2691,6 +2693,7 @@ contains
     else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
 
       fpr = getTovsFootprintRadius(obsSpaceData, headerIndex)
+      if ( stateVector % hco % maxGridSpacing > fpr ) fpr = bilinearFootprint
 
     else
 
