@@ -2808,7 +2808,7 @@ contains
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     integer :: ipoint, gridptCount
     integer :: latIndexVec(4), lonIndexVec(4)
-    integer :: mask(2,2)
+    logical :: mask(2,2)
     real(8) :: WeightVec(4)
     real(8) :: dldx, dldy
     real(8) :: weightsSum
@@ -2914,7 +2914,7 @@ contains
       mask(1,2) = stateVector%mask(lonIndex  ,latIndex + 1)
       mask(2,2) = stateVector%mask(lonIndexP1,latIndex + 1)
     else
-      mask(:,:) = 1
+      mask(:,:) = .true.
     end if
 
     do subGridForInterp = 1, numSubGridsForInterp
@@ -2937,28 +2937,28 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      if ( mask(1,1) == 1 ) then
+      if ( mask(1,1) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) * (1.d0-dldy)
       end if
 
-      if ( mask(2,1) == 1 ) then
+      if ( mask(2,1) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndexP1
         WeightVec(gridptCount) =       dldx  * (1.d0-dldy)
       end if
 
-      if ( mask(1,2) == 1 ) then
+      if ( mask(1,2) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) *       dldy
       end if
 
-      if ( mask(2,2) == 1 ) then
+      if ( mask(2,2) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndexP1
@@ -3068,7 +3068,7 @@ contains
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
       if ( stateVector%maskPresent ) then
-        if ( stateVector%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
+        if ( .not. stateVector%mask(lonIndexCentre,latIndexCentre) ) reject = .true.
       end if
 
       if ( .not. reject ) then
@@ -3139,7 +3139,7 @@ contains
 
                   ! Ignore points that are masked out.
                   if ( stateVector%maskPresent ) then
-                    if (stateVector%mask(lonIndex, latIndex) == 0) then
+                    if ( .not. stateVector%mask(lonIndex, latIndex)) then
                       reject = .true.
                       exit WHILE_INSIDE
                     end if
@@ -3230,6 +3230,10 @@ contains
       call utl_abort('s2c_setupLakeInterp: Yin-Yang grid not supported')
     end if
 
+    if ( .not.stateVector%maskPresent ) then
+      call utl_abort('s2c_setupLakeInterp: Only compatible when mask present')
+    end if
+
     numGridpt(:) = 0
 
     reject = .false.
@@ -3243,8 +3247,8 @@ contains
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
@@ -3265,18 +3269,16 @@ contains
 
       gridptCount = 0
 
-!     It happens that the lake location is closest to a grid point
-!     where MASK(I,J) = 0 while there are other grid points for the
-!     same lake where MASK(I,J) = 1. Code needs modifications
-!     for this case.
+      ! It can happen that the lake location is closest to a grid point
+      ! where MASK(I,J) = .false. while there are other grid points for the
+      ! same lake where MASK(I,J) = .true.. Code needs modifications
+      ! for this case.
 
       ! If observation is not on the grid, don't use it.
       if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
-      if ( stateVector%maskPresent ) then
-        if ( stateVector%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
-      end if
+      if ( .not. stateVector%mask(lonIndexCentre,latIndexCentre) ) reject = .true.
 
       if ( .not. reject ) then
 
@@ -3299,7 +3301,7 @@ contains
 
             do latIndex = max(1,l-1),min(l+1,statevector%nj)
               do lonIndex = max(1,k-1),min(k+1,statevector%ni)
-                if(stateVector%mask(lonIndex,latIndex) == 1 .and. .not. lake(lonIndex,latIndex)) then
+                if(stateVector%mask(lonIndex,latIndex) .and. .not. lake(lonIndex,latIndex)) then
                   lake(lonIndex,latIndex) = .true.
                   gridptCount = gridptCount + 1
                   lonIndexVec(gridptCount) = lonIndex

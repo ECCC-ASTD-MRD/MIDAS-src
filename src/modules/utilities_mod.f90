@@ -37,6 +37,7 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce
+  public :: utl_logicalToInt, utl_intToLogical
 
   ! module interfaces
   ! -----------------
@@ -1894,20 +1895,22 @@ contains
   end subroutine utl_checkAllocationStatus
 
 
-  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt) result(found)
+  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
     implicit none
 
+    ! arguments:
     character(len=*), intent(in) :: varName
     character(len=*), optional, intent(in) :: fileName_opt
     integer, optional, intent(in) :: fileUnit_opt
+    character(len=*), optional, intent(in) :: typvar_opt
     logical :: found
 
+    ! locals:
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: ni, nj, nk, key, ierr
     integer :: unit
-
-    character(len=128) :: fileName 
-
+    character(len=128) :: fileName
+    character(len=2)   :: typvar
     logical :: openFile
 
     if ( present(fileUnit_opt) ) then
@@ -1923,13 +1926,19 @@ contains
       end if
     end if
 
+    if ( present(typvar_opt) ) then
+      typvar = trim(typvar_opt)
+    else
+      typvar = ' '
+    end if
+
     if (openFile) then
       ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
       ierr = fstouv(unit,'RND+OLD')
     end if
 
-    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
-
+    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+    
     if ( key > 0 )  then
       found = .true.
     else
@@ -1942,6 +1951,7 @@ contains
     end if
 
   end function utl_varNamePresentInFile
+
 
   subroutine utl_reAllocate_char_1d(array,dim1)
     implicit none
@@ -2539,5 +2549,41 @@ contains
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce
+
+  !--------------------------------------------------------------------------
+  ! utl_logicalToInt
+  !--------------------------------------------------------------------------
+  subroutine utl_logicalToInt(logicalArray, intArray)
+    ! :Purpose: Convert a 2D logical array into integer values
+    !           where true is 1 and false is 0.
+
+    implicit none
+
+    ! Arguments:
+    logical, intent(in)  :: logicalArray(:,:)
+    integer, intent(out) :: intArray(:,:)
+
+    intArray(:,:) = 0
+    where(logicalArray(:,:)) intArray(:,:) = 1
+    
+  end subroutine utl_logicalToInt
+
+  !--------------------------------------------------------------------------
+  ! utl_logicalToInt
+  !--------------------------------------------------------------------------
+  subroutine utl_intToLogical(intArray, logicalArray)
+    ! :Purpose: Convert a 2D integer array into logical values
+    !           where true is 1 and false is 0.
+
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: intArray(:,:)
+    logical, intent(out) :: logicalArray(:,:)
+
+    logicalArray(:,:) = .false.
+    where(intArray(:,:) == 1) logicalArray(:,:) = .true.
+    
+  end subroutine utl_intToLogical
 
 end module utilities_mod

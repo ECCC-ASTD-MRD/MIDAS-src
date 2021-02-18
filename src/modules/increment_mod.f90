@@ -242,7 +242,7 @@ CONTAINS
     end if ! present(stateVectorTrial_opt)
 
     !
-    !- Read the analysis mask (in LAM mode only)
+    !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     !
     if (.not. hco_trl%global .and. useAnalIncMask) then
       call gsv_allocate(statevector_mask, 1, hco_trl, vco_trl, dateStamp_opt=-1, &

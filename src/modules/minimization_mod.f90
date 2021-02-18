@@ -990,7 +990,7 @@ CONTAINS
     ! Locals:
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
-    type(struct_gsv) :: statevector
+    type(struct_gsv), save :: statevector
     type(struct_dataptr) :: dataptr
     type(struct_obs),pointer :: obsSpaceData
     type(struct_columnData),pointer :: column,columng
@@ -1021,10 +1021,14 @@ CONTAINS
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
-       hco_anl => agd_getHco('ComputationalGrid')
-       vco_anl => col_getVco(columng)
-       call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
+       if (.not.statevector%allocated) then
+         write(*,*) 'min-simvar: allocating increment stateVector'
+         hco_anl => agd_getHco('ComputationalGrid')
+         vco_anl => col_getVco(columng)
+         call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                           dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
+         call gsv_readMaskFromFile(statevector,'./analysisgrid')
+       end if
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
@@ -1080,7 +1084,7 @@ CONTAINS
        da_gradJ(:) = 0.d0
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData)
        call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
-       call gsv_deallocate(statevector)
+       !call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then
          da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)

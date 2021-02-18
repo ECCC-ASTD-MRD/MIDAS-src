@@ -135,6 +135,7 @@ contains
     character(len=*), parameter :: correlationLengthFileName = './bgstddev'
     type(struct_gsv)            :: statevector
     real(4),pointer             :: field3D_r4_ptr(:,:,:)
+    integer, allocatable        :: mask(:,:)
 
     if ( nDiffAlreadyAllocated == nMaxDiff ) then
       write(*,*) myName//': the maximum number of diffusion operators have already been allocated! ',nMaxDiff
@@ -205,13 +206,15 @@ contains
     ! cosinus of latitudes on staggered grid
     diff( diffID ) % cosyhalf(:) = cos( latr(:) + 0.5d0 * diff( diffID ) % dlat )
 
-    ! Get mask from hco
+    ! Get mask from analysisgrid file
+    allocate(mask(ni,nj))
+    call diff_readMaskFromFile(mask, hco, './analysisgrid')
 
     ! land mask (1=water, 0=land)
     do latIndex = 1, nj
       do lonIndex = 1, ni
           
-        if ( hco % mask ( lonIndex, latIndex ) == 1 ) then
+        if ( mask ( lonIndex, latIndex ) == 1 ) then
           m ( lonIndex, latIndex ) = 1.0d0
         else
           m ( lonIndex, latIndex ) = 0.0d0
@@ -219,6 +222,7 @@ contains
        
       end do
     end do
+    deallocate(mask)
    
     m (  :, 1  ) = 0.0d0
     m (  1, :  ) = 0.0d0
@@ -542,6 +546,68 @@ contains
     write(*,*) myName//' ***** END *****'
     
   end function diff_setup
+
+  !--------------------------------------------------------------------------
+  ! diff_readMaskFromFile
+  !--------------------------------------------------------------------------
+  subroutine diff_readMaskFromFile(mask, hco_anl, filename)
+    !
+    !:Purpose: Read mask fields from a standard file. Abort if not found.
+    !
+    implicit none
+
+    ! arguments
+    integer                       :: mask(:,:)
+    type(struct_hco)              :: hco_anl
+    character(len=*), intent(in)  :: fileName
+
+    ! locals
+    integer :: nulfile, ierr, ni_file, nj_file, nk_file, ikey
+    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
+
+    !- Open input field
+    nulfile = 0
+    write(*,*) 'diff_readMaskFromFile: file name = ',trim(fileName)
+    ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
+       
+    if ( ierr >= 0 ) then
+      ierr  =  fstouv(nulfile,'RND+OLD')
+    else
+      call utl_abort('diff_readMaskFromFile: problem opening input file')
+    end if
+
+    if (nulfile == 0 ) then
+      call utl_abort('diff_readMaskFromFile: unit number for input file not valid')
+    end if
+
+    ! TEMPORARY: For now, just read the first mask we find in the file
+
+    ! Make sure that the mask for this variable has the same grid size as hco
+    ikey = fstinf(nulfile, ni_file, nj_file, nk_file, &
+                  -1, ' ', -1, -1, -1, '@@', ' ')
+
+    if (ikey < 0) then
+      call utl_abort('diff_readMaskFromFile: cannot find a mask in file ' // trim(fileName))
+    end if
+
+    if (ni_file == hco_anl%ni .and. nj_file == hco_anl%nj) then
+      ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
+                    -1, ' ', -1, -1, -1, '@@', ' ')
+      if (ierr < 0) then
+        call utl_abort('diff_readMaskFromFile: error when reading mask record')
+      end if
+    else
+      ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
+      write(*,*)
+      write(*,*) 'diff_readMaskFromFile: mask is on a different horizontal grid'
+      write(*,*) ni_file, hco_anl%ni, nj_file, hco_anl%nj
+      call utl_abort('diff_readMaskFromFile: This is not allowed at the moment')
+    end if
+
+    ierr = fstfrm(nulfile)
+    ierr = fclos(nulfile)        
+
+  end subroutine diff_readMaskFromFile
 
 
   subroutine diff_finalize(diffID)
