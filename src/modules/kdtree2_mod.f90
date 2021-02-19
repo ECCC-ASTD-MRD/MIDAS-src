@@ -954,9 +954,11 @@ contains
     nullify (tp%ind)
 
     if (tp%rearrange) then
-       deallocate(tp%rearranged_data)
-       nullify(tp%rearranged_data)
+      deallocate(tp%rearranged_data)
+      nullify(tp%rearranged_data)
     endif
+
+    nullify(tp%the_data)
 
     deallocate(tp)
     return

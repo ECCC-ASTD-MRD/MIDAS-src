@@ -22,6 +22,7 @@ module stateToColumn_mod
   !           and a columnData object.
   !
   use mathPhysConstants_mod
+  use earthConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod 
@@ -45,6 +46,7 @@ module stateToColumn_mod
   use tovs_nl_mod
   use codtyp_mod
   use getGridPosition_mod
+  use kdtree2_mod
 
   implicit none
   save
@@ -86,6 +88,7 @@ module stateToColumn_mod
     real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
+    type(kdtree2), pointer    :: tree => null()
   end type struct_interpInfo
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
@@ -99,6 +102,7 @@ module stateToColumn_mod
   real(4), parameter :: nearestNeighbourFootprint = -2.0
   real(4), parameter ::             lakeFootprint = -1.0
   real(4), parameter ::         bilinearFootprint =  0.0
+  integer, parameter :: maxNumLocalGridptsSearch = 10000
 
   ! namelist variables:
   logical :: slantPath_TO_nl
@@ -1859,6 +1863,7 @@ contains
         end do
         deallocate(interpInfo_nl%stepProcData)
         deallocate(interpInfo_nl%allNumHeaderUsed)
+        if ( associated(interpInfo_nl%tree) ) call kdtree2_destroy(interpInfo_nl%tree)
         call oti_deallocate(interpInfo_nl%oti)
 
         interpInfo_nl%initialized = .false.
@@ -3035,32 +3040,30 @@ contains
     integer :: depotIndex
     integer :: ierr
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
-    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    real(4) :: lon_deg_r4, lat_deg_r4
-    real(8) :: lon_rad, lat_rad
-    real(8) :: grid_lon_rad, grid_lat_rad
+    integer :: subGridIndex, numLocalGridptsFoundSearch 
+    real(4) :: lonObs_deg_r4, latObs_deg_r4
+    real(8) :: lonObs, latObs, lon, lat, maxRadiusSquared
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
-    integer :: top, bottom, left, right, rectangleCount
-    real(8) :: dist
-    integer :: lonIndex, latIndex, rectangleIndex, rectangleSize
+    integer :: lonIndex, latIndex, resultsIndex, gridIndex
     integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
-    integer :: rectLonIndex(2*(statevector%ni+statevector%nj)-4), rectLatIndex(4*(statevector%ni+statevector%nj)-4)
-    logical :: inside, reject
 
-    reject = .false.
+    real(kdkind), allocatable :: positionArray(:,:)
+    type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
+    real(kdkind)              :: refPosition(3)
 
     numGridpt(:) = 0
 
     ! Determine the grid point nearest the observation.
 
-    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-    lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
+    latObs = interpInfo % stepProcData(procIndex, stepIndex) % allLat(headerIndex, kIndex)
+    lonObs = interpInfo % stepProcData(procIndex, stepIndex) % allLon(headerIndex, kIndex)
+
+    latObs_deg_r4 = real(latObs * MPC_DEGREES_PER_RADIAN_R8)
+    lonObs_deg_r4 = real(lonObs * MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                              latObs_deg_r4, lonObs_deg_r4, subGridIndex )
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
@@ -3070,144 +3073,106 @@ contains
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupFootprintInterp: revise code'
       call utl_abort('s2c_setupFootprintInterp: both subGrids involved in interpolation.')
-      numSubGridsForInterp = 2
-      subGridIndex = 1
-    else
-      ! only 1 subGrid involved in interpolation
-      numSubGridsForInterp = 1
     end if
 
-    do subGridForInterp = 1, numSubGridsForInterp
+    ! Return if observation is not on the grid, or masked.
+    if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
+         latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) return
 
-      gridptCount = 0
+    if ( allocated(stateVector%hco%mask) ) then
+      if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) return
+    end if
 
-      ! If observation is not on the grid, don't use it.
-      if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
-           latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
+    ! create the kdtree on the first call
+    if ( .not. associated(interpInfo % tree) ) then
+      write(*,*) 's2c_setupFootprintInterp: start creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      if ( stateVector%oceanMask%maskPresent ) then
-        if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) reject = .true.
-      end if
+      allocate(positionArray(3,statevector%ni * statevector%nj))
 
-      if ( .not. reject ) then
+      gridIndex = 0
+      do latIndex = 1, statevector % nj
+        do lonIndex = 1, statevector % ni
+          gridIndex = gridIndex + 1
+          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
 
-        !<<<  These four lines assure to use at least the nearrest neighbor
-        !     in the case where the footprint size is smaller than the grid spacing.
-        gridptCount = 1
-        lonIndexVec(gridptCount) = lonIndexCentre
-        latIndexVec(gridptCount) = latIndexCentre
-        rectangleSize = 1
-        !>>>
+          positionArray(1,gridIndex) = RA * sin(lon) * cos(lat)
+          positionArray(2,gridIndex) = RA * cos(lon) * cos(lat)
+          positionArray(3,gridIndex) = RA * sin(lat)
 
-        inside = .true.
-        WHILE_INSIDE: do while(inside)
+        end do
+      end do
 
-          inside = .false.
+      interpInfo % tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
 
-          ! Set up rectangle. We will look in this rectangle
-          ! for neighbors.
+      write(*,*) 's2c_setupFootprintInterp: done creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
 
-          top    = latIndexCentre + rectangleSize
-          bottom = latIndexCentre - rectangleSize
-          left   = lonIndexCentre - rectangleSize
-          right  = lonIndexCentre + rectangleSize
+    ! do the search
+    maxRadiusSquared = fpr ** 2
+    refPosition(1) = RA * sin(lonObs) * cos(latObs)
+    refPosition(2) = RA * cos(lonObs) * cos(latObs)
+    refPosition(3) = RA * sin(latObs)
+    call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
+                                nfound=numLocalGridptsFoundSearch,&
+                                nalloc=maxNumLocalGridptsSearch, results=searchResults)
+    if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
+      call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
+    end if
 
-          rectangleCount = 0
-          latIndex = bottom
-          do lonIndex = left, right
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          lonIndex = right
-          do latIndex = bottom + 1, top
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          latIndex = top
-          do lonIndex = right - 1, left, -1
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          lonIndex = left
-          do latIndex = top - 1, bottom + 1, -1
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
+    ! Return, if there is one gridpt masked out.
+    if ( allocated(stateVector%hco%mask) ) then
+      do resultsIndex = 1, numLocalGridptsFoundSearch
+        gridIndex = searchResults(resultsIndex) % idx
 
-          do rectangleIndex = 1, rectangleCount
+        latIndex = int((gridIndex - 1) / statevector % ni) + 1
+        lonIndex = gridIndex - (latIndex - 1) * (statevector % ni)
+        if (stateVector%hco%mask(lonIndex, latIndex) == 0) return
+      end do
+    end if
 
-            lonIndex = rectLonIndex(rectangleIndex)
-            if (lonIndex >= 1 .and. lonIndex <= statevector%ni) then
+    ! fill the rest of lonIndexVec/latIndexVec
+    if (  numLocalGridptsFoundSearch == 0 ) then
+      ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
+      ! if footprint size is smaller than the grid spacing.
 
-              latIndex = rectLatIndex(rectangleIndex)
-              if (latIndex >= 1 .and. latIndex <= statevector%nj) then
+      gridptCount = 1
+      lonIndexVec(gridptCount) = lonIndexCentre
+      latIndexVec(gridptCount) = latIndexCentre
 
-                grid_lat_rad = real(stateVector%hco%lat2d_4(lonIndex,latIndex),8)
-                grid_lon_rad = real(stateVector%hco%lon2d_4(lonIndex,latIndex),8)
+    else
+      gridptCount = 0 
+      do resultsIndex = 1, numLocalGridptsFoundSearch
+        gridIndex = searchResults(resultsIndex) % idx
 
-                ! Compute distance between grid point and observation point.
-                dist = phf_calcDistance(grid_lat_rad, grid_lon_rad, lat_rad, lon_rad)
+        latIndex = int((gridIndex - 1) / statevector % ni) + 1
+        lonIndex = gridIndex - (latIndex - 1) * (statevector % ni)
 
-                ! If the point is within the footprint, add it to the neighborhood.
-                if(dist < fpr) then
+        gridptCount = gridptCount + 1
+        lonIndexVec(gridptCount) = lonIndex
+        latIndexVec(gridptCount) = latIndex
+      end do
 
-                  ! Ignore points that are masked out.
-                  if ( stateVector%oceanMask%maskPresent ) then
-                    if ( .not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
-                      reject = .true.
-                      exit WHILE_INSIDE
-                    end if
-                  end if
+    end if
 
-                  if ( .not. reject ) then
-                    inside = .true.
+    if ( allocated(interpInfo%interpWeightDepot) ) then
 
-                    gridptCount = gridptCount + 1
-                    lonIndexVec(gridptCount) = lonIndex
-                    latIndexVec(gridptCount) = latIndex
+      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
-                  end if
+      do ipoint = 1, gridptCount
 
-                end if
+        interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
+        interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+        interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+        depotIndex = depotIndex + 1
 
-              end if
+      end do
 
-            end if
+    end if
 
-          end do ! rectangleIndex
-
-          rectangleSize = rectangleSize + 1
-
-        end do WHILE_INSIDE
-
-      end if ! not reject
-
-      if ( .not. reject ) then
-
-        if ( allocated(interpInfo%interpWeightDepot) ) then
-
-          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-
-          do ipoint=1,gridptCount
-
-            interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
-            interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
-            interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
-            depotIndex = depotIndex + 1
-
-          end do
-
-        end if
-
-        numGridpt(subGridIndex) = gridptCount
-
-      end if
-
-    end do ! subGrid
+    numGridpt(subGridIndex) = gridptCount
 
   end subroutine s2c_setupFootprintInterp
 
