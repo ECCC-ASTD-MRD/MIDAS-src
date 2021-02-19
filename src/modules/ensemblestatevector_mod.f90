@@ -28,6 +28,7 @@ module ensembleStateVector_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use analysisGrid_mod
+  use oceanMask_mod
   use timeCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -1256,7 +1257,7 @@ CONTAINS
     type(struct_ens) :: ens
     type(struct_gsv) :: statevector
 
-    call gsv_copyMask(ens%statevector_work,statevector)
+    call ocm_copyMask(ens%statevector_work%oceanMask,statevector%oceanMask)
 
   end subroutine ens_copyMaskToGsv
 
@@ -2299,7 +2300,9 @@ CONTAINS
           ens%statevector_work%ip2List(stepIndex)        = statevector_member_r4%ip2List(1)
           ens%statevector_work%etiket                    = statevector_member_r4%etiket
           ! if it exists, copy over mask from member read on task 0, which should always read
-          if(mpi_myid == 0) call gsv_copyMask(stateVector_member_r4, ens%stateVector_work)
+          if(mpi_myid == 0) then
+            call ocm_copyMask(stateVector_member_r4%oceanMask, ens%stateVector_work%oceanMask)
+          end if
 
         end if ! locally read one member
 
@@ -2416,7 +2419,7 @@ CONTAINS
     end do ! time
 
     call gsv_communicateTimeParams(ens%statevector_work)
-    call gsv_communicateMask(ens%statevector_work)
+    call ocm_communicateMask(ens%statevector_work%oceanMask)
 
     deallocate(datestamplist)
     call hco_deallocate(hco_file)
@@ -2560,7 +2563,7 @@ CONTAINS
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
       statevector_member_r4%etiket            = ens%statevector_work%etiket
       ! if it exists, copy over mask from work statevector to member being written
-      call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
+      call ocm_copyMask(ens%stateVector_work%oceanMask, stateVector_member_r4%oceanMask)
 
       do memberIndex = 1, ens%numMembers
 

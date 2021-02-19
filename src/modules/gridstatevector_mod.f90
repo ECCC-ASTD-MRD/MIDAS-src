@@ -27,6 +27,7 @@ module gridStateVector_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use oceanMask_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
@@ -51,7 +52,7 @@ module gridStateVector_mod
   public :: gsv_getField, gsv_getFieldUV, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
-  public :: gsv_copyHeightSfc, gsv_copyMask, gsv_communicateMask, gsv_readMaskFromFile
+  public :: gsv_copyHeightSfc, gsv_readMaskFromFile
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -84,8 +85,7 @@ module gridStateVector_mod
     real(8), pointer    :: gd3d_r8(:,:,:) => null()
     real(4), pointer    :: gd_r4(:,:,:,:) => null()
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
-    logical             :: maskPresent      = .false.
-    logical, pointer    :: mask(:,:)      => null()
+    type(struct_ocm)    :: oceanMask
     logical             :: heightSfcPresent = .false.
     real(8), pointer    :: HeightSfc(:,:) => null()  ! surface height, if VarsLevs then only on proc 0
     ! These are used when distribution is VarLevs to keep corresponding UV
@@ -1874,7 +1874,7 @@ module gridStateVector_mod
     deallocate(varNameListCommon)
 
     ! Copy mask if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
   end subroutine gsv_copy
 
@@ -1977,74 +1977,6 @@ module gridStateVector_mod
     statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
 
   end subroutine gsv_copyHeightSfc
-
-  !--------------------------------------------------------------------------
-  ! gsv_copyMask
-  !--------------------------------------------------------------------------
-  subroutine gsv_copyMask(statevector_in,statevector_out)
-    implicit none
-    ! arguments
-    type(struct_gsv)  :: statevector_in, statevector_out
-
-    if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copyMask: gridStateVector_in not yet allocated')
-    end if
-    if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copyMask: gridStateVector_out not yet allocated')
-    end if
-
-    if (.not.statevector_in%maskPresent .or. .not.associated(statevector_in%mask)) then
-      write(*,*) 'gsv_copyMask: no input mask, do nothing'
-      return
-    end if
-
-    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco)) then
-      call utl_abort('gsv_copyMask: horizontal grids are not equal, cannot copy mask')
-    end if
-
-    if (.not.associated(statevector_out%mask)) then
-      allocate(statevector_out%mask(statevector_in%ni,statevector_in%nj))
-    end if
-
-    write(*,*) 'gsv_copyMask: copying over the horizontal mask'
-    statevector_out%mask(:,:) = statevector_in%mask(:,:)
-    statevector_out%maskPresent = .true.
-
-  end subroutine gsv_copyMask
-
-  !--------------------------------------------------------------------------
-  ! gsv_communicateMask
-  !--------------------------------------------------------------------------
-  subroutine gsv_communicateMask(statevector)
-    !
-    ! :Purpose: Copy mask fields from task 0 to all others
-    !
-    implicit none
-
-    ! arguments
-    type(struct_gsv) :: statevector
-    ! locals
-    integer :: ierr
-
-    write(*,*) 'gsv_communicateMask: starting'
-
-    call rpn_comm_bcast(statevector%maskPresent, 1,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
-
-    if (.not.statevector%maskPresent) then
-      write(*,*) 'gsv_communicateMask: mask not present, return'
-      return
-    end if
-    
-    if (.not.associated(statevector%mask)) then
-      allocate(statevector%mask(statevector%ni,statevector%nj))
-    end if
-    call rpn_comm_bcast(statevector%mask, statevector%ni*statevector%nj,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
-
-    write(*,*) 'gsv_communicateMask: finished'
-
-  end subroutine gsv_communicateMask
 
   !--------------------------------------------------------------------------
   ! gsv_hPad
@@ -3411,7 +3343,7 @@ write(*,*) 'here'
 
     if ( .not. associated( statevector % datestamplist )) then
       call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
-    end if   
+    end if
 
     !- Open input field
     nulfile = 0
@@ -3613,23 +3545,6 @@ write(*,*) 'here'
           ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_var,varNameToRead)
-
-          ! read the corresponding mask if it exists
-          if (typvar_var(2:2) == '@') then
-            write(*,*) 'gsv_readFile: read mask for variable name: ', nomvar_var
-            if (.not. associated(statevector%mask)) then
-              allocate(statevector%mask(hco_file%ni,hco_file%nj))
-              if (.not. allocated(mask)) allocate(mask(hco_file%ni,hco_file%nj))
-              statevector%maskPresent = .true.
-              ierr = fstlir(mask(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                            -1,' ',ip1,-1,-1,  &
-                            '@@',varNameToRead)
-              call utl_intToLogical(mask,statevector%mask)
-              if (ierr < 0) then
-                call utl_abort('gsv_readFile: error when reading mask record')
-              end if              
-            end if
-          end if
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
@@ -3707,141 +3622,26 @@ write(*,*) 'here'
     ierr = fclos(nulfile)        
     if ( associated(gd2d_file_r4) ) deallocate(gd2d_file_r4)
 
+    ! Read in an oceanMask if it is present in the file
+    call gsv_readMaskFromFile(statevector, trim(filename))
+
   end subroutine gsv_readFile
 
   !--------------------------------------------------------------------------
   ! gsv_readMaskFromFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readMaskFromFile(statevector, filename)
+  subroutine gsv_readMaskFromFile(stateVector, filename)
     !
-    ! :Purpose: Check if any mask fields exist for the variables in
-    !           statevector. If they exist, read them for all variables.
-    !
-    ! :Note:    This is a temporary version of the subroutine that only
-    !           reads the first mask found. Eventually we will need to
-    !           store masks separately for each level.
+    ! :Purpose: Check if any ocean mask fields exist. If so, read for the surface
+    !           or all ocean depth levels.
     !
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector
+    type(struct_gsv)              :: stateVector
     character(len=*), intent(in)  :: fileName
 
-    ! locals
-    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex
-    integer :: ikey, levIndex, varIndex
-    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
-    character(len=4)  :: varName, varNameToRead
-    character(len=4)  :: varLevel
-    logical :: maskFound
-    integer, allocatable :: mask(:,:)
-
-    ! Check if mask is present in file, return if not
-    maskFound = .false.
-    var_loop: do varIndex = 1, vnl_numvarmax
-      varName = vnl_varNameList(varIndex)
-      if ( .not. gsv_varExist(statevector,varName) ) cycle var_loop
-      if ( utl_varNamePresentInFile(varName,fileName_opt=trim(fileName),typvar_opt='@@') ) then
-        maskFound = .true.
-        exit var_loop
-      end if
-    end do var_loop
-    if ( .not. maskFound ) return
-
-    !- Open input field
-    nulfile = 0
-    write(*,*) 'gsv_readMaskFromFile: file name = ',trim(fileName)
-    ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
-       
-    if ( ierr >= 0 ) then
-      ierr  =  fstouv(nulfile,'RND+OLD')
-    else
-      call utl_abort('gsv_readMaskFromFile: problem opening input file')
-    end if
-
-    if (nulfile == 0 ) then
-      call utl_abort('gsv_readMaskFromFile: unit number for input file not valid')
-    end if
-
-    ! Read mask for all fields
-    k_loop: do kIndex = 1, statevector%nk
-      varName = gsv_getVarNameFromK(statevector,kIndex)
-      levIndex = gsv_getLevFromK(statevector,kIndex)
-
-      if (.not.gsv_varExist(statevector,varName)) cycle k_loop
-
-      ! Check that the wanted field is present in the file
-      if (utl_varNamePresentInFile(varName,fileUnit_opt=nulfile)) then
-        varNameToRead = varName
-      else
-        select case (trim(varName))
-        case ('LVIS')
-          varNameToRead = 'VIS'
-        case ('Z_T','Z_M','P_T','P_M')
-          cycle k_loop
-        case ('LPR')
-          varNameToRead = 'PR'
-        case default
-          call utl_abort('gsv_readMaskFromFile: variable '//trim(varName)//' was not found in '//trim(fileName))
-        end select
-      end if
-
-      varLevel = vnl_varLevelFromVarname(varNameToRead)
-      if (varLevel == 'MM') then
-        ip1 = statevector%vco%ip1_M(levIndex)
-      else if (varLevel == 'TH') then
-        ip1 = statevector%vco%ip1_T(levIndex)
-      else if (varLevel == 'SF') then
-        ip1 = -1
-      else if (varLevel == 'SFTH') then
-        ip1 = statevector%vco%ip1_T_2m
-      else if (varLevel == 'SFMM') then
-        ip1 = statevector%vco%ip1_M_10m
-      else if (varLevel == 'OT') then
-        ip1 = vco_ip1_other(levIndex)
-      else if (varLevel == 'DP') then
-        ip1 = statevector%vco%ip1_depth(levIndex)
-      else if (varLevel == 'SFDP') then
-        ip1 = statevector%vco%ip1_depth(1)
-      else
-        write(*,*) 'varLevel =', varLevel
-        call utl_abort('gsv_readMaskFromFile: unknown varLevel')
-      end if
-
-      ! Make sure that the mask for this variable has the same grid size as statevector
-      ikey = fstinf(nulfile, ni_file, nj_file, nk_file, &
-                    -1, ' ', ip1, -1, -1, '@@', varNameToRead)
-
-      if (ikey < 0) then
-        call utl_abort('gsv_readMaskFromFile: cannot find mask for field ' // trim(varNameToRead) // ' in file ' // trim(fileName))
-      end if
-
-      if (ni_file == statevector%ni .and. nj_file == statevector%nj) then
-        write(*,*) 'gsv_readMaskFromFile: read mask for variable name: ', trim(varNameToRead)
-        if (.not. associated(statevector%mask)) then
-          allocate(statevector%mask(statevector%ni,statevector%nj))
-          statevector%maskPresent = .true.
-          if (.not.allocated(mask)) allocate(mask(statevector%ni,statevector%nj))
-          ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                        -1, ' ', ip1, -1, -1, '@@', varNameToRead)
-          call utl_intToLogical(mask,statevector%mask)
-          if (ierr < 0) then
-            call utl_abort('gsv_readMaskFromFile: error when reading mask record')
-          end if
-        end if
-      else
-        ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
-        write(*,*)
-        write(*,*) 'gsv_readMaskFromFile: mask is on a different horizontal grid = ',trim(varNameToRead)
-        write(*,*) ni_file, statevector%ni, nj_file, statevector%nj
-        call utl_abort('gsv_readMaskFromFile: This is not allowed at the moment')
-      end if
-    end do k_loop
-
-    ierr = fstfrm(nulfile)
-    ierr = fclos(nulfile)        
-
-    if (allocated(mask)) deallocate(mask)
+    call ocm_readMaskFromFile(stateVector%oceanMask,stateVector%hco, stateVector%vco, filename)
 
   end subroutine gsv_readMaskFromFile
 
@@ -4173,7 +3973,7 @@ write(*,*) 'here'
     end if
 
     ! Copy over the mask, if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     call tmg_stop(151)
 
@@ -4451,7 +4251,7 @@ write(*,*) 'here'
     end if ! heightSfcPresent
 
     ! Copy over the mask, if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     write(*,*) 'gsv_transposeTilesToVarsLevs: END'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -4784,7 +4584,7 @@ write(*,*) 'here'
     end if
 
     ! Copy over the mask, if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     call tmg_stop(154)
 
@@ -5433,7 +5233,7 @@ write(*,*) 'here'
     integer, allocatable :: mask(:,:)
     integer   :: ierr, fstecr
     integer :: ni, nj, nk
-    integer :: dateo, npak, levIndex, nlev, varIndex
+    integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
     integer :: yourid, nsize, youridy, youridx
@@ -5549,7 +5349,7 @@ write(*,*) 'here'
     else
       typvar = 'R'
     end if
-    if ( statevector%maskPresent ) then
+    if ( statevector%oceanMask%maskPresent ) then
       typvar(2:2) = '@'
     end if
     grtyp  = statevector%hco%grtyp
@@ -5730,6 +5530,13 @@ write(*,*) 'here'
               call utl_abort('gsv_writeToFile')
             end if
 
+            ! Set the level index for the mask (if present)
+            if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
+              maskLevIndex = levIndex
+            else
+              maskLevIndex = 1
+            end if
+             
             ! Set the output variable name
             nomvar = trim(vnl_varNameList(varIndex))
             if ( trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt) ) then
@@ -5784,9 +5591,9 @@ write(*,*) 'here'
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
 
-            if ( statevector%maskPresent ) then
+            if ( statevector%oceanMask%maskPresent ) then
               if (.not.allocated(mask)) allocate(mask(ni,nj))
-              call utl_logicalToInt(statevector%mask,mask)
+              call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
               ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, 2, .false.)
@@ -6403,9 +6210,9 @@ write(*,*) 'here'
 
     ! Copy the mask if it is present
     if ( stateVector_1step_r4%allocated ) then
-      call gsv_copyMask(stateVector_1step_r4, stateVector_varsLevs)
+      call ocm_copyMask(stateVector_1step_r4%oceanMask, stateVector_varsLevs%oceanMask)
     end if
-    call gsv_communicateMask(stateVector_varsLevs)
+    call ocm_communicateMask(stateVector_varsLevs%oceanMask)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_transposeStepToVarsLevs: Finished'
@@ -6697,9 +6504,9 @@ write(*,*) 'here'
 
     ! Copy the mask if it is present
     if ( stateVector_1step_r4%allocated ) then
-      call gsv_copyMask(stateVector_1step_r4, stateVector_tiles)
+      call ocm_copyMask(stateVector_1step_r4%oceanMask, stateVector_tiles%oceanMask)
     end if
-    call gsv_communicateMask(stateVector_tiles)
+    call ocm_communicateMask(stateVector_tiles%oceanMask)
 
     write(*,*) 'gsv_transposeStepToTiles: finished'
 
@@ -6991,7 +6798,7 @@ write(*,*) 'here'
 
     ! Copy mask if it exists on mpi task with step data allocated
     if ( stateVector_1step_r4%allocated ) then
-      call gsv_copyMask(stateVector_tiles, stateVector_1step_r4)
+      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step_r4%oceanMask)
     end if
 
     write(*,*) 'gsv_transposeTilesToStep: finished'
@@ -7150,7 +6957,7 @@ write(*,*) 'here'
 
     ! Copy over the mask, if it exists
     if ( stateVector_mpiGlobal%allocated ) then
-      call gsv_copyMask(stateVector_tiles, stateVector_mpiGlobal)
+      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_mpiGlobal%oceanMask)
     end if
 
     write(*,*) 'gsv_transposeTilesToMpiGlobal: finished'

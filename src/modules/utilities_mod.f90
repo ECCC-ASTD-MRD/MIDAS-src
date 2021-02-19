@@ -37,7 +37,6 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce
-  public :: utl_logicalToInt, utl_intToLogical
 
   ! module interfaces
   ! -----------------
@@ -2549,41 +2548,5 @@ contains
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce
-
-  !--------------------------------------------------------------------------
-  ! utl_logicalToInt
-  !--------------------------------------------------------------------------
-  subroutine utl_logicalToInt(logicalArray, intArray)
-    ! :Purpose: Convert a 2D logical array into integer values
-    !           where true is 1 and false is 0.
-
-    implicit none
-
-    ! Arguments:
-    logical, intent(in)  :: logicalArray(:,:)
-    integer, intent(out) :: intArray(:,:)
-
-    intArray(:,:) = 0
-    where(logicalArray(:,:)) intArray(:,:) = 1
-    
-  end subroutine utl_logicalToInt
-
-  !--------------------------------------------------------------------------
-  ! utl_logicalToInt
-  !--------------------------------------------------------------------------
-  subroutine utl_intToLogical(intArray, logicalArray)
-    ! :Purpose: Convert a 2D integer array into logical values
-    !           where true is 1 and false is 0.
-
-    implicit none
-
-    ! Arguments:
-    integer, intent(in)  :: intArray(:,:)
-    logical, intent(out) :: logicalArray(:,:)
-
-    logicalArray(:,:) = .false.
-    where(intArray(:,:) == 1) logicalArray(:,:) = .true.
-    
-  end subroutine utl_intToLogical
 
 end module utilities_mod
