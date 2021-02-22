@@ -1755,7 +1755,6 @@ contains
     !
     ! Given a height
     !
-    jloc = 1
     do i = 1, iSize
        h = hv(i)
        !
@@ -1776,26 +1775,14 @@ contains
           jloc = ngpslev-1
        endif
        !
-       ! Interpolation/extrapolation
+       ! Linear-log interpolation
        !
-       if (h >= prf%gst(ngpslev)%Var) then
-          !
-          ! Either linear-log interpolation
-          !
-          dz  = prf%gst(jloc) - prf%gst(jloc+1)
+       dz  = prf%gst(jloc) - prf%gst(jloc+1)
        
-          dzm = h - prf%gst(jloc+1)
-          dzp = prf%gst(jloc) - h
+       dzm = h - prf%gst(jloc+1)
+       dzp = prf%gst(jloc) - h
        
-          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
-       else
-          !
-          ! Or exp extrapolation at the lower edge
-          ! (better standard exp profile than linear-log, which may be unstable)
-          !
-          dzm = h - prf%gst(jloc+1)
-          refopv(i) = prf%rst(jloc+1) * exp((-1._dp/6500._dp)*dzm)
-       endif
+       refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
     enddo
   end subroutine gps_refopv
 
