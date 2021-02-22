@@ -146,30 +146,42 @@ contains
       beSilent = .false.
     end if
 
+    ! Check if template file exists
     if (mpi_myid == 0 .and. .not. beSilent) then
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
     end if
     inquire(file=templatefile,exist=isExist_L)
-    if ( isExist_L )then
-      nultemplate=0
-      ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-      if ( ierr == 0 ) then
-        ierr =  fstouv(nultemplate,'RND+OLD')
-      else
-        call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
-      end if
-    else
+    if ( .not. isExist_L )then
       call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     end if
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file (vgd_new reads "!!" record)
 
-    stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
-    if (stat == VGD_OK) then
-      vco%vgridPresent = .true.
+    ! Check if vgrid descriptor record is present
+    vco%vgridPresent = utl_varNamePresentInFile('!!',fileName_opt=trim(templatefile))
+
+    ! Open the template file
+    nultemplate=0
+    ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
+    if ( ierr == 0 ) then
+      ierr =  fstouv(nultemplate,'RND+OLD')
     else
-      write(*,*) 'vco_setupFromFile: Problem with vgd_new, check if surface-only file'
+      call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
+    end if
+
+    ! If present then try creating descriptor
+    if (vco%vgridPresent) then
+      stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
+      vco%vgridPresent = (stat == VGD_OK)
+      if ( mpi_myid == 0 .and. .not.vco%vgridPresent ) then
+        write(*,*) 'vco_setupFromFile: !! record exists, but not able to create descriptor object'
+      end if
+    end if
+
+    ! If descriptor not present or has a problem, look for other types of records
+    if (.not. vco%vgridPresent) then
+      write(*,*) 'vco_setupFromFile: No valid descriptor found, check if surface-only or ocean file'
 
       ierr = fstinl(nultemplate,ini,inj,ink,-1,etiket,-1,-1,-1,' ', &
                     ' ',ikeys,numRecords,maxnumRecords)
@@ -248,9 +260,11 @@ contains
       ierr =  fstfrm(nultemplate)
       ierr =  fclos (nultemplate)
 
-      return ! skip the rest
     end if
 
+    ! Skip the rest of the subroutine if vgrid not present
+    if (.not. vco%vgridPresent) return
+    
     ! Print out vertical structure 
     if (mpi_myid == 0 .and. .not. beSilent) then
       call flush(6) ! possibly needed so vgd_print output appears correctly in listing
