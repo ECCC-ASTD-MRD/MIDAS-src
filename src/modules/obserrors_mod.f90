@@ -1529,6 +1529,9 @@ contains
             if ( ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
               ! Temporary hardcoded value for log-transformed radar precipitation
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
+            else if ( ityp == bufr_radvel ) then
+              ! Temporary hardcoded value for radar Doppler velocity
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
             else
               write(*,*) 'varnum = ', ityp
               call utl_abort( myName//': unknown varnum for RA family' )

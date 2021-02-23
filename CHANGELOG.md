@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added the capability to calculate OMP from radar Doppler velocity (#177 and !416)
  * Include SSMIS backgroundcheck: first step with satqc program (#448 and !426)
  * New compilation solution based on GNU make (#255, #443 and !317)
 

@@ -104,6 +104,7 @@ module stateToColumn_mod
   logical :: slantPath_TO_nl
   logical :: slantPath_TO_tlad
   logical :: slantPath_RO_nl
+  logical :: slantPath_RA_nl
   logical, save :: calcHeightPressIncrOnColumn
 
   integer, external    :: get_max_rss
@@ -290,11 +291,11 @@ contains
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
-    logical :: doSlantPath, SlantTO, SlantRO, firstHeaderSlantPathTO, firstHeaderSlantPathRO
+    logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
-    namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, calcHeightPressIncrOnColumn
+    namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -314,6 +315,7 @@ contains
       slantPath_TO_nl   = .false.
       slantPath_TO_tlad = .false.
       slantPath_RO_nl   = .false.
+      slantPath_RA_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
@@ -348,8 +350,12 @@ contains
       doSlantPath = .true.
       SlantRO     = .true.
     endif
-    write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO = ', &
-               doSlantPath, SlantTO, SlantRO
+    if ( slantPath_RA_nl   .and. inputStateVectorType == 'nl' ) then
+      doSlantPath = .true.
+      SlantRA     = .true.
+    endif
+    write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO, SlantRA = ', &
+               doSlantPath, SlantTO, SlantRO, SlantRA
 
     numStep = stateVector%numStep
     numHeader = headerIndexEnd - headerIndexBeg + 1
@@ -583,6 +589,7 @@ contains
 
         firstHeaderSlantPathTO = .true.
         firstHeaderSlantPathRO = .true.
+        firstHeaderSlantPathRA = .true.
         header_loop3: do headerUsedIndex = 1, numHeaderUsed
           headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
 
@@ -623,6 +630,18 @@ contains
                                    latLev_T, lonLev_T,                         & ! OUT
                                    latLev_M, lonLev_M )                          ! OUT
             call tmg_stop(191)
+          else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
+            if ( firstHeaderSlantPathRA ) then
+              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RADAR. stepIndex=', &
+                   stepIndex,' and numHeaderUsed=',numHeaderUsed
+              firstHeaderSlantPathRA = .false.
+            end if
+            
+             ! calculate lat/lon along the radar beam obs
+             call slp_calcLatLonRadar( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                     height3D_T_r4, height3D_M_r4,                 & ! IN
+                                     latLev_T, lonLev_T,                           & ! OUT
+                                     latLev_M, lonLev_M )                            ! OUT          
           else
 
             latLev_T(:) = real(lat_r4,8)

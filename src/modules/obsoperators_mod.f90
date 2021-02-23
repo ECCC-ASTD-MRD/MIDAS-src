@@ -39,14 +39,14 @@ module obsOperators_mod
   use costfunction_mod
   use obsOperatorsChem_mod
   use obserrors_mod
-
+  use slantprofilelatlon_mod
  implicit none
   save
   private
 
   ! public procedures
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
-  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl
+  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
   integer, external :: get_max_rss
@@ -994,6 +994,117 @@ contains
     jobs = 0.5d0 * jobs
 
   end subroutine oop_ice_nl
+
+  subroutine oop_raDvel_nl(columnhr,obsSpaceData, beSilent, jobs,cdfam, destObsColumn )
+    !
+    ! :Purpose: Computation of Jo and  OMP to the Radar observation (Doppler Velocity)
+    !                                     
+    !
+    implicit none
+
+    ! arguments
+    type(struct_columnData), intent(in)    :: columnhr
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    real(8)                , intent(out)   :: jobs         ! contribution to Jo
+    character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    integer                , intent(in)    :: destObsColumn
+
+    ! locals
+    integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode, fnom, fclos, nulnam, ierr
+    real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
+    real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
+    real(8) :: SimulatedDoppler, interpolation_weight, interpolation_length, zinc, zoer, maxRangeInterp
+
+    namelist /namradvel/ maxRangeInterp
+    
+    ! default value 
+    maxRangeInterp = -1.0D0
+
+    call obs_set_current_header_list(obsSpaceData, cdfam)
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
+
+    ! reading namelist variables
+    if (utl_isNamelistPresent('namradvel','./flnml')) then
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namradvel,iostat=ierr)
+      if (ierr /= 0) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+      if (.not.beSilent) write(*,nml=namradvel)
+      ierr=fclos(nulnam)
+    else if (.not. beSilent) then
+      write(*,*)
+      write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
+    end if
+    
+    jobs = 0.d0
+    !
+    ! Loop over all header indices of the 'RA' family with schema 'radvel':
+    !
+    HEADER: do  
+
+      headerIndex = obs_getHeaderIndex(obsSpaceData)  
+      if (headerIndex < 0) exit HEADER
+  
+      ralt  = obs_headElem_r(obsSpaceData,OBS_ALT , headerIndex)
+      rzam  = obs_headElem_r(obsSpaceData,OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      rele  = obs_headElem_r(obsSpaceData,OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      nwndlev=col_getNumLev(columnhr,'MM')
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      !
+      ! Loop over all body indices of the 'RA' family with schema 'radvel':
+      !
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        ! Check that this observation has the expected bufr element ID
+        bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if ( bufrCode /= bufr_radvel ) cycle BODY
+        ! only process observations flagged to be assimilated
+        if (obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
+        
+        r_radar = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
+        Dvel    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
+        call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
+       
+        HEIGHT: do jl = 1, nwndlev-1
+          Height1 = col_getHeight(columnhr,jl+1,headerIndex,'MM')
+          Height2 = col_getHeight(columnhr,jl,headerIndex,'MM')
+          if ( h_radar > Height1) exit HEIGHT
+        end do HEIGHT
+        
+        UU1 = col_getElem(columnhr,jl+1,headerIndex,'UU')
+        UU2 = col_getElem(columnhr,jl,headerIndex,  'UU')
+        VV1 = col_getElem(columnhr,jl+1,headerIndex,'VV')
+        VV2 = col_getElem(columnhr,jl,headerIndex,  'VV')
+     
+        call slp_radar_getRangefromH(Height1, ralt, rele, range1)
+        call slp_radar_getRangefromH(Height2, ralt, rele, range2)
+
+        interpolation_weight =(h_radar-Height1)/(Height2-Height1)
+        UU_interpolated = UU1+interpolation_weight*(UU2-UU1)
+        VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
+        SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
+        ! Flag the obs when the  maximum value of the interpolation interval is used
+        if (maxRangeInterp > 0.0) then
+          if  (abs(range1-range2)>maxRangeInterp) then
+            obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
+          end if
+        end if
+        call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
+        ! Observation error
+        zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+        ! Normalized increment
+        zinc = (SimulatedDoppler - Dvel) / zoer
+        ! Total jobs
+        jobs = jobs + 0.5d0 * zinc * zinc 
+
+      end do BODY
+    end do HEADER
+    write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
+
+  end subroutine oop_raDvel_nl
 
   !--------------------------------------------------------------------------
   ! oop_gpsro_nl
