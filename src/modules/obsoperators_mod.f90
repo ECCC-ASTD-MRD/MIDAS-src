@@ -1019,7 +1019,7 @@ contains
     namelist /namradvel/ maxRangeInterp
     
     ! default value 
-    maxRangeInterp = -1
+    maxRangeInterp = -1.0D0
 
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
