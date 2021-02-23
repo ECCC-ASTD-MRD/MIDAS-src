@@ -1015,10 +1015,11 @@ contains
     real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
     real(8) :: SimulatedDoppler, interpolation_weight, interpolation_length, zinc, zoer, maxRangeInterp
-    logical :: RangeInterp
 
-    namelist /namradvel/ maxRangeInterp, RangeInterp
-    RangeInterp = .false.
+    namelist /namradvel/ maxRangeInterp
+    
+    ! default value 
+    maxRangeInterp = -1
 
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
@@ -1035,6 +1036,8 @@ contains
       write(*,*)
       write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
     end if
+    
+    jobs = 0.d0
     !
     ! Loop over all header indices of the 'RA' family with schema 'radvel':
     !
@@ -1083,7 +1086,7 @@ contains
         VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
         SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
         ! Flag the obs when the  maximum value of the interpolation interval is used
-        if (RangeInterp == .true.) then
+        if (maxRangeInterp > 0.0) then
           if  (abs(range1-range2)>maxRangeInterp) then
             obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
