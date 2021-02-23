@@ -241,6 +241,10 @@ if [ -n "${observations}" ]; then
                     fam=${afile:3}
                     ## fam='to_amsua'
                     #########################################################
+                    [ "${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} obsfiles_${fam}
+                    while [ ! -d obsfiles_${fam} ]; do
+                        ${sleep_cmd} 1
+                    done
                     ${cp_cmd} ${file} obsfiles_${fam}/${file##*/}
                 fi
             done
