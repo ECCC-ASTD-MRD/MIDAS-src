@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to generate the continuous ice concentration field LG (#456 and !431)
  * Added the capability to calculate OMP from radar Doppler velocity (#177 and !416)
  * Include SSMIS backgroundcheck: first step with satqc program (#448 and !426)
  * New compilation solution based on GNU make (#255, #443 and !317)
@@ -62,7 +63,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add ability to generate the continuous ice concentration field LG (#456 and !431)
  * Add ability to copy lowest level during vertical interpolation (#429 and !407)
    * New namelist variable `vInterpCopyLowestLevel` activates it (default is false)
  * Added quality control for CSR data to `obsSelection` (#409 and !406)
