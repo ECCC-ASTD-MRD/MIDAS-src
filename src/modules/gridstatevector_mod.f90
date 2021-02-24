@@ -45,9 +45,9 @@ module gridStateVector_mod
   public :: gsv_writeToFile, gsv_readFromFile, gsv_readTrials, gsv_readFile
   public :: gsv_fileUnitsToStateUnits, gsv_modifyVarName
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
-  public :: gsv_transposeTilesToStep, gsv_transposeTilesToMpiGlobal
+  public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
-  public :: gsv_transposeVarsLevsToTiles, gsv_transposeStepToTiles
+  public :: gsv_transposeVarsLevsToTiles
   public :: gsv_getField, gsv_getFieldUV, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D, gsv_copyHeightSfc
@@ -6165,6 +6165,7 @@ module gridStateVector_mod
     integer :: senddispls(mpi_nprocs), sendsizes(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), recvsizes(mpi_nprocs)
     integer :: kIndex, procIndex, stepIndex, indexBeg, indexEnd
+    integer :: inKind, outKind, sendrecvKind, inKindLocal
     logical :: thisProcIsAsender(mpi_nprocs), allZero, allZero_mpiglobal
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
     real(4), allocatable :: gd_send_1d_r4(:), gd_recv_3d_r4(:,:,:)
@@ -6226,7 +6227,22 @@ module gridStateVector_mod
       if ( thisProcIsAsender(yourid+1) ) numStepInput = numStepInput + 1
     end do
 
-    if ( stateVector_tiles%dataKind == 4 ) then
+    if (stateVector_1step%allocated) then
+      inKindLocal = stateVector_1step%dataKind
+    else
+      inKindLocal = -1
+    end if
+    call rpn_comm_allreduce(inKindLocal, inKind, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    outKind = stateVector_tiles%dataKind
+    if ( inKind == 4 .or. outKind == 4 ) then
+      sendrecvKind = 4
+    else
+      sendrecvKind = 8
+    end if
+
+    ! allocate arrays used for mpi communication of 1 level/variable at a time
+    if ( sendrecvKind == 4 ) then
       allocate(gd_recv_3d_r4(stateVector_tiles%lonPerPE,stateVector_tiles%latPerPE,numStepInput))
       gd_recv_3d_r4(:,:,:) = 0.0
       if ( stateVector_1step%allocated ) then
@@ -6235,8 +6251,7 @@ module gridStateVector_mod
         allocate(gd_send_1d_r4(1))
       end if
       gd_send_1d_r4(:) = 0.0
-      call gsv_getField(stateVector_tiles,field_out_r4_ptr)
-    else if ( stateVector_tiles%dataKind == 8 ) then
+    else
       allocate(gd_recv_3d_r8(stateVector_tiles%lonPerPE,stateVector_tiles%latPerPE,numStepInput))
       gd_recv_3d_r8(:,:,:) = 0.0d0
       if ( stateVector_1step%allocated ) then
@@ -6245,6 +6260,11 @@ module gridStateVector_mod
         allocate(gd_send_1d_r8(1))
       end if
       gd_send_1d_r8(:) = 0.0d0
+    end if
+
+    if ( stateVector_tiles%dataKind == 4 ) then
+      call gsv_getField(stateVector_tiles,field_out_r4_ptr)
+    else if ( stateVector_tiles%dataKind == 8 ) then
       call gsv_getField(stateVector_tiles,field_out_r8_ptr)
     else
       call utl_abort('gsv_transposeStepToTiles: stateVector_tiles%dataKind not real 4 or 8')
@@ -6280,26 +6300,23 @@ module gridStateVector_mod
                     stateVector_tiles%allLatPerPE(youridy+1)
             indexBeg = senddispls(yourid+1) + 1
             indexEnd = senddispls(yourid+1) + nsize
-            if ( stateVector_tiles%dataKind == 4 .and. stateVector_1step%dataKind == 4 ) then
+            if ( sendrecvKind == 4 .and. stateVector_1step%dataKind == 4 ) then
               gd_send_1d_r4(indexBeg:indexEnd) =  &
                         reshape( field_in_r4_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                                                  stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
                                                  kIndex, 1), (/ nsize /) )
-            else if ( stateVector_tiles%dataKind == 4 .and. stateVector_1step%dataKind == 8 ) then
+            else if ( sendrecvKind == 4 .and. stateVector_1step%dataKind == 8 ) then
               gd_send_1d_r4(indexBeg:indexEnd) =  &
                    real(reshape( field_in_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                                                   stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
                                                   kIndex, 1), (/ nsize /) ), 4)
-            else if ( stateVector_tiles%dataKind == 8 .and. stateVector_1step%dataKind == 4 ) then
-              gd_send_1d_r8(indexBeg:indexEnd) =  &
-                   real(reshape( field_in_r4_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                                                 stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                                 kIndex, 1), (/ nsize /) ), 8)
-            else if ( stateVector_tiles%dataKind == 8 .and. stateVector_1step%dataKind == 8 ) then
+            else if ( sendrecvKind == 8 .and. stateVector_1step%dataKind == 8 ) then
               gd_send_1d_r8(indexBeg:indexEnd) =  &
                         reshape( field_in_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                                                  stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
                                                  kIndex, 1), (/ nsize /) )
+            else
+              call utl_abort('gsv_stepToTiles: unexpected combination of real kinds')
             end if
           end do
         end do
@@ -6307,11 +6324,11 @@ module gridStateVector_mod
       end if
 
       call tmg_start(157,'gsv_stepToTiles_alltoallv')
-      if ( stateVector_tiles%dataKind == 4 ) then
+      if ( sendrecvKind == 4 ) then
         call mpi_alltoallv(gd_send_1d_r4, sendsizes, senddispls, mpi_datyp_real4, &
                            gd_recv_3d_r4, recvsizes, recvdispls, mpi_datyp_real4, &
                            mpi_comm_grid, ierr)
-      elseif ( stateVector_tiles%dataKind == 8 ) then
+      else if ( sendrecvKind == 8 ) then
         call mpi_alltoallv(gd_send_1d_r8, sendsizes, senddispls, mpi_datyp_real8, &
                            gd_recv_3d_r8, recvsizes, recvdispls, mpi_datyp_real8, &
                            mpi_comm_grid, ierr)
@@ -6330,12 +6347,17 @@ module gridStateVector_mod
         if ( stepIndex > stateVector_tiles%numStep ) then
           call utl_abort('gsv_transposeStepToTiles: stepIndex > numStep')
         end if
-        if ( stateVector_tiles%dataKind == 4 ) then
+        if ( sendrecvKind == 4 .and. stateVector_tiles%dataKind == 4 ) then
           field_out_r4_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                            stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                            kIndex, stepIndex) =   &
               gd_recv_3d_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount)
-        else if ( stateVector_tiles%dataKind == 8 ) then
+        else if ( sendrecvKind == 4 .and. stateVector_tiles%dataKind == 8 ) then
+          field_out_r8_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
+                           stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
+                           kIndex, stepIndex) =   &
+              real(gd_recv_3d_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount),8)
+        else if ( sendrecvKind == 8 .and. stateVector_tiles%dataKind == 8 ) then
           field_out_r8_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                            stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                            kIndex, stepIndex) =   &
@@ -6345,10 +6367,10 @@ module gridStateVector_mod
       end do ! procIndex
     end do kIndex_Loop ! kIndex
 
-    if ( stateVector_tiles%dataKind == 4 ) then
+    if ( sendrecvKind == 4 ) then
       deallocate(gd_recv_3d_r4)
       deallocate(gd_send_1d_r4)
-    else if ( stateVector_tiles%dataKind == 8 ) then
+    else if ( sendrecvKind == 8 ) then
       deallocate(gd_recv_3d_r8)
       deallocate(gd_send_1d_r8)
     end if
@@ -6427,6 +6449,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
     integer :: kIndex, procIndex, stepIndex, numStepOutput, stepCount
+    integer :: inKind, outKind, sendrecvKind, outKindLocal
     logical :: thisProcIsAreceiver(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
     real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
@@ -6485,8 +6508,22 @@ module gridStateVector_mod
       senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
     end do
 
+    if (stateVector_1step%allocated) then
+      outKindLocal = stateVector_1step%dataKind
+    else
+      outKindLocal = -1
+    end if
+    call rpn_comm_allreduce(outKindLocal, outKind, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    inKind = stateVector_tiles%dataKind
+    if ( inKind == 4 .or. outKind == 4 ) then
+      sendrecvKind = 4
+    else
+      sendrecvKind = 8
+    end if
+
     ! allocate arrays used for mpi communication of 1 level/variable at a time
-    if ( stateVector_tiles%dataKind == 4 ) then
+    if ( sendrecvKind == 4 ) then
       allocate(gd_send_r4(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepOutput))
       gd_send_r4(:,:,:) = 0.0
       if ( stateVector_1step%allocated ) then
@@ -6495,7 +6532,7 @@ module gridStateVector_mod
         allocate(gd_recv_r4(1,1,1))
       end if
       gd_recv_r4(:,:,:) = 0.0
-    else if ( stateVector_tiles%dataKind == 8 ) then
+    else
       allocate(gd_send_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepOutput))
       gd_send_r8(:,:,:) = 0.0d0
       if ( stateVector_1step%allocated ) then
@@ -6504,8 +6541,6 @@ module gridStateVector_mod
         allocate(gd_recv_r8(1,1,1))
       end if
       gd_recv_r8(:,:,:) = 0.0d0
-    else
-      call utl_abort('gsv_transposeTilesToStep: stateVector_tiles%dataKind not real 4 or 8')
     end if
 
     if ( stateVector_tiles%dataKind == 4 ) then
@@ -6531,97 +6566,100 @@ module gridStateVector_mod
           call utl_abort('gsv_transposeTilesToStep: stepIndex > numStep')
         end if
 
-        if ( stateVector_tiles%dataKind == 4 ) then
+        if ( sendrecvKind == 4 .and. stateVector_tiles%dataKind == 4 ) then
           gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount) = &
                field_in_r4_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                                stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                                kIndex, stepIndex)
-        else if ( stateVector_tiles%dataKind == 8 ) then
+        else if ( sendrecvKind == 4 .and. stateVector_tiles%dataKind == 8 ) then
+          gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount) = &
+               real(field_in_r8_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
+                                    stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
+                                    kIndex, stepIndex),4)
+        else if ( sendrecvKind == 8 .and. stateVector_tiles%dataKind == 8 ) then
           gd_send_r8(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount) = &
                field_in_r8_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                                stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                                kIndex, stepIndex)
         else
-          call utl_abort('gsv_transposeTilesToStep: stateVector_tiles%dataKind not real 4 or 8')
+          call utl_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
         end if
 
       end do ! procIndex
 
-      if ( stateVector_tiles%dataKind == 4 ) then
+      if ( sendrecvKind == 4 ) then
         call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4, &
                            gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, &
                            mpi_comm_grid, ierr)
-      else if ( stateVector_tiles%dataKind == 8 ) then
+      else if ( sendrecvKind == 8 ) then
         call mpi_alltoallv(gd_send_r8, sendsizes, senddispls, mpi_datyp_real8, &
                            gd_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, &
                            mpi_comm_grid, ierr)
-      else
-        call utl_abort('gsv_transposeTilesToStep: dataKind not real 4 or 8')
       end if
 
       ! copy over the complete 1 timestep received
       if ( stateVector_1step%allocated ) then
 
-        if ( stateVector_1step%dataKind == 4 ) then
+        if ( sendrecvKind == 4 .and. stateVector_1step%dataKind == 4 ) then
 
           call gsv_getField(stateVector_1step,field_out_r4_ptr)
           !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
           do youridy = 0, (mpi_npey-1)
             do youridx = 0, (mpi_npex-1)
               yourid = youridx + youridy*mpi_npex
-              if ( stateVector_tiles%dataKind == 4 ) then
-                field_out_r4_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                                 stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                 kIndex, 1) = &
-                      gd_recv_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                                 1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
-              else if ( stateVector_tiles%dataKind == 8 ) then
-                field_out_r4_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                                 stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                 kIndex, 1) = &
-                 real(gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                                 1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1), 4)
-              end if
+              field_out_r4_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                               stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
+                               kIndex, 1) = &
+                    gd_recv_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                               1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
             end do
           end do
           !$OMP END PARALLEL DO
 
-        else if ( stateVector_1step%dataKind == 8 ) then
+        else if ( sendrecvKind == 4 .and. stateVector_1step%dataKind == 8 ) then
 
           call gsv_getField(stateVector_1step,field_out_r8_ptr)
           !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
           do youridy = 0, (mpi_npey-1)
             do youridx = 0, (mpi_npex-1)
               yourid = youridx + youridy*mpi_npex
-              if ( stateVector_tiles%dataKind == 4 ) then
-                field_out_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                                 stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                 kIndex, 1) = &
-                 real(gd_recv_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                                 1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1), 8)
-              else if ( stateVector_tiles%dataKind == 8 ) then
-                field_out_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                                 stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                 kIndex, 1) = &
-                      gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                                 1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
-              end if
+              field_out_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                               stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
+                               kIndex, 1) = &
+               real(gd_recv_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                               1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1), 8)
+            end do
+          end do
+          !$OMP END PARALLEL DO
+
+        else if ( sendrecvKind == 8 .and. stateVector_1step%dataKind == 8 ) then
+
+          call gsv_getField(stateVector_1step,field_out_r8_ptr)
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mpi_npey-1)
+            do youridx = 0, (mpi_npex-1)
+              yourid = youridx + youridy*mpi_npex
+              field_out_r8_ptr(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                               stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
+                               kIndex, 1) = &
+                    gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                               1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
             end do
           end do
           !$OMP END PARALLEL DO
 
         else
-          call utl_abort('gsv_transposeTilesToStep: stateVector_1step%dataKind not real 4 or 8')
+          call utl_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
         end if
 
       end if
 
     end do ! kIndex
 
-    if ( stateVector_tiles%dataKind == 4 ) then
+    if ( sendrecvKind == 4 ) then
       deallocate(gd_recv_r4)
       deallocate(gd_send_r4)
-    else if ( stateVector_tiles%dataKind == 8 ) then
+    else if ( sendrecvKind == 8 ) then
       deallocate(gd_recv_r8)
       deallocate(gd_send_r8)
     end if
