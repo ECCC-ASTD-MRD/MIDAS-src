@@ -21,6 +21,7 @@ module gridVariableTransforms_mod
   !           from gridStateVector(s). Outputs are also placed in a
   !           gridStateVector.
   !
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -408,7 +409,7 @@ CONTAINS
         call utl_abort('gvt_transform: for expCH_tlm, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
         call utl_abort('gvt_transform: Invalid kind of varName for expCH_tlm')
-      else if (present(statevectorRef_opt)) then
+      else if ( .not. present(statevectorRef_opt)) then
         call utl_abort('gvt_transform: for expCH_tlm, the option statevectorRef_opt must be present')
       else if (present(statevectorOut_opt)) then
         call utl_abort('gvt_transform: for expCH_tlm, the option statevectorOut_opt is not yet available')
@@ -424,19 +425,25 @@ CONTAINS
         call utl_abort('gvt_transform: for expCH_ad, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
         call utl_abort('gvt_transform: Invalid kind of varName for expCH_ad')
-      else if (present(statevectorRef_opt)) then
+      else if ( .not. present(statevectorRef_opt)) then
         call utl_abort('gvt_transform: for expCH_ad, the option statevectorRef_opt must be present')
       else if (present(statevectorOut_opt)) then
         call utl_abort('gvt_transform: for expCH_ad, the option statevectorOut_opt is not yet available')
       end if
       call expCH_tlm(statevector, varName_opt, stateVectorRef_opt) ! self-adjoint
-      
+
     case ('CH_bounds')
       if ( .not. gsv_varKindExist('CH')  ) then
         call utl_abort('gvt_transform: for CH_bounds, variables of CH kind must be allocated in gridstatevector')
       end if
       call CH_bounds(statevector)
-      
+
+    case ('GLtoLG')
+      if ( .not. present(statevectorRef_opt)) then
+        call utl_abort('gvt_transform: for GLtoLG, the option statevectorRef_opt must be present')
+      end if
+      call GLtoLG(statevector, stateVectorRef_opt)
+
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -2092,5 +2099,197 @@ CONTAINS
     end do
 
   end subroutine CH_bounds
+
+  !--------------------------------------------------------------------------
+  ! GLtoLG
+  !--------------------------------------------------------------------------
+  subroutine GLtoLG(stateVector, stateVectorRef)
+    !
+    ! :Purpose: Solve laplaces equation at a subset of gridpoints
+    !           subject to the boundary conditions imposed by the
+    !           surrounding points.  Uses the method of sequential 
+    !           relaxation or Liebmann relaxation, which converges
+    !           more rapidly than the simultaneous relaxation (see
+    !           numerical weather analysis and prediction by P. D. 
+    !           Thompson, 1961, pp92-98)
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv) :: stateVector, stateVectorRef
+
+    ! Locals:
+    type(struct_gsv) :: statevector_analysis_1step_r8, statevector_trial_1step_r8
+
+    real(8), pointer :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:), GL_ptr(:,:,:,:)
+    real(8) :: alpha, factor, correc, rms, maxAbsCorr, basic
+
+    integer :: lonIndex, latIndex, levIndex, stepIndex
+    integer :: ipass, numPass, numCorrect
+
+    logical :: orca12
+
+    if ( mpi_myid < stateVector%numStep ) then
+      call gsv_allocate( stateVector_analysis_1step_r8, 1, stateVector%hco, stateVector%vco, &
+                         mpi_local_opt=.false., dataKind_opt=8, &
+                         varNames_opt=(/'GL','LG'/) )
+      call gsv_allocate( stateVector_trial_1step_r8, 1, stateVectorRef%hco, stateVectorRef%vco, &
+                         mpi_local_opt=.false., dataKind_opt=8, &
+                         varNames_opt=(/'GL','LG'/) )
+    end if
+
+    call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
+
+    call gsv_transposeTilesToStep(stateVector_trial_1step_r8, stateVectorRef, 1)
+
+    if ( stateVector_analysis_1step_r8%allocated ) then
+
+      call gsv_getField(stateVector_analysis_1step_r8,     GL_ptr,'GL')
+      call gsv_getField(stateVector_analysis_1step_r8, LGAnal_ptr,'LG')
+      call gsv_getField(stateVector_trial_1step_r8,   LGTrial_ptr,'LG')
+
+      alpha = 1.975d0
+      if ( stateVector%ni == 4322 .and. stateVector%nj == 3059 ) then
+        orca12 = .true.
+        numPass = 1000
+        factor = alpha*0.88d0
+      else
+        orca12 = .false.
+        numPass = 500
+        factor = alpha
+      end if
+
+      write(*,*) 'GLtoLG: Liebmann relaxation'
+      write(*,*) 'GLtoLG: Number of free points: ',  count(stateVector%hco%mask == 0)
+      write(*,*) 'GLtoLG: Number of fixed points: ', count(stateVector%hco%mask == 1)
+      write(*,*) 'GLtoLG: Total number of grid points: ', stateVector%ni*stateVector%nj
+      write(*,*) 'GLtoLG: Total number of iterations: ', numPass
+
+      do stepIndex = 1, statevector%numStep
+        write(*,*) 'GLtoLG: stepIndex = ',stepIndex
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('LG'))
+
+          write(*,*) 'GLtoLG: levIndex = ',levIndex
+
+          ! Initialisation
+          do latIndex = 1, stateVector%nj
+            do lonIndex = 1, stateVector%ni
+              if ( stateVector%hco%mask(lonIndex,latIndex) == 1 ) then
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
+              else
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
+              end if
+            end do
+          end do
+
+          do ipass=1,numPass
+
+            rms = 0.0d0
+            numCorrect = 0
+            maxAbsCorr = 0.0d0
+            do latIndex = 2, stateVector%nj-1
+              do lonIndex = 2, stateVector%ni-1
+                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  rms = rms + correc*correc
+                  numCorrect = numCorrect + 1
+                  if( abs(correc) > maxAbsCorr ) then
+                    maxAbsCorr = abs(correc)
+                  end if
+                end if
+              end do
+            end do
+
+            if( orca12 ) then
+              ! Periodicity in the X direction
+              lonIndex = 1
+              do latIndex = 2, stateVector%nj-1
+                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                  basic = ( LGAnal_ptr(lonIndex+1,      latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(stateVector%ni-2,latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,        latIndex+1,levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,        latIndex-1,levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  rms = rms + correc*correc
+                  numCorrect = numCorrect + 1
+                  if( abs(correc) > maxAbsCorr ) then
+                    maxAbsCorr = abs(correc)
+                  end if
+                end if
+              end do
+              lonIndex = stateVector%ni
+              do latIndex = 2, stateVector%nj-1
+                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                  basic = ( LGAnal_ptr(3,         latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  rms = rms + correc*correc
+                  numCorrect = numCorrect + 1
+                  if( abs(correc) > maxAbsCorr ) then
+                    maxAbsCorr = abs(correc)
+                  end if
+                end if
+              end do
+              ! North fold
+              latIndex = stateVector%nj
+              do lonIndex = 2, stateVector%ni-1
+                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                  basic = ( LGAnal_ptr(lonIndex+1,                latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex-1,                latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-2,levIndex,stepIndex) + &
+                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-1,levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  rms = rms + correc*correc
+                  numCorrect = numCorrect + 1
+                  if( abs(correc) > maxAbsCorr ) then
+                    maxAbsCorr = abs(correc)
+                  end if
+                end if
+              end do
+            end if
+
+          end do
+
+          if( numCorrect > 0 ) rms = sqrt(rms/real(numCorrect))
+
+          write(*,*) 'GLtoLG: number of points corrected = ',numCorrect
+          write(*,*) 'GLtoLG: RMS correction during last iteration: ',rms
+          write(*,*) 'GLtoLG: MAX absolute correction during last iteration: ', maxAbsCorr
+          write(*,*) 'GLtoLG: Field min value = ',minval(LGAnal_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'GLtoLG: Field max value = ',maxval(LGAnal_ptr(:,:,levIndex,stepIndex))
+
+          if( maxAbsCorr > 1.0 ) then
+            call utl_abort('GLtoLG: Unstable algorithm !')
+          end if
+
+        end do
+      end do
+
+      !
+      !- Impose limits [0,1] on sea ice concentration analysis
+      !
+      LGAnal_ptr(:,:,:,:) = min(LGAnal_ptr(:,:,:,:), 1.0d0)
+      LGAnal_ptr(:,:,:,:) = max(LGAnal_ptr(:,:,:,:), 0.0d0)
+
+    end if
+
+    call gsv_transposeStepToTiles(stateVector_analysis_1step_r8,stateVector,1)
+
+    if ( mpi_myid < stateVector%numStep ) then
+      call gsv_deallocate(stateVector_analysis_1step_r8)
+      call gsv_deallocate(stateVector_trial_1step_r8)
+    end if
+
+  end subroutine GLtoLG
 
 end module gridVariableTransforms_mod

@@ -4,6 +4,7 @@
 /
  &NAMSTATE
   ANLVAR(1) = 'GL'
+  ANLVAR(2) = 'LG'
 /
  &NAMDIMO
    NMXOBS  = 600000

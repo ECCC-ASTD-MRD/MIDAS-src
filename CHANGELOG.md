@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to generate the continuous ice concentration field LG (#456 and !431)
  * Added the capability to calculate OMP from radar Doppler velocity (#177 and !416)
  * Include SSMIS backgroundcheck: first step with satqc program (#448 and !426)
  * New compilation solution based on GNU make (#255, #443 and !317)
@@ -21,7 +22,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix calculation of normalization coefficients for explicit diffusion operator with MPI (#426 and !404)
- * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !430)
  * Fix bug in call to local subroutine `diagHBHt` in program `diagHBHt` (#441 and !421)
  * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)
  * Fix shell instablity in `src/programs/commons/compile_setup.sh` (#453 and !317)

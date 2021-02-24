@@ -416,14 +416,23 @@ CONTAINS
     end if
     call tmg_stop(181)
 
-    !
-    !- Impose limits [0,1] on sea ice concentration analysis
-    !
-    if( gsv_varExist(statevector_analysis,'GL') ) then
+    if( gsv_varExist(stateVector_analysis,'GL') ) then
 
-      call gsv_getField(statevector_analysis,GL_ptr,'GL')
+      !
+      !- Impose limits [0,1] on sea ice concentration analysis
+      !
+      call gsv_getField(stateVector_analysis,GL_ptr,'GL')
       GL_ptr(:,:,:,:) = min(GL_ptr(:,:,:,:), 1.0d0)
       GL_ptr(:,:,:,:) = max(GL_ptr(:,:,:,:), 0.0d0)
+
+      if( gsv_varExist(stateVector_analysis,'LG') ) then
+
+        !
+        !- Compute the continuous sea ice concentration field (LG)
+        !
+        call gvt_transform(stateVector_analysis,'GLtoLG',stateVectorRef_opt=stateVector_trial)
+
+      end if
 
     end if
 
@@ -690,7 +699,8 @@ CONTAINS
                       dataKind_opt=statevector_inout%dataKind,                                  &
                       allocHeightSfc_opt=statevector_inout%heightSfcPresent,                    &
                       varNames_opt=varNamesToInterpolate,                                       &
-                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
+                      hExtrapolateDegree_opt='VALUE' )
 
     ! Need to copy input PsfcReference to both real4 and real8 to isolate gsv from pre_incrReal
     if (gsv_getDataKind(statevector_in)==4) then

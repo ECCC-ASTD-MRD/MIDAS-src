@@ -105,7 +105,7 @@ yes '' | ./compile_all.sh
 
 A script, `compile_all_plat.sh`, has been written to compile all
 programs of this project on supported platforms:
-`ubuntu-14.04-amd64-64` and `sles-11-broadwell-64-xc40`.  The
+`ubuntu-18.04-amd64-64` and `sles-11-broadwell-64-xc40`.  The
 compiling is done in parallel.  You can call it with:
 ```bash
 cd src/programs
