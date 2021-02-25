@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add ability to read variable `AL` (#438 and !417)
+ * Add ability to read variable `AL` (#438 and !435)
  * Add ability to generate the continuous ice concentration field LG (#456 and !431)
  * Added the capability to calculate OMP from radar Doppler velocity (#177 and !416)
  * Include SSMIS backgroundcheck: first step with satqc program (#448 and !426)

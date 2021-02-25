@@ -43,9 +43,9 @@ module varNameList_mod
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 44
-  integer, parameter          :: VNLnumvarmax2D = 34
-  integer, parameter          :: VNLnumvarmaxOther = 6
+  integer, parameter          :: VNLnumvarmax3D    = 44
+  integer, parameter          :: VNLnumvarmax2D    = 34
+  integer, parameter          :: VNLnumvarmaxOther =  6
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
