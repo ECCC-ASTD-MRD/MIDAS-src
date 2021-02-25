@@ -43,7 +43,9 @@ module varNameList_mod
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 44,  VNLnumvarmax2D = 34,  VNLnumvarmaxOther = 5
+  integer, parameter          :: VNLnumvarmax3D    = 44
+  integer, parameter          :: VNLnumvarmax2D    = 34
+  integer, parameter          :: VNLnumvarmaxOther =  6
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
@@ -95,13 +97,13 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
-                                 'I0  ','I1  ','I7  ','I9  ','SD  '/)
+                                 'I0  ','I1  ','I7  ','I9  ','SD  ','AL  '/)
 
   character(len=4), parameter :: varLevelListOther(vnl_numvarmaxOther) = (/    &
-                                 'OT',  'OT',  'OT',  'OT',  'OT'  /)
+                                 'OT',  'OT',  'OT',  'OT',  'OT',  'OT'  /)
 
   character(len=2), parameter :: varKindListOther(vnl_numvarmaxOther) = (/     &
-                                 'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
+                                 'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
 
