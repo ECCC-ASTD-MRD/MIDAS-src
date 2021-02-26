@@ -6503,8 +6503,8 @@ write(*,*) 'here'
     end if ! heightSfcPresent
 
     ! Copy the mask if it is present
-    if ( stateVector_1step_r4%allocated ) then
-      call ocm_copyMask(stateVector_1step_r4%oceanMask, stateVector_tiles%oceanMask)
+    if ( stateVector_1step%allocated ) then
+      call ocm_copyMask(stateVector_1step%oceanMask, stateVector_tiles%oceanMask)
     end if
     call ocm_communicateMask(stateVector_tiles%oceanMask)
 
@@ -6797,8 +6797,8 @@ write(*,*) 'here'
     end if ! heightSfcPresent
 
     ! Copy mask if it exists on mpi task with step data allocated
-    if ( stateVector_1step_r4%allocated ) then
-      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step_r4%oceanMask)
+    if ( stateVector_1step%allocated ) then
+      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step%oceanMask)
     end if
 
     write(*,*) 'gsv_transposeTilesToStep: finished'

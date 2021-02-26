@@ -2111,7 +2111,11 @@ CONTAINS
     !           relaxation or Liebmann relaxation, which converges
     !           more rapidly than the simultaneous relaxation (see
     !           numerical weather analysis and prediction by P. D. 
-    !           Thompson, 1961, pp92-98)
+    !           Thompson, 1961, pp92-98). NOTE: this subroutine
+    !           currently uses the oceanMask only for the first level.
+    !           Therefore, if it is applied to 3D masked fields that
+    !           have level-dependent masks, the results will not be
+    !           what is desired!
     !
     implicit none
 
@@ -2160,8 +2164,8 @@ CONTAINS
       end if
 
       write(*,*) 'GLtoLG: Liebmann relaxation'
-      write(*,*) 'GLtoLG: Number of free points: ',  count(stateVector%hco%mask == 0)
-      write(*,*) 'GLtoLG: Number of fixed points: ', count(stateVector%hco%mask == 1)
+      write(*,*) 'GLtoLG: Number of free points: ',  count(.not. stateVector%oceanMask%mask)
+      write(*,*) 'GLtoLG: Number of fixed points: ', count(      stateVector%oceanMask%mask)
       write(*,*) 'GLtoLG: Total number of grid points: ', stateVector%ni*stateVector%nj
       write(*,*) 'GLtoLG: Total number of iterations: ', numPass
 
@@ -2174,7 +2178,7 @@ CONTAINS
           ! Initialisation
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
-              if ( stateVector%hco%mask(lonIndex,latIndex) == 1 ) then
+              if ( stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                 LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
               else
                 LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
@@ -2189,7 +2193,7 @@ CONTAINS
             maxAbsCorr = 0.0d0
             do latIndex = 2, stateVector%nj-1
               do lonIndex = 2, stateVector%ni-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
@@ -2209,7 +2213,7 @@ CONTAINS
               ! Periodicity in the X direction
               lonIndex = 1
               do latIndex = 2, stateVector%nj-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,      latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(stateVector%ni-2,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,        latIndex+1,levIndex,stepIndex) + &
@@ -2225,7 +2229,7 @@ CONTAINS
               end do
               lonIndex = stateVector%ni
               do latIndex = 2, stateVector%nj-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(3,         latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
@@ -2242,7 +2246,7 @@ CONTAINS
               ! North fold
               latIndex = stateVector%nj
               do lonIndex = 2, stateVector%ni-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,                latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,                latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-2,levIndex,stepIndex) + &

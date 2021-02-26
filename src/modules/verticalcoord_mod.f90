@@ -205,14 +205,6 @@ contains
         if (trim(nomvar) == '^^' .or. trim(nomvar) == '>>' .or.  &
             trim(nomvar) == '^>') cycle record_loop
 
-        ! check for record with surface data
-        call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
-        call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
-        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == ip1SeaLevel) then
-          sfcFieldFound = .true.
-          cycle record_loop
-        end if
-
         ! check for record with ocean data
         call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
         if (Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
@@ -230,6 +222,14 @@ contains
                    ', value = ', vco%depths(vco%nLev_depth)
             end if
           end if
+          cycle record_loop
+        end if
+
+        ! check for record with surface data (and that are not ocean variables)
+        call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
+        call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
+        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == ip1SeaLevel) then
+          sfcFieldFound = .true.
           cycle record_loop
         end if
 
