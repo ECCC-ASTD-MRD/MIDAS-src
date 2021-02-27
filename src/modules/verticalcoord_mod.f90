@@ -201,6 +201,9 @@ contains
         ! abort if !! record present, even though vgd_new failed
         if (trim(nomvar) == '!!') call utl_abort('vco_setupFromFile: found !! record')
 
+        ! ignore any variables not present in varnamelist_mod
+        if (.not. vnl_varnameIsValid(trim(nomvar))) cycle record_loop
+
         ! ignore horizontal coordinate records
         if (trim(nomvar) == '^^' .or. trim(nomvar) == '>>' .or.  &
             trim(nomvar) == '^>') cycle record_loop

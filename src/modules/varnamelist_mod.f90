@@ -36,7 +36,7 @@ module varNameList_mod
 
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
-  public :: vnl_varListIndex, vnl_varnameFromVarnum
+  public :: vnl_varListIndex, vnl_varnameFromVarnum, vnl_varnameIsValid
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
@@ -138,12 +138,12 @@ module varNameList_mod
         if( varName == vnl_varNameList3d(jvar)) then
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex.le.0) then
         call utl_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex3d
 
@@ -169,12 +169,12 @@ module varNameList_mod
         if( varName == vnl_varNameList2d(jvar) ) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex2d
 
@@ -200,12 +200,12 @@ module varNameList_mod
         if( varName == vnl_varNameListOther(jvar) ) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndexOther: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndexOther
 
@@ -231,18 +231,45 @@ module varNameList_mod
         if(varName == vnl_varNameList(jvar)) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex
 
-   !--------------------------------------------------------------------------
-   ! vnl_varnameFromVarnum
-   !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    ! vnl_varnameIsValid
+    !--------------------------------------------------------------------------
+    function vnl_varnameIsValid(varName) result(isValid)
+      !
+      ! :Purpose: To get the varlist index from the variable name
+      !
+
+      implicit none
+      
+      ! Arguments:
+      character(len=*), intent(in) :: varName
+      logical                      :: isValid
+      
+      ! Local:
+      integer                      :: varIndex
+
+      isValid = .false.
+      do varIndex = 1, vnl_numvarmax
+        if(varName == vnl_varNameList(varIndex)) then 
+          isValid = .true.
+          exit
+        end if
+      end do
+
+    end function vnl_varnameIsValid
+
+    !--------------------------------------------------------------------------
+    ! vnl_varnameFromVarnum
+    !--------------------------------------------------------------------------
     function vnl_varnameFromVarnum( varNumber, varNumberChm_opt, modelName_opt ) result(varName)
       !
       ! :Purpose: To get the variable name from the variable number
@@ -346,7 +373,7 @@ module varNameList_mod
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
            call utl_abort('vnl_varnameFromVarnum')
-        endif 
+        end if 
       end select
 
     end function vnl_varnameFromVarnum
