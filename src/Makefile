@@ -172,6 +172,8 @@ help:	#> print this help
 	@echo "       (source $(FILE_CFG) && make all && make install)"
 	@echo "OPTIONS:"
 	@echo '    consult make manual: man make'
+	@echo "ENVIRONMENT"
+	@echo "$$(cat $(FILE_CFG) | grep ^MIDAS_COMPILE.*=| sed 's/=.*$$//' | sed 's/^/    /')"
 	@echo "TARGETS:"
 	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST)|sort|\
 	cut -d":" -f2- | \

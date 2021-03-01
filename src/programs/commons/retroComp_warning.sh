@@ -64,7 +64,7 @@ then
 ║  *  MIDAS_COMPILE_ADD_DEBUG_OPTIONS  <-  COMPILE_MIDAS_ADD_DEBUG_OPTIONS     ║
 ║  *  MIDAS_COMPILE_DIR_ID  <-  COMPILEDIR_MIDAS_ID                            ║
 ║                                                                              ║
-║  If both are present, they must be equals to prevent this message from       ║
+║  If both are present, they must be equal to prevent this message from        ║
 ║  showing.  New variables have precedence.                                    ║
 ║                                                                              ║
 ║  Retro-compatibility is maintained **until** next release!                   ║
