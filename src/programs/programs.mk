@@ -27,11 +27,6 @@ oMinusF.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
 
 #--------------------------------------
-letkf.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
-		rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
-		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
-
-#--------------------------------------
 genCoeff.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) $(MPILIB) random
