@@ -161,8 +161,8 @@ cleanlst:	#> delete all listings
 .PHONY: help
 help:	#> print this help
 	@echo "USAGE:"
-	@echo '    - Build directories cleaning targets:'
-	@echo "       make clean|cleanabs|cleanall|cleandep|cleanobj"
+	@echo '    - Cleaning targets (always available):'
+	@echo "       make clean|cleanabs|cleanall|cleandep|cleanlst|cleanobj"
 	@echo 
 	@echo '    - For all targets but `clean*` or `help`:'
 	@echo "       (source $(FILE_CFG) &&\\" 
