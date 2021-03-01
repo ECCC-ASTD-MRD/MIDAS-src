@@ -44,8 +44,6 @@ module verticalCoord_mod
   integer, parameter :: maxNumOtherLevels = 20
   integer :: vco_ip1_other(maxNumOtherLevels)
 
-  integer, parameter :: maxNumDepthLevels = 200
-
   type struct_vco
      logical :: initialized=.false.
      integer :: Vcode = -1
@@ -56,12 +54,12 @@ module verticalCoord_mod
      integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
      integer :: ip1_T_2m  ! ip1 value for the 2m thermodynamic level
      integer :: ip1_M_10m ! ip1 value for the 10m momentum level
-     integer,pointer :: ip1_T(:) => null()
-     integer,pointer :: ip1_M(:) => null()  ! encoded IP1 levels (Thermo/Moment)
-     integer :: ip1_depth(maxNumDepthLevels) = 0  ! encoded IP1 levels (Ocean depth levels)
+     integer, pointer :: ip1_T(:) => null()
+     integer, pointer :: ip1_M(:) => null()  ! encoded IP1 levels (Thermo/Moment)
+     integer, pointer :: ip1_depth(:) => null() ! encoded IP1 levels (Ocean depth levels)
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
-     real(8) :: depths(maxNumDepthLevels)
+     real(8), pointer :: depths(:) => null()
   end type struct_vco
 
 contains
@@ -118,6 +116,9 @@ contains
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
     real :: otherVertCoordValue, vertCoordValue
+    integer, parameter :: maxNumDepthLevels = 200
+    real(8)            :: depths(maxNumDepthLevels)
+    integer            :: ip1_depth(maxNumDepthLevels)
 
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
@@ -214,15 +215,15 @@ contains
             vnl_varKindFromVarname(trim(nomvar)) == 'OC' ) then
           oceanFieldFound = .true.
           ! check if we've NOT already recorded this depth level
-          if ( .not. any(vertCoordValue == vco%depths(1:vco%nLev_depth)) ) then
+          if ( .not. any(vertCoordValue == depths(1:vco%nLev_depth)) ) then
             vco%nLev_depth = vco%nLev_depth + 1
-            vco%depths(vco%nLev_depth) = vertCoordValue
-            vco%ip1_depth(vco%nLev_depth) = ip1
+            depths(vco%nLev_depth) = vertCoordValue
+            ip1_depth(vco%nLev_depth) = ip1
             if (mpi_myid == 0) then
               write(*,*) 'vco_setupFromFile: found ocean record on height levels'
               write(*,*) 'vco_setupFromFile: found ocean record: nLev_depth = ', &
                    vco%nLev_depth, 'varName = ', trim(nomvar), &
-                   ', value = ', vco%depths(vco%nLev_depth)
+                   ', value = ', depths(vco%nLev_depth)
             end if
           end if
           cycle record_loop
@@ -245,6 +246,10 @@ contains
 
       ! Check if ocean depth levels are in correct order (ascending in value)
       if ( oceanFieldFound .and. vco%nLev_depth > 1 ) then
+        allocate(vco%depths(vco%nLev_depth))
+        allocate(vco%ip1_depth(vco%nLev_depth))
+        vco%depths(:)    = depths(1:vco%nLev_depth)
+        vco%ip1_depth(:) = ip1_depth(1:vco%nLev_depth)
         if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
           call utl_abort('vco_setupFromFile: some depth levels not in ascending order')
         end if
@@ -481,11 +486,15 @@ contains
     integer :: stat
 
     if ( vco%vgridPresent ) then
-      deallocate (vco%ip1_M)
-      deallocate (vco%ip1_T)
+      deallocate(vco%ip1_M)
+      deallocate(vco%ip1_T)
       stat = vgd_free(vco%vgrid)
     end if
 
+    if ( vco%nLev_depth > 0 ) then
+      deallocate(vco%depths)
+      deallocate(vco%ip1_depth)
+    end if
     nullify(vco)
 
   end subroutine vco_deallocate
@@ -563,8 +572,12 @@ contains
     call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_depth , maxNumDepthLevels , 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%depths    , maxNumDepthLevels , 'MPI_REAL8'  , 0, 'GRID', ierr)
+    if ( mpi_myid > 0 .and. vco%nLev_depth > 0 ) then
+      allocate(vco%ip1_depth(vco%nlev_depth))
+      allocate(vco%depths(vco%nlev_depth))
+    end if
+    call rpn_comm_bcast(vco%ip1_depth , vco%nlev_depth, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
     if (vco%vgridPresent) then
       if ( mpi_myid == 0 ) then
         vgd_nlev_M = size(vco%ip1_M)
