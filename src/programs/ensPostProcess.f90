@@ -149,7 +149,7 @@ program midas_ensPostProcess
   end if
 
   !- Read the sfc height from trial ensemble member 1 - only if we are doing NWP!
-  if (gsv_varExist(varName='TT')) then
+  if (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0) then
     if (readTrlEnsemble) then
       call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
                            copyToRamDisk_opt=.false.)

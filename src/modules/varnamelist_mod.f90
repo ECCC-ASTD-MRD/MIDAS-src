@@ -245,9 +245,8 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     function vnl_varnameIsValid(varName) result(isValid)
       !
-      ! :Purpose: To get the varlist index from the variable name
+      ! :Purpose: Check if the supplied variable name is known by MIDAS.
       !
-
       implicit none
       
       ! Arguments:

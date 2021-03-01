@@ -174,9 +174,8 @@ contains
     ! If present then try creating descriptor
     if (vco%vgridPresent) then
       stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
-      vco%vgridPresent = (stat == VGD_OK)
-      if ( mpi_myid == 0 .and. .not.vco%vgridPresent ) then
-        write(*,*) 'vco_setupFromFile: !! record exists, but not able to create descriptor object'
+      if (stat /= VGD_OK) then
+        call utl_abort('vco_setupFromFile: !! record exists, but not able to create descriptor object')
       end if
     end if
 
@@ -244,14 +243,18 @@ contains
 
       end do record_loop
 
-      ! Check if ocean depth levels are in correct order (ascending in value)
-      if ( oceanFieldFound .and. vco%nLev_depth > 1 ) then
+      if ( oceanFieldFound ) then
+        ! Allocate object arrays and copy in depth information
         allocate(vco%depths(vco%nLev_depth))
         allocate(vco%ip1_depth(vco%nLev_depth))
         vco%depths(:)    = depths(1:vco%nLev_depth)
         vco%ip1_depth(:) = ip1_depth(1:vco%nLev_depth)
-        if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
-          call utl_abort('vco_setupFromFile: some depth levels not in ascending order')
+
+        ! Check if ocean depth levels are in correct order (ascending in value)
+        if ( oceanFieldFound .and. vco%nLev_depth > 1 ) then
+          if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
+            call utl_abort('vco_setupFromFile: some depth levels not in ascending order')
+          end if
         end if
       end if
 
