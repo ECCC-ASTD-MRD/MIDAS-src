@@ -43,7 +43,7 @@ module oceanMask_mod
     integer             :: nj
     integer             :: nLev
     logical, pointer    :: mask(:,:,:) => null()
-    logical             :: maskPresent      = .false.
+    logical             :: maskPresent = .false.
   end type struct_ocm
 
   contains
@@ -55,17 +55,14 @@ module oceanMask_mod
     !
     ! :Purpose: Check if any mask fields exist for surface or ocean depth levels.
     !
-    ! :Note:    This is a temporary version of the subroutine that only
-    !           reads the first mask found. Eventually we will need to
-    !           store masks separately for each level.
     !
     implicit none
 
     ! arguments
-    type(struct_ocm)              :: oceanMask
-    type(struct_hco)              :: hco
-    type(struct_vco)              :: vco
-    character(len=*), intent(in)  :: fileName
+    type(struct_ocm), intent(inout) :: oceanMask
+    type(struct_hco), intent(in)    :: hco
+    type(struct_vco), intent(in)    :: vco
+    character(len=*), intent(in)    :: fileName
 
     ! locals
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file
@@ -173,9 +170,16 @@ module oceanMask_mod
   ! ocm_copyMask
   !--------------------------------------------------------------------------
   subroutine ocm_copyMask(oceanMask_in,oceanMask_out)
+    !
+    ! :Purpose: Copy the mask data from one instance of oceanMask to
+    !           another. If the destination instance is not already
+    !           allocated, then this will also be done.
+    !
     implicit none
+
     ! arguments
-    type(struct_ocm)  :: oceanMask_in, oceanMask_out
+    type(struct_ocm), intent(in)    :: oceanMask_in
+    type(struct_ocm), intent(inout) :: oceanMask_out
 
     if (.not.oceanMask_in%maskPresent .or. .not.associated(oceanMask_in%mask)) then
       write(*,*) 'ocm_copyMask: no input mask, do nothing'
@@ -202,7 +206,8 @@ module oceanMask_mod
     implicit none
 
     ! arguments
-    type(struct_ocm) :: oceanMask
+    type(struct_ocm), intent(inout) :: oceanMask
+
     ! locals
     integer :: ierr
 
@@ -236,15 +241,16 @@ module oceanMask_mod
   ! ocm_allocate
   !--------------------------------------------------------------------------
   subroutine ocm_allocate(oceanMask,ni,nj,nLev)
-    ! :Purpose: Allocate object.
-
+    !
+    ! :Purpose: Allocate the object, if it isn't already.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_ocm)     :: oceanMask
-    integer              :: ni
-    integer              :: nj
-    integer              :: nLev
+    type(struct_ocm), intent(inout) :: oceanMask
+    integer,          intent(in)    :: ni
+    integer,          intent(in)    :: nj
+    integer,          intent(in)    :: nLev
 
     if (.not.associated(oceanMask%mask)) then
       allocate(oceanMask%mask(ni,nj,nLev))
@@ -260,12 +266,13 @@ module oceanMask_mod
   ! ocm_deallocate
   !--------------------------------------------------------------------------
   subroutine ocm_deallocate(oceanMask)
+    !
     ! :Purpose: Deallocate object.
-
+    !
     implicit none
 
     ! Arguments:
-    type(struct_ocm)     :: oceanMask
+    type(struct_ocm), intent(inout) :: oceanMask
 
     if (associated(oceanMask%mask)) then
       deallocate(oceanMask%mask)
@@ -282,15 +289,16 @@ module oceanMask_mod
   ! ocm_logicalToInt
   !--------------------------------------------------------------------------
   subroutine ocm_copyToInt(oceanMask, intArray, maskLev)
-    ! :Purpose: Convert a 2D logical array into integer values
-    !           where true is 1 and false is 0.
-
+    !
+    ! :Purpose: Convert the selected level of the logical oceanMask
+    !           object into integer values where true is 1 and false is 0.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_ocm)     :: oceanMask
-    integer, intent(out) :: intArray(:,:)
-    integer, intent(in)  :: maskLev
+    type(struct_ocm), intent(inout) :: oceanMask
+    integer,          intent(out)   :: intArray(:,:)
+    integer,          intent(in)    :: maskLev
 
     intArray(:,:) = 0
     where(oceanMask%mask(:,:,maskLev)) intArray(:,:) = 1
@@ -301,15 +309,17 @@ module oceanMask_mod
   ! ocm_logicalToInt
   !--------------------------------------------------------------------------
   subroutine ocm_copyFromInt(oceanMask, intArray, maskLev)
+    !
     ! :Purpose: Convert a 2D integer array into logical values
-    !           where true is 1 and false is 0.
-
+    !           where true is 1 and false is 0 and copy into
+    !           the selected level of the oceanMask object.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_ocm)    :: oceanMask
-    integer, intent(in) :: intArray(:,:)
-    integer, intent(in) :: maskLev
+    type(struct_ocm), intent(inout) :: oceanMask
+    integer,          intent(in)    :: intArray(:,:)
+    integer,          intent(in)    :: maskLev
 
     oceanMask%mask(:,:,maskLev) = .false.
     where(intArray(:,:) == 1) oceanMask%mask(:,:,maskLev) = .true.
