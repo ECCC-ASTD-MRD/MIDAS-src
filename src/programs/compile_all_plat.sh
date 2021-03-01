@@ -55,7 +55,7 @@ cat > compile_job <<EOF
 
 set -ex
 
-export MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG:-no}
+export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 
 cd ${codedir}
 echo Launching compilation on "\${TRUE_HOST}" for platform "\${ORDENV_PLAT}"

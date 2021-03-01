@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix make-based compilation environment passing, doc and other minor issues
+   (#457 and !436)
  * Fix calculation of normalization coefficients for explicit diffusion operator with MPI (#426 and !404)
  * Fix bug in call to local subroutine `diagHBHt` in program `diagHBHt` (#441 and !421)
  * Modifications to prevent abort in IR background check mode when extra data is present in the input file (#454 and !425)

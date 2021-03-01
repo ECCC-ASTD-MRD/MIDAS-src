@@ -126,10 +126,13 @@ endif
 ifndef __exec_leafdir_midas
 __exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | cut -d'=' -f2)
 endif
+ifndef MIDAS_COMPILE_JOBNAME
+MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
+endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean  cleanall cleanabs cleanobj cleandep
+.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst
 
 
 clean:	#> delete current build directory (keep installed programs) 
@@ -142,21 +145,24 @@ cleanall:	#> delete ALL build directories (keep installed programs)
 
 ## specific cleaning target 
 cleanabs:  #> delete all absolutes in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
 
 cleanobj:  #> delete all objects in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
 
 cleandep:	#> delete all dependency files in current build directory
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+
+cleanlst:	#> delete all listings
+	rm -f  $(MIDAS_COMPILE_JOBNAME).*.{out,o}
 
 
 
 .PHONY: help
 help:	#> print this help
 	@echo "USAGE:"
-	@echo '    - Build directories cleaning targets:'
-	@echo "       make clean|cleanabs|cleanall|cleandep|cleanobj"
+	@echo '    - Cleaning targets (always available):'
+	@echo "       make clean|cleanabs|cleanall|cleandep|cleanlst|cleanobj"
 	@echo 
 	@echo '    - For all targets but `clean*` or `help`:'
 	@echo "       (source $(FILE_CFG) &&\\" 
@@ -166,6 +172,8 @@ help:	#> print this help
 	@echo "       (source $(FILE_CFG) && make all && make install)"
 	@echo "OPTIONS:"
 	@echo '    consult make manual: man make'
+	@echo "ENVIRONMENT"
+	@echo "$$(cat $(FILE_CFG) | grep ^MIDAS_COMPILE.*=| sed 's/=.*$$//' | sed 's/^/    /')"
 	@echo "TARGETS:"
 	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST)|sort|\
 	cut -d":" -f2- | \
@@ -177,7 +185,7 @@ help:	#> print this help
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
-__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep
+__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst
 ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
@@ -376,7 +384,7 @@ endif
 ##	* conda pakage at [conda-forge](https://anaconda.org/conda-forge/makedepf90)
 ##	* Debian or Ubuntu pakages
 
-$(DEP_OBJ): $(SRC_ALL)
+$(DEP_OBJ): $(SRC_ALL) $(SRC_ROOT)/programs/programs.mk
 	$(V) echo "Generating object dependencies > $@"	
 	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
 		sed  's/\([^ ]* :\)/\n\1/g' > $@
@@ -410,7 +418,7 @@ printAbs:
 printObj:
 	@echo $(OBJ)
 
-info:	#>	print build configuration
+info:	#> print build configuration
 	@echo
 	@echo '===| INFO |================================='
 	@echo version: $(VERSION)

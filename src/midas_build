@@ -85,7 +85,8 @@ function abs_path {
 ## some prior defitions 
 typeset __target
 typeset __job
-typeset __job_header
+typeset __job_opt
+typeset __job_test_target
 typeset __here
 typeset __abs_exist_list
 
@@ -112,14 +113,35 @@ mv .tmp.config.out ${__listing_config}
 if [ $# -eq 0 ]
 ## default: make all 
 then 
+    __target='all'
     __abs_exist_list=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
-    __job="make all -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 else
     __target=$@
     __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
     ## ^ there must be a simpler solution
-    __job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O  MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_ADD_DEBUG=${MIDAS_COMPILE_ADD_DEBUG} MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL} MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}"
 fi
+
+##=========================================================
+## testing target validity on frontend first
+
+__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}"
+__job_test_target="make -n ${__target} ${__job_opt}"
+
+##-- lauching dry-run to test target
+echo ${__job_test_target}
+${__job_test_target} > /dev/null 2>&1 || {
+    echo
+    echo "> ${__target}"
+    echo "╔═══════════════════╗"
+    echo "║                   ║"
+    echo "║ INVALID TARGET(S) ║"
+    echo "║                   ║"
+    echo "╚═══════════════════╝"
+    exit 1
+    }
+
+##-- if the dry-run passes, then we define the job adding multi-cores query
+__job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt}"
 
 
 ##=========================================================
@@ -142,9 +164,33 @@ fi
 ##=========================================================
 ##  Compilation on backend (in the background)
 
-__job_header="#! /bin/bash"$'\n'"set -ex"$'\n'"cd ${__here}"$'\n'"source ${__midas_dot_cfg}"
 
-echo "${__job_header}" > .compile_job
+##-- passing active environment to the job 
+##  (before sourcing config.dot.sh)
+cat > .compile_job << EOF
+#! /bin/bash
+set -ex
+
+export MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND}
+export MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND}
+export MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME}
+export MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}
+export MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES}
+export MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
+export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
+export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
+export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
+export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
+export MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET}
+export MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME}
+export MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER}
+export MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION}
+export MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO}
+export MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION}
+
+cd ${__here}
+source ${__midas_dot_cfg}
+EOF
 echo "${__job}" >> .compile_job
 
 __listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
