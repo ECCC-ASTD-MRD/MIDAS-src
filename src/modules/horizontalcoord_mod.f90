@@ -88,7 +88,7 @@ module HorizontalCoord_mod
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
     integer :: iu_template, numSubGrid, varIndex
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos, fstluk
+    integer :: fnom, fstlir, fstouv, fstfrm, fclos
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
     integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, gdll

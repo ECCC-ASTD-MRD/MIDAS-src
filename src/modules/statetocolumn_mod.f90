@@ -2790,7 +2790,9 @@ contains
                                      stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
-    !          for the bilinear horizontal interpolation.
+    !          for the bilinear horizontal interpolation. If mask is present
+    !          we currently can only handle a single 2D mask (like for sea
+    !          ice or SST analysis). Will abort if multiple ocean levels present.
     !
     implicit none
 
@@ -2814,6 +2816,7 @@ contains
     real(8) :: weightsSum
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    integer, parameter :: leftIndex = 1, rightIndex = 2, bottomIndex = 1, topIndex = 2
 
     numGridpt(:) = 0
 
@@ -2909,10 +2912,15 @@ contains
     end if
 
     if ( stateVector%oceanMask%maskPresent ) then
-      mask(1,1) = stateVector%oceanMask%mask(lonIndex  ,latIndex    ,1)
-      mask(2,1) = stateVector%oceanMask%mask(lonIndexP1,latIndex    ,1)
-      mask(1,2) = stateVector%oceanMask%mask(lonIndex  ,latIndex + 1,1)
-      mask(2,2) = stateVector%oceanMask%mask(lonIndexP1,latIndex + 1,1)
+      ! abort if 3D mask is present, since we may not handle this situation correctly
+      if ( stateVector%oceanMask%nLev > 1 ) then
+        call utl_abort('s2c_setupBilinearInterp: 3D mask present - this case not properly handled')
+      end if
+      ! extract the ocean mask
+      mask(leftIndex ,bottomIndex) = stateVector%oceanMask%mask(lonIndex  ,latIndex    ,1)
+      mask(rightIndex,bottomIndex) = stateVector%oceanMask%mask(lonIndexP1,latIndex    ,1)
+      mask(leftIndex ,topIndex   ) = stateVector%oceanMask%mask(lonIndex  ,latIndex + 1,1)
+      mask(rightIndex,topIndex   ) = stateVector%oceanMask%mask(lonIndexP1,latIndex + 1,1)
     else
       mask(:,:) = .true.
     end if
@@ -2937,28 +2945,28 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      if ( mask(1,1) ) then
+      if ( mask(leftIndex ,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) * (1.d0-dldy)
       end if
 
-      if ( mask(2,1) ) then
+      if ( mask(rightIndex,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndexP1
         WeightVec(gridptCount) =       dldx  * (1.d0-dldy)
       end if
 
-      if ( mask(1,2) ) then
+      if ( mask(leftIndex ,topIndex   ) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) *       dldy
       end if
 
-      if ( mask(2,2) ) then
+      if ( mask(rightIndex,topIndex   ) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndexP1

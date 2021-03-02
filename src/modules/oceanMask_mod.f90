@@ -81,7 +81,7 @@ module oceanMask_mod
     ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
        
     if ( ierr >= 0 ) then
-      ierr  =  fstouv(nulfile,'RND+OLD')
+      ierr = fstouv(nulfile,'RND+OLD')
     else
       call utl_abort('ocm_readMaskFromFile: problem opening input file')
     end if

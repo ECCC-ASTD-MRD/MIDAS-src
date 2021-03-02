@@ -93,7 +93,7 @@ contains
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
     real(4), allocatable :: buf2d(:,:)
-    integer :: lonIndex, latIndex, sampleIndex, k, l, timeStep
+    integer :: lonIndex, latIndex, sampleIndex, timeStep
     real(8) :: mindxy, maxL, currentMin, currentLatSpacing, currentLonSpacing
     real(8) :: a,b
     real(8), allocatable :: Lcorr(:,:)
