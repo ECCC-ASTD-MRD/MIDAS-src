@@ -55,6 +55,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_gsv)          :: stateVectorCtrlTrl
+  type(struct_gsv)          :: stateVectorRecenter
   type(struct_columnData)   :: column
 
   type(struct_eob) :: ensObs, ensObs_mpiglobal
@@ -68,7 +69,7 @@ program midas_letkf
   integer :: get_max_rss, fclos, fnom, fstopc
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
-  character(len=256) :: ensFileName, ctrlFileName
+  character(len=256) :: ensFileName, ctrlFileName, recenterFileName
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
@@ -79,6 +80,7 @@ program midas_letkf
   ! namelist variables
   character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
   logical            :: ensPostProcessing ! do all post-processing of analysis ensemble
+  logical            :: recenterInputEns  ! read a deterministic state to recenter ensemble
   integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
   integer  :: nEns                 ! ensemble size
@@ -94,7 +96,8 @@ program midas_letkf
   real(8)  :: vLocalize            ! vertical localization radius (in units of ln(Pressure in Pa))
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-  NAMELIST /NAMLETKF/algorithm, ensPostProcessing, nEns, numSubEns, ensPathName,  &
+  NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
+                     ensPathName,  &
                      hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
@@ -130,6 +133,7 @@ program midas_letkf
   !- 1.1 Setting default namelist variable values
   algorithm             = 'LETKF'
   ensPostProcessing     = .false.
+  recenterInputEns      = .false.
   ensPathName           = 'ensemble'
   nEns                  = 10
   numSubEns             = 2
@@ -248,19 +252,22 @@ program midas_letkf
                          containsFullField_opt=.true., readHeightSfc_opt=.true. )
 
   !- 2.8 Allocate various statevectors related to ensemble mean
-  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanTrl4D)
-  call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanAnl)
 
   !- 2.9 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
-  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
@@ -269,7 +276,25 @@ program midas_letkf
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
 
-  !- 2.11 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
+  !- 2.11 If desired, read a deterministic state for recentering the ensemble
+  if (recenterInputEns) then
+    call gsv_allocate( stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorRecenter)
+    call fln_ensTrlFileName( recenterFileName, './', tim_getDateStamp() )
+    do stepIndex = 1, tim_nstepobs
+      call gsv_readFromFile( stateVectorRecenter, recenterFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
+    call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeff_opt=1.0d0 )
+    call gsv_deallocate( stateVectorRecenter )
+  end if
+  
+  !- 2.12 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   if (tim_nstepobsinc < tim_nstepobs) then
