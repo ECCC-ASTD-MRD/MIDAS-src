@@ -146,6 +146,10 @@ module obsErrors_mod
 
   logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, useTovsUtil
   logical :: mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
+  real(8) :: amsuaClearClwThresholdSigmaObsInflation(5)
+  real(8) :: amsuaStateDepSigmaObsInflationCoeff
+
+  logical :: readOldSymmetricObsErrFile
 
   character(len=48) :: obserrorMode
 
@@ -192,6 +196,9 @@ contains
     integer :: fnom, fclos, ierr, nulnam  
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
+    namelist /namoer/ amsuaClearClwThresholdSigmaObsInflation
+    namelist /namoer/ amsuaStateDepSigmaObsInflationCoeff
+    namelist /namoer/ readOldSymmetricObsErrFile
 
     !
     !- 1.  Setup Mode
@@ -211,6 +218,11 @@ contains
     visAndGustAdded = .false.
     mwAllskyInflateByOmp = .false.
     mwAllskyInflateByClwDiff = .false.
+    amsuaClearClwThresholdSigmaObsInflation(:) = 0.03D0
+    amsuaClearClwThresholdSigmaObsInflation(1) = 0.05D0
+    amsuaClearClwThresholdSigmaObsInflation(4) = 0.02D0
+    amsuaStateDepSigmaObsInflationCoeff = 13.0D0
+    readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
       nulnam = 0
@@ -321,6 +333,7 @@ contains
     real(8) :: clearClwThresholdSigmaObsInflationInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: stateDepSigmaObsInflationCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    integer :: amsuaChannelOffset, amsuaChannelNum  
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -440,7 +453,15 @@ contains
         write(*,*) "CINSTR: ",CINSTR
         write(*,*) "CPLATF: ",CPLATF
         read(ILUTOV2,*)
-        read(ILUTOV2,*) ISATID2, NUMCHNIN2, stateDepSigmaObsInflationCoeffInput(JL)
+
+        ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
+        if ( readOldSymmetricObsErrFile ) then
+          read(ILUTOV2,*) ISATID2, NUMCHNIN2
+          if ( CINSTR == "AMSUA" ) stateDepSigmaObsInflationCoeffInput(JL) = amsuaStateDepSigmaObsInflationCoeff
+        else
+          read(ILUTOV2,*) ISATID2, NUMCHNIN2, stateDepSigmaObsInflationCoeffInput(JL)
+        end if
+
         if ( ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL) ) &
           call utl_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
 
@@ -454,11 +475,27 @@ contains
           call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
-          read(ILUTOV2,*) ICHNIN2(JI), &
-                clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
-                sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
-                clearClwThresholdSigmaObsInflationInput(ICHNIN2(JI),JL), &
-                useStateDepSigmaObsInput(ICHNIN2(JI),JL)
+          ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
+          if ( readOldSymmetricObsErrFile ) then
+            read(ILUTOV2,*) ICHNIN2(JI), &
+                  clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
+                  sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
+                  useStateDepSigmaObsInput(ICHNIN2(JI),JL)
+            if ( CINSTR == "AMSUA" ) then
+              amsuaChannelOffset = 27
+              amsuaChannelNum = ICHNIN2(JI) - amsuaChannelOffset
+              if ( amsuaChannelNum >= 1 .and.  amsuaChannelNum <= 5 ) then
+                clearClwThresholdSigmaObsInflationInput(ICHNIN2(JI),JL) = &
+                        amsuaClearClwThresholdSigmaObsInflation(amsuaChannelNum)
+              end if
+            end if
+          else
+            read(ILUTOV2,*) ICHNIN2(JI), &
+                  clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
+                  sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
+                  clearClwThresholdSigmaObsInflationInput(ICHNIN2(JI),JL), &
+                  useStateDepSigmaObsInput(ICHNIN2(JI),JL)
+          end if
 
           if ( ICHNIN2(JI) /= ICHNIN(JI,JL) ) & 
             call utl_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
