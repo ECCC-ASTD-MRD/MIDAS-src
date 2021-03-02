@@ -217,7 +217,7 @@ then
 else
     ## use ord_soumet
     __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
-        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 5 \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
     __listing_frontend_search="${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-*-$(date +%Y%m%d%H)*.out"
 fi

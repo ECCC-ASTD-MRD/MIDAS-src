@@ -985,7 +985,7 @@ contains
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
-    if ( allocated(stateVector%hco%mask) ) then
+    if ( stateVector%oceanMask%maskPresent ) then
       call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
     end if
     
@@ -2790,7 +2790,9 @@ contains
                                      stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
-    !          for the bilinear horizontal interpolation.
+    !          for the bilinear horizontal interpolation. If mask is present
+    !          we currently can only handle a single 2D mask (like for sea
+    !          ice or SST analysis). Will abort if multiple ocean levels present.
     !
     implicit none
 
@@ -2808,12 +2810,13 @@ contains
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     integer :: ipoint, gridptCount
     integer :: latIndexVec(4), lonIndexVec(4)
-    integer :: mask(2,2)
+    logical :: mask(2,2)
     real(8) :: WeightVec(4)
     real(8) :: dldx, dldy
     real(8) :: weightsSum
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    integer, parameter :: leftIndex = 1, rightIndex = 2, bottomIndex = 1, topIndex = 2
 
     numGridpt(:) = 0
 
@@ -2908,13 +2911,18 @@ contains
       numSubGridsForInterp = 1
     end if
 
-    if ( allocated(stateVector%hco%mask) ) then
-      mask(1,1) = stateVector%hco%mask(lonIndex  ,latIndex)
-      mask(2,1) = stateVector%hco%mask(lonIndexP1,latIndex)
-      mask(1,2) = stateVector%hco%mask(lonIndex  ,latIndex + 1)
-      mask(2,2) = stateVector%hco%mask(lonIndexP1,latIndex + 1)
+    if ( stateVector%oceanMask%maskPresent ) then
+      ! abort if 3D mask is present, since we may not handle this situation correctly
+      if ( stateVector%oceanMask%nLev > 1 ) then
+        call utl_abort('s2c_setupBilinearInterp: 3D mask present - this case not properly handled')
+      end if
+      ! extract the ocean mask
+      mask(leftIndex ,bottomIndex) = stateVector%oceanMask%mask(lonIndex  ,latIndex    ,1)
+      mask(rightIndex,bottomIndex) = stateVector%oceanMask%mask(lonIndexP1,latIndex    ,1)
+      mask(leftIndex ,topIndex   ) = stateVector%oceanMask%mask(lonIndex  ,latIndex + 1,1)
+      mask(rightIndex,topIndex   ) = stateVector%oceanMask%mask(lonIndexP1,latIndex + 1,1)
     else
-      mask(:,:) = 1
+      mask(:,:) = .true.
     end if
 
     do subGridForInterp = 1, numSubGridsForInterp
@@ -2937,28 +2945,28 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      if ( mask(1,1) == 1 ) then
+      if ( mask(leftIndex ,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) * (1.d0-dldy)
       end if
 
-      if ( mask(2,1) == 1 ) then
+      if ( mask(rightIndex,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
         lonIndexVec(gridptCount) = lonIndexP1
         WeightVec(gridptCount) =       dldx  * (1.d0-dldy)
       end if
 
-      if ( mask(1,2) == 1 ) then
+      if ( mask(leftIndex ,topIndex   ) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndex
         WeightVec(gridptCount) = (1.d0-dldx) *       dldy
       end if
 
-      if ( mask(2,2) == 1 ) then
+      if ( mask(rightIndex,topIndex   ) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex + 1
         lonIndexVec(gridptCount) = lonIndexP1
@@ -3067,8 +3075,8 @@ contains
       if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
-      if ( allocated(stateVector%hco%mask) ) then
-        if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
+      if ( stateVector%oceanMask%maskPresent ) then
+        if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) reject = .true.
       end if
 
       if ( .not. reject ) then
@@ -3138,8 +3146,8 @@ contains
                 if(dist < fpr) then
 
                   ! Ignore points that are masked out.
-                  if ( allocated(stateVector%hco%mask) ) then
-                    if (stateVector%hco%mask(lonIndex, latIndex) == 0) then
+                  if ( stateVector%oceanMask%maskPresent ) then
+                    if ( .not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
                       reject = .true.
                       exit WHILE_INSIDE
                     end if
@@ -3230,6 +3238,10 @@ contains
       call utl_abort('s2c_setupLakeInterp: Yin-Yang grid not supported')
     end if
 
+    if ( .not.stateVector%oceanMask%maskPresent ) then
+      call utl_abort('s2c_setupLakeInterp: Only compatible when mask present')
+    end if
+
     numGridpt(:) = 0
 
     reject = .false.
@@ -3243,8 +3255,8 @@ contains
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
@@ -3265,18 +3277,16 @@ contains
 
       gridptCount = 0
 
-!     It happens that the lake location is closest to a grid point
-!     where MASK(I,J) = 0 while there are other grid points for the
-!     same lake where MASK(I,J) = 1. Code needs modifications
-!     for this case.
+      ! It can happen that the lake location is closest to a grid point
+      ! where MASK(I,J) = .false. while there are other grid points for the
+      ! same lake where MASK(I,J) = .true.. Code needs modifications
+      ! for this case.
 
       ! If observation is not on the grid, don't use it.
       if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
            latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
 
-      if ( allocated(stateVector%hco%mask) ) then
-        if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
-      end if
+      if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) reject = .true.
 
       if ( .not. reject ) then
 
@@ -3299,7 +3309,7 @@ contains
 
             do latIndex = max(1,l-1),min(l+1,statevector%nj)
               do lonIndex = max(1,k-1),min(k+1,statevector%ni)
-                if(stateVector%hco%mask(lonIndex,latIndex) == 1 .and. .not. lake(lonIndex,latIndex)) then
+                if(stateVector%oceanMask%mask(lonIndex,latIndex,1) .and. .not. lake(lonIndex,latIndex)) then
                   lake(lonIndex,latIndex) = .true.
                   gridptCount = gridptCount + 1
                   lonIndexVec(gridptCount) = lonIndex

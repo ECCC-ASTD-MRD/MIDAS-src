@@ -148,20 +148,22 @@ program midas_ensPostProcess
     call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
   end if
 
-  !- Read the sfc height from trial ensemble member 1
-  if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
-                         copyToRamDisk_opt=.false.)
-  else
-    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
-                         copyToRamDisk_opt=.false.)
+  !- Read the sfc height from trial ensemble member 1 - only if we are doing NWP!
+  if (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0) then
+    if (readTrlEnsemble) then
+      call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
+                           copyToRamDisk_opt=.false.)
+    else
+      call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
+                           copyToRamDisk_opt=.false.)
+    end if
+    call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                      hInterpolateDegree_opt=hInterpolationDegree, &
+                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
+    call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
   end if
-  call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                    hInterpolateDegree_opt=hInterpolationDegree, &
-                    dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
-  call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                        containsFullField_opt=.true., readHeightSfc_opt=.true.)
 
   !- 3. Allocate and read ensembles
 

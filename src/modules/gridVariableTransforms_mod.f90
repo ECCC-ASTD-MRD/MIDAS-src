@@ -2111,7 +2111,12 @@ CONTAINS
     !           relaxation or Liebmann relaxation, which converges
     !           more rapidly than the simultaneous relaxation (see
     !           numerical weather analysis and prediction by P. D. 
-    !           Thompson, 1961, pp92-98)
+    !           Thompson, 1961, pp92-98). NOTE: this subroutine
+    !           currently uses the oceanMask only for the first level.
+    !           Therefore, if it is applied to 3D masked fields that
+    !           have level-dependent masks, the code will abort so
+    !           that the user can make the necessary adjustments to
+    !           ensure the correct behaviour.
     !
     implicit none
 
@@ -2129,6 +2134,12 @@ CONTAINS
 
     logical :: orca12
 
+    ! abort if 3D mask is present, since we may not handle this situation correctly
+    if ( stateVector%oceanMask%nLev > 1 ) then
+      call utl_abort('gvt_GLtoLG: 3D mask present - this case not properly handled')
+    end if
+
+    ! allocate statevector for single time steps
     if ( mpi_myid < stateVector%numStep ) then
       call gsv_allocate( stateVector_analysis_1step_r8, 1, stateVector%hco, stateVector%vco, &
                          mpi_local_opt=.false., dataKind_opt=8, &
@@ -2139,7 +2150,6 @@ CONTAINS
     end if
 
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
-
     call gsv_transposeTilesToStep(stateVector_trial_1step_r8, stateVectorRef, 1)
 
     if ( stateVector_analysis_1step_r8%allocated ) then
@@ -2159,22 +2169,22 @@ CONTAINS
         factor = alpha
       end if
 
-      write(*,*) 'GLtoLG: Liebmann relaxation'
-      write(*,*) 'GLtoLG: Number of free points: ',  count(stateVector%hco%mask == 0)
-      write(*,*) 'GLtoLG: Number of fixed points: ', count(stateVector%hco%mask == 1)
-      write(*,*) 'GLtoLG: Total number of grid points: ', stateVector%ni*stateVector%nj
-      write(*,*) 'GLtoLG: Total number of iterations: ', numPass
+      write(*,*) 'gvt_GLtoLG Liebmann relaxation'
+      write(*,*) 'gvt_GLtoLG Number of free points: ',  count(.not. stateVector%oceanMask%mask)
+      write(*,*) 'gvt_GLtoLG Number of fixed points: ', count(      stateVector%oceanMask%mask)
+      write(*,*) 'gvt_GLtoLG Total number of grid points: ', stateVector%ni*stateVector%nj
+      write(*,*) 'gvt_GLtoLG Total number of iterations: ', numPass
 
       do stepIndex = 1, statevector%numStep
-        write(*,*) 'GLtoLG: stepIndex = ',stepIndex
+        write(*,*) 'gvt_GLtoLG stepIndex = ',stepIndex
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('LG'))
 
-          write(*,*) 'GLtoLG: levIndex = ',levIndex
+          write(*,*) 'gvt_GLtoLG levIndex = ',levIndex
 
           ! Initialisation
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
-              if ( stateVector%hco%mask(lonIndex,latIndex) == 1 ) then
+              if ( stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                 LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
               else
                 LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
@@ -2189,7 +2199,7 @@ CONTAINS
             maxAbsCorr = 0.0d0
             do latIndex = 2, stateVector%nj-1
               do lonIndex = 2, stateVector%ni-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
@@ -2209,7 +2219,7 @@ CONTAINS
               ! Periodicity in the X direction
               lonIndex = 1
               do latIndex = 2, stateVector%nj-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,      latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(stateVector%ni-2,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,        latIndex+1,levIndex,stepIndex) + &
@@ -2225,7 +2235,7 @@ CONTAINS
               end do
               lonIndex = stateVector%ni
               do latIndex = 2, stateVector%nj-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(3,         latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
@@ -2242,7 +2252,7 @@ CONTAINS
               ! North fold
               latIndex = stateVector%nj
               do lonIndex = 2, stateVector%ni-1
-                if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) then
+                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
                   basic = ( LGAnal_ptr(lonIndex+1,                latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(lonIndex-1,                latIndex,  levIndex,stepIndex) + &
                             LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-2,levIndex,stepIndex) + &
@@ -2262,14 +2272,14 @@ CONTAINS
 
           if( numCorrect > 0 ) rms = sqrt(rms/real(numCorrect))
 
-          write(*,*) 'GLtoLG: number of points corrected = ',numCorrect
-          write(*,*) 'GLtoLG: RMS correction during last iteration: ',rms
-          write(*,*) 'GLtoLG: MAX absolute correction during last iteration: ', maxAbsCorr
-          write(*,*) 'GLtoLG: Field min value = ',minval(LGAnal_ptr(:,:,levIndex,stepIndex))
-          write(*,*) 'GLtoLG: Field max value = ',maxval(LGAnal_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_GLtoLG number of points corrected = ',numCorrect
+          write(*,*) 'gvt_GLtoLG RMS correction during last iteration: ',rms
+          write(*,*) 'gvt_GLtoLG MAX absolute correction during last iteration: ', maxAbsCorr
+          write(*,*) 'gvt_GLtoLG Field min value = ',minval(LGAnal_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_GLtoLG Field max value = ',maxval(LGAnal_ptr(:,:,levIndex,stepIndex))
 
           if( maxAbsCorr > 1.0 ) then
-            call utl_abort('GLtoLG: Unstable algorithm !')
+            call utl_abort('gvt_GLtoLG Unstable algorithm !')
           end if
 
         end do

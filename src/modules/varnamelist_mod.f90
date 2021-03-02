@@ -36,14 +36,14 @@ module varNameList_mod
 
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
-  public :: vnl_varListIndex, vnl_varnameFromVarnum
+  public :: vnl_varListIndex, vnl_varnameFromVarnum, vnl_varnameIsValid
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D    = 44
+  integer, parameter          :: VNLnumvarmax3D    = 48
   integer, parameter          :: VNLnumvarmax2D    = 34
   integer, parameter          :: VNLnumvarmaxOther =  6
 
@@ -58,7 +58,7 @@ module varNameList_mod
                                  'TO3 ','O3L ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
                                  'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',        &
                                  'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
-                                 'N2OL'/)
+                                 'N2OL','UUW ','VVW ','TM  ','SALW'/)
 
   character(len=4), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -67,7 +67,7 @@ module varNameList_mod
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',  'TH',          &
-                                 'TH'/)
+                                 'TH',  'DP',  'DP',  'DP',  'DP'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -76,11 +76,11 @@ module varNameList_mod
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'CH',          &
-                                 'CH'/)
+                                 'CH',  'OC',  'OC',  'OC',  'OC'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
-                                 'GL  ','WGE ','BIN ','MG  ','TM  ','QI1 ','QO1 ','STOR','ALFS', &
+                                 'GL  ','WGE ','BIN ','MG  ','SSH ','QI1 ','QO1 ','STOR','ALFS', &
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
                                  'DN  ','FB  ','FI  ','MSKC','LZS ','WT  ','LG  '/)
 
@@ -138,12 +138,12 @@ module varNameList_mod
         if( varName == vnl_varNameList3d(jvar)) then
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex.le.0) then
         call utl_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex3d
 
@@ -169,12 +169,12 @@ module varNameList_mod
         if( varName == vnl_varNameList2d(jvar) ) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex2d
 
@@ -200,12 +200,12 @@ module varNameList_mod
         if( varName == vnl_varNameListOther(jvar) ) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndexOther: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndexOther
 
@@ -231,18 +231,44 @@ module varNameList_mod
         if(varName == vnl_varNameList(jvar)) then 
           listIndex=jvar
           exit
-        endif
-      enddo
+        end if
+      end do
 
       if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
-      endif
+      end if
 
     end function vnl_varListIndex
 
-   !--------------------------------------------------------------------------
-   ! vnl_varnameFromVarnum
-   !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    ! vnl_varnameIsValid
+    !--------------------------------------------------------------------------
+    function vnl_varnameIsValid(varName) result(isValid)
+      !
+      ! :Purpose: Check if the supplied variable name is known by MIDAS.
+      !
+      implicit none
+      
+      ! Arguments:
+      character(len=*), intent(in) :: varName
+      logical                      :: isValid
+      
+      ! Local:
+      integer                      :: varIndex
+
+      isValid = .false.
+      do varIndex = 1, vnl_numvarmax
+        if(varName == vnl_varNameList(varIndex)) then 
+          isValid = .true.
+          exit
+        end if
+      end do
+
+    end function vnl_varnameIsValid
+
+    !--------------------------------------------------------------------------
+    ! vnl_varnameFromVarnum
+    !--------------------------------------------------------------------------
     function vnl_varnameFromVarnum( varNumber, varNumberChm_opt, modelName_opt ) result(varName)
       !
       ! :Purpose: To get the variable name from the variable number
@@ -346,7 +372,7 @@ module varNameList_mod
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
            call utl_abort('vnl_varnameFromVarnum')
-        endif 
+        end if 
       end select
 
     end function vnl_varnameFromVarnum
@@ -519,6 +545,10 @@ module varNameList_mod
         else
           call utl_abort('vnl_varLevelFromVarname: something is wrong')
         end if
+      end if
+
+      if (varLevel == 'SF' .and. varKindList(vnl_varListIndex(varName)) == 'OC') then
+        varLevel = 'SFDP'
       end if
 
     end function vnl_varLevelFromVarname

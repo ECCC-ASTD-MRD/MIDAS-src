@@ -27,6 +27,7 @@ module gridStateVector_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use oceanMask_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
@@ -50,7 +51,8 @@ module gridStateVector_mod
   public :: gsv_transposeVarsLevsToTiles
   public :: gsv_getField, gsv_getFieldUV, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D, gsv_copyHeightSfc
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
+  public :: gsv_copyHeightSfc, gsv_readMaskFromFile
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -83,6 +85,7 @@ module gridStateVector_mod
     real(8), pointer    :: gd3d_r8(:,:,:) => null()
     real(4), pointer    :: gd_r4(:,:,:,:) => null()
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
+    type(struct_ocm)    :: oceanMask
     logical             :: heightSfcPresent = .false.
     real(8), pointer    :: HeightSfc(:,:) => null()  ! surface height, if VarsLevs then only on proc 0
     ! These are used when distribution is VarLevs to keep corresponding UV
@@ -1870,6 +1873,9 @@ module gridStateVector_mod
 
     deallocate(varNameListCommon)
 
+    ! Copy mask if it exists
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+
   end subroutine gsv_copy
 
   !--------------------------------------------------------------------------
@@ -2889,14 +2895,14 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
 
-      if (.not. gsv_varExist(statevector_out,varName)) cycle
-
+      if ( .not. gsv_varExist(statevector_out,varName) ) cycle
+write(*,*) 'varName = ', varName
       ! make sure variable is in the file
       if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
-
+write(*,*) 'found'
       ! adopt a variable on the full/dynamic LAM grid
       if ( .not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
-
+write(*,*) 'here'
       foundVarNameInFile = .true.
 
       exit
@@ -3310,6 +3316,7 @@ module gridStateVector_mod
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
+    integer, allocatable :: mask(:,:)
 
     character(len=4)  :: varName, varNameToRead
     character(len=4)  :: varLevel
@@ -3336,7 +3343,7 @@ module gridStateVector_mod
 
     if ( .not. associated( statevector % datestamplist )) then
       call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
-    end if   
+    end if
 
     !- Open input field
     nulfile = 0
@@ -3387,8 +3394,8 @@ module gridStateVector_mod
         allocate(gd2d_file_r4(ni_file,nj_file))
         gd2d_file_r4(:,:) = 0.0d0
         ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                    -1,etiket_in,ip1,-1,-1,  &
-                    typvar_var,varName)
+                      -1,etiket_in,ip1,-1,-1,  &
+                      typvar_var,varName)
         if ( ierr < 0 ) then
           write(*,*) 'ip1 = ',ip1
           write(*,*) 'etiket_in = ',etiket_in
@@ -3414,7 +3421,7 @@ module gridStateVector_mod
           ! make sure variable is in the file
           if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
 
-          !! adopt a variable on the full/dynamic LAM grid
+          ! adopt a variable on the full/dynamic LAM grid
           if ( (trim(varName) == 'TM'   .or. trim(varName) == 'MG' ) ) cycle
 
           foundVarNameInFile = .true.
@@ -3487,13 +3494,18 @@ module gridStateVector_mod
           ip1 = vco_file%ip1_M_10m
         else if (varLevel == 'OT') then
           ip1 = vco_ip1_other(levIndex)
+        else if (varLevel == 'DP') then
+          ip1 = vco_file%ip1_depth(levIndex)
+        else if (varLevel == 'SFDP') then
+          ip1 = vco_file%ip1_depth(1)
         else
+          write(*,*) 'varLevel =', varLevel
           call utl_abort('gsv_readFile: unknown varLevel')
         end if
 
         typvar_var = typvar_in
 
-        ! Make sure that the input variable has the same grid size than hco_file   
+        ! Make sure that the input variable has the same grid size than hco_file
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
                       statevector%datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varNameToRead)
@@ -3524,10 +3536,15 @@ module gridStateVector_mod
         statevector%dateOriginList(stepIndex) = dateo_var
         statevector%etiket                    = etiket_var
 
+        ! Check if we found a mask field by mistake - if yes, need to fix the code!
+        if (typvar_var == '@@') then
+          call utl_abort('gsv_readFile: read a mask file by mistake - need to modify file or fix the code')
+        end if
+
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_var,varNameToRead)
+                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        typvar_var,varNameToRead)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
@@ -3543,11 +3560,17 @@ module gridStateVector_mod
           gd2d_var_r4(:,:) = 0.0
 
           ierr = fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
-                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_in,varNameToRead)
+                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
           ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+
+          ! read the corresponding mask if it exists
+          if (typvar_var(2:2) == '@') then
+            write(*,*) 'gsv_readFile: read mask that needs interpolation for variable name: ', nomvar_var
+            call utl_abort('gsv_readFile: not implemented yet')
+          end if
 
           deallocate(gd2d_var_r4)
         end if
@@ -3577,14 +3600,14 @@ module gridStateVector_mod
         ! then we re-read the corresponding UV component and store it
         if ( statevector%extraUVallocated ) then
           if (varName == 'UU') then
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'VV')
+            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
+                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          typvar_in,'VV')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           else if (varName == 'VV') then
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'UU')
+            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
+                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          typvar_in,'UU')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           end if
         end if
@@ -3593,12 +3616,34 @@ module gridStateVector_mod
     end do
 
     if (statevector%hco%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
+    if (allocated(mask)) deallocate(mask)
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
     if ( associated(gd2d_file_r4) ) deallocate(gd2d_file_r4)
 
+    ! Read in an oceanMask if it is present in the file
+    call gsv_readMaskFromFile(statevector, trim(filename))
+
   end subroutine gsv_readFile
+
+  !--------------------------------------------------------------------------
+  ! gsv_readMaskFromFile
+  !--------------------------------------------------------------------------
+  subroutine gsv_readMaskFromFile(stateVector, filename)
+    !
+    ! :Purpose: Check if any ocean mask fields exist. If so, read for the surface
+    !           or all ocean depth levels.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv)              :: stateVector
+    character(len=*), intent(in)  :: fileName
+
+    call ocm_readMaskFromFile(stateVector%oceanMask,stateVector%hco, stateVector%vco, filename)
+
+  end subroutine gsv_readMaskFromFile
 
   !--------------------------------------------------------------------------
   ! gsv_fileUnitsToStateUnits
@@ -3927,6 +3972,9 @@ module gridStateVector_mod
       deallocate(gd_send_height)
     end if
 
+    ! Copy over the mask, if it exists
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+
     call tmg_stop(151)
 
   end subroutine gsv_transposeVarsLevsToTiles
@@ -4201,6 +4249,9 @@ module gridStateVector_mod
       deallocate(gd_send_height)
       deallocate(gd_recv_height)
     end if ! heightSfcPresent
+
+    ! Copy over the mask, if it exists
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     write(*,*) 'gsv_transposeTilesToVarsLevs: END'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -4531,6 +4582,9 @@ module gridStateVector_mod
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if
+
+    ! Copy over the mask, if it exists
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     call tmg_stop(154)
 
@@ -5176,9 +5230,10 @@ module gridStateVector_mod
     integer :: nulfile, stepIndex
     real(4), allocatable :: work2d_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(4)   :: factor_r4, work_r4
+    integer, allocatable :: mask(:,:)
     integer   :: ierr, fstecr
     integer :: ni, nj, nk
-    integer :: dateo, npak, levIndex, nlev, varIndex
+    integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
     integer :: yourid, nsize, youridy, youridx
@@ -5294,7 +5349,7 @@ module gridStateVector_mod
     else
       typvar = 'R'
     end if
-    if ( allocated(statevector%hco%mask) ) then
+    if ( statevector%oceanMask%maskPresent ) then
       typvar(2:2) = '@'
     end if
     grtyp  = statevector%hco%grtyp
@@ -5465,12 +5520,23 @@ module gridStateVector_mod
               ip1 = statevector%vco%ip1_M_10m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
               ip1 = vco_ip1_other(levIndex)
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
+              ip1 = statevector%vco%ip1_depth(levIndex)
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFDP') then
+              ip1 = statevector%vco%ip1_depth(1)
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ', varLevel
               call utl_abort('gsv_writeToFile')
             end if
 
+            ! Set the level index for the mask (if present)
+            if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
+              maskLevIndex = levIndex
+            else
+              maskLevIndex = 1
+            end if
+             
             ! Set the output variable name
             nomvar = trim(vnl_varNameList(varIndex))
             if ( trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt) ) then
@@ -5525,8 +5591,10 @@ module gridStateVector_mod
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
 
-            if ( allocated(statevector%hco%mask) ) then
-              ierr = fstecr(statevector%hco%mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
+            if ( statevector%oceanMask%maskPresent ) then
+              if (.not.allocated(mask)) allocate(mask(ni,nj))
+              call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
+              ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, 2, .false.)
             end if
@@ -5542,6 +5610,7 @@ module gridStateVector_mod
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
+    if (allocated(mask)) deallocate(mask)
 
     if (iDoWriting) then
       ierr = fstfrm(nulfile)
@@ -6139,6 +6208,12 @@ module gridStateVector_mod
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
 
+    ! Copy the mask if it is present
+    if ( stateVector_1step_r4%allocated ) then
+      call ocm_copyMask(stateVector_1step_r4%oceanMask, stateVector_varsLevs%oceanMask)
+    end if
+    call ocm_communicateMask(stateVector_varsLevs%oceanMask)
+
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_transposeStepToVarsLevs: Finished'
 
@@ -6426,6 +6501,12 @@ module gridStateVector_mod
       deallocate(gd_send_height)
 
     end if ! heightSfcPresent
+
+    ! Copy the mask if it is present
+    if ( stateVector_1step%allocated ) then
+      call ocm_copyMask(stateVector_1step%oceanMask, stateVector_tiles%oceanMask)
+    end if
+    call ocm_communicateMask(stateVector_tiles%oceanMask)
 
     write(*,*) 'gsv_transposeStepToTiles: finished'
 
@@ -6715,6 +6796,11 @@ module gridStateVector_mod
 
     end if ! heightSfcPresent
 
+    ! Copy mask if it exists on mpi task with step data allocated
+    if ( stateVector_1step%allocated ) then
+      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step%oceanMask)
+    end if
+
     write(*,*) 'gsv_transposeTilesToStep: finished'
 
   end subroutine gsv_transposeTilesToStep
@@ -6868,6 +6954,11 @@ module gridStateVector_mod
       deallocate(gd_send_r8)
 
     end if ! heightSfcPresent
+
+    ! Copy over the mask, if it exists
+    if ( stateVector_mpiGlobal%allocated ) then
+      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_mpiGlobal%oceanMask)
+    end if
 
     write(*,*) 'gsv_transposeTilesToMpiGlobal: finished'
 

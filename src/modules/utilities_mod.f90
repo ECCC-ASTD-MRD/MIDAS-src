@@ -1894,20 +1894,22 @@ contains
   end subroutine utl_checkAllocationStatus
 
 
-  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt) result(found)
+  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
     implicit none
 
+    ! arguments:
     character(len=*), intent(in) :: varName
     character(len=*), optional, intent(in) :: fileName_opt
     integer, optional, intent(in) :: fileUnit_opt
+    character(len=*), optional, intent(in) :: typvar_opt
     logical :: found
 
+    ! locals:
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: ni, nj, nk, key, ierr
     integer :: unit
-
-    character(len=128) :: fileName 
-
+    character(len=128) :: fileName
+    character(len=2)   :: typvar
     logical :: openFile
 
     if ( present(fileUnit_opt) ) then
@@ -1923,13 +1925,19 @@ contains
       end if
     end if
 
+    if ( present(typvar_opt) ) then
+      typvar = trim(typvar_opt)
+    else
+      typvar = ' '
+    end if
+
     if (openFile) then
       ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
       ierr = fstouv(unit,'RND+OLD')
     end if
 
-    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
-
+    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+    
     if ( key > 0 )  then
       found = .true.
     else
@@ -1942,6 +1950,7 @@ contains
     end if
 
   end function utl_varNamePresentInFile
+
 
   subroutine utl_reAllocate_char_1d(array,dim1)
     implicit none

@@ -24,6 +24,7 @@ module HorizontalCoord_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -63,7 +64,6 @@ module HorizontalCoord_mod
      real(8)              :: xlat2, xlat2_yan
      real(8)              :: xlon2, xlon2_yan
      real(4), allocatable :: tictacU(:)
-     integer, allocatable :: mask(:,:)
   end type struct_hco
 
   contains
@@ -84,11 +84,11 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
-    real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
+    real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    integer :: iu_template, numSubGrid
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos, fstluk
+    integer :: iu_template, numSubGrid, varIndex
+    integer :: fnom, fstlir, fstouv, fstfrm, fclos
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
     integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, gdll
@@ -99,7 +99,7 @@ module HorizontalCoord_mod
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
 
-    logical :: FileExist, global, rotated
+    logical :: FileExist, global, rotated, foundVarNameInFile
 
     character(len=4 ) :: nomvar
     character(len=2 ) :: typvar
@@ -113,7 +113,43 @@ module HorizontalCoord_mod
     endif
 
     !
-    !- 1.  Open/Check template file
+    !- 1.1  Determine which variable to use for defining the grid
+    !
+    if (present(varName_opt)) then
+
+      ! User specified variable name
+      nomvar = varName_opt
+
+    else
+
+      ! First try to use P0
+      nomvar = 'P0'
+      
+      if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) then
+        ! P0 not present, look for another suitable variable in the file
+
+        foundVarNameInFile = .false.
+        do varIndex = 1, vnl_numvarmax
+          nomvar = vnl_varNameList(varIndex)
+
+          ! check if variable is in the file
+          if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) cycle
+
+          foundVarNameInFile = .true.
+          exit
+      
+        end do
+
+        if ( .not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
+
+      end if
+
+    end if
+
+    write(*,*) 'hco_SetupFromFile: defining hco by varname= ', nomvar
+
+    !
+    !- 1.2  Open/Check template file
     !
     inquire(file=trim(TemplateFile), exist=FileExist)
 
@@ -148,11 +184,6 @@ module HorizontalCoord_mod
     ip2    = -1
     ip3    = -1
     typvar = ' '
-    if (present(varName_opt)) then
-      nomvar = varName_opt
-    else
-      nomvar = 'P0'
-    end if
 
     key = fstinf( iu_template,                                & ! IN
                   ni, nj, nk,                                 & ! OUT
@@ -381,11 +412,7 @@ module HorizontalCoord_mod
     !- 2.5 Irregular structure
     elseif ( trim(grtyp) == 'Y' ) then
 
-      !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
-      lon_8(:) = -999.999d0
-      lat_8(:) = -999.999d0
-
-      !- 2.5.2 This grid type is not rotated
+      !- 2.5.1 This grid type is not rotated
       rotated = .false.
       xlat1_4 = 0.0
       xlon1_4 = 0.0
@@ -394,8 +421,14 @@ module HorizontalCoord_mod
 
       grtypTicTac = 'L'
 
-      !- 2.5.3 Generally not a global grid, but hard to test upfront
-      global = .false.
+      !- 2.5.2 Test using first row of longitudes (should work for ORCA grids)
+      lon_8(:) = hco%lon2d_4(:,1)
+      call global_or_lam( global,     & ! OUT
+                          lon_8, ni )   ! IN
+
+      !-  2.5.3 Initialize latitudes and longitudes to dummy values - should not be used!
+      lon_8(:) = -999.999d0
+      lat_8(:) = -999.999d0
 
     else
       write(*,*)
@@ -447,38 +480,6 @@ module HorizontalCoord_mod
     deallocate(lat_8)
     deallocate(lon_8)
 
-    !- 3.1  Read the mask if present
-
-    dateo  = -1
-    etiket = EtiketName
-    ip1    = -1
-    ip2    = -1
-    ip3    = -1
-    typvar = '@@'
-    nomvar = ' '
-
-    key = fstinf( iu_template,                                   & ! IN
-                  ni_t, nj_t, nk,                                & ! OUT
-                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
-
-    if (key >= 0) then
-      write(*,*) 'hco_setupFromFile: reading in the 2D mask'
-
-      !  Test if the dimensions are compatible with the grid
-      if ( ni_t /= ni .or. nj_t /= nj ) then
-        write(*,*)
-        write(*,*) 'hco_SetupFromFile: Incompatible mask grid descriptors !'
-        write(*,*) 'Found     :', ni_t, nj_t
-        write(*,*) 'Should be :', ni, nj
-        call utl_abort('hco_setupFromFile')
-      end if
-
-      allocate(hco % mask(ni,nj))
-
-      key = fstluk(hco%mask, key, ni_t, nj_t, nk)
-
-    end if
-
     !
     !- 4.  Close the input file
     !
@@ -508,7 +509,8 @@ module HorizontalCoord_mod
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
 
-    if ( next_lon - lon(1) > 360.0d0 ) then
+    if ( next_lon - lon(1) > 360.0d0 .or. &
+         next_lon - lon(1) < 3.0*dx ) then
 
       global = .true.
       if ( lon(1) == lon(ni) ) then
@@ -537,7 +539,6 @@ module HorizontalCoord_mod
     type(struct_hco), pointer :: hco
     integer :: ierr
     integer, external :: ezqkdef
-    logical           :: maskAllocated
 
     write(*,*) 'hco_mpiBcast: starting'
 
@@ -591,15 +592,6 @@ module HorizontalCoord_mod
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not set for grtyp = ',hco%grtyp
         hco%EZscintID  = -1
       endif
-    endif
-
-    maskAllocated = allocated(hco%mask)
-    call rpn_comm_bcast(maskAllocated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    if ( maskAllocated ) then
-       if ( mpi_myid > 0 ) then
-          allocate(hco % mask(hco%ni,hco%nj))
-       endif
-       call rpn_comm_bcast(hco%mask, size(hco%mask), 'MPI_INTEGER', 0, 'GRID', ierr)
     endif
 
     write(*,*) 'hco_mpiBcast: done'

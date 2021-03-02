@@ -33,6 +33,7 @@ module diffusion_mod
   use mpivar_mod
   use horizontalCoord_mod
   use verticalCoord_mod
+  use oceanMask_mod
   use EarthConstants_mod, only : rayt
   use randomNumber_mod
   use utilities_mod
@@ -92,7 +93,7 @@ contains
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
     real(4), allocatable :: buf2d(:,:)
-    integer :: lonIndex, latIndex, sampleIndex, k, l, timeStep
+    integer :: lonIndex, latIndex, sampleIndex, timeStep
     real(8) :: mindxy, maxL, currentMin, currentLatSpacing, currentLonSpacing
     real(8) :: a,b
     real(8), allocatable :: Lcorr(:,:)
@@ -134,6 +135,7 @@ contains
     character(len=*), parameter :: myName = 'diff_setup'
     character(len=*), parameter :: correlationLengthFileName = './bgstddev'
     type(struct_gsv)            :: statevector
+    type(struct_ocm)            :: oceanMask
     real(4),pointer             :: field3D_r4_ptr(:,:,:)
 
     if ( nDiffAlreadyAllocated == nMaxDiff ) then
@@ -205,13 +207,14 @@ contains
     ! cosinus of latitudes on staggered grid
     diff( diffID ) % cosyhalf(:) = cos( latr(:) + 0.5d0 * diff( diffID ) % dlat )
 
-    ! Get mask from hco
+    ! Get mask from analysisgrid file
+    call ocm_readMaskFromFile(oceanMask, hco, vco, './analysisgrid')
 
     ! land mask (1=water, 0=land)
     do latIndex = 1, nj
       do lonIndex = 1, ni
           
-        if ( hco % mask ( lonIndex, latIndex ) == 1 ) then
+        if ( oceanMask%mask ( lonIndex, latIndex, 1 ) ) then
           m ( lonIndex, latIndex ) = 1.0d0
         else
           m ( lonIndex, latIndex ) = 0.0d0
@@ -219,6 +222,7 @@ contains
        
       end do
     end do
+    call ocm_deallocate(oceanMask)
    
     m (  :, 1  ) = 0.0d0
     m (  1, :  ) = 0.0d0

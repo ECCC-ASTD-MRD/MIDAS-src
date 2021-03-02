@@ -209,8 +209,9 @@ program midas_var
        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
        dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
-  ! get final increment
+  ! get final increment with mask if it exists
   call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)
+  call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
 
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')

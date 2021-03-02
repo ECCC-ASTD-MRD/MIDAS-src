@@ -1,0 +1,23 @@
+ &namEnsPostProc
+   nEns                  = 80
+   readTrlEnsemble       = .true.
+   readAnlEnsemble       = .false.
+/
+ &namEnsPostProcModule
+   !weightRecenter           = 1.0D0
+/
+ &NAMBHI
+/
+ &NAMBEN
+/
+ &NAMTIME
+   DSTEPOBSINC = 6.0d0
+   DSTEPOBS    = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)    ='SSH'
+   ANLVAR(2)    ='TM'
+   ANLVAR(3)    ='SALW'
+   ANLVAR(4)    ='UUW'
+   ANLVAR(5)    ='VVW'
+/
