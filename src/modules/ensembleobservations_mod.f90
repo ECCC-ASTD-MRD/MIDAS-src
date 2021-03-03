@@ -488,20 +488,36 @@ CONTAINS
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
-    ! copy search results to output vectors, only those within vertical localization distance
-    numLocalObsFound = 0
-    numLocalObs = 0
-    do localObsIndex=1, numLocalObsFoundSearch
-      distance = abs( logPres - ensObs%logPres(searchResults(localObsIndex)%idx) )
-      if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
-        numLocalObsFound = numLocalObsFound + 1
-        if (numLocalObs < maxNumLocalObs) then
-          numLocalObs = numLocalObs + 1
-          localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-          distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+    if (vLocalize > 0.0d0) then
+      ! copy search results to output vectors, only those within vertical localization distance
+      numLocalObsFound = 0
+      numLocalObs = 0
+      do localObsIndex=1, numLocalObsFoundSearch
+        distance = abs( logPres - ensObs%logPres(searchResults(localObsIndex)%idx) )
+        if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
+          numLocalObsFound = numLocalObsFound + 1
+          if (numLocalObs < maxNumLocalObs) then
+            numLocalObs = numLocalObs + 1
+            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
+            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+          end if
         end if
-      end if
-    end do
+      end do
+    else
+      ! no vertical location, so just copy results
+      numLocalObsFound = 0
+      numLocalObs = 0
+      do localObsIndex=1, numLocalObsFoundSearch
+        if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
+          numLocalObsFound = numLocalObsFound + 1
+          if (numLocalObs < maxNumLocalObs) then
+            numLocalObs = numLocalObs + 1
+            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
+            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+          end if
+        end if
+      end do      
+    end if
     deallocate(searchResults)
 
   end function eob_getLocalBodyIndices

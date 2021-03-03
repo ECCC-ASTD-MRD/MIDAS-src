@@ -95,8 +95,9 @@ contains
     character(len=*)            :: mpiDistribution
 
     ! Locals
-    integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, nLev_M, ierr, matrixRank
-    integer :: memberIndex, memberIndex1, memberIndex2
+    integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+    integer :: nLev_M, nLev_depth, nLev_weights
+    integer :: memberIndex, memberIndex1, memberIndex2, ierr, matrixRank
     integer :: memberIndexCV, memberIndexCV1, memberIndexCV2
     integer :: procIndex, procIndexSend, hLocIndex
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
@@ -132,13 +133,14 @@ contains
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
     character(len=4)     :: varLevel
+    character(len=2)     :: varKind
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: firstTime = .true.
+    logical :: hLocalizeIsConstant, firstTime = .true.
 
     write(*,*) 'enkf_LETKFanalyses: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -154,8 +156,10 @@ contains
     allocate(requestIdSend(3*myNumLatLonSend*maxval(myNumProcIndexesSend)))
     allocate(requestIdRecv(3*myNumLatLonRecv))
 
-    nEns = ens_getNumMembers(ensembleAnl)
-    nLev_M = ens_getNumLev(ensembleAnl, 'MM')
+    nEns       = ens_getNumMembers(ensembleAnl)
+    nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
+    nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
+    nLev_weights = max(nLev_M,nLev_depth)
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
     myLonBeg = stateVectorMeanAnl%myLonBeg
@@ -255,13 +259,15 @@ contains
     call lfn_Setup(LocFunctionWanted='FifthOrder')
 
     ! compute 3D field of log(pressure) needed for localization
-    call enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+    if (vLocalize > 0.0d0) then
+      call enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+    end if
 
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
     numGridPointWeights = 0
-    LEV_LOOP: do levIndex = 1, nLev_M
+    LEV_LOOP: do levIndex = 1, nLev_weights
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
 
       !
@@ -299,10 +305,17 @@ contains
         ! lat-lon of the grid point for which we are doing the analysis
         anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
         anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-        anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+        hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
+        if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
+          anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+        end if
 
         ! Find which horizontal localization value to use for this analysis level
-        hLocIndex = 1 + count(anlLogPres > hLocalizePressure(:))
+        if (hLocalizeIsConstant) then
+          hLocIndex = 1
+        else
+          hLocIndex = 1 + count(anlLogPres > hLocalizePressure(:))
+        end if
 
         ! Get list of nearby observations and distances to gridpoint
         call tmg_start(9,'LETKF-getLocalBodyIndices')
@@ -326,7 +339,7 @@ contains
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical - use pressures at the grid point (not obs) location
-          if (vLocalize > 0) then
+          if (vLocalize > 0.0d0) then
             distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
@@ -745,9 +758,17 @@ contains
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
             if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
-              levIndex2 = nLev_M
-            else
+              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+              if (varKind == 'OC') then
+                levIndex2 = 1
+              else
+                levIndex2 = nLev_weights
+              end if
+            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else
+              write(*,*) 'varLevel = ', varLevel
+              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
@@ -772,9 +793,17 @@ contains
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
             if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
-              levIndex2 = nLev_M
-            else
+              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+              if (varKind == 'OC') then
+                levIndex2 = 1
+              else
+                levIndex2 = nLev_weights
+              end if
+            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else
+              write(*,*) 'varLevel = ', varLevel
+              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)

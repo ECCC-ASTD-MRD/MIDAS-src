@@ -1022,7 +1022,7 @@ contains
     maxRangeInterp = -1.0D0
 
     call obs_set_current_header_list(obsSpaceData, cdfam)
-    if (.not.beSilent) write(*,*) "Entering subroutine oop_raDvel_nl, family: ", trim(cdfam)
+    if (.not.beSilent) write(*,*) 'Entering subroutine oop_raDvel_nl, family: ', trim(cdfam)
 
     ! reading namelist variables
     if (utl_isNamelistPresent('namradvel','./flnml')) then
@@ -1102,7 +1102,7 @@ contains
 
       end do BODY
     end do HEADER
-    write(*,*) "Ending subroutine oop_raDvel_nl, family: ", trim(cdfam)
+    if (.not. beSilent) write(*,*) 'Ending subroutine oop_raDvel_nl, family: ', trim(cdfam)
 
   end subroutine oop_raDvel_nl
 

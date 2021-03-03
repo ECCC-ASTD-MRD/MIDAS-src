@@ -473,7 +473,9 @@ contains
         call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
       end if
       call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
-      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+      if (stateVectorHeightSfc%allocated) then
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+      end if
       call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       
       ! output analmean, analrms

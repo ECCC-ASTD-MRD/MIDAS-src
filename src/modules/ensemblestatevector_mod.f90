@@ -1922,6 +1922,14 @@ CONTAINS
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     character(len=4) :: varLevel
 
+    ! if an alternative mean is not provided, we need to ensure ens mean is present
+    if ( .not. present(alternativeEnsembleMean_opt)) then
+      if ( .not. ens%meanIsComputed ) then
+        if (mpi_myid == 0) write(*,*) 'ens_recenter: compute Mean since it was not already done'
+        call ens_computeMean( ens )
+      end if
+    end if
+
     if ( present(recenteringCoeff_opt) ) then
       recenteringCoeffArray(:) = recenteringCoeff_opt
     else if ( present(recenteringCoeffArray_opt) ) then

@@ -3706,8 +3706,16 @@ write(*,*) 'here'
           field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
         end if
 
-        if ( (trim(varName) == 'TT' .or. trim(varName) == 'TM') .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + mpc_k_c_degree_offset_r8, 4 )
+        if ( trim(varName) == 'TT' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) +  &
+                                                     mpc_k_c_degree_offset_r8, 4 )
+        end if
+
+        if ( trim(varName) == 'TM' .and. containsFullField ) then
+          if (maxval(field_r4_ptr(:,:,kIndex,stepIndex)) < 50.0) then
+            field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
+                                                       mpc_k_c_degree_offset_r8, 4 )
+          end if
         end if
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then

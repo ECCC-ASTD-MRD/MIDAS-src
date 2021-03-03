@@ -938,6 +938,14 @@ contains
     end if
 
     !
+    !- Check if there are any thermo or momentum levels
+    !
+    if ( (vco_template%nlev_T == 0) .and. (vco_template%nlev_M == 0) ) then
+      subset = .false.
+      return
+    end if
+
+    !
     !- Compare the IP1s
     !
     allocate(THlevelWanted(vco_template%nlev_T))

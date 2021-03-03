@@ -1,0 +1,61 @@
+ &NAMLETKF
+   algorithm             = 'LETKF'
+   ensPostProcessing     = .true.
+   recenterInputEns      = .true.
+   NENS                  = 20
+   maxNumLocalObs        = 1000
+   weightLatLonStep      = 8
+   hLocalize             = 1000.0D0
+   vLocalize             = -1.0D0
+   modifyAmsubObsError   = .false.
+   backgroundCheck       = .false.
+   huberize              = .false.
+   rejectHighLatIR       = .false.
+   rejectRadNearSfc      = .false.
+   obsTimeInterpType     = 'LINEAR'
+   mpiDistribution       = 'ROUNDROBIN'
+/
+ &namEnsPostProcModule
+/
+ &NAMWRITEDIAG
+   lWriteDiagSql   = .true.
+   onlyAssimObs    = .true.
+/
+ &NAMTIME
+   DSTEPOBS    = 24.0d0
+   DSTEPOBSINC = 24.0d0
+   DWINDOWSIZE = 24.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='TM'
+/
+ &NAMDIMO
+   NMXOBS  =  500000
+   NDATAMX = 1000000
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042
+  NFLAGS=6
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &NAMSQLsfc
+   numberElem=1
+   listElem="22042, 7025"
+   sqlExtraDat=" order by id_obs "
+   sqlNull=" and obsvalue is not null "  
+/
+ &NAMSQLUpdate
+  numberUpdateItems=2
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='OMA'
+/
+ &namSQLInsert
+/
+ &NAMCODTYP
+/

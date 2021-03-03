@@ -432,7 +432,7 @@ module HorizontalCoord_mod
 
     else
       write(*,*)
-      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U are supported !, grtyp = ', trim(grtyp)
+      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U or Y are supported !, grtyp = ', trim(grtyp)
       call utl_abort('hco_setupFromFile')
     end if
 
