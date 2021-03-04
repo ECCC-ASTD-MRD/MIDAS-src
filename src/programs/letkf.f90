@@ -74,7 +74,8 @@ program midas_letkf
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
 
-  logical :: NWPfields ! indicates if fields are on momentum and thermo levels
+  logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
+  logical :: oceanFields ! indicates if fields are on depth levels
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -95,7 +96,7 @@ program midas_letkf
   logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
-  real(8)  :: vLocalize            ! vertical localization radius (in units of ln(Pressure in Pa))
+  real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
@@ -208,10 +209,10 @@ program midas_letkf
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
-  if (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0) then
-    NWPfields = .true.
-  else
-    NWPfields = .false.
+  nwpFields   = (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0)
+  oceanFields = (vco_getNumLev(vco_ens,'DP') > 0)
+  if (.not.nwpFields .and. .not.oceanFields) then
+    call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
   end if
 
   if ( hco_ens % global ) then
@@ -252,7 +253,7 @@ program midas_letkf
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.7 Read the sfc height from ensemble member 1 - only if we are doing NWP
-  if ( NWPfields ) then
+  if ( nwpFields ) then
     call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
@@ -327,7 +328,7 @@ program midas_letkf
     call ens_copyMember(ensembleTrl4D, stateVectorWithZandP4D, memberIndex)
 
     ! copy the surface height field
-    if (NWPfields) then
+    if (nwpFields) then
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
     end if
 
@@ -363,11 +364,11 @@ program midas_letkf
   write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean background'
   write(*,*) ''
   call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
-  if (NWPfields) then
+  if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
-  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
+  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setVertLocation
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
@@ -375,9 +376,14 @@ program midas_letkf
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
 
-  ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
+  ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then
-    call eob_setLogPres(ensObs, column)
+    if (nwpFields) then
+      call eob_setTypeVertCoord(ensObs,'logPressure')
+    else if (oceanFields) then
+      call eob_setTypeVertCoord(ensObs,'depth')
+    end if
+    call eob_setVertLocation(ensObs, column)
   end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
@@ -461,7 +467,7 @@ program midas_letkf
   else
     call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
   end if
-  if (NWPfields) then
+  if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )

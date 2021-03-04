@@ -108,7 +108,7 @@ contains
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    real(8) :: anlLat, anlLon, anlLogPres, distance, tolerance, localization
+    real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
 
     integer, allocatable :: localBodyIndices(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -127,7 +127,7 @@ contains
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(8), allocatable :: memberAnlPert(:)
-    real(4), allocatable :: logPres_M_r4(:,:,:)
+    real(4), allocatable :: vertLocation_r4(:,:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
@@ -260,7 +260,7 @@ contains
 
     ! compute 3D field of log(pressure) needed for localization
     if (vLocalize > 0.0d0) then
-      call enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+      call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
     ! Compute the weights for ensemble mean and members
@@ -307,20 +307,20 @@ contains
         anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
         hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
         if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
-          anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+          anlVertLocation = vertLocation_r4(lonIndex,latIndex,levIndex)
         end if
 
         ! Find which horizontal localization value to use for this analysis level
         if (hLocalizeIsConstant) then
           hLocIndex = 1
         else
-          hLocIndex = 1 + count(anlLogPres > hLocalizePressure(:))
+          hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
         end if
 
         ! Get list of nearby observations and distances to gridpoint
         call tmg_start(9,'LETKF-getLocalBodyIndices')
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                              distances, anlLat, anlLon, anlLogPres,  &
+                                              distances, anlLat, anlLon, anlVertLocation,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1
@@ -340,7 +340,7 @@ contains
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical - use pressures at the grid point (not obs) location
           if (vLocalize > 0.0d0) then
-            distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
+            distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
           call tmg_stop(18)
@@ -853,9 +853,9 @@ contains
   end subroutine enkf_LETKFanalyses
 
   !----------------------------------------------------------------------
-  ! enkf_computeLogPresM (private subroutine)
+  ! enkf_computeVertLocation (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+  subroutine enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     !
     !:Purpose:  Compute extract global 3D log pressure field from supplied
     !           stateVector.
@@ -863,12 +863,12 @@ contains
     implicit none
 
     ! Arguments
-    real(4), allocatable :: logPres_M_r4(:,:,:)
+    real(4), allocatable :: vertLocation_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrl
 
     ! Locals
     integer          :: nLev_M, nsize, ierr
-    real(4), pointer :: logPres_M_ptr_r4(:,:,:)
+    real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step
 
@@ -890,15 +890,15 @@ contains
     end if
     call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
     call gsv_deallocate(stateVectorMeanTrlPressure)
-    allocate(logPres_M_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
+    allocate(vertLocation_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
     if (mpi_myid == 0) then
-      call gsv_getField(stateVectorMeanTrlPressure_1step,logPres_M_ptr_r4,'P_M')
-      logPres_M_r4(:,:,:) = log(logPres_M_ptr_r4(:,:,:))
+      call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
+      vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
     end if
     nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-    call rpn_comm_bcast(logPres_M_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
 
-  end subroutine enkf_computeLogPresM
+  end subroutine enkf_computeVertLocation
 
   !----------------------------------------------------------------------
   ! enkf_setupMpiDistribution (private subroutine)
