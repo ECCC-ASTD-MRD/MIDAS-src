@@ -506,21 +506,26 @@ CONTAINS
     else
       write(*,*)
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
-      pSurfRef = 101000.D0
-      nullify(pressureProfileInc_M)
-      status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, levels=pressureProfileInc_M, &
-           sfc_field=pSurfRef, in_log=.false.)
-      if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
-      nullify(pressureProfileFile_M)
-      status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, ip1_list=bEns(instanceIndex)%vco_file%ip1_M, levels=pressureProfileFile_M, &
-           sfc_field=pSurfRef, in_log=.false.)
-      if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
+      if ( bEns(instanceIndex)%nLevEns_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
+        pSurfRef = 101000.D0
+        nullify(pressureProfileInc_M)
+        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, levels=pressureProfileInc_M, &
+             sfc_field=pSurfRef, in_log=.false.)
+        if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
+        nullify(pressureProfileFile_M)
+        status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, ip1_list=bEns(instanceIndex)%vco_file%ip1_M, levels=pressureProfileFile_M, &
+             sfc_field=pSurfRef, in_log=.false.)
+        if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
       
-      EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
-      write(*,*) 'EnsTopMatchesAnlTop: EnsTopMatchesAnlTop, presEns, presInc = ', &
-           EnsTopMatchesAnlTop, pressureProfileFile_M(1), pressureProfileInc_M(1)
-      deallocate(pressureProfileFile_M)
-      deallocate(pressureProfileInc_M)
+        EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
+        write(*,*) 'ben_setupOneInstance: EnsTopMatchesAnlTop, presEns, presInc = ', &
+             EnsTopMatchesAnlTop, pressureProfileFile_M(1), pressureProfileInc_M(1)
+        deallocate(pressureProfileFile_M)
+        deallocate(pressureProfileInc_M)
+      else
+        ! not sure what this mean when no MM levels
+        EnsTopMatchesAnlTop = .true.
+      end if
 
       if ( EnsTopMatchesAnlTop ) then
         if ( mpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid match'
@@ -534,7 +539,7 @@ CONTAINS
       end if
     end if
     
-    if (bEns(instanceIndex)%vco_anl%Vcode.ne.bEns(instanceIndex)%vco_ens%Vcode) then
+    if (bEns(instanceIndex)%vco_anl%Vcode /= bEns(instanceIndex)%vco_ens%Vcode) then
       write(*,*) 'ben_setupOneInstance: vco_anl%Vcode = ', bEns(instanceIndex)%vco_anl%Vcode, ', vco_ens%Vcode = ', bEns(instanceIndex)%vco_ens%Vcode
       call utl_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
     end if

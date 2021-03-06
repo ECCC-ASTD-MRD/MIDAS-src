@@ -3284,17 +3284,23 @@ write(*,*) 'here'
   ! gsv_readFile
   !--------------------------------------------------------------------------
   subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, &
-                          containsFullField, readHeightSfc_opt, stepIndex_opt)
+                          containsFullField, readHeightSfc_opt, stepIndex_opt, &
+                          ignoreDate_opt)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object.
+    !
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector
-    character(len=*), intent(in)  :: fileName
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    logical, optional, intent(in) :: readHeightSfc_opt
-    integer, optional, intent(in) :: stepIndex_opt
-    logical, intent(in)           :: containsFullField
+    type(struct_gsv),  intent(inout) :: statevector
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: etiket_in
+    character(len=*),  intent(in)    :: typvar_in
+    logical,           intent(in)    :: containsFullField
+    logical, optional, intent(in)    :: readHeightSfc_opt
+    integer, optional, intent(in)    :: stepIndex_opt
+    logical, optional, intent(in)    :: ignoreDate_opt
 
     ! locals
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex, ikey, levIndex
@@ -3306,7 +3312,7 @@ write(*,*) 'here'
     integer :: ip1_var, ip2_var, ip3_var, swa_var, lng_var, dltf_var, ubc_var
     integer :: extra1_var, extra2_var, extra3_var
     integer :: ig1_var, ig2_var, ig3_var, ig4_var
-    integer :: varIndex
+    integer :: varIndex, dateStampList(statevector%numStep)
 
     character(len=4 ) :: nomvar_var
     character(len=2 ) :: typvar_var
@@ -3323,7 +3329,7 @@ write(*,*) 'here'
 
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
-    logical :: foundVarNameInFile 
+    logical :: foundVarNameInFile, ignoreDate
 
     vco_file => gsv_getVco(statevector)
 
@@ -3341,8 +3347,20 @@ write(*,*) 'here'
       stepIndexEnd = statevector%numStep
     end if
 
-    if ( .not. associated( statevector % datestamplist )) then
-      call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
+    if ( present(ignoreDate_opt) ) then
+      ignoreDate = ignoreDate_opt
+    else
+      ignoreDate = .false.
+    end if
+
+    if ( .not. associated( statevector%dateStampList )) then
+      call utl_abort('gsv_readFile: dateStampList of statevector is not associated with a target!')
+    else
+      dateStampList(:) = statevector%dateStampList(:)
+      if (ignoreDate) then
+        write(*,*) 'gsv_readFile: as requested, ignoring the date when reading fields'
+        dateStampList(:) = -1
+      end if
     end if
 
     !- Open input field
@@ -3497,7 +3515,7 @@ write(*,*) 'here'
         else if (varLevel == 'DP') then
           ip1 = vco_file%ip1_depth(levIndex)
         else if (varLevel == 'SFDP') then
-          ip1 = vco_file%ip1_depth(1)
+          ip1 = -1
         else
           write(*,*) 'varLevel =', varLevel
           call utl_abort('gsv_readFile: unknown varLevel')
@@ -3507,18 +3525,18 @@ write(*,*) 'here'
 
         ! Make sure that the input variable has the same grid size than hco_file
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
-                      statevector%datestamplist(stepIndex), etiket_in, &
+                      datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varNameToRead)
 
         if ( ikey < 0 ) then
           if ( trim(typvar_in) /= "" ) then
             typvar_var(2:2) = '@'
             ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
-                          statevector%datestamplist(stepIndex), etiket_in, &
+                          datestamplist(stepIndex), etiket_in, &
                           -1, -1, -1, typvar_var, varNameToRead)
           end if
           if (ikey < 0) then
-            write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
+            write(*,*) 'gsv_readFile: looking for datestamp = ', datestamplist(stepIndex)
             write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
             write(*,*) 'gsv_readFile: typvar_in = ',typvar_in
             call utl_abort('gsv_readFile: cannot find field ' // trim(varNameToRead) // ' in file ' // trim(fileName))
@@ -3543,7 +3561,7 @@ write(*,*) 'here'
 
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_var,varNameToRead)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
@@ -3560,7 +3578,7 @@ write(*,*) 'here'
           gd2d_var_r4(:,:) = 0.0
 
           ierr = fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                        datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
@@ -3591,7 +3609,7 @@ write(*,*) 'here'
         endif
 
         if (ierr.lt.0)then
-          write(*,*) varNameToRead,ip1,statevector%datestamplist(stepIndex)
+          write(*,*) varNameToRead,ip1,datestamplist(stepIndex)
           call utl_abort('gsv_readFile: Problem with reading file')
         end if
 
@@ -3601,12 +3619,12 @@ write(*,*) 'here'
         if ( statevector%extraUVallocated ) then
           if (varName == 'UU') then
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                           typvar_in,'VV')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           else if (varName == 'VV') then
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                          statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                          datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                           typvar_in,'UU')
             statevector%gdUV(kIndex)%r4(:,:,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           end if
@@ -5531,7 +5549,7 @@ write(*,*) 'here'
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
               ip1 = statevector%vco%ip1_depth(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFDP') then
-              ip1 = statevector%vco%ip1_depth(1)
+              ip1 = statevector%vco%ip1_seaLevel
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ', varLevel

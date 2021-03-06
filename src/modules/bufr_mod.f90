@@ -241,4 +241,23 @@ contains
 
   end function bufr_isWindComponent
 
+  
+  logical function bufr_isOceanObs(varNumber)
+    !
+    !:Purpose: True if the variable is an ocean observation
+    !
+    implicit none
+    
+    ! Arguments:
+    integer, intent(in) :: varNumber ! BUFR element number
+
+    select case(varNumber)
+    case(BUFR_SST)
+      bufr_isOceanObs = .true.
+    case default
+      bufr_isOceanObs = .false.
+    end select
+
+  end function bufr_isOceanObs
+
 end module bufr_mod

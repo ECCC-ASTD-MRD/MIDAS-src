@@ -757,7 +757,8 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
+            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
+                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
               varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
               if (varKind == 'OC') then
                 levIndex2 = 1
@@ -792,7 +793,8 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
+            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
+                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
               varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
               if (varKind == 'OC') then
                 levIndex2 = 1
@@ -857,46 +859,73 @@ contains
   !----------------------------------------------------------------------
   subroutine enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     !
-    !:Purpose:  Compute extract global 3D log pressure field from supplied
-    !           stateVector.
+    !:Purpose:  Compute extract global 3D vertical location field from supplied
+    !           stateVector. Can be either logPressure or depth levels.
     !
     implicit none
 
     ! Arguments
-    real(4), allocatable :: vertLocation_r4(:,:,:)
-    type(struct_gsv) :: stateVectorMeanTrl
+    real(4), allocatable, intent(inout) :: vertLocation_r4(:,:,:)
+    type(struct_gsv),     intent(inout) :: stateVectorMeanTrl
 
     ! Locals
-    integer          :: nLev_M, nsize, ierr
+    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize, ierr
     real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step
 
-    nLev_M = gsv_getNumLev(stateVectorMeanTrl, 'MM')
+    write(*,*) 'enkf_computeVertLocation: starting'
 
-    ! Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
-    call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
-                       stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
-    call gsv_zero(stateVectorMeanTrlPressure)
-    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
-    call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
-    if (mpi_myid == 0) then
-      call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
+    nLev_M = gsv_getNumLev(stateVectorMeanTrl, 'MM')
+    nLev_depth = gsv_getNumLev(stateVectorMeanTrl, 'DP')
+    if ( nLev_M > 0 .and. nLev_depth > 0 ) then
+      call utl_abort('enkf_computeVertLocation: both momentum and depth levels exist.')
+    else if ( nLev_M == 0 .and. nLev_depth == 0 ) then
+      call utl_abort('enkf_computeVertLocation: neither momentum nor depth levels exist.')
+    end if
+    nLev_vertLocation = max(nLev_M, nLev_depth)
+
+    allocate(vertLocation_r4(stateVectorMeanTrl%hco%ni, &
+                             stateVectorMeanTrl%hco%nj, &
+                             nLev_vertLocation))
+
+    if ( nLev_M > 0 ) then ! log pressure for NWP fields
+
+      ! Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
+      call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
                          stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.false., &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+      call gsv_zero(stateVectorMeanTrlPressure)
+      call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
+      call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
+      if (mpi_myid == 0) then
+        call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
+                           stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.false., &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+      end if
+      call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
+      call gsv_deallocate(stateVectorMeanTrlPressure)
+      if (mpi_myid == 0) then
+        call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
+        vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
+      end if
+      nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
+      call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+
+    else if ( nLev_depth > 0 ) then ! depth for ocean fields
+
+      ! fill in all horizontal grid points with the same profile of depth values
+      do levIndex = 1, nLev_depth
+        write(*,*) 'setting vertLocation for levIndex =', levIndex, &
+                   ', depth = ', stateVectorMeanTrl%vco%depths(levIndex)
+        vertLocation_r4(:,:,levIndex) = stateVectorMeanTrl%vco%depths(levIndex)
+      end do
+
     end if
-    call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
-    call gsv_deallocate(stateVectorMeanTrlPressure)
-    allocate(vertLocation_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
-    if (mpi_myid == 0) then
-      call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
-      vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
-    end if
-    nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-    call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+
+    write(*,*) 'enkf_computeVertLocation: finished'
 
   end subroutine enkf_computeVertLocation
 

@@ -2039,7 +2039,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
-                              containsFullField_opt)
+                              containsFullField_opt, ignoreDate_opt)
     !
     !:Purpose: Read the ensemble from disk in parallel and do mpi communication
     !          so that all members for a given lat-lon tile are present on each
@@ -2048,13 +2048,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: ensPathName
-    logical          :: biPeriodic
-    character(len=*), optional          :: varNames_opt(:)
-    type(struct_vco), pointer, optional :: vco_file_opt
-    logical, optional                   :: checkModelTop_opt
-    logical, optional, intent(in)       :: containsFullField_opt
+    type(struct_ens),                    intent(inout) :: ens
+    character(len=*),                    intent(in)    :: ensPathName
+    logical,                             intent(in)    :: biPeriodic
+    character(len=*), optional,          intent(in)    :: varNames_opt(:)
+    type(struct_vco), pointer, optional, intent(in)    :: vco_file_opt
+    logical, optional,                   intent(in)    :: checkModelTop_opt
+    logical, optional,                   intent(in)    :: containsFullField_opt
+    logical, optional,                   intent(in)    :: ignoreDate_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -2079,8 +2080,7 @@ CONTAINS
     character(len=4), pointer :: anlVar(:)
     logical :: thisProcIsAsender(mpi_nprocs)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
-    logical :: checkModelTop
-    logical :: containsFullField
+    logical :: checkModelTop, containsFullField, ignoreDate
     character(len=4), pointer :: varNames(:)
     integer, parameter :: numLevelsToSend = 10
 
@@ -2113,6 +2113,16 @@ CONTAINS
       checkModelTop = checkModelTop_opt
     else
       checkModelTop = .true.
+    end if
+
+    ! the default is to NOT ignore the date - can only ignore if numStep == 1
+    if ( present(ignoreDate_opt) ) then
+      ignoreDate = ignoreDate_opt
+    else
+      ignoreDate = .false.
+    end if
+    if ( ignoreDate .and. (numStep > 1) ) then
+      call utl_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
     end if
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
@@ -2260,10 +2270,10 @@ CONTAINS
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
-                              containsFullField)
+                              containsFullField, ignoreDate_opt=ignoreDate)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
-                              containsFullField)
+                              containsFullField, ignoreDate_opt=ignoreDate)
           end if
           if (stepIndex == numStep) then
             ierr = ram_remove(ensFileName)

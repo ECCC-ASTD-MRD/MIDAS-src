@@ -94,6 +94,7 @@ program midas_letkf
   logical  :: huberize             ! apply huber norm quality control procedure
   logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
   logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
+  logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -104,7 +105,7 @@ program midas_letkf
                      hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     obsTimeInterpType, mpiDistribution
+                     ignoreEnsDate, obsTimeInterpType, mpiDistribution
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -147,6 +148,7 @@ program midas_letkf
   huberize              = .false.
   rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
+  ignoreEnsDate         = .false.
   hLocalize(:)          = -1.0D0
   hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
@@ -284,7 +286,8 @@ program midas_letkf
 
   !- 2.10 Allocate ensembles, read the Trl ensemble
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
+  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
+                        ignoreDate_opt=ignoreEnsDate)
 
   !- 2.11 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then

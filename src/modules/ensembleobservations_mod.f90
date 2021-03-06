@@ -314,6 +314,7 @@ CONTAINS
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
     call eob_allocate(ensObs_mpiglobal, ensObs%numMembers, numObs_mpiglobal, ensObs%obsSpaceData)
+    ensObs_mpiglobal%typeVertCoord = ensObs%typeVertCoord
 
     if ( mpi_myid == 0 ) then
       displs(1) = 0
@@ -383,8 +384,6 @@ CONTAINS
       call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
-    call rpn_comm_bcast(ensObs%typeVertCoord, len(ensObs%typeVertCoord), 'mpi_character', &
-                        0, 'GRID', ierr)
     
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
@@ -592,7 +591,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_setVertLocation(ensObs, columnMeanTrl)
     !
-    ! :Purpose: Set the ln(pressure) value for each observation that 
+    ! :Purpose: Set the vertical location value for each observation that 
     !           will be used when doing vertical localization. For
     !           radiance observations, the level of the maximum value
     !           of the derivative of transmission is used. This value
@@ -615,18 +614,23 @@ CONTAINS
 
     call eob_setAssFlag(ensObs)
 
-    presM_ptr   => col_getAllColumns(columnMeanTrl,'P_M')
-    heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
-    sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
-    nLev_M = col_getNumLev(columnMeanTrl,'MM')
-
-    call tvs_getProfile(profiles,'nl')
-
-    call obs_extractObsRealBodyColumn(obsPPP, ensObs%obsSpaceData, OBS_PPP) ! this needs to work also for non-pressure level obs!!!
+    call obs_extractObsRealBodyColumn(obsPPP, ensObs%obsSpaceData, OBS_PPP)
     call obs_extractObsIntBodyColumn(varNumber, ensObs%obsSpaceData, OBS_VNM)
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntHeaderColumn(codType, ensObs%obsSpaceData, OBS_ITY)
-    do obsIndex = 1, ensObs%numObs
+
+    if (ensObs%typeVertCoord == 'logPressure') then
+
+      presM_ptr   => col_getAllColumns(columnMeanTrl,'P_M')
+      heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
+      sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
+      nLev_M = col_getNumLev(columnMeanTrl,'MM')
+
+      call tvs_getProfile(profiles,'nl')
+
+    end if
+
+    OBS_LOOP: do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData,OBS_HIND,obsIndex)
 
       if( varNumber(obsIndex) == BUFR_NETS .or. varNumber(obsIndex) == BUFR_NEPS   .or.  &
@@ -637,19 +641,41 @@ CONTAINS
           varNumber(obsIndex) == BUFR_radarPrecip .or. varNumber(obsIndex) == BUFR_logRadarPrecip ) then
 
         ! all surface observations
-        ensObs%vertLocation(obsIndex) = log(sfcPres_ptr(1,headerIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(sfcPres_ptr(1,headerIndex))
+        else if (ensObs%typeVertCoord == 'depth') then
+          ensObs%vertLocation(obsIndex) = 0.0D0
+        else
+          call utl_abort('eob_setVertLocation: unknown typeVertCoord:' // trim(ensObs%typeVertCoord))
+        end if
 
       else if (varNumber(obsIndex) == BUFR_NEZD) then
 
         ! ZTD observation, try 0.7*Psfc (i.e. ~700hPa when Psfc=1000hPa)
-        ensObs%vertLocation(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
+        else
+          call utl_abort('eob_setVertLocation: ZTD obs only compatible with logPressure coordinate')
+        end if
 
       else if (obsPPP(obsIndex) > 0.0d0 .and. obsVcoCode(obsIndex)==2) then
 
         ! all pressure level observations
-        ensObs%vertLocation(obsIndex) = log(obsPPP(obsIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(obsPPP(obsIndex))
+        else
+          call utl_abort('eob_setVertLocation: pressure obs only compatible with logPressure coordinate')
+        end if
 
-      else if(obsVcoCode(obsIndex) == 1) then
+      else if(obsVcoCode(obsIndex) == 1 .and. .not.bufr_isOceanObs(varNumber(obsIndex))) then
+
+        if (ensObs%typeVertCoord /= 'logPressure') then
+          ! skip this obs if it will not be assimilated
+          if (ensObs%assFlag(obsIndex) == 0) cycle OBS_LOOP
+          ! otherwise, abort
+          write(*,*) 'eob_setVertLocation: varNum = ', varNumber(obsIndex)
+          call utl_abort('eob_setVertLocation: height level obs only compatible with logPressure coordinate')
+        end if
 
         ! all height level observations (not including surface obs)
         obsHeight = obsPPP(obsIndex)
@@ -681,6 +707,10 @@ CONTAINS
 
       else if(tvs_isIdBurpTovs(codType(obsIndex))) then
 
+        if (ensObs%typeVertCoord /= 'logPressure') then
+          call utl_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
+        end if
+
         tovsIndex = tvs_tovsIndex(headerIndex)
         nosensor = tvs_lsensor(tovsIndex)
         numTovsLevels   = size(tvs_transmission(tovsIndex)%tau_levels,1)
@@ -699,6 +729,15 @@ CONTAINS
           ensObs%vertLocation(obsIndex) = log(500.0D2)
         end if
 
+      else if (varNumber(obsIndex) == BUFR_SST) then
+
+        if (ensObs%typeVertCoord /= 'depth') then
+          call utl_abort('eob_setVertLocation: SST obs only compatible with ocean depth coordinate')
+        end if
+
+        ! SST observations
+        ensObs%vertLocation(obsIndex) = minval(columnMeanTrl%vco%depths(:))
+
       else if(ensObs%assFlag(obsIndex)==1) then
 
         write(*,*) 'eob_setLatLonPresObs: ERROR! cannot compute pressure for this observation: ',  &
@@ -713,7 +752,7 @@ CONTAINS
                            ensObs%vertLocation(obsIndex))
       end if
 
-    end do
+    end do OBS_LOOP
 
     nullify(profiles)
 
