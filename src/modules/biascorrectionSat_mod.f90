@@ -2691,12 +2691,12 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    deallocate(trialHeight300m1000)
-    deallocate(trialHeight50m200)
-    deallocate(trialHeight1m10)
-    deallocate(trialHeight5m50)
-    deallocate(trialTG)
-    deallocate(RadiosondeWeight)
+    if (allocated(trialHeight300m1000)) deallocate(trialHeight300m1000)
+    if (allocated(trialHeight50m200)) deallocate(trialHeight50m200)
+    if (allocated(trialHeight1m10)) deallocate(trialHeight1m10)
+    if (allocated(trialHeight5m50)) deallocate(trialHeight5m50)
+    if (allocated(trialTG)) deallocate(trialTG)
+    if (allocated(RadiosondeWeight)) deallocate(RadiosondeWeight)
 
     do iSensor = 1, tvs_nSensors
       if ( allocated( bias(iSensor)%BHalfScanBias) ) &
