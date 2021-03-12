@@ -506,7 +506,7 @@ CONTAINS
     else
       write(*,*)
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
-      if ( bEns(instanceIndex)%nLevEns_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
+      if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
         pSurfRef = 101000.D0
         nullify(pressureProfileInc_M)
         status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, levels=pressureProfileInc_M, &
@@ -524,6 +524,8 @@ CONTAINS
         deallocate(pressureProfileInc_M)
       else
         ! not sure what this mean when no MM levels
+        write(*,*) 'ben_setupOneInstance: nLev_M       = ', bEns(instanceIndex)%vco_anl%nLev_M
+        write(*,*) 'ben_setupOneInstance: vgridPresent = ', bEns(instanceIndex)%vco_anl%vgridPresent
         EnsTopMatchesAnlTop = .true.
       end if
 

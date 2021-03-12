@@ -31,6 +31,7 @@ program midas_letkf
   use tovs_nl_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use oceanMask_mod
   use analysisGrid_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -63,6 +64,7 @@ program midas_letkf
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
+  type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
@@ -95,17 +97,19 @@ program midas_letkf
   logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
   logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
+  logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
+  real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName,  &
-                     hLocalize, hLocalizePressure, vLocalize,  &
+                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, obsTimeInterpType, mpiDistribution
+                     ignoreEnsDate, outputOnlyEnsMean, obsTimeInterpType, mpiDistribution
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -149,9 +153,11 @@ program midas_letkf
   rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
   ignoreEnsDate         = .false.
+  outputOnlyEnsMean     = .false.
   hLocalize(:)          = -1.0D0
   hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
+  minDistanceToLand     = -1.0D0
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
 
@@ -170,6 +176,11 @@ program midas_letkf
   end if
   hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
   hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
+
+  if (minDistanceToLand > 0.0D0) then
+    minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
+  end if
+
   if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
       trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
@@ -395,6 +406,12 @@ program midas_letkf
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
 
+  ! For ice/ocean DA: remove obs that are too close to land
+  if (minDistanceToLand > 0.0D0) then
+    call ens_copyMask(ensembleTrl4D,oceanMask)
+    call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+  end if
+
   ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
   call eob_setSigiSigo(ensObs)
 
@@ -505,7 +522,7 @@ program midas_letkf
 
     call tmg_start(8,'LETKF-postProcess')
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
-                         writeTrlEnsemble=.false.)
+                         writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
     call tmg_stop(8)
   else
     !- Just write the raw analysis ensemble to files
@@ -513,9 +530,11 @@ program midas_letkf
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
-                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                           containsFullField_opt=.true.)
+    if (.not. outputOnlyEnsMean) then
+      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                             containsFullField_opt=.true.)
+    end if
     call tmg_stop(104)
 
   end if

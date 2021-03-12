@@ -831,7 +831,10 @@ contains
 
     !Destination grid has "nAbove" levels above source grid;  tolerate one
     if ( nAbove > 1 ) then
-      call utl_abort('vco_ensureCompatibleTops: top of destination grid is more than one level higher than the top of source grid')
+      write(*,*) 'vco_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
+      write(*,*) 'vco_ensureCompatibleTops: sourcePressureLevels = ', sourcePressureLevels(1,1,:)
+      write(*,*) 'vco_ensureCompatibleTops: destPressureLevels   = ', destPressureLevels(1,1,:)
+      call utl_abort('vco_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
     end if
 
   end subroutine vco_ensureCompatibleTops

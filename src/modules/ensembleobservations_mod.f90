@@ -29,6 +29,7 @@ MODULE ensembleObservations_mod
   use ramDisk_mod
   use mpi_mod
   use mpivar_mod
+  use oceanMask_mod
   use obsSpaceData_mod
   use randomNumber_mod
   use mathPhysConstants_mod
@@ -50,6 +51,7 @@ MODULE ensembleObservations_mod
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
+  public :: eob_removeObsNearLand
   public :: eob_writeToFiles, eob_readFromFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
@@ -984,6 +986,63 @@ CONTAINS
     write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
 
   end subroutine eob_backgroundCheck
+
+  !--------------------------------------------------------------------------
+  ! eob_removeObsNearLand
+  !--------------------------------------------------------------------------
+  subroutine eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+    !
+    ! :Purpose: Reject observations that are close to land as determined by
+    !           the argument "minDistanceToLand". In the case of a depth-
+    !           varying land mask, the first level (should be the surface) is
+    !           used.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_eob), intent(inout) :: ensObs
+    type(struct_ocm), intent(in)    :: oceanMask
+    real(8),          intent(in)    :: minDistanceToLand
+
+    ! locals:
+    integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
+    integer :: numRejected, numRejectedMpiGlobal, ierr
+    real(8) :: distanceToLand, maxDistance, obsLon, obsLat
+
+    write(*,*) 'eob_removeObsNearLand: starting'
+
+    maxDistance = 1.1D0 * minDistanceToLand
+    numRejected = 0
+
+    HEADER_LOOP: do headerIndex = 1, obs_numheader(ensObs%obsSpaceData)
+      bodyIndexBeg = obs_headElem_i(ensObs%obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(ensObs%obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+
+      levIndex = 1
+      obsLat = obs_headElem_r(ensObs%obsSpaceData, OBS_LAT, headerIndex)
+      obsLon = obs_headElem_r(ensObs%obsSpaceData, OBS_LON, headerIndex)
+
+      distanceToLand = ocm_distanceToLand(oceanMask, levIndex, obsLon, obsLat, maxDistance)
+      if (distanceToLand > minDistanceToLand) cycle HEADER_LOOP
+
+      BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle BODY_LOOP
+
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
+                           IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
+        numRejected = numRejected + 1
+      end do BODY_LOOP
+    end do HEADER_LOOP
+
+    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    write(*,*)
+    write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
+    write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
+
+    write(*,*) 'eob_removeObsNearLand: finished'
+
+  end subroutine eob_removeObsNearLand
 
   !--------------------------------------------------------------------------
   ! eob_setSigiSigo

@@ -22,6 +22,9 @@ module oceanMask_mod
   !                 * In the case of variables on ocean depth levels, it varies with vertical level.
   !                 * In other cases it is a single 2D field used for all variables.
   !
+  use mpi_mod
+  use kdtree2_mod
+  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -33,18 +36,20 @@ module oceanMask_mod
   public :: struct_ocm
 
   ! public subroutines and functions
-  public :: ocm_readMaskFromFile, ocm_allocate, ocm_deallocate
+  public :: ocm_readMaskFromFile, ocm_deallocate
   public :: ocm_copyMask, ocm_communicateMask
+  public :: ocm_distanceToLand
   public :: ocm_copyToInt, ocm_copyFromInt
 
   type struct_ocm
     ! This is the derived type of the ocean mask object
-    integer             :: ni
-    integer             :: nj
-    integer             :: nLev
-    logical, pointer    :: mask(:,:,:) => null()
-    logical             :: maskPresent = .false.
+    integer                   :: nLev
+    logical, pointer          :: mask(:,:,:) => null()
+    logical                   :: maskPresent = .false.
+    type(struct_hco), pointer :: hco
   end type struct_ocm
+
+  integer, external  :: get_max_rss
 
   contains
 
@@ -58,13 +63,13 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments
-    type(struct_ocm), intent(inout) :: oceanMask
-    type(struct_hco), intent(in)    :: hco
-    type(struct_vco), intent(in)    :: vco
-    character(len=*), intent(in)    :: fileName
+    ! arguments:
+    type(struct_ocm),          intent(inout) :: oceanMask
+    type(struct_hco), pointer, intent(inout) :: hco
+    type(struct_vco),          intent(in)    :: vco
+    character(len=*),          intent(in)    :: fileName
 
-    ! locals
+    ! locals:
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
     integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
@@ -108,7 +113,7 @@ module oceanMask_mod
         if (ni_file == hco%ni .and. nj_file == hco%nj) then
           write(*,*) 'ocm_readMaskFromFile: read mask for ip1 = ', ip1
           if (.not. associated(oceanMask%mask)) then
-            call ocm_allocate(oceanMask,hco%ni,hco%nj,vco%nLev_depth)
+            call ocm_allocate(oceanMask,hco,vco%nLev_depth)
           end if
           if (.not.allocated(mask)) allocate(mask(hco%ni,hco%nj))
           ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
@@ -140,7 +145,7 @@ module oceanMask_mod
       if (ni_file == hco%ni .and. nj_file == hco%nj) then
         write(*,*) 'ocm_readMaskFromFile: reading mask'
         if (.not. associated(oceanMask%mask)) then
-          call ocm_allocate(oceanMask,hco%ni,hco%nj,1)
+          call ocm_allocate(oceanMask,hco,1)
           if (.not.allocated(mask)) allocate(mask(hco%ni,hco%nj))
           ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
                         -1, ' ', -1, -1, -1, '@@', ' ')
@@ -167,6 +172,87 @@ module oceanMask_mod
   end subroutine ocm_readMaskFromFile
 
   !--------------------------------------------------------------------------
+  ! ocm_distanceToLand
+  !--------------------------------------------------------------------------
+  function ocm_distanceToLand(oceanMask, levIndex, lon, lat, maxDistance) result(distance)
+    !
+    ! :Purpose: Compute the nearest distance (in meters) to land of the given
+    !           lon/lat position.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_ocm), intent(in) :: oceanMask
+    integer,          intent(in) :: levIndex
+    real(8),          intent(in) :: lon
+    real(8),          intent(in) :: lat
+    real(8),          intent(in) :: maxDistance
+    real(8)                      :: distance
+
+    ! locals:
+    integer, parameter           :: maxNumLocalGridPointsSearch = 200000
+    type(kdtree2), save, pointer :: tree => null()
+    integer                      :: ierr, gdll, ni, nj, xIndex, yIndex, gridIndex
+    integer                      :: numTotalLandPoints, numLocalGridPointsFound
+    real(kdkind), allocatable    :: positionArray(:,:)
+    type(kdtree2_result)         :: searchResults(maxNumLocalGridPointsSearch)
+    real(kdkind)                 :: maxRadiusSquared
+    real(kdkind)                 :: refPosition(3)
+
+    ! do some basic checks
+    if (.not.oceanMask%maskPresent .or. .not.associated(oceanMask%mask)) then
+      call utl_abort('ocm_distanceToLand: mask is not allocated')
+    end if
+    if (levIndex < 0 .or. levIndex > oceanMask%nLev) then
+      call utl_abort('ocm_distanceToLand: specified levIndex not valid')
+    end if
+
+    ni = oceanMask%hco%ni
+    nj = oceanMask%hco%nj
+
+    ! create the kdtree on the first call
+    if (.not. associated(tree)) then
+      write(*,*) 'ocm_distanceToLand: start creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      numTotalLandPoints = count(.not. oceanMask%mask(:,:,levIndex))
+      allocate(positionArray(3,numTotalLandPoints))
+
+      gridIndex = 0
+      do xIndex = 1, ni
+        do yIndex = 1, nj
+          if (.not. oceanMask%mask(xIndex,yIndex,levIndex)) then
+            gridIndex = gridIndex + 1
+            positionArray(:,gridIndex) = &
+                 kdtree2_3dPosition(real(oceanMask%hco%lon2d_4(xIndex,yIndex),8), &
+                                    real(oceanMask%hco%lat2d_4(xIndex,yIndex),8))
+          end if
+        end do
+      end do
+      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+      write(*,*) 'ocm_distanceToLand: done creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    end if
+
+    ! do the search
+    maxRadiusSquared = maxDistance**2
+    refPosition(:) = kdtree2_3dPosition(lon, lat)
+
+    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numLocalGridPointsFound,&
+                           nalloc=maxNumLocalGridPointsSearch, results=searchResults)
+    if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
+      call utl_abort('ocm_distanceToLand: the parameter maxNumLocalGridPointsSearch must be increased')
+    end if
+    if (numLocalGridPointsFound == 0) then
+      distance = maxDistance
+    else
+      distance = sqrt(searchResults(1)%dis)
+    end if
+
+  end function ocm_distanceToLand
+
+  !--------------------------------------------------------------------------
   ! ocm_copyMask
   !--------------------------------------------------------------------------
   subroutine ocm_copyMask(oceanMask_in,oceanMask_out)
@@ -177,7 +263,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments
+    ! arguments:
     type(struct_ocm), intent(in)    :: oceanMask_in
     type(struct_ocm), intent(inout) :: oceanMask_out
 
@@ -187,7 +273,7 @@ module oceanMask_mod
     end if
 
     if (.not.associated(oceanMask_out%mask)) then
-      call ocm_allocate(oceanMask_out, oceanMask_in%ni, oceanMask_in%nj, oceanMask_in%nLev)
+      call ocm_allocate(oceanMask_out, oceanMask_in%hco, oceanMask_in%nLev)
     end if
 
     write(*,*) 'ocm_copyMask: copying over the horizontal mask'
@@ -205,32 +291,42 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments
+    ! arguments:
     type(struct_ocm), intent(inout) :: oceanMask
 
-    ! locals
-    integer :: ierr
+    ! locals:
+    integer                   :: ierr
+    type(struct_hco), pointer :: hco_temp
 
     write(*,*) 'ocm_communicateMask: starting'
 
     call rpn_comm_bcast(oceanMask%maskPresent, 1,  &
                         'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(oceanMask%ni,   1,  &
-                        'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(oceanMask%nj,   1,  &
-                        'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(oceanMask%nLev, 1,  &
-                        'MPI_INTEGER', 0, 'GRID', ierr)
-
     if (.not.oceanMask%maskPresent) then
       write(*,*) 'ocm_communicateMask: mask not present, return'
       return
     end if
     
-    if (.not.associated(oceanMask%mask)) then
-      call ocm_allocate(oceanMask,oceanMask%ni,oceanMask%nj,oceanMask%nLev)
+    call rpn_comm_bcast(oceanMask%nLev, 1,  &
+                        'MPI_INTEGER', 0, 'GRID', ierr)
+
+    ! special treatment of hco object since EZscintID not properly communicated
+    nullify(hco_temp)
+    if (mpi_myid > 0 .and. associated(oceanMask%hco)) then
+      hco_temp => oceanMask%hco
+      nullify(oceanMask%hco)
     end if
-    call rpn_comm_bcast(oceanMask%mask, oceanMask%ni*oceanMask%nj*1,  &
+    call hco_mpiBcast(oceanMask%hco)
+
+    if (associated(hco_temp)) then
+      call hco_deallocate(oceanMask%hco)
+      oceanMask%hco => hco_temp
+    end if
+    
+    if (.not.associated(oceanMask%mask)) then
+      call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
+    end if
+    call rpn_comm_bcast(oceanMask%mask, oceanMask%hco%ni*oceanMask%hco%nj*1,  &
                         'MPI_LOGICAL', 0, 'GRID', ierr)
 
     write(*,*) 'ocm_communicateMask: finished'
@@ -240,23 +336,21 @@ module oceanMask_mod
   !--------------------------------------------------------------------------
   ! ocm_allocate
   !--------------------------------------------------------------------------
-  subroutine ocm_allocate(oceanMask,ni,nj,nLev)
+  subroutine ocm_allocate(oceanMask,hco,nLev)
     !
     ! :Purpose: Allocate the object, if it isn't already.
     !
     implicit none
 
-    ! Arguments:
-    type(struct_ocm), intent(inout) :: oceanMask
-    integer,          intent(in)    :: ni
-    integer,          intent(in)    :: nj
-    integer,          intent(in)    :: nLev
+    ! arguments:
+    type(struct_ocm),          intent(inout) :: oceanMask
+    type(struct_hco), pointer, intent(inout) :: hco
+    integer,                   intent(in)    :: nLev
 
     if (.not.associated(oceanMask%mask)) then
-      allocate(oceanMask%mask(ni,nj,nLev))
+      allocate(oceanMask%mask(hco%ni,hco%nj,nLev))
       oceanMask%maskPresent = .true.
-      oceanMask%ni          = ni
-      oceanMask%nj          = nj
+      oceanMask%hco         => hco
       oceanMask%nLev        = nLev
     end if
     
@@ -271,15 +365,14 @@ module oceanMask_mod
     !
     implicit none
 
-    ! Arguments:
+    ! arguments:
     type(struct_ocm), intent(inout) :: oceanMask
 
     if (associated(oceanMask%mask)) then
       deallocate(oceanMask%mask)
       nullify(oceanMask%mask)
+      nullify(oceanMask%hco)
       oceanMask%maskPresent = .false.
-      oceanMask%ni          = 0
-      oceanMask%nj          = 0
       oceanMask%nLev        = 0
     end if
     
@@ -295,7 +388,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! Arguments:
+    ! arguments:
     type(struct_ocm), intent(inout) :: oceanMask
     integer,          intent(out)   :: intArray(:,:)
     integer,          intent(in)    :: maskLev
@@ -316,7 +409,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! Arguments:
+    ! arguments:
     type(struct_ocm), intent(inout) :: oceanMask
     integer,          intent(in)    :: intArray(:,:)
     integer,          intent(in)    :: maskLev

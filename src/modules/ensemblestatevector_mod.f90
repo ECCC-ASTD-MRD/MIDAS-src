@@ -44,7 +44,8 @@ module ensembleStateVector_mod
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
   public :: ens_computeMean, ens_removeMean, ens_recenter
   public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
-  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize, ens_copyMaskToGsv
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
+  public :: ens_copyMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -339,6 +340,8 @@ CONTAINS
       call utl_abort('ens_copy: ens_out not yet allocated')
     end if
 
+    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
+
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
     lat1 = ens_out%statevector_work%myLatBeg
@@ -410,6 +413,8 @@ CONTAINS
     if (.not.ens_out%allocated) then
       call utl_abort('ens_copy4Dto3D: ens_out not yet allocated')
     end if
+
+    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
 
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
@@ -1248,9 +1253,31 @@ CONTAINS
   end subroutine ens_insertMember
 
   !--------------------------------------------------------------------------
+  ! ens_copyMask
+  !--------------------------------------------------------------------------
+  subroutine ens_copyMask(ens,oceanMask)
+    !
+    !:Purpose: Copy the instance of oceanMask from inside the ens object
+    !          to the supplied instance of oceanMask.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ens
+    type(struct_ocm) :: oceanMask
+
+    call ocm_copyMask(ens%statevector_work%oceanMask,oceanMask)
+
+  end subroutine ens_copyMask
+
+  !--------------------------------------------------------------------------
   ! ens_copyMaskToGsv
   !--------------------------------------------------------------------------
   subroutine ens_copyMaskToGsv(ens,statevector)
+    !
+    !:Purpose: Copy the instance of oceanMask from inside the ens object
+    !          to the instance inside the supplied stateVector object.
+    !
     implicit none
 
     ! Arguments:
