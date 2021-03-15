@@ -398,10 +398,6 @@ $(DEP_ABS): $(DEP_OBJ)
 	$(V) $(SRC_ROOT)/recursiveDep.py $^ '$(notdir $(ABS))'  > $@
 
 
-.PHONY: touch-%
-touch-%:
-	touch $(subst touch-,,$@)
-
 ##-----------------------------------------------
 ##	Phony global targets
 ##
@@ -412,6 +408,18 @@ all: absolutes	#> compile and link all programs
 absolutes: $(ABS) 
 
 objects: $(OBJ) #> compile all objects
+
+##-- touch targets
+##	fix for out-of-tree touch spurious file issue (#444)
+TOUCH_TARGET := $(addprefix touch-,$(OBJ) $(ABS) $(DEP_OBJ) $(DEP_ABS)) \
+				touch-objects touch-absolutes
+
+.PHONY: $(TOUCH_TARGET)
+$(TOUCH_TARGET) :
+	make --touch $(subst touch-,,$@) -f $(SRC_ROOT)/Makefile 
+
+touch-objects :	#> mark all objects as up-to-date
+
 
 .PHONY: printAbs
 printAbs:
