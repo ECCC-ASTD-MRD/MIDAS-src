@@ -292,10 +292,12 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
+    real(kdkind), allocatable :: positionArray(:,:)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: index1, index2, headerIndexProc 
+    integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numkToSend 
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
@@ -552,6 +554,35 @@ contains
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if ! doSlantPath 
+
+    ! create kdtree for TOVS footprint operator
+    if ( useTovsNmlFootprint ) then  
+      if ( .not. associated(interpInfo % tree) ) then
+        write(*,*) 's2c_setupInterpInfo: start creating kdtree'
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+        allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
+
+        gridIndex = 0
+        do latIndex = 1, statevector%hco%nj
+          do lonIndex = 1, statevector%hco%ni
+            gridIndex = gridIndex + 1
+            lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+            lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
+
+            positionArray(1,gridIndex) = RA * sin(lon) * cos(lat)
+            positionArray(2,gridIndex) = RA * cos(lon) * cos(lat)
+            positionArray(3,gridIndex) = RA * sin(lat)
+
+          end do
+        end do
+
+        interpInfo % tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+
+        write(*,*) 's2c_setupInterpInfo: done creating kdtree'
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      end if
+    end if
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
@@ -1038,6 +1069,11 @@ contains
     ! called when a mask exists to catch land contaminated ocean obs
     if ( stateVector%oceanMask%maskPresent ) then
       call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
+    end if
+
+    if ( associated(interpInfo%tree) ) then
+      call kdtree2_destroy(interpInfo%tree)
+      deallocate(positionArray)
     end if
     
     deallocate(allFootprintRadius_r4)
@@ -1906,7 +1942,6 @@ contains
         end do
         deallocate(interpInfo_nl%stepProcData)
         deallocate(interpInfo_nl%allNumHeaderUsed)
-        if ( associated(interpInfo_nl%tree) ) call kdtree2_destroy(interpInfo_nl%tree)
         call oti_deallocate(interpInfo_nl%oti)
 
         interpInfo_nl%initialized = .false.
@@ -3122,7 +3157,6 @@ contains
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
     integer :: lonIndexVec(statevector%hco%ni*statevector%hco%nj), latIndexVec(statevector%hco%ni*statevector%hco%nj)
 
-    real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3)
 
@@ -3157,33 +3191,6 @@ contains
 
     if ( allocated(stateVector%hco%mask) ) then
       if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) return
-    end if
-
-    ! create the kdtree on the first call
-    if ( .not. associated(interpInfo % tree) ) then
-      write(*,*) 's2c_setupFootprintInterp: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
-
-      gridIndex = 0
-      do latIndex = 1, statevector%hco%nj
-        do lonIndex = 1, statevector%hco%ni
-          gridIndex = gridIndex + 1
-          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
-          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
-
-          positionArray(1,gridIndex) = RA * sin(lon) * cos(lat)
-          positionArray(2,gridIndex) = RA * cos(lon) * cos(lat)
-          positionArray(3,gridIndex) = RA * sin(lat)
-
-        end do
-      end do
-
-      interpInfo % tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
-
-      write(*,*) 's2c_setupFootprintInterp: done creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
     ! do the search
