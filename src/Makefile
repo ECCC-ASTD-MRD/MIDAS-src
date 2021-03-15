@@ -175,7 +175,7 @@ help:	#> print this help
 	@echo "ENVIRONMENT"
 	@echo "$$(cat $(FILE_CFG) | grep ^MIDAS_COMPILE.*=| sed 's/=.*$$//' | sed 's/^/    /')"
 	@echo "TARGETS:"
-	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+) *:.*?#> .*$$' $(MAKEFILE_LIST)|sort|\
+	@grep -E '^([0-9a-zA-Z_-]+|%[^:]+|[^:]+%) *:.*?#> .*$$' $(MAKEFILE_LIST)|sort|\
 	cut -d":" -f2- | \
 	awk 'BEGIN {FS = ":[^:]*#> "}; \
 		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
@@ -418,7 +418,9 @@ TOUCH_TARGET := $(addprefix touch-,$(OBJ) $(ABS) $(DEP_OBJ) $(DEP_ABS)) \
 $(TOUCH_TARGET) :
 	make --touch $(subst touch-,,$@) -f $(SRC_ROOT)/Makefile 
 
+touch-%:	#> mark a specific file as up-to-date
 touch-objects :	#> mark all objects as up-to-date
+touch-absolutes :	#> mark all absolutes as up-to-date
 
 
 .PHONY: printAbs
