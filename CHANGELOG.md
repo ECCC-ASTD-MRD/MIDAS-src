@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the `make --touch` bug (no more spurious empty file created in `src`)
+   (#444 and !440)
  * Fix make-based compilation environment passing, doc and other minor issues
    (#457 and !436)
  * Fix calculation of normalization coefficients for explicit diffusion operator with MPI (#426 and !404)
