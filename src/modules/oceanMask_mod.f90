@@ -38,7 +38,7 @@ module oceanMask_mod
   ! public subroutines and functions
   public :: ocm_readMaskFromFile, ocm_deallocate
   public :: ocm_copyMask, ocm_communicateMask
-  public :: ocm_distanceToLand
+  public :: ocm_farFromLand
   public :: ocm_copyToInt, ocm_copyFromInt
 
   type struct_ocm
@@ -172,12 +172,12 @@ module oceanMask_mod
   end subroutine ocm_readMaskFromFile
 
   !--------------------------------------------------------------------------
-  ! ocm_distanceToLand
+  ! ocm_farFromLand
   !--------------------------------------------------------------------------
-  function ocm_distanceToLand(oceanMask, levIndex, lon, lat, maxDistance) result(distance)
+  function ocm_farFromLand(oceanMask, levIndex, lon, lat, distanceToLand) result(farFromLand)
     !
-    ! :Purpose: Compute the nearest distance (in meters) to land of the given
-    !           lon/lat position.
+    ! :Purpose: Determine if the supplied lat/lat location is far from the
+    !           nearest land based on the supplied 'distanceToLand'.
     !
     implicit none
 
@@ -186,8 +186,8 @@ module oceanMask_mod
     integer,          intent(in) :: levIndex
     real(8),          intent(in) :: lon
     real(8),          intent(in) :: lat
-    real(8),          intent(in) :: maxDistance
-    real(8)                      :: distance
+    real(8),          intent(in) :: distanceToLand
+    logical                      :: farFromLand
 
     ! locals:
     integer, parameter           :: maxNumLocalGridPointsSearch = 200000
@@ -196,23 +196,24 @@ module oceanMask_mod
     integer                      :: numTotalLandPoints, numLocalGridPointsFound
     real(kdkind), allocatable    :: positionArray(:,:)
     type(kdtree2_result)         :: searchResults(maxNumLocalGridPointsSearch)
-    real(kdkind)                 :: maxRadiusSquared
+    real(kdkind)                 :: searchRadiusSquared
     real(kdkind)                 :: refPosition(3)
 
     ! do some basic checks
     if (.not.oceanMask%maskPresent .or. .not.associated(oceanMask%mask)) then
-      call utl_abort('ocm_distanceToLand: mask is not allocated')
+      call utl_abort('ocm_farFromLand: mask is not allocated')
     end if
     if (levIndex < 0 .or. levIndex > oceanMask%nLev) then
-      call utl_abort('ocm_distanceToLand: specified levIndex not valid')
+      call utl_abort('ocm_farFromLand: specified levIndex not valid')
     end if
 
     ni = oceanMask%hco%ni
     nj = oceanMask%hco%nj
+    searchRadiusSquared = (1.1D0 * distanceToLand)**2
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
-      write(*,*) 'ocm_distanceToLand: start creating kdtree'
+      write(*,*) 'ocm_farFromLand: start creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       numTotalLandPoints = count(.not. oceanMask%mask(:,:,levIndex))
@@ -230,27 +231,27 @@ module oceanMask_mod
         end do
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
-      write(*,*) 'ocm_distanceToLand: done creating kdtree'
+      write(*,*) 'ocm_farFromLand: done creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     end if
 
     ! do the search
-    maxRadiusSquared = maxDistance**2
     refPosition(:) = kdtree2_3dPosition(lon, lat)
 
-    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numLocalGridPointsFound,&
+    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=searchRadiusSquared, &
+                           nfound=numLocalGridPointsFound, &
                            nalloc=maxNumLocalGridPointsSearch, results=searchResults)
     if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-      call utl_abort('ocm_distanceToLand: the parameter maxNumLocalGridPointsSearch must be increased')
+      call utl_abort('ocm_farFromLand: the parameter maxNumLocalGridPointsSearch must be increased')
     end if
     if (numLocalGridPointsFound == 0) then
-      distance = maxDistance
+      farFromLand = .true.
     else
-      distance = sqrt(searchResults(1)%dis)
+      farFromLand = ( sqrt(searchResults(1)%dis) > distanceToLand )
     end if
 
-  end function ocm_distanceToLand
+  end function ocm_farFromLand
 
   !--------------------------------------------------------------------------
   ! ocm_copyMask

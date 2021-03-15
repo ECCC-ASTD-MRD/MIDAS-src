@@ -258,7 +258,7 @@ contains
 
     call lfn_Setup(LocFunctionWanted='FifthOrder')
 
-    ! compute 3D field of log(pressure) needed for localization
+    ! compute 3D field of vertical location needed for localization
     if (vLocalize > 0.0d0) then
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if

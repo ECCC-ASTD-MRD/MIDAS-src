@@ -181,7 +181,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_setTypeVertCoord(ensObs, typeVertCoord)
     !
-    ! :Purpose: Initialize an ensObs object to zero
+    ! :Purpose: Set the type of vertical coordinate ('logPressure' or 'depth').
     !
     implicit none
 
@@ -1007,11 +1007,10 @@ CONTAINS
     ! locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
     integer :: numRejected, numRejectedMpiGlobal, ierr
-    real(8) :: distanceToLand, maxDistance, obsLon, obsLat
+    real(8) :: obsLon, obsLat
 
     write(*,*) 'eob_removeObsNearLand: starting'
 
-    maxDistance = 1.1D0 * minDistanceToLand
     numRejected = 0
 
     HEADER_LOOP: do headerIndex = 1, obs_numheader(ensObs%obsSpaceData)
@@ -1022,9 +1021,12 @@ CONTAINS
       obsLat = obs_headElem_r(ensObs%obsSpaceData, OBS_LAT, headerIndex)
       obsLon = obs_headElem_r(ensObs%obsSpaceData, OBS_LON, headerIndex)
 
-      distanceToLand = ocm_distanceToLand(oceanMask, levIndex, obsLon, obsLat, maxDistance)
-      if (distanceToLand > minDistanceToLand) cycle HEADER_LOOP
+      ! skip this obs if it is far from land
+      if (ocm_farFromLand(oceanMask, levIndex, obsLon, obsLat, minDistanceToLand)) then
+        cycle HEADER_LOOP
+      end if
 
+      ! otherwise it is rejected
       BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle BODY_LOOP
 
