@@ -336,7 +336,7 @@ contains
       end if
       if(ni == 1442 .and. nj == 1021) then
         ! This is orca025
-        maxGridSpacing = 27000.0
+        maxGridSpacing = 40000.0
       end if
 
       nx = endXIndex - startXIndex + 1
@@ -376,6 +376,8 @@ contains
 
     if (numLocalGridPointsFound < 4) then
       write(*,*) 'gpos_xyfll_unstructGrid: numLocalGridPointsFound = ',numLocalGridPointsFound
+      write(*,*) 'gpos_xyfll_unstructGrid: search radius           = ',maxGridSpacing,' meters'
+      write(*,*) 'gpos_xyfll_unstructGrid: obs lon, lat = ', lon_deg_r4, lat_deg_r4
       call utl_abort('gpos_xyfll_unstructGrid: the search did not find 4 close points.')
     end if
 

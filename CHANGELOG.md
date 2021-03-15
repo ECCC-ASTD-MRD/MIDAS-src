@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to use LETKF for 3D ocean fields (#463 and !439)
  * Add ability to read 3D ocean fields (#392 and !437)
  * Add ability to read variable `AL` (#438 and !435)
  * Add ability to generate the continuous ice concentration field LG (#456 and !431)

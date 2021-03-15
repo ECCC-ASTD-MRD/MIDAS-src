@@ -29,6 +29,7 @@ MODULE ensembleObservations_mod
   use ramDisk_mod
   use mpi_mod
   use mpivar_mod
+  use oceanMask_mod
   use obsSpaceData_mod
   use randomNumber_mod
   use mathPhysConstants_mod
@@ -47,9 +48,10 @@ MODULE ensembleObservations_mod
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
-  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy, eob_zero
-  public :: eob_calcRandPert, eob_setSigiSigo
+  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
+  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
+  public :: eob_removeObsNearLand
   public :: eob_writeToFiles, eob_readFromFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
@@ -59,9 +61,10 @@ MODULE ensembleObservations_mod
     logical                       :: allocated = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
+    character(len=20)             :: typeVertCoord = 'undefined' ! 'logPressure' or 'depth'
     type(struct_obs), pointer     :: obsSpaceData     ! pointer to obsSpaceData object
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
-    real(8), allocatable          :: logPres(:)       ! ln(pres) of obs, used for localization
+    real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
     real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
@@ -95,13 +98,13 @@ CONTAINS
       call eob_deallocate( ensObs )
     end if
 
-    ensObs%obsSpaceData => obsSpaceData
-    ensObs%numMembers = numMembers
-    ensObs%numObs     = numObs
+    ensObs%obsSpaceData  => obsSpaceData
+    ensObs%numMembers    = numMembers
+    ensObs%numObs        = numObs
 
     allocate( ensObs%lat(ensObs%numObs) )
     allocate( ensObs%lon(ensObs%numObs) )
-    allocate( ensObs%logPres(ensObs%numObs) )
+    allocate( ensObs%vertLocation(ensObs%numObs) )
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%obsErrInv(ensObs%numObs) )
     allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
@@ -129,7 +132,7 @@ CONTAINS
 
     deallocate( ensObs%lat )
     deallocate( ensObs%lon )
-    deallocate( ensObs%logPres )
+    deallocate( ensObs%vertLocation )
     deallocate( ensObs%obsValue )
     deallocate( ensObs%obsErrInv )
     deallocate( ensObs%Yb_r4 )
@@ -158,20 +161,43 @@ CONTAINS
       call utl_abort('eob_zero: this object is not allocated')
     end if
 
-    ensObs%lat(:)        = 0.0d0
-    ensObs%lon(:)        = 0.0d0
-    ensObs%logPres(:)    = 0.0d0
-    ensObs%obsValue(:)   = 0.0d0
-    ensObs%obsErrInv(:)  = 0.0d0
-    ensObs%Yb_r4(:,:)    = 0.0
+    ensObs%lat(:)           = 0.0d0
+    ensObs%lon(:)           = 0.0d0
+    ensObs%vertLocation(:)  = 0.0d0
+    ensObs%obsValue(:)      = 0.0d0
+    ensObs%obsErrInv(:)     = 0.0d0
+    ensObs%Yb_r4(:,:)       = 0.0
     ensObs%randPert_r4(:,:) = 0.0
-    ensObs%meanYb(:)     = 0.0d0
-    ensObs%deterYb(:)    = 0.0d0
-    ensObs%assFlag(:)    = 0
+    ensObs%meanYb(:)        = 0.0d0
+    ensObs%deterYb(:)       = 0.0d0
+    ensObs%assFlag(:)       = 0
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine eob_zero
+
+  !--------------------------------------------------------------------------
+  ! eob_setTypeVertCoord
+  !--------------------------------------------------------------------------
+  subroutine eob_setTypeVertCoord(ensObs, typeVertCoord)
+    !
+    ! :Purpose: Set the type of vertical coordinate ('logPressure' or 'depth').
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob), intent(inout) :: ensObs
+    character(len=*), intent(in)    :: typeVertCoord
+
+    if ( trim(typeVertCoord) /= 'logPressure' .and. &
+         trim(typeVertCoord) /= 'depth' ) then
+      write(*,*) 'eob_setTypeVertCoord: typeVertCoord = ', trim(typeVertCoord)
+      call utl_abort('eob_setTypeVertCoord: Unknown type of vertical coordinate')
+    end if
+
+    ensObs%typeVertCoord = typeVertCoord
+
+  end subroutine eob_setTypeVertCoord
 
   !--------------------------------------------------------------------------
   ! eob_clean (private routine)
@@ -208,16 +234,16 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) then
         obsCleanIndex = obsCleanIndex + 1
-        ensObsClean%lat(obsCleanIndex)        = ensObs%lat(obsIndex)
-        ensObsClean%lon(obsCleanIndex)        = ensObs%lon(obsIndex)
-        ensObsClean%logPres(obsCleanIndex)    = ensObs%logPres(obsIndex)
-        ensObsClean%obsErrInv(obsCleanIndex)  = ensObs%obsErrInv(obsIndex)
-        ensObsClean%Yb_r4(:,obsCleanIndex)    = ensObs%Yb_r4(:,obsIndex)
+        ensObsClean%lat(obsCleanIndex)           = ensObs%lat(obsIndex)
+        ensObsClean%lon(obsCleanIndex)           = ensObs%lon(obsIndex)
+        ensObsClean%vertLocation(obsCleanIndex)  = ensObs%vertLocation(obsIndex)
+        ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
+        ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
         ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
-        ensObsClean%meanYb(obsCleanIndex)     = ensObs%meanYb(obsIndex)
-        ensObsClean%deterYb(obsCleanIndex)    = ensObs%deterYb(obsIndex)
-        ensObsClean%obsValue(obsCleanIndex)   = ensObs%obsValue(obsIndex)
-        ensObsClean%assFlag(obsCleanIndex)    = ensObs%assFlag(obsIndex)
+        ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
+        ensObsClean%deterYb(obsCleanIndex)       = ensObs%deterYb(obsIndex)
+        ensObsClean%obsValue(obsCleanIndex)      = ensObs%obsValue(obsIndex)
+        ensObsClean%assFlag(obsCleanIndex)       = ensObs%assFlag(obsIndex)
       end if
     end do
 
@@ -241,16 +267,17 @@ CONTAINS
     type(struct_eob) :: ensObsIn
     type(struct_eob) :: ensObsOut
 
-    ensObsOut%lat(:)        = ensObsIn%lat(:)
-    ensObsOut%lon(:)        = ensObsIn%lon(:)
-    ensObsOut%logPres(:)    = ensObsIn%logPres(:)
-    ensObsOut%obsErrInv(:)  = ensObsIn%obsErrInv(:)
-    ensObsOut%Yb_r4(:,:)    = ensObsIn%Yb_r4(:,:)
+    ensObsOut%lat(:)           = ensObsIn%lat(:)
+    ensObsOut%lon(:)           = ensObsIn%lon(:)
+    ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
+    ensObsOut%obsErrInv(:)     = ensObsIn%obsErrInv(:)
+    ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
     ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
-    ensObsOut%meanYb(:)     = ensObsIn%meanYb(:)
-    ensObsOut%deterYb(:)    = ensObsIn%deterYb(:)
-    ensObsOut%obsValue(:)   = ensObsIn%obsValue(:)
-    ensObsOut%assFlag(:)    = ensObsIn%assFlag(:)
+    ensObsOut%meanYb(:)        = ensObsIn%meanYb(:)
+    ensObsOut%deterYb(:)       = ensObsIn%deterYb(:)
+    ensObsOut%obsValue(:)      = ensObsIn%obsValue(:)
+    ensObsOut%assFlag(:)       = ensObsIn%assFlag(:)
+    ensObsOut%typeVertCoord    = ensObsIn%typeVertCoord
 
   end subroutine eob_copy
 
@@ -289,6 +316,7 @@ CONTAINS
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
     call eob_allocate(ensObs_mpiglobal, ensObs%numMembers, numObs_mpiglobal, ensObs%obsSpaceData)
+    ensObs_mpiglobal%typeVertCoord = ensObs%typeVertCoord
 
     if ( mpi_myid == 0 ) then
       displs(1) = 0
@@ -305,8 +333,8 @@ CONTAINS
     call rpn_comm_gatherv( ensObs%lon          , ensObs%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%logPres          , ensObs%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%logPres, allNumObs, displs, 'mpi_real8',  &
+    call rpn_comm_gatherv( ensObs%vertLocation , ensObs%numObs, 'mpi_real8', &
+                           ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
     call rpn_comm_gatherv( ensObs%obsValue          , ensObs%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
@@ -338,7 +366,7 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%logPres, ensObs_mpiglobal%numObs, 'mpi_real8',  &
+    call rpn_comm_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
@@ -358,7 +386,7 @@ CONTAINS
       call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
-
+    
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
     write(*,*) 'eob_allGather: finished'
@@ -434,7 +462,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices
   !--------------------------------------------------------------------------
-  function eob_getLocalBodyIndices(ensObs,localBodyIndices,distances,lat,lon,logPres,  &
+  function eob_getLocalBodyIndices(ensObs,localBodyIndices,distances,lat,lon,vertLocation,  &
                                    hLocalize,vLocalize,numLocalObsFound) result(numLocalObs)
     !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
@@ -449,7 +477,7 @@ CONTAINS
     type(struct_eob) :: ensObs
     integer          :: localBodyIndices(:)
     real(8)          :: distances(:)
-    real(8)          :: lat, lon, logPres, hLocalize, vLocalize
+    real(8)          :: lat, lon, vertLocation, hLocalize, vLocalize
     integer          :: numLocalObsFound
 
     ! locals
@@ -488,20 +516,36 @@ CONTAINS
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
-    ! copy search results to output vectors, only those within vertical localization distance
-    numLocalObsFound = 0
-    numLocalObs = 0
-    do localObsIndex=1, numLocalObsFoundSearch
-      distance = abs( logPres - ensObs%logPres(searchResults(localObsIndex)%idx) )
-      if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
-        numLocalObsFound = numLocalObsFound + 1
-        if (numLocalObs < maxNumLocalObs) then
-          numLocalObs = numLocalObs + 1
-          localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-          distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+    if (vLocalize > 0.0d0) then
+      ! copy search results to output vectors, only those within vertical localization distance
+      numLocalObsFound = 0
+      numLocalObs = 0
+      do localObsIndex=1, numLocalObsFoundSearch
+        distance = abs( vertLocation - ensObs%vertLocation(searchResults(localObsIndex)%idx) )
+        if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
+          numLocalObsFound = numLocalObsFound + 1
+          if (numLocalObs < maxNumLocalObs) then
+            numLocalObs = numLocalObs + 1
+            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
+            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+          end if
         end if
-      end if
-    end do
+      end do
+    else
+      ! no vertical location, so just copy results
+      numLocalObsFound = 0
+      numLocalObs = 0
+      do localObsIndex=1, numLocalObsFoundSearch
+        if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
+          numLocalObsFound = numLocalObsFound + 1
+          if (numLocalObs < maxNumLocalObs) then
+            numLocalObs = numLocalObs + 1
+            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
+            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+          end if
+        end if
+      end do      
+    end if
     deallocate(searchResults)
 
   end function eob_getLocalBodyIndices
@@ -545,11 +589,11 @@ CONTAINS
   end subroutine eob_setobsErrInv
 
   !--------------------------------------------------------------------------
-  ! eob_setLogPres
+  ! eob_setVertLocation
   !--------------------------------------------------------------------------
-  subroutine eob_setLogPres(ensObs, columnMeanTrl)
+  subroutine eob_setVertLocation(ensObs, columnMeanTrl)
     !
-    ! :Purpose: Set the ln(pressure) value for each observation that 
+    ! :Purpose: Set the vertical location value for each observation that 
     !           will be used when doing vertical localization. For
     !           radiance observations, the level of the maximum value
     !           of the derivative of transmission is used. This value
@@ -572,18 +616,23 @@ CONTAINS
 
     call eob_setAssFlag(ensObs)
 
-    presM_ptr   => col_getAllColumns(columnMeanTrl,'P_M')
-    heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
-    sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
-    nLev_M = col_getNumLev(columnMeanTrl,'MM')
-
-    call tvs_getProfile(profiles,'nl')
-
-    call obs_extractObsRealBodyColumn(obsPPP, ensObs%obsSpaceData, OBS_PPP) ! this needs to work also for non-pressure level obs!!!
+    call obs_extractObsRealBodyColumn(obsPPP, ensObs%obsSpaceData, OBS_PPP)
     call obs_extractObsIntBodyColumn(varNumber, ensObs%obsSpaceData, OBS_VNM)
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntHeaderColumn(codType, ensObs%obsSpaceData, OBS_ITY)
-    do obsIndex = 1, ensObs%numObs
+
+    if (ensObs%typeVertCoord == 'logPressure') then
+
+      presM_ptr   => col_getAllColumns(columnMeanTrl,'P_M')
+      heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
+      sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
+      nLev_M = col_getNumLev(columnMeanTrl,'MM')
+
+      call tvs_getProfile(profiles,'nl')
+
+    end if
+
+    OBS_LOOP: do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData,OBS_HIND,obsIndex)
 
       if( varNumber(obsIndex) == BUFR_NETS .or. varNumber(obsIndex) == BUFR_NEPS   .or.  &
@@ -594,19 +643,41 @@ CONTAINS
           varNumber(obsIndex) == BUFR_radarPrecip .or. varNumber(obsIndex) == BUFR_logRadarPrecip ) then
 
         ! all surface observations
-        ensObs%logPres(obsIndex) = log(sfcPres_ptr(1,headerIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(sfcPres_ptr(1,headerIndex))
+        else if (ensObs%typeVertCoord == 'depth') then
+          ensObs%vertLocation(obsIndex) = 0.0D0
+        else
+          call utl_abort('eob_setVertLocation: unknown typeVertCoord:' // trim(ensObs%typeVertCoord))
+        end if
 
       else if (varNumber(obsIndex) == BUFR_NEZD) then
 
         ! ZTD observation, try 0.7*Psfc (i.e. ~700hPa when Psfc=1000hPa)
-        ensObs%logPres(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
+        else
+          call utl_abort('eob_setVertLocation: ZTD obs only compatible with logPressure coordinate')
+        end if
 
       else if (obsPPP(obsIndex) > 0.0d0 .and. obsVcoCode(obsIndex)==2) then
 
         ! all pressure level observations
-        ensObs%logPres(obsIndex) = log(obsPPP(obsIndex))
+        if (ensObs%typeVertCoord == 'logPressure') then
+          ensObs%vertLocation(obsIndex) = log(obsPPP(obsIndex))
+        else
+          call utl_abort('eob_setVertLocation: pressure obs only compatible with logPressure coordinate')
+        end if
 
-      else if(obsVcoCode(obsIndex) == 1) then
+      else if(obsVcoCode(obsIndex) == 1 .and. .not.bufr_isOceanObs(varNumber(obsIndex))) then
+
+        if (ensObs%typeVertCoord /= 'logPressure') then
+          ! skip this obs if it will not be assimilated
+          if (ensObs%assFlag(obsIndex) == 0) cycle OBS_LOOP
+          ! otherwise, abort
+          write(*,*) 'eob_setVertLocation: varNum = ', varNumber(obsIndex)
+          call utl_abort('eob_setVertLocation: height level obs only compatible with logPressure coordinate')
+        end if
 
         ! all height level observations (not including surface obs)
         obsHeight = obsPPP(obsIndex)
@@ -623,20 +694,24 @@ CONTAINS
         ! set the log pressure for observation
         if (levIndexBelow == 1) then
           ! above top level, use top level pressure
-          ensObs%logPres(obsIndex) = log(presM_ptr(1,headerIndex))
+          ensObs%vertLocation(obsIndex) = log(presM_ptr(1,headerIndex))
         else if (levIndexBelow == 0) then
           ! below bottom level, use surface pressure
-          ensObs%logPres(obsIndex) = log(sfcPres_ptr(1,headerIndex))
+          ensObs%vertLocation(obsIndex) = log(sfcPres_ptr(1,headerIndex))
         else
           ! interpolate
           levIndexAbove = levIndexBelow - 1
           interpFactor = ( obsHeight                              - heightM_ptr(levIndexBelow,headerIndex) ) /  &
                          ( heightM_ptr(levIndexAbove,headerIndex) - heightM_ptr(levIndexBelow,headerIndex) )
-          ensObs%logPres(obsIndex) = interpFactor           * log(presM_ptr(levIndexAbove,headerIndex)) +  &
-                                     (1.0D0 - interpFactor) * log(presM_ptr(levIndexBelow,headerIndex))
+          ensObs%vertLocation(obsIndex) = interpFactor           * log(presM_ptr(levIndexAbove,headerIndex)) +  &
+                                          (1.0D0 - interpFactor) * log(presM_ptr(levIndexBelow,headerIndex))
         end if
 
       else if(tvs_isIdBurpTovs(codType(obsIndex))) then
+
+        if (ensObs%typeVertCoord /= 'logPressure') then
+          call utl_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
+        end if
 
         tovsIndex = tvs_tovsIndex(headerIndex)
         nosensor = tvs_lsensor(tovsIndex)
@@ -647,33 +722,43 @@ CONTAINS
         channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor), tvs_nchan(nosensor), channelIndex)
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
-                                channelIndex, profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
+                                channelIndex, profiles(tovsIndex)%p, ensObs%vertLocation(obsIndex))
           if(mpi_myid == 0 .and. verbose) then
-            write(*,*) 'eob_setLogPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
+            write(*,*) 'eob_setVertLocation for tovs: ', codType(obsIndex), &
+                       obsPPP(obsIndex), 0.01*exp(ensObs%vertLocation(obsIndex))
           end if
         else
-          ensObs%logPres(obsIndex) = log(500.0D2)
+          ensObs%vertLocation(obsIndex) = log(500.0D2)
         end if
+
+      else if (varNumber(obsIndex) == BUFR_SST) then
+
+        if (ensObs%typeVertCoord /= 'depth') then
+          call utl_abort('eob_setVertLocation: SST obs only compatible with ocean depth coordinate')
+        end if
+
+        ! SST observations
+        ensObs%vertLocation(obsIndex) = minval(columnMeanTrl%vco%depths(:))
 
       else if(ensObs%assFlag(obsIndex)==1) then
 
         write(*,*) 'eob_setLatLonPresObs: ERROR! cannot compute pressure for this observation: ',  &
                    obsPPP(obsIndex), varNumber(obsIndex), obsVcoCode(obsIndex)
-        call utl_abort('eob_setLogPres')
+        call utl_abort('eob_setVertLocation')
 
       end if
 
       ! write the value into obsSpaceData for later diagnostics
       if (ensObs%assFlag(obsIndex)==1) then
         call obs_bodySet_r(ensObs%obsSpaceData, OBS_ZHA, obsIndex,  &
-                           ensObs%logPres(obsIndex))
+                           ensObs%vertLocation(obsIndex))
       end if
 
-    end do
+    end do OBS_LOOP
 
     nullify(profiles)
 
-  end subroutine eob_setLogPres
+  end subroutine eob_setVertLocation
 
   !--------------------------------------------------------------------------
   ! eob_setAssFlag
@@ -903,6 +988,65 @@ CONTAINS
   end subroutine eob_backgroundCheck
 
   !--------------------------------------------------------------------------
+  ! eob_removeObsNearLand
+  !--------------------------------------------------------------------------
+  subroutine eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+    !
+    ! :Purpose: Reject observations that are close to land as determined by
+    !           the argument "minDistanceToLand". In the case of a depth-
+    !           varying land mask, the first level (should be the surface) is
+    !           used.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_eob), intent(inout) :: ensObs
+    type(struct_ocm), intent(in)    :: oceanMask
+    real(8),          intent(in)    :: minDistanceToLand
+
+    ! locals:
+    integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
+    integer :: numRejected, numRejectedMpiGlobal, ierr
+    real(8) :: obsLon, obsLat
+
+    write(*,*) 'eob_removeObsNearLand: starting'
+
+    numRejected = 0
+
+    HEADER_LOOP: do headerIndex = 1, obs_numheader(ensObs%obsSpaceData)
+      bodyIndexBeg = obs_headElem_i(ensObs%obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(ensObs%obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+
+      levIndex = 1
+      obsLat = obs_headElem_r(ensObs%obsSpaceData, OBS_LAT, headerIndex)
+      obsLon = obs_headElem_r(ensObs%obsSpaceData, OBS_LON, headerIndex)
+
+      ! skip this obs if it is far from land
+      if (ocm_farFromLand(oceanMask, levIndex, obsLon, obsLat, minDistanceToLand)) then
+        cycle HEADER_LOOP
+      end if
+
+      ! otherwise it is rejected
+      BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle BODY_LOOP
+
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
+                           IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
+        numRejected = numRejected + 1
+      end do BODY_LOOP
+    end do HEADER_LOOP
+
+    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    write(*,*)
+    write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
+    write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
+
+    write(*,*) 'eob_removeObsNearLand: finished'
+
+  end subroutine eob_removeObsNearLand
+
+  !--------------------------------------------------------------------------
   ! eob_setSigiSigo
   !--------------------------------------------------------------------------
   subroutine eob_setSigiSigo(ensObs)
@@ -1045,7 +1189,7 @@ CONTAINS
       if (varNumber == bufr_nbt1 .or.  &
           varNumber == bufr_nbt2 .or.  &
           varNumber == bufr_nbt3) then
-        if (ensObs%logPres(bodyIndex) < logPresRadianceLimit) then
+        if (ensObs%vertLocation(bodyIndex) < logPresRadianceLimit) then
           acceptCount = acceptCount + 1
         else
           rejectCount = rejectCount + 1

@@ -52,7 +52,7 @@ contains
   !----------------------------------------------------------------------
   subroutine epp_postProcess(ensembleTrl, ensembleAnl, &
                              stateVectorHeightSfc, stateVectorCtrlTrl, &
-                             writeTrlEnsemble)
+                             writeTrlEnsemble, outputOnlyEnsMean_opt)
     !
     !:Purpose:  Perform numerous post-processing steps to the ensemble
     !           produced by the LETKF algorithm.
@@ -62,8 +62,10 @@ contains
     ! Arguments
     type(struct_ens), pointer :: ensembleTrl
     type(struct_ens)          :: ensembleAnl
-    type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
+    type(struct_gsv)          :: stateVectorHeightSfc
+    type(struct_gsv)          :: stateVectorCtrlTrl
     logical                   :: writeTrlEnsemble
+    logical, optional         :: outputOnlyEnsMean_opt
 
     ! Locals
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
@@ -85,6 +87,7 @@ contains
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
     integer, external         :: fnom, fclos, newdate
+    logical                   :: outputOnlyEnsMean
 
     ! Namelist variables
     integer  :: randomSeed           ! seed used for random perturbation additive inflation
@@ -110,6 +113,13 @@ contains
                                    weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket0, numBits
 
+    if (present(outputOnlyEnsMean_opt)) then
+      outputOnlyEnsMean = outputOnlyEnsMean_opt
+    else
+      outputOnlyEnsMean = .false.
+    end if
+
+    !- Extract the grid definitions and ensemble size
     if (ens_allocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
       vco_ens => ens_getVco(ensembleTrl)
@@ -447,9 +457,11 @@ contains
       if (writeTrlEnsemble) then
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_TRL', 'P',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.true.)
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_TRL', 'P',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.true.)
+        end if
         call tmg_stop(104)
       end if
     end if
@@ -458,23 +470,26 @@ contains
     if (ens_allocated(ensembleAnl)) then
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
-      call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
-                         dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
-      call gsv_zero(stateVectorMeanAnlSfcPres)
-      if (mpi_myid <= (nEns-1)) then
-        call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
+      if (stateVectorHeightSfc%allocated) then
+     
+        call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                            dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.false., &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
-        call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
+        call gsv_zero(stateVectorMeanAnlSfcPres)
+        if (mpi_myid <= (nEns-1)) then
+          call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
+                             dateStamp_opt=tim_getDateStamp(),  &
+                             mpi_local_opt=.false., &
+                             hInterpolateDegree_opt = hInterpolationDegree, &
+                             dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+          call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
+        end if
+        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+        call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       end if
-      call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
-      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
-      call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       
       ! output analmean, analrms
       call epp_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
@@ -541,9 +556,11 @@ contains
           call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
-                               typvar_opt='A', writeHeightSfc_opt=.true., &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+          if (stateVectorMeanAnlSfcPres%allocated) then
+            call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+                                 typvar_opt='A', writeHeightSfc_opt=.true., &
+                                 stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+          end if
         end do
 
       end if ! allocated(ensembleTrl)
@@ -561,9 +578,11 @@ contains
       ! convert transformed to model variables for analysis and trial ensembles
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call tmg_start(104,'LETKF-writeEns')
-      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
-                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                             containsFullField_opt=.true.)
+      if (.not. outputOnlyEnsMean) then
+        call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                               containsFullField_opt=.true.)
+      end if
       call tmg_stop(104)
 
       if (ens_allocated(ensembleTrl)) then
@@ -572,13 +591,17 @@ contains
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.false., resetTimeParams_opt=.true.)
-        ! Also write the reference (analysis) surface pressure to increment files
-        call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
-                                    ensPath='.')
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
+          if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
+            ! Also write the reference (analysis) surface pressure to increment files
+            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
+                                       etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                       ensPath='.')
+          end if
+        end if
         call tmg_stop(104)
       end if
 
@@ -591,9 +614,11 @@ contains
           call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
-                               typvar_opt='A', writeHeightSfc_opt=.true., &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+          if (stateVectorMeanAnlSfcPres%allocated) then
+            call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+                                 typvar_opt='A', writeHeightSfc_opt=.true., &
+                                 stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+          end if
         end do
 
         ! Output the ensemble mean analysis state
@@ -606,23 +631,29 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_ANL', 'A',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.true.)
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_ANL', 'A',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.true.)
+        end if
         call tmg_stop(104)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
         ! WARNING: Increment put in ensembleTrlSubSample for output
         call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.false., resetTimeParams_opt=.true.)
-        ! Also write the reference (analysis) surface pressure to increment files
-        call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
-                                    ens_getNumMembers(ensembleAnlSubSample),  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
-                                    ensPath='subspace')
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
+          ! Also write the reference (analysis) surface pressure to increment files
+          if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
+            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
+                                       ens_getNumMembers(ensembleAnlSubSample),  &
+                                       etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                       ensPath='subspace')
+          end if
+        end if
         call tmg_stop(104)
 
       end if ! writeSubSample
@@ -632,9 +663,11 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', 'ENS_ANL', 'A',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.true.)
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', 'ENS_ANL', 'A',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.true.)
+        end if
         call tmg_stop(104)
 
       end if
@@ -1332,8 +1365,12 @@ contains
       ! set the variable name and depth for each element of column
       do kIndex = 1, numK
         nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
-        levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
-        pressureOrDepth(kIndex) = vco%depths(levIndex)
+        if (vnl_varLevelFromVarName(nomvar_v(kIndex)) == 'SFDP') then
+          pressureOrDepth(kIndex) = 0.0
+        else
+          levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
+          pressureOrDepth(kIndex) = vco%depths(levIndex)
+        end if
       end do
 
     else

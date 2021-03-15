@@ -432,7 +432,7 @@ module HorizontalCoord_mod
 
     else
       write(*,*)
-      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U are supported !, grtyp = ', trim(grtyp)
+      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U or Y are supported !, grtyp = ', trim(grtyp)
       call utl_abort('hco_setupFromFile')
     end if
 
@@ -561,11 +561,15 @@ module HorizontalCoord_mod
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     if ( mpi_myid > 0 ) then
-      allocate(hco % lat(1:hco%nj))
-      allocate(hco % lon(1:hco%ni))
+      allocate(hco%lat(hco%nj))
+      allocate(hco%lon(hco%ni))
+      allocate(hco%lat2d_4(hco%ni,hco%nj))
+      allocate(hco%lon2d_4(hco%ni,hco%nj))
     endif
     call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%lat2d_4, size(hco%lat2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%lon2d_4, size(hco%lon2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%global, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
@@ -663,11 +667,13 @@ module HorizontalCoord_mod
     implicit none
     type(struct_hco), pointer :: hco
 
-    deallocate(hco % lat)
-    deallocate(hco % lon)
-    deallocate(hco % lat2d_4)
-    deallocate(hco % lon2d_4)
-    deallocate(hco)
+    if (allocated(hco % lat)) deallocate(hco % lat)
+    if (allocated(hco % lon)) deallocate(hco % lon)
+    if (allocated(hco % lat2d_4)) deallocate(hco % lat2d_4)
+    if (allocated(hco % lon2d_4)) deallocate(hco % lon2d_4)
+    if (allocated(hco % tictacU)) deallocate(hco % tictacU)
+
+    if (associated(hco)) deallocate(hco)
     nullify(hco)
 
   end subroutine hco_deallocate

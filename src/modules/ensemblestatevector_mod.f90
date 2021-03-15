@@ -44,7 +44,8 @@ module ensembleStateVector_mod
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
   public :: ens_computeMean, ens_removeMean, ens_recenter
   public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
-  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize, ens_copyMaskToGsv
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
+  public :: ens_copyMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -339,6 +340,8 @@ CONTAINS
       call utl_abort('ens_copy: ens_out not yet allocated')
     end if
 
+    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
+
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
     lat1 = ens_out%statevector_work%myLatBeg
@@ -410,6 +413,8 @@ CONTAINS
     if (.not.ens_out%allocated) then
       call utl_abort('ens_copy4Dto3D: ens_out not yet allocated')
     end if
+
+    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
 
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
@@ -1248,9 +1253,31 @@ CONTAINS
   end subroutine ens_insertMember
 
   !--------------------------------------------------------------------------
+  ! ens_copyMask
+  !--------------------------------------------------------------------------
+  subroutine ens_copyMask(ens,oceanMask)
+    !
+    !:Purpose: Copy the instance of oceanMask from inside the ens object
+    !          to the supplied instance of oceanMask.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ens
+    type(struct_ocm) :: oceanMask
+
+    call ocm_copyMask(ens%statevector_work%oceanMask,oceanMask)
+
+  end subroutine ens_copyMask
+
+  !--------------------------------------------------------------------------
   ! ens_copyMaskToGsv
   !--------------------------------------------------------------------------
   subroutine ens_copyMaskToGsv(ens,statevector)
+    !
+    !:Purpose: Copy the instance of oceanMask from inside the ens object
+    !          to the instance inside the supplied stateVector object.
+    !
     implicit none
 
     ! Arguments:
@@ -1922,6 +1949,14 @@ CONTAINS
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     character(len=4) :: varLevel
 
+    ! if an alternative mean is not provided, we need to ensure ens mean is present
+    if ( .not. present(alternativeEnsembleMean_opt)) then
+      if ( .not. ens%meanIsComputed ) then
+        if (mpi_myid == 0) write(*,*) 'ens_recenter: compute Mean since it was not already done'
+        call ens_computeMean( ens )
+      end if
+    end if
+
     if ( present(recenteringCoeff_opt) ) then
       recenteringCoeffArray(:) = recenteringCoeff_opt
     else if ( present(recenteringCoeffArray_opt) ) then
@@ -2031,7 +2066,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
-                              containsFullField_opt)
+                              containsFullField_opt, ignoreDate_opt)
     !
     !:Purpose: Read the ensemble from disk in parallel and do mpi communication
     !          so that all members for a given lat-lon tile are present on each
@@ -2040,13 +2075,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: ensPathName
-    logical          :: biPeriodic
-    character(len=*), optional          :: varNames_opt(:)
-    type(struct_vco), pointer, optional :: vco_file_opt
-    logical, optional                   :: checkModelTop_opt
-    logical, optional, intent(in)       :: containsFullField_opt
+    type(struct_ens),                    intent(inout) :: ens
+    character(len=*),                    intent(in)    :: ensPathName
+    logical,                             intent(in)    :: biPeriodic
+    character(len=*), optional,          intent(in)    :: varNames_opt(:)
+    type(struct_vco), pointer, optional, intent(in)    :: vco_file_opt
+    logical, optional,                   intent(in)    :: checkModelTop_opt
+    logical, optional,                   intent(in)    :: containsFullField_opt
+    logical, optional,                   intent(in)    :: ignoreDate_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -2071,8 +2107,7 @@ CONTAINS
     character(len=4), pointer :: anlVar(:)
     logical :: thisProcIsAsender(mpi_nprocs)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
-    logical :: checkModelTop
-    logical :: containsFullField
+    logical :: checkModelTop, containsFullField, ignoreDate
     character(len=4), pointer :: varNames(:)
     integer, parameter :: numLevelsToSend = 10
 
@@ -2105,6 +2140,16 @@ CONTAINS
       checkModelTop = checkModelTop_opt
     else
       checkModelTop = .true.
+    end if
+
+    ! the default is to NOT ignore the date - can only ignore if numStep == 1
+    if ( present(ignoreDate_opt) ) then
+      ignoreDate = ignoreDate_opt
+    else
+      ignoreDate = .false.
+    end if
+    if ( ignoreDate .and. (numStep > 1) ) then
+      call utl_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
     end if
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
@@ -2252,10 +2297,10 @@ CONTAINS
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
-                              containsFullField)
+                              containsFullField, ignoreDate_opt=ignoreDate)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
-                              containsFullField)
+                              containsFullField, ignoreDate_opt=ignoreDate)
           end if
           if (stepIndex == numStep) then
             ierr = ram_remove(ensFileName)

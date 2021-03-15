@@ -51,6 +51,7 @@ module verticalCoord_mod
      integer :: nlev_M = 0
      integer :: nlev_Other(vnl_numvarmaxOther) = 0
      integer :: nlev_Depth = 0
+     integer :: ip1_seaLevel
      integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
      integer :: ip1_T_2m  ! ip1 value for the 2m thermodynamic level
      integer :: ip1_M_10m ! ip1 value for the 10m momentum level
@@ -111,7 +112,7 @@ contains
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
-    integer :: ip1_sfc, ip1SeaLevel
+    integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: fileExists, atmFieldFound, sfcFieldFound, oceanFieldFound
     integer :: IP1kind
@@ -130,6 +131,7 @@ contains
     end if
 
     allocate(vco)
+    call convip(vco%ip1_seaLevel, 0.0, 0, 2, blk_s, .false.) 
 
     if (present(etiket_opt)) then
       etiket = etiket_opt
@@ -203,8 +205,7 @@ contains
 
         ! check for record with surface data (and that are not ocean variables)
         call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
-        call convip(ip1SeaLevel, 0.0, 0, 2, blk_s, .false.) 
-        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == ip1SeaLevel) then
+        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == vco%ip1_seaLevel) then
           sfcFieldFound = .true.
           exit record_loop
         end if
@@ -519,10 +520,11 @@ contains
       ! ignore any variables not present in varnamelist_mod
       if (.not. vnl_varnameIsValid(trim(nomvar))) cycle record_loop
 
-      ! check for record with ocean data
+      ! check for record with ocean data on depth levels
       call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
-      if (Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
-          vnl_varKindFromVarname(trim(nomvar)) == 'OC' ) then
+      if ( Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
+           vnl_varKindFromVarname(trim(nomvar)) == 'OC' .and. &
+           vnl_varLevelFromVarname(trim(nomvar)) == 'DP' ) then
         ! check if we've NOT already recorded this depth level
         if ( .not. any(vertCoordValue == depths(1:vco%nLev_depth)) ) then
           vco%nLev_depth = vco%nLev_depth + 1
@@ -829,7 +831,10 @@ contains
 
     !Destination grid has "nAbove" levels above source grid;  tolerate one
     if ( nAbove > 1 ) then
-      call utl_abort('vco_ensureCompatibleTops: top of destination grid is more than one level higher than the top of source grid')
+      write(*,*) 'vco_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
+      write(*,*) 'vco_ensureCompatibleTops: sourcePressureLevels = ', sourcePressureLevels(1,1,:)
+      write(*,*) 'vco_ensureCompatibleTops: destPressureLevels   = ', destPressureLevels(1,1,:)
+      call utl_abort('vco_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
     end if
 
   end subroutine vco_ensureCompatibleTops
@@ -933,6 +938,14 @@ contains
     !- Compare the vCode
     !
     if (vco_template%Vcode /= vco_full%Vcode) then
+      subset = .false.
+      return
+    end if
+
+    !
+    !- Check if there are any thermo or momentum levels
+    !
+    if ( (vco_template%nlev_T == 0) .and. (vco_template%nlev_M == 0) ) then
       subset = .false.
       return
     end if

@@ -31,6 +31,7 @@ program midas_letkf
   use tovs_nl_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use oceanMask_mod
   use analysisGrid_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -55,6 +56,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_gsv)          :: stateVectorCtrlTrl
+  type(struct_gsv)          :: stateVectorRecenter
   type(struct_columnData)   :: column
 
   type(struct_eob) :: ensObs, ensObs_mpiglobal
@@ -62,16 +64,20 @@ program midas_letkf
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
+  type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
-  character(len=256) :: ensFileName, ctrlFileName
+  character(len=256) :: ensFileName, ctrlFileName, recenterFileName
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
+
+  logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
+  logical :: oceanFields ! indicates if fields are on depth levels
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -79,6 +85,7 @@ program midas_letkf
   ! namelist variables
   character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
   logical            :: ensPostProcessing ! do all post-processing of analysis ensemble
+  logical            :: recenterInputEns  ! read a deterministic state to recenter ensemble
   integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
   integer  :: nEns                 ! ensemble size
@@ -89,16 +96,20 @@ program midas_letkf
   logical  :: huberize             ! apply huber norm quality control procedure
   logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
   logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
+  logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
+  logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
-  real(8)  :: vLocalize            ! vertical localization radius (in units of ln(Pressure in Pa))
+  real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
+  real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-  NAMELIST /NAMLETKF/algorithm, ensPostProcessing, nEns, numSubEns, ensPathName,  &
-                     hLocalize, hLocalizePressure, vLocalize,  &
+  NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
+                     ensPathName,  &
+                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     obsTimeInterpType, mpiDistribution
+                     ignoreEnsDate, outputOnlyEnsMean, obsTimeInterpType, mpiDistribution
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -130,6 +141,7 @@ program midas_letkf
   !- 1.1 Setting default namelist variable values
   algorithm             = 'LETKF'
   ensPostProcessing     = .false.
+  recenterInputEns      = .false.
   ensPathName           = 'ensemble'
   nEns                  = 10
   numSubEns             = 2
@@ -140,9 +152,12 @@ program midas_letkf
   huberize              = .false.
   rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
+  ignoreEnsDate         = .false.
+  outputOnlyEnsMean     = .false.
   hLocalize(:)          = -1.0D0
   hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
+  minDistanceToLand     = -1.0D0
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
 
@@ -161,6 +176,11 @@ program midas_letkf
   end if
   hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
   hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
+
+  if (minDistanceToLand > 0.0D0) then
+    minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
+  end if
+
   if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
       trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
@@ -202,6 +222,11 @@ program midas_letkf
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
+  nwpFields   = (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0)
+  oceanFields = (vco_getNumLev(vco_ens,'DP') > 0)
+  if (.not.nwpFields .and. .not.oceanFields) then
+    call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
+  end if
 
   if ( hco_ens % global ) then
     call agd_SetupFromHCO( hco_ens ) ! IN
@@ -240,36 +265,60 @@ program midas_letkf
                     mpiLocal_opt=.true., setToZero_opt=.true.)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !- 2.7 Read the sfc height from ensemble member 1
-  call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
-  call gsv_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                         containsFullField_opt=.true., readHeightSfc_opt=.true. )
+  !- 2.7 Read the sfc height from ensemble member 1 - only if we are doing NWP
+  if ( nwpFields ) then
+    call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
+    call gsv_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+                           containsFullField_opt=.true., readHeightSfc_opt=.true. )
+  end if
 
   !- 2.8 Allocate various statevectors related to ensemble mean
-  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanTrl4D)
-  call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanAnl)
 
   !- 2.9 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
-  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
 
   !- 2.10 Allocate ensembles, read the Trl ensemble
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
+  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
+                        ignoreDate_opt=ignoreEnsDate)
 
-  !- 2.11 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
+  !- 2.11 If desired, read a deterministic state for recentering the ensemble
+  if (recenterInputEns) then
+    call gsv_allocate( stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorRecenter)
+    call fln_ensTrlFileName( recenterFileName, './', tim_getDateStamp() )
+    do stepIndex = 1, tim_nstepobs
+      call gsv_readFromFile( stateVectorRecenter, recenterFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
+    call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeff_opt=1.0d0 )
+    call gsv_deallocate( stateVectorRecenter )
+  end if
+  
+  !- 2.12 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   if (tim_nstepobsinc < tim_nstepobs) then
@@ -292,7 +341,11 @@ program midas_letkf
     ! copy 1 member to a stateVector
     call ens_copyMember(ensembleTrl4D, stateVectorWithZandP4D, memberIndex)
 
-    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+    ! copy the surface height field
+    if (nwpFields) then
+      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+    end if
+
     call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
     ! Compute Y-H(X) in OBS_OMP
@@ -325,9 +378,11 @@ program midas_letkf
   write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean background'
   write(*,*) ''
   call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
-  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+  if (nwpFields) then
+    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+  end if
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
-  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
+  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setVertLocation
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
@@ -335,14 +390,27 @@ program midas_letkf
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
 
-  ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
-  call eob_setLogPres(ensObs, column)
+  ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
+  if (vLocalize > 0.0d0) then
+    if (nwpFields) then
+      call eob_setTypeVertCoord(ensObs,'logPressure')
+    else if (oceanFields) then
+      call eob_setTypeVertCoord(ensObs,'depth')
+    end if
+    call eob_setVertLocation(ensObs, column)
+  end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
   if (modifyAmsubObsError) call enkf_modifyAmsubObsError(obsSpaceData)
 
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
+
+  ! For ice/ocean DA: remove obs that are too close to land
+  if (minDistanceToLand > 0.0D0) then
+    call ens_copyMask(ensembleTrl4D,oceanMask)
+    call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+  end if
 
   ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
   call eob_setSigiSigo(ensObs)
@@ -419,7 +487,9 @@ program midas_letkf
   else
     call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
   end if
-  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+  if (nwpFields) then
+    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+  end if
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
@@ -430,14 +500,20 @@ program midas_letkf
 
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
-    !- Allocate and read the Trl control member
+    !- Allocate and read the Trl control member (used to compute control member increment for IAU)
     call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
-    call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt=0, &
-                         copyToRamDisk_opt=.false.)
+    if (recenterInputEns) then
+      !- Use the deterministic trial, if we are recentering the input ensemble
+      ctrlFileName = trim(recenterFileName)
+    else
+      !- Otherwise, use member 0000
+      call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt=0, &
+                           copyToRamDisk_opt=.false.)
+    end if
     do stepIndex = 1, tim_nstepobsinc
       call gsv_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
@@ -446,17 +522,19 @@ program midas_letkf
 
     call tmg_start(8,'LETKF-postProcess')
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
-                         writeTrlEnsemble=.false.)
+                         writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
     call tmg_stop(8)
   else
-    ! just write the raw analysis ensemble to files
+    !- Just write the raw analysis ensemble to files
     if (mpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
-                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                           containsFullField_opt=.true.)
+    if (.not. outputOnlyEnsMean) then
+      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                             containsFullField_opt=.true.)
+    end if
     call tmg_stop(104)
 
   end if

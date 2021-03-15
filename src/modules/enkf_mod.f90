@@ -95,8 +95,9 @@ contains
     character(len=*)            :: mpiDistribution
 
     ! Locals
-    integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, nLev_M, ierr, matrixRank
-    integer :: memberIndex, memberIndex1, memberIndex2
+    integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+    integer :: nLev_M, nLev_depth, nLev_weights
+    integer :: memberIndex, memberIndex1, memberIndex2, ierr, matrixRank
     integer :: memberIndexCV, memberIndexCV1, memberIndexCV2
     integer :: procIndex, procIndexSend, hLocIndex
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
@@ -107,7 +108,7 @@ contains
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    real(8) :: anlLat, anlLon, anlLogPres, distance, tolerance, localization
+    real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
 
     integer, allocatable :: localBodyIndices(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -126,19 +127,20 @@ contains
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(8), allocatable :: memberAnlPert(:)
-    real(4), allocatable :: logPres_M_r4(:,:,:)
+    real(4), allocatable :: vertLocation_r4(:,:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
     character(len=4)     :: varLevel
+    character(len=2)     :: varKind
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: firstTime = .true.
+    logical :: hLocalizeIsConstant, firstTime = .true.
 
     write(*,*) 'enkf_LETKFanalyses: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -154,8 +156,10 @@ contains
     allocate(requestIdSend(3*myNumLatLonSend*maxval(myNumProcIndexesSend)))
     allocate(requestIdRecv(3*myNumLatLonRecv))
 
-    nEns = ens_getNumMembers(ensembleAnl)
-    nLev_M = ens_getNumLev(ensembleAnl, 'MM')
+    nEns       = ens_getNumMembers(ensembleAnl)
+    nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
+    nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
+    nLev_weights = max(nLev_M,nLev_depth)
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
     myLonBeg = stateVectorMeanAnl%myLonBeg
@@ -254,14 +258,16 @@ contains
 
     call lfn_Setup(LocFunctionWanted='FifthOrder')
 
-    ! compute 3D field of log(pressure) needed for localization
-    call enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+    ! compute 3D field of vertical location needed for localization
+    if (vLocalize > 0.0d0) then
+      call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
+    end if
 
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
     numGridPointWeights = 0
-    LEV_LOOP: do levIndex = 1, nLev_M
+    LEV_LOOP: do levIndex = 1, nLev_weights
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
 
       !
@@ -299,15 +305,22 @@ contains
         ! lat-lon of the grid point for which we are doing the analysis
         anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
         anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-        anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+        hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
+        if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
+          anlVertLocation = vertLocation_r4(lonIndex,latIndex,levIndex)
+        end if
 
         ! Find which horizontal localization value to use for this analysis level
-        hLocIndex = 1 + count(anlLogPres > hLocalizePressure(:))
+        if (hLocalizeIsConstant) then
+          hLocIndex = 1
+        else
+          hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
+        end if
 
         ! Get list of nearby observations and distances to gridpoint
         call tmg_start(9,'LETKF-getLocalBodyIndices')
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                              distances, anlLat, anlLon, anlLogPres,  &
+                                              distances, anlLat, anlLon, anlVertLocation,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1
@@ -326,8 +339,8 @@ contains
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical - use pressures at the grid point (not obs) location
-          if (vLocalize > 0) then
-            distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
+          if (vLocalize > 0.0d0) then
+            distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
           call tmg_stop(18)
@@ -744,10 +757,19 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
-              levIndex2 = nLev_M
-            else
+            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
+                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
+              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+              if (varKind == 'OC') then
+                levIndex2 = 1
+              else
+                levIndex2 = nLev_weights
+              end if
+            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else
+              write(*,*) 'varLevel = ', varLevel
+              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
@@ -771,10 +793,19 @@ contains
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
-              levIndex2 = nLev_M
-            else
+            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
+                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
+              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
+              if (varKind == 'OC') then
+                levIndex2 = 1
+              else
+                levIndex2 = nLev_weights
+              end if
+            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else
+              write(*,*) 'varLevel = ', varLevel
+              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
@@ -824,52 +855,79 @@ contains
   end subroutine enkf_LETKFanalyses
 
   !----------------------------------------------------------------------
-  ! enkf_computeLogPresM (private subroutine)
+  ! enkf_computeVertLocation (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+  subroutine enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     !
-    !:Purpose:  Compute extract global 3D log pressure field from supplied
-    !           stateVector.
+    !:Purpose:  Compute extract global 3D vertical location field from supplied
+    !           stateVector. Can be either logPressure or depth levels.
     !
     implicit none
 
     ! Arguments
-    real(4), allocatable :: logPres_M_r4(:,:,:)
-    type(struct_gsv) :: stateVectorMeanTrl
+    real(4), allocatable, intent(inout) :: vertLocation_r4(:,:,:)
+    type(struct_gsv),     intent(inout) :: stateVectorMeanTrl
 
     ! Locals
-    integer          :: nLev_M, nsize, ierr
-    real(4), pointer :: logPres_M_ptr_r4(:,:,:)
+    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize, ierr
+    real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step
 
+    write(*,*) 'enkf_computeVertLocation: starting'
+
     nLev_M = gsv_getNumLev(stateVectorMeanTrl, 'MM')
+    nLev_depth = gsv_getNumLev(stateVectorMeanTrl, 'DP')
+    if ( nLev_M > 0 .and. nLev_depth > 0 ) then
+      call utl_abort('enkf_computeVertLocation: both momentum and depth levels exist.')
+    else if ( nLev_M == 0 .and. nLev_depth == 0 ) then
+      call utl_abort('enkf_computeVertLocation: neither momentum nor depth levels exist.')
+    end if
+    nLev_vertLocation = max(nLev_M, nLev_depth)
 
-    ! Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
-    call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
-                       stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
-    call gsv_zero(stateVectorMeanTrlPressure)
-    call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
-    call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
-    if (mpi_myid == 0) then
-      call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
+    allocate(vertLocation_r4(stateVectorMeanTrl%hco%ni, &
+                             stateVectorMeanTrl%hco%nj, &
+                             nLev_vertLocation))
+
+    if ( nLev_M > 0 ) then ! log pressure for NWP fields
+
+      ! Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
+      call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
                          stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.false., &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
-    end if
-    call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
-    call gsv_deallocate(stateVectorMeanTrlPressure)
-    allocate(logPres_M_r4(stateVectorMeanTrlPressure%ni, stateVectorMeanTrlPressure%nj, nLev_M))
-    if (mpi_myid == 0) then
-      call gsv_getField(stateVectorMeanTrlPressure_1step,logPres_M_ptr_r4,'P_M')
-      logPres_M_r4(:,:,:) = log(logPres_M_ptr_r4(:,:,:))
-    end if
-    nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-    call rpn_comm_bcast(logPres_M_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+      call gsv_zero(stateVectorMeanTrlPressure)
+      call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
+      call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
+      if (mpi_myid == 0) then
+        call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
+                           stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.false., &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+      end if
+      call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
+      call gsv_deallocate(stateVectorMeanTrlPressure)
+      if (mpi_myid == 0) then
+        call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
+        vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
+      end if
+      nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
+      call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
 
-  end subroutine enkf_computeLogPresM
+    else if ( nLev_depth > 0 ) then ! depth for ocean fields
+
+      ! fill in all horizontal grid points with the same profile of depth values
+      do levIndex = 1, nLev_depth
+        write(*,*) 'setting vertLocation for levIndex =', levIndex, &
+                   ', depth = ', stateVectorMeanTrl%vco%depths(levIndex)
+        vertLocation_r4(:,:,levIndex) = stateVectorMeanTrl%vco%depths(levIndex)
+      end do
+
+    end if
+
+    write(*,*) 'enkf_computeVertLocation: finished'
+
+  end subroutine enkf_computeVertLocation
 
   !----------------------------------------------------------------------
   ! enkf_setupMpiDistribution (private subroutine)
