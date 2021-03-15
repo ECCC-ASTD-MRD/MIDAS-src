@@ -398,6 +398,9 @@ $(DEP_ABS): $(DEP_OBJ)
 	$(V) $(SRC_ROOT)/recursiveDep.py $^ '$(notdir $(ABS))'  > $@
 
 
+.PHONY: touch-%
+touch-%:
+	touch $(subst touch-,,$@)
 
 ##-----------------------------------------------
 ##	Phony global targets
