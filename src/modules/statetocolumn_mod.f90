@@ -295,6 +295,7 @@ contains
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
+    integer :: index1, index2, headerIndexProc 
     integer :: maxkcount, numkToSend 
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
@@ -866,10 +867,11 @@ contains
       end do
     end do
 
+    write(*,*) 's2c_setupInterpInfo: first call to s2c_setupHorizInterp. loop starting'
     call tmg_start(173,'S2CNL_SETUPROTLL')
     do stepIndex = 1, numStep
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-      !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
+      !!$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+      !!$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
       do procIndex = 1, mpi_nprocs
         do kIndex = mykBeg, statevector%mykEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
@@ -939,9 +941,11 @@ contains
           end do ! headerIndex
         end do ! kIndex
       end do ! procIndex
-      !$OMP END PARALLEL DO
+      !!$OMP END PARALLEL DO
     end do ! stepIndex
     call tmg_stop(173)
+
+    write(*,*) 's2c_setupInterpInfo: first call to s2c_setupHorizInterp. loop finished'
 
     numGridptTotal = 0
     do stepIndex = 1, numStep
@@ -970,8 +974,10 @@ contains
     allocate( interpInfo%lonIndexDepot(numGridptTotal) )
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
 
+    write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop starting'
+
     call tmg_start(175,'S2CNL_SETUPWEIGHTS')
-    !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
+    !!$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mpi_nprocs
       do stepIndex = 1, numStep
         do kIndex = mykBeg, statevector%mykEnd
@@ -988,8 +994,45 @@ contains
         end do ! kIndex
       end do ! stepIndex
     end do ! procIndex
-    !$OMP END PARALLEL DO
+    !!$OMP END PARALLEL DO
     call tmg_stop(175)
+
+    write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop finished'
+
+    do stepIndex = 1, numStep
+      do procIndex = 1, mpi_nprocs
+        do kIndex = mykBeg, statevector%mykEnd
+          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+            do subGridIndex = 1, interpInfo%hco%numSubGrid
+              index1 = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,kIndex)
+              index2 = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex)
+              if ( index2 /= -1 ) then
+                if ( minval(interpInfo%lonIndexDepot(index1:index2)) < 1 .or. &
+                  maxval(interpInfo%lonIndexDepot(index1:index2)) > statevector%hco%ni .or. &
+                  minval(interpInfo%latIndexDepot(index1:index2)) < 1 .or. &
+                  maxval(interpInfo%latIndexDepot(index1:index2)) > statevector%hco%nj ) then
+                  write(*,*) 's2c_setupInterpInfo: depotIndexBeg=', index1, &
+                                  ',depotIndexEnd=', index2
+                  write(*,*) 's2c_setupInterpInfo: lonIndexDepot=', interpInfo%lonIndexDepot(index1:index2)
+                  write(*,*) 's2c_setupInterpInfo: latIndexDepot=', interpInfo%latIndexDepot(index1:index2)
+
+                  if ( procIndex == mpi_myid + 1 ) then
+                    headerIndexProc = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
+                    write(*,*) 's2c_setupInterpInfo: codtyp=', &
+                          obs_headElem_i( obsSpaceData, OBS_ITY, headerIndexProc ), &
+                          ',stnId=', obs_elem_c ( obsSpaceData, 'STID' , headerIndexProc )
+                  end if
+
+                end if
+              end if
+
+            end do ! subGridIndex
+          end do ! headerIndex
+        end do ! kIndex
+      end do ! procIndex
+    end do ! stepIndex
+
+    write(*,*) 's2c_setupInterpInfo: checking lat/lon indices finished'
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -1919,6 +1962,14 @@ contains
           latIndex = interpInfo%latIndexDepot(gridptIndex)
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
+          if ( lonIndex < 1 .or. lonIndex > size(field_in,1) .or. &
+              latIndex < 1 .or. latIndex > size(field_in,2) ) then
+
+            write(*,*) 'myezsint_nl: gridptIndex=',gridptIndex
+            write(*,*) 'myezsint_nl: lonIndex=',lonIndex, '/', size(field_in,1), &
+                      ',latIndex=',latIndex, '/', size(field_in,2)
+          end if
+
           interpValue = interpValue + weight * real(field_in(lonIndex, latIndex),8)
 
         end do
@@ -2130,10 +2181,32 @@ contains
           latIndex = interpInfo%latIndexDepot(gridptIndex)
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) +  &
-                      weight * real(fieldUU_in(lonIndex, latIndex),8)
-          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) +  &
-                      weight * real(fieldVV_in(lonIndex, latIndex),8)
+
+          if ( doUU ) then 
+            if ( lonIndex < 1 .or. lonIndex > size(fieldUU_in,1) .or. &
+                latIndex < 1 .or. latIndex > size(fieldUU_in,2) ) then
+
+              write(*,*) 'myezuvint_nl: for UU, gridptIndex=',gridptIndex
+              write(*,*) 'myezuvint_nl: for UU, lonIndex=',lonIndex, '/', size(fieldUU_in,1), &
+                        ',latIndex=',latIndex, '/', size(fieldUU_in,2)
+            end if
+
+            interpUU(subGridIndex) = interpUU(subGridIndex) +  &
+                weight * real(fieldUU_in(lonIndex, latIndex),8)
+          end if
+
+          if ( doVV ) then
+            if ( lonIndex < 1 .or. lonIndex > size(fieldVV_in,1) .or. &
+                latIndex < 1 .or. latIndex > size(fieldVV_in,2) ) then
+
+              write(*,*) 'myezuvint_nl: for VV, gridptIndex=',gridptIndex
+              write(*,*) 'myezuvint_nl: for VV, lonIndex=',lonIndex, '/', size(fieldVV_in,1), &
+                        ',latIndex=',latIndex, '/', size(fieldVV_in,2)
+            end if
+
+            interpVV(subGridIndex) = interpVV(subGridIndex) +  &
+                weight * real(fieldVV_in(lonIndex, latIndex),8)
+          end if
 
         end do
         ! now rotate the wind vector
@@ -2697,7 +2770,8 @@ contains
 
     else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
 
-      fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
+      !fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
+      fpr = 40.0e3
       if ( stateVector % hco % maxGridSpacing > fpr ) fpr = bilinearFootprint
 
     else
@@ -3046,13 +3120,15 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
-    integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
+    integer :: lonIndexVec(statevector%hco%ni*statevector%hco%nj), latIndexVec(statevector%hco%ni*statevector%hco%nj)
 
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3)
 
     numGridpt(:) = 0
+    lonIndexVec(:) = -1
+    latIndexVec(:) = -1
 
     ! Determine the grid point nearest the observation.
 
@@ -3076,8 +3152,8 @@ contains
     end if
 
     ! Return if observation is not on the grid, or masked.
-    if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
-         latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) return
+    if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%hco%ni .or.  &
+         latIndexCentre < 1 .or. latIndexCentre > statevector%hco%nj ) return
 
     if ( allocated(stateVector%hco%mask) ) then
       if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) return
@@ -3088,11 +3164,11 @@ contains
       write(*,*) 's2c_setupFootprintInterp: start creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      allocate(positionArray(3,statevector%ni * statevector%nj))
+      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
 
       gridIndex = 0
-      do latIndex = 1, statevector % nj
-        do lonIndex = 1, statevector % ni
+      do latIndex = 1, statevector%hco%nj
+        do lonIndex = 1, statevector%hco%ni
           gridIndex = gridIndex + 1
           lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
           lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
@@ -3111,7 +3187,7 @@ contains
     end if
 
     ! do the search
-    maxRadiusSquared = fpr ** 2
+    maxRadiusSquared = real(fpr,8) ** 2
     refPosition(1) = RA * sin(lonObs) * cos(latObs)
     refPosition(2) = RA * cos(lonObs) * cos(latObs)
     refPosition(3) = RA * sin(latObs)
@@ -3122,40 +3198,44 @@ contains
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
     end if
 
-    ! Return, if there is one gridpt masked out.
-    if ( allocated(stateVector%hco%mask) ) then
-      do resultsIndex = 1, numLocalGridptsFoundSearch
-        gridIndex = searchResults(resultsIndex) % idx
-
-        latIndex = int((gridIndex - 1) / statevector % ni) + 1
-        lonIndex = gridIndex - (latIndex - 1) * (statevector % ni)
-        if (stateVector%hco%mask(lonIndex, latIndex) == 0) return
-      end do
-    end if
+    ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
+    ! if footprint size is smaller than the grid spacing.
+    gridptCount = 1
+    lonIndexVec(gridptCount) = lonIndexCentre
+    latIndexVec(gridptCount) = latIndexCentre
 
     ! fill the rest of lonIndexVec/latIndexVec
-    if (  numLocalGridptsFoundSearch == 0 ) then
-      ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
-      ! if footprint size is smaller than the grid spacing.
+    if ( numLocalGridptsFoundSearch > 1 ) then
+      gridLoop1: do resultsIndex = 1, numLocalGridptsFoundSearch
+        gridIndex = searchResults(resultsIndex)%idx
+        if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
+          write(*,*) 's2c_setupFootprintInterp: gridIndex=', gridIndex
+          call utl_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
+        end if
 
-      gridptCount = 1
-      lonIndexVec(gridptCount) = lonIndexCentre
-      latIndexVec(gridptCount) = latIndexCentre
+        latIndex = (gridIndex - 1) / statevector%hco%ni + 1
+        lonIndex = gridIndex - (latIndex - 1) * statevector%hco%ni
+        if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
+                latIndex < 1 .or. latIndex > statevector%hco%nj ) then
+          write(*,*) 's2c_setupFootprintInterp: lonIndex=', lonIndex, ',latIndex=', latIndex
+          call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
+        end if
 
-    else
-      gridptCount = 0 
-      do resultsIndex = 1, numLocalGridptsFoundSearch
-        gridIndex = searchResults(resultsIndex) % idx
+        if ( allocated(stateVector%hco%mask) ) then
+          if ( stateVector%hco%mask(lonIndex, latIndex) == 0 ) cycle gridLoop1
+        end if
 
-        latIndex = int((gridIndex - 1) / statevector % ni) + 1
-        lonIndex = gridIndex - (latIndex - 1) * (statevector % ni)
+        if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
 
         gridptCount = gridptCount + 1
         lonIndexVec(gridptCount) = lonIndex
         latIndexVec(gridptCount) = latIndex
-      end do
+      end do gridLoop1
 
     end if
+
+    !write(*,*) 's2c_setupFootprintInterp: count=',gridptCount,',lonIndexVec=',lonIndexVec(1:gridptCount),',latIndexVec=',latIndexVec(1:gridptCount)
+    !write(*,*) 's2c_setupFootprintInterp: count=',gridptCount,',min(latIndexVec)=',minval(latIndexVec(1:gridptCount)),',max(latIndexVec)=',maxval(latIndexVec(1:gridptCount))
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
 
