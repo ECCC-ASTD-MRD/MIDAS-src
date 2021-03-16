@@ -486,11 +486,15 @@ contains
     clvalu(95) = 'brpsst'
     clvalu(96) = 'obsal'
     clvalu(97) = 'obsradar'
-    clvalu(98) = 'obssst'
+    clvalu(98) = 'obssst_insitu'
     clvalu(99) = 'obshydro'
     clvalu(100)= 'obsmwhs2'
     clvalu(101)= 'brpmwhs2'
     clvalu(102)= 'obssarwinds'
+    clvalu(103)= 'obssst_avhrr'
+    clvalu(104)= 'obssst_amsr2'
+    clvalu(105)= 'obssst_viirs'
+    clvalu(106)= 'obssst_pseudo'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -595,6 +599,10 @@ contains
     cfami(100) = 'TO'
     cfami(101) = 'TO'
     cfami(102) = 'SF'
+    cfami(103) = 'TM'
+    cfami(104) = 'TM'
+    cfami(105) = 'TM'
+    cfami(106) = 'TM'
 
     obsDirectory = 'obs'
 

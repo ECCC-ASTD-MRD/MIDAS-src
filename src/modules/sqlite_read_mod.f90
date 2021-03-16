@@ -331,6 +331,12 @@ contains
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
+      case ( 'sst' )
+        vertCoordFact = 0
+        vertCoordType = 1
+        read(nulnam, nml = NAMSQLsfc, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'scat' )
         vertCoordFact = 0
         vertCoordType = 1

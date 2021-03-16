@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Change the input SST data observations: the files are separated by the name of instruments  
  * Change to some environment variable naming convention: start with `MIDAS_`
    (#255, #443 and !317)
    * Retrocompatibility maintained until next release
