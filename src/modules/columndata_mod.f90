@@ -81,9 +81,11 @@ contains
     logical :: conversionVarKindCHtoMicrograms
     logical :: abortOnMpiImbalance
     logical :: vInterpCopyLowestLevel
+    logical :: interpToPhysicsGrid
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc, &
+                       interpToPhysicsGrid
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -101,6 +103,7 @@ contains
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
     vInterpCopyLowestLevel = .false.
+    interpToPhysicsGrid = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

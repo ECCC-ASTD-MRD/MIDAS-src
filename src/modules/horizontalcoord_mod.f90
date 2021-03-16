@@ -49,7 +49,7 @@ module HorizontalCoord_mod
      integer              :: ig2
      integer              :: ig3
      integer              :: ig4
-     integer              :: EZscintID
+     integer              :: EZscintID = -1
      integer              :: numSubGrid
      integer              :: EZscintIDsubGrids(maxNumSubGrid)
      real(8), allocatable :: lat(:) ! in radians
@@ -637,8 +637,9 @@ module HorizontalCoord_mod
       if ( hco%grtyp == 'G' ) then
         hco%EZscintID  = ezqkdef( hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0 )
       else
-        write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not set for grtyp = ',hco%grtyp
-        hco%EZscintID  = -1
+        ! special treatment since EZscintID not properly communicated: keep as is
+        write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not communicated for grtyp = ', hco%grtyp
+        write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT equals = ', hco%EZscintID
       endif
     endif
 
