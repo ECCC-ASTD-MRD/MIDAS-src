@@ -5155,8 +5155,9 @@ write(*,*) 'here'
         call gsv_getField(statevector_in ,field_in,varName)
         call gsv_getField(statevector_out,field_out,varName)
 
-        ! for 2D fields, just copy and cycle to next variable
-        if ( nlev_in == 1 .and. nlev_out == 1 ) then
+        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+             (vnl_varLevelFromVarname(varName) == 'OT') ) then
           field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
           cycle var_loop
         end if
