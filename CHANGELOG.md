@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug affecting background check of GZ observations (#468 and !443)
  * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !438)
 
 ### Removed
