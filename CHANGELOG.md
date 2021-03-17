@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !441)
  * Fix make-based compilation environment passing, doc and other minor issues
    (#457 and !436)
  * Fix calculation of normalization coefficients for explicit diffusion operator with MPI (#426 and !404)
