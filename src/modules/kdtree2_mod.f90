@@ -604,6 +604,7 @@ contains
     real(kdkind), target :: input_data(:,:)
     !
     integer :: i
+    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
     ! ..
     allocate (mr)
     mr%the_data => input_data
@@ -626,6 +627,20 @@ contains
        write (*,*) 'KD_TREE_TRANS: is not an appropriate data structure.'
        call utl_abort('kdtree2_create: supplied array has no data')
     end if
+
+    !$OMP PARALLEL PRIVATE(mythread)
+    mythread = omp_get_thread_num()
+    write(*,*) 'kdtree2_create: mythread inside openMP parallel=', mythread
+    if ( mythread == 0 ) then
+      numthread = omp_get_num_threads()
+      write(*,*) 'kdtree2_create: number of threads=', numthread     
+    end if
+    !$OMP END PARALLEL
+
+    mythread = omp_get_thread_num()
+    write(*,*) 'kdtree2_create: mythread outside openMP parallel=',mythread
+
+    !if ( .not. allocated(sr) ) allocate(sr(0:numthread-1))
 
     call build_tree(mr)
 

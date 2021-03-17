@@ -901,8 +901,8 @@ contains
     write(*,*) 's2c_setupInterpInfo: first call to s2c_setupHorizInterp. loop starting'
     call tmg_start(173,'S2CNL_SETUPROTLL')
     do stepIndex = 1, numStep
-      !!$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-      !!$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
+      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+      !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
       do procIndex = 1, mpi_nprocs
         do kIndex = mykBeg, statevector%mykEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
@@ -972,7 +972,7 @@ contains
           end do ! headerIndex
         end do ! kIndex
       end do ! procIndex
-      !!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
     end do ! stepIndex
     call tmg_stop(173)
 
@@ -1008,7 +1008,7 @@ contains
     write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop starting'
 
     call tmg_start(175,'S2CNL_SETUPWEIGHTS')
-    !!$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
+    !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mpi_nprocs
       do stepIndex = 1, numStep
         do kIndex = mykBeg, statevector%mykEnd
@@ -1025,7 +1025,7 @@ contains
         end do ! kIndex
       end do ! stepIndex
     end do ! procIndex
-    !!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     call tmg_stop(175)
 
     write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop finished'
