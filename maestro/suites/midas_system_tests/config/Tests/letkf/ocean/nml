@@ -52,7 +52,6 @@
  &NAMSQLsfc
    numberElem=1
    listElem="22042, 7025"
-   sqlExtraDat=" order by id_obs "
    sqlNull=" and obsvalue is not null "  
 /
  &NAMSQLUpdate

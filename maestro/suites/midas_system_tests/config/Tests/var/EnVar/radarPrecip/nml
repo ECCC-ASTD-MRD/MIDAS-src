@@ -391,7 +391,6 @@
  &NAMSQLradar
   numberElem=1
   listElem="21036"
-  sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "  
 /
  &namSQLInsert

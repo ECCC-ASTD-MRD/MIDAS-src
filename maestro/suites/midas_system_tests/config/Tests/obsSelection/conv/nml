@@ -130,7 +130,6 @@
  &NAMSQLsfc
   numberElem=11
   listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035"
-  sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /
  &namSQLInsert

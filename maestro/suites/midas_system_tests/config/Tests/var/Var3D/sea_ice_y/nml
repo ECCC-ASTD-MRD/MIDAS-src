@@ -63,7 +63,6 @@
  &NAMSQLgl
   numberElem=4
   listElem="20222,20237,21169,21199"
-  sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
