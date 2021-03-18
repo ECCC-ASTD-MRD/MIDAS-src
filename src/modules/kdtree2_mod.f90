@@ -569,8 +569,6 @@ module kdtree2_mod
   ! everything else is private.
 
   type(tree_search_record), save, allocatable, target :: sr(:)   ! A GLOBAL VARIABLE for search
-  integer, external :: omp_get_thread_num
-  integer :: mythread
 
 contains
 
@@ -605,7 +603,8 @@ contains
     ! .. Array Arguments ..
     real(kdkind), target :: input_data(:,:)
     !
-    integer :: i, numthread, omp_get_num_threads
+    integer :: i, numthread, mythread
+    integer, external :: omp_get_thread_num, omp_get_num_threads
     ! ..
     allocate (mr)
     mr%the_data => input_data
@@ -1007,39 +1006,41 @@ contains
     real(kdkind), target, intent (In)    :: qv(:)
     integer, intent (In)         :: nn
     type(kdtree2_result), target :: results(:)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
-    sr(mythread+1)%ballsize = huge(1.0)
-    sr(mythread+1)%qv => qv
-    sr(mythread+1)%nn = nn
-    sr(mythread+1)%nfound = 0
-    sr(mythread+1)%centeridx = -1
-    sr(mythread+1)%correltime = 0
-    sr(mythread+1)%overflow = .false. 
+    sr(mythread)%ballsize = huge(1.0)
+    sr(mythread)%qv => qv
+    sr(mythread)%nn = nn
+    sr(mythread)%nfound = 0
+    sr(mythread)%centeridx = -1
+    sr(mythread)%correltime = 0
+    sr(mythread)%overflow = .false. 
 
-    sr(mythread+1)%results => results
+    sr(mythread)%results => results
 
-    sr(mythread+1)%nalloc = nn   ! will be checked
+    sr(mythread)%nalloc = nn   ! will be checked
 
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange = tp%rearrange
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange = tp%rearrange
     if (tp%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
-    sr(mythread+1)%dimen = tp%dimen
+    sr(mythread)%dimen = tp%dimen
 
     call validate_query_storage(nn) 
-    sr(mythread+1)%pq = pq_create(results)
+    sr(mythread)%pq = pq_create(results)
 
     call search(tp%root)
 
     if (tp%sort) then
        call kdtree2_sort_results(nn, results)
     endif
-!    deallocate(sr(mythread+1)%pqp)
+!    deallocate(sr(mythread)%pqp)
     return
   end subroutine kdtree2_n_nearest
 
@@ -1050,41 +1051,43 @@ contains
     type (kdtree2), pointer        :: tp
     integer, intent (In)           :: idxin, correltime, nn
     type(kdtree2_result), target   :: results(:)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
-    allocate (sr(mythread+1)%qv(tp%dimen))
-    sr(mythread+1)%qv = tp%the_data(:,idxin) ! copy the vector
-    sr(mythread+1)%ballsize = huge(1.0)       ! the largest real(kdkind) number
-    sr(mythread+1)%centeridx = idxin
-    sr(mythread+1)%correltime = correltime
+    allocate (sr(mythread)%qv(tp%dimen))
+    sr(mythread)%qv = tp%the_data(:,idxin) ! copy the vector
+    sr(mythread)%ballsize = huge(1.0)       ! the largest real(kdkind) number
+    sr(mythread)%centeridx = idxin
+    sr(mythread)%correltime = correltime
 
-    sr(mythread+1)%nn = nn
-    sr(mythread+1)%nfound = 0
+    sr(mythread)%nn = nn
+    sr(mythread)%nfound = 0
 
-    sr(mythread+1)%dimen = tp%dimen
-    sr(mythread+1)%nalloc = nn
+    sr(mythread)%dimen = tp%dimen
+    sr(mythread)%nalloc = nn
 
-    sr(mythread+1)%results => results
+    sr(mythread)%results => results
 
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange = tp%rearrange
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange = tp%rearrange
 
-    if (sr(mythread+1)%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+    if (sr(mythread)%rearrange) then
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
 
     call validate_query_storage(nn)
-    sr(mythread+1)%pq = pq_create(results)
+    sr(mythread)%pq = pq_create(results)
 
     call search(tp%root)
 
     if (tp%sort) then
        call kdtree2_sort_results(nn, results)
     endif
-    deallocate (sr(mythread+1)%qv)
+    deallocate (sr(mythread)%qv)
     return
   end subroutine kdtree2_n_nearest_around_point
 
@@ -1105,47 +1108,49 @@ contains
     integer, intent(out)         :: nfound
     integer, intent (In)         :: nalloc
     type(kdtree2_result), target :: results(:)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
     !
-    sr(mythread+1)%qv => qv
-    sr(mythread+1)%ballsize = r2
-    sr(mythread+1)%nn = 0      ! flag for fixed ball search
-    sr(mythread+1)%nfound = 0
-    sr(mythread+1)%centeridx = -1
-    sr(mythread+1)%correltime = 0
+    sr(mythread)%qv => qv
+    sr(mythread)%ballsize = r2
+    sr(mythread)%nn = 0      ! flag for fixed ball search
+    sr(mythread)%nfound = 0
+    sr(mythread)%centeridx = -1
+    sr(mythread)%correltime = 0
 
-    sr(mythread+1)%results => results
+    sr(mythread)%results => results
 
     call validate_query_storage(nalloc)
-    sr(mythread+1)%nalloc = nalloc
-    sr(mythread+1)%overflow = .false. 
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange= tp%rearrange
+    sr(mythread)%nalloc = nalloc
+    sr(mythread)%overflow = .false. 
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange= tp%rearrange
 
     if (tp%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
-    sr(mythread+1)%dimen = tp%dimen
+    sr(mythread)%dimen = tp%dimen
 
     !
-    !sr(mythread+1)%dsl = Huge(sr(mythread+1)%dsl)    ! set to huge positive values
-    !sr(mythread+1)%il = -1               ! set to invalid indexes
+    !sr(mythread)%dsl = Huge(sr(mythread)%dsl)    ! set to huge positive values
+    !sr(mythread)%il = -1               ! set to invalid indexes
     !
 
     call search(tp%root)
-    nfound = sr(mythread+1)%nfound
+    nfound = sr(mythread)%nfound
 
-    if (sr(mythread+1)%overflow) then
+    if (sr(mythread)%overflow) then
        write (*,*) 'KD_TREE_TRANS: warning! return from kdtree2_r_nearest found more neighbors'
        write (*,*) 'KD_TREE_TRANS: than storage was provided for.  Answer is NOT smallest ball'
        write (*,*) 'KD_TREE_TRANS: with that number of neighbors!  I.e. it is wrong.'
        write (*,*) 'KD_TREE_TRANS: nfound =', nfound, ', nalloc =', nalloc
     endif
 
-    if (tp%sort .and. .not.sr(mythread+1)%overflow) then
+    if (tp%sort .and. .not.sr(mythread)%overflow) then
        call kdtree2_sort_results(nfound, results)
     endif
 
@@ -1164,6 +1169,8 @@ contains
     real(kdkind), intent(in)             :: r2
     integer, intent(out)         :: nfound
     type(kdtree2_result), target :: results(:)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
     ! ..
     ! .. Intrinsic Functions ..
     intrinsic HUGE
@@ -1171,53 +1178,53 @@ contains
 
     mythread = omp_get_thread_num()
 
-    allocate (sr(mythread+1)%qv(tp%dimen))
-    sr(mythread+1)%qv = tp%the_data(:,idxin) ! copy the vector
-    sr(mythread+1)%ballsize = r2
-    sr(mythread+1)%nn = 0    ! flag for fixed r search
-    sr(mythread+1)%nfound = 0
-    sr(mythread+1)%centeridx = idxin
-    sr(mythread+1)%correltime = correltime
+    allocate (sr(mythread)%qv(tp%dimen))
+    sr(mythread)%qv = tp%the_data(:,idxin) ! copy the vector
+    sr(mythread)%ballsize = r2
+    sr(mythread)%nn = 0    ! flag for fixed r search
+    sr(mythread)%nfound = 0
+    sr(mythread)%centeridx = idxin
+    sr(mythread)%correltime = correltime
 
-    sr(mythread+1)%results => results
+    sr(mythread)%results => results
 
-    sr(mythread+1)%nalloc = nalloc
-    sr(mythread+1)%overflow = .false.
+    sr(mythread)%nalloc = nalloc
+    sr(mythread)%overflow = .false.
 
     call validate_query_storage(nalloc)
 
-    !    sr(mythread+1)%dsl = HUGE(sr(mythread+1)%dsl)    ! set to huge positive values
-    !    sr(mythread+1)%il = -1               ! set to invalid indexes
+    !    sr(mythread)%dsl = HUGE(sr(mythread)%dsl)    ! set to huge positive values
+    !    sr(mythread)%il = -1               ! set to invalid indexes
 
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange = tp%rearrange
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange = tp%rearrange
 
     if (tp%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
-    sr(mythread+1)%rearrange = tp%rearrange
-    sr(mythread+1)%dimen = tp%dimen
+    sr(mythread)%rearrange = tp%rearrange
+    sr(mythread)%dimen = tp%dimen
 
     !
-    !sr(mythread+1)%dsl = Huge(sr(mythread+1)%dsl)    ! set to huge positive values
-    !sr(mythread+1)%il = -1               ! set to invalid indexes
+    !sr(mythread)%dsl = Huge(sr(mythread)%dsl)    ! set to huge positive values
+    !sr(mythread)%il = -1               ! set to invalid indexes
     !
 
     call search(tp%root)
-    nfound = sr(mythread+1)%nfound
+    nfound = sr(mythread)%nfound
     if (tp%sort) then
        call kdtree2_sort_results(nfound,results)
     endif
 
-    if (sr(mythread+1)%overflow) then
+    if (sr(mythread)%overflow) then
        write (*,*) 'KD_TREE_TRANS: warning! return from kdtree2_r_nearest found more neighbors'
        write (*,*) 'KD_TREE_TRANS: than storage was provided for.  Answer is NOT smallest ball'
        write (*,*) 'KD_TREE_TRANS: with that number of neighbors!  I.e. it is wrong.'
     endif
 
-    deallocate (sr(mythread+1)%qv)
+    deallocate (sr(mythread)%qv)
     return
   end subroutine kdtree2_r_nearest_around_point
 
@@ -1227,6 +1234,8 @@ contains
     real(kdkind), target, intent (In) :: qv(:)
     real(kdkind), intent(in)          :: r2
     integer                   :: nfound
+    integer :: mythread
+    integer, external :: omp_get_thread_num
     ! ..
     ! .. Intrinsic Functions ..
     intrinsic HUGE
@@ -1234,36 +1243,36 @@ contains
 
     mythread = omp_get_thread_num()
 
-    sr(mythread+1)%qv => qv
-    sr(mythread+1)%ballsize = r2
+    sr(mythread)%qv => qv
+    sr(mythread)%ballsize = r2
 
-    sr(mythread+1)%nn = 0       ! flag for fixed r search
-    sr(mythread+1)%nfound = 0
-    sr(mythread+1)%centeridx = -1
-    sr(mythread+1)%correltime = 0
+    sr(mythread)%nn = 0       ! flag for fixed r search
+    sr(mythread)%nfound = 0
+    sr(mythread)%centeridx = -1
+    sr(mythread)%correltime = 0
     
-    nullify(sr(mythread+1)%results) ! for some reason, FTN 95 chokes on '=> null()'
+    nullify(sr(mythread)%results) ! for some reason, FTN 95 chokes on '=> null()'
 
-    sr(mythread+1)%nalloc = 0            ! we do not allocate any storage but that's OK
+    sr(mythread)%nalloc = 0            ! we do not allocate any storage but that's OK
                              ! for counting.
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange = tp%rearrange
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange = tp%rearrange
     if (tp%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
-    sr(mythread+1)%dimen = tp%dimen
+    sr(mythread)%dimen = tp%dimen
 
     !
-    !sr(mythread+1)%dsl = Huge(sr(mythread+1)%dsl)    ! set to huge positive values
-    !sr(mythread+1)%il = -1               ! set to invalid indexes
+    !sr(mythread)%dsl = Huge(sr(mythread)%dsl)    ! set to huge positive values
+    !sr(mythread)%il = -1               ! set to invalid indexes
     !
-    sr(mythread+1)%overflow = .false.
+    sr(mythread)%overflow = .false.
 
     call search(tp%root)
 
-    nfound = sr(mythread+1)%nfound
+    nfound = sr(mythread)%nfound
 
     return
   end function kdtree2_r_count
@@ -1277,6 +1286,8 @@ contains
     integer, intent (In)    :: correltime, idxin
     real(kdkind), intent(in)        :: r2
     integer                 :: nfound
+    integer :: mythread
+    integer, external :: omp_get_thread_num
     ! ..
     ! ..
     ! .. Intrinsic Functions ..
@@ -1285,38 +1296,38 @@ contains
 
     mythread = omp_get_thread_num()
 
-    allocate (sr(mythread+1)%qv(tp%dimen))
-    sr(mythread+1)%qv = tp%the_data(:,idxin)
-    sr(mythread+1)%ballsize = r2
+    allocate (sr(mythread)%qv(tp%dimen))
+    sr(mythread)%qv = tp%the_data(:,idxin)
+    sr(mythread)%ballsize = r2
 
-    sr(mythread+1)%nn = 0       ! flag for fixed r search
-    sr(mythread+1)%nfound = 0
-    sr(mythread+1)%centeridx = idxin
-    sr(mythread+1)%correltime = correltime
-    nullify(sr(mythread+1)%results)
+    sr(mythread)%nn = 0       ! flag for fixed r search
+    sr(mythread)%nfound = 0
+    sr(mythread)%centeridx = idxin
+    sr(mythread)%correltime = correltime
+    nullify(sr(mythread)%results)
 
-    sr(mythread+1)%nalloc = 0            ! we do not allocate any storage but that's OK
+    sr(mythread)%nalloc = 0            ! we do not allocate any storage but that's OK
                              ! for counting.
 
-    sr(mythread+1)%ind => tp%ind
-    sr(mythread+1)%rearrange = tp%rearrange
+    sr(mythread)%ind => tp%ind
+    sr(mythread)%rearrange = tp%rearrange
 
-    if (sr(mythread+1)%rearrange) then
-       sr(mythread+1)%Data => tp%rearranged_data
+    if (sr(mythread)%rearrange) then
+       sr(mythread)%Data => tp%rearranged_data
     else
-       sr(mythread+1)%Data => tp%the_data
+       sr(mythread)%Data => tp%the_data
     endif
-    sr(mythread+1)%dimen = tp%dimen
+    sr(mythread)%dimen = tp%dimen
 
     !
-    !sr(mythread+1)%dsl = Huge(sr(mythread+1)%dsl)    ! set to huge positive values
-    !sr(mythread+1)%il = -1               ! set to invalid indexes
+    !sr(mythread)%dsl = Huge(sr(mythread)%dsl)    ! set to huge positive values
+    !sr(mythread)%il = -1               ! set to invalid indexes
     !
-    sr(mythread+1)%overflow = .false.
+    sr(mythread)%overflow = .false.
 
     call search(tp%root)
 
-    nfound = sr(mythread+1)%nfound
+    nfound = sr(mythread)%nfound
 
     return
   end function kdtree2_r_count_around_point
@@ -1325,10 +1336,12 @@ contains
   subroutine validate_query_storage(n)
     ! :Purpose: make sure we have enough storage for n
     integer, intent(in) :: n
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
-    if (size(sr(mythread+1)%results,1) .lt. n) then
+    if (size(sr(mythread)%results,1) .lt. n) then
        call utl_abort('kdtrees_mod-validate_query_storage: not enough storage for results')
     endif
 
@@ -1370,19 +1383,21 @@ contains
     real(kdkind)                               :: ballsize
     real(kdkind), pointer           :: qv(:)
     type(interval), pointer :: box(:) 
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
     if ((associated(node%left) .and. associated(node%right)) .eqv. .false.) then
        ! we are on a terminal node
-       if (sr(mythread+1)%nn .eq. 0) then
+       if (sr(mythread)%nn .eq. 0) then
           call process_terminal_node_fixedball(node)
        else
           call process_terminal_node(node)
        endif
     else
        ! we are not on a terminal node
-       qv => sr(mythread+1)%qv(1:)
+       qv => sr(mythread)%qv(1:)
        cut_dim = node%cut_dim
        qval = qv(cut_dim)
 
@@ -1402,17 +1417,17 @@ contains
 
        ! we may need to search the second node. 
        if (associated(nfarther)) then
-          ballsize = sr(mythread+1)%ballsize
+          ballsize = sr(mythread)%ballsize
 !          dis=extra**2
           if (dis <= ballsize) then
              !
              ! we do this separately as going on the first cut dimen is often
              ! a good idea.
-             ! note that if extra**2 < sr(mythread+1)%ballsize, then the next
+             ! note that if extra**2 < sr(mythread)%ballsize, then the next
              ! check will also be false. 
              !
              box => node%box(1:)
-             do i=1,sr(mythread+1)%dimen
+             do i=1,sr(mythread)%dimen
                 if (i .ne. cut_dim) then
                    dis = dis + dis2_from_bnd(qv(i),box(i)%lower,box(i)%upper)
                    if (dis > ballsize) then
@@ -1460,17 +1475,19 @@ contains
     integer :: dimen, i
     real(kdkind)    :: dis, ballsize
     real(kdkind)    :: l, u
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
-    dimen = sr(mythread+1)%dimen
-    ballsize = sr(mythread+1)%ballsize
+    dimen = sr(mythread)%dimen
+    ballsize = sr(mythread)%ballsize
     dis = 0.0
     res = .true.
     do i=1,dimen
        l = node%box(i)%lower
        u = node%box(i)%upper
-       dis = dis + (dis2_from_bnd(sr(mythread+1)%qv(i),l,u))
+       dis = dis + (dis2_from_bnd(sr(mythread)%qv(i),l,u))
        if (dis > ballsize) then
           res = .false.
           return
@@ -1495,6 +1512,8 @@ contains
     real(kdkind)                   :: ballsize, sd, newpri
     logical                :: rearrange
     type(pq), pointer      :: pqp 
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1505,15 +1524,15 @@ contains
     ! Notice, making local pointers with an EXPLICIT lower bound
     ! seems to generate faster code.
     ! why?  I don't know.
-    qv => sr(mythread+1)%qv(1:) 
-    pqp => sr(mythread+1)%pq
-    dimen = sr(mythread+1)%dimen
-    ballsize = sr(mythread+1)%ballsize 
-    rearrange = sr(mythread+1)%rearrange
-    ind => sr(mythread+1)%ind(1:)
-    data => sr(mythread+1)%Data(1:,1:)     
-    centeridx = sr(mythread+1)%centeridx
-    correltime = sr(mythread+1)%correltime
+    qv => sr(mythread)%qv(1:) 
+    pqp => sr(mythread)%pq
+    dimen = sr(mythread)%dimen
+    ballsize = sr(mythread)%ballsize 
+    rearrange = sr(mythread)%rearrange
+    ind => sr(mythread)%ind(1:)
+    data => sr(mythread)%Data(1:,1:)     
+    centeridx = sr(mythread)%centeridx
+    correltime = sr(mythread)%correltime
 
     !    doing_correl = (centeridx >= 0)  ! Do we have a decorrelation window? 
     !    include_point = .true.    ! by default include all points
@@ -1547,25 +1566,25 @@ contains
        !
        ! If it is undersized, then add the point and its distance
        ! unconditionally.  If the point added fills up the working
-       ! list then set the sr(mythread+1)%ballsize, maximum distance bound (largest distance on
+       ! list then set the sr(mythread)%ballsize, maximum distance bound (largest distance on
        ! list) to be that distance, instead of the initialized +infinity. 
        !
        ! If the running list is full size, then compute the
        ! distance but break out immediately if it is larger
-       ! than sr(mythread+1)%ballsize, "best squared distance" (of the largest element),
+       ! than sr(mythread)%ballsize, "best squared distance" (of the largest element),
        ! as it cannot be a good neighbor. 
        !
        ! Once computed, compare to best_square distance.
        ! if it is smaller, then delete the previous largest
        ! element and add the new one. 
 
-       if (sr(mythread+1)%nfound .lt. sr(mythread+1)%nn) then
+       if (sr(mythread)%nfound .lt. sr(mythread)%nn) then
           !
           ! add this point unconditionally to fill list.
           !
-          sr(mythread+1)%nfound = sr(mythread+1)%nfound +1 
+          sr(mythread)%nfound = sr(mythread)%nfound +1 
           newpri = pq_insert(pqp,sd,indexofi)
-          if (sr(mythread+1)%nfound .eq. sr(mythread+1)%nn) ballsize = newpri
+          if (sr(mythread)%nfound .eq. sr(mythread)%nn) ballsize = newpri
           ! we have just filled the working list.
           ! put the best square distance to the maximum value
           ! on the list, which is extractable from the PQ. 
@@ -1582,9 +1601,9 @@ contains
        endif
     end do mainloop
     !
-    ! Reset sr(mythread+1) variables which may have changed during loop
+    ! Reset sr(mythread) variables which may have changed during loop
     !
-    sr(mythread+1)%ballsize = ballsize 
+    sr(mythread)%ballsize = ballsize 
 
   end subroutine process_terminal_node
 
@@ -1604,22 +1623,24 @@ contains
     integer                :: centeridx, correltime, nn
     real(kdkind)                   :: ballsize, sd
     logical                :: rearrange
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
     !
     ! copy values from sr(:) to local variables
     !
-    qv => sr(mythread+1)%qv(1:)
-    dimen = sr(mythread+1)%dimen
-    ballsize = sr(mythread+1)%ballsize 
-    rearrange = sr(mythread+1)%rearrange
-    ind => sr(mythread+1)%ind(1:)
-    data => sr(mythread+1)%Data(1:,1:)
-    centeridx = sr(mythread+1)%centeridx
-    correltime = sr(mythread+1)%correltime
-    nn = sr(mythread+1)%nn ! number to search for
-    nfound = sr(mythread+1)%nfound
+    qv => sr(mythread)%qv(1:)
+    dimen = sr(mythread)%dimen
+    ballsize = sr(mythread)%ballsize 
+    rearrange = sr(mythread)%rearrange
+    ind => sr(mythread)%ind(1:)
+    data => sr(mythread)%Data(1:,1:)
+    centeridx = sr(mythread)%centeridx
+    correltime = sr(mythread)%correltime
+    nn = sr(mythread)%nn ! number to search for
+    nfound = sr(mythread)%nfound
 
     ! search through terminal bucket.
     mainloop: do i = node%l, node%u
@@ -1630,12 +1651,12 @@ contains
        !
        ! If it is undersized, then add the point and its distance
        ! unconditionally.  If the point added fills up the working
-       ! list then set the sr(mythread+1)%ballsize, maximum distance bound (largest distance on
+       ! list then set the sr(mythread)%ballsize, maximum distance bound (largest distance on
        ! list) to be that distance, instead of the initialized +infinity. 
        !
        ! If the running list is full size, then compute the
        ! distance but break out immediately if it is larger
-       ! than sr(mythread+1)%ballsize, "best squared distance" (of the largest element),
+       ! than sr(mythread)%ballsize, "best squared distance" (of the largest element),
        ! as it cannot be a good neighbor. 
        !
        ! Once computed, compare to best_square distance.
@@ -1665,19 +1686,19 @@ contains
        endif
 
        nfound = nfound+1
-       if (nfound .gt. sr(mythread+1)%nalloc) then
+       if (nfound .gt. sr(mythread)%nalloc) then
           ! oh nuts, we have to add another one to the tree but
           ! there isn't enough room.
-          sr(mythread+1)%overflow = .true.
+          sr(mythread)%overflow = .true.
        else
-          sr(mythread+1)%results(nfound)%dis = sd
-          sr(mythread+1)%results(nfound)%idx = indexofi
+          sr(mythread)%results(nfound)%dis = sd
+          sr(mythread)%results(nfound)%idx = indexofi
        endif
     end do mainloop
     !
-    ! Reset sr(mythread+1) variables which may have changed during loop
+    ! Reset sr(mythread) variables which may have changed during loop
     !
-    sr(mythread+1)%nfound = nfound
+    sr(mythread)%nfound = nfound
   end subroutine process_terminal_node_fixedball
 
   subroutine kdtree2_n_nearest_brute_force(tp,qv,nn,results) 
