@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug affecting background check of GZ observations (#468 and !443)
  * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !438)
 
 ### Removed
@@ -26,7 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix near-surface extrapolation in GPSRO ObsOperator, to prevent very large erroneous values that caused abort (#460 and !433).
+ * Fix near-surface extrapolation in GPSRO ObsOperator, caused large erroneous values and an abort (#460 and !433).
+   * The change in !433	can infrequently cause differences in resulting analyses
  * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !427)
 
 ## [3.6.1]
