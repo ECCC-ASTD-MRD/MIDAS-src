@@ -102,7 +102,7 @@ module stateToColumn_mod
   real(4), parameter :: nearestNeighbourFootprint = -2.0
   real(4), parameter ::             lakeFootprint = -1.0
   real(4), parameter ::         bilinearFootprint =  0.0
-  integer, parameter :: maxNumLocalGridptsSearch = 10000
+  integer, parameter :: maxNumLocalGridptsSearch = 100
 
   ! namelist variables:
   logical :: slantPath_TO_nl
@@ -577,7 +577,7 @@ contains
           end do
         end do
 
-        interpInfo % tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+        interpInfo % tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
 
         write(*,*) 's2c_setupInterpInfo: done creating kdtree'
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -898,7 +898,6 @@ contains
       end do
     end do
 
-    write(*,*) 's2c_setupInterpInfo: first call to s2c_setupHorizInterp. loop starting'
     call tmg_start(173,'S2CNL_SETUPROTLL')
     do stepIndex = 1, numStep
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -976,8 +975,6 @@ contains
     end do ! stepIndex
     call tmg_stop(173)
 
-    write(*,*) 's2c_setupInterpInfo: first call to s2c_setupHorizInterp. loop finished'
-
     numGridptTotal = 0
     do stepIndex = 1, numStep
       do procIndex = 1, mpi_nprocs
@@ -1005,8 +1002,6 @@ contains
     allocate( interpInfo%lonIndexDepot(numGridptTotal) )
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
 
-    write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop starting'
-
     call tmg_start(175,'S2CNL_SETUPWEIGHTS')
     !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mpi_nprocs
@@ -1027,43 +1022,6 @@ contains
     end do ! procIndex
     !$OMP END PARALLEL DO
     call tmg_stop(175)
-
-    write(*,*) 's2c_setupInterpInfo: second call to s2c_setupHorizInterp. loop finished'
-
-    do stepIndex = 1, numStep
-      do procIndex = 1, mpi_nprocs
-        do kIndex = mykBeg, statevector%mykEnd
-          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
-            do subGridIndex = 1, interpInfo%hco%numSubGrid
-              index1 = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,kIndex)
-              index2 = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex)
-              if ( index2 /= -1 ) then
-                if ( minval(interpInfo%lonIndexDepot(index1:index2)) < 1 .or. &
-                  maxval(interpInfo%lonIndexDepot(index1:index2)) > statevector%hco%ni .or. &
-                  minval(interpInfo%latIndexDepot(index1:index2)) < 1 .or. &
-                  maxval(interpInfo%latIndexDepot(index1:index2)) > statevector%hco%nj ) then
-                  write(*,*) 's2c_setupInterpInfo: depotIndexBeg=', index1, &
-                                  ',depotIndexEnd=', index2
-                  write(*,*) 's2c_setupInterpInfo: lonIndexDepot=', interpInfo%lonIndexDepot(index1:index2)
-                  write(*,*) 's2c_setupInterpInfo: latIndexDepot=', interpInfo%latIndexDepot(index1:index2)
-
-                  if ( procIndex == mpi_myid + 1 ) then
-                    headerIndexProc = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
-                    write(*,*) 's2c_setupInterpInfo: codtyp=', &
-                          obs_headElem_i( obsSpaceData, OBS_ITY, headerIndexProc ), &
-                          ',stnId=', obs_elem_c ( obsSpaceData, 'STID' , headerIndexProc )
-                  end if
-
-                end if
-              end if
-
-            end do ! subGridIndex
-          end do ! headerIndex
-        end do ! kIndex
-      end do ! procIndex
-    end do ! stepIndex
-
-    write(*,*) 's2c_setupInterpInfo: checking lat/lon indices finished'
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -2698,10 +2656,15 @@ contains
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
 
     if ( footprintRadius_r4 > 0.0 ) then
 
+      mythread = omp_get_thread_num()
+      call tmg_start(200+mythread,'s2c_setupFootprintInterp')
       call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call tmg_stop(200+mythread)
 
     else if ( footprintRadius_r4 == bilinearFootprint ) then
 
@@ -2805,8 +2768,7 @@ contains
 
     else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
 
-      !fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
-      fpr = 40.0e3
+      fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
       if ( stateVector % hco % maxGridSpacing > fpr ) fpr = bilinearFootprint
 
     else
@@ -3159,6 +3121,10 @@ contains
 
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3)
+    integer :: mythread
+    integer, external :: omp_get_thread_num
+
+    mythread = omp_get_thread_num()
 
     numGridpt(:) = 0
     lonIndexVec(:) = -1
@@ -3198,9 +3164,11 @@ contains
     refPosition(1) = RA * sin(lonObs) * cos(latObs)
     refPosition(2) = RA * cos(lonObs) * cos(latObs)
     refPosition(3) = RA * sin(latObs)
+    call tmg_start(184+mythread,'kdtree2_r_nearest')
     call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
                                 nfound=numLocalGridptsFoundSearch,&
                                 nalloc=maxNumLocalGridptsSearch, results=searchResults)
+    call tmg_stop(184+mythread)
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
     end if
@@ -3620,12 +3588,12 @@ contains
   !--------------------------------------------------------------------------
   ! getTovsFootprintRadius
   !--------------------------------------------------------------------------
-  function getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt) result(footPrintRadius)
+  function getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt) result(footPrintRadius_r4)
     !
     !:Purpose: calculate foot-print radius for TOVS observations
     !
     implicit none
-    real(8) :: footPrintRadius
+    real(4) :: footPrintRadius_r4
 
     ! Arguments
     type(struct_obs), intent(in)  :: obsSpaceData
@@ -3634,7 +3602,7 @@ contains
     
     ! local
     integer :: codtyp, sensorIndex 
-    real (8) :: alpha, satHeight 
+    real(8) :: alpha, satHeight, footPrintRadius
     logical :: beSilent
 
     if ( present(beSilent_opt) ) then
@@ -3676,16 +3644,17 @@ contains
     !end select
 
     if ( alpha < 0.0d0 ) then 
-      footPrintRadius = bilinearFootprint
+      footPrintRadius_r4 = bilinearFootprint
     else
       ! get foot print radius (meter) from angular diameter
       footPrintRadius = 0.5 * alpha * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
+      footPrintRadius_r4 = real(footPrintRadius,4)
     end if
 
     if ( .not. beSilent ) then
       write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, &
                 ',satHeight=', satHeight, ',alpha=', alpha, ',codtyp=', codtyp, &
-                ',footPrintRadius=', footPrintRadius
+                ',footPrintRadius=', footPrintRadius_r4
     end if
 
   end function getTovsFootprintRadius

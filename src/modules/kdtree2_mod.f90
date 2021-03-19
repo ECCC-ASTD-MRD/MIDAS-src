@@ -969,7 +969,7 @@ contains
       nullify(tp%rearranged_data)
     endif
 
-    !nullify(tp%the_data)
+    nullify(tp%the_data)
 
     deallocate(tp)
     return
