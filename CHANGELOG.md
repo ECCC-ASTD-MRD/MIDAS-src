@@ -692,7 +692,7 @@ Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...HEAD
-[3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.3
+[3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.2...v_3.6.3
 [3.6.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.1...v_3.6.2
 [3.6.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...v_3.6.1
 [3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0
