@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !441)
  * Fix make-based compilation environment passing, doc and other minor issues
    (#457 and !436)
  * Fix calculation of normalization coefficients for explicit diffusion operator with MPI (#426 and !404)
@@ -36,11 +35,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.6.3]
+
+### Fixed
+
+ * Fix bug affecting background check of GZ observations (#468 and !443)
+ * Fix bug deallocating previously unallocated variables in biascorrectionSat_mod.f90 (#465 and !438)
+
 ## [3.6.2]
 
 ### Fixed
 
- * Fix near-surface extrapolation in GPSRO ObsOperator, to prevent very large erroneous values that caused abort (#460 and !433).
+ * Fix near-surface extrapolation in GPSRO ObsOperator, caused large erroneous values and an abort (#460 and !433).
+   * The change in !433	can infrequently cause differences in resulting analyses
  * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !427)
 
 ## [3.6.1]
@@ -684,7 +691,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...HEAD
+[3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.3
 [3.6.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.1...v_3.6.2
 [3.6.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.0...v_3.6.1
 [3.6.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.2...v_3.6.0

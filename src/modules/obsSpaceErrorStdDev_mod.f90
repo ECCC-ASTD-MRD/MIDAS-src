@@ -974,7 +974,7 @@ module obsSpaceErrorStdDev_mod
                if(ITYP .ne. BUFR_NEGZ) then
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
                else
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')*RG)
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH'))
                endif
             ELSE
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
@@ -995,7 +995,7 @@ module obsSpaceErrorStdDev_mod
                       (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
                else
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')*RG))
+                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')))
                endif
                if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
@@ -1004,9 +1004,9 @@ module obsSpaceErrorStdDev_mod
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',columnElem
                  columnElem = col_getElem(lcolumn,IPT,INDEX_HEADER)
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG
+                 columnElem = col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')
                  write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')*RG
+                 columnElem = col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')
                  write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
                  CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
                endif
