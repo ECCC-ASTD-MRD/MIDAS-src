@@ -2769,6 +2769,7 @@ contains
     else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
 
       fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
+      !fpr = 40.0e3
       if ( stateVector % hco % maxGridSpacing > fpr ) fpr = bilinearFootprint
 
     else
@@ -3117,7 +3118,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
-    integer :: lonIndexVec(statevector%hco%ni*statevector%hco%nj), latIndexVec(statevector%hco%ni*statevector%hco%nj)
+    integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
 
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3)
@@ -3127,8 +3128,6 @@ contains
     mythread = omp_get_thread_num()
 
     numGridpt(:) = 0
-    lonIndexVec(:) = -1
-    latIndexVec(:) = -1
 
     ! Determine the grid point nearest the observation.
 
