@@ -2769,8 +2769,9 @@ contains
     else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
 
       fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
-      !fpr = 40.0e3
-      if ( stateVector % hco % maxGridSpacing > fpr ) fpr = bilinearFootprint
+
+      ! As safety margin, add 10% to maxGridSpacing before comparing to the footprint radius.
+      if ( 1.1 * real(stateVector%hco%maxGridSpacing,4) > fpr ) fpr = bilinearFootprint
 
     else
 

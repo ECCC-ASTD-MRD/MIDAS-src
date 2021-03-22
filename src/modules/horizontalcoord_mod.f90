@@ -536,7 +536,7 @@ module HorizontalCoord_mod
       end do 
     end do 
 
-    maxGridSpacing = RA * max(maxDeltaLon,maxDeltaLat)
+    maxGridSpacing = RA * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
 
     write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
     write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
