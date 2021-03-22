@@ -3362,9 +3362,10 @@ end subroutine bennartz
 
     LLFIRST = .true.
     call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
-    ROGUEFAC(:) = (/3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
+    ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
                     2.0, 4.0, 4.0, 4.0, 4.0, 4.0/)
+    if ( tvs_mwAllskyAssim ) ROGUEFAC(1:3) = 3.0
 
     ! Channel sets for rejection in test 9 
     ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
