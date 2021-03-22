@@ -1355,20 +1355,23 @@ contains
     character(len=*), parameter :: myName = 'sqlr_cleanSqlite:'
     character(len=*), parameter :: myError = myName //' ERROR: '
 
-    character(len = 300) :: cmds
+    character(len = 128) :: query
+    type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
     type(fSQL_STATUS)    :: status
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
       write(*,*) myError, fSQL_errmsg(status)
     end if
-
     ! Mark for deletion all records with bit 11 (2048) set
-    write(*,*) myName//' Thinning file: ', trim(fileName)
-    cmds='PRAGMA synchronous = OFF; PRAGMA journal_mode = OFF;delete from header where id_obs not in (select id_obs from data where obsvalue is not null group by 1 having sum(flag & 2048 =2048)  <  count(*) ) ; delete from data where  id_obs not in ( select id_obs from header) ;'
-    call   fSQL_do_many( db,cmds, status )
-    write(*,*) myName//' Thinning sql: ', trim( cmds)
-
+    query = ' delete from data where flag & 2048;'
+    call fSQL_prepare(db, query, statement, status)
+    if (fSQL_error(status) /= FSQL_OK) &
+      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(statement)
+    call fSQL_finalize(statement)
+    call fSQL_commit(db)
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
   end subroutine sqlr_cleanSqlite
