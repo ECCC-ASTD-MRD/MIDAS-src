@@ -161,7 +161,7 @@ contains
   !--------------------------------------------------------------------------  
   subroutine extractParamForGrodyRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
-                                     tb23_P, tb31_P, tb50_P, tb53_P, tb89_P)
+                                     tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
 
     !:Purpose: Compute  Grody parameters by extracting tb for required channels:
     !          - 23 Ghz = AMSU-A 1 = channel #28
@@ -182,11 +182,11 @@ contains
     real,        intent(out)              :: tb50(KNT)              ! radiance frequence 50 Ghz  
     real,        intent(out)              :: tb53(KNT)              ! radiance frequence 53 Ghz  
     real,        intent(out)              :: tb89(KNT)              ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb23_P(KNT)            ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31_P(KNT)            ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50_P(KNT)            ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53_P(KNT)            ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89_P(KNT)            ! radiance frequence 89 Ghz        
+    real,        intent(out)              :: tb23FG(KNT)            ! radiance frequence 23 Ghz   
+    real,        intent(out)              :: tb31FG(KNT)            ! radiance frequence 31 Ghz
+    real,        intent(out)              :: tb50FG(KNT)            ! radiance frequence 50 Ghz  
+    real,        intent(out)              :: tb53FG(KNT)            ! radiance frequence 53 Ghz  
+    real,        intent(out)              :: tb89FG(KNT)            ! radiance frequence 89 Ghz        
 
     ! Locals
     integer                               :: channelval
@@ -216,15 +216,15 @@ contains
             if ( channelval .eq. 42 ) tb89(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
           end if
 
-          if ( channelval .eq. 28 ) tb23_P(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval .eq. 28 ) tb23FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                          ptbomp(nChannelIndex,nDataIndex)
-          if ( channelval .eq. 29 ) tb31_P(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval .eq. 29 ) tb31FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                          ptbomp(nChannelIndex,nDataIndex)
-          if ( channelval .eq. 30 ) tb50_P(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval .eq. 30 ) tb50FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                          ptbomp(nChannelIndex,nDataIndex)
-          if ( channelval .eq. 32 ) tb53_P(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval .eq. 32 ) tb53FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                          ptbomp(nChannelIndex,nDataIndex)
-          if ( channelval .eq. 42 ) tb89_P(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval .eq. 42 ) tb89FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                          ptbomp(nChannelIndex,nDataIndex)
         else
           if ( channelval .eq. 28 ) tb23(nDataIndex) = 0.
@@ -233,11 +233,11 @@ contains
           if ( channelval .eq. 32 ) tb53(nDataIndex) = 0.
           if ( channelval .eq. 42 ) tb89(nDataIndex) = 0.
 
-          if ( channelval .eq. 28 ) tb23_P(nDataIndex) = 0.  
-          if ( channelval .eq. 29 ) tb31_P(nDataIndex) = 0. 
-          if ( channelval .eq. 30 ) tb50_P(nDataIndex) = 0. 
-          if ( channelval .eq. 32 ) tb53_P(nDataIndex) = 0. 
-          if ( channelval .eq. 42 ) tb89_P(nDataIndex) = 0. 
+          if ( channelval .eq. 28 ) tb23FG(nDataIndex) = 0.  
+          if ( channelval .eq. 29 ) tb31FG(nDataIndex) = 0. 
+          if ( channelval .eq. 30 ) tb50FG(nDataIndex) = 0. 
+          if ( channelval .eq. 32 ) tb53FG(nDataIndex) = 0. 
+          if ( channelval .eq. 42 ) tb89FG(nDataIndex) = 0. 
         end if
       end do
     end do
@@ -1687,11 +1687,11 @@ contains
     real                                   :: tb50 (KNT)
     real                                   :: tb53 (KNT)
     real                                   :: tb89 (KNT)
-    real                                   :: tb23_P (KNT)
-    real                                   :: tb31_P (KNT)
-    real                                   :: tb50_P (KNT)
-    real                                   :: tb53_P (KNT)
-    real                                   :: tb89_P (KNT)
+    real                                   :: tb23FG (KNT)
+    real                                   :: tb31FG (KNT)
+    real                                   :: tb50FG (KNT)
+    real                                   :: tb53FG (KNT)
+    real                                   :: tb89FG (KNT)
     real                                   :: ice  (KNT)
     real                                   :: tpw  (KNT)
     real                                   :: scatl(KNT)
@@ -1764,11 +1764,11 @@ contains
     !     Grody parameters are   extract required channels:
     call extractParamForGrodyRun (KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
-                                     tb23_P, tb31_P, tb50_P, tb53_P, tb89_P)
+                                     tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
     
     !  Run Grody AMSU-A algorithms.
 
-    call grody (err, knt, tb23, tb31, tb50, tb53, tb89, tb23_P, tb31_P, &
+    call grody (err, knt, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 satzen, zlat, ktermer, ice, tpw, clwObs, clwFG, &
                 rain, snow, scatl, scatw)   
 
@@ -2468,7 +2468,7 @@ contains
   !--------------------------------------------------------------------------
   ! GRODY
   !--------------------------------------------------------------------------
-  subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, tb23_P, tb31_P, &
+  subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                    pangl, plat, ilansea, ice, tpw, clwObs, clwFG, &
                    rain, snow, scatl, scatw)
     !OBJET          Compute the following parameters using 5 AMSU-A
@@ -2495,8 +2495,8 @@ contains
     !               - tb50    - input  -  50Ghz brightness temperature (K)
     !               - tb53    - input  -  53Ghz brightness temperature (K)
     !               - tb89    - input  -  89Ghz brightness temperature (K)
-    !               - tb23_P  - input  -  23Ghz brightness temperature from background (K)
-    !               - tb31_P  - input  -  31Ghz brightness temperature from background (K)
+    !               - tb23FG  - input  -  23Ghz brightness temperature from background (K)
+    !               - tb31FG  - input  -  31Ghz brightness temperature from background (K)
     !               - pangl   - input  -  satellite zenith angle (deg.)
     !               - plat    - input  -  lalitude (deg.)
     !               - ilansea - input  -  land/sea indicator (0=land;1=ocean)
@@ -2526,15 +2526,15 @@ contains
     real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real sc50, par, t53
     real dif285t23, dif285t31, epsilon
-    real dif285t23_P, dif285t31_P
+    real dif285t23FG, dif285t31FG
 
     real tb23  (:)
     real tb31  (:)
     real tb50  (:)
     real tb53  (:)
     real tb89  (:)
-    real tb23_P(:)
-    real tb31_P(:)
+    real tb23FG(:)
+    real tb31FG(:)
     real pangl (:)
     real plat  (:)
     real ice   (:)
@@ -2594,9 +2594,9 @@ contains
         t50 = tb50(i)
         t53 = tb53(i)
         dif285t23  =max(285.-t23,epsilon)
-        dif285t23_P=max(285.-tb23_P(i),epsilon)
+        dif285t23FG=max(285.-tb23FG(i),epsilon)
         dif285t31  =max(285.-t31,epsilon)
-        dif285t31_P=max(285.-tb31_P(i),epsilon)
+        dif285t31FG=max(285.-tb31FG(i),epsilon)
 
         skipLoopChan15Missing = .false.
         if ( tb89(i) < 120.0 .or. tb89(i) > 350.0 ) then 
@@ -2679,8 +2679,8 @@ contains
             clwObs(i) = clwObs(i) - 0.03         ! corrected   cloud liquid water 
             clwObs(i) = min(3.,max(0.,clwObs(i)))   ! jh       
 
-            clwFG(i) = a + b*log(dif285t23_P) & 
-                      + c*log(dif285t31_P)
+            clwFG(i) = a + b*log(dif285t23FG) & 
+                      + c*log(dif285t31FG)
             clwFG(i) = clwFG(i)*cosz           ! theoretical cloud liquid water (0-3mm)
             clwFG(i) = clwFG(i) - 0.03         ! corrected   cloud liquid water 
             clwFG(i) = min(3.,max(0.,clwFG(i)))   ! jh       
@@ -4443,9 +4443,9 @@ end subroutine bennartz
     !                                        1, input parameter out of range or grossrej=.true. 
     !               - ni          - input  -  number of points to process (= NT)
     !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1
-    !               - tb23_P      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
+    !               - tb23FG      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
     !               - tb31        - input  -  31Ghz brightness temperature (K) -- ch. 2
-    !               - tb31_P      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
+    !               - tb31FG      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
     !               - tb50        - input  -  50Ghz brightness temperature (K) -- ch. 3
     !               - tb89        - input  -  89Ghz brightness temperature (K) -- ch. 16
     !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
@@ -4456,7 +4456,7 @@ end subroutine bennartz
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
     !               - clwObs      - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
-    !               - clwFG       - output -  cloud liquid water from first guess (kg/m**2) from tb23_P & tb31_P
+    !               - clwFG       - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
     !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
     !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
@@ -4501,9 +4501,9 @@ end subroutine bennartz
     integer                               :: ier(ni)
     real                                  ::  ice(ni)
     real                                  :: tb23(ni)
-    real                                  :: tb23_P(ni)
+    real                                  :: tb23FG(ni)
     real                                  :: tb31(ni)
-    real                                  :: tb31_P(ni)
+    real                                  :: tb31FG(ni)
     real                                  :: tb50(ni)
     real                                  :: tb89(ni)
     real                                  :: tb165(ni)
@@ -4520,9 +4520,9 @@ end subroutine bennartz
     real                                  :: abslat
     real                                  :: cosz
     real                                  :: t23
-    real                                  :: t23_P
+    real                                  :: t23FG
     real                                  :: t31
-    real                                  :: t31_P
+    real                                  :: t31FG
     real                                  :: t50
     real                                  :: t89
     real                                  :: t165
@@ -4547,10 +4547,10 @@ end subroutine bennartz
     do ii = 1, ni
       indx2 = ii*KNO
       tb23(ii)      = ztbcor(indx1)
-      tb23_P(ii)    = ztbcor(indx1) - zomp(indx1)
+      tb23FG(ii)    = ztbcor(indx1) - zomp(indx1)
       bcor23(ii)    = biasCorr(indx1)
       tb31(ii)      = ztbcor(indx1+1)
-      tb31_P(ii)    = ztbcor(indx1+1) - zomp(indx1+1)
+      tb31FG(ii)    = ztbcor(indx1+1) - zomp(indx1+1)
       bcor31(ii)    = biasCorr(indx1+1)
       tb50(ii)      = ztbcor(indx1+2)
       bcor50(ii)    = biasCorr(indx1+2)
@@ -4612,8 +4612,8 @@ end subroutine bennartz
           t165 = tb165(i) - bcor165(i)
         end if
         deltb = t89 - t165
-        t23_P = tb23_P(i)
-        t31_P = tb31_P(i)
+        t23FG = tb23FG(i)
+        t31FG = tb31FG(i)
 
         ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
         if ( ilansea(i) == 1 ) then  ! water point
@@ -4642,7 +4642,7 @@ end subroutine bennartz
             clwObs(i) = clwObs(i) * cosz
             if ( clwObs(i) < 0.0 ) clwObs(i) = 0.0
 
-            clwFG(i) = aa + 0.754 * alog(285.0 - t23_P) - 2.265 * alog(285.0 - t31_P)
+            clwFG(i) = aa + 0.754 * alog(285.0 - t23FG) - 2.265 * alog(285.0 - t31FG)
             clwFG(i) = clwFG(i) * cosz
             if ( clwFG(i) < 0.0 ) clwFG(i) = 0.0
           end if
@@ -4657,8 +4657,8 @@ end subroutine bennartz
 
       if ( mwbg_debug .and. (i <= 100) ) then
         write(*,*) ' '
-        write(*,*) ' i,tb23(i),tb23_P(i),tb31(i),tb31_P(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i) = ', &
-     &             i,tb23(i),tb23_P(i),tb31(i),tb31_P(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i)
+        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i) = ', &
+     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i)
         write(*,*) ' ier(i),ice(i),clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
      &             clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
       end if
