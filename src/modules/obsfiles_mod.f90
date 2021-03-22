@@ -23,7 +23,8 @@ module obsFiles_mod
   !
   !              1. BURP
   !              2. CMA (binary format of obsSpaceData contents)
-  !              3. SQLITE
+  !              3. SQLITE (burp2rdb format)
+  !              4. SQLITE (obsDB format)
   !
   use mpi_mod
   use ramdisk_mod
@@ -33,6 +34,7 @@ module obsFiles_mod
   use obsSpaceData_mod
   use burpFiles_mod
   use sqliteFiles_mod
+  use obsdbFiles_mod
   use cmaFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
@@ -165,6 +167,7 @@ contains
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( obsFileType == 'SQLITE' ) call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
       end do
 
