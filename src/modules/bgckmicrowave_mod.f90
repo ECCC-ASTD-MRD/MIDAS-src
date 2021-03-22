@@ -3345,7 +3345,7 @@ end subroutine bennartz
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest) 
-    integer                          :: ICLWREJ(MXCLWREJ)
+    integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO) 
     logical, save                    :: LLFIRST
     integer, save                    :: numReportWithMissigTb
@@ -3388,7 +3388,7 @@ end subroutine bennartz
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
-    ICLWREJ(:) = (/ 1, 2, 3, 4, 5, 6/)
+    chanFlaggedForAllskyGenCoeff(:) = (/ 1, 2, 3, 4, 5, 6/)
        
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3475,7 +3475,7 @@ end subroutine bennartz
                                              precipobs, clwObs, clwFG, scatec, scatbg, &
                                              iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                              drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                             MXCLWREJ, ICLWREJ, icano)
+                                             MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !###############################################################################
     ! PART 2 TESTS:
@@ -4824,7 +4824,7 @@ end subroutine bennartz
                                                  precipobs, clwObs, clwFG, scatec, scatbg, &
                                                  iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                                 MXCLWREJ, ICLWREJ, icano)
+                                                 MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
     !                            for assimilation and which are to be flagged for exclusion (lflagchn). 
@@ -4857,7 +4857,7 @@ end subroutine bennartz
     integer, intent(inout)                     :: pcpcnt 
     integer, intent(inout)                     :: flgcnt 
     integer, intent(in)                        :: MXCLWREJ
-    integer, intent(in)                        :: ICLWREJ(:)
+    integer, intent(in)                        :: chanFlaggedForAllskyGenCoeff(:)
     integer, intent(in)                        :: icano(:)
 
     ! Locals
@@ -4983,7 +4983,7 @@ end subroutine bennartz
           IMARQ(ipos) = IBSET(IMARQ(ipos),7)
         end if
 
-        INDXCAN = ISRCHEQI(ICLWREJ, MXCLWREJ, ICANO(ipos))
+        INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
         if ( tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
              (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
               clwObs(kk) == mwbg_realMissing) ) then
