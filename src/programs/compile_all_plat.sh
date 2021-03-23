@@ -45,7 +45,6 @@ else
 fi
 
 rev=${CI_BUILD_REF:-$(${__toplevel}/midas.version.sh)}
-jobname=${rev}_midasCompile
 
 ## get the number of programs
 number_of_programs=$(/bin/ls -1 *.f90 | wc -l)
@@ -60,6 +59,12 @@ export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 cd ${codedir}
 echo Launching compilation on "\${TRUE_HOST}" for platform "\${ORDENV_PLAT}"
 yes '' | head -n ${number_of_programs} | ./compile_all.sh
+EOF
+
+cat > compile_splitobs <<EOF
+#!/bin/bash
+
+set -ex
 
 cd ${__toplevel}/tools/splitobs
 make splitobs_\${ORDENV_PLAT}
@@ -73,24 +78,40 @@ EOF
 #ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_SUPER} -listing ${PWD} -w 60 -cpus 36
 
 set -x
+jobname=${rev}_midasCompile
 ## Using as many cpus as there are programs to compile
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs} -m 24G -tmpfs 2G)
+## Compile 'midas.splitobs'
+jobname_splitobs=${rev}_splitobsCompile
+jobid_splitobs=$(ord_soumet compile_splitobs -jn ${jobname_splitobs} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus 1 -m 4G -tmpfs 1G)
 
-## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
-status=0
-cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
-rm compile_job
+compile_interactively () {
+    set -e
 
-## if previous compilation aborted, then kill the compilation job
-if [ "${status}" -ne 0 ]; then
-    jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
-    echo "Compilation aborted!"
-    exit 1
-fi
+    compile_script=$1
 
-for host in ${COMPILING_MACHINE_PPP}; do
-    ${__toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${host}
-done
+    ## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
+    status=0
+    cat ${compile_script} | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
+    rm ${compile_script}
+
+    ## if previous compilation aborted, then kill the compilation job
+    if [ "${status}" -ne 0 ]; then
+        jobdel -c ${COMPILING_MACHINE_PPP} ${jobid} ${jobid_splitobs}
+        echo "Compilation aborted!"
+        exit 1
+    fi
+} ## End of function 'compile_interactively ()'
+
+compile_interactively compile_job
+
+## Wait for splitobs to compile on PPP
+${__toplevel}/tools/misc/wait_for_job.sh ${jobname_splitobs} ${jobid_splitobs} ${COMPILING_MACHINE_PPP}
+## before launching the compilation on SUPER
+compile_interactively compile_splitobs
+
+## then wait for all other programs to compile
+${__toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${COMPILING_MACHINE_PPP}
 
 status=0
 echo "Checking if all programs have been compiled on ${TRUE_HOST} for platform ${ORDENV_PLAT} in ${MIDAS_ABS}"
