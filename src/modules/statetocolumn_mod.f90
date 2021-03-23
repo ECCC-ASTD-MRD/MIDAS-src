@@ -1953,14 +1953,6 @@ contains
           latIndex = interpInfo%latIndexDepot(gridptIndex)
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          if ( lonIndex < 1 .or. lonIndex > size(field_in,1) .or. &
-              latIndex < 1 .or. latIndex > size(field_in,2) ) then
-
-            write(*,*) 'myezsint_nl: gridptIndex=',gridptIndex
-            write(*,*) 'myezsint_nl: lonIndex=',lonIndex, '/', size(field_in,1), &
-                      ',latIndex=',latIndex, '/', size(field_in,2)
-          end if
-
           interpValue = interpValue + weight * real(field_in(lonIndex, latIndex),8)
 
         end do
@@ -2172,32 +2164,10 @@ contains
           latIndex = interpInfo%latIndexDepot(gridptIndex)
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
-
-          if ( doUU ) then 
-            if ( lonIndex < 1 .or. lonIndex > size(fieldUU_in,1) .or. &
-                latIndex < 1 .or. latIndex > size(fieldUU_in,2) ) then
-
-              write(*,*) 'myezuvint_nl: for UU, gridptIndex=',gridptIndex
-              write(*,*) 'myezuvint_nl: for UU, lonIndex=',lonIndex, '/', size(fieldUU_in,1), &
-                        ',latIndex=',latIndex, '/', size(fieldUU_in,2)
-            end if
-
-            interpUU(subGridIndex) = interpUU(subGridIndex) +  &
-                weight * real(fieldUU_in(lonIndex, latIndex),8)
-          end if
-
-          if ( doVV ) then
-            if ( lonIndex < 1 .or. lonIndex > size(fieldVV_in,1) .or. &
-                latIndex < 1 .or. latIndex > size(fieldVV_in,2) ) then
-
-              write(*,*) 'myezuvint_nl: for VV, gridptIndex=',gridptIndex
-              write(*,*) 'myezuvint_nl: for VV, lonIndex=',lonIndex, '/', size(fieldVV_in,1), &
-                        ',latIndex=',latIndex, '/', size(fieldVV_in,2)
-            end if
-
-            interpVV(subGridIndex) = interpVV(subGridIndex) +  &
-                weight * real(fieldVV_in(lonIndex, latIndex),8)
-          end if
+          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) +  &
+                      weight * real(fieldUU_in(lonIndex, latIndex),8)
+          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) +  &
+                      weight * real(fieldVV_in(lonIndex, latIndex),8)
 
         end do
         ! now rotate the wind vector
@@ -2654,15 +2624,10 @@ contains
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
-    integer :: mythread
-    integer, external :: omp_get_thread_num
 
     if ( footprintRadius_r4 > 0.0 ) then
 
-      mythread = omp_get_thread_num()
-      call tmg_start(200+mythread,'s2c_setupFootprintInterp')
       call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
-      call tmg_stop(200+mythread)
 
     else if ( footprintRadius_r4 == bilinearFootprint ) then
 
@@ -3121,10 +3086,6 @@ contains
 
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3)
-    integer :: mythread
-    integer, external :: omp_get_thread_num
-
-    mythread = omp_get_thread_num()
 
     numGridpt(:) = 0
 
@@ -3166,11 +3127,9 @@ contains
     refPosition(1) = RA * sin(lonObs) * cos(latObs)
     refPosition(2) = RA * cos(lonObs) * cos(latObs)
     refPosition(3) = RA * sin(latObs)
-    call tmg_start(184+mythread,'kdtree2_r_nearest')
     call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
                                 nfound=numLocalGridptsFoundSearch,&
                                 nalloc=maxNumLocalGridptsSearch, results=searchResults)
-    call tmg_stop(184+mythread)
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
     end if
@@ -3210,9 +3169,6 @@ contains
       end do gridLoop1
 
     end if
-
-    !write(*,*) 's2c_setupFootprintInterp: count=',gridptCount,',lonIndexVec=',lonIndexVec(1:gridptCount),',latIndexVec=',latIndexVec(1:gridptCount)
-    !write(*,*) 's2c_setupFootprintInterp: count=',gridptCount,',min(latIndexVec)=',minval(latIndexVec(1:gridptCount)),',max(latIndexVec)=',maxval(latIndexVec(1:gridptCount))
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
 

@@ -632,7 +632,6 @@ contains
     mythread = omp_get_thread_num()
     if ( mythread == 0 ) then
       numthread = omp_get_num_threads()
-      write(*,*) 'kdtree2_create: number of threads=', numthread     
     end if
     !$OMP END PARALLEL
 
