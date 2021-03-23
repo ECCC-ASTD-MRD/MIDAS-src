@@ -102,7 +102,7 @@ module stateToColumn_mod
   real(4), parameter :: nearestNeighbourFootprint = -2.0
   real(4), parameter ::             lakeFootprint = -1.0
   real(4), parameter ::         bilinearFootprint =  0.0
-  integer, parameter :: maxNumLocalGridptsSearch = 100
+  integer, parameter :: maxNumLocalGridptsSearch = 1000
 
   ! namelist variables:
   logical :: slantPath_TO_nl
