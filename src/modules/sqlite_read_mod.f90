@@ -559,7 +559,7 @@ contains
 
     csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
     queryData= "select "//columnsData
-    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit) //" order by id_obs "//trim(sqlLimit)//";"
+    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit) //trim(sqlLimit)//";"
     queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
