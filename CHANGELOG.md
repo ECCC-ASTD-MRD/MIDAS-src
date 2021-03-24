@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix allocation of statevectors for `obsImpact` (#472 and !446)
 
 ### Removed
 
