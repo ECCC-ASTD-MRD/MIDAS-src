@@ -192,7 +192,7 @@ module oceanMask_mod
     ! locals:
     integer, parameter           :: maxNumLocalGridPointsSearch = 200000
     type(kdtree2), save, pointer :: tree => null()
-    integer                      :: ierr, gdll, ni, nj, xIndex, yIndex, gridIndex
+    integer                      :: ni, nj, xIndex, yIndex, gridIndex
     integer                      :: numTotalLandPoints, numLocalGridPointsFound
     real(kdkind), allocatable    :: positionArray(:,:)
     type(kdtree2_result)         :: searchResults(maxNumLocalGridPointsSearch)
