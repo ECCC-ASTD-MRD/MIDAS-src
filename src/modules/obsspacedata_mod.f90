@@ -1372,6 +1372,7 @@ module ObsSpaceData_mod
    public obs_columnIndexFromName_IH !         "
    public obs_columnIndexFromName_RB !         "
    public obs_columnIndexFromName_RH !         "
+   public obs_columnDataType ! tell user if column index has real or integer data
    public obs_copy       ! copy an obsdat object
    public obs_count_headers ! count the stations and observations in the object
    public obs_elem_c     ! obtain character element from the observation object
@@ -2372,6 +2373,30 @@ contains
 
       column_index = obs_columnIndexFromName(odc_flavour_RH, column_name)
    end function obs_columnIndexFromName_RH
+
+
+   function obs_columnDataType(columnIndex) result(dataType)
+     !
+     ! :Purpose: return the data type of column, either 'real' or 'integer'
+     !
+     implicit none
+
+     integer, intent(in) :: columnIndex
+     character(len=7)    :: dataType
+
+     if (columnIndex >= NHDR_INT_BEG .and. columnIndex <= NHDR_INT_END) then
+       dataType = 'integer'
+     else if (columnIndex >= NHDR_REAL_BEG .and. columnIndex <= NHDR_REAL_END) then
+       dataType = 'real'
+     else if (columnIndex >= NBDY_INT_BEG .and. columnIndex <= NBDY_INT_END) then
+       dataType = 'integer'
+     else if (columnIndex >= NBDY_REAL_BEG .and. columnIndex <= NBDY_REAL_END) then
+       dataType = 'real'
+     else
+       call obs_abort('obs_columnDataType: invalid value of column index')
+     end if
+
+   end function obs_columnDataType
 
 
    subroutine obs_copy( obs_a, obs_b )
