@@ -3114,8 +3114,13 @@ contains
     if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%hco%ni .or.  &
          latIndexCentre < 1 .or. latIndexCentre > statevector%hco%nj ) return
 
-    if ( allocated(stateVector%hco%mask) ) then
-      if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) return
+    if ( stateVector%oceanMask%maskPresent ) then
+      ! abort if 3D mask is present, since we may not handle this situation correctly
+      if ( stateVector%oceanMask%nLev > 1 ) then
+        call utl_abort('s2c_setupFootprintInterp: 3D mask present - this case not properly handled')
+      end if
+
+      if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
     end if
 
     if ( .not. associated(interpInfo % tree) ) then
@@ -3157,9 +3162,7 @@ contains
           call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
         end if
 
-        if ( allocated(stateVector%hco%mask) ) then
-          if ( stateVector%hco%mask(lonIndex, latIndex) == 0 ) cycle gridLoop1
-        end if
+        if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
 
         if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
 
