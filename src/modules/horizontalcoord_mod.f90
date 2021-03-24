@@ -484,35 +484,7 @@ module HorizontalCoord_mod
     deallocate(lat_8)
     deallocate(lon_8)
 
-    !- 3.1 Compute maxGridSpacing
-    ! between all (i,j) and (i+1,j+1) grid points
-    maxGridSpacing = 0.0d0
-    do lonIndex = 1, ni-1
-      do latIndex = 1, nj-1
-        deltaLat = hco % lat2d_4(lonIndex,latIndex) - hco % lat2d_4(lonIndex+1,latIndex+1)
-        meanLat = 0.5d0 * (hco % lat2d_4(lonIndex,latIndex) + hco % lat2d_4(lonIndex+1,latIndex+1))
-        deltaLon = (hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex+1,latIndex+1)) * &
-                cos(meanLat)
-        if ( RA * sqrt(deltaLon ** 2 + deltaLat ** 2) > maxGridSpacing ) then 
-          maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
-        end if
-      end do
-    end do
-
-    ! between all (i,j) and (i-1,j+1) grid points
-    do lonIndex = 2, ni
-      do latIndex = 1, nj-1
-        deltaLat = hco % lat2d_4(lonIndex,latIndex) - hco % lat2d_4(lonIndex-1,latIndex+1)
-        meanLat = 0.5d0 * (hco % lat2d_4(lonIndex,latIndex) + hco % lat2d_4(lonIndex-1,latIndex+1))
-        deltaLon = (hco % lon2d_4(lonIndex,latIndex) - hco % lon2d_4(lonIndex-1,latIndex+1)) * &
-                cos(meanLat)
-        if ( RA * sqrt(deltaLon ** 2 + deltaLat ** 2) > maxGridSpacing ) then 
-          maxGridSpacing = RA * sqrt(deltaLon ** 2 + deltaLat ** 2)
-        end if
-      end do
-    end do
-
-    !- 3.2 Compute maxGridSpacing 
+    !- 3.1 Compute maxGridSpacing 
     if ( trim(grtyp) == 'U' ) then
       latIndexBeg = 1
       latIndexEnd = nj / 2
