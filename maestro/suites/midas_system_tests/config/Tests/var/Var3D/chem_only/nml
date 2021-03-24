@@ -71,7 +71,7 @@
 /
  &NAMHYPER
 /
- &NAMGEO
+ &NAMGEO1
 /
  &NAMCODTYP
    cnames(1)='CHEMREMOTE',

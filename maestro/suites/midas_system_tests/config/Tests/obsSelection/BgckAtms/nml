@@ -249,8 +249,16 @@
    name_inst(3)='cris',
    name_inst(4)='crisfsr',
 /
- &NAMGEO
+ &NAMGEO1
    name_inst(1)='goesim',
+   name_inst(2)='ahi',
+   name_inst(3)='mviri',
+   name_inst(4)='seviri',
+   name_inst(5)='gmsim',
+   name_inst(6)='abi',
+/
+ &NAMGEO2
+   name_inst(1)='cgoes',
    name_inst(2)='ahi',
    name_inst(3)='mviri',
    name_inst(4)='seviri',
