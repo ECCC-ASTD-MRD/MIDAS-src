@@ -99,9 +99,9 @@ module stateToColumn_mod
   logical, parameter :: verbose = .false.
 
   ! "special" values of the footprint radius
-  real(4), parameter :: nearestNeighbourFootprint = -2.0
-  real(4), parameter ::             lakeFootprint = -1.0
-  real(4), parameter ::         bilinearFootprint =  0.0
+  real(4), parameter :: nearestNeighbourFootprint = -3.0
+  real(4), parameter ::             lakeFootprint = -2.0
+  real(4), parameter ::         bilinearFootprint = -1.0
   integer, parameter :: maxNumLocalGridptsSearch = 1000
 
   ! namelist variables:
@@ -569,9 +569,7 @@ contains
           lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
           lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
 
-          positionArray(1,gridIndex) = RA * sin(lon) * cos(lat)
-          positionArray(2,gridIndex) = RA * cos(lon) * cos(lat)
-          positionArray(3,gridIndex) = RA * sin(lat)
+          positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
 
         end do
       end do
@@ -3129,9 +3127,7 @@ contains
 
     ! do the search
     maxRadiusSquared = real(fpr,8) ** 2
-    refPosition(1) = RA * sin(lonObs) * cos(latObs)
-    refPosition(2) = RA * cos(lonObs) * cos(latObs)
-    refPosition(3) = RA * sin(latObs)
+    refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
     call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
                                 nfound=numLocalGridptsFoundSearch,&
                                 nalloc=maxNumLocalGridptsSearch, results=searchResults)
