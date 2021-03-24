@@ -3158,7 +3158,9 @@ contains
           call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
         end if
 
-        if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
+        if ( stateVector%oceanMask%maskPresent ) then
+          if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
+        end if
 
         if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
 
