@@ -22,6 +22,7 @@ module stateToColumn_mod
   !           and a columnData object.
   !
   use mathPhysConstants_mod
+  use earthConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod 
@@ -45,6 +46,7 @@ module stateToColumn_mod
   use tovs_nl_mod
   use codtyp_mod
   use getGridPosition_mod
+  use kdtree2_mod
 
   implicit none
   save
@@ -86,6 +88,7 @@ module stateToColumn_mod
     real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
+    type(kdtree2), pointer    :: tree => null()
   end type struct_interpInfo
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
@@ -96,16 +99,19 @@ module stateToColumn_mod
   logical, parameter :: verbose = .false.
 
   ! "special" values of the footprint radius
-  real(4), parameter :: nearestNeighbourFootprint = -2.0
-  real(4), parameter ::             lakeFootprint = -1.0
-  real(4), parameter ::         bilinearFootprint =  0.0
+  real(4), parameter :: nearestNeighbourFootprint = -3.0
+  real(4), parameter ::             lakeFootprint = -2.0
+  real(4), parameter ::         bilinearFootprint = -1.0
+  integer, parameter :: maxNumLocalGridptsSearch = 1000
+  integer, parameter :: minNumLocalGridptsSearch = 8
 
   ! namelist variables:
   logical :: slantPath_TO_nl
   logical :: slantPath_TO_tlad
   logical :: slantPath_RO_nl
   logical :: slantPath_RA_nl
-  logical, save :: calcHeightPressIncrOnColumn
+  logical :: calcHeightPressIncrOnColumn
+  logical :: useFootprintForTovs
 
   integer, external    :: get_max_rss
 
@@ -287,15 +293,19 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
+    real(kdkind), allocatable :: positionArray(:,:)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
-    integer :: maxkcount, numkToSend 
+    integer :: index1, index2, headerIndexProc 
+    integer :: lonIndex, latIndex, gridIndex
+    integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
+    namelist /nams2c/ useFootprintForTovs 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -317,6 +327,7 @@ contains
       slantPath_RO_nl   = .false.
       slantPath_RA_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
+      useFootprintForTovs = .false.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mpi_myid == 0 ) then
@@ -545,6 +556,31 @@ contains
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if ! doSlantPath 
 
+    ! create kdtree to use in footprint operator
+    if ( .not. associated(interpInfo % tree) ) then
+      write(*,*) 's2c_setupInterpInfo: start creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
+
+      gridIndex = 0
+      do latIndex = 1, statevector%hco%nj
+        do lonIndex = 1, statevector%hco%ni
+          gridIndex = gridIndex + 1
+          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
+
+          positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+
+        end do
+      end do
+
+      interpInfo % tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+
+      write(*,*) 's2c_setupInterpInfo: done creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
@@ -561,7 +597,8 @@ contains
         numHeaderUsed = numHeaderUsed + 1
         headerIndexVec(numHeaderUsed,stepIndex) = headerIndex
 
-        footprintRadiusVec_r4(numHeaderUsed) = s2c_getFootprintRadius(obsSpaceData, headerIndex)
+        footprintRadiusVec_r4(numHeaderUsed) = s2c_getFootprintRadius(obsSpaceData, &
+                                                                stateVector, headerIndex)
 
       end do header_loop2
 
@@ -987,6 +1024,33 @@ contains
     ! called when a mask exists to catch land contaminated ocean obs
     if ( stateVector%oceanMask%maskPresent ) then
       call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
+    end if
+
+    if ( associated(interpInfo%tree) ) then
+      call kdtree2_destroy(interpInfo%tree)
+      deallocate(positionArray)
+    end if
+
+    ! Count the number of TOVS using footprint operator on one level
+    if ( mpi_myid == 0 .and. useFootprintForTovs ) then 
+      numTovsUsingFootprint = 0
+      numAllTovs = 0
+      do procIndex = 1, mpi_nprocs
+        do stepIndex = 1, numStep
+          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+            codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+
+            if ( tvs_isIdBurpTovs(codeType) .and. footprintRadius_r4 > 0.0 ) then
+              numTovsUsingFootprint = numTovsUsingFootprint + 1
+            end if
+            numAllTovs = numAllTovs + 1 
+          end do
+        end do
+      end do
+
+      write(*,*) 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', numTovsUsingFootprint, &
+                 '/', numAllTovs, ' (', real(numTovsUsingFootprint/numAllTovs,4) * 100.0, '%)'
     end if
     
     deallocate(allFootprintRadius_r4)
@@ -2610,7 +2674,7 @@ contains
   !------------------------------------------------------------------
   ! s2c_getFootprintRadius
   !------------------------------------------------------------------
-  function s2c_getFootprintRadius( obsSpaceData, headerIndex ) result(fpr)
+  function s2c_getFootprintRadius( obsSpaceData, stateVector, headerIndex ) result(fpr)
     !
     !:Purpose: To determine the footprint radius (metres) of the observation.
     !          In the case of bilinear horizontal interpolation,
@@ -2621,6 +2685,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
+    type(struct_gsv), intent(in)  :: stateVector
     integer         , intent(in)  :: headerIndex
 
     ! locals
@@ -2684,6 +2749,13 @@ contains
     else if (obsFamily == 'HY') then
 
       fpr = nearestNeighbourFootprint
+
+    else if (obsFamily == 'TO' .and. useFootprintForTovs ) then
+
+      fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
+
+      ! As safety margin, add 10% to maxGridSpacing before comparing to the footprint radius.
+      if ( fpr < 1.1 * real(stateVector%hco%maxGridSpacing,4) ) fpr = bilinearFootprint
 
     else
 
@@ -3025,32 +3097,29 @@ contains
     integer :: depotIndex
     integer :: ierr
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
-    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    real(4) :: lon_deg_r4, lat_deg_r4
-    real(8) :: lon_rad, lat_rad
-    real(8) :: grid_lon_rad, grid_lat_rad
+    integer :: subGridIndex, numLocalGridptsFoundSearch 
+    real(4) :: lonObs_deg_r4, latObs_deg_r4
+    real(8) :: lonObs, latObs, lon, lat, maxRadiusSquared
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
-    integer :: top, bottom, left, right, rectangleCount
-    real(8) :: dist
-    integer :: lonIndex, latIndex, rectangleIndex, rectangleSize
-    integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
-    integer :: rectLonIndex(2*(statevector%ni+statevector%nj)-4), rectLatIndex(4*(statevector%ni+statevector%nj)-4)
-    logical :: inside, reject
+    integer :: lonIndex, latIndex, resultsIndex, gridIndex
+    integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
 
-    reject = .false.
+    type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
+    real(kdkind)              :: refPosition(3)
 
     numGridpt(:) = 0
 
     ! Determine the grid point nearest the observation.
 
-    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-    lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
+    latObs = interpInfo % stepProcData(procIndex, stepIndex) % allLat(headerIndex, kIndex)
+    lonObs = interpInfo % stepProcData(procIndex, stepIndex) % allLon(headerIndex, kIndex)
+
+    latObs_deg_r4 = real(latObs * MPC_DEGREES_PER_RADIAN_R8)
+    lonObs_deg_r4 = real(lonObs * MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                              latObs_deg_r4, lonObs_deg_r4, subGridIndex )
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
@@ -3060,144 +3129,88 @@ contains
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupFootprintInterp: revise code'
       call utl_abort('s2c_setupFootprintInterp: both subGrids involved in interpolation.')
-      numSubGridsForInterp = 2
-      subGridIndex = 1
-    else
-      ! only 1 subGrid involved in interpolation
-      numSubGridsForInterp = 1
     end if
 
-    do subGridForInterp = 1, numSubGridsForInterp
+    ! Return if observation is not on the grid, or masked.
+    if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%hco%ni .or.  &
+         latIndexCentre < 1 .or. latIndexCentre > statevector%hco%nj ) return
 
-      gridptCount = 0
+    if ( stateVector%oceanMask%maskPresent ) then
+      ! abort if 3D mask is present, since we may not handle this situation correctly
+      if ( stateVector%oceanMask%nLev > 1 ) then
+        call utl_abort('s2c_setupFootprintInterp: 3D mask present - this case not properly handled')
+      end if
 
-      ! If observation is not on the grid, don't use it.
-      if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
-           latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
+      if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
+    end if
+
+    if ( .not. associated(interpInfo % tree) ) then
+      call utl_abort('s2c_setupFootprintInterp: interpInfo%tree is not allocated!')
+    end if
+
+    ! do the search
+    maxRadiusSquared = real(fpr,8) ** 2
+    refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
+    call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
+                           nfound=numLocalGridptsFoundSearch, nalloc=maxNumLocalGridptsSearch, &
+                           results=searchResults)
+    if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
+      call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
+    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch ) then
+      write(*,*) 's2c_setupFootprintInterp: Warning! For headerIndex=', headerIndex, &
+                 ' number of grid points found within footprint radius=', fpr, ' is less than ', &
+                 minNumLocalGridptsSearch 
+    end if
+
+    ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
+    ! if footprint size is smaller than the grid spacing.
+    gridptCount = 1
+    lonIndexVec(gridptCount) = lonIndexCentre
+    latIndexVec(gridptCount) = latIndexCentre
+
+    ! fill the rest of lonIndexVec/latIndexVec
+    gridLoop1: do resultsIndex = 1, numLocalGridptsFoundSearch
+      gridIndex = searchResults(resultsIndex)%idx
+      if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
+        write(*,*) 's2c_setupFootprintInterp: gridIndex=', gridIndex
+        call utl_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
+      end if
+
+      latIndex = (gridIndex - 1) / statevector%hco%ni + 1
+      lonIndex = gridIndex - (latIndex - 1) * statevector%hco%ni
+      if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
+           latIndex < 1 .or. latIndex > statevector%hco%nj ) then
+        write(*,*) 's2c_setupFootprintInterp: lonIndex=', lonIndex, ',latIndex=', latIndex
+        call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
+      end if
 
       if ( stateVector%oceanMask%maskPresent ) then
-        if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) reject = .true.
+        if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
       end if
 
-      if ( .not. reject ) then
+      if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
 
-        !<<<  These four lines assure to use at least the nearrest neighbor
-        !     in the case where the footprint size is smaller than the grid spacing.
-        gridptCount = 1
-        lonIndexVec(gridptCount) = lonIndexCentre
-        latIndexVec(gridptCount) = latIndexCentre
-        rectangleSize = 1
-        !>>>
+      gridptCount = gridptCount + 1
+      lonIndexVec(gridptCount) = lonIndex
+      latIndexVec(gridptCount) = latIndex
+    end do gridLoop1
 
-        inside = .true.
-        WHILE_INSIDE: do while(inside)
+    if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          inside = .false.
+      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
-          ! Set up rectangle. We will look in this rectangle
-          ! for neighbors.
+      do ipoint = 1, gridptCount
 
-          top    = latIndexCentre + rectangleSize
-          bottom = latIndexCentre - rectangleSize
-          left   = lonIndexCentre - rectangleSize
-          right  = lonIndexCentre + rectangleSize
+        interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
+        interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+        interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+        depotIndex = depotIndex + 1
 
-          rectangleCount = 0
-          latIndex = bottom
-          do lonIndex = left, right
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          lonIndex = right
-          do latIndex = bottom + 1, top
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          latIndex = top
-          do lonIndex = right - 1, left, -1
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
-          lonIndex = left
-          do latIndex = top - 1, bottom + 1, -1
-            rectangleCount = rectangleCount + 1
-            rectLonIndex(rectangleCount) = lonIndex
-            rectLatIndex(rectangleCount) = latIndex
-          end do
+      end do
 
-          do rectangleIndex = 1, rectangleCount
+    end if
 
-            lonIndex = rectLonIndex(rectangleIndex)
-            if (lonIndex >= 1 .and. lonIndex <= statevector%ni) then
-
-              latIndex = rectLatIndex(rectangleIndex)
-              if (latIndex >= 1 .and. latIndex <= statevector%nj) then
-
-                grid_lat_rad = real(stateVector%hco%lat2d_4(lonIndex,latIndex),8)
-                grid_lon_rad = real(stateVector%hco%lon2d_4(lonIndex,latIndex),8)
-
-                ! Compute distance between grid point and observation point.
-                dist = phf_calcDistance(grid_lat_rad, grid_lon_rad, lat_rad, lon_rad)
-
-                ! If the point is within the footprint, add it to the neighborhood.
-                if(dist < fpr) then
-
-                  ! Ignore points that are masked out.
-                  if ( stateVector%oceanMask%maskPresent ) then
-                    if ( .not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
-                      reject = .true.
-                      exit WHILE_INSIDE
-                    end if
-                  end if
-
-                  if ( .not. reject ) then
-                    inside = .true.
-
-                    gridptCount = gridptCount + 1
-                    lonIndexVec(gridptCount) = lonIndex
-                    latIndexVec(gridptCount) = latIndex
-
-                  end if
-
-                end if
-
-              end if
-
-            end if
-
-          end do ! rectangleIndex
-
-          rectangleSize = rectangleSize + 1
-
-        end do WHILE_INSIDE
-
-      end if ! not reject
-
-      if ( .not. reject ) then
-
-        if ( allocated(interpInfo%interpWeightDepot) ) then
-
-          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-
-          do ipoint=1,gridptCount
-
-            interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
-            interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
-            interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
-            depotIndex = depotIndex + 1
-
-          end do
-
-        end if
-
-        numGridpt(subGridIndex) = gridptCount
-
-      end if
-
-    end do ! subGrid
+    numGridpt(subGridIndex) = gridptCount
 
   end subroutine s2c_setupFootprintInterp
 
@@ -3554,5 +3567,78 @@ contains
     end if
 
   end subroutine latlonChecks
+
+  !--------------------------------------------------------------------------
+  ! getTovsFootprintRadius
+  !--------------------------------------------------------------------------
+  function getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt) result(footPrintRadius_r4)
+    !
+    !:Purpose: calculate foot-print radius for TOVS observations
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_obs), intent(in)  :: obsSpaceData
+    real(4)                       :: footPrintRadius_r4
+    integer         , intent(in)  :: headerIndex
+    logical         , intent(in), optional :: beSilent_opt
+    
+    ! local
+    integer :: codtyp, sensorIndex 
+    real(8) :: fovAngularDiameter, satHeight, footPrintRadius
+    character(len=codtyp_name_length) :: instrumName
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    ! get nominal satellite height
+    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
+
+    ! FOV angular diameter  
+    codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
+    instrumName = codtyp_get_name(codtyp)
+    select case(trim(instrumName))
+    case('amsua')
+      fovAngularDiameter = 3.3d0
+    case('amsub')
+      fovAngularDiameter = 1.1d0
+    case('mhs')
+      fovAngularDiameter = 10.0d0 / 9.0d0
+    case('airs')
+      fovAngularDiameter = 1.1d0
+    case('iasi')
+      fovAngularDiameter = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case('radianceclear')
+      fovAngularDiameter = 0.125d0
+    case('ssmis')
+      fovAngularDiameter = 1.2d0
+    case('atms')
+      fovAngularDiameter = 2.2d0
+    case('cris')
+      fovAngularDiameter = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case default
+      fovAngularDiameter = -1.0d0
+    end select
+
+    if ( fovAngularDiameter < 0.0d0 ) then 
+      footPrintRadius_r4 = bilinearFootprint
+    else
+      ! get foot print radius (meter) from angular diameter
+      footPrintRadius = 0.5d0 * fovAngularDiameter * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
+      footPrintRadius_r4 = real(footPrintRadius,4)
+    end if
+
+    if ( .not. beSilent ) then
+      write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, &
+                ',satHeight=', satHeight, ',fovAngularDiameter=', fovAngularDiameter, ',codtyp=', codtyp, &
+                ',footPrintRadius=', footPrintRadius_r4
+    end if
+
+  end function getTovsFootprintRadius
 
 end module stateToColumn_mod
