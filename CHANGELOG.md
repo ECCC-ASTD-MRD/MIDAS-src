@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Footprint operator for TOVS (#237 and !417)
  * Allsky background check and assimilation for ATMS (#449 and !429)
  * Add ability to use LETKF for 3D ocean fields (#463 and !439)
  * Add ability to read 3D ocean fields (#392 and !437)
