@@ -3579,13 +3579,14 @@ contains
 
     ! Arguments
     type(struct_obs), intent(in)  :: obsSpaceData
-    real(4)         , intent(out) :: footPrintRadius_r4
+    real(4)                       :: footPrintRadius_r4
     integer         , intent(in)  :: headerIndex
     logical         , intent(in), optional :: beSilent_opt
     
     ! local
     integer :: codtyp, sensorIndex 
     real(8) :: fovAngularDiameter, satHeight, footPrintRadius
+    character(len=codtyp_name_length) :: instrumName
     logical :: beSilent
 
     if ( present(beSilent_opt) ) then
@@ -3600,24 +3601,25 @@ contains
 
     ! FOV angular diameter  
     codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
-    select case(codtyp)
-    case(codtyp_get_codtyp('amsua'))
+    instrumName = codtyp_get_name(codtyp)
+    select case(trim(instrumName))
+    case('amsua')
       fovAngularDiameter = 3.3d0
-    case(codtyp_get_codtyp('amsub'))
+    case('amsub')
       fovAngularDiameter = 1.1d0
-    case(codtyp_get_codtyp('mhs'))
+    case('mhs')
       fovAngularDiameter = 10.0d0 / 9.0d0
-    case(codtyp_get_codtyp('airs'))
+    case('airs')
       fovAngularDiameter = 1.1d0
-    case(codtyp_get_codtyp('iasi'))
+    case('iasi')
       fovAngularDiameter = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
-    case(codtyp_get_codtyp('radianceclear'))
+    case('radianceclear')
       fovAngularDiameter = 0.125d0
-    case(codtyp_get_codtyp('ssmis'))
+    case('ssmis')
       fovAngularDiameter = 1.2d0
-    case(codtyp_get_codtyp('atms'))
+    case('atms')
       fovAngularDiameter = 2.2d0
-    case(codtyp_get_codtyp('cris'))
+    case('cris')
       fovAngularDiameter = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
     case default
       fovAngularDiameter = -1.0d0
