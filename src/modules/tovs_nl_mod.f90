@@ -1359,15 +1359,15 @@ contains
     character(len=8) :: name_inst(maxsize)
     integer, external :: fnom, fclos
 
-    namelist /NAMGEO1/ name_inst
+    namelist /NAMGEO/ name_inst
     if (first) then
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = "XXXXXX"
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgeo1, iostat=ierr)
+      read(nulnam,nml=namgeo, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namgeo1)
+      if (mpi_myid == 0) write(*,nml=namgeo)
       ierr = fclos(nulnam)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
@@ -1384,7 +1384,7 @@ contains
       end do
       first = .false.
       if (ninst_geo == 0) then
-        write(*,*) "tvs_isInstrumGeostationary: Warning : empty namgeo1 namelist !"
+        write(*,*) "tvs_isInstrumGeostationary: Warning : empty namgeo namelist !"
       end if
     end if
     tvs_isInstrumGeostationary = .false.
@@ -1529,9 +1529,9 @@ contains
   !  tvs_isNameGeostationary
   !--------------------------------------------------------------------------
   logical function tvs_isNameGeostationary(cinstrum)
-    ! :Purpose: given an instrument name
+    ! :Purpose: given an instrument name following BUFR convention
     !           returns if it is a Geostationnary Imager
-    !           (information from namelist NAMGEO2)
+    !           (information from namelist NAMGEOBUFR)
     implicit none
     !Arguments:
     character(len=*), intent(in) :: cinstrum
@@ -1543,15 +1543,15 @@ contains
     character (len=8),save :: name_inst(maxsize)
     integer, external :: fnom, fclos
 
-    namelist /NAMGEO2/ name_inst
+    namelist /NAMGEOBUFR/ name_inst
     if (lfirst) then
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = "XXXXXXXX"
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgeo2, iostat=ierr)
+      read(nulnam,nml=namgeobufr, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namgeo2)
+      if (mpi_myid == 0) write(*,nml=namgeobufr)
       ierr = fclos(nulnam)
       do i=1, maxsize
         if (name_inst(i) == "XXXXXXXX") then
@@ -1561,7 +1561,7 @@ contains
       end do
       lfirst = .false.
       if (ninst_geo == 0) then
-        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeo2 namelist !"
+        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeobufr namelist !" 
       end if
     end if
     

@@ -240,7 +240,7 @@
    name_inst(2)='iasi',
    name_inst(3)='cris',
 /
- &NAMGEO1
+ &NAMGEO
    name_inst(1)='goesim',
    name_inst(2)='ahi',
    name_inst(3)='mviri',
