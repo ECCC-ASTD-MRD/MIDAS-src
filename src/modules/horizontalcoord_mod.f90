@@ -87,6 +87,7 @@ module HorizontalCoord_mod
     real(8), allocatable :: lon_8(:)
 
     real(8) :: maxDeltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
+    real(8), save :: maxGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
@@ -510,9 +511,12 @@ module HorizontalCoord_mod
 
     maxGridSpacing = RA * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
 
-    write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-    write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-    write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
+    if ( mpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
+      maxGridSpacingPrevious = maxGridSpacing
+      write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+      write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+      write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
+    end if
 
     if ( maxGridSpacing > 1.0d6 ) then
       call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')

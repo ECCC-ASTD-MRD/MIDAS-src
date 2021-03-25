@@ -103,14 +103,15 @@ module stateToColumn_mod
   real(4), parameter ::             lakeFootprint = -2.0
   real(4), parameter ::         bilinearFootprint = -1.0
   integer, parameter :: maxNumLocalGridptsSearch = 1000
+  integer, parameter :: minNumLocalGridptsSearch = 8
 
   ! namelist variables:
   logical :: slantPath_TO_nl
   logical :: slantPath_TO_tlad
   logical :: slantPath_RO_nl
   logical :: slantPath_RA_nl
-  logical, save :: calcHeightPressIncrOnColumn
-  logical :: useTovsNmlFootprint
+  logical :: calcHeightPressIncrOnColumn
+  logical :: useFootprintForTovs
 
   integer, external    :: get_max_rss
 
@@ -298,13 +299,13 @@ contains
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: index1, index2, headerIndexProc 
     integer :: lonIndex, latIndex, gridIndex
-    integer :: maxkcount, numkToSend 
+    integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
-    namelist /nams2c/ useTovsNmlFootprint 
+    namelist /nams2c/ useFootprintForTovs 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -326,7 +327,7 @@ contains
       slantPath_RO_nl   = .false.
       slantPath_RA_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
-      useTovsNmlFootprint = .false.
+      useFootprintForTovs = .false.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mpi_myid == 0 ) then
@@ -1028,6 +1029,28 @@ contains
     if ( associated(interpInfo%tree) ) then
       call kdtree2_destroy(interpInfo%tree)
       deallocate(positionArray)
+    end if
+
+    ! Count the number of TOVS using footprint operator on one level
+    if ( mpi_myid == 0 .and. useFootprintForTovs ) then 
+      numTovsUsingFootprint = 0
+      numAllTovs = 0
+      do procIndex = 1, mpi_nprocs
+        do stepIndex = 1, numStep
+          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+            codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+
+            if ( tvs_isIdBurpTovs(codeType) .and. footprintRadius_r4 > 0.0 ) then
+              numTovsUsingFootprint = numTovsUsingFootprint + 1
+            end if
+            numAllTovs = numAllTovs + 1 
+          end do
+        end do
+      end do
+
+      write(*,*) 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', numTovsUsingFootprint, &
+                 '/', numAllTovs, ' (', real(numTovsUsingFootprint/numAllTovs,4) * 100.0, '%)'
     end if
     
     deallocate(allFootprintRadius_r4)
@@ -2727,12 +2750,12 @@ contains
 
       fpr = nearestNeighbourFootprint
 
-    else if (obsFamily == 'TO' .and. useTovsNmlFootprint ) then
+    else if (obsFamily == 'TO' .and. useFootprintForTovs ) then
 
       fpr = getTovsFootprintRadius(obsSpaceData, headerIndex, beSilent_opt=.true.)
 
       ! As safety margin, add 10% to maxGridSpacing before comparing to the footprint radius.
-      if ( 1.1 * real(stateVector%hco%maxGridSpacing,4) > fpr ) fpr = bilinearFootprint
+      if ( fpr < 1.1 * real(stateVector%hco%maxGridSpacing,4) ) fpr = bilinearFootprint
 
     else
 
@@ -3129,10 +3152,14 @@ contains
     maxRadiusSquared = real(fpr,8) ** 2
     refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
     call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
-                                nfound=numLocalGridptsFoundSearch,&
-                                nalloc=maxNumLocalGridptsSearch, results=searchResults)
-    if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
+                           nfound=numLocalGridptsFoundSearch, nalloc=maxNumLocalGridptsSearch, &
+                           results=searchResults)
+    if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
+    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch ) then
+      write(*,*) 's2c_setupFootprintInterp: Warning! For headerIndex=', headerIndex, &
+                 ' number of grid points found within footprint radius=', fpr, ' is less than ', &
+                 minNumLocalGridptsSearch 
     end if
 
     ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
@@ -3142,34 +3169,31 @@ contains
     latIndexVec(gridptCount) = latIndexCentre
 
     ! fill the rest of lonIndexVec/latIndexVec
-    if ( numLocalGridptsFoundSearch > 1 ) then
-      gridLoop1: do resultsIndex = 1, numLocalGridptsFoundSearch
-        gridIndex = searchResults(resultsIndex)%idx
-        if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
-          write(*,*) 's2c_setupFootprintInterp: gridIndex=', gridIndex
-          call utl_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
-        end if
+    gridLoop1: do resultsIndex = 1, numLocalGridptsFoundSearch
+      gridIndex = searchResults(resultsIndex)%idx
+      if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
+        write(*,*) 's2c_setupFootprintInterp: gridIndex=', gridIndex
+        call utl_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
+      end if
 
-        latIndex = (gridIndex - 1) / statevector%hco%ni + 1
-        lonIndex = gridIndex - (latIndex - 1) * statevector%hco%ni
-        if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
-                latIndex < 1 .or. latIndex > statevector%hco%nj ) then
-          write(*,*) 's2c_setupFootprintInterp: lonIndex=', lonIndex, ',latIndex=', latIndex
-          call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
-        end if
+      latIndex = (gridIndex - 1) / statevector%hco%ni + 1
+      lonIndex = gridIndex - (latIndex - 1) * statevector%hco%ni
+      if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
+           latIndex < 1 .or. latIndex > statevector%hco%nj ) then
+        write(*,*) 's2c_setupFootprintInterp: lonIndex=', lonIndex, ',latIndex=', latIndex
+        call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
+      end if
 
-        if ( stateVector%oceanMask%maskPresent ) then
-          if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
-        end if
+      if ( stateVector%oceanMask%maskPresent ) then
+        if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
+      end if
 
-        if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
+      if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
 
-        gridptCount = gridptCount + 1
-        lonIndexVec(gridptCount) = lonIndex
-        latIndexVec(gridptCount) = latIndex
-      end do gridLoop1
-
-    end if
+      gridptCount = gridptCount + 1
+      lonIndexVec(gridptCount) = lonIndex
+      latIndexVec(gridptCount) = latIndex
+    end do gridLoop1
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
 
@@ -3552,16 +3576,16 @@ contains
     !:Purpose: calculate foot-print radius for TOVS observations
     !
     implicit none
-    real(4) :: footPrintRadius_r4
 
     ! Arguments
     type(struct_obs), intent(in)  :: obsSpaceData
+    real(4)         , intent(out) :: footPrintRadius_r4
     integer         , intent(in)  :: headerIndex
     logical         , intent(in), optional :: beSilent_opt
     
     ! local
     integer :: codtyp, sensorIndex 
-    real(8) :: alpha, satHeight, footPrintRadius
+    real(8) :: fovAngularDiameter, satHeight, footPrintRadius
     logical :: beSilent
 
     if ( present(beSilent_opt) ) then
@@ -3575,44 +3599,41 @@ contains
     satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
 
     ! FOV angular diameter  
-    alpha = -1.0d0
     codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
     select case(codtyp)
-    case(164) ! amsua
-      alpha = 3.3d0
-    case(181) ! amsub
-      alpha = 1.1d0
-    case(182) ! mhs
-      alpha = 10.0d0 / 9.0d0
-    case(183) ! airs
-      alpha = 1.1d0
-    case(186) ! IASI
-      alpha = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
-    case(185) ! CSR
-      alpha = 0.125d0
-    case(168) ! SSMIS
-      alpha = 1.2d0
-    case(192) ! ATMS
-      alpha = 2.2d0
-    case(193) ! CrIS
-      alpha = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case(codtyp_get_codtyp('amsua'))
+      fovAngularDiameter = 3.3d0
+    case(codtyp_get_codtyp('amsub'))
+      fovAngularDiameter = 1.1d0
+    case(codtyp_get_codtyp('mhs'))
+      fovAngularDiameter = 10.0d0 / 9.0d0
+    case(codtyp_get_codtyp('airs'))
+      fovAngularDiameter = 1.1d0
+    case(codtyp_get_codtyp('iasi'))
+      fovAngularDiameter = 14.65d0 / 1000.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case(codtyp_get_codtyp('radianceclear'))
+      fovAngularDiameter = 0.125d0
+    case(codtyp_get_codtyp('ssmis'))
+      fovAngularDiameter = 1.2d0
+    case(codtyp_get_codtyp('atms'))
+      fovAngularDiameter = 2.2d0
+    case(codtyp_get_codtyp('cris'))
+      fovAngularDiameter = 14.0d0 / 824.0d0 * MPC_DEGREES_PER_RADIAN_R8
+    case default
+      fovAngularDiameter = -1.0d0
     end select
-    !case default
-    !  write(*,*) 'getTovsFootprintRadius: codtyp=',codtyp
-    !  call utl_abort('getTovsFootprintRadius: unknown codtyp')
-    !end select
 
-    if ( alpha < 0.0d0 ) then 
+    if ( fovAngularDiameter < 0.0d0 ) then 
       footPrintRadius_r4 = bilinearFootprint
     else
       ! get foot print radius (meter) from angular diameter
-      footPrintRadius = 0.5 * alpha * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
+      footPrintRadius = 0.5d0 * fovAngularDiameter * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
       footPrintRadius_r4 = real(footPrintRadius,4)
     end if
 
     if ( .not. beSilent ) then
       write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, &
-                ',satHeight=', satHeight, ',alpha=', alpha, ',codtyp=', codtyp, &
+                ',satHeight=', satHeight, ',fovAngularDiameter=', fovAngularDiameter, ',codtyp=', codtyp, &
                 ',footPrintRadius=', footPrintRadius_r4
     end if
 
