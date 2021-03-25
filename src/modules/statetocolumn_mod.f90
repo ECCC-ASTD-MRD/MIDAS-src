@@ -1032,20 +1032,19 @@ contains
     end if
 
     ! Count the number of TOVS using footprint operator on one level
-    if ( mpi_myid == 0 .and. useFootprintForTovs ) then 
+    if ( useFootprintForTovs ) then 
       numTovsUsingFootprint = 0
       numAllTovs = 0
-      do procIndex = 1, mpi_nprocs
-        do stepIndex = 1, numStep
-          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
-            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
-            codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      procIndex = mpi_myid + 1
+      do stepIndex = 1, numStep
+        do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+          footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+          codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-            if ( tvs_isIdBurpTovs(codeType) .and. footprintRadius_r4 > 0.0 ) then
-              numTovsUsingFootprint = numTovsUsingFootprint + 1
-            end if
+          if ( tvs_isIdBurpTovs(codeType) ) then
+            if ( footprintRadius_r4 > 0.0 ) numTovsUsingFootprint = numTovsUsingFootprint + 1
             numAllTovs = numAllTovs + 1 
-          end do
+          end if
         end do
       end do
 
