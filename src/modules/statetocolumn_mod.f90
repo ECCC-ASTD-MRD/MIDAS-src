@@ -3156,8 +3156,8 @@ contains
                            results=searchResults)
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
-    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch ) then
-      write(*,*) 's2c_setupFootprintInterp: Warning! For headerIndex=', headerIndex, &
+    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
+      write(*,*) 's2c_setupFootprintInterp: Warning! For TOVS headerIndex=', headerIndex, &
                  ' number of grid points found within footprint radius=', fpr, ' is less than ', &
                  minNumLocalGridptsSearch 
     end if
