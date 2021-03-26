@@ -42,7 +42,7 @@
    SCALEFACTOR = 200*0.0D0
 /
  &NAMobsDB
-   obsDbActive = .false.
+   obsDbActive = .true.
 /
  &NAMSQLsfc
    numberElem=1

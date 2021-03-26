@@ -17,9 +17,7 @@
 module obsdbFiles_mod
   ! MODULE obsdbFiles (prefix='odbf' category='6. Observation input/output')
   !
-  ! :Purpose: To store the filenames of the sqlite observation files and call
-  !           subroutines in readObsdb to read and update sqlite files that are in
-  !           the new "obsDB" format.
+  ! :Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
   use mpi_mod
   use codePrecision_mod
@@ -41,6 +39,7 @@ module obsdbFiles_mod
 
  
   ! Arrays used to match obsDB column names with obsSpaceData column indexes
+
   ! ...for the header table
   integer, parameter :: numHeadMatch = 9
   character(len=100) :: headSqlNameMatch(numHeadMatch) = &
@@ -49,11 +48,11 @@ module obsdbFiles_mod
        (/ 0,        OBS_IDO,  OBS_LAT, OBS_LON, OBS_ITY,  OBS_DAT, OBS_ETM, OBS_ST1, OBS_ALT /)
 
   ! ...for the body table
-  integer, parameter :: numBodyMatch = 5
+  integer, parameter :: numBodyMatch = 10
   character(len=100) :: bodySqlNameMatch(numBodyMatch) = &
-       (/ 'ID_DATA', 'VCOORD', 'VARNO','OBSVALUE','FLAG'  /)
+       (/ 'ID_DATA', 'VCOORD', 'VARNO','OBSVALUE','FLAG',  'OMP',  'OMA',    'FSO',   'FG_ERROR', 'OBS_ERROR'  /)
   integer            :: bodyObsColMatch(numBodyMatch)  = &
-       (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG /)
+       (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG, OBS_OMP, OBS_OMA, OBS_FSO, OBS_HPHT,   OBS_OER      /)
 
   ! NAMELIST variables
   logical :: obsDbActive
@@ -149,9 +148,8 @@ contains
 
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headIndexBegin
-    integer :: headIndexEnd, headIndex, obsRln, obsNlv
-    integer :: numBody, numHead, columnIndex, matchIndex, lastHeadKey
-    integer :: dataColumnIndexObsValue, headColumnIndexHeadKey, dataColumnIndexHeadKey
+    integer :: headIndexEnd, headIndex, obsRln
+    integer :: numBody, numHead, columnIndex
     integer :: headTableIndex, numRowsHeadTable, dataTableIndex, numRowsDataTable
     real(pre_obsReal)               :: missingValue
     character(len=100), allocatable :: headCharSqlNames(:)
@@ -220,113 +218,18 @@ contains
     headIndexBegin = obs_numHeader(obsdat) + 1
 
     ! Header-Character values
-    do columnIndex = 1, size(headCharSqlNames)
-      matchIndex = findloc(headSqlNameMatch(:), headCharSqlNames(columnIndex), 1)
-      if (matchIndex == 0) then
-        write(*,*) 'odbf_readFile: name not in list of known header column names = ', &
-                   trim(headCharSqlNames(columnIndex))
-      else
-        if (headCharSqlNames(columnIndex) /= 'ID_STN') then
-          call utl_abort('odbf_readFile: only valid char column is ID_STN')
-        end if
-        do headTableIndex = 1, numRowsHeadTable
-          headIndex = headTableIndex + headIndexBegin - 1
-          call obs_set_c(obsdat, 'STID', &
-                         headIndex, headCharValues(headTableIndex,columnIndex))
-        end do
-      end if
-    end do
+    call odbf_copyToObsSpaceHeadChar(obsdat, headCharSqlNames, headCharValues, &
+                                     headIndexBegin)
 
     ! Header-Numeric values
-    do columnIndex = 1, size(headSqlNames)
-      matchIndex = findloc(headSqlNameMatch(:), headSqlNames(columnIndex), 1)
-      if (matchIndex == 0) then
-        write(*,*) 'odbf_readFile: name not in list of known header column names = ', &
-                   trim(headSqlNames(columnIndex))
-      else
-        do headTableIndex = 1, numRowsHeadTable
-          headIndex = headTableIndex + headIndexBegin - 1
-          if (obs_columnDataType(headObsColMatch(matchIndex)) == 'real') then
-            if ( obs_columnActive_RH(obsdat, headObsColMatch(matchIndex)) ) then
-              if (headTableIndex == 1) then
-                write(*,*) 'odbf_readFile: set header real column: ', headSqlNames(columnIndex), headIndex
-              end if
-              call obs_headSet_r(obsdat, headObsColMatch(matchIndex), &
-                                 headIndex, real(headValues(headTableIndex,columnIndex),pre_obsReal))
-            end if
-          else if (obs_columnDataType(headObsColMatch(matchIndex)) == 'integer') then
-            if ( obs_columnActive_IH(obsdat, headObsColMatch(matchIndex)) ) then
-              if (headTableIndex == 1) then
-                write(*,*) 'odbf_readFile: set header integer column: ', headSqlNames(columnIndex), headIndex
-              end if
-              call obs_headSet_i(obsdat, headObsColMatch(matchIndex), &
-                                 headIndex, nint(headValues(headTableIndex,columnIndex)))
-            end if
-          else
-            call utl_abort('odbf_readFile: unknown data type for obs header column')
-          end if
-        end do
-      end if
-    end do
+    call odbf_copyToObsSpaceHead(obsdat, headSqlNames, headValues, &
+                                 headIndexBegin)
 
     ! Body-Numeric values
-    dataColumnIndexObsValue = findloc(dataSqlNames(:), 'OBSVALUE', 1)
-    dataColumnIndexHeadKey  = findloc(dataSqlNames(:), keyHeadSqlName, 1)
-    headColumnIndexHeadKey  = findloc(headSqlNames(:), keyHeadSqlName, 1)
-    lastHeadKey = 0
-    headIndex = headIndexBegin - 1
-    bodyIndex = bodyIndexBegin - 1
-    dataIndex_loop: do dataTableIndex = 1, numRowsDataTable
-      bodyIndex = bodyIndex + 1
+    call odbf_copyToObsSpaceBody(obsdat, dataSqlNames, dataValues, &
+                                 bodyIndexBegin, headIndexBegin)
 
-      ! check if obs value is null/missing
-      if ( dataValues(dataTableIndex,dataColumnIndexObsValue) == MPC_missingValue_R8 ) then
-        write(*,*) 'odbf_readFile: obs value missing, skip row - dataTableIndex = ', dataTableIndex
-        bodyIndex = bodyIndex - 1
-        cycle dataIndex_loop
-      end if
-
-      ! count number of body rows for each header row (OBS_NLV)
-      if ( dataValues(dataTableIndex,dataColumnIndexHeadKey) /= lastHeadKey ) then
-        headIndex = headIndex + 1
-        call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
-        lastHeadKey = dataValues(dataTableIndex,dataColumnIndexHeadKey)
-      end if
-      obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
-      call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
-
-      columnIndex_loop: do columnIndex = 1, size(dataSqlNames)
-        matchIndex = findloc(bodySqlNameMatch(:), dataSqlNames(columnIndex), 1)
-        if (matchIndex == 0) then
-          if (dataTableIndex == 1) then
-            write(*,*) 'odbf_readFile: name not in list of known data column names = ', &
-                       trim(dataSqlNames(columnIndex))
-          end if
-        else
-          if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'real') then
-            if ( obs_columnActive_RB(obsdat, bodyObsColMatch(matchIndex)) ) then
-              if (dataTableIndex == 1) then
-                write(*,*) 'odbf_readFile: set body real column: ', dataSqlNames(columnIndex), bodyIndex
-              end if
-              call obs_bodySet_r(obsdat, bodyObsColMatch(matchIndex), &
-                                 bodyIndex, real(dataValues(dataTableIndex,columnIndex),pre_obsReal))
-            end if
-          else if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'integer') then
-            if ( obs_columnActive_IB(obsdat, bodyObsColMatch(matchIndex)) ) then
-              if (dataTableIndex == 1) then
-                write(*,*) 'odbf_readFile: set body integer column: ', dataSqlNames(columnIndex), bodyIndex
-              end if
-              call obs_bodySet_i(obsdat, bodyObsColMatch(matchIndex), &
-                                 bodyIndex, nint(dataValues(dataTableIndex,columnIndex)))
-            end if
-          else
-            call utl_abort('odbf_readFile: unknown data type for obs body column')
-          end if
-        end if
-      end do columnIndex_loop
-    end do dataIndex_loop
-
-    ! last rows added to obsSpaceData
+    ! Get indexes of last rows added to obsSpaceData
     bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
@@ -415,8 +318,8 @@ contains
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_readFile: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_readFile: fSQL_open' )
+      write(*,*) 'odbf_getSqlColumnNames: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getSqlColumnNames: fSQL_open' )
     end if
 
     ! read the column names
@@ -575,6 +478,219 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine odbf_getColumnData_num
+
+  !--------------------------------------------------------------------------
+  ! odbf_copyToObsSpaceHeadChar
+  !--------------------------------------------------------------------------
+  subroutine odbf_copyToObsSpaceHeadChar(obsdat, headCharSqlNames, &
+                                         headCharValues, headIndexBegin)
+    !
+    ! :Purpose: Copy character string values from a local table into
+    !           obsSpaceData header rows.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: headCharSqlNames(:)
+    character(len=*), intent(in)    :: headCharValues(:,:)
+    integer,          intent(in)    :: headIndexBegin
+
+    ! locals:
+    integer :: columnIndex, matchIndex, headTableIndex, headIndex
+    integer :: numRowsHeadTable
+
+    numRowsHeadTable = size(headCharValues,1)
+    
+    do columnIndex = 1, size(headCharSqlNames)
+      matchIndex = findloc(headSqlNameMatch(:), headCharSqlNames(columnIndex), 1)
+
+      if (matchIndex == 0) then
+
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: name not in list of known header column names = ', &
+                   trim(headCharSqlNames(columnIndex))
+
+      else
+
+        if (headCharSqlNames(columnIndex) /= 'ID_STN') then
+          call utl_abort('odbf_copyToObsSpaceHeadChar: only valid char column is ID_STN')
+        end if
+        do headTableIndex = 1, numRowsHeadTable
+          headIndex = headTableIndex + headIndexBegin - 1
+          call obs_set_c(obsdat, 'STID', &
+                         headIndex, headCharValues(headTableIndex,columnIndex))
+        end do
+
+      end if
+
+    end do
+
+  end subroutine odbf_copyToObsSpaceHeadChar
+
+  !--------------------------------------------------------------------------
+  ! odbf_copyToObsSpaceHead
+  !--------------------------------------------------------------------------
+  subroutine odbf_copyToObsSpaceHead(obsdat, headSqlNames, &
+                                     headValues, headIndexBegin)
+    !
+    ! :Purpose: Copy real and integer values from a local table into
+    !           obsSpaceData header rows.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: headSqlNames(:)
+    real(8),          intent(in)    :: headValues(:,:)
+    integer,          intent(in)    :: headIndexBegin
+
+    ! locals:
+    integer :: columnIndex, matchIndex, headTableIndex, headIndex
+    integer :: numRowsHeadTable
+
+    numRowsHeadTable = size(headValues,1)
+
+    column_loop: do columnIndex = 1, size(headSqlNames)
+      matchIndex = findloc(headSqlNameMatch(:), headSqlNames(columnIndex), 1)
+
+      if (matchIndex == 0) then
+
+        write(*,*) 'odbf_copyToObsSpaceHead: unknown column name      : ', &
+                   trim(headSqlNames(columnIndex))
+
+      else
+
+        headTable_loop: do headTableIndex = 1, numRowsHeadTable
+          headIndex = headTableIndex + headIndexBegin - 1
+
+          if (obs_columnDataType(headObsColMatch(matchIndex)) == 'real') then
+            if ( obs_columnActive_RH(obsdat, headObsColMatch(matchIndex)) ) then
+              if (headTableIndex == 1) then
+                write(*,*) 'odbf_copyToObsSpaceHead: set header real column   : ', trim(headSqlNames(columnIndex))
+              end if
+              call obs_headSet_r(obsdat, headObsColMatch(matchIndex), &
+                                 headIndex, real(headValues(headTableIndex,columnIndex),pre_obsReal))
+            end if
+          else if (obs_columnDataType(headObsColMatch(matchIndex)) == 'integer') then
+            if ( obs_columnActive_IH(obsdat, headObsColMatch(matchIndex)) ) then
+              if (headTableIndex == 1) then
+                write(*,*) 'odbf_copyToObsSpaceHead: set header integer column: ', trim(headSqlNames(columnIndex))
+              end if
+              call obs_headSet_i(obsdat, headObsColMatch(matchIndex), &
+                                 headIndex, nint(headValues(headTableIndex,columnIndex)))
+            end if
+          else
+            call utl_abort('odbf_copyToObsSpaceHead: unknown data type for obs header column')
+          end if
+
+        end do headTable_loop
+
+      end if
+
+    end do column_loop
+
+  end subroutine odbf_copyToObsSpaceHead
+
+  !--------------------------------------------------------------------------
+  ! odbf_copyToObsSpaceBody
+  !--------------------------------------------------------------------------
+  subroutine odbf_copyToObsSpaceBody(obsdat, dataSqlNames, &
+                                     dataValues, bodyIndexBegin, headIndexBegin)
+    !
+    ! :Purpose: Copy real and integer values from a local table into
+    !           obsSpaceData body rows.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: dataSqlNames(:)
+    real(8),          intent(in)    :: dataValues(:,:)
+    integer,          intent(in)    :: bodyIndexBegin
+    integer,          intent(in)    :: headIndexBegin
+
+    ! locals:
+    integer :: columnIndex, matchIndex, dataTableIndex, bodyIndex, headIndex
+    integer :: numRowsDataTable
+    integer :: dataColumnIndexObsValue, dataColumnIndexHeadKey
+    integer :: lastHeadKey, obsNlv
+
+    numRowsDataTable = size(dataValues,1)
+
+    dataColumnIndexObsValue = findloc(dataSqlNames(:), 'OBSVALUE', 1)
+    dataColumnIndexHeadKey  = findloc(dataSqlNames(:), keyHeadSqlName, 1)
+    lastHeadKey = 0
+    headIndex = headIndexBegin - 1
+    bodyIndex = bodyIndexBegin - 1
+
+    dataIndex_loop: do dataTableIndex = 1, numRowsDataTable
+      bodyIndex = bodyIndex + 1
+
+      ! check if obs value is null/missing
+      if ( dataValues(dataTableIndex,dataColumnIndexObsValue) == MPC_missingValue_R8 ) then
+        write(*,*) 'odbf_copyToObsSpaceBody: obs value missing, skip row - dataTableIndex = ', dataTableIndex
+        bodyIndex = bodyIndex - 1
+        cycle dataIndex_loop
+      end if
+
+      ! count number of body rows for each header row (OBS_NLV)
+      if ( dataValues(dataTableIndex,dataColumnIndexHeadKey) /= lastHeadKey ) then
+        headIndex = headIndex + 1
+        call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
+        lastHeadKey = dataValues(dataTableIndex,dataColumnIndexHeadKey)
+      end if
+      obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
+      call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
+
+      ! check that the primary key for header table matches the value in the data table
+      if (obs_headElem_i(obsdat, OBS_IDO, headIndex) /= &
+          dataValues(dataTableIndex,dataColumnIndexHeadKey)) then
+        write(*,*) 'odbf_copyToObsSpaceBody: primary key in HEADER table = ', &
+                   obs_headElem_i(obsdat, OBS_IDO, headIndex)
+        write(*,*) 'odbf_copyToObsSpaceBody: same key in DATA table      = ', &
+                   dataValues(dataTableIndex,dataColumnIndexHeadKey)
+        call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table not equal ' // &
+                       'to value in DATA table')
+      end if
+
+      ! copy real and integer values into obsSpaceData
+      columnIndex_loop: do columnIndex = 1, size(dataSqlNames)
+        matchIndex = findloc(bodySqlNameMatch(:), dataSqlNames(columnIndex), 1)
+
+        if (matchIndex == 0) then
+          if (dataTableIndex == 1) then
+            write(*,*) 'odbf_copyToObsSpaceBody: unknown column name    : ', &
+                       trim(dataSqlNames(columnIndex))
+          end if
+        else
+          if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'real') then
+            ! real values
+            if ( obs_columnActive_RB(obsdat, bodyObsColMatch(matchIndex)) ) then
+              if (dataTableIndex == 1) then
+                write(*,*) 'odbf_copyToObsSpaceBody: set body real column   : ', trim(dataSqlNames(columnIndex))
+              end if
+              call obs_bodySet_r(obsdat, bodyObsColMatch(matchIndex), &
+                                 bodyIndex, real(dataValues(dataTableIndex,columnIndex),pre_obsReal))
+            end if
+          else if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'integer') then
+            ! integer values
+            if ( obs_columnActive_IB(obsdat, bodyObsColMatch(matchIndex)) ) then
+              if (dataTableIndex == 1) then
+                write(*,*) 'odbf_copyToObsSpaceBody: set body integer column: ', trim(dataSqlNames(columnIndex))
+              end if
+              call obs_bodySet_i(obsdat, bodyObsColMatch(matchIndex), &
+                                 bodyIndex, nint(dataValues(dataTableIndex,columnIndex)))
+            end if
+          else
+            call utl_abort('odbf_copyToObsSpaceBody: unknown data type for obs body column')
+          end if
+        end if
+
+      end do columnIndex_loop
+
+    end do dataIndex_loop
+
+  end subroutine odbf_copyToObsSpaceBody
 
   !--------------------------------------------------------------------------
   ! odbf_unitConversions
