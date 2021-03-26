@@ -921,8 +921,7 @@ contains
       if ( trim(obsFileType) == 'SQLITE' ) then
         call sqlf_cldprmsFile(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
-!       call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
-        call brpf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
       else  
         write(*,*) ' UNKNOWN FileType=',obsFileType
         call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP or SQLITE observational files supported.")
