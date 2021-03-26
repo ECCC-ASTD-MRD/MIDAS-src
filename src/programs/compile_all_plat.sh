@@ -38,6 +38,7 @@ if [ -z "${COMPILING_MACHINE_PPP}" -o -z "${COMPILING_MACHINE_SUPER}" ]; then
     fi
 fi
 
+PLAT_PPP=ubuntu-18.04-skylake-64
 if [ "${COMPILING_MACHINE_SUPER}" = brooks -o "${COMPILING_MACHINE_SUPER}" = hare ]; then
     PLAT_SUPER=sles-11-broadwell-64-xc40
 else
@@ -114,8 +115,8 @@ compile_interactively compile_splitobs
 ${__toplevel}/tools/misc/wait_for_job.sh ${jobname} ${jobid} ${COMPILING_MACHINE_PPP}
 
 status=0
-echo "Checking if all programs have been compiled on ${TRUE_HOST} for platform ${ORDENV_PLAT} in ${MIDAS_ABS}"
-./check_if_all_programs_compiled.sh ${ORDENV_PLAT} ${MIDAS_ABS} || status=1
+echo "Checking if all programs have been compiled on ${COMPILING_MACHINE_PPP} for platform ${PLAT_PPP} in ${MIDAS_ABS}"
+./check_if_all_programs_compiled.sh ${PLAT_PPP} ${MIDAS_ABS} || status=1
 echo "Checking if all programs have been compiled on ${host} for platform ${PLAT_SUPER} in ${MIDAS_ABS}"
 ./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
 
