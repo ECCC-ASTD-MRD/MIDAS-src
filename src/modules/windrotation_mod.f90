@@ -23,6 +23,7 @@ module windRotation_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use utilities_mod
+  use mpi_mod
   implicit none
   save
   private
@@ -55,7 +56,7 @@ module windRotation_mod
 
     if ( associated(uvr) ) then
       if ( uvr%initialized ) then
-        write(*,*) 'uvr_setup: already initialized, returning'
+        if ( mpi_myid == 0 ) write(*,*) 'uvr_setup: already initialized, returning'
         return
       else
         call utl_abort('uvr_setup: the supplied non-null uvr pointer is not initialized!')
@@ -65,25 +66,31 @@ module windRotation_mod
     !
     !-  Compute the rotation matrices (grd_rot_8 and grd_rotinv_8)
     !
-    write(*,*)
-    write(*,*) 'uvr_setup: Starting...  for grid type = ', hco_in%grtyp
+    if ( mpi_myid == 0 ) then
+      write(*,*)
+      write(*,*) 'uvr_setup: Starting...  for grid type = ', hco_in%grtyp
+    end if
 
     allocate(uvr)
 
-    write(*,*) hco_in % xlon1
-    write(*,*) hco_in % xlat1
-    write(*,*) hco_in % xlon2
-    write(*,*) hco_in % xlat2
+    if ( mpi_myid == 0 ) then
+      write(*,*) hco_in % xlon1
+      write(*,*) hco_in % xlat1
+      write(*,*) hco_in % xlon2
+      write(*,*) hco_in % xlat2
+    end if
 
     call sugrdpar(uvr, 1, hco_in % xlon1, hco_in % xlat1, hco_in % xlon2, hco_in % xlat2 )
 
     if ( hco_in%grtyp == 'U' ) then
 
-      write(*,*) 'uvr_setup: doing setup for YAN grid'
-      write(*,*) hco_in % xlon1_yan
-      write(*,*) hco_in % xlat1_yan
-      write(*,*) hco_in % xlon2_yan
-      write(*,*) hco_in % xlat2_yan
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'uvr_setup: doing setup for YAN grid'
+        write(*,*) hco_in % xlon1_yan
+        write(*,*) hco_in % xlat1_yan
+        write(*,*) hco_in % xlon2_yan
+        write(*,*) hco_in % xlat2_yan
+      end if
 
       call sugrdpar(uvr, 2, hco_in % xlon1_yan, hco_in % xlat1_yan, hco_in % xlon2_yan, hco_in % xlat2_yan )
 
@@ -91,8 +98,10 @@ module windRotation_mod
 
     uvr%initialized = .true.
 
-    write(*,*)
-    write(*,*) 'uvr_setup: Done!'
+    if ( mpi_myid == 0 ) then
+      write(*,*)
+      write(*,*) 'uvr_setup: Done!'
+    end if
 
   end subroutine uvr_setup
 
@@ -126,8 +135,10 @@ module windRotation_mod
       !
       !- 1. Non rotated grid (for test case only)
       !
-      write(*,*)
-      write(*,*) 'uvr_sugrdpar: Warning: This grid is not rotated !!!'
+      if ( mpi_myid == 0 ) then
+        write(*,*)
+        write(*,*) 'uvr_sugrdpar: Warning: This grid is not rotated !!!'
+      end if
       uvr%grd_rot_8(1,1,subGridIndex) = 1.0d0       
       uvr%grd_rot_8(1,2,subGridIndex) = 0.0d0
       uvr%grd_rot_8(1,3,subGridIndex) = 0.0d0
@@ -175,7 +186,9 @@ module windRotation_mod
 
     do j1 = 1, msize
       do j2 = 1, msize
-        write(*,*) 'sugrdpar: grd_rot_8(j1,j2) =',j1,j2,uvr%grd_rot_8(j1,j2,subGridIndex)
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'sugrdpar: grd_rot_8(j1,j2) =',j1,j2,uvr%grd_rot_8(j1,j2,subGridIndex)
+        end if
       end do
     end do
 
@@ -192,7 +205,9 @@ module windRotation_mod
     call mxma8x(zunit,uvr%grd_rotinv_8(:,:,subGridIndex),uvr%grd_rot_8(:,:,subGridIndex),msize,msize,msize)
     do j1 = 1, msize
       do j2 = 1, msize
-        write(*,*) 'sugrdpar: unit = ', j1, j2, zunit(j1,j2)
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'sugrdpar: unit = ', j1, j2, zunit(j1,j2)
+        end if
       end do
     end do
 

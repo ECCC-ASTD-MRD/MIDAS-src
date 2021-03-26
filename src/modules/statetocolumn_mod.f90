@@ -1032,25 +1032,28 @@ contains
     end if
 
     ! Count the number of TOVS using footprint operator on one level
-    if ( mpi_myid == 0 .and. useFootprintForTovs ) then 
+    if ( useFootprintForTovs ) then 
       numTovsUsingFootprint = 0
       numAllTovs = 0
-      do procIndex = 1, mpi_nprocs
-        do stepIndex = 1, numStep
-          do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
-            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
-            codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      procIndex = mpi_myid + 1
+      do stepIndex = 1, numStep
+        do headerUsedIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+          footprintRadius_r4 = allFootprintRadius_r4(headerUsedIndex, stepIndex, procIndex)
+          headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
+          codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-            if ( tvs_isIdBurpTovs(codeType) .and. footprintRadius_r4 > 0.0 ) then
-              numTovsUsingFootprint = numTovsUsingFootprint + 1
-            end if
+          if ( tvs_isIdBurpTovs(codeType) ) then
+            if ( footprintRadius_r4 > 0.0 ) numTovsUsingFootprint = numTovsUsingFootprint + 1
             numAllTovs = numAllTovs + 1 
-          end do
+          end if
         end do
       end do
 
-      write(*,*) 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', numTovsUsingFootprint, &
-                 '/', numAllTovs, ' (', real(numTovsUsingFootprint/numAllTovs,4) * 100.0, '%)'
+      if ( numAllTovs > 0 ) then 
+        write(*,'(A,2(I5,A2),F5.1,A)') 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', &
+                       numTovsUsingFootprint, ' /', numAllTovs, ' (', &
+                       real(numTovsUsingFootprint) / real(numAllTovs) * 100.0, '%)'
+      end if
     end if
     
     deallocate(allFootprintRadius_r4)
@@ -3156,8 +3159,8 @@ contains
                            results=searchResults)
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
-    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch ) then
-      write(*,*) 's2c_setupFootprintInterp: Warning! For headerIndex=', headerIndex, &
+    else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
+      write(*,*) 's2c_setupFootprintInterp: Warning! For TOVS headerIndex=', headerIndex, &
                  ' number of grid points found within footprint radius=', fpr, ' is less than ', &
                  minNumLocalGridptsSearch 
     end if
