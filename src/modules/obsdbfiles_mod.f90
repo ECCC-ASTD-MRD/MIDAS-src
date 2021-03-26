@@ -21,6 +21,7 @@ module obsdbFiles_mod
   !           subroutines in readObsdb to read and update sqlite files that are in
   !           the new "obsDB" format.
   !
+  use mpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use bufr_mod
@@ -34,8 +35,11 @@ module obsdbFiles_mod
   implicit none
   save
   private
-  public :: odbf_readFile
 
+  ! Public subroutines and functions:
+  public :: odbf_setup, odbf_isActive, odbf_readFile
+
+ 
   ! Arrays used to match obsDB column names with obsSpaceData column indexes
   ! ...for the header table
   integer, parameter :: numHeadMatch = 9
@@ -51,8 +55,12 @@ module obsdbFiles_mod
   integer            :: bodyObsColMatch(numBodyMatch)  = &
        (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG /)
 
-  ! element ID values to be considered (this is temporary!)
-  integer            :: elemIdList(2) = (/ BUFR_SST, BUFR_SOZ /)
+  ! NAMELIST variables
+  logical :: obsDbActive
+  integer :: numElemIdList
+  integer :: elemIdList(100)
+
+  logical :: nmlAlreadyRead = .false.
 
   ! Some important column names in obsDB files
   character(len=100) :: keyHeadSqlName = 'ID_OBS'
@@ -60,6 +68,69 @@ module obsdbFiles_mod
   character(len=100) :: elemIdSqlName  = 'VARNO'
 
 contains
+
+  !--------------------------------------------------------------------------
+  ! odbf_setup
+  !--------------------------------------------------------------------------
+  subroutine odbf_setup()
+    !
+    ! :Purpose: Read the namelist for obsDB files
+    !
+    implicit none
+
+    ! locals
+    integer           :: nulnam, ierr
+    integer, external :: fnom, fclos
+
+    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
+
+    if ( .not. nmlAlreadyRead ) then
+      nmlAlreadyRead = .true.
+
+      ! default values
+      obsDbActive = .false.
+      numElemIdList = 2
+      elemIdList(:) = 0
+      elemIdList(1) = BUFR_SST
+      elemIdList(2) = BUFR_SOZ
+
+      if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'odbf_setup: namObsDB is missing in the namelist.'
+          write(*,*) '            The default values will be taken.'
+        end if
+      else
+        ! reading namelist variables
+        nulnam = 0
+        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam, nml = namobsdb, iostat = ierr)
+        if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading namelist')
+        ierr = fclos(nulnam)
+      end if
+      if ( mpi_myid == 0 ) write(*, nml=namobsdb)
+
+    end if
+
+  end subroutine odbf_setup
+
+  !--------------------------------------------------------------------------
+  ! odbf_isActive
+  !--------------------------------------------------------------------------
+  function odbf_isActive() result(isActive)
+    !
+    ! :Purpose: Tell the caller if the namelist indicates obsDB are active
+    !
+    implicit none
+
+    logical :: isActive
+
+    if (.not. nmlAlreadyRead) then
+      call odbf_setup()
+    end if
+
+    isActive = obsDbActive
+
+  end function odbf_isActive
 
   !--------------------------------------------------------------------------
   ! odbf_readFile
@@ -95,7 +166,7 @@ contains
     write(*,*) 'odbf_readFile: FamilyType : ', FamilyType
 
     !- 0.0 Some initialization
-    call ovt_setup(elemIdList)
+    call ovt_setup(elemIdList(1:numElemIdList))
 
     !- 1.0 Determine names of columns present in obsDB file
 
@@ -475,12 +546,13 @@ contains
     end do
     query = trim(query) // ' from ' // trim(tableName)
     if (elemIdPresent) then
-      write(*,*) 'odbf_getColumnData_num: selection only these element ids:', elemIdList(:)
+      write(*,*) 'odbf_getColumnData_num: selection only these element ids:', &
+                 elemIdList(1:numElemIdList)
       query = trim(query) // ' where ' // trim(elemIdSqlName) // ' in ('
-      do elemIdIndex = 1, size(elemIdList)
+      do elemIdIndex = 1, numElemIdList
         write(elemIdStr,'(i6)') elemIdList(elemIdIndex)
         query = trim(query) // elemIdStr
-        if (elemIdIndex < size(elemIdList)) then
+        if (elemIdIndex < numElemIdList) then
           query = trim(query) // ','
         end if
       end do

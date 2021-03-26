@@ -41,6 +41,9 @@
  &NAMBEN
    SCALEFACTOR = 200*0.0D0
 /
+ &NAMobsDB
+   obsDbActive = .false.
+/
  &NAMSQLsfc
    numberElem=1
    listElem="22042, 7025"

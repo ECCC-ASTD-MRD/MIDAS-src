@@ -166,8 +166,14 @@ contains
                call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
-!        if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        if ( obsFileType == 'SQLITE' ) call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( obsFileType == 'SQLITE' ) then
+          call odbf_setup()
+          if (odbf_isActive()) then
+            call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+          else
+            call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+          end if
+        end if
 
       end do
 
