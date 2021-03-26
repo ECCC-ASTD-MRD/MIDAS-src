@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix tvs_isNameGeostationary method. New namelist NAMGEOBUFR for tvs_isNameGeostationary (#471 and !447).
  * Fix allocation of statevectors for `obsImpact` (#472 and !446)
 
 ### Removed

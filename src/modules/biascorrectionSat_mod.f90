@@ -3030,7 +3030,7 @@ CONTAINS
     character(len=120)             :: line
     integer                        :: chan
     integer                        :: nbfov, nbpred, i, j, k, ier, istat, ii, nobs
-    logical                        :: newsat
+    logical                        :: newsat, fileExists
     real                           :: dummy
     integer                        :: iun
     integer                        :: maxsat    
@@ -3045,14 +3045,19 @@ CONTAINS
     !   nsat, nchan, nfov, cinstrum (output) are determined from file
     !   if returned nsat = 0, coeff_file was empty
 
-    iun = 0
-    ier = fnom(iun,coeff_file,'FMT',0)
-    if ( ier /= 0 ) then
-      call utl_abort('read_coeff: ERROR - Problem opening the coefficient file! ' // trim(coeff_file) )
-    end if
 
-    write(*,*)
-    write(*,*) 'read_coeff: Bias correction coefficient file open = ', coeff_file
+    inquire( file = trim(coeff_file), exist = fileExists )
+    if ( fileExists ) then
+      iun = 0
+      ier = fnom(iun,coeff_file,'FMT',0)
+      if ( ier /= 0 ) then
+        call utl_abort('read_coeff: ERROR - Problem opening the coefficient file! ' // trim(coeff_file) )
+      end if
+
+      write(*,*)
+      write(*,*) 'read_coeff: Bias correction coefficient file open = ', coeff_file
+
+    end if
 
     maxsat =  size( sats )
     maxpred = size(ptypes, dim=3)
@@ -3067,12 +3072,20 @@ CONTAINS
     nchan(:)        = 0
     nfov            = 0
     ptypes(:,:,:)   = 'XX'
-    
-    read(iun,*,IOSTAT=istat)
-    if ( istat < 0 ) then
-      write(*,*) 'read_coeff: ERROR- File appears empty.'
+
+    if (.not. fileExists) then
+      write(*,*) 'read_coeff: Warning- File ' // trim(coeff_file) //'not there.'
       return
     end if
+
+    read(iun,*,IOSTAT=istat)
+
+    if (istat /=0) then
+      write(*,*) 'read_coeff: Warning- File appears empty.'
+      ier = fclos(iun)
+      return
+    end if
+
     rewind(iun)
 
     ii = 0
