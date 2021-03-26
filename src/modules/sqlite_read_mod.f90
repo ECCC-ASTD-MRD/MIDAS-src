@@ -220,53 +220,53 @@ contains
     avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
     read( avhrrSqliteCharacter, * ) avhrrSqlite 
     if (   avhrrSqlite ==1 ) then
-       write(*,*)myName//' Table avhrr exists: insert contents into obsdat '
+      write(*,*)myName//' Table avhrr exists: insert contents into obsdat '
     else
-       write(*,*)myName//' Table avhrr does not exist :  ... return  '
-       return
+      write(*,*)myName//' Table avhrr does not exist :  ... return  '
+      return
     endif
 
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare( db, querySqlite , stmt, stat )
     write(*,*)myName//' obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
-       obsIdo = obs_headElem_i( obsdat,OBS_IDO, headerIndex )
-       call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
-       call fSQL_exec_stmt (stmt)
-       call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
-       allocate( matdata(numberRows, numberColumns) )
-       matdata = MPC_missingValue_R4
-       call fSQL_fill_matrix ( stmt, matdata )
+      obsIdo = obs_headPrimaryKey( obsdat, headerIndex )
+      call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
+      call fSQL_exec_stmt (stmt)
+      call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
+      allocate( matdata(numberRows, numberColumns) )
+      matdata = MPC_missingValue_R4
+      call fSQL_fill_matrix ( stmt, matdata )
 
-       iRow=1
-       do iobs=OBS_CF1,OBS_CF7
-         if(obs_columnActive_RH(obsdat,iobs)) then
-            CFRAC =matdata(iRow,3)
-           call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
-           iRow=iRow+6
-         end if
-       end do
+      iRow=1
+      do iobs=OBS_CF1,OBS_CF7
+        if(obs_columnActive_RH(obsdat,iobs)) then
+          CFRAC =matdata(iRow,3)
+          call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
+          iRow=iRow+6
+        end if
+      end do
 
-       iRow=1
-       do iobs=OBS_M1C1,OBS_M7C6
-         if(obs_columnActive_RH(obsdat,iobs)) then
-           MOYRAD=matdata(iRow,1) * 100000.d0
-           call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
-           iRow=iRow+1
-          endif
-       end do
+      iRow=1
+      do iobs=OBS_M1C1,OBS_M7C6
+        if(obs_columnActive_RH(obsdat,iobs)) then
+          MOYRAD=matdata(iRow,1) * 100000.d0
+          call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
+          iRow=iRow+1
+        endif
+      end do
 
-       iRow=1
-       do iobs=OBS_S1C1,OBS_S7C6
-         if(obs_columnActive_RH(obsdat,iobs)) then
-            STDRAD=matdata(iRow,2) * 100000.d0
-           call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
-           iRow=iRow+1
-         end if
-       end do
+      iRow=1
+      do iobs=OBS_S1C1,OBS_S7C6
+        if(obs_columnActive_RH(obsdat,iobs)) then
+          STDRAD=matdata(iRow,2) * 100000.d0
+          call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
+          iRow=iRow+1
+        end if
+      end do
 
-       deallocate(matdata)
-       call fSQL_free_mem    ( stmt )
+      deallocate(matdata)
+      call fSQL_free_mem    ( stmt )
 
     end do
     avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
@@ -928,7 +928,7 @@ contains
     integer                          :: obsRln, obsNlv, obsIdf, obsFlag
     integer                          ::  obsStatus, last_question, landSea, terrainType
     integer(8)                       :: headPrimaryKey, bodyPrimaryKey
-    integer                          :: itemId,count,countg,idobsindex
+    integer                          :: itemId,idobsindex
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
@@ -942,7 +942,6 @@ contains
     namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
 
     write(*,*) myName//' Starting ===================  '
-    count=0
 
     ! set default values of namelist variables
     itemUpdateList(:) = ''
@@ -1008,7 +1007,6 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
-      countg=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
  
       obsIdf = obs_headElem_i( obsdat,OBS_IDF, headerIndex )
@@ -1033,11 +1031,9 @@ contains
               scalfact=1.0
               if (   updateList(itemId) == OBS_SEM ) scalfact=100.0
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scalfact )
-              countg=countg +1
             end if
           else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
-              count=count +1
           end if
 
         end do ITEMS
@@ -1113,7 +1109,7 @@ contains
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
-    ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
+         ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
     query=trim(query)
     write(*,*) ' create query = ', trim(query)
 
@@ -1121,7 +1117,7 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_do : ')
 
     query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
-    values(?,?,?,?,?,?,?,?,?,?,?,?);'
+         values(?,?,?,?,?,?,?,?,?,?,?,?);'
     query=trim(query)
 
     write(*,*) ' Insert query = ', trim(query)
@@ -1145,7 +1141,7 @@ contains
       ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex )
       ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
       ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
-!
+      !
       call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
       call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
@@ -1158,7 +1154,7 @@ contains
       call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
-!
+      !
       call fSQL_exec_stmt ( stmt )
       numberInsert=numberInsert +1
     end do HEADER
