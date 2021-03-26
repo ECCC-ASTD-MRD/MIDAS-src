@@ -1069,13 +1069,8 @@ contains
           obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
           landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
           call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-          !  pikpik tempo fix
-          if ( landsea /= MPC_missingValue_INT ) then
-            call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = landSea )
-          else
-             call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = landsea )
-          endif 
-          call fSQL_bind_param( stmt, PARAM_INDEX = idobsindex, INT8_VAR = headPrimaryKey )
+          call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = landSea )
+          call fSQL_bind_param( stmt, PARAM_INDEX = idobsindex, INT8_VAR  = headPrimaryKey )
           call fSQL_exec_stmt ( stmt)
 
         end do HEADER2
