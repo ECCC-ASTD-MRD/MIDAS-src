@@ -1037,8 +1037,9 @@ contains
       numAllTovs = 0
       procIndex = mpi_myid + 1
       do stepIndex = 1, numStep
-        do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
-          footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+        do headerUsedIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+          footprintRadius_r4 = allFootprintRadius_r4(headerUsedIndex, stepIndex, procIndex)
+          headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
           if ( tvs_isIdBurpTovs(codeType) ) then
@@ -1048,8 +1049,11 @@ contains
         end do
       end do
 
-      write(*,*) 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', numTovsUsingFootprint, &
-                 '/', numAllTovs, ' (', real(numTovsUsingFootprint/numAllTovs,4) * 100.0, '%)'
+      if ( numAllTovs > 0 ) then 
+        write(*,'(A,2(I5,A2),F5.1,A)') 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', &
+                       numTovsUsingFootprint, ' /', numAllTovs, ' (', &
+                       real(numTovsUsingFootprint) / real(numAllTovs) * 100.0, '%)'
+      end if
     end if
     
     deallocate(allFootprintRadius_r4)
