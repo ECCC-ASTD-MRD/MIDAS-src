@@ -190,11 +190,11 @@ contains
     ! locals
     type(fSQL_DATABASE)      :: db   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt ! type for precompiled SQLite statements
-    type(fSQL_STATUS)        :: stat !type for error status
+    type(fSQL_STATUS)        :: stat ! type for error status
     integer                  :: avhrrSqlite
     integer                  :: obsIdo
     character(len=128)       :: querySqlite,avhrrSqliteCharacter
-    integer                  :: i, headerIndex, iobs
+    integer                  :: iRow, headerIndex, iobs
     integer                  :: numberRows ,  numberColumns
 
     real, allocatable        :: matdata(:,:)
@@ -234,37 +234,36 @@ contains
        call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
        call fSQL_exec_stmt (stmt)
        call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
-!      write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
        allocate( matdata(numberRows, numberColumns) )
        matdata = MPC_missingValue_R4
        call fSQL_fill_matrix ( stmt, matdata )
 
-         i=1
-         do iobs=OBS_CF1,OBS_CF7
-           if(obs_columnActive_RH(obsdat,iobs)) then
-              CFRAC =matdata(i,3)
-             call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
-             i=i+6
-           end if
-         end do
+       iRow=1
+       do iobs=OBS_CF1,OBS_CF7
+         if(obs_columnActive_RH(obsdat,iobs)) then
+            CFRAC =matdata(iRow,3)
+           call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
+           iRow=iRow+6
+         end if
+       end do
 
-         i=1
-         do iobs=OBS_M1C1,OBS_M7C6
-           if(obs_columnActive_RH(obsdat,iobs)) then
-             MOYRAD=matdata(i,1) * 100000.d0
-             call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
-             i=i+1
-            endif
-         end do
+       iRow=1
+       do iobs=OBS_M1C1,OBS_M7C6
+         if(obs_columnActive_RH(obsdat,iobs)) then
+           MOYRAD=matdata(iRow,1) * 100000.d0
+           call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
+           iRow=iRow+1
+          endif
+       end do
 
-         i=1
-         do iobs=OBS_S1C1,OBS_S7C6
-           if(obs_columnActive_RH(obsdat,iobs)) then
-              STDRAD=matdata(i,2) * 100000.d0
-             call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
-             i=i+1
-           end if
-         end do
+       iRow=1
+       do iobs=OBS_S1C1,OBS_S7C6
+         if(obs_columnActive_RH(obsdat,iobs)) then
+            STDRAD=matdata(iRow,2) * 100000.d0
+           call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
+           iRow=iRow+1
+         end if
+       end do
 
        deallocate(matdata)
        call fSQL_free_mem    ( stmt )
@@ -796,7 +795,7 @@ contains
           end if
 
           if ( trim(familyType) == 'TO' ) then
-            if ( obsvalue /=0.) then
+            if ( obsvalue /= 0. ) then
               call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
             else
               call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
