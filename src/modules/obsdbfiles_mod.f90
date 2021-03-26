@@ -23,6 +23,7 @@ module obsdbFiles_mod
   !
   use codePrecision_mod
   use mathPhysConstants_mod
+  use bufr_mod
   use obsSpaceData_mod
   use fSQLite
   use utilities_mod
@@ -36,19 +37,28 @@ module obsdbFiles_mod
   public :: odbf_readFile
 
   ! Arrays used to match obsDB column names with obsSpaceData column indexes
-  ! for the header table
-  integer, parameter :: numHeadMatch = 7
+  ! ...for the header table
+  integer, parameter :: numHeadMatch = 9
   character(len=100) :: headSqlNameMatch(numHeadMatch) = &
-       (/ 'ID_STN', 'ID_OBS', 'LAT',   'LON',   'CODTYP', 'DATE',  'TIME'  /)
+       (/ 'ID_STN', 'ID_OBS', 'LAT',   'LON',   'CODTYP', 'DATE',  'TIME', 'STATUS', 'ELEV' /)
   integer            :: headObsColMatch(numHeadMatch)  = &
-       (/ 0,        OBS_IDO,  OBS_LAT, OBS_LON, OBS_ITY,  OBS_DAT, OBS_ETM /)
+       (/ 0,        OBS_IDO,  OBS_LAT, OBS_LON, OBS_ITY,  OBS_DAT, OBS_ETM, OBS_ST1, OBS_ALT /)
 
-  ! for the body table
+  ! ...for the body table
   integer, parameter :: numBodyMatch = 5
   character(len=100) :: bodySqlNameMatch(numBodyMatch) = &
        (/ 'ID_DATA', 'VCOORD', 'VARNO','OBSVALUE','FLAG'  /)
   integer            :: bodyObsColMatch(numBodyMatch)  = &
        (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG /)
+
+  ! element ID values to be considered (this is temporary!)
+  integer            :: elemIdList(2) = (/ BUFR_SST, BUFR_SOZ /)
+
+  ! Some important column names in obsDB files
+  character(len=100) :: keyHeadSqlName = 'ID_OBS'
+  character(len=100) :: keyDataSqlName = 'ID_DATA'
+  character(len=100) :: elemIdSqlName  = 'VARNO'
+
 contains
 
   !--------------------------------------------------------------------------
@@ -68,9 +78,10 @@ contains
 
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headIndexBegin
-    integer :: headIndexEnd, headIndex
-    integer :: numBody, numHead, columnIndex, matchIndex
-    integer :: localHeadIndex, numLocalHead, localDataIndex, numLocalData
+    integer :: headIndexEnd, headIndex, obsRln, obsNlv
+    integer :: numBody, numHead, columnIndex, matchIndex, lastHeadKey
+    integer :: dataColumnIndexObsValue, headColumnIndexHeadKey, dataColumnIndexHeadKey
+    integer :: headTableIndex, numRowsHeadTable, dataTableIndex, numRowsDataTable
     real(pre_obsReal)               :: missingValue
     character(len=100), allocatable :: headCharSqlNames(:)
     character(len=100), allocatable :: headSqlNames(:),    dataSqlNames(:)
@@ -82,6 +93,9 @@ contains
     write(*,*)
     write(*,*) 'odbf_readFile: FileName   : ', trim(FileName)
     write(*,*) 'odbf_readFile: FamilyType : ', FamilyType
+
+    !- 0.0 Some initialization
+    call ovt_setup(elemIdList)
 
     !- 1.0 Determine names of columns present in obsDB file
 
@@ -106,7 +120,7 @@ contains
                  trim(dataSqlNames(columnIndex))
     end do
 
-    !- 1.1 Read the contents of the file into load tables
+    !- 1.1 Read the contents of the file into local tables
 
     call odbf_getColumnData_char(headCharValues, fileName=trim(fileName), &
                                  tableName='header', sqlColumnNames=headCharSqlNames)
@@ -114,18 +128,18 @@ contains
                                tableName='header', sqlColumnNames=headSqlNames)
     call odbf_getColumnData_num(dataValues, fileName=trim(fileName), &
                                 tableName='data', sqlColumnNames=dataSqlNames)
-    numLocalData = size(dataValues,1)
-    numLocalHead = size(headValues,1)
+    numRowsDataTable = size(dataValues,1)
+    numRowsHeadTable = size(headValues,1)
 
-    ! Print first 10 rows of each local table to the listing
-    do localHeadIndex = 1, min(10, numLocalHead)
-      write(*,*) 'odbf_readFile: headCharValues = ', headCharValues(localHeadIndex,:)
+    ! For debugging, print first 10 rows of each local table to the listing
+    do headTableIndex = 1, min(10, numRowsHeadTable)
+      write(*,*) 'odbf_readFile: headCharValues = ', headCharValues(headTableIndex,:)
     end do
-    do localHeadIndex = 1, min(10, numLocalHead)
-      write(*,*) 'odbf_readFile: headValues = ', headValues(localHeadIndex,:)
+    do headTableIndex = 1, min(10, numRowsHeadTable)
+      write(*,*) 'odbf_readFile: headValues = ', headValues(headTableIndex,:)
     end do
-    do localDataIndex = 1, min(10, numLocalData)
-      write(*,*) 'odbf_readFile: dataValues = ', dataValues(localDataIndex,:)
+    do dataTableIndex = 1, min(10, numRowsDataTable)
+      write(*,*) 'odbf_readFile: dataValues = ', dataValues(dataTableIndex,:)
     end do
 
     !- 1.2 Copy values from local tables into obsSpaceData
@@ -138,16 +152,16 @@ contains
     do columnIndex = 1, size(headCharSqlNames)
       matchIndex = findloc(headSqlNameMatch(:), headCharSqlNames(columnIndex), 1)
       if (matchIndex == 0) then
-        write(*,*) 'odbf_readFile: name not in list of known column names = ', &
+        write(*,*) 'odbf_readFile: name not in list of known header column names = ', &
                    trim(headCharSqlNames(columnIndex))
       else
         if (headCharSqlNames(columnIndex) /= 'ID_STN') then
           call utl_abort('odbf_readFile: only valid char column is ID_STN')
         end if
-        do localHeadIndex = 1, numLocalHead
-          headIndex = localHeadIndex + headIndexBegin - 1
+        do headTableIndex = 1, numRowsHeadTable
+          headIndex = headTableIndex + headIndexBegin - 1
           call obs_set_c(obsdat, 'STID', &
-                         headIndex, headCharValues(localHeadIndex,columnIndex))
+                         headIndex, headCharValues(headTableIndex,columnIndex))
         end do
       end if
     end do
@@ -156,20 +170,26 @@ contains
     do columnIndex = 1, size(headSqlNames)
       matchIndex = findloc(headSqlNameMatch(:), headSqlNames(columnIndex), 1)
       if (matchIndex == 0) then
-        write(*,*) 'odbf_readFile: name not in list of known column names = ', &
+        write(*,*) 'odbf_readFile: name not in list of known header column names = ', &
                    trim(headSqlNames(columnIndex))
       else
-        do localHeadIndex = 1, numLocalHead
-          headIndex = localHeadIndex + headIndexBegin - 1
+        do headTableIndex = 1, numRowsHeadTable
+          headIndex = headTableIndex + headIndexBegin - 1
           if (obs_columnDataType(headObsColMatch(matchIndex)) == 'real') then
             if ( obs_columnActive_RH(obsdat, headObsColMatch(matchIndex)) ) then
+              if (headTableIndex == 1) then
+                write(*,*) 'odbf_readFile: set header real column: ', headSqlNames(columnIndex), headIndex
+              end if
               call obs_headSet_r(obsdat, headObsColMatch(matchIndex), &
-                                 headIndex, headValues(localHeadIndex,columnIndex))
+                                 headIndex, real(headValues(headTableIndex,columnIndex),pre_obsReal))
             end if
           else if (obs_columnDataType(headObsColMatch(matchIndex)) == 'integer') then
             if ( obs_columnActive_IH(obsdat, headObsColMatch(matchIndex)) ) then
+              if (headTableIndex == 1) then
+                write(*,*) 'odbf_readFile: set header integer column: ', headSqlNames(columnIndex), headIndex
+              end if
               call obs_headSet_i(obsdat, headObsColMatch(matchIndex), &
-                                 headIndex, nint(headValues(localHeadIndex,columnIndex)))
+                                 headIndex, nint(headValues(headTableIndex,columnIndex)))
             end if
           else
             call utl_abort('odbf_readFile: unknown data type for obs header column')
@@ -179,48 +199,91 @@ contains
     end do
 
     ! Body-Numeric values
-    do columnIndex = 1, size(dataSqlNames)
-      matchIndex = findloc(bodySqlNameMatch(:), dataSqlNames(columnIndex), 1)
-      if (matchIndex == 0) then
-        write(*,*) 'odbf_readFile: name not in list of known column names = ', &
-                   trim(dataSqlNames(columnIndex))
-      else
-        do localDataIndex = 1, numLocalData
-          bodyIndex = localDataIndex + bodyIndexBegin - 1
+    dataColumnIndexObsValue = findloc(dataSqlNames(:), 'OBSVALUE', 1)
+    dataColumnIndexHeadKey  = findloc(dataSqlNames(:), keyHeadSqlName, 1)
+    headColumnIndexHeadKey  = findloc(headSqlNames(:), keyHeadSqlName, 1)
+    lastHeadKey = 0
+    headIndex = headIndexBegin - 1
+    bodyIndex = bodyIndexBegin - 1
+    dataIndex_loop: do dataTableIndex = 1, numRowsDataTable
+      bodyIndex = bodyIndex + 1
+
+      ! check if obs value is null/missing
+      if ( dataValues(dataTableIndex,dataColumnIndexObsValue) == MPC_missingValue_R8 ) then
+        write(*,*) 'odbf_readFile: obs value missing, skip row - dataTableIndex = ', dataTableIndex
+        bodyIndex = bodyIndex - 1
+        cycle dataIndex_loop
+      end if
+
+      ! count number of body rows for each header row (OBS_NLV)
+      if ( dataValues(dataTableIndex,dataColumnIndexHeadKey) /= lastHeadKey ) then
+        headIndex = headIndex + 1
+        call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
+        lastHeadKey = dataValues(dataTableIndex,dataColumnIndexHeadKey)
+      end if
+      obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
+      call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
+
+      columnIndex_loop: do columnIndex = 1, size(dataSqlNames)
+        matchIndex = findloc(bodySqlNameMatch(:), dataSqlNames(columnIndex), 1)
+        if (matchIndex == 0) then
+          if (dataTableIndex == 1) then
+            write(*,*) 'odbf_readFile: name not in list of known data column names = ', &
+                       trim(dataSqlNames(columnIndex))
+          end if
+        else
           if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'real') then
-            if ( obs_columnActive_RB(obsdat, headObsColMatch(matchIndex)) ) then
+            if ( obs_columnActive_RB(obsdat, bodyObsColMatch(matchIndex)) ) then
+              if (dataTableIndex == 1) then
+                write(*,*) 'odbf_readFile: set body real column: ', dataSqlNames(columnIndex), bodyIndex
+              end if
               call obs_bodySet_r(obsdat, bodyObsColMatch(matchIndex), &
-                                 bodyIndex, dataValues(localDataIndex,columnIndex))
+                                 bodyIndex, real(dataValues(dataTableIndex,columnIndex),pre_obsReal))
             end if
           else if (obs_columnDataType(bodyObsColMatch(matchIndex)) == 'integer') then
-            if ( obs_columnActive_IB(obsdat, headObsColMatch(matchIndex)) ) then
+            if ( obs_columnActive_IB(obsdat, bodyObsColMatch(matchIndex)) ) then
+              if (dataTableIndex == 1) then
+                write(*,*) 'odbf_readFile: set body integer column: ', dataSqlNames(columnIndex), bodyIndex
+              end if
               call obs_bodySet_i(obsdat, bodyObsColMatch(matchIndex), &
-                                 bodyIndex, nint(dataValues(localDataIndex,columnIndex)))
+                                 bodyIndex, nint(dataValues(dataTableIndex,columnIndex)))
             end if
           else
             call utl_abort('odbf_readFile: unknown data type for obs body column')
           end if
-        end do
-      end if
-    end do
+        end if
+      end do columnIndex_loop
+    end do dataIndex_loop
 
     ! last rows added to obsSpaceData
     bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
+    !- 1.3 Set some other quantities in obsSpaceData
+
+    do headIndex = headIndexBegin, headIndexEnd
+      call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
+      call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
+      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
+      call obs_setFamily(obsdat, trim(familyType), headIndex)
+      if ( headIndex == 1 ) then
+        call obs_headSet_i(obsdat, OBS_RLN, headIndex, 1 )
+      else
+        obsRln = obs_headElem_i(obsdat, OBS_RLN, headIndex-1) + &
+                 obs_headElem_i(obsdat, OBS_NLV, headIndex-1)
+        call obs_headSet_i(obsdat, OBS_RLN, headIndex, obsRln)
+      end if
+    end do
+
     !- 2.0 Additional changes to data after they are in obsSpaceData
+
+    call odbf_unitConversions(obsdat, headIndexBegin, headIndexEnd)
 
     if ( trim(familyType) /= 'TO' ) then
       call ovt_transformObsValues      (obsdat, headIndexBegin, headIndexEnd )
       call ovt_adjustHumGZ             (obsdat, headIndexBegin, headIndexEnd )
       call obsu_computeVertCoordSurfObs(obsdat, headIndexBegin, headIndexEnd )
     end if
-
-    do headIndex = headIndexBegin, headIndexEnd
-      call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
-      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
-      call obs_setFamily(obsdat, trim(familyType), headIndex)
-    end do
 
     missingValue = real(MPC_missingValue_R8,pre_obsReal)
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
@@ -386,8 +449,10 @@ contains
     character(len=*),     intent(in)  :: tableName
 
     ! locals
-    integer :: numRows, numColumns, columnIndex
+    integer :: numRows, numColumns, columnIndex, elemIdIndex
     character(len=512)       :: query
+    character(len=10)        :: elemIdStr
+    logical                  :: elemIdPresent
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
@@ -400,18 +465,34 @@ contains
     end if
 
     ! build the sqlite query
+    elemIdPresent = .false.
     query = 'select'
     numColumns = size(sqlColumnNames)
     do columnIndex = 1, numColumns
+      if (trim(sqlColumnNames(columnIndex)) == trim(elemIdSqlName)) elemIdPresent = .true.
       query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
-    query = trim(query) // ' from ' // trim(tableName) // ';'
+    query = trim(query) // ' from ' // trim(tableName)
+    if (elemIdPresent) then
+      write(*,*) 'odbf_getColumnData_num: selection only these element ids:', elemIdList(:)
+      query = trim(query) // ' where ' // trim(elemIdSqlName) // ' in ('
+      do elemIdIndex = 1, size(elemIdList)
+        write(elemIdStr,'(i6)') elemIdList(elemIdIndex)
+        query = trim(query) // elemIdStr
+        if (elemIdIndex < size(elemIdList)) then
+          query = trim(query) // ','
+        end if
+      end do
+      query = trim(query) // ')'
+    end if
+    query = trim(query) // ';'
     write(*,*) 'odbf_getColumnData_num: query = ', trim(query)
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query) , stmt, stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8 )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8, &
+                        real8_missing=MPC_missingValue_R8 )
     write(*,*) 'odbf_getColumnData_num: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnData(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnData )
@@ -422,5 +503,48 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine odbf_getColumnData_num
+
+  !--------------------------------------------------------------------------
+  ! odbf_unitConversions
+  !--------------------------------------------------------------------------
+  subroutine odbf_unitConversions(obsdat, headIndexBegin, headIndexEnd)
+    !
+    ! :Purpose: Adjust units of some obsSpaceData columns after transfer
+    !           from sqlite files
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(in)    :: headIndexBegin
+    integer,          intent(in)    :: headIndexEnd
+
+    ! locals:
+    integer :: headIndex, obsTime
+    real(8) :: obsLon, obsLat
+
+    do headIndex = headIndexBegin, headIndexEnd
+
+      ! Convert lon-lat from degrees to radians
+
+      obsLon = obs_headElem_r( obsdat, OBS_LON, headIndex )
+      obsLat = obs_headElem_r( obsdat, OBS_LAT, headIndex )
+
+      if ( obsLon < 0.0D0 ) obsLon = obsLon + 360.0D0
+      obsLon = obsLon * MPC_RADIANS_PER_DEGREE_R8
+      obsLat = obsLat * MPC_RADIANS_PER_DEGREE_R8
+
+      call obs_headSet_r(obsdat, OBS_LON, headIndex, real(obsLon,pre_obsReal))
+      call obs_headSet_r(obsdat, OBS_LAT, headIndex, real(obsLat,pre_obsReal))
+
+      ! Time
+
+      obsTime = obs_headElem_i( obsdat, OBS_ETM, headIndex )
+      obsTime = obsTime/100
+      call obs_headSet_i(obsdat, OBS_ETM, headIndex, obsTime)
+
+    end do
+
+  end subroutine odbf_unitConversions
 
 end module obsdbFiles_mod
