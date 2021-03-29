@@ -56,6 +56,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="40mem_obsDB"/>
+      <FAMILY  name="40mem_obsDB">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="2D_ppp"/>
       <FAMILY  name="2D_ppp">
         <SUBMITS sub_name="UnitTest"/>
