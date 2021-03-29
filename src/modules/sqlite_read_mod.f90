@@ -381,6 +381,7 @@ contains
 
     if ( trim(familyType) == 'TO' ) then
       write(listElem,*) bufr_nbt3
+      numberElem = 1
     else
       write(listElem,'(i5.5,",",i5.5)') bufr_nedd, bufr_neff
     end if

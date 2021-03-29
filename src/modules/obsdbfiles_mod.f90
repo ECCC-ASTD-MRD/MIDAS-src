@@ -23,6 +23,7 @@ module obsdbFiles_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use bufr_mod
+  use codtyp_mod
   use obsSpaceData_mod
   use fSQLite
   use utilities_mod
@@ -41,18 +42,18 @@ module obsdbFiles_mod
   ! Arrays used to match obsDB column names with obsSpaceData column indexes
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 9
+  integer, parameter :: numHeadMatch = 19
   character(len=100) :: headSqlNameMatch(numHeadMatch) = &
-       (/ 'ID_STN', 'ID_OBS', 'LAT',   'LON',   'CODTYP', 'DATE',  'TIME', 'STATUS', 'ELEV' /)
+       (/ 'ID_STN', 'ID_OBS', 'LAT',   'LON',   'CODTYP', 'DATE',  'TIME', 'STATUS', 'ELEV', 'ID_SAT', 'INSTRUMENT', 'LAND_SEA', 'ZENITH', 'SOLAR_ZENITH', 'AZIMUTH', 'TERRAIN_TYPE', 'SENSOR', 'SOLAR_AZIMUTH', 'CLOUD_COVER' /)
   integer            :: headObsColMatch(numHeadMatch)  = &
-       (/ 0,        OBS_IDO,  OBS_LAT, OBS_LON, OBS_ITY,  OBS_DAT, OBS_ETM, OBS_ST1, OBS_ALT /)
+       (/ 0,        OBS_IDO,  OBS_LAT, OBS_LON, OBS_ITY,  OBS_DAT, OBS_ETM, OBS_ST1, OBS_ALT, OBS_SAT, OBS_INS,      OBS_STYP,   OBS_SZA,  OBS_SUN,        OBS_AZA,   OBS_TTYP,       OBS_SEN,  OBS_SAZ,         OBS_CLF       /)
 
   ! ...for the body table
-  integer, parameter :: numBodyMatch = 10
+  integer, parameter :: numBodyMatch = 11
   character(len=100) :: bodySqlNameMatch(numBodyMatch) = &
-       (/ 'ID_DATA', 'VCOORD', 'VARNO','OBSVALUE','FLAG',  'OMP',  'OMA',    'FSO',   'FG_ERROR', 'OBS_ERROR'  /)
+       (/ 'ID_DATA', 'VCOORD', 'VARNO','OBSVALUE','FLAG',  'OMP',  'OMA',    'FSO',   'FG_ERROR', 'OBS_ERROR', 'SURF_EMISS'  /)
   integer            :: bodyObsColMatch(numBodyMatch)  = &
-       (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG, OBS_OMP, OBS_OMA, OBS_FSO, OBS_HPHT,   OBS_OER      /)
+       (/ OBS_IDD,   OBS_PPP,  OBS_VNM, OBS_VAR,  OBS_FLG, OBS_OMP, OBS_OMA, OBS_FSO, OBS_HPHT,   OBS_OER,     OBS_SEM       /)
 
   ! NAMELIST variables
   logical :: obsDbActive
@@ -251,7 +252,7 @@ contains
 
     !- 2.0 Additional changes to data after they are in obsSpaceData
 
-    call odbf_unitConversions(obsdat, headIndexBegin, headIndexEnd)
+    call odbf_adjustValues(obsdat, headIndexBegin, headIndexEnd)
 
     if ( trim(familyType) /= 'TO' ) then
       call ovt_transformObsValues      (obsdat, headIndexBegin, headIndexEnd )
@@ -310,7 +311,7 @@ contains
     integer :: numRows, numColumns, rowIndex, ierr
     character(len=100), allocatable :: charData(:,:)
     character(len=100)       :: dataTypeCriteria
-    character(len=512)       :: query
+    character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
@@ -333,7 +334,11 @@ contains
     query = 'select name from pragma_table_info("' // trim(tableName) // &
             '") where ' // trim(dataTypeCriteria) // ' ;'
     call fSQL_prepare( db, trim(query) , stmt, stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_CHAR )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort('odbf_getSqlColumnNames: problem with fSQL_get_many')
+    end if
     allocate( charData(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, charData )
 
@@ -370,7 +375,7 @@ contains
 
     ! locals
     integer :: numRows, numColumns, columnIndex
-    character(len=512)       :: query
+    character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
@@ -394,7 +399,11 @@ contains
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query) , stmt, stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_CHAR )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort('odbf_getColumnData_char: problem with fSQL_get_many')
+    end if
     write(*,*) 'odbf_getColumnData_char: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnData(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnData )
@@ -424,7 +433,7 @@ contains
 
     ! locals
     integer :: numRows, numColumns, columnIndex, elemIdIndex
-    character(len=512)       :: query
+    character(len=3000)      :: query
     character(len=10)        :: elemIdStr
     logical                  :: elemIdPresent
     type(fSQL_STATUS)        :: stat ! sqlite error status
@@ -467,7 +476,10 @@ contains
     ! read the values from the file
     call fSQL_prepare( db, trim(query) , stmt, stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8, &
-                        real8_missing=MPC_missingValue_R8 )
+                        real8_missing=MPC_missingValue_R8, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort('odbf_getColumnData_num: problem with fSQL_get_many')
+    end if
     write(*,*) 'odbf_getColumnData_num: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnData(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnData )
@@ -693,12 +705,12 @@ contains
   end subroutine odbf_copyToObsSpaceBody
 
   !--------------------------------------------------------------------------
-  ! odbf_unitConversions
+  ! odbf_adjustValues
   !--------------------------------------------------------------------------
-  subroutine odbf_unitConversions(obsdat, headIndexBegin, headIndexEnd)
+  subroutine odbf_adjustValues(obsdat, headIndexBegin, headIndexEnd)
     !
-    ! :Purpose: Adjust units of some obsSpaceData columns after transfer
-    !           from sqlite files
+    ! :Purpose: Adjust units and other minor modifications of some
+    !           obsSpaceData columns after transfer from sqlite files
     !
     implicit none
 
@@ -708,10 +720,17 @@ contains
     integer,          intent(in)    :: headIndexEnd
 
     ! locals:
-    integer :: headIndex, obsTime
-    real(8) :: obsLon, obsLat
+    integer :: headIndex, bodyIndexStart, bodyIndexEnd, bodyIndex
+    integer :: obsTime, instrument, obsSat, codeType, sensor
+    real(8) :: obsLon, obsLat, surfEmiss
+    character(len=2) :: obsFamily
 
     do headIndex = headIndexBegin, headIndexEnd
+
+      obsFamily = obs_getfamily( obsdat, headIndex )
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headIndex)
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headIndex) + &
+                       bodyIndexStart - 1
 
       ! Convert lon-lat from degrees to radians
 
@@ -731,8 +750,50 @@ contains
       obsTime = obsTime/100
       call obs_headSet_i(obsdat, OBS_ETM, headIndex, obsTime)
 
+      ! Various adjustment for radiance observations
+
+      if ( obsFamily == 'TO' ) then
+
+        instrument = obs_headElem_i( obsdat, OBS_INS, headIndex )
+        obsSat     = obs_headElem_i( obsdat, OBS_SAT, headIndex )
+        codeType   = obs_headElem_i( obsdat, OBS_ITY, headIndex )
+        sensor     = obs_headElem_i( obsdat, OBS_SEN, headIndex )
+
+        ! set sensor to missing if not amsua/b, mhs or atms
+
+        if ( codeType /= codtyp_get_codtyp('amsua') .and. &
+             codeType /= codtyp_get_codtyp('amsub') .and. &
+             codeType /= codtyp_get_codtyp('mhs') .and. &
+             codeType /= codtyp_get_codtyp('atms') ) then
+          sensor = nint(MPC_missingValue_R8)
+        end if
+
+        ! modify OBS_SAT, OBS_INS and OBS_SEN
+
+        if ( instrument == 420 ) obsSat  = 784
+        if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
+        if ( sensor == nint(MPC_missingValue_R8) ) then
+          sensor = 0
+          if (instrument == nint(MPC_missingValue_R8) ) instrument = 0
+        else
+          instrument = obsu_cvt_obs_instrum(sensor)
+        end if
+        call obs_headSet_i(obsdat, OBS_INS, headIndex, instrument)
+        call obs_headSet_i(obsdat, OBS_SAT, headIndex, obsSat)
+        call obs_headSet_i(obsdat, OBS_SEN, headIndex, sensor)
+
+        ! change units for surface emissivity
+
+        do bodyIndex = bodyIndexStart, bodyIndexEnd
+          surfEmiss = obs_bodyElem_r( obsdat, OBS_SEM, bodyIndex )
+          surfEmiss = surfEmiss * 0.01D0
+          call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, real(surfEmiss, pre_obsReal))
+        end do
+        
+      end if
+      
     end do
 
-  end subroutine odbf_unitConversions
+  end subroutine odbf_adjustValues
 
 end module obsdbFiles_mod

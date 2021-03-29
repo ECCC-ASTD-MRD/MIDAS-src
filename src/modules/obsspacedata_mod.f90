@@ -329,7 +329,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ITY = OBS_OTP+1  ! code: instrument & retrieval type
    integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code 
    integer, parameter, public :: OBS_TEC = OBS_SAT+1  ! satellite processing technique
-   integer, parameter, public :: OBS_DAT = OBS_TEC+1  ! observation date YYYYMMD
+   integer, parameter, public :: OBS_SEN = OBS_TEC+1  ! satellite sensor code
+   integer, parameter, public :: OBS_DAT = OBS_SEN+1  ! observation date YYYYMMD
    integer, parameter, public :: OBS_ETM = OBS_DAT+1  ! observation time HHMM
    integer, parameter, public :: OBS_NLV = OBS_ETM+1  ! number of data at this location
    integer, parameter, public :: OBS_PAS = OBS_NLV+1  ! batch no. in sequential analysis
@@ -387,7 +388,7 @@ module ObsColumnNames_mod
    ! INTEGER-HEADER COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
-      (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
+      (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &  
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
@@ -1000,8 +1001,8 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=20,100) /)
+              OBS_ST1, OBS_IDF, OBS_SEN, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1045,9 +1046,9 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, &
+              OBS_ST1, OBS_IDF, OBS_SEN, &
               OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=27,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=28,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1471,7 +1472,7 @@ module ObsSpaceData_mod
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
    !    integer-header column numbers
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
-   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP
+   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP , OBS_SEN
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_ST1, OBS_IDF
    public :: OBS_GQF, OBS_GQL

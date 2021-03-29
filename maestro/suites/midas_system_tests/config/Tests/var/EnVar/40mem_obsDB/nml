@@ -23,7 +23,7 @@
    etiket_rebm ='XXXXXX'
 /
  &NAMobsDB
-   obsDbActive = .false.
+   obsDbActive = .true.
    numElemIdList = 1
    elemIdList(1) = 12163
 /
