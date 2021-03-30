@@ -245,8 +245,14 @@ contains
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
-                              fileIndex )
+        call odbf_setup()
+        if (odbf_isActive()) then
+          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
+        else
+          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
+        end if
       end if
     end do
 

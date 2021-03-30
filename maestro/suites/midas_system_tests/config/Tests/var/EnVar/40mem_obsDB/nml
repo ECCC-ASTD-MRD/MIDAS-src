@@ -27,6 +27,12 @@
    numElemIdList = 1
    elemIdList(1) = 12163
 /
+ &namObsDbUpdate
+   numberUpdateItems=2
+   updateItemList(1)='OMP'
+   updateItemList(2)='OMA'
+   updateItemList(3)='OER'
+/
  &NAMDIMO
    NMXOBS=100000,
    NDATAMX=8000000,
@@ -399,9 +405,9 @@
   itemInsertList(4)=11004
 /
  &namSQLUpdate
- numberUpdateItems=2
- itemUpdateList(1)='OMP'
- itemUpdateList(2)='OMA'
+  numberUpdateItems=2
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='OMA'
 /
  &NAMSQLamsua
   numberElem=1

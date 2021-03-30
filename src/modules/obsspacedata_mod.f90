@@ -1369,6 +1369,7 @@ module ObsSpaceData_mod
    public obs_columnActive_IH !                 "
    public obs_columnActive_RB !                 "
    public obs_columnActive_RH !                 "
+   public obs_columnIndexFromName    ! get the index from the name (any flavour)
    public obs_columnIndexFromName_IB ! get the index from the name
    public obs_columnIndexFromName_IH !         "
    public obs_columnIndexFromName_RB !         "
@@ -1460,7 +1461,7 @@ module ObsSpaceData_mod
    ! PRIVATE METHODS:
    private obs_abort     ! abort a job on error
    private obs_allocate  ! array allocation
-   private obs_columnIndexFromName ! get the index from the name
+   private obs_columnIndexFromNameForFlavour ! get the index from the name
    private obs_deallocate! array de-allocation
    private obs_mpiDistributeIndices ! distribute header & body indices for mpi parallelization
    private obs_tosqlbdy  ! write the observation data in comma-separated format
@@ -2285,7 +2286,74 @@ contains
    end function obs_columnActive_RH
 
 
-   function obs_columnIndexFromName(odc_flavour, column_name) &
+   function obs_columnIndexFromName(column_name) result(column_index_out)
+      !
+      ! :Purpose:
+      !      Situations do occur where the client knows only the name of a
+      !      column, but needs to know its index. This method supplies the index.
+      !
+      implicit none
+      character(len=*)        , intent(in) :: column_name
+      integer                              :: column_index_out
+
+      integer            :: column_index
+      logical            :: lfound
+      character(len=100) :: message
+
+      lfound=.false.
+
+      ! check integer-header
+      do column_index=odc_flavour_IH%ncol_beg, odc_flavour_IH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IH%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check real-header
+      do column_index=odc_flavour_RH%ncol_beg, odc_flavour_RH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RH%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check integer-body
+      do column_index=odc_flavour_IB%ncol_beg, odc_flavour_IB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IB%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check real-body
+      do column_index=odc_flavour_RB%ncol_beg, odc_flavour_RB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RB%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      write(message,*)'abort in obs_columnIndexFromName: ' // &
+                      'name not found='// trim(column_name)
+      call obs_abort(message); return
+
+   end function obs_columnIndexFromName
+
+
+   function obs_columnIndexFromNameForFlavour(odc_flavour, column_name) &
                                                          result(column_index_out)
       !
       ! :Purpose:
@@ -2303,8 +2371,8 @@ contains
 
       lfound=.false.
       do column_index=odc_flavour%ncol_beg, odc_flavour%ncol_end
-         if(  trim(column_name) &
-            ==trim(odc_flavour%columnNameList(column_index)))then
+         if(trim(column_name) == &
+            trim(odc_flavour%columnNameList(column_index)))then
             lfound=.true.
             column_index_out = column_index
             exit
@@ -2312,12 +2380,12 @@ contains
       enddo
 
       if(.not.lfound) then
-         write(message,*)'abort in obs_columnIndexFromName [' &
+         write(message,*)'abort in obs_columnIndexFromNameForFlavour [' &
                        // odc_flavour%dataType //','// odc_flavour%headOrBody //&
                        ']: name not found='// column_name
          call obs_abort(message); return
       end if
-   end function obs_columnIndexFromName
+   end function obs_columnIndexFromNameForFlavour
 
 
    function obs_columnIndexFromName_IB(column_name) result(column_index)
@@ -2330,7 +2398,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_IB, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IB, column_name)
    end function obs_columnIndexFromName_IB
 
 
@@ -2344,7 +2412,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_IH, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IH, column_name)
    end function obs_columnIndexFromName_IH
 
 
@@ -2358,7 +2426,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_RB, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RB, column_name)
    end function obs_columnIndexFromName_RB
 
 
@@ -2372,7 +2440,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_RH, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RH, column_name)
    end function obs_columnIndexFromName_RH
 
 
