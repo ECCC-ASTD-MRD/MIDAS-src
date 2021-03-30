@@ -300,8 +300,7 @@ s.f90 ... -o var.Abs
 ```
 
 One solution to that is to first recompile the modified object (here 
-`varqc_mod.o`) and `touch`  **the other intermediate targets** (using
-`make --touch` or `-t`) , making them newer that the dependencies:
+`varqc_mod.o`) 
 ```
 $ make varqc_mod.o
 ...
@@ -309,22 +308,28 @@ $ make -n | grep '^\-o'
 -o minimization_mod.o
 -o var.o
 -o var.Abs
-$ make --touch minimization_mod.o var.o
-touch minimization_mod.o
-touch var.o
+```
+and `touch`  **the other intermediate targets** (using `make --touch`) , making
+them newer that the dependencies.
+Now because we are compiling out of the source tree, using `make --touch` 
+directly will work, but would also create empty spurious files (#444)
+in the `src` directory.
+So you should instead use `make touch-objects`, that will mark **every objects**
+as up-to-date.
+```
+$ make touch-objects
 touch minimization_mod.o
 touch var.o
 $ make -n | grep '^\-o'
 -o var.Abs
 ```
-(one can also use the phony target `objects` refering to all `.o` files.)
 Now we see that only the linking will be done.
 ```
 $ make
 ...
 ```
-This has an anoying drawback, it creates empty files (here `minimization_mod.o` and  `var.o`, the `make --touch` targets) in the `src` directory; they can be deleted or ignored (it is related to the out-of-tree compilation; it is an issue (#444) we are aware of.
-
+You should be **very careful** with the `touch-%` targets as they override 
+`make` in determining what should be compiled.
 
 
 
