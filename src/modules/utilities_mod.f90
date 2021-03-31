@@ -36,7 +36,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_allReduce
+  public :: utl_copyFile, utl_allReduce, utl_findloc
 
   ! module interfaces
   ! -----------------
@@ -91,6 +91,10 @@ module utilities_mod
     module procedure utl_reAllocate_r4_5d
     module procedure utl_reAllocate_r8_5d
   end interface utl_reAllocate
+
+  interface utl_findloc
+    module procedure utl_findloc_char
+  end interface utl_findloc
 
 contains
 
@@ -2548,5 +2552,44 @@ contains
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce
+
+  !--------------------------------------------------------------------------
+  ! utl_findloc_char
+  !--------------------------------------------------------------------------
+  function utl_findloc_char(charArray, value) result(location)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: charArray(:)
+    character(len=*), intent(in) :: value
+    integer                      :: location
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    numFound = 0
+    LOOP: do arrayIndex = 1, size(charArray)
+      if (trim(charArray(arrayIndex)) == trim(value)) then
+        numFound = numFound + 1
+        ! return the first location found
+        if (numFound == 1) location = arrayIndex
+      end if
+    end do LOOP
+
+    ! give warning if more than 1 found
+    if (numFound > 1) then
+      write(*,*) 'utl_findloc_char: found multiple locations of ', trim(value)
+      write(*,*) 'utl_findloc_char: number locations found =  ', numFound    
+    end if
+
+    ! return zero if not found
+    if (numFound == 0) then
+      location = 0
+    end if
+
+  end function utl_findloc_char
 
 end module utilities_mod
