@@ -88,10 +88,12 @@ module stateToColumn_mod
     real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
-    type(kdtree2), pointer    :: tree => null()
+    character(len=4)          :: inputStateVectorType
   end type struct_interpInfo
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
+  type(kdtree2), pointer  :: tree_nl => null()
+  type(kdtree2), pointer  :: tree_tlad => null()
 
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
@@ -248,7 +250,8 @@ contains
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
-                                  inputStateVectorType, lastCall_opt )
+                                  inputStateVectorType, firstCall_opt, &
+                                  lastCall_opt )
     ! :Purpose: Setup all of the information needed to quickly
     !           perform the horizontal interpolation to the observation
     !           locations.
@@ -264,6 +267,7 @@ contains
     logical                    :: rejectOutsideObs
     character(len=*)           :: timeInterpType
     character(len=*)           :: inputStateVectorType
+    logical, optional          :: firstCall_opt
     logical, optional          :: lastCall_opt
 
     ! locals
@@ -293,7 +297,7 @@ contains
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
-    real(kdkind), allocatable :: positionArray(:,:)
+    real(kdkind), save, allocatable :: positionArray_nl(:,:), positionArray_tlad(:,:)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
@@ -301,7 +305,7 @@ contains
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
-    logical :: doSetup3dHeights, lastCall
+    logical :: doSetup3dHeights, firstCall, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
@@ -312,7 +316,13 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
 
-    if (present(lastCall_opt)) then
+    if ( present(firstCall_opt) ) then
+      firstCall = firstCall_opt
+    else
+      firstCall = .true.
+    end if
+
+    if ( present(lastCall_opt) ) then
       lastCall = lastCall_opt
     else
       lastCall = .false.
@@ -871,28 +881,49 @@ contains
     end do
 
     ! create kdtree to use in footprint operator, if any footprint radius > 0.
-    if ( .not. associated(interpInfo % tree) .and. any(allFootprintRadius_r4(:,:,:) > 0.0) ) then
-      write(*,*) 's2c_setupInterpInfo: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    interpInfo%inputStateVectorType = inputStateVectorType
+    if ( any(allFootprintRadius_r4(:,:,:) > 0.0) ) then
+      if ( (inputStateVectorType == 'nl' .and. .not. associated(tree_nl))   .or. &
+           (inputStateVectorType == 'tl' .and. .not. associated(tree_tlad)) .or. &
+           (inputStateVectorType == 'ad' .and. .not. associated(tree_tlad)) ) then
 
-      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
+        write(*,*) 's2c_setupInterpInfo: start creating kdtree for inputStateVectorType=', &
+                   inputStateVectorType
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      gridIndex = 0
-      do latIndex = 1, statevector%hco%nj
-        do lonIndex = 1, statevector%hco%ni
-          gridIndex = gridIndex + 1
-          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
-          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
+        if ( inputStateVectorType == 'nl' ) then
+          allocate(positionArray_nl(3,statevector%hco%ni*statevector%hco%nj))
+        else
+          allocate(positionArray_tlad(3,statevector%hco%ni*statevector%hco%nj))
+        end if
 
-          positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+        gridIndex = 0
+        do latIndex = 1, statevector%hco%nj
+          do lonIndex = 1, statevector%hco%ni
+            gridIndex = gridIndex + 1
+            lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+            lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
 
+            if ( inputStateVectorType == 'nl' ) then
+              positionArray_nl(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+            else
+              positionArray_tlad(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+            end if
+
+          end do
         end do
-      end do
 
-      interpInfo % tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+        if ( inputStateVectorType == 'nl' ) then
+          tree_nl => kdtree2_create(positionArray_nl, sort=.false., rearrange=.true.) 
+        else 
+          tree_tlad => kdtree2_create(positionArray_tlad, sort=.false., rearrange=.true.) 
+        end if
 
-      write(*,*) 's2c_setupInterpInfo: done creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        write(*,*) 's2c_setupInterpInfo: done creating kdtree for inputStateVectorType=', &
+                   inputStateVectorType
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      end if
     end if
 
     call tmg_start(173,'S2CNL_SETUPROTLL')
@@ -1026,9 +1057,16 @@ contains
       call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
     end if
 
-    if ( associated(interpInfo%tree) ) then
-      call kdtree2_destroy(interpInfo%tree)
-      deallocate(positionArray)
+    ! on the last call, deallocate the tree_nl/tree_tlad
+    if ( lastCall ) then
+      if ( inputStateVectorType == 'nl' .and. associated(tree_nl) ) then
+        call kdtree2_destroy(tree_nl)
+        deallocate(positionArray_nl)
+      else if ( (inputStateVectorType == 'tl' .or. inputStateVectorType == 'ad') .and. &
+                associated(tree_tlad) ) then
+        call kdtree2_destroy(tree_tlad)
+        deallocate(positionArray_tlad)
+      end if
     end if
 
     ! Count the number of TOVS using footprint operator on one level
@@ -1702,6 +1740,7 @@ contains
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
                                   inputStateVectorType='nl', &
+                                  firstCall_opt=(obsBatchIndex==1), &
                                   lastCall_opt=(obsBatchIndex==numObsBatches))
         if ( mpi_myid == 0 .and. verbose ) then
           do stepIndex = 1, numStep
@@ -3147,16 +3186,27 @@ contains
       if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
     end if
 
-    if ( .not. associated(interpInfo % tree) ) then
-      call utl_abort('s2c_setupFootprintInterp: interpInfo%tree is not allocated!')
+    if ( trim(interpInfo%inputStateVectorType) == 'nl' .and. .not. associated(tree_nl) ) then
+      call utl_abort('s2c_setupFootprintInterp: tree_nl is not allocated!')
+    else if ( (trim(interpInfo%inputStateVectorType) == 'tl' .or. trim(interpInfo%inputStateVectorType) == 'ad') .and. .not. associated(tree_tlad) ) then
+      call utl_abort('s2c_setupFootprintInterp: tree_tlad is not allocated!')
     end if
 
     ! do the search
     maxRadiusSquared = real(fpr,8) ** 2
     refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
-    call kdtree2_r_nearest(tp=interpInfo%tree, qv=refPosition, r2=maxRadiusSquared, &
-                           nfound=numLocalGridptsFoundSearch, nalloc=maxNumLocalGridptsSearch, &
-                           results=searchResults)
+    if ( trim(interpInfo%inputStateVectorType) == 'nl' ) then
+      call kdtree2_r_nearest(tp=tree_nl, qv=refPosition, r2=maxRadiusSquared, &
+                             nfound=numLocalGridptsFoundSearch, &
+                             nalloc=maxNumLocalGridptsSearch, &
+                             results=searchResults)
+    else if ( trim(interpInfo%inputStateVectorType) == 'tl' .or. trim(interpInfo%inputStateVectorType) == 'ad' ) then
+      call kdtree2_r_nearest(tp=tree_tlad, qv=refPosition, r2=maxRadiusSquared, &
+                             nfound=numLocalGridptsFoundSearch, &
+                             nalloc=maxNumLocalGridptsSearch, &
+                             results=searchResults)
+    end if
+
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
       call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
     else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
