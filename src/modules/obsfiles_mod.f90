@@ -495,6 +495,7 @@ contains
     clvalu(104)= 'obssst_amsr2'
     clvalu(105)= 'obssst_viirs'
     clvalu(106)= 'obssst_pseudo'
+    clvalu(107)= 'obssst'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -603,6 +604,7 @@ contains
     cfami(104) = 'TM'
     cfami(105) = 'TM'
     cfami(106) = 'TM'
+    cfami(107) = 'TM'
 
     obsDirectory = 'obs'
 
