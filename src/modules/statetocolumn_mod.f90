@@ -556,31 +556,6 @@ contains
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if ! doSlantPath 
 
-    ! create kdtree to use in footprint operator
-    if ( .not. associated(interpInfo % tree) ) then
-      write(*,*) 's2c_setupInterpInfo: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
-
-      gridIndex = 0
-      do latIndex = 1, statevector%hco%nj
-        do lonIndex = 1, statevector%hco%ni
-          gridIndex = gridIndex + 1
-          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
-          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
-
-          positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
-
-        end do
-      end do
-
-      interpInfo % tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
-
-      write(*,*) 's2c_setupInterpInfo: done creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
-
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
@@ -894,6 +869,31 @@ contains
         end do
       end do
     end do
+
+    ! create kdtree to use in footprint operator, if any footprint radius > 0.
+    if ( .not. associated(interpInfo % tree) .and. any(allFootprintRadius_r4(:,:,:) > 0.0) ) then
+      write(*,*) 's2c_setupInterpInfo: start creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
+
+      gridIndex = 0
+      do latIndex = 1, statevector%hco%nj
+        do lonIndex = 1, statevector%hco%ni
+          gridIndex = gridIndex + 1
+          lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+          lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
+
+          positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+
+        end do
+      end do
+
+      interpInfo % tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+
+      write(*,*) 's2c_setupInterpInfo: done creating kdtree'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
 
     call tmg_start(173,'S2CNL_SETUPROTLL')
     do stepIndex = 1, numStep
