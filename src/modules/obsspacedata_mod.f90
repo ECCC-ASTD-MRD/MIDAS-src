@@ -1532,7 +1532,7 @@ module ObsSpaceData_mod
       character(len=12),  pointer :: cstnid(:)
       character(len=2),   pointer :: cfamily(:)
                                         ! The primary keys for both tables
-      integer, pointer :: headerPrimaryKey(:), bodyPrimaryKey(:)
+      integer(8), pointer :: headerPrimaryKey(:), bodyPrimaryKey(:)
                                         ! The four arrays of data columns
       type(struct_obsDataColumn_Array) :: &
                              realHeaders, & ! real header columns
@@ -1850,16 +1850,16 @@ contains
    end function obs_bodyElem_r
 
 
-   function obs_bodyPrimaryKey(obsdat,row_index) result(value_i)
+   function obs_bodyPrimaryKey(obsdat,row_index) result(primaryKey)
       !
       ! :Purpose: Get the body primary key value.
       !
       implicit none
-      integer                       :: value_i
+      integer(8)                    :: primaryKey
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
 
-      value_i = obsdat%bodyPrimaryKey(row_index)
+      primaryKey = obsdat%bodyPrimaryKey(row_index)
 
    end function obs_bodyPrimaryKey
 
@@ -2779,8 +2779,8 @@ contains
 
       integer, allocatable :: headerIndex_mpiglobal(:),all_headerIndex_mpiglobal(:,:)
       integer, allocatable :: bodyIndex_mpiglobal(:),all_bodyIndex_mpiglobal(:,:)
-      integer, allocatable :: headerPrimaryKey_mpilocal(:), all_headerPrimaryKey_mpilocal(:,:)
-      integer, allocatable :: bodyPrimaryKey_mpilocal(:), all_bodyPrimaryKey_mpilocal(:,:)
+      integer(8), allocatable :: headerPrimaryKey_mpilocal(:), all_headerPrimaryKey_mpilocal(:,:)
+      integer(8), allocatable :: bodyPrimaryKey_mpilocal(:), all_bodyPrimaryKey_mpilocal(:,:)
       integer, allocatable :: intHeaders_mpilocal(:,:),all_intHeaders_mpilocal(:,:,:)
       real(pre_obsReal), allocatable :: realHeaders_mpilocal(:,:),all_realHeaders_mpilocal(:,:,:)
       integer, allocatable :: intStnid_mpilocal(:,:),all_intStnid_mpilocal(:,:,:)
@@ -2911,8 +2911,8 @@ contains
          allocate(all_headerPrimaryKey_mpilocal(1,1))
       end if
       nsize=size(headerPrimaryKey_mpilocal)
-      call rpn_comm_gather(headerPrimaryKey_mpilocal    ,nsize,"mpi_integer", &
-                           all_headerPrimaryKey_mpilocal,nsize,"mpi_integer", &
+      call rpn_comm_gather(headerPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
+                           all_headerPrimaryKey_mpilocal,nsize,"mpi_integer8", &
                            0,"GRID",ierr)
       deallocate(headerPrimaryKey_mpilocal)
       
@@ -3045,8 +3045,8 @@ contains
          allocate(all_bodyPrimaryKey_mpilocal(1,1))
       end if
       nsize=size(bodyPrimaryKey_mpilocal)
-      call rpn_comm_gather(bodyPrimaryKey_mpilocal    ,nsize,"mpi_integer", &
-                           all_bodyPrimaryKey_mpilocal,nsize,"mpi_integer", &
+      call rpn_comm_gather(bodyPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
+                           all_bodyPrimaryKey_mpilocal,nsize,"mpi_integer8", &
                            0,"GRID",ierr)
       deallocate(bodyPrimaryKey_mpilocal)
 
@@ -3575,16 +3575,16 @@ contains
    end function obs_headElem_r
 
 
-   function obs_headPrimaryKey(obsdat,row_index) result(value_i)
+   function obs_headPrimaryKey(obsdat,row_index) result(primaryKey)
       !
       ! :Purpose: Get the header primary key value.
       !
       implicit none
-      integer                       :: value_i
+      integer(8)                    :: primaryKey
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
 
-      value_i = obsdat%headerPrimaryKey(row_index)
+      primaryKey = obsdat%headerPrimaryKey(row_index)
 
    end function obs_headPrimaryKey
 
@@ -4533,8 +4533,8 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
-      integer,           allocatable,dimension(:)   :: headerPrimaryKey_tmp
-      integer,           allocatable,dimension(:)   :: bodyPrimaryKey_tmp
+      integer(8),        allocatable,dimension(:)   :: headerPrimaryKey_tmp
+      integer(8),        allocatable,dimension(:)   :: bodyPrimaryKey_tmp
       character(len=12), allocatable,dimension(:)   :: cstnid_tmp
       character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
@@ -4756,8 +4756,8 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
-      integer,           allocatable :: headerPrimaryKey_tmp(:)
-      integer,           allocatable :: bodyPrimaryKey_tmp(:)
+      integer(8),        allocatable :: headerPrimaryKey_tmp(:)
+      integer(8),        allocatable :: bodyPrimaryKey_tmp(:)
       character(len=12), allocatable :: cstnid_tmp(:)
       character(len=2),  allocatable :: cfamily_tmp(:)
       real(pre_obsReal), allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
@@ -4916,7 +4916,7 @@ contains
       integer, allocatable :: numBodyPE_mpilocal(:), numBodyPE_mpiglobal(:)
       integer,           allocatable :: intcstnid_send(:,:,:), intcstnid_recv(:,:,:)
       integer,           allocatable :: intcfamily_send(:,:,:), intcfamily_recv(:,:,:)
-      integer,           allocatable :: primaryKey_send(:,:), primaryKey_recv(:,:)
+      integer(8),        allocatable :: primaryKey_send(:,:), primaryKey_recv(:,:)
       real(pre_obsReal), allocatable :: real_send(:,:,:), real_recv(:,:,:)
       integer,           allocatable :: int_send(:,:,:), int_recv(:,:,:), message_onm(:,:)
       real(pre_obsReal), allocatable :: real_send_2d(:,:), real_recv_2d(:,:)
@@ -5055,8 +5055,8 @@ contains
       ! do mpi communication: header-level data
       if(nprocs_mpi > 1) then
         nsize = numHeader_mpimessage
-        call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer",  &
-                               primaryKey_recv,nsize,"mpi_integer","GRID",ierr)
+        call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
+                               primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
 
         nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%realHeaders)
         call rpn_comm_alltoall(real_send,nsize,"mpi_double_precision",  &
@@ -5168,8 +5168,8 @@ contains
       enddo
       if(nprocs_mpi > 1) then
          nsize = numBody_mpimessage
-         call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer",  &
-                                primaryKey_recv,nsize,"mpi_integer","GRID",ierr)
+         call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
+                                primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
       else
          primaryKey_recv(:,1) = primaryKey_send(:,1)
       endif
@@ -5867,7 +5867,7 @@ contains
       !
       implicit none
       type(struct_obs), intent(inout) :: obsdat
-      integer,          intent(in)    :: primaryKey
+      integer(8),       intent(in)    :: primaryKey
       integer,          intent(in)    :: bodyIndex
 
       obsdat%bodyPrimaryKey(bodyIndex) = primaryKey
@@ -5886,7 +5886,7 @@ contains
       !
       implicit none
       type(struct_obs), intent(inout) :: obsdat
-      integer,          intent(in)    :: primaryKey
+      integer(8),       intent(in)    :: primaryKey
       integer,optional, intent(in)    :: headerIndex
 
       obsdat%headerPrimaryKey(headerIndex) = primaryKey

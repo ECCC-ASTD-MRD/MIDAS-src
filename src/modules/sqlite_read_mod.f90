@@ -72,7 +72,7 @@ contains
 
   subroutine sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
                               earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                              solarAzimuth, terrainType, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, &
+                              solarAzimuth, terrainType, landSea, headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
                               obsrzam,  obsrele, obsrans, obsrane, obsrdel)
     !
@@ -86,7 +86,7 @@ contains
     character(len=*) , intent(in)    :: idStation
     character(len=2) , intent(in)    :: familyType
     integer          , intent(in)    :: headerIndex
-    integer          , intent(in)    :: obsIdo
+    integer(8)       , intent(in)    :: headPrimaryKey
     integer          , intent(in)    :: codeType
     integer          , intent(in)    :: obsDate
     integer          , intent(in)    :: obsTime
@@ -116,7 +116,7 @@ contains
     real(pre_obsReal), intent(in)    :: obsrdel
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
-    call obs_setHeadPrimaryKey( obsdat,  headerIndex, obsIdo        )
+    call obs_setHeadPrimaryKey( obsdat,  headerIndex, headPrimaryKey)
     call obs_headSet_i( obsdat, OBS_ONM, headerIndex, headerIndex   )
     call obs_headSet_i( obsdat, OBS_ITY, headerIndex, codeType      )
     call obs_headSet_r( obsdat, OBS_LAT, headerIndex, obsLat        )
@@ -187,7 +187,8 @@ contains
     ! Locals:
     character(len=9)         :: rdbSchema
     character(len=12)        :: idStation
-    integer                  :: obsIdo, obsIdd, codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
+    integer                  :: codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
+    integer(8)               :: headPrimaryKey, bodyPrimaryKey
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
     real                     :: obsrzam , obsrans, obsrane, obsrele, obsrdel          
@@ -496,7 +497,7 @@ contains
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, headPrimaryKey, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
                                 trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), &
                                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),  real(obsrdel,kind=pre_obsReal) )
         exit HEADER
@@ -519,7 +520,7 @@ contains
       obsrans = MPC_missingValue_R4
       obsrane = MPC_missingValue_R4
 
-      call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo    )
+      call fSQL_get_column( stmt, COL_INDEX = 1, INT8_VAR  = headPrimaryKey)
       call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
       call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon    )
       call fSQL_get_column( stmt, COL_INDEX = 4, INT_VAR   = codeType  )
@@ -619,27 +620,27 @@ contains
       obsNlv = 0
       DATA: do rowIndex = lastId,numberRows
         ! ---------------------------------------------------
-        if ( int(matdata(rowIndex,2)) > obsIdo ) then 
+        if ( int(matdata(rowIndex,2)) > headPrimaryKey ) then 
 
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,   &
                real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
                roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
                real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
-               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat,     &
+               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, headPrimaryKey, xlat,     &
                xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,              &
                trackCellNum, modelWindSpeed,                                                    &
                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                  &
                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) , real(obsrdel,kind=pre_obsReal) )
           exit DATA
 
-        else if ( int(matdata(rowIndex,2)) == obsIdo ) then
+        else if ( int(matdata(rowIndex,2)) == headPrimaryKey ) then
 
           if ( headerIndex == headerIndexStart .and. obsNlv == 0 ) then
             call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,   &
                  real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,         &
                  roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                         &
                  real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),   &
-                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat,     &
+                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, headPrimaryKey, xlat,     &
                  xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,              &
                  trackCellNum, modelWindSpeed,                                                    &       
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), &
@@ -648,7 +649,7 @@ contains
            end if
 
           lastId = rowIndex + 1
-          obsIdd = int(matdata(rowIndex,1))
+          bodyPrimaryKey = int(matdata(rowIndex,1))
           vertCoord = matdata(rowIndex,3)
           obsVarno = int(matdata(rowIndex,4))
           obsValue = matdata(rowIndex,5)
@@ -656,7 +657,7 @@ contains
 
           bodyIndex = bodyIndex + 1
           obsNlv   = obsNlv + 1
-          call obs_setBodyPrimaryKey(obsdat, bodyIndex, obsIdd)
+          call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
 
           if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
 
@@ -714,7 +715,7 @@ contains
            
          end if       ! TOVS or CONV
 
-       end if          !  obsIdo   
+       end if          !  headPrimaryKey   
 
      end do DATA  ! END OF DATA LOOP
 
@@ -732,7 +733,7 @@ contains
         if ( lastId > numberRows ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed , &
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed , &
                                 real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal))
       else
 
@@ -809,8 +810,9 @@ contains
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
-    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsFlag
-    integer                          :: obsIdo, obsStatus, last_question
+    integer                          :: obsRln, obsNlv, obsIdf, obsFlag
+    integer                          :: obsStatus, last_question
+    integer(8)                       :: headPrimaryKey, bodyPrimaryKey
     integer                          :: itemId
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =   3)             :: item, itemUpdateList(15)
@@ -888,14 +890,14 @@ contains
       obsIdf = obs_headElem_i( obsdat,OBS_IDF, headerIndex )
  
       if ( obsIdf /= fileNumber) cycle HEADER
-      obsIdo = obs_headPrimaryKey( obsdat, headerIndex )
+      headPrimaryKey = obs_headPrimaryKey( obsdat, headerIndex )
       obsRln = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
-        obsIdd  = obs_bodyPrimaryKey(obsdat, bodyIndex)
+        bodyPrimaryKey  = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
         call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
         ITEMS: do itemId = 1, numberUpdateItems
@@ -912,7 +914,7 @@ contains
 
         end do ITEMS
 
-        call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
+        call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT8_VAR  = bodyPrimaryKey )
         call fSQL_exec_stmt (stmt)
 
       end do BODY
@@ -932,10 +934,10 @@ contains
 
           obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
           if ( obsIdf /= fileNumber ) cycle HEADER2
-          obsIdo    = obs_headPrimaryKey(obsdat, headerIndex)
+          headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
           obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
           call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-          call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
+          call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR = headPrimaryKey )
           call fSQL_exec_stmt ( stmt)
 
        end do HEADER2
@@ -965,7 +967,8 @@ contains
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
     integer                :: numberInsert, headerIndex, bodyIndex, numHeader
-    integer                :: obsNlv, obsRln, obsIdd, obsIdo, obsIdf, insertItem
+    integer                :: obsNlv, obsRln, obsIdf, insertItem
+    integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
     logical                :: llok    
     character(len=*), parameter :: myName = 'sqlr_insertSqlite:'
@@ -1015,13 +1018,13 @@ contains
 
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
       if ( obsIdf /= fileNumber ) cycle HEADER
-      obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
+      headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
 
-        obsIdd        = obs_bodyPrimaryKey(obsdat, bodyIndex)
+        bodyPrimaryKey= obs_bodyPrimaryKey(obsdat, bodyIndex)
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex )
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex )
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex )
@@ -1037,11 +1040,11 @@ contains
           if ( obsVarno == itemInsertList(insertItem) ) llok=.true.
         end do
 
-        if ( obsIdd == -1 ) then
+        if ( bodyPrimaryKey == -1 ) then
           if ( llok ) then
             select case(trim(familyType))
               case( 'SF', 'SC', 'GP' )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
+                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey)
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      )
                 if ( obsValue == obs_missingValue_R ) then          ! sql null values
@@ -1071,7 +1074,7 @@ contains
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER    ) 
                 end if
               case DEFAULT
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo        )
+                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey)
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
                 call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType )
