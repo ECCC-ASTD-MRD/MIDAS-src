@@ -116,7 +116,7 @@ contains
     real(pre_obsReal), intent(in)    :: obsrdel
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
-    call obs_headSet_i( obsdat, OBS_IDO, headerIndex, obsIdo        )       
+    call obs_setHeadPrimaryKey( obsdat,  headerIndex, obsIdo        )
     call obs_headSet_i( obsdat, OBS_ONM, headerIndex, headerIndex   )
     call obs_headSet_i( obsdat, OBS_ITY, headerIndex, codeType      )
     call obs_headSet_r( obsdat, OBS_LAT, headerIndex, obsLat        )
@@ -656,7 +656,7 @@ contains
 
           bodyIndex = bodyIndex + 1
           obsNlv   = obsNlv + 1
-          call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex, obsIdd)
+          call obs_setBodyPrimaryKey(obsdat, bodyIndex, obsIdd)
 
           if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
 
@@ -695,7 +695,7 @@ contains
 
            if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
                .not. ovt_bufrCodeSkipped(obsVarno)) then
-             call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
+             call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
              call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                  obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
                                  0, vertCoordType, bodyIndex + 1 )
@@ -703,7 +703,7 @@ contains
              obsNlv = obsNlv + 1
              if (ovt_isWindObs(obsVarno)) then
                ! Add an extra row for the other wind component
-               call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
+               call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                    obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
                                    0, vertCoordType, bodyIndex + 1 )
@@ -888,14 +888,14 @@ contains
       obsIdf = obs_headElem_i( obsdat,OBS_IDF, headerIndex )
  
       if ( obsIdf /= fileNumber) cycle HEADER
-      obsIdo = obs_headElem_i( obsdat, OBS_IDO, headerIndex )
+      obsIdo = obs_headPrimaryKey( obsdat, headerIndex )
       obsRln = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
-        obsIdd  = obs_bodyElem_i( obsdat, OBS_IDD, bodyIndex )
+        obsIdd  = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
         call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
         ITEMS: do itemId = 1, numberUpdateItems
@@ -932,7 +932,7 @@ contains
 
           obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
           if ( obsIdf /= fileNumber ) cycle HEADER2
-          obsIdo    = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
+          obsIdo    = obs_headPrimaryKey(obsdat, headerIndex)
           obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
           call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
           call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
@@ -1015,13 +1015,13 @@ contains
 
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
       if ( obsIdf /= fileNumber ) cycle HEADER
-      obsIdo = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
+      obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
 
-        obsIdd        = obs_bodyElem_i(obsdat, OBS_IDD , bodyIndex )
+        obsIdd        = obs_bodyPrimaryKey(obsdat, bodyIndex)
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex )
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex )
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex )
