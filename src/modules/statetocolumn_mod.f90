@@ -306,7 +306,7 @@ contains
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
 
-    type(kdtree2), pointer  :: tree => null()
+    type(kdtree2), pointer  :: tree
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
     namelist /nams2c/ useFootprintForTovs 
@@ -899,6 +899,7 @@ contains
           end do
         end do
 
+        nullify(tree)
         tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
 
         if ( inputStateVectorType == 'nl' ) then
@@ -906,6 +907,8 @@ contains
         else 
           tree_tlad => tree
         end if
+
+        deallocate(positionArray)
 
         write(*,*) 's2c_setupInterpInfo: done creating kdtree for inputStateVectorType=', &
                    inputStateVectorType
@@ -3172,21 +3175,23 @@ contains
       if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
     end if
 
-    if ( interpInfo%inputStateVectorType == 'nl' .and. .not. associated(tree_nl) ) then
-      call utl_abort('s2c_setupFootprintInterp: tree_nl is not allocated!')
-    else if ( (interpInfo%inputStateVectorType == 'tl' .or. &
-               interpInfo%inputStateVectorType == 'ad') .and. &
-               .not. associated(tree_tlad) ) then
-      call utl_abort('s2c_setupFootprintInterp: tree_tlad is not allocated!')
-    end if
-
     ! do the search
     maxRadiusSquared = real(fpr,8) ** 2
     refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
+    nullify(tree)
     if ( interpInfo%inputStateVectorType == 'nl' ) then
-      tree => tree_nl
-    else
-      tree => tree_tlad
+      if ( associated(tree_nl) ) then
+        tree => tree_nl
+      else
+        call utl_abort('s2c_setupFootprintInterp: tree_nl is not allocated!')
+      end if
+    else if ( interpInfo%inputStateVectorType == 'tl' .or. &
+              interpInfo%inputStateVectorType == 'ad' ) then
+      if ( associated(tree_tlad) ) then
+        tree => tree_tlad
+      else
+        call utl_abort('s2c_setupFootprintInterp: tree_tlad is not allocated!')
+      end if
     end if
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
                            nfound=numLocalGridptsFoundSearch, &
