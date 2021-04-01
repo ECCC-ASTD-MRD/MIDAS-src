@@ -971,6 +971,7 @@ contains
     nullify(tp%the_data)
 
     deallocate(tp)
+    nullify(tp)
     return
 
   contains
