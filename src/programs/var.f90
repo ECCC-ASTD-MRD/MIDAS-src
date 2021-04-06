@@ -162,6 +162,11 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
+  ! Initialize list of analyzed variables.
+  !
+  call inn_setupAnlVar()
+
+  !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   call bmat_setup(hco_anl,vco_anl)

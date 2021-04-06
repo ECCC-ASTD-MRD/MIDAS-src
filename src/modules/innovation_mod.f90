@@ -58,6 +58,7 @@ module innovation_mod
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
   public :: inn_perturbObs, inn_setupBackgroundColumns, inn_setupBackgroundColumnsAnl
+  public :: inn_setupAnlVar
 
   character(len=48) :: innovationMode
 
@@ -196,6 +197,19 @@ contains
   end subroutine inn_setupobs
 
 
+  subroutine inn_setupAnlVar
+    implicit none
+
+    ! locals
+    character(len=4), pointer :: anlVar(:)
+
+    call gsv_setup()
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+
+  end subroutine inn_setupAnlVar
+
+
   subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, stateVectorTrialOut_opt)
     implicit none
 
@@ -242,7 +256,6 @@ contains
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
-    call gsv_setup()
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
