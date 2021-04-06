@@ -232,8 +232,7 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_computeAndWriteAnalysis(stateVectorIncr,                    &  ! IN
-                                   stateVectorTrial_opt=stateVectorTrial) ! IN
+  call inc_computeAndWriteAnalysis(stateVectorIncr,stateVectorTrial)
   call tmg_stop(18)
 
   if (mpi_myid == 0) then

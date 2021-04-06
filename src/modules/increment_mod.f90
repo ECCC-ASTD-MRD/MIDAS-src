@@ -84,12 +84,12 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeAndWriteAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes_opt, stateVectorTrial_opt)
+  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes, stateVectorTrial)
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in), optional :: statevector_incLowRes_opt
-    type(struct_gsv), intent(in), target, optional :: statevectorTrial_opt
+    type(struct_gsv), intent(in) :: statevector_incLowRes
+    type(struct_gsv), intent(in), target :: statevectorTrial
 
     ! Locals:
     type(struct_gsv) :: statevector_incHighRes
@@ -137,109 +137,33 @@ CONTAINS
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
     !- Do we need to read all the vertical levels from the trial fields?
-    if (present(statevector_incLowRes_opt)) then
-      vco_inc => statevector_incLowRes_opt%vco
-    else
-      call difdatr(datestamplist(1),tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      incFileName = './rebm_' // trim(coffset) // 'm'
+    vco_inc => statevector_incLowRes%vco
 
-      if ( mpi_myid == 0 ) then
-        call vco_setupFromFile(vco_inc, incFileName)
-      end if
-      call vco_mpiBcast(vco_inc)
+    !- Use stateVectorTrial
+    hco_trl => gsv_getHco(stateVectorTrial)
+    vco_trl => gsv_getVco(stateVectorTrial)
+    if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
+      allocHeightSfc = .false.
+    else
+      allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
-
-    if (present(stateVectorTrial_opt)) then
-
-      !- If stateVectorTrial is supplied, then just use it
-
-      hco_trl => gsv_getHco(stateVectorTrial_opt)
-      vco_trl => gsv_getVco(stateVectorTrial_opt)
-      if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
-        allocHeightSfc = .false.
-      else
-        allocHeightSfc = stateVectorTrial_opt%heightSfcPresent
-      end if
-      
-      !- In some cases we need to just extract a subset of levels from the trials
-      useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-      if ( useIncLevelsOnly ) then
-        write(*,*) 'inc_computeAndWriteAnalysis: extract only the increment levels from the trials'
-        allocate(statevector_trial)
-        call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
-                          dataKind_opt=pre_incrReal, &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
-        call gsv_interpolate(stateVectorTrial_opt, statevector_trial)        
-        vco_trl => gsv_getVco(statevector_trial)
-      else
-        write(*,*) 'inc_computeAndWriteAnalysis: use the supplied trials directly'
-        statevector_trial => stateVectorTrial_opt
-      end if
-
-    else
-
-      !- Initialize the trial state grid
-      if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: Set hco parameters for trial grid'
-      trialFileName = './trlm_01'
-
-      nullify(anlVar)
-      call gsv_varNamesList(anlVar)
-      call hco_setupFromFile( hco_trl, trim(trialFileName), ' ', varName_opt=anlVar(1))
-
-      if ( mpi_myid == 0 ) then
-        call vco_setupFromFile( vco_trl, trim(trialFileName) )
-      end if
-      call vco_mpiBcast(vco_trl)
-
-      if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
-        allocHeightSfc = .false.
-      else
-        allocHeightSfc = .true.
-      end if
-
-      useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-      if ( useIncLevelsOnly ) then
-        ! Read only the increment levels
-        write(*,*)
-        write(*,*) 'inc_computeAndWriteAnalysis: only the increment levels will be read in the trials'
-        call  vco_deallocate(vco_trl)
-        vco_trl => vco_inc
-      else
-        ! Read them all
-        write(*,*)
-        write(*,*) 'inc_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
-        if (.not. present(statevector_incLowRes_opt)) then
-          call vco_deallocate(vco_inc)
-        end if
-      end if
-
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
-      !
-      !- Read trial files
-      !
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
+    
+    !- In some cases we need to just extract a subset of levels from the trials
+    useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
+    if ( useIncLevelsOnly ) then
+      write(*,*) 'inc_computeAndWriteAnalysis: extract only the increment levels from the trials'
       allocate(statevector_trial)
-      call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
+      call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                         allocHeight_opt=.false., allocPressure_opt=.false.)
-
-      call tmg_start(180,'INC_READTRIALS')
-      call gsv_readTrials(statevector_trial)
-      call tmg_stop(180)
-
-    end if ! present(stateVectorTrial_opt)
+      call gsv_interpolate(stateVectorTrial, statevector_trial)        
+      vco_trl => gsv_getVco(statevector_trial)
+    else
+      write(*,*) 'inc_computeAndWriteAnalysis: use the supplied trials directly'
+      statevector_trial => stateVectorTrial
+    end if
 
     !
     !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
@@ -263,44 +187,22 @@ CONTAINS
                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
 
-      if (present(statevector_incLowRes_opt)) then
-        if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
+      if(mpi_myid == 0) write(*,*) ''
+      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
 
-        ! Extract Psfc inc at low resolution
-        call gsv_allocate(statevector_PsfcLowRes, numStep,  &
-                          statevector_incLowRes_opt%hco, vco_trl,  &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                          dataKind_opt=pre_incrReal, &
-                          varNames_opt=(/'P0'/))
-        call gsv_getField(statevector_PsfcLowRes,PsfcIncLowRes,'P0')
-        call gsv_getField(statevector_incLowRes_opt,PsfcIncLowResFrom3Dgsv,'P0')
-        PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
+      ! Extract Psfc inc at low resolution
+      call gsv_allocate(statevector_PsfcLowRes, numStep,  &
+                        statevector_incLowRes%hco, vco_trl,  &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        dataKind_opt=pre_incrReal, &
+                        varNames_opt=(/'P0'/))
+      call gsv_getField(statevector_PsfcLowRes,PsfcIncLowRes,'P0')
+      call gsv_getField(statevector_incLowRes,PsfcIncLowResFrom3Dgsv,'P0')
+      PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
 
-        ! Interpolate
-        call gsv_interpolate(statevector_PsfcLowRes,statevector_Psfc)
-        call gsv_deallocate(statevector_PsfcLowRes)
-
-      else
-        !- Read from file
-        do stepIndex = 1, numStep
-          dateStamp = datestamplist(stepIndex)
-          if(mpi_myid == 0) write(*,*) ''
-          if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading Psfc increment for time step: ',stepIndex, dateStamp
-
-          call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-          if(nint(deltaHours*60.0d0).lt.0) then
-            write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-          else
-            write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-          endif
-          incFileName = './rebm_' // trim(coffset) // 'm'
-
-          call gsv_readFromFile( statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
-                                 containsFullField_opt=.false. )
-        end do
-
-      end if
+      ! Interpolate
+      call gsv_interpolate(statevector_PsfcLowRes,statevector_Psfc)
+      call gsv_deallocate(statevector_PsfcLowRes)
 
       !
       !- Compute analysis Psfc to use for interpolation of increment
@@ -346,73 +248,22 @@ CONTAINS
                       allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_copy(statevector_trial, statevector_analysis)
 
-    if (present(statevector_incLowRes_opt)) then
-      !- Interpolate and add the input increments
-      if (.not. hco_trl%global .and. useAnalIncMask) then
-        if (gsv_varExist(varName='P0')) then
-          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis, &
-                                     PsfcReference_opt=PsfcAnalysis(:,:,1,:), mask2d_opt=statevector_mask)
-        else
-          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis, &
-                                     mask2d_opt=statevector_mask)
-        end if
+    !- Interpolate and add the input increments
+    if (.not. hco_trl%global .and. useAnalIncMask) then
+      if (gsv_varExist(varName='P0')) then
+        call inc_interpolateAndAdd(statevector_incLowRes, statevector_analysis, &
+                                   PsfcReference_opt=PsfcAnalysis(:,:,1,:), mask2d_opt=statevector_mask)
       else
-        if (gsv_varExist(varName='P0')) then
-          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis,&
-                                     PsfcReference_opt=PsfcAnalysis(:,:,1,:))
-        else
-          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis)
-        end if
+        call inc_interpolateAndAdd(statevector_incLowRes, statevector_analysis, &
+                                   mask2d_opt=statevector_mask)
       end if
     else
-      !- Read the increments from files
-      do stepIndex = 1, numStep
-        dateStamp = datestamplist(stepIndex)
-        if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading increment for time step: ',stepIndex, dateStamp
-
-        call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-        if(nint(deltaHours*60.0d0).lt.0) then
-          write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-        else
-          write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-        endif
-        incFileName = './rebm_' // trim(coffset) // 'm'
-
-        write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-        if (gsv_varExist(varName='P0')) then
-          allocate(PsfcAnalysis_r8(statevector_Psfc%myLonBeg:statevector_Psfc%myLonEnd, &
-                                   statevector_Psfc%myLatBeg:statevector_Psfc%myLatEnd))
-          PsfcAnalysis_r8(:,:) = PsfcAnalysis(:,:,1,stepIndex)
-          call gsv_readFromFile( statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-                                 PsfcReference_opt=PsfcAnalysis_r8,  &
-                                 containsFullField_opt=.false. )
-          deallocate(PsfcAnalysis_r8)
-        else
-          call gsv_readFromFile( statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex, &
-                                 containsFullField_opt=.false. )
-        end if
-      end do
-
-      if (.not. hco_trl%global .and. useAnalIncMask) then
-        nullify(analIncMask)
-        call gsv_getField(statevector_incHighRes,analInc)
-        call gsv_getField(statevector_mask,analIncMask)
-        do stepIndex = 1, statevector_incHighRes%numStep
-          !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-          do kIndex = 1, statevector_incHighRes%nk
-            do latIndex = statevector_incHighRes%myLatBeg, statevector_incHighRes%myLatEnd
-              do lonIndex = statevector_incHighRes%myLonBeg, statevector_incHighRes%myLonEnd
-                analInc(lonIndex,latIndex,kIndex,stepIndex) = analInc(lonIndex,latIndex,kIndex,stepIndex) * &
-                                                              analIncMask(lonIndex,latIndex,1)
-              end do
-            end do
-          end do
-        end do
+      if (gsv_varExist(varName='P0')) then
+        call inc_interpolateAndAdd(statevector_incLowRes, statevector_analysis,&
+                                   PsfcReference_opt=PsfcAnalysis(:,:,1,:))
+      else
+        call inc_interpolateAndAdd(statevector_incLowRes, statevector_analysis)
       end if
-
-      call gsv_add(statevector_incHighRes, statevector_analysis)
-
     end if
     call tmg_stop(181)
 
