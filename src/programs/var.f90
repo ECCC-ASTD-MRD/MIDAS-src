@@ -160,12 +160,6 @@ program midas_var
   !
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(2)
-
-  ! Read trials and horizontally interpolate to columns
-  call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
-                                   stateVectorTrialOut_opt=stateVectorTrial )
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -185,13 +179,19 @@ program midas_var
   !
   call min_setup( cvm_nvadim ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call tmg_stop(2)
+
+  ! Read trials and horizontally interpolate to columns
+  call tmg_start(34,'SETUPCOLUMN')
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
+                                   stateVectorTrialOut_opt=stateVectorTrial )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-  call tmg_stop(2)
+  call tmg_stop(34)
 
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
