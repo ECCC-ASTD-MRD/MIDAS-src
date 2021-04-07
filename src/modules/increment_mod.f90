@@ -37,7 +37,7 @@ module increment_mod
   private
 
   ! public procedures
-  public :: inc_computeAndWriteAnalysis, inc_getIncrement, inc_writeIncrement
+  public :: inc_computeHighResAnalysis, inc_writeIncrementHighRes, inc_getIncrement, inc_writeIncrement, inc_readNAMINC
 
   ! namelist variables
   integer  :: writeNumBits
@@ -49,9 +49,9 @@ module increment_mod
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! readNameList - called by the other public subroutines in this module
+  ! inc_readNAMINC - called by the other public subroutines in this module
   !--------------------------------------------------------------------------
-  subroutine readNameList
+  subroutine inc_readNAMINC
     implicit none
 
     integer :: nulnam, ierr
@@ -75,28 +75,29 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=naminc, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('increment_mod readNameList: Error reading namelist')
+    if ( ierr /= 0) call utl_abort('increment_mod inc_readNAMINC: Error reading namelist')
     if ( mpi_myid == 0 ) write(*,nml=naminc)
     ierr = fclos(nulnam)
 
-  end subroutine readNameList
+  end subroutine inc_readNAMINC
 
   !--------------------------------------------------------------------------
-  ! inc_computeAndWriteAnalysis
+  ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes, stateVectorTrial)
+  subroutine inc_computeHighResAnalysis(statevector_incLowRes, stateVectorTrial, &
+                                        statevector_trial, statevector_Psfc, &
+                                        statevector_analysis)
     implicit none
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector_incLowRes
     type(struct_gsv), intent(in), target :: statevectorTrial
+    type(struct_gsv), pointer :: statevector_trial
+    type(struct_gsv), intent(out) :: statevector_Psfc
+    type(struct_gsv), intent(out) :: statevector_analysis
 
     ! Locals:
-    type(struct_gsv) :: statevector_incHighRes
-    type(struct_gsv), pointer :: statevector_trial
-    type(struct_gsv) :: statevector_analysis
-    type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
-    type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
+    type(struct_gsv) :: statevector_PsfcLowRes
     type(struct_gsv) :: statevector_mask
 
     type(struct_vco), pointer :: vco_trl => null()
@@ -124,11 +125,6 @@ CONTAINS
 
     logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
 
-    !
-    !- Set/Read values for the namelist NAMINC
-    !
-    call readNameList()
-
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! Setup timeCoord module (date read from trial file)
@@ -151,7 +147,7 @@ CONTAINS
     !- In some cases we need to just extract a subset of levels from the trials
     useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
     if ( useIncLevelsOnly ) then
-      write(*,*) 'inc_computeAndWriteAnalysis: extract only the increment levels from the trials'
+      write(*,*) 'inc_computeHighResAnalysis: extract only the increment levels from the trials'
       allocate(statevector_trial)
       call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
                         dataKind_opt=pre_incrReal, &
@@ -161,7 +157,7 @@ CONTAINS
       call gsv_interpolate(stateVectorTrial, statevector_trial)        
       vco_trl => gsv_getVco(statevector_trial)
     else
-      write(*,*) 'inc_computeAndWriteAnalysis: use the supplied trials directly'
+      write(*,*) 'inc_computeHighResAnalysis: use the supplied trials directly'
       statevector_trial => stateVectorTrial
     end if
 
@@ -188,7 +184,7 @@ CONTAINS
                         hInterpolateDegree_opt=hInterpolationDegree)
 
       if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
+      if(mpi_myid == 0) write(*,*) 'inc_computeHighResAnalysis: horiz interpolation of the Psfc increment'
 
       ! Extract Psfc inc at low resolution
       call gsv_allocate(statevector_PsfcLowRes, numStep,  &
@@ -233,14 +229,9 @@ CONTAINS
     !- Compute the analysis
     !
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: compute the analysis'
+    if(mpi_myid == 0) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
     call tmg_start(181,'INC_COMPUTEANL')
 
-    call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      dataKind_opt=pre_incrReal, allocHeightSfc_opt=allocHeightSfc, &
-                      hInterpolateDegree_opt=hInterpolationDegree, &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -293,10 +284,76 @@ CONTAINS
     call gvt_transform(stateVector_analysis,'AllTransformedToModel',allowOverWrite_opt=.true.)
     call gvt_transform(stateVector_trial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
+    !
+    !- Impose limits on humidity analysis
+    !
+    call tmg_start(182,'INC_QLIMITS')
+    write(*,*) 'inc_computeHighResAnalysis: calling qlim_saturationLimit'
+    call qlim_saturationLimit(statevector_analysis)
+    if( imposeRttovHuLimits ) call qlim_rttovLimit(statevector_analysis)
+    call tmg_stop(182)
+
+    if (gsv_varKindExist('CH')) then
+      !
+      !- Apply boundaries to analysis of CH kind variables as needed.
+      !
+      write(*,*) 'inc_computeHighResAnalysis: applying minimum values to analysis for variables of CH kind'
+      call gvt_transform(stateVector_analysis,'CH_bounds')
+    end if
+
+  end subroutine inc_computeHighResAnalysis
+
+  !--------------------------------------------------------------------------
+  ! inc_writeIncrementHighRes
+  !--------------------------------------------------------------------------
+  subroutine inc_writeIncrementHighRes(statevector_Psfc, statevector_trial, &
+                                       statevector_analysis)
+                                        
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector_Psfc
+    type(struct_gsv), intent(in), pointer :: statevector_trial
+    type(struct_gsv), intent(in) :: statevector_analysis
+
+    ! Locals:
+    type(struct_gsv) :: statevector_incHighRes
+    type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
+
+    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_hco), pointer :: hco_trl => null()
+
+    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
+    integer              :: dateStamp, numBatch, batchIndex, procToWrite
+    integer, allocatable :: dateStampList(:)
+    integer              :: get_max_rss, latIndex, kIndex, lonIndex
+
+    character(len=256)  :: trialFileName, incFileName, anlFileName
+    character(len=4)    :: coffset
+    character(len=4), pointer :: anlVar(:)
+    character(len=4), pointer :: varNames(:)
+
+    real(8)             :: deltaHours
+
+    logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
+
+    ! Setup timeCoord module (date read from trial file)
+    numStep = tim_nstepobsinc
+    allocate(dateStampList(numStep))
+    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+
+    hco_trl => gsv_getHco(statevector_trial)
+    vco_trl => gsv_getVco(statevector_trial)
+    if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
+      allocHeightSfc = .false.
+    else
+      allocHeightSfc = stateVector_trial%heightSfcPresent
+    end if
+    writeHeightSfc = allocHeightSfc
+
     !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
     nullify(varNames)
     call gsv_varNamesList(varNames, stateVector_analysis)
-    call gsv_deallocate( stateVector_incHighRes )
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dataKind_opt=pre_incrReal,  &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -304,50 +361,28 @@ CONTAINS
                       varNames_opt=varNames )
 
     !
-    !- Impose limits on humidity analysis
+    !- Recompute increments and write out the files in parallel with respect to time steps
     !
-    call tmg_start(182,'INC_QLIMITS')
-    write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_saturationLimit'
-    call qlim_saturationLimit(statevector_analysis)
-    if( imposeRttovHuLimits ) call qlim_rttovLimit(statevector_analysis)
-
-    if (gsv_varKindExist('CH')) then
-      !
-      !- Apply boundaries to analysis of CH kind variables as needed.
-      !
-      write(*,*) 'inc_computeAndWriteAnalysis: applying minimum values to analysis for variables of CH kind'
-      call gvt_transform(stateVector_analysis,'CH_bounds')
-    end if
-    
-    !
-    !- Recompute increments
-    !
+    call tmg_start(183,'INC_WRITEANLMREHM')
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
 
-    call tmg_stop(182)
-
-    !
-    !- Write out the files in parallel with respect to time steps
-    !
-    call tmg_start(183,'INC_WRITEANLMREHM')
-
     ! figure out number of batches of time steps for writing
     numBatch = ceiling(real(stateVector_analysis%numStep) / real(mpi_nprocs))
-    write(*,*) 'inc_computeAndWriteAnalysis: writing will be done by number of batches = ', numBatch
+    write(*,*) 'inc_writeIncrementHighRes: writing will be done by number of batches = ', numBatch
 
     batch_loop: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
       stepIndexEnd = min(stateVector_analysis%numStep, stepIndexBeg + mpi_nprocs - 1)
-      write(*,*) 'inc_computeAndWriteAnalysis: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
+      write(*,*) 'inc_writeIncrementHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will write, if any (-1 if none)
       stepIndexToWrite = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
         procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
         if ( procToWrite == mpi_myid ) stepIndexToWrite = stepIndex
-        if ( mpi_myid == 0 ) write(*,*) 'inc_computeAndWriteAnalysis: stepIndex, procToWrite = ', stepIndex, procToWrite
+        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrementHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
       end do
 
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
@@ -429,7 +464,7 @@ CONTAINS
     call gsv_deallocate(statevector_incHighRes)
     call gsv_deallocate(statevector_trial)
 
-  end subroutine inc_computeAndWriteAnalysis
+  end subroutine inc_writeIncrementHighRes
 
   !--------------------------------------------------------------------------
   ! inc_getIncrement
@@ -478,11 +513,6 @@ CONTAINS
     character(len=30)    :: fileName
 
     if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: STARTING'
-
-    !
-    !- Set/Read values for the namelist NAMINC
-    !
-    call readNameList()
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc

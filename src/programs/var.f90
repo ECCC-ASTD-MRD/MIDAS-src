@@ -58,6 +58,9 @@ program midas_var
   type(struct_columnData), target  :: trlColumnOnTrlLev
   type(struct_gsv)                 :: stateVectorIncr
   type(struct_gsv)                 :: stateVectorTrial
+  type(struct_gsv), pointer        :: stateVectorTrialTransformed
+  type(struct_gsv)                 :: statevector_Psfc
+  type(struct_gsv)                 :: stateVectorAnalHighRes
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_vco), pointer        :: vco_anl => null()
   type(struct_hco), pointer        :: hco_core => null()
@@ -167,6 +170,11 @@ program midas_var
   call inn_setupAnlVar()
 
   !
+  !- Set/Read values for the namelist NAMINC
+  !
+  call inc_readNAMINC()
+
+  !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   call bmat_setup(hco_anl,vco_anl)
@@ -218,6 +226,11 @@ program midas_var
   call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
 
+  ! Compute high-resolution analysis on trial grid
+  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorTrial, &
+                                  statevectorTrialTransformed, statevector_Psfc, &
+                                  stateVectorAnalHighRes)
+
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')
   call inc_writeIncrement(stateVectorIncr) ! IN
@@ -232,7 +245,8 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_computeAndWriteAnalysis(stateVectorIncr,stateVectorTrial)
+  call inc_writeIncrementHighRes(statevector_Psfc, stateVectorTrialTransformed, &
+                                 stateVectorAnalHighRes)
   call tmg_stop(18)
 
   if (mpi_myid == 0) then
