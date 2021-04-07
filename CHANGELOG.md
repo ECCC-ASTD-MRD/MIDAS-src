@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Store header and body table primary keys in 64-bit integer arrays (#476 and !450)
  * SST observations now stored in the files separated by instrument name (#467 and !442)
  * Change to some environment variable naming convention: start with `MIDAS_`
    (#255, #443 and !317)

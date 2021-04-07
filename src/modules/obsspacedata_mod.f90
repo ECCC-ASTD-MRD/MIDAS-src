@@ -339,8 +339,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_IPC = OBS_IPF+1  ! mpi task id for column/obsspacedata
    integer, parameter, public :: OBS_IPT = OBS_IPC+1  ! mpi task id for latlontile
    integer, parameter, public :: OBS_ST1 = OBS_IPT+1  ! header level status/rejection flag
-   integer, parameter, public :: OBS_IDO = OBS_ST1+1  ! (absolutely) unique station id no.
-   integer, parameter, public :: OBS_IDF = OBS_IDO+1  ! id. no. of observation-source file
+   integer, parameter, public :: OBS_IDF = OBS_ST1+1  ! id. no. of observation-source file
    integer, parameter, public :: OBS_GQF = OBS_IDF+1  ! iasi GQISFLAGQUAL
    integer, parameter, public :: OBS_GQL = OBS_GQF+1  ! iasi GQISQUALINDEXLOC
    integer, parameter, public :: OBS_NCO2= OBS_GQL+1  ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
@@ -383,7 +382,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
-         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
+         'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG',&
          'LFLG ','ORBI ','AQF1 ','AQF2 ','AQF3 ','TTYP ','INFG','RAIN'/)
@@ -580,8 +579,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of anal level above observ'n
                                              ! Flag: extrapolation necessary of
    integer, parameter, public :: OBS_XTR = OBS_LYR+1  ! anal variables to obs'n location
-   integer, parameter, public :: OBS_IDD = OBS_XTR+1  ! data id. no.
-   integer, parameter, public :: OBS_QCF2= OBS_IDD+1  ! TOVs Data Level Qc Flag
+   integer, parameter, public :: OBS_QCF2= OBS_XTR+1  ! TOVs Data Level Qc Flag
                                                       ! flag values for btyp=9248 block ele 033081
    integer, parameter, public :: OBS_CLA= OBS_QCF2+1  ! csr cloud amount btyp 9248 ele 020081
 
@@ -593,7 +591,7 @@ module ObsColumnNames_mod
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ','IDD ', 'QCFL ', &
+      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL ', &
           'CLA '/)  
 
    !
@@ -741,8 +739,8 @@ module ObsDataColumn_mod
    integer, target :: columnIndexFromActiveIndex_RB(NBDY_REAL_SIZE)
    integer, target :: columnIndexFromActiveIndex_RH(NHDR_REAL_SIZE)
 
-   integer, public, parameter :: odc_ENKF_bdy_int_column_list(9) = &
-      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD, &
+   integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
+      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, &
         OBS_QCF2, OBS_CLA /)
    integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
@@ -993,8 +991,8 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
+              OBS_ST1, OBS_IDF, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=20,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1038,9 +1036,9 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDO, OBS_IDF, &
+              OBS_ST1, OBS_IDF, &
               OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=28,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=27,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1048,8 +1046,8 @@ contains
               OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_RDEL, (0,ii=19,100)/)
 
          bdy_int_column_list= &
-            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
-              OBS_XTR, OBS_QCF2, OBS_CLA, (0,ii=11,100) /)
+            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, &
+              OBS_XTR, OBS_QCF2, OBS_CLA, (0,ii=10,100) /)
 
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
@@ -1350,6 +1348,7 @@ module ObsSpaceData_mod
    public obs_append     ! append an obsdat object to another obsdat object
    public obs_bodyElem_i ! obtain an integer body element from observation object
    public obs_bodyElem_r ! obtain a real body element from the observation object
+   public obs_bodyPrimaryKey ! obtain the body primary key value
    public obs_bodyIndex_mpiglobal ! obtain mpiglobal body row index
    public obs_bodySet_i  ! set an integer body value in the observation object
    public obs_bodySet_r  ! set a real body value in the observation object
@@ -1384,6 +1383,7 @@ module ObsSpaceData_mod
    public obs_getNclassAvhrr ! to get the number of AVHRR radiance classes
    public obs_headElem_i ! obtain an integer header element from the obs'n object
    public obs_headElem_r ! obtain real header element from the observation object
+   public obs_headPrimaryKey ! obtain the header primary key value
    public obs_headerIndex_mpiglobal ! obtain mpiglobal header row index
    public obs_headSet_i  ! set an integer header value in the observation object
    public obs_headSet_r  ! set a real header value in the observation object
@@ -1406,6 +1406,8 @@ module ObsSpaceData_mod
    public obs_reduceToMpiLocal ! retain only data pertinent to the mpi-local PE
    public obs_squeeze    ! reallocate objects arrays to reduce memory use
    public obs_select     ! select observations in a vertical range
+   public obs_setBodyPrimaryKey ! set the value of the body primary key
+   public obs_setHeadPrimaryKey ! set the value of the body primary key
    public obs_set_c      ! set a character value in the observation object
    public obs_set_current_body_list   ! set a body list for a family as current
    public obs_set_current_header_list ! set a header list for a family as current
@@ -1461,7 +1463,7 @@ module ObsSpaceData_mod
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
    public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP
    public :: OBS_IPF, OBS_IPC, OBS_IPT
-   public :: OBS_ST1, OBS_IDO, OBS_IDF
+   public :: OBS_ST1, OBS_IDF
    public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
@@ -1493,7 +1495,7 @@ module ObsSpaceData_mod
    public :: OBS_SCAT, OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_RDEL
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
-   public :: OBS_XTR, OBS_IDD, OBS_QCF2, OBS_CLA
+   public :: OBS_XTR, OBS_QCF2, OBS_CLA
 
    !    real-body column numbers
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
@@ -1527,8 +1529,10 @@ module ObsSpaceData_mod
       type(struct_index_list_depot) :: body_index_list_depot
                                         ! For the cstnid and cfamily arrays:
                                         !   1st dim'n:  row index
-      character(len=12),  pointer, dimension(:)   :: cstnid
-      character(len=2),   pointer, dimension(:)   :: cfamily
+      character(len=12),  pointer :: cstnid(:)
+      character(len=2),   pointer :: cfamily(:)
+                                        ! The primary keys for both tables
+      integer(8), pointer :: headerPrimaryKey(:), bodyPrimaryKey(:)
                                         ! The four arrays of data columns
       type(struct_obsDataColumn_Array) :: &
                              realHeaders, & ! real header columns
@@ -1636,6 +1640,9 @@ contains
       obsdat%intHeaders%odc_flavour => odc_flavour_IH
 
       HEADER:if(numHeader_max > 0) then
+         allocate(obsdat%headerPrimaryKey(numHeader_max))
+         obsdat%headerPrimaryKey(:) = 0
+
          allocate(obsdat%cfamily(numHeader_max))
          obsdat%cfamily(:)='XX'
 
@@ -1673,6 +1680,9 @@ contains
       obsdat%intBodies%odc_flavour => odc_flavour_IB
 
       BODY:if(numBody_max > 0) then
+         allocate(obsdat%bodyPrimaryKey(numBody_max))
+         obsdat%bodyPrimaryKey(:)   = 0
+
          allocate(obsdat%scratchRealBody(numBody_max))
          allocate(obsdat%scratchIntBody (numBody_max))
          obsdat%scratchRealBody(:) = NULL_COLUMN_VALUE_R
@@ -1791,6 +1801,8 @@ contains
                call obs_headSet_r(obs_out, column_index, i_station_write, &
                     obs_headElem_r(obsdat, column_index, istation))
          enddo
+         obs_out%headerPrimaryKey(i_station_write) = obsdat%headerPrimaryKey(istation)
+
          obs_out%cstnid(  i_station_write)=obsdat%cstnid ( istation)
          obs_out%cfamily( i_station_write)=obsdat%cfamily( istation)
 
@@ -1836,6 +1848,20 @@ contains
       call odc_columnElem(obsdat%realBodies, column_index, row_index, &
                           value_i, value_r)
    end function obs_bodyElem_r
+
+
+   function obs_bodyPrimaryKey(obsdat,row_index) result(primaryKey)
+      !
+      ! :Purpose: Get the body primary key value.
+      !
+      implicit none
+      integer(8)                    :: primaryKey
+      type(struct_obs), intent(in)  :: obsdat
+      integer         , intent(in)  :: row_index
+
+      primaryKey = obsdat%bodyPrimaryKey(row_index)
+
+   end function obs_bodyPrimaryKey
 
 
    function obs_bodyIndex_mpiglobal(obsdat,row_index) result(value)
@@ -2084,6 +2110,7 @@ contains
                call obs_headSet_r (obsdat, column_index, kobsout, &
                     obs_headElem_r(obsdat, column_index, kobs))
             enddo
+            obsdat%headerPrimaryKey(kobsout) = obsdat%headerPrimaryKey(kobs)
             obsdat%cstnid(kobsout)=obsdat%cstnid(kobs)
             obsdat%cfamily(kobsout)=obsdat%cfamily(kobs)
             ! Revise the body cross-indices to match the revised bodies
@@ -2167,6 +2194,7 @@ contains
            call obs_headSet_r (obsdat, column_index, numHeaderCleaned, &
                 obs_headElem_r(obsdat, column_index, headerIndex))
          enddo
+         obsdat%headerPrimaryKey(numHeaderCleaned) = obsdat%headerPrimaryKey(headerIndex)
          obsdat%cstnid(numHeaderCleaned) = obsdat%cstnid(headerIndex)
          obsdat%cfamily(numHeaderCleaned) = obsdat%cfamily(headerIndex)
          ! Revise the body cross-indices to match the revised bodies
@@ -2391,6 +2419,7 @@ contains
               obs_b%intBodies%columns(column_index)%value_i(:) &
             = obs_a%intBodies%columns(column_index)%value_i(:)
       enddo
+      obs_b%headerPrimaryKey(:) = obs_a%headerPrimaryKey(:)
       obs_b%cstnid(:)     = obs_a%cstnid(:)
       obs_b%cfamily(:)    = obs_a%cfamily(:)
 
@@ -2500,6 +2529,12 @@ contains
 
       obsdat%allocated=.false.
       HEADER:if(obsdat%numHeader_max > 0) then
+         if (associated(obsdat%headerPrimaryKey)) then
+            deallocate(obsdat%headerPrimaryKey,STAT=ierr)
+            nullify(obsdat%headerPrimaryKey)
+            if(ierr /= 0)write(*,*) 'Problem detected with headerPrimaryKey. IERR =',ierr
+         end if
+          
          if (associated(obsdat%cfamily)) then
             deallocate(obsdat%cfamily,STAT=ierr)
             nullify(obsdat%cfamily)
@@ -2534,6 +2569,12 @@ contains
       endif HEADER
 
       BODY:if(obsdat%numBody_max > 0) then
+         if (associated(obsdat%bodyPrimaryKey)) then
+            deallocate(obsdat%bodyPrimaryKey,STAT=ierr)
+            nullify(obsdat%bodyPrimaryKey)
+            if(ierr /= 0)write(*,*) 'Problem detected with bodyPrimaryKey. IERR =',ierr
+         end if
+
          if (associated(obsdat%realBodies%columns))then
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
                if(obsdat%realBodies%odc_flavour%columnActive(column_index)) &
@@ -2738,6 +2779,8 @@ contains
 
       integer, allocatable :: headerIndex_mpiglobal(:),all_headerIndex_mpiglobal(:,:)
       integer, allocatable :: bodyIndex_mpiglobal(:),all_bodyIndex_mpiglobal(:,:)
+      integer(8), allocatable :: headerPrimaryKey_mpilocal(:), all_headerPrimaryKey_mpilocal(:,:)
+      integer(8), allocatable :: bodyPrimaryKey_mpilocal(:), all_bodyPrimaryKey_mpilocal(:,:)
       integer, allocatable :: intHeaders_mpilocal(:,:),all_intHeaders_mpilocal(:,:,:)
       real(pre_obsReal), allocatable :: realHeaders_mpilocal(:,:),all_realHeaders_mpilocal(:,:,:)
       integer, allocatable :: intStnid_mpilocal(:,:),all_intStnid_mpilocal(:,:,:)
@@ -2855,6 +2898,24 @@ contains
       deallocate(headerIndex_mpiglobal)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+      ! make the header primary key mpiglobal
+      allocate(headerPrimaryKey_mpilocal(numHeader_mpilocalmax))
+      headerPrimaryKey_mpilocal(:) = 0
+      do headerIndex_mpilocal=1,obsdat%numHeader
+         headerPrimaryKey_mpilocal(headerIndex_mpilocal)=  &
+            obsdat%headerPrimaryKey(headerIndex_mpilocal)
+      enddo
+      if(myid_mpi == 0) then
+         allocate(all_headerPrimaryKey_mpilocal(numHeader_mpilocalmax,0:nprocs_mpi-1))
+      else
+         allocate(all_headerPrimaryKey_mpilocal(1,1))
+      end if
+      nsize=size(headerPrimaryKey_mpilocal)
+      call rpn_comm_gather(headerPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
+                           all_headerPrimaryKey_mpilocal,nsize,"mpi_integer8", &
+                           0,"GRID",ierr)
+      deallocate(headerPrimaryKey_mpilocal)
+      
       ! make header-level integer data mpiglobal
       allocate(intHeaders_mpilocal(odc_numActiveColumn(obsdat%intHeaders),numHeader_mpilocalmax))
       intHeaders_mpilocal(:,:)=0
@@ -2971,6 +3032,24 @@ contains
       deallocate(bodyIndex_mpiglobal)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+      ! make body primary key mpiglobal
+      allocate(bodyPrimaryKey_mpilocal(numBody_mpilocalmax))
+      bodyPrimaryKey_mpilocal(:)=0
+      do bodyIndex_mpilocal=1,obsdat%numBody
+         bodyPrimaryKey_mpilocal(bodyIndex_mpilocal)=  &
+            obsdat%bodyPrimaryKey(bodyIndex_mpilocal)
+      enddo
+      if(myid_mpi == 0) then
+         allocate(all_bodyPrimaryKey_mpilocal(numBody_mpilocalmax,0:nprocs_mpi-1))
+      else
+         allocate(all_bodyPrimaryKey_mpilocal(1,1))
+      end if
+      nsize=size(bodyPrimaryKey_mpilocal)
+      call rpn_comm_gather(bodyPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
+                           all_bodyPrimaryKey_mpilocal,nsize,"mpi_integer8", &
+                           0,"GRID",ierr)
+      deallocate(bodyPrimaryKey_mpilocal)
+
       ! make body-level integer data mpiglobal
       allocate(intBodies_mpilocal(odc_numActiveColumn(obsdat%intBodies),numBody_mpilocalmax))
       intBodies_mpilocal(:,:)=0
@@ -3041,6 +3120,9 @@ contains
                headerIndex=all_headerIndex_mpiglobal(headerIndex_mpilocal,sourcePE)
                if(headerIndex > 0) then
 
+                  obsdat%headerPrimaryKey(headerIndex)= &
+                         all_headerPrimaryKey_mpilocal(headerIndex_mpilocal,sourcePE)
+
                   do activeIndex=1,odc_numActiveColumn(obsdat%realHeaders)
                      columnIndex=odc_columnIndexFromActiveIndex(obsdat%realHeaders%odc_flavour,activeIndex)
                      obsdat%realHeaders%columns(columnIndex)%value_r(headerIndex)= &
@@ -3071,6 +3153,9 @@ contains
             do bodyIndex_mpilocal=1,numBody_mpilocalmax
                bodyIndex=all_bodyIndex_mpiglobal(bodyIndex_mpilocal,sourcePE)
                if(bodyIndex > 0) then
+
+                  obsdat%bodyPrimaryKey(bodyIndex)=  &
+                     all_bodyPrimaryKey_mpilocal(bodyIndex_mpilocal,sourcePE)
 
                   do activeIndex=1,odc_numActiveColumn(obsdat%realBodies)
                      columnIndex=odc_columnIndexFromActiveIndex(obsdat%realBodies%odc_flavour,activeIndex)
@@ -3113,6 +3198,8 @@ contains
       ! deallocate the complete temporary arrays
       deallocate(all_headerIndex_mpiglobal)
       deallocate(all_bodyIndex_mpiglobal)
+      deallocate(all_headerPrimaryKey_mpilocal)
+      deallocate(all_bodyPrimaryKey_mpilocal)
       deallocate(all_intStnid_mpilocal)
       deallocate(all_intFamily_mpilocal)
       deallocate(all_intHeaders_mpilocal)
@@ -3488,6 +3575,20 @@ contains
    end function obs_headElem_r
 
 
+   function obs_headPrimaryKey(obsdat,row_index) result(primaryKey)
+      !
+      ! :Purpose: Get the header primary key value.
+      !
+      implicit none
+      integer(8)                    :: primaryKey
+      type(struct_obs), intent(in)  :: obsdat
+      integer         , intent(in)  :: row_index
+
+      primaryKey = obsdat%headerPrimaryKey(row_index)
+
+   end function obs_headPrimaryKey
+
+
    function obs_headerIndex_mpiglobal(obsdat,row_index) result(value)
       !
       ! :Purpose: Get the mpiglobal header row index.
@@ -3599,6 +3700,8 @@ contains
       !
       ! INITIALIZE ALL OBJECT VARIABLES
       !
+      nullify(obsdat%headerPrimaryKey)
+      nullify(obsdat%bodyPrimaryKey)
       nullify(obsdat%cstnid)
       nullify(obsdat%cfamily)
 
@@ -4430,6 +4533,8 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
+      integer(8),        allocatable,dimension(:)   :: headerPrimaryKey_tmp
+      integer(8),        allocatable,dimension(:)   :: bodyPrimaryKey_tmp
       character(len=12), allocatable,dimension(:)   :: cstnid_tmp
       character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
@@ -4481,6 +4586,7 @@ contains
 
       ! allocate temporary arrays to hold mpilocal data
       if(numHeader_mpiLocal > 0) then
+         allocate(headerPrimaryKey_tmp(numHeader_mpiLocal)) 
          allocate(cfamily_tmp(    numHeader_mpiLocal)) 
          allocate( cstnid_tmp(    numHeader_mpiLocal)) 
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
@@ -4490,6 +4596,7 @@ contains
       endif
 
       if(numBody_mpiLocal > 0) then
+         allocate(bodyPrimaryKey_tmp(numBody_mpiLocal)) 
          allocate( realBodies_tmp(odc_numActiveColumn(obsdat%realBodies), &
                                   numBody_mpilocal))
          allocate(  intBodies_tmp(odc_numActiveColumn(obsdat%intBodies), &
@@ -4513,6 +4620,9 @@ contains
             intHeaders_tmp(active_index,headerIndex_mpilocal)= &
                       obs_headElem_i(obsdat, column_index, headerIndex_mpiglobal)
          enddo
+
+         headerPrimaryKey_tmp(headerIndex_mpilocal) = &
+                obsdat%headerPrimaryKey(headerIndex_mpiglobal)
 
          cstnid_tmp (headerIndex_mpilocal) =obsdat%cstnid (headerIndex_mpiglobal)
          cfamily_tmp(headerIndex_mpilocal) =obsdat%cfamily(headerIndex_mpiglobal)
@@ -4550,6 +4660,10 @@ contains
          idataend = obs_headElem_i(obsdat, OBS_NLV,headerIndex_mpiglobal)+idata-1
          do bodyIndex_mpiglobal=idata,idataend 
             bodyIndex_mpilocal=bodyIndex_mpilocal+1 
+
+            bodyPrimaryKey_tmp(bodyIndex_mpilocal)= &
+                        obsdat%bodyPrimaryKey(bodyIndex_mpiglobal)
+
             do active_index=1,odc_numActiveColumn(obsdat%realBodies)
                column_index=odc_columnIndexFromActiveIndex( &
                                       obsdat%realBodies%odc_flavour,active_index)
@@ -4579,6 +4693,7 @@ contains
 
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(numHeader_mpiLocal > 0) then
+         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:  ) 
          obsdat%cfamily(:  )=cfamily_tmp(:  ) 
          obsdat%cstnid (:  )= cstnid_tmp(:  )
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
@@ -4595,6 +4710,7 @@ contains
          enddo
 
          ! deallocate temporary arrays
+         deallocate(headerPrimaryKey_tmp)
          deallocate(cfamily_tmp)
          deallocate(cstnid_tmp)
          deallocate(realHeaders_tmp)
@@ -4602,6 +4718,7 @@ contains
       endif HEADER
 
       BODY:if(numBody_mpiLocal > 0) then
+         obsdat%bodyPrimaryKey(:) = bodyPrimaryKey_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realBodies)
             column_index=odc_columnIndexFromActiveIndex( &
                                      obsdat%realBodies%odc_flavour, active_index)
@@ -4616,6 +4733,7 @@ contains
          enddo
 
          ! deallocate temporary arrays
+         deallocate(bodyPrimaryKey_tmp)
          deallocate(realBodies_tmp)
          deallocate(intBodies_tmp)
       endif BODY
@@ -4638,6 +4756,8 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
+      integer(8),        allocatable :: headerPrimaryKey_tmp(:)
+      integer(8),        allocatable :: bodyPrimaryKey_tmp(:)
       character(len=12), allocatable :: cstnid_tmp(:)
       character(len=2),  allocatable :: cfamily_tmp(:)
       real(pre_obsReal), allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
@@ -4655,6 +4775,7 @@ contains
 
       ! allocate temporary arrays to hold data
       if(obsdat%numHeader > 0) then
+         allocate(headerPrimaryKey_tmp(obsdat%numHeader))
          allocate(cfamily_tmp(    obsdat%numHeader)) 
          allocate( cstnid_tmp(    obsdat%numHeader)) 
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
@@ -4664,6 +4785,7 @@ contains
       endif
 
       if(obsdat%numBody > 0) then
+         allocate(bodyPrimaryKey_tmp(obsdat%numBody))
          allocate( realBodies_tmp(odc_numActiveColumn(obsdat%realBodies), &
                                   obsdat%numBody))
          allocate(  intBodies_tmp(odc_numActiveColumn(obsdat%intBodies), &
@@ -4672,6 +4794,9 @@ contains
 
       ! copy the data to temporary arrays: header-level data
       do headerIndex=1,obsdat%numHeader 
+         headerPrimaryKey_tmp(headerIndex)= &
+                      obsdat%headerPrimaryKey(headerIndex)
+        
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
                                     obsdat%realHeaders%odc_flavour, active_index)
@@ -4697,6 +4822,9 @@ contains
          idata    = obs_headElem_i(obsdat, OBS_RLN,headerIndex)
          idataend = obs_headElem_i(obsdat, OBS_NLV,headerIndex)+idata-1
          do bodyIndex=idata,idataend 
+            bodyPrimaryKey_tmp(bodyIndex)= &
+                        obsdat%bodyPrimaryKey(bodyIndex)
+           
             do active_index=1,odc_numActiveColumn(obsdat%realBodies)
                column_index=odc_columnIndexFromActiveIndex( &
                                       obsdat%realBodies%odc_flavour,active_index)
@@ -4722,6 +4850,7 @@ contains
 
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(obsdat%numHeader > 0) then
+         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:)
          obsdat%cfamily(:)=cfamily_tmp(:) 
          obsdat%cstnid (:)= cstnid_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
@@ -4738,6 +4867,7 @@ contains
          enddo
 
          ! deallocate temporary arrays
+         deallocate(headerPrimaryKey_tmp)
          deallocate(cfamily_tmp)
          deallocate(cstnid_tmp)
          deallocate(realHeaders_tmp)
@@ -4745,6 +4875,7 @@ contains
       endif HEADER
 
       BODY:if(obsdat%numBody > 0) then
+         obsdat%bodyPrimaryKey(:) = bodyPrimaryKey_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realBodies)
             column_index=odc_columnIndexFromActiveIndex( &
                                      obsdat%realBodies%odc_flavour, active_index)
@@ -4759,6 +4890,7 @@ contains
          enddo
 
          ! deallocate temporary arrays
+         deallocate(bodyPrimaryKey_tmp)
          deallocate(realBodies_tmp)
          deallocate(intBodies_tmp)
       endif BODY
@@ -4784,6 +4916,7 @@ contains
       integer, allocatable :: numBodyPE_mpilocal(:), numBodyPE_mpiglobal(:)
       integer,           allocatable :: intcstnid_send(:,:,:), intcstnid_recv(:,:,:)
       integer,           allocatable :: intcfamily_send(:,:,:), intcfamily_recv(:,:,:)
+      integer(8),        allocatable :: primaryKey_send(:,:), primaryKey_recv(:,:)
       real(pre_obsReal), allocatable :: real_send(:,:,:), real_recv(:,:,:)
       integer,           allocatable :: int_send(:,:,:), int_recv(:,:,:), message_onm(:,:)
       real(pre_obsReal), allocatable :: real_send_2d(:,:), real_recv_2d(:,:)
@@ -4880,12 +5013,18 @@ contains
       allocate(int_recv(odc_numActiveColumn(obsdat_inout%intHeaders), &
                         numHeader_mpimessage,nprocs_mpi))
 
+      allocate(primaryKey_send(numHeader_mpimessage,nprocs_mpi))
+      allocate(primaryKey_recv(numHeader_mpimessage,nprocs_mpi))
+
       ! copy the data to temporary arrays: header-level data
       numHeaderPE_mpilocal(:) = 0
       int_send(:,:,:) = -99999
       do headerIndex=1,numHeader_in
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
+
+         primaryKey_send(numHeaderPE_mpilocal(1+target_ip),1+target_ip)= &
+               obsdat_inout%headerPrimaryKey(headerIndex)
 
          do activeIndex=1,odc_numActiveColumn(obsdat_inout%realHeaders)
             columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realHeaders%odc_flavour, &
@@ -4915,6 +5054,10 @@ contains
 
       ! do mpi communication: header-level data
       if(nprocs_mpi > 1) then
+        nsize = numHeader_mpimessage
+        call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
+                               primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
+
         nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%realHeaders)
         call rpn_comm_alltoall(real_send,nsize,"mpi_double_precision",  &
                                real_recv,nsize,"mpi_double_precision","GRID",ierr)
@@ -4931,6 +5074,7 @@ contains
         call rpn_comm_alltoall(intcfamily_send,nsize,"mpi_integer",  &
                                intcfamily_recv,nsize,"mpi_integer","GRID",ierr)
       else
+        primaryKey_recv(:,1)   = primaryKey_send(:,1)
         real_recv(:,:,1)       = real_send(:,:,1)
         int_recv(:,:,1)        = int_send(:,:,1)
         intcstnid_recv(:,:,1)  = intcstnid_send(:,:,1)
@@ -4952,6 +5096,9 @@ contains
                else
                  headerIndex_out = headerIndex_out + 1
                endif
+
+               obsdat_tmp%headerPrimaryKey(headerIndex_out)= &
+                     primaryKey_recv(headerIndex,procIndex)
 
                do activeIndex=1,odc_numActiveColumn(obsdat_inout%realHeaders)
                   columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realHeaders%odc_flavour, &
@@ -4992,6 +5139,8 @@ contains
          endif
       enddo
 
+      deallocate(primaryKey_send)
+      deallocate(primaryKey_recv)
       deallocate(intcfamily_send)
       deallocate(intcfamily_recv)
       deallocate(intcstnid_send)
@@ -5002,6 +5151,60 @@ contains
       deallocate(int_recv)
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      ! Do communication for bodyPrimaryKey
+
+      allocate(primaryKey_send(numBody_mpimessage,nprocs_mpi))
+      allocate(primaryKey_recv(numBody_mpimessage,nprocs_mpi))
+
+      numBodyPE_mpilocal(:) = 0
+      primaryKey_send(:,:) = -99999
+      do bodyIndex=1,numBody_in
+         headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
+         target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
+         numBodyPE_mpilocal(1+target_ip) = numBodyPE_mpilocal(1+target_ip) + 1
+         primaryKey_send(numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
+              obsdat_inout%bodyPrimaryKey(bodyIndex)
+      enddo
+      if(nprocs_mpi > 1) then
+         nsize = numBody_mpimessage
+         call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
+                                primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
+      else
+         primaryKey_recv(:,1) = primaryKey_send(:,1)
+      endif
+      if(target_ip_index == OBS_IPF) then
+         ! copy the data in the same order as in the original files
+         do procIndex = 1, nprocs_mpi
+            bodyIndex = 0
+            do headerIndex=1,numHeader_mpimessage
+               headerIndex_out = message_onm(headerIndex,procIndex)
+               if(headerIndex_out /= -99999) then
+                  bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
+                  bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
+                  do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
+                     bodyIndex = bodyIndex + 1
+                     obsdat_tmp%bodyPrimaryKey(bodyIndex_out)= &
+                          primaryKey_recv(bodyIndex,procIndex)
+                  enddo
+               endif
+            enddo
+         enddo
+         ! copy the data in sequential order
+         bodyIndex_out = 0
+         do procIndex = 1, nprocs_mpi
+            do bodyIndex=1,numBody_mpimessage
+               if(primaryKey_recv(bodyIndex,procIndex) /= -99999) then
+                  bodyIndex_out = bodyIndex_out + 1
+                  obsdat_tmp%bodyPrimaryKey(bodyIndex_out)= &
+                       primaryKey_recv(bodyIndex,procIndex)
+               endif
+            enddo
+         enddo
+      endif
+
+      deallocate(primaryKey_send)
+      deallocate(primaryKey_recv)
 
       ! First do REAL body columns
 
@@ -5655,6 +5858,43 @@ contains
       index_list%current_element = 0    ! Set pointer to the start of the list
       depot%current_list => index_list  ! Note the current list
    end subroutine obs_set_current_header_list_all
+
+
+   subroutine obs_setBodyPrimaryKey(obsdat,bodyIndex,primaryKey)
+      !
+      ! :Purpose:
+      !      Set to the indicated value the body primary key for the indicated body.
+      !
+      implicit none
+      type(struct_obs), intent(inout) :: obsdat
+      integer(8),       intent(in)    :: primaryKey
+      integer,          intent(in)    :: bodyIndex
+
+      obsdat%bodyPrimaryKey(bodyIndex) = primaryKey
+
+      if(bodyIndex == (obsdat%numBody+1)) then
+         obsdat%numBody=obsdat%numBody+1
+      endif
+
+   end subroutine obs_setBodyPrimaryKey
+
+
+   subroutine obs_setHeadPrimaryKey(obsdat,headerIndex,primaryKey)
+      !
+      ! :Purpose:
+      !      Set to the indicated value the header primary key for the indicated header.
+      !
+      implicit none
+      type(struct_obs), intent(inout) :: obsdat
+      integer(8),       intent(in)    :: primaryKey
+      integer,optional, intent(in)    :: headerIndex
+
+      obsdat%headerPrimaryKey(headerIndex) = primaryKey
+      if(headerIndex == (obsdat%numHeader+1)) then
+         obsdat%numHeader=obsdat%numHeader+1
+      endif
+
+   end subroutine obs_setHeadPrimaryKey
 
 
    subroutine obs_setFamily(obsdat,Family_in,headerIndex_in,bodyIndex)

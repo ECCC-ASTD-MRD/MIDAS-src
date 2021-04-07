@@ -1243,8 +1243,6 @@ CONTAINS
                   END IF
 
                   IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-                  !if ( kk < obs_headElem_i(obsdat,OBS_IDO,OBSN) ) print *, ' kk OBS_IDO cycle =',kk, obs_headElem_i(obsdat,OBS_IDO,OBSN)
-                  !if ( kk < obs_headElem_i(obsdat,OBS_IDO,OBSN) ) cycle elems
 
                   is_in_list=-1
                   is_in_list=FIND_INDEX(LISTE_ELE,iele)
@@ -2878,10 +2876,8 @@ CONTAINS
                   IF (OBSN > 1 ) THEN
                     LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                     call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
-                    !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                   ELSE
                     call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
-                    !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                   END IF
 
                   ! write info block to header (same values for all headers associated with report)
@@ -2942,10 +2938,8 @@ CONTAINS
                 IF (OBSN  > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
-                  !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                 ELSE
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
-                  !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                 END IF
               END IF
             END IF
@@ -3009,10 +3003,8 @@ CONTAINS
                 IF (OBSN   > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
-                  !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                 ELSE
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
-                  !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                 END IF
 
               END IF
@@ -3434,7 +3426,6 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_ETM,nobs,TIME)
     call obs_headSet_i(obsdat,OBS_ITY,nobs,CODTYP)
     call obs_headSet_i(obsdat,OBS_ST1,nobs,STATUS)
-    !call obs_headSet_i(obsdat,OBS_IDO,nobs,NOBS)
     call obs_headSet_r(obsdat,OBS_ALT,nobs,ELEV)
     !call obs_headSet_i(obsdat,OBS_IDF,nobs,FILENUMB)
     call obs_headSet_i(obsdat,OBS_OTP,nobs,FILENUMB)
