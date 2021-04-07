@@ -85,18 +85,17 @@ CONTAINS
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
   subroutine inc_computeHighResAnalysis(statevector_incLowRes, stateVectorTrial, &
-                                        statevector_trial, statevector_Psfc, &
-                                        statevector_analysis)
+                                        statevector_Psfc, statevector_analysis)
     implicit none
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector_incLowRes
     type(struct_gsv), intent(in), target :: statevectorTrial
-    type(struct_gsv), pointer :: statevector_trial
     type(struct_gsv), intent(out) :: statevector_Psfc
     type(struct_gsv), intent(out) :: statevector_analysis
 
     ! Locals:
+    type(struct_gsv), pointer :: statevector_trial
     type(struct_gsv) :: statevector_PsfcLowRes
     type(struct_gsv) :: statevector_mask
 
@@ -279,10 +278,9 @@ CONTAINS
     end if
 
     !
-    !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR)
+    !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for analysis
     !
     call gvt_transform(stateVector_analysis,'AllTransformedToModel',allowOverWrite_opt=.true.)
-    call gvt_transform(stateVector_trial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
     !
     !- Impose limits on humidity analysis
@@ -306,21 +304,24 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrementHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes(statevector_Psfc, statevector_trial, &
-                                       statevector_analysis)
+  subroutine inc_writeIncrementHighRes(statevector_incLowRes, statevectorTrial, &
+                                       statevector_Psfc, statevector_analysis)
                                         
     implicit none
 
     ! Arguments:
+    type(struct_gsv), intent(in) :: statevector_incLowRes
+    type(struct_gsv), intent(in), target :: statevectorTrial
     type(struct_gsv), intent(in) :: statevector_Psfc
-    type(struct_gsv), intent(in), pointer :: statevector_trial
     type(struct_gsv), intent(in) :: statevector_analysis
 
     ! Locals:
+    type(struct_gsv), pointer :: statevector_trial
     type(struct_gsv) :: statevector_incHighRes
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
 
     type(struct_vco), pointer :: vco_trl => null()
+    type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
@@ -337,19 +338,45 @@ CONTAINS
 
     logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
 
+    write(*,*) 'inc_writeIncrementHighRes: STARTING'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
     ! Setup timeCoord module (date read from trial file)
     numStep = tim_nstepobsinc
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
-    hco_trl => gsv_getHco(statevector_trial)
-    vco_trl => gsv_getVco(statevector_trial)
+    !- Do we need to read all the vertical levels from the trial fields?
+    vco_inc => statevector_incLowRes%vco
+
+    hco_trl => gsv_getHco(statevectorTrial)
+    vco_trl => gsv_getVco(statevectorTrial)
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
       allocHeightSfc = .false.
     else
-      allocHeightSfc = stateVector_trial%heightSfcPresent
+      allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
     writeHeightSfc = allocHeightSfc
+
+    !- In some cases we need to just extract a subset of levels from the trials
+    useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
+    if ( useIncLevelsOnly ) then
+      write(*,*) 'inc_writeIncrementHighRes: extract only the increment levels from the trials'
+      allocate(statevector_trial)
+      call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_inc,   &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
+      call gsv_interpolate(stateVectorTrial, statevector_trial)        
+      vco_trl => gsv_getVco(statevector_trial)
+    else
+      write(*,*) 'inc_writeIncrementHighRes: use the supplied trials directly'
+      statevector_trial => stateVectorTrial
+    end if
+
+    !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
+    call gvt_transform(stateVector_trial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
     !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
     nullify(varNames)
@@ -463,6 +490,8 @@ CONTAINS
     end if
     call gsv_deallocate(statevector_incHighRes)
     call gsv_deallocate(statevector_trial)
+
+    write(*,*) 'inc_writeIncrementHighRes: END'
 
   end subroutine inc_writeIncrementHighRes
 

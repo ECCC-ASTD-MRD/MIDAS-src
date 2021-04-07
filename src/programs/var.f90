@@ -58,7 +58,6 @@ program midas_var
   type(struct_columnData), target  :: trlColumnOnTrlLev
   type(struct_gsv)                 :: stateVectorIncr
   type(struct_gsv)                 :: stateVectorTrial
-  type(struct_gsv), pointer        :: stateVectorTrialTransformed
   type(struct_gsv)                 :: statevector_Psfc
   type(struct_gsv)                 :: stateVectorAnalHighRes
   type(struct_hco), pointer        :: hco_anl => null()
@@ -228,8 +227,7 @@ program midas_var
 
   ! Compute high-resolution analysis on trial grid
   call inc_computeHighResAnalysis(stateVectorIncr, stateVectorTrial, &
-                                  statevectorTrialTransformed, statevector_Psfc, &
-                                  stateVectorAnalHighRes)
+                                  statevector_Psfc, stateVectorAnalHighRes)
 
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')
@@ -245,8 +243,8 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_writeIncrementHighRes(statevector_Psfc, stateVectorTrialTransformed, &
-                                 stateVectorAnalHighRes)
+  call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
+                                 statevector_Psfc, stateVectorAnalHighRes)
   call tmg_stop(18)
 
   if (mpi_myid == 0) then
