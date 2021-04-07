@@ -557,8 +557,8 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, 1.0d0, 0,  &
-                            stepIndex, containsFullField_opt=.false. )
+      call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
+                            ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
 
     enddo
 
