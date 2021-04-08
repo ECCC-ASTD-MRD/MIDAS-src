@@ -53,16 +53,17 @@ program midas_var
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
 
-  type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: trlColumnOnAnlLev
-  type(struct_columnData), target  :: trlColumnOnTrlLev
-  type(struct_gsv)                 :: stateVectorIncr
-  type(struct_gsv)                 :: stateVectorTrial
-  type(struct_gsv)                 :: statevector_Psfc
-  type(struct_gsv)                 :: stateVectorAnalHighRes
-  type(struct_hco), pointer        :: hco_anl => null()
-  type(struct_vco), pointer        :: vco_anl => null()
-  type(struct_hco), pointer        :: hco_core => null()
+  type(struct_obs)       , target :: obsSpaceData
+  type(struct_columnData), target :: trlColumnOnAnlLev
+  type(struct_columnData), target :: trlColumnOnTrlLev
+  type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorTrial
+  type(struct_gsv)                :: statevector_Psfc
+  type(struct_gsv)                :: stateVectorAnalHighRes
+  type(struct_gsv)       , target :: stateVectorTrialHU
+  type(struct_hco)      , pointer :: hco_anl => null()
+  type(struct_vco)      , pointer :: vco_anl => null()
+  type(struct_hco)      , pointer :: hco_core => null()
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -193,6 +194,14 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(2)
 
+  ! Initialize stateVectorTrialHU on analysis grid for passing to B matrix routines.
+  call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                    allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                    varNames_opt=(/'HU','P0'/) )
+
+  call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
+
   ! Read trials and horizontally interpolate to columns
   call tmg_start(34,'SETUPCOLUMN')
   call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
@@ -223,7 +232,7 @@ program midas_var
 
   ! get final increment with mask if it exists
   call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
-                        statevectorRef_opt=stateVectorTrial)
+                        statevectorRef_opt=stateVectorTrialHU)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
 
   ! Compute high-resolution analysis on trial grid
@@ -254,6 +263,7 @@ program midas_var
   end if
 
   call gsv_deallocate(stateVectorIncr)
+  call gsv_deallocate(stateVectorTrialHU)
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)
