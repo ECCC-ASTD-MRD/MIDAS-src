@@ -189,6 +189,14 @@ CONTAINS
     logical, optional          :: allowOverWrite_opt
     character(len=*), optional :: varName_opt
 
+    ! check stateVector and statevectorOut_opt are on the same grid
+    if ( present(stateVectorRef_opt) ) then
+      if ( .not. hco_equal(stateVectorRef_opt%hco, stateVector%hco) .or. &
+           .not. vco_equal(stateVectorRef_opt%vco, stateVector%vco) ) then
+        call utl_abort('gvt_transform: stateVectorRef_opt not on same grid as stateVector')
+      end if
+    end if
+
     select case(trim(transform))
 
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR, LVIStoVIS
