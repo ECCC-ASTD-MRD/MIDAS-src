@@ -222,7 +222,8 @@ program midas_var
        dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
   ! get final increment with mask if it exists
-  call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)
+  call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
+                        statevectorRef_opt=stateVectorTrial)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
 
   ! Compute high-resolution analysis on trial grid
