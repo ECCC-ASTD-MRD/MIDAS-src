@@ -49,10 +49,10 @@ module obsdbFiles_mod
   character(len=lenSqlName) :: bodyTableName = 'data'
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 19
+  integer, parameter :: numHeadMatch = 18
+  character(len=lenSqlName) :: headKeySqlName = 'ID_OBS'
   character(len=lenSqlName) :: headMatchList(2,numHeadMatch) = (/ &
-       'ID_STN',        'NULL', &
-       'ID_OBS',        'IDO ', &
+       'ID_STN',        'STNID', &
        'LAT',           'LAT ', &
        'LON',           'LON ', &
        'CODTYP',        'ITY ', &
@@ -72,9 +72,9 @@ module obsdbFiles_mod
        'CLOUD_COVER',   'CLF ' /)
 
   ! ...for the body table
-  integer, parameter :: numBodyMatch = 11
+  integer, parameter :: numBodyMatch = 10
+  character(len=lenSqlName) :: bodyKeySqlName = 'ID_DATA'
   character(len=lenSqlName) :: bodyMatchList(2,numBodyMatch) = (/ &
-       'ID_DATA',       'IDD ', &
        'VCOORD',        'PPP ', &
        'VARNO',         'VNM ', &
        'OBSVALUE',      'VAR ', &
@@ -115,10 +115,8 @@ contains
 
     ! default values
     obsDbActive = .false.
-    numElemIdList = 2
+    numElemIdList = 0
     elemIdList(:) = 0
-    elemIdList(1) = BUFR_SST
-    elemIdList(2) = BUFR_SOZ
 
     if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -134,6 +132,10 @@ contains
       ierr = fclos(nulnam)
     end if
     if ( mpi_myid == 0 ) write(*, nml=namObsDb)
+
+    if (obsDbActive .and. numElemIdList==0) then
+      call utl_abort('odbf_setup: element list is empty')
+    end if
 
   end subroutine odbf_setup
 
@@ -179,6 +181,8 @@ contains
     character(len=lenSqlName), allocatable :: headSqlNames(:),    bodySqlNames(:)
     character(len=50),         allocatable :: headCharValues(:,:)
     real(8),                   allocatable :: headValues(:,:), bodyValues(:,:)
+    integer(8),                allocatable :: headPrimaryKey(:)
+    integer(8),                allocatable :: bodyPrimaryKey(:), bodyHeadKey(:)
 
     write(*,*)
     write(*,*) 'odbf_readFile: Starting'
@@ -214,6 +218,8 @@ contains
 
     !- 1.1 Read the contents of the file into local tables
 
+    call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, fileName=trim(fileName))
+
     call odbf_getColumnValues_char(headCharValues, fileName=trim(fileName), &
                                    tableName=headTableName, sqlColumnNames=headCharSqlNames)
     call odbf_getColumnValues_num(headValues, fileName=trim(fileName), &
@@ -225,10 +231,19 @@ contains
 
     ! For debugging, print first 10 rows of each local table to the listing
     do headTableIndex = 1, min(10, numRowsHeadTable)
+      write(*,*) 'odbf_readFile: headKeyValues  = ', headPrimaryKey(headTableIndex)
+    end do
+    do headTableIndex = 1, min(10, numRowsHeadTable)
       write(*,*) 'odbf_readFile: headCharValues = ', headCharValues(headTableIndex,:)
     end do
     do headTableIndex = 1, min(10, numRowsHeadTable)
       write(*,*) 'odbf_readFile: headValues = ', headValues(headTableIndex,:)
+    end do
+    do bodyTableIndex = 1, min(10, numRowsBodyTable)
+      write(*,*) 'odbf_readFile: bodyKeyValues  = ', bodyPrimaryKey(bodyTableIndex)
+    end do
+    do bodyTableIndex = 1, min(10, numRowsBodyTable)
+      write(*,*) 'odbf_readFile: bodyHeadKeyValues  = ', bodyHeadKey(bodyTableIndex)
     end do
     do bodyTableIndex = 1, min(10, numRowsBodyTable)
       write(*,*) 'odbf_readFile: bodyValues = ', bodyValues(bodyTableIndex,:)
@@ -245,12 +260,12 @@ contains
                                      headIndexBegin)
 
     ! Header-Numeric values
-    call odbf_copyToObsSpaceHead(obsdat, headSqlNames, headValues, &
-                                 headIndexBegin)
+    call odbf_copyToObsSpaceHead(obsdat, headSqlNames, headPrimaryKey, &
+                                 headValues, headIndexBegin)
 
     ! Body-Numeric values
-    call odbf_copyToObsSpaceBody(obsdat, bodySqlNames, bodyValues, &
-                                 bodyIndexBegin, headIndexBegin)
+    call odbf_copyToObsSpaceBody(obsdat, bodySqlNames, bodyPrimaryKey, bodyHeadKey, &
+                                 bodyValues, bodyIndexBegin, headIndexBegin)
 
     ! Get indexes of last rows added to obsSpaceData
     bodyIndexEnd = obs_numBody(obsdat)
@@ -334,7 +349,8 @@ contains
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer              :: obsIdf, obsIdd, obsIdo, obsStatus
+    integer(8)           :: obsIdd, obsIdo
+    integer              :: obsIdf, obsStatus
     integer              :: columnIndex, updateItemIndex, matchIndex
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
     integer              :: updateValue_i, updateList(20), fnom, fclos, nulnam, ierr
@@ -342,7 +358,6 @@ contains
     logical              :: headFlagPresent
     character(len=4)     :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, headFlagSqlName
-    character(len=lenSqlName) :: bodyKeySqlName, headKeySqlName
     character(len=3000)  :: query
     character(len=lenSqlName), allocatable :: headSqlNames(:)
     logical, save        :: nmlAlreadyRead = .false.
@@ -399,12 +414,6 @@ contains
       end if
     end do
     
-    ! figure out sql column name for body table key (OBS_IDD)
-    bodyKeySqlName = odbf_sqlNameFromObsSpaceName('IDD')
-
-    ! figure out sql column name for header table key (OBS_IDO)
-    headKeySqlName = odbf_sqlNameFromObsSpaceName('IDO')
-
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -452,15 +461,14 @@ contains
       obsIdf = obs_headElem_i( obsdat,OBS_IDF, headIndex )
  
       if ( obsIdf /= fileIndex ) cycle HEADER
-      obsIdo = obs_headElem_i( obsdat, OBS_IDO, headIndex )
       bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
       bodyIndexEnd = bodyIndexBegin + &
                      obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
 
       BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
 
-        obsIdd  = obs_bodyElem_i( obsdat, OBS_IDD, bodyIndex )
-        call fSQL_bind_param(stmt, PARAM_INDEX=numberUpdateItems+1, INT_VAR=obsIdd)
+        obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
+        call fSQL_bind_param(stmt, PARAM_INDEX=numberUpdateItems+1, INT8_VAR=obsIdd)
 
         ITEMS: do updateItemIndex = 1, numberUpdateItems
 
@@ -518,10 +526,10 @@ contains
         obsIdf = obs_headElem_i(obsdat, OBS_IDF, headIndex)
         if ( obsIdf /= fileIndex ) cycle HEADER2
 
-        obsIdo    = obs_headElem_i(obsdat, OBS_IDO, headIndex)
+        obsIdo    = obs_headPrimaryKey( obsdat, headIndex )
         obsStatus = obs_headElem_i(obsdat, OBS_ST1, headIndex)
         call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
+        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR = obsIdo )
         call fSQL_exec_stmt ( stmt )
 
       end do HEADER2
@@ -610,6 +618,96 @@ contains
   end subroutine odbf_getSqlColumnNames
 
   !--------------------------------------------------------------------------
+  ! odbf_getPrimaryKeys
+  !--------------------------------------------------------------------------
+  subroutine odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, &
+                                 fileName)
+    !
+    ! :Purpose: Read the values from obsDB file for the head and body table
+    !           primary keys.
+    !
+    implicit none
+
+    ! arguments:
+    integer(8), allocatable, intent(out) :: headPrimaryKey(:)
+    integer(8), allocatable, intent(out) :: bodyPrimaryKey(:)
+    integer(8), allocatable, intent(out) :: bodyHeadKey(:)
+    character(len=*),        intent(in)  :: fileName
+
+    ! locals:
+    integer :: numRows, numColumns
+    integer(8), allocatable   :: tempHeadKey(:,:), tempBodyKey(:,:)
+    character(len=3000)       :: query
+    type(fSQL_STATUS)         :: stat ! sqlite error status
+    type(fSQL_DATABASE)       :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)      :: stmt ! precompiled sqlite statements
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_getPrimaryKeys: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getPrimaryKeys: fSQL_open' )
+    end if
+
+    ! build the sqlite query for the HEADER primary key
+    query = 'select ' // trim(headKeySqlName) // ' from ' // &
+         trim(headTableName) // ';'
+    write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    ! note: "status" not set when getting integers
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_INT8 )
+    write(*,*) 'odbf_getPrimaryKeys: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( headPrimaryKey(numRows) )
+    allocate( tempHeadKey(numRows,1) )
+    call fSQL_fill_matrix( stmt, tempHeadKey )
+    headPrimaryKey(:) = tempHeadKey(:,1)
+    deallocate(tempHeadKey)
+
+    ! build the sqlite query for the BODY primary key
+    query = 'select ' // trim(bodyKeySqlName) // ' from ' // &
+            trim(bodyTableName) // ';'
+    write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query) , stmt, status=stat )
+    ! note: "status" not set when getting integers
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_INT8 )
+    write(*,*) 'odbf_getPrimaryKeys: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( bodyPrimaryKey(numRows) )
+    allocate( tempBodyKey(numRows,1) )
+    call fSQL_fill_matrix( stmt, tempBodyKey )
+    bodyPrimaryKey(:) = tempBodyKey(:,1)
+    deallocate(tempBodyKey)
+
+    ! build the sqlite query for the BODY-HEAD key
+    query = 'select ' // trim(headKeySqlName) // ' from ' // &
+            trim(bodyTableName) // ';'
+    write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query) , stmt, status=stat )
+    ! note: "status" not set when getting integers
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_INT8 )
+    write(*,*) 'odbf_getPrimaryKeys: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( bodyHeadKey(numRows) )
+    allocate( tempBodyKey(numRows,1) )
+    call fSQL_fill_matrix( stmt, tempBodyKey )
+    bodyHeadKey(:) = tempBodyKey(:,1)
+    deallocate(tempBodyKey)
+
+    ! close the obsDB file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine odbf_getPrimaryKeys
+
+  !--------------------------------------------------------------------------
   ! odbf_getColumnValues_char
   !--------------------------------------------------------------------------
   subroutine odbf_getColumnValues_char(columnValues, fileName, tableName, &
@@ -651,7 +749,7 @@ contains
     write(*,*) 'odbf_getColumnValues_char: query ---> ', trim(query)
 
     ! read the values from the file
-    call fSQL_prepare( db, trim(query) , stmt, status=stat )
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -769,6 +867,7 @@ contains
     integer,          intent(in)    :: headIndexBegin
 
     ! locals:
+    character(len=lenSqlName) :: stnIdSqlName
     integer :: columnIndex, matchIndex, headTableIndex, headIndex
     integer :: numRowsHeadTable
 
@@ -779,18 +878,19 @@ contains
 
       if (matchIndex == 0) then
 
-        write(*,*) 'odbf_copyToObsSpaceHeadChar: name not in list of known header column names = ', &
-                   trim(headCharSqlNames(columnIndex))
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: name not in list of known ' // &
+                   'header column names = ', trim(headCharSqlNames(columnIndex))
 
       else
-
-        if (headCharSqlNames(columnIndex) /= 'ID_STN') then
-          call utl_abort('odbf_copyToObsSpaceHeadChar: only valid char column is ID_STN')
+        stnIdSqlName = odbf_sqlNameFromObsSpaceName('STNID')
+        if (headCharSqlNames(columnIndex) /= trim(stnIdSqlName)) then
+          call utl_abort('odbf_copyToObsSpaceHeadChar: only valid char column is STNID')
         end if
         do headTableIndex = 1, numRowsHeadTable
           headIndex = headTableIndex + headIndexBegin - 1
           if (headTableIndex == 1) then
-            write(*,*) 'odbf_copyToObsSpaceHeadChar: set header char column   : ', trim(headCharSqlNames(columnIndex))
+            write(*,*) 'odbf_copyToObsSpaceHeadChar: set header char column   : ', &
+                       trim(headCharSqlNames(columnIndex))
           end if
           call obs_set_c(obsdat, 'STID', &
                          headIndex, headCharValues(headTableIndex,columnIndex))
@@ -805,7 +905,7 @@ contains
   !--------------------------------------------------------------------------
   ! odbf_copyToObsSpaceHead
   !--------------------------------------------------------------------------
-  subroutine odbf_copyToObsSpaceHead(obsdat, headSqlNames, &
+  subroutine odbf_copyToObsSpaceHead(obsdat, headSqlNames, headPrimaryKey, &
                                      headValues, headIndexBegin)
     !
     ! :Purpose: Copy real and integer values from a local table into
@@ -816,6 +916,7 @@ contains
     ! arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: headSqlNames(:)
+    integer(8),       intent(in)    :: headPrimaryKey(:)
     real(8),          intent(in)    :: headValues(:,:)
     integer,          intent(in)    :: headIndexBegin
 
@@ -824,6 +925,12 @@ contains
     integer :: numRowsHeadTable, obsColumnIndex
 
     numRowsHeadTable = size(headValues,1)
+
+    write(*,*) 'odbf_copyToObsSpaceHead: set header primary key'
+    do headTableIndex = 1, numRowsHeadTable
+      headIndex = headTableIndex + headIndexBegin - 1
+      call obs_setHeadPrimaryKey( obsdat,  headIndex, headPrimaryKey(headTableIndex))
+    end do
 
     column_loop: do columnIndex = 1, size(headSqlNames)
       matchIndex = utl_findloc(headMatchList(sqlColIndex,:), headSqlNames(columnIndex))
@@ -872,7 +979,8 @@ contains
   ! odbf_copyToObsSpaceBody
   !--------------------------------------------------------------------------
   subroutine odbf_copyToObsSpaceBody(obsdat, bodySqlNames, &
-                                     bodyValues, bodyIndexBegin, headIndexBegin)
+                                     bodyPrimaryKey, bodyHeadKey, bodyValues, &
+                                     bodyIndexBegin, headIndexBegin)
     !
     ! :Purpose: Copy real and integer values from a local table into
     !           obsSpaceData body rows.
@@ -882,15 +990,17 @@ contains
     ! arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: bodySqlNames(:)
+    integer(8),       intent(in)    :: bodyPrimaryKey(:)
+    integer(8),       intent(in)    :: bodyHeadKey(:)
     real(8),          intent(in)    :: bodyValues(:,:)
     integer,          intent(in)    :: bodyIndexBegin
     integer,          intent(in)    :: headIndexBegin
 
     ! locals:
-    character(len=lenSqlName) :: keyHeadSqlName, obsValueSqlName
+    character(len=lenSqlName) :: obsValueSqlName
     integer :: columnIndex, matchIndex, bodyTableIndex, bodyIndex, headIndex
     integer :: numRowsBodyTable
-    integer :: bodyColumnIndexObsValue, bodyColumnIndexHeadKey
+    integer :: bodyColumnIndexObsValue
     integer :: lastHeadKey, obsNlv
     integer, allocatable :: matchIndexVec(:)
     integer, allocatable :: obsColumnIndex(:)
@@ -912,10 +1022,6 @@ contains
     obsValueSqlName = odbf_sqlNameFromObsSpaceName('VAR')
     bodyColumnIndexObsValue = utl_findloc(bodySqlNames(:), obsValueSqlName)
 
-    ! figure out column index for primary key of header table (OBS_IDO)
-    keyHeadSqlName = odbf_sqlNameFromObsSpaceName('IDO')
-    bodyColumnIndexHeadKey  = utl_findloc(bodySqlNames(:), keyHeadSqlName)
-
     lastHeadKey = 0
     headIndex = headIndexBegin - 1
     bodyIndex = bodyIndexBegin - 1
@@ -930,24 +1036,30 @@ contains
       end if
 
       ! count number of body rows for each header row (OBS_NLV)
-      if ( bodyValues(bodyTableIndex,bodyColumnIndexHeadKey) /= lastHeadKey ) then
+      if ( bodyHeadKey(bodyTableIndex) /= lastHeadKey ) then
         headIndex = headIndex + 1
         call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
-        lastHeadKey = bodyValues(bodyTableIndex,bodyColumnIndexHeadKey)
+        lastHeadKey = bodyHeadKey(bodyTableIndex)
       end if
       obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
       call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
 
       ! check that the primary key for header table matches the value in the body table
-      if (obs_headElem_i(obsdat, OBS_IDO, headIndex) /= &
-          nint(bodyValues(bodyTableIndex,bodyColumnIndexHeadKey))) then
+      if ( obs_headPrimaryKey( obsdat, headIndex ) /= &
+           bodyHeadKey(bodyTableIndex) ) then
         write(*,*) 'odbf_copyToObsSpaceBody: primary key in HEADER table = ', &
-                   obs_headElem_i(obsdat, OBS_IDO, headIndex)
+                   obs_headPrimaryKey( obsdat, headIndex )
         write(*,*) 'odbf_copyToObsSpaceBody: same key in BODY table      = ', &
-                   nint(bodyValues(bodyTableIndex,bodyColumnIndexHeadKey))
+                   bodyHeadKey(bodyTableIndex)
         call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table not equal ' // &
                        'to value in BODY table')
       end if
+
+      ! copy body primary key to obsSpaceData
+      if (bodyTableIndex == 1) then
+        write(*,*) 'odbf_copyToObsSpaceBody: set body primary key'
+      end if
+      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
 
       ! copy real and integer values into obsSpaceData
       columnIndex_loop: do columnIndex = 1, size(bodySqlNames)
