@@ -199,6 +199,9 @@ if [ -n "${observations}" ]; then
 	    obsdir=${PWD}/obs.splitobs
         fi
 
+        let splitobs_counter=0 || true
+
+        ${echo_cmd} splitobs process started at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=0
         SECONDS=0
         for filename in ${observations}; do
             bfilename=${filename##*/}
@@ -215,8 +218,19 @@ if [ -n "${observations}" ]; then
                 -cp_cmd ${cp_cmd} -mv_cmd ${mv_cmd} -mkdir_cmd ${mkdir_cmd}     \
                 -sleep_cmd ${sleep_cmd} -echo_cmd ${echo_cmd}                   \
                 > splitfiles.${bfilename}.${MP_CHILD}.listing 2>&1 || touch splitfiles.${bfilename}.${MP_CHILD}.abort &
+            let splitobs_counter=splitobs_counter+1
+            if [ -n "${MIDAS_CONCURRENT_SPLITOBS}" ]; then
+                if [ "${splitobs_counter}" -eq "${MIDAS_CONCURRENT_SPLITOBS}" ]; then
+                    ${echo_cmd} waiting for splitobs to finish at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
+                    wait
+                    ${echo_cmd} waited for splitobs to finish at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
+                    let splitobs_counter=0 || true
+                fi
+            fi
         done
+        ${echo_cmd} all splitobs launched at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
         wait
+        ${echo_cmd} all splitobs done at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
 
         for file in ${OBS_DIRECTORY}/obs*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then
