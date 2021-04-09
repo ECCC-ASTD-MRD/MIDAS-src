@@ -62,6 +62,8 @@ module innovation_mod
 
   character(len=48) :: innovationMode
 
+  logical :: initialized = .false.
+
 contains
 
   !--------------------------------------------------------------------------
@@ -207,6 +209,8 @@ contains
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
 
+    initialized = .true.
+
   end subroutine inn_setupAnlVar
 
 
@@ -255,6 +259,11 @@ contains
     end if
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+
+    ! check if list of analyzed variables is initialized
+    if ( .not. initialized ) then
+       call utl_abort('inn_setupBackgroundColumns: add call to inn_setupAnlVar in the main program to initialize the list of analysis variables')
+    end if
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)

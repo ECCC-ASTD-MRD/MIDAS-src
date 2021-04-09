@@ -158,6 +158,11 @@ program midas_obsSelection
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  !
+  ! Initialize list of analyzed variables.
+  !
+  call inn_setupAnlVar()
+
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
