@@ -194,14 +194,6 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(2)
 
-  ! Initialize stateVectorTrialHU on analysis grid for passing to B matrix routines.
-  call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                    allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                    varNames_opt=(/'HU','P0'/) )
-
-  call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
-
   ! Read trials and horizontally interpolate to columns
   call tmg_start(34,'SETUPCOLUMN')
   call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
@@ -214,6 +206,16 @@ program midas_var
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
   call tmg_stop(34)
 
+  ! Initialize stateVectorTrialHU on analysis grid for passing to B matrix routines.
+  if ( gsv_varExist(stateVectorTrial,'HU') ) then
+    call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=(/'HU','P0'/) )
+
+    call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
+  end if
+
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
@@ -221,7 +223,8 @@ program midas_var
   end if
 
   ! Do minimization of cost function
-  call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVectorIncr)
+  call min_minimize(trlColumnOnAnlLev, obsSpaceData, controlVectorIncr, &
+                    stateVectorRef_opt=stateVectorTrialHU)
 
   ! Compute satellite bias correction increment and write to file
   call bcs_writebias(controlVectorIncr)
@@ -263,7 +266,7 @@ program midas_var
   end if
 
   call gsv_deallocate(stateVectorIncr)
-  call gsv_deallocate(stateVectorTrialHU)
+  if ( stateVectorTrialHU%allocated ) call gsv_deallocate(stateVectorTrialHU)
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)

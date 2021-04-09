@@ -65,6 +65,8 @@ module minimization_mod
     type(struct_columnData),pointer :: columng
   end type struct_dataptr
 
+  type(struct_gsv), pointer :: stateVectorTrialHU_ptr => null()
+
   logical             :: initialized = .false.
 
   integer             :: envar_loop   ! environment variable
@@ -183,12 +185,13 @@ CONTAINS
 
   end subroutine min_setup
 
-  subroutine min_minimize(columng,obsSpaceData,vazx)
+  subroutine min_minimize(columng,obsSpaceData,vazx,stateVectorRef_opt)
     implicit none
 
     real*8 :: vazx(:)
-    type(struct_obs)          :: obsSpaceData
-    type(struct_columnData)   :: columng
+    type(struct_obs)           :: obsSpaceData
+    type(struct_columnData)    :: columng
+    type(struct_gsv), target, optional :: stateVectorRef_opt
 
     type(struct_columnData)   :: column
     integer :: get_max_rss
@@ -198,6 +201,10 @@ CONTAINS
     write(*,*) '--------------------------------'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_start(3,'MIN')
+
+    if ( present(statevectorRef_opt) ) then
+      if ( statevectorRef_opt%allocated ) stateVectorTrialHU_ptr => stateVectorRef_opt
+    end if
 
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
@@ -1029,7 +1036,12 @@ CONTAINS
          call gsv_readMaskFromFile(statevector,'./analysisgrid')
        end if
 
-       call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+       if ( associated(stateVectorTrialHU_ptr) ) then
+         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
+                         stateVectorRef_opt=stateVectorTrialHU_ptr)
+       else
+         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+       end if
 
        call tmg_start(30,'OBS_INTERP')
        call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
@@ -1082,7 +1094,12 @@ CONTAINS
 
        da_gradJ(:) = 0.d0
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData)
-       call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
+       if ( associated(stateVectorTrialHU_ptr) ) then
+         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
+                          stateVectorRef_opt=stateVectorTrialHU_ptr)
+       else
+         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
+       end if
        !call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then
