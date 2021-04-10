@@ -168,6 +168,7 @@ program midas_var
   ! Initialize list of analyzed variables.
   !
   call inn_setupAnlVar()
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !- Set/Read values for the namelist NAMINC
@@ -192,19 +193,19 @@ program midas_var
   !
   call min_setup( cvm_nvadim ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(2)
 
   ! Read trials and horizontally interpolate to columns
-  call tmg_start(34,'SETUPCOLUMN')
   call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
                                    stateVectorTrialOut_opt=stateVectorTrial )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-  call tmg_stop(34)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize stateVectorTrialHU on analysis grid for passing to B matrix routines.
   if ( gsv_varExist(stateVectorTrial,'HU') ) then
@@ -214,7 +215,9 @@ program midas_var
                       varNames_opt=(/'HU','P0'/) )
 
     call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
+  call tmg_stop(2)
 
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
@@ -225,6 +228,7 @@ program midas_var
   ! Do minimization of cost function
   call min_minimize(trlColumnOnAnlLev, obsSpaceData, controlVectorIncr, &
                     stateVectorRef_opt=stateVectorTrialHU)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
   call bcs_writebias(controlVectorIncr)
@@ -237,14 +241,17 @@ program midas_var
   call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
                         statevectorRef_opt=stateVectorTrialHU)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute high-resolution analysis on trial grid
   call inc_computeHighResAnalysis(stateVectorIncr, stateVectorTrial, &
                                   statevector_Psfc, stateVectorAnalHighRes)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')
   call inc_writeIncrement(stateVectorIncr) ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
@@ -258,6 +265,7 @@ program midas_var
   call tmg_start(18,'ADDINCREMENT')
   call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
                                  statevector_Psfc, stateVectorAnalHighRes)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 
   if (mpi_myid == 0) then
