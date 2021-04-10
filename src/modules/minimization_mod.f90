@@ -59,11 +59,9 @@ module minimization_mod
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
-  type struct_dataptr
-    type(struct_obs),pointer        :: obsSpaceData
-    type(struct_columnData),pointer :: column
-    type(struct_columnData),pointer :: columng
-  end type struct_dataptr
+  type(struct_obs)       , pointer :: obsSpaceData_ptr => null()
+  type(struct_columnData), pointer :: column_ptr       => null()
+  type(struct_columnData), pointer :: columng_ptr      => null()
 
   type(struct_gsv), pointer :: stateVectorTrialHU_ptr => null()
 
@@ -74,7 +72,6 @@ module minimization_mod
   integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
-  integer             :: dataptr_int_size=0
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
@@ -237,13 +234,12 @@ CONTAINS
       real*8 :: vazx(:)
 
       ! Locals:
-      type(struct_dataptr) :: dataptr 
-      integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
       integer              :: nulout = 6
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
       real    :: zzsunused(1)
+      integer :: intUnused(1)
 
       real*8,allocatable :: vazg(:)
 
@@ -297,17 +293,10 @@ CONTAINS
         call utl_abort('min quasiNewtonMinimization')
       endif
 
-      ! recast pointer to obsSpaceData as an integer array, so it can be passed through qna_n1qn3 to simvar
-      dataptr%obsSpaceData => obsSpaceData
-      dataptr%column       => column
-      dataptr%columng      => columng
-      dataptr_int_size = size(transfer(dataptr,dataptr_int))
-      allocate(dataptr_int(dataptr_int_size),stat=ierr)
-      if(ierr.ne.0) then
-        write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call utl_abort('min quasiNewtonMinimization')
-      endif
-      dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
+      ! set module variable pointers for obsspacedata and the two column objects
+      obsSpaceData_ptr => obsSpaceData
+      column_ptr       => column
+      columng_ptr      => columng
 
       ! Set-up the minimization
 
@@ -370,7 +359,7 @@ CONTAINS
 
       ! do the gradient test for the starting point of minimization
       if(lgrtest) then
-        call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
+        call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
       endif
 
       zeps1 = zeps0
@@ -379,7 +368,7 @@ CONTAINS
       isimtot = isimdone
 
       INDIC =2
-      call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
+      call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
 
       if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
 
@@ -414,7 +403,7 @@ CONTAINS
           call tmg_start(70,'QN')
           call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int,   &
+              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, intUnused,   &
               zzsunused, dlds)
           call tmg_stop(70)
           call fool_optimizer(obsSpaceData)
@@ -433,7 +422,7 @@ CONTAINS
           if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
             imode = 2
             INDIC = 2
-            call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
+            call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
           else
             write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
             call utl_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
@@ -444,7 +433,7 @@ CONTAINS
         call tmg_start(70,'QN')
         call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int, zzsunused,   &
+            itermaxtodo,isimmax, iztrl, vatra, nmtra, intUnused, zzsunused,   &
             dlds)
         call tmg_stop(70)
         call fool_optimizer(obsSpaceData)
@@ -471,7 +460,7 @@ CONTAINS
         if (lgrtest) then
           WRITE(*,FMT=9400)
  9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
-          call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
+          call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
         end if
 
         do jdata = 1, nvadim_mpilocal
@@ -499,7 +488,7 @@ CONTAINS
       if(numIterMax_pert.gt.0) then
         dg_vbar(:) = 0.0d0
         call tmg_start(4,'MINPERT')
-        call min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
+        call min_analysisPert(vatra,iztrl,zdf1,column,columng,obsSpaceData)
         call tmg_stop(4)
       endif
 
@@ -508,7 +497,6 @@ CONTAINS
 
       ! deallocate the gradient
       deallocate(vazg)
-      deallocate(dataptr_int)
       if ( .not. lwrthess ) then
         deallocate(vatra)
         deallocate(dg_vbar)
@@ -539,7 +527,7 @@ CONTAINS
   end subroutine min_writeHessian
 
 
-  subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng, &
+  subroutine min_analysisPert(vatra,iztrl,zdf1,column,columng, &
                               obsSpaceData)
     !
     !:Purpose: To use QNA_N1QN3 minimization to perform analysis step on
@@ -548,7 +536,7 @@ CONTAINS
 
     ! Arguments
     real(8)                        :: vatra(:)
-    integer                        :: iztrl(:), dataptr_int(:)
+    integer                        :: iztrl(:)
     real(8)                        :: zdf1
     type(struct_columnData),target :: column,columng
     type(struct_obs),target        :: obsSpaceData
@@ -571,6 +559,7 @@ CONTAINS
     real(8) :: zjsp, zxmin
     real(8) :: dlds(1)
     real :: zzsunused(1)
+    integer :: intUnused(1)
     integer :: nulout, impres, simtot, indic
     logical :: llvazx = .false.
 
@@ -674,7 +663,7 @@ CONTAINS
       ! compute initial gradient
       incr_cv(:) = 0.0d0
       indic = 2
-      call simvar(indic, nvadim_mpilocal, incr_cv, zjsp, vazg, dataptr_int)
+      call simvar(indic, nvadim_mpilocal, incr_cv, zjsp, vazg)
 
       ! Initialization for call to QNA_N1QN3
       itertot = numIterMax_pert
@@ -706,7 +695,7 @@ CONTAINS
       call tmg_start(70,'QN')
       call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
           zjsp, vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int,   &
+          itertot, simtot ,iztrl, vatra, nmtra, intUnused,   &
           zzsunused, dlds)
       call tmg_stop(70)
       call fool_optimizer(obsSpaceData)
@@ -963,7 +952,7 @@ CONTAINS
   end subroutine calcRandomPert
 
 
-  subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
+  subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
     !
     !:Purpose: To implement the Variational solver as described in
     !          Courtier, 1997, Dual Formulation of Four-Dimentional Variational
@@ -991,23 +980,13 @@ CONTAINS
     real(8) :: da_v(na_dim) ! Control variable, forecast-error covariance space
     real*8  :: da_J ! Cost function of the Variational algorithm
     real(8) :: da_gradJ(na_dim) ! Gradient of the Variational Cost funtion
-    integer :: dataptr_int(dataptr_int_size)  ! integer work area used to transmit a pointer to the obsSpaceData
 
     ! Locals:
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv), save :: statevector
-    type(struct_dataptr) :: dataptr
-    type(struct_obs),pointer :: obsSpaceData
-    type(struct_columnData),pointer :: column,columng
     type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
-
-    ! Convert the integer array dataptr_int back into a pointer to the obsSpaceData
-    dataptr=transfer(dataptr_int(1:dataptr_int_size),dataptr)
-    obsSpaceData => dataptr%obsSpaceData
-    column       => dataptr%column
-    columng      => dataptr%columng
 
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
 
@@ -1030,7 +1009,7 @@ CONTAINS
        if (.not.statevector%allocated) then
          write(*,*) 'min-simvar: allocating increment stateVector'
          hco_anl => agd_getHco('ComputationalGrid')
-         vco_anl => col_getVco(columng)
+         vco_anl => col_getVco(columng_ptr)
          call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                            dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
          call gsv_readMaskFromFile(statevector,'./analysisgrid')
@@ -1044,27 +1023,27 @@ CONTAINS
        end if
 
        call tmg_start(30,'OBS_INTERP')
-       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
+       call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(column,columng,obsSpaceData,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       call res_compute(obsSpaceData_ptr)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
 
-       call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData,columng)
+       call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columng_ptr)
 
-       call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
 
-       call cfn_calcJo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
 
        IF (LVARQC) THEN
-          call vqc_tl(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+          call vqc_tl(obsSpaceData_ptr)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
-       call cfn_sumJo(obsSpaceData,dl_Jo)
+       call cfn_sumJo(obsSpaceData_ptr,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
           da_J = dl_Jo
@@ -1074,26 +1053,26 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
-          call vqc_ad(obsSpaceData)
+          call vqc_ad(obsSpaceData_ptr)
        endif
 
-       call res_computeAd(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       call res_computeAd(obsSpaceData_ptr)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
 
-       call col_zero(column)
+       call col_zero(column_ptr)
 
        call tmg_start(41,'OBS_AD')
-       call oop_Had(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
-       call s2c_ad(statevector,column,columng,obsSpaceData)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
+       call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0
-       call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData)
+       call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
        if ( associated(stateVectorTrialHU_ptr) ) then
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
                           stateVectorRef_opt=stateVectorTrialHU_ptr)
@@ -1502,7 +1481,7 @@ CONTAINS
 
   end subroutine hessianIO
 
-  subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)
+  subroutine grtest2(simul,na_dim,da_x0,na_range)
   !
   !:Purpose: To compare the variation of the functional against what the
   !          gradient gives for small changes in the control variable. This test
@@ -1520,7 +1499,6 @@ CONTAINS
   integer, intent(in) :: na_dim ! Size of the control vector
   real*8,  intent(in) :: da_x0(na_dim) ! Control vector
   integer, intent(in) :: na_range
-  integer, intent(inout) :: dataptr(:)
 
   ! Locals:
   integer :: nl_indic, nl_j
@@ -1533,7 +1511,7 @@ CONTAINS
   !    ------------------------------------
 
   nl_indic = 2
-  call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0,dataptr(1))
+  call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
   call mpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
   dl_start = 1.d0
@@ -1550,7 +1528,7 @@ CONTAINS
   do  nl_j = 1, na_range
      dl_alpha = 10.0d0**(- nl_j)
      dl_x(:) = da_x0(:) - dl_alpha*dl_gradJ0(:)
-     call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk,dataptr(1))
+     call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk)
      dl_test = (dl_j-dl_j0)/(-dl_alpha * dl_gnorm0)
      write(*,FMT=9201)nl_j, dl_alpha, dl_j, dl_test
   end do
