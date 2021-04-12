@@ -900,6 +900,9 @@ CONTAINS
       deallocate(varNamesInEns)
     end if
 
+    statevector%onPhysicsGrid(:) = ens%statevector_work%onPhysicsGrid
+    statevector%hco_physics => ens%statevector_work%hco_physics
+
     if (statevector%dataKind == 8) then
       call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
@@ -2338,12 +2341,14 @@ CONTAINS
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
 
-          ! copy over some time related parameters
+          ! copy over some time related and other parameters
           ens%statevector_work%deet                      = statevector_member_r4%deet
           ens%statevector_work%dateOriginList(stepIndex) = statevector_member_r4%dateOriginList(1)
           ens%statevector_work%npasList(stepIndex)       = statevector_member_r4%npasList(1)
           ens%statevector_work%ip2List(stepIndex)        = statevector_member_r4%ip2List(1)
           ens%statevector_work%etiket                    = statevector_member_r4%etiket
+          ens%statevector_work%onPhysicsGrid(:)          = statevector_member_r4%onPhysicsGrid(:)
+          ens%statevector_work%hco_physics              => statevector_member_r4%hco_physics
           ! if it exists, copy over mask from member read on task 0, which should always read
           if(mpi_myid == 0) then
             call ocm_copyMask(stateVector_member_r4%oceanMask, ens%stateVector_work%oceanMask)

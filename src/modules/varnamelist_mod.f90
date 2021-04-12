@@ -40,6 +40,7 @@ module varNameList_mod
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
+  public :: vnl_isPhysicsVar
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
@@ -724,5 +725,28 @@ module varNameList_mod
       end if
       
     end function vnl_varMassFromVarName
+
+    !--------------------------------------------------------------------------
+    ! vnl_isPhysicsVar
+    !--------------------------------------------------------------------------
+    function vnl_isPhysicsVar(varName) result(isPhysicsVar)
+      !
+      ! :Purpose: Signals if variable is expected to be on the "physics" grid.
+      !
+      implicit none
+
+      ! Arguments:
+      character(len=*),  intent(in) :: varName
+      logical                       :: isPhysicsVar
+
+      select case (trim(varName))
+      case ( 'I0','I1','I2','I3','I4','I5','I6','I7','I8','I9', &
+             'DN','FB','FI','PR','LPR' )
+        isPhysicsVar = .true.
+      case default
+        isPhysicsVar = .false.
+      end select
+
+    end function vnl_isPhysicsVar
 
 end module varNameList_mod

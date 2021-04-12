@@ -113,7 +113,9 @@ module gridStateVector_mod
     logical             :: allocated=.false.
     type(struct_vco), pointer :: vco => null()
     type(struct_hco), pointer :: hco => null()
+    type(struct_hco), pointer :: hco_physics => null()
     integer, pointer    :: varOffset(:), varNumLev(:)
+    logical, pointer    :: onPhysicsGrid(:)
     logical             :: mpi_local=.false.
     character(len=8)    :: mpi_distribution='None'  ! or 'Tiles' or 'VarsLevs'
     integer             :: horizSubSample
@@ -130,6 +132,7 @@ module gridStateVector_mod
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
   logical :: vInterpCopyLowestLevel
+  logical :: interpToPhysicsGrid
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -393,7 +396,7 @@ module gridStateVector_mod
     real(8) :: minClwAtSfc
     character(len=4) :: anlvar(vnl_numVarMax)
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc, interpToPhysicsGrid
 
     if (initialized) return
 
@@ -413,6 +416,7 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
     vInterpCopyLowestLevel = .false.
+    interpToPhysicsGrid = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -692,6 +696,8 @@ module gridStateVector_mod
     statevector%varOffset(:)=0
     allocate(statevector%varNumLev(vnl_numvarmax))
     statevector%varNumLev(:)=0
+    allocate(statevector%onPhysicsGrid(vnl_numvarmax))
+    statevector%onPhysicsGrid(:) = .false.
 
     iloc=0
     if ( present(varNames_opt) ) then
@@ -956,7 +962,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_communicateTimeParams(statevector)
     !
-    ! :Purpose: Ensure all mpi tasks have certain time parameters
+    ! :Purpose: Ensure all mpi tasks have certain time and other parameters
     !
     implicit none
 
@@ -966,6 +972,7 @@ module gridStateVector_mod
     integer :: deet, ierr
     integer :: ip2List(statevector%numStep), npasList(statevector%numStep)
     integer :: dateOriginList(statevector%numStep)
+    logical :: onPhysicsGrid(vnl_numVarMax)
 
     call rpn_comm_allreduce(statevector%deet, deet, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
@@ -979,6 +986,10 @@ module gridStateVector_mod
     call rpn_comm_allreduce(statevector%dateOriginList, dateOriginList, statevector%numStep,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
     statevector%dateOriginList(:) = dateOriginList(:)
+
+    call rpn_comm_allreduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), size(onPhysicsGrid),  &
+                            'MPI_LOGICAL', 'MPI_LOR', 'GRID', ierr)
+    statevector%onPhysicsGrid(:) = onPhysicsGrid(:)
 
     write(*,*) 'gsv_communicateTimeParams: deet = ', deet
     write(*,*) 'gsv_communicateTimeParams: ip2List = ', ip2List(:)
@@ -3469,6 +3480,23 @@ write(*,*) 'here'
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
         hco_file => statevector%hco
+
+        ! Also attempt to set up the physics grid
+        if (interpToPhysicsGrid) then
+          var_loop: do varIndex = 1, vnl_numvarmax
+            varName = vnl_varNameList(varIndex)
+            if ( .not. gsv_varExist(statevector,varName)) cycle var_loop
+            if ( .not. vnl_isPhysicsVar(varName) ) cycle var_loop
+            if ( utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
+               .not. associated(statevector%hco_physics) ) then
+              write(*,*) 'gsv_readFile: set up physics grid using the variable:', varName
+              call hco_SetupFromFile(statevector%hco_physics, filename, ' ', &
+                                     'INPUTFILE', varName_opt=varName)
+              exit var_loop
+            end if
+          end do var_loop
+        end if
+
       end if
       allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
       gd2d_file_r4(:,:) = 0.0
@@ -3568,6 +3596,20 @@ write(*,*) 'here'
           write(*,*)
           write(*,*) 'gsv_readFile: variable on a different horizontal grid = ',trim(varNameToRead)
           write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
+          if ( interpToPhysicsGrid ) then
+            if ( associated(statevector%hco_physics) ) then
+              if ( ni_var == statevector%hco_physics%ni .and. &
+                   nj_var == statevector%hco_physics%nj ) then
+                write(*,*) 'gsv_readFile: this variable on same grid as other physics variables'
+                statevector%onPhysicsGrid(vnl_varListIndex(varName)) = .true.
+              else
+                call utl_abort('gsv_readFile: this variable not on same grid as other physics variables')
+              end if
+            else
+              call utl_abort('gsv_readFile: physics grid has not been set up')
+            end if
+          end if
+
           if (statevector%hco%global) then
             call utl_abort('gsv_readFile: This is not allowed in global mode!')
           end if
@@ -4968,12 +5010,14 @@ write(*,*) 'here'
 
     step_loop: do stepIndex = 1, statevector_out%numStep
 
-      ! copy over some time related parameters
+      ! copy over some time related and other parameters
       statevector_out%deet                      = statevector_in%deet
       statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
       statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
       statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
       statevector_out%etiket                    = statevector_in%etiket
+      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+      statevector_out%hco_physics              => statevector_in%hco_physics
 
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
@@ -4995,8 +5039,9 @@ write(*,*) 'here'
         call gsv_getField(statevector_in ,field_in,varName)
         call gsv_getField(statevector_out,field_out,varName)
 
-        ! for 2D fields, just copy and cycle to next variable
-        if ( nlev_in == 1 .and. nlev_out == 1 ) then
+        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+             (vnl_varLevelFromVarname(varName) == 'OT') ) then
           field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
           cycle var_loop
         end if
@@ -5128,12 +5173,14 @@ write(*,*) 'here'
 
     step_loop: do stepIndex = 1, statevector_out%numStep
 
-      ! copy over some time related parameters
+      ! copy over some time related and other parameters
       statevector_out%deet                      = statevector_in%deet
       statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
       statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
       statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
       statevector_out%etiket                    = statevector_in%etiket
+      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+      statevector_out%hco_physics              => statevector_in%hco_physics
 
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
@@ -5155,8 +5202,9 @@ write(*,*) 'here'
         call gsv_getField(statevector_in ,field_in,varName)
         call gsv_getField(statevector_out,field_out,varName)
 
-        ! for 2D fields, just copy and cycle to next variable
-        if ( nlev_in == 1 .and. nlev_out == 1 ) then
+        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+             (vnl_varLevelFromVarname(varName) == 'OT') ) then
           field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
           cycle var_loop
         end if
@@ -5254,10 +5302,10 @@ write(*,*) 'here'
     type(struct_gsv), target  :: statevector_tiles
     integer :: fclos, fnom, fstouv, fstfrm
     integer :: nulfile, stepIndex
-    real(4), allocatable :: work2d_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
+    real(4), allocatable :: work2d_r4(:,:), work2dFile_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(4)   :: factor_r4, work_r4
     integer, allocatable :: mask(:,:)
-    integer   :: ierr, fstecr
+    integer   :: ierr, fstecr, ezdefset
     integer :: ni, nj, nk
     integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
@@ -5612,10 +5660,32 @@ write(*,*) 'here'
               work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
             end if
 
-            !- Writing to file
-            ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
-                          nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                          ig1, ig2, ig3, ig4, datyp, .false.)
+            !- Do interpolation back to physics grid, if needed
+            if ( interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex) ) then
+              write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
+                         nomvar, associated(statevector%hco_physics)
+              allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
+              work2dFile_r4(:,:) = 0.0
+              ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
+              ierr = utl_ezsint( work2dFile_r4, work2d_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+
+              !- Writing to file
+              ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
+                            statevector%hco_physics%ni, statevector%hco_physics%nj, &
+                            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                            statevector%hco_physics%ig1, statevector%hco_physics%ig2, &
+                            statevector%hco_physics%ig3, statevector%hco_physics%ig4, &
+                            datyp, .false.)
+              deallocate(work2dFile_r4)
+
+            else
+
+              !- Writing to file
+              ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
+                            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                            ig1, ig2, ig3, ig4, datyp, .false.)
+
+            end if
 
             if ( statevector%oceanMask%maskPresent ) then
               if (.not.allocated(mask)) allocate(mask(ni,nj))
@@ -5709,6 +5779,35 @@ write(*,*) 'here'
                        iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
                        ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                        ig2, ig3, ig4, datyp, .true.)
+
+      ! Also write the tic tac for the physics grid
+      if ( any(statevector%onPhysicsGrid(:)) ) then
+
+        ip1      =  statevector%hco_physics%ig1
+        ip2      =  statevector%hco_physics%ig2
+        ip3      =  statevector%hco_physics%ig3
+        grtyp    =  statevector%hco_physics%grtypTicTac
+        
+        call cxgaig ( grtyp,                                          & ! IN
+                      ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
+                      real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1),   & ! IN
+                      real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2)  )   ! IN
+
+        ig1      =  ig1_tictac
+        ig2      =  ig2_tictac
+        ig3      =  ig3_tictac
+        ig4      =  ig4_tictac
+
+        ier = utl_fstecr(statevector%hco_physics%lon*mpc_degrees_per_radian_r8, npak, &
+                         iun, dateo, deet, npas, statevector%hco_physics%ni, 1, 1, ip1,    &
+                         ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                         ig2, ig3, ig4, datyp, .true.)
+
+        ier = utl_fstecr(statevector%hco_physics%lat*mpc_degrees_per_radian_r8, npak, &
+                         iun, dateo, deet, npas, 1, statevector%hco_physics%nj, 1, ip1,    &
+                         ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                         ig2, ig3, ig4, datyp, .true.)
+      end if
 
     else if ( statevector % hco % grtyp == 'U' ) then
       npak     = -32
