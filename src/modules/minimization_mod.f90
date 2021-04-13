@@ -63,7 +63,7 @@ module minimization_mod
   type(struct_columnData), pointer :: column_ptr       => null()
   type(struct_columnData), pointer :: columng_ptr      => null()
 
-  type(struct_gsv), pointer :: stateVectorLowResHU_ptr => null()
+  type(struct_gsv), pointer :: stateVectorRefHU_ptr => null()
 
   logical             :: initialized = .false.
 
@@ -200,7 +200,7 @@ CONTAINS
     call tmg_start(3,'MIN')
 
     if ( present(statevectorRef_opt) ) then
-      if ( statevectorRef_opt%allocated ) stateVectorLowResHU_ptr => stateVectorRef_opt
+      if ( statevectorRef_opt%allocated ) stateVectorRefHU_ptr => stateVectorRef_opt
     end if
 
     call col_setVco(column,col_getVco(columng))
@@ -1015,9 +1015,9 @@ CONTAINS
          call gsv_readMaskFromFile(statevector,'./analysisgrid')
        end if
 
-       if ( associated(stateVectorLowResHU_ptr) ) then
+       if ( associated(stateVectorRefHU_ptr) ) then
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
-                         stateVectorRef_opt=stateVectorLowResHU_ptr)
+                         stateVectorRef_opt=stateVectorRefHU_ptr)
        else
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
        end if
@@ -1073,9 +1073,9 @@ CONTAINS
 
        da_gradJ(:) = 0.d0
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
-       if ( associated(stateVectorLowResHU_ptr) ) then
+       if ( associated(stateVectorRefHU_ptr) ) then
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
-                          stateVectorRef_opt=stateVectorLowResHU_ptr)
+                          stateVectorRef_opt=stateVectorRefHU_ptr)
        else
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
        end if
