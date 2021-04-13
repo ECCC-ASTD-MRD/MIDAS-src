@@ -58,11 +58,8 @@ module innovation_mod
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
   public :: inn_perturbObs, inn_setupBackgroundColumns, inn_setupBackgroundColumnsAnl
-  public :: inn_setupAnlVar
 
   character(len=48) :: innovationMode
-
-  logical :: initialized = .false.
 
 contains
 
@@ -199,21 +196,6 @@ contains
   end subroutine inn_setupobs
 
 
-  subroutine inn_setupAnlVar
-    implicit none
-
-    ! locals
-    character(len=4), pointer :: anlVar(:)
-
-    call gsv_setup()
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
-
-    initialized = .true.
-
-  end subroutine inn_setupAnlVar
-
-
   subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, stateVectorTrialOut_opt)
     implicit none
 
@@ -260,9 +242,9 @@ contains
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
-    ! check if list of analyzed variables is initialized
-    if ( .not. initialized ) then
-       call utl_abort('inn_setupBackgroundColumns: add call to inn_setupAnlVar in the main program to initialize the list of analysis variables')
+    ! check if gsv is initialized.
+    if ( .not. gsv_isInitialized() ) then
+       call utl_abort('inn_setupBackgroundColumns: add call to gsv_setup in the main program.')
     end if
 
     nullify(anlVar)

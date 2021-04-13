@@ -29,6 +29,7 @@ program midas_obsSelection
   use verticalCoord_mod
   use timeCoord_mod
   use analysisGrid_mod
+  use gridStateVector_mod
   use backgroundCheck_mod
   use multi_ir_bgck_mod
   use innovation_mod
@@ -161,7 +162,7 @@ program midas_obsSelection
   !
   ! Initialize list of analyzed variables.
   !
-  call inn_setupAnlVar()
+  call gsv_setup
 
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    

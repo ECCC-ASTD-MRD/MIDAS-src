@@ -167,7 +167,7 @@ program midas_var
   !
   ! Initialize list of analyzed variables.
   !
-  call inn_setupAnlVar()
+  call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
