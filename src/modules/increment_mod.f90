@@ -32,13 +32,17 @@ module increment_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
   use varNamelist_mod
+  use obsSpaceData_mod
+  use columnData_mod 
+  use columnVariableTransforms_mod
+
   implicit none
   save
   private
 
   ! public procedures
   public :: inc_computeHighResAnalysis, inc_writeIncrementHighRes, inc_getIncrement, inc_writeIncrement
-
+  public :: inc_writeAnalysis
   ! namelist variables
   integer  :: writeNumBits
   logical  :: writeHiresIncrement
@@ -499,6 +503,7 @@ CONTAINS
 
   end subroutine inc_getIncrement
 
+
   !--------------------------------------------------------------------------
   ! inc_writeIncrement
   !--------------------------------------------------------------------------
@@ -520,24 +525,67 @@ CONTAINS
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
+      if (statevector_incr%allocated) then
+        dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
+        if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
 
-      dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
-      if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
-
-      ! write the increment file for this time step
-      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
-                            ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
-
-    enddo
+        ! write the increment file for this time step
+        call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+        if(nint(deltaHours*60.0d0).lt.0) then
+          write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+        else
+          write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+        end if
+        fileName = './rebm_' // trim(coffset) // 'm'
+        call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
+             ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
+      end if
+    end do
 
   end subroutine inc_writeIncrement
+
+  !--------------------------------------------------------------------------
+  ! inc_writeAnalysis
+  !--------------------------------------------------------------------------
+  subroutine inc_writeAnalysis(statevector_anal)
+
+    implicit none
+
+    ! arguments
+    type(struct_gsv)     :: statevector_anal
+    ! locals
+    integer              :: stepIndex, dateStamp
+    real(8)              :: deltaHours
+    character(len=4)     :: coffset
+    character(len=30)    :: fileName
+
+    if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: STARTING'
+
+    !
+    !- Set/Read values for the namelist NAMINC
+    !
+    call readNameList()
+
+    ! loop over times for which increment is computed
+    do stepIndex = 1, tim_nstepobsinc
+      if (statevector_anal%allocated) then
+        dateStamp = gsv_getDateStamp(statevector_anal,stepIndex)
+        if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: writing analysis for time step: ',stepIndex, dateStamp
+
+        ! write the increment file for this time step
+        call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+        if(nint(deltaHours*60.0d0).lt.0) then
+          write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+        else
+          write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+        end if
+        fileName = './anlm_' // trim(coffset) // 'm'
+        call gsv_writeToFile( statevector_anal, fileName, etiket_anlm, scaleFactor_opt = 1.0d0, &
+             ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=.false. )
+      end if
+    end do
+
+  end subroutine inc_writeAnalysis
 
   !--------------------------------------------------------------------------
   ! inc_interpolateAndAdd

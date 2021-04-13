@@ -35,6 +35,7 @@ module minimization_mod
   use analysisGrid_mod
   use gridStateVector_mod
   use bmatrix_mod
+  use var1D_mod
   use bmatrixhi_mod
   use bmatrixchem_mod
   use bmatrixEnsemble_mod
@@ -50,6 +51,7 @@ module minimization_mod
   use quasinewton_mod
   use utilities_mod
   use biasCorrectionSat_mod
+  use columnVariableTransforms_mod
   implicit none
   save
   private
@@ -97,6 +99,7 @@ module minimization_mod
   real(8) :: e1_scaleFactor, e2_scaleFactor
   integer,parameter   :: maxNumLevels=200
   real(8) :: pertScaleFactor_UV(maxNumLevels)
+  logical :: oneDVarMode=.false.
 
   NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
   NAMELIST /NAMMIN/LGRTEST
@@ -109,12 +112,13 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup(nvadim_mpilocal_in)
+  subroutine min_setup(nvadim_mpilocal_in, oneDVarMode_opt)
     implicit none
-    integer :: nvadim_mpilocal_in
+    integer,intent(in) :: nvadim_mpilocal_in
+    logical,intent(in),optional :: oneDVarMode_opt
 
     integer :: ierr,nulnam
-    integer :: fnom,fclos
+    integer,external :: fnom,fclos
     character(len=32) :: envVariable
     integer :: length_envVariable, status
 
@@ -124,6 +128,8 @@ CONTAINS
     endif
 
     nvadim_mpilocal=nvadim_mpilocal_in
+
+    if ( present(oneDVarMode_opt) ) oneDVarMode = oneDVarMode_opt
 
     ! set default values for namelist variables
     nvamaj = 6
@@ -989,7 +995,6 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
 
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
-
     call tmg_start(80,'MIN_SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
@@ -1000,32 +1005,37 @@ CONTAINS
        endif
 
        ! note: dg_vbar = sum(v) of previous outer-loops
-       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)     
-
+       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)
+     
        ! Computation of background term of cost function:
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
-       if (.not.statevector%allocated) then
-         write(*,*) 'min-simvar: allocating increment stateVector'
-         hco_anl => agd_getHco('ComputationalGrid')
-         vco_anl => col_getVco(columng_ptr)
-         call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                           dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
-         call gsv_readMaskFromFile(statevector,'./analysisgrid')
-       end if
-
-       if ( associated(stateVectorRefHU_ptr) ) then
-         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
-                         stateVectorRef_opt=stateVectorRefHU_ptr)
+       if (oneDVarMode) then
+         call var1D_sqrtB(da_v, nvadim_mpilocal, column_ptr, obsSpaceData_ptr)
+         call cvt_transform(column_ptr, columng_ptr, 'PsfcToP_tl')
        else
-         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+         if (.not.statevector%allocated) then
+           write(*,*) 'min-simvar: allocating increment stateVector'
+           hco_anl => agd_getHco('ComputationalGrid')
+           vco_anl => col_getVco(columng_ptr)
+           call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
+           call gsv_readMaskFromFile(statevector,'./analysisgrid')
+       
+           if ( associated(stateVectorRefHU_ptr) ) then
+             call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
+                  stateVectorRef_opt=stateVectorRefHU_ptr)
+           else
+             call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+           end if
+
+           call tmg_start(30,'OBS_INTERP')
+           call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+           call tmg_stop(30)
+         end if
        end if
-
-       call tmg_start(30,'OBS_INTERP')
-       call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-       call tmg_stop(30)
-
+      
        call tmg_start(40,'OBS_TL')
        call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
@@ -1067,19 +1077,29 @@ CONTAINS
        call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
-       call tmg_start(31,'OBS_INTERPAD')
-       call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
-       call tmg_stop(31)
+       if (oneDVarMode) then
+         ! no interpolation needed for 1Dvar case
+       else
+         call tmg_start(31,'OBS_INTERPAD')
+         call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
+         call tmg_stop(31)
+       end if
 
        da_gradJ(:) = 0.d0
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
-       if ( associated(stateVectorRefHU_ptr) ) then
-         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
-                          stateVectorRef_opt=stateVectorRefHU_ptr)
+
+       if (oneDVarMOde) then
+         call cvt_transform( column, columng, 'PsfcToP_ad')      ! IN
+         call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, column_ptr, obsSpaceData_ptr)
        else
-         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
+         if ( associated(stateVectorRefHU_ptr) ) then
+           call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
+                            stateVectorRef_opt=stateVectorRefHU_ptr)
+         else
+           call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
+           !call gsv_deallocate(statevector)
+         end if
        end if
-       !call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then
          da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
@@ -1501,17 +1521,38 @@ CONTAINS
   integer, intent(in) :: na_range
 
   ! Locals:
-  integer :: nl_indic, nl_j
+  integer :: nl_indic, nl_j !, i, ierr
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
-  real*8  :: dl_alpha, dl_gnorm0
+  real*8  :: dl_alpha, dl_gnorm0 !, xsave,xpert
 
 
   ! 1. Initialize dl_gradj0 at da_x0
   !    ------------------------------------
 
   nl_indic = 2
+<<<<<<< HEAD
   call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
+=======
+  call simul(nl_indic, na_dim, da_x0, dl_j0,dl_gradj0,dataptr(1))
+!  dl_x(:) = da_x0(:)
+!  xpert = 1.d-6
+!  do i=1, 320
+!    if (mpi_myId ==0 ) then
+!       xsave = dl_x(i)
+!       dl_x(i) = xpert + dl_x(i)
+!    end if 
+!    call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk,dataptr(1))
+!    if (mpi_myId ==0 ) then
+!      write(200,'(5e26.18)') da_x0(i), dl_x(i), dl_gradj0(i), dl_J, dl_j0
+!      dl_x(i) = xsave
+!   end if
+!  end do
+!  if (mpi_myId ==0 ) flush(200)
+!  call rpn_comm_barrier('GRID',ierr)
+!  call utl_abort('test Sylvain')
+
+>>>>>>> Issue #309: introduction of code for 1Dvar program
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
   call mpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
   dl_start = 1.d0

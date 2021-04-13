@@ -41,11 +41,12 @@ module sqliteFiles_mod
 
   contains
 
-  subroutine sqlf_getDateStamp(datestamp, sqliteFileName)
+  subroutine sqlf_getDateStamp(datestamp, sqliteFileName, oneDvarMode_opt)
     implicit none
     ! arguments
     integer                      :: dateStamp
     character(len=*), intent(in) :: sqliteFileName
+    logical,intent(in),optional  :: oneDVarMode_opt
     ! locals
     logical             :: fileExists 
     integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
@@ -54,6 +55,13 @@ module sqliteFiles_mod
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
     character(len=256)  :: datetimeSqliteCharacter 
+    logical             :: oneDVarMode
+
+    if ( present(oneDvarMode_opt) ) then
+      oneDvarMode = oneDVarMode_opt
+    else
+      oneDvarMode =.false.
+    end if
 
     ier = mrfopc('MSGLVL','FATAL')
     ivals = 8
@@ -82,12 +90,40 @@ module sqliteFiles_mod
 
     kdate = kdate_recv
     ktime = ktime_recv
+
+    !According to documentation ktime is supposed to be HHMMSS00:
+    !mode=3 : printable to stamp
+    !   out  dat1  cmc date-time stamp (old or new style)   integer
+    !    in  dat2  date of the printable date (YYYYMMDD)    integer
+    !    in  dat3  time of the printable date (HHMMSShh)    integer
+    !    in  mode  set to 3                                 integer
+
+    !mode=-3 : stamp to printable
+    !    in  dat1  cmc date-time stamp (old or new style)   integer
+    !   out  dat2  date of the printable date (YYYYMMDD)    integer
+    !   out  dat3  time of the printable date (HHMMSShh)    integer 
+    !    in  mode  set to -3                                integer
+
+
+    print *,'ktime', ktime
     ier = newdate(istampobs, kdate, ktime, 3)
+    print *,'istampobs', istampobs
     delhh = 3.0d0
     call INCDATR (datestamp, istampobs, delhh)
+    print *, 'datestamp ', datestamp
     ier = newdate(datestamp, nbrpdate, inewhh, -3)
+    print *,' nbrpdate, inewhh', nbrpdate, inewhh
     nbrphh = ktime
-    ier = newdate(datestamp, nbrpdate, nbrphh * 1000000, 3)
+    if (onedVarMode) then
+      ! 1Dvar case
+      print *,'xx', nbrpdate, nbrphh
+      ier = newdate(datestamp, nbrpdate, nbrphh, 3)
+    else
+      ! normal case
+      print *,'yy', nbrpdate, nbrphh  * 1000000
+      ier = newdate(datestamp, nbrpdate, nbrphh * 1000000, 3)
+    end if
+
     write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
     write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
     write(*,*)' SQLITE FILES DATESTAMP             : ', datestamp
