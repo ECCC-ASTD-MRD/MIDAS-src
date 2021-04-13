@@ -60,7 +60,7 @@ program midas_var
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevector_Psfc
   type(struct_gsv)                :: stateVectorAnalHighRes
-  type(struct_gsv)       , target :: stateVectorTrialHU
+  type(struct_gsv)       , target :: stateVectorLowResHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
@@ -207,14 +207,14 @@ program midas_var
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Initialize stateVectorTrialHU on analysis grid for passing to B matrix routines.
+  ! Initialize stateVectorLowResHU on analysis grid for passing to B matrix routines.
   if ( gsv_varExist(stateVectorTrial,'HU') ) then
-    call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+    call gsv_allocate(stateVectorLowResHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=(/'HU','P0'/) )
 
-    call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
+    call gsv_readTrials( stateVectorLowResHU )  ! IN/OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
   call tmg_stop(2)
@@ -227,7 +227,7 @@ program midas_var
 
   ! Do minimization of cost function
   call min_minimize(trlColumnOnAnlLev, obsSpaceData, controlVectorIncr, &
-                    stateVectorRef_opt=stateVectorTrialHU)
+                    stateVectorRef_opt=stateVectorLowResHU)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
@@ -239,7 +239,7 @@ program midas_var
 
   ! get final increment with mask if it exists
   call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
-                        statevectorRef_opt=stateVectorTrialHU)
+                        statevectorRef_opt=stateVectorLowResHU)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -274,7 +274,7 @@ program midas_var
   end if
 
   call gsv_deallocate(stateVectorIncr)
-  if ( stateVectorTrialHU%allocated ) call gsv_deallocate(stateVectorTrialHU)
+  if ( stateVectorLowResHU%allocated ) call gsv_deallocate(stateVectorLowResHU)
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)

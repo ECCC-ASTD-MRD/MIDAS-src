@@ -49,9 +49,12 @@ module increment_mod
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! inc_readNAMINC - called by the other public subroutines in this module
+  ! inc_readNAMINC
   !--------------------------------------------------------------------------
   subroutine inc_readNAMINC
+    !
+    ! :Purpose: Reading NAMINC namelist in the main program.
+    !
     implicit none
 
     integer :: nulnam, ierr
@@ -86,6 +89,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine inc_computeHighResAnalysis(statevector_incLowRes, stateVectorTrial, &
                                         statevector_Psfc, statevector_analysis)
+    !
+    ! :Purpose: Computing high-resolution analysis increments on the trial grid.
+    !
     implicit none
 
     ! Arguments:
@@ -306,7 +312,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine inc_writeIncrementHighRes(statevector_incLowRes, statevectorTrial, &
                                        statevector_Psfc, statevector_analysis)
-                                        
+    !
+    ! :Purpose: Write the high-resolution analysis increments to the rehm file.
+    !
     implicit none
 
     ! Arguments:
@@ -499,7 +507,9 @@ CONTAINS
   ! inc_getIncrement
   !--------------------------------------------------------------------------
   subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal,statevectorRef_opt)
-
+    !
+    ! :Purpose: Get true analysis increment from control vector.
+    !
     implicit none
 
     ! arguments
@@ -532,7 +542,9 @@ CONTAINS
   ! inc_writeIncrement
   !--------------------------------------------------------------------------
   subroutine inc_writeIncrement(statevector_incr)
-
+    !
+    ! :Purpose: Write the low-resolution analysis increments to the rebm file.
+    !
     implicit none
 
     ! arguments
@@ -571,6 +583,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine inc_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
                                    PsfcReference_opt, mask2d_opt)
+    !
+    ! :Purpose: Interpolate the low-resolution increments to trial grid and add to 
+    !           get the high-resolution analysis.
+    !
     implicit none
     type(struct_gsv)  :: statevector_in, statevector_inout
 
