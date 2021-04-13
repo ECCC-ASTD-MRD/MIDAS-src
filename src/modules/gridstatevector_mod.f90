@@ -1531,7 +1531,7 @@ module gridStateVector_mod
     character(len=4) :: varName
     character(len=10) :: gsvCopyType 
     character(len=4), pointer :: varNamesList_in(:), varNamesList_out(:)
-    logical, parameter :: verbose=.false.
+    logical, parameter :: verbose=.true.
 
     if ( present(allowVarMismatch_opt) ) then
       allowVarMismatch = allowVarMismatch_opt
