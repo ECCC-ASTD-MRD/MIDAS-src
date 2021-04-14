@@ -19,9 +19,6 @@ module var1D_mod
   !
   ! :Purpose: contains all 1dvar-related methods.
   !
-  use columnData_mod
-  use MathPhysConstants_mod
-  use ObsSpaceData_mod
   use analysisgrid_mod
   use codePrecision_mod
   use columnData_mod
@@ -36,7 +33,6 @@ module var1D_mod
   use mathPhysConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
-  use mpivar_mod
   use mpivar_mod 
   use obsSpaceData_mod
   use obsTimeInterp_mod
