@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * `tools/midas_scripts/midas.mpi` (#481 and !453)
+  * A new environment variable is added to control the number of
+    splitting process launched in parallel in `midas.mpi` (see
+    [`README.md`](tools/midas_scripts/README.md) for more details):
+     * `MIDAS_CONCURRENT_SPLITOBS`
 
 ### Changed
 
@@ -48,7 +52,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Highlights
 
- * RRTOV now operates directly on the model levels instead of pressure levels
+ * RTTOV now operates directly on the model levels instead of pressure levels
  * Background check now in `midas-obsSelection` for all obs types except SSMIS
    * Includes bias correction, QC and thinning
  * Added all-sky approach for AMSU-A radiances over ocean
