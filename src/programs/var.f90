@@ -66,6 +66,8 @@ program midas_var
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
+  character(len=4), pointer :: varNames(:)
+
   istamp = exdb('VAR','DEBUT','NON')
 
   call ver_printNameAndVersion('var','Variational Assimilation')
@@ -216,10 +218,13 @@ program midas_var
                       varNames_opt=(/'HU','P0'/) )
 
     ! First interpolate trials to the low-resolution analysis grid.
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorTrial)
     call gsv_allocate(stateVectorTrialLowRes, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR')
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=varNames)
     call gsv_interpolate(stateVectorTrial, stateVectorTrialLowRes)        
 
     ! Now copy only P0 and HU.
