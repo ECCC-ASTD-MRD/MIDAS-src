@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the recursive dependency computation #483
  * Fix the `make --touch` bug (no more spurious empty file created in `src`)
    (#444 and !440)
  * Fix make-based compilation environment passing, doc and other minor issues

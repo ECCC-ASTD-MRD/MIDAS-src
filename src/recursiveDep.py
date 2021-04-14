@@ -17,9 +17,9 @@ import sys
 
 
 def recurseDep(target, depFile='dep.obj.inc', uniqDep=None, verbose=False):
-    if verbose: print('<<< %s'%target)
+    if verbose: print(f'<<< {target}')
     if uniqDep == None: uniqDep=set()
-    pattern = '^[^ ]*%s :'%target
+    pattern = f'^{target} :'
     with open(depFile) as fun:
         for line in fun.readlines():
             if re.match(pattern, line):
@@ -31,28 +31,34 @@ def recurseDep(target, depFile='dep.obj.inc', uniqDep=None, verbose=False):
                     if verbose: print(f)
                     if re.match('^[^ ]*\.o', f):
                         uniqDep.add(f)
+                        if verbose: print(f'--search {f}')
                         uniqDep.union(
                             recurseDep( f, depFile=depFile,
                                         uniqDep=uniqDep, verbose=verbose))
+                    if verbose: print(f'--end {f}')
                 return uniqDep
-        raise Exception('%s not in %s'%(target, depFile))
+        raise Exception(f'{target} not in {depFile}')
 
 ###| command arguments reading |#####################################
 
-depFile = sys.argv[1]
-targetList = sys.argv[2]
-targetList = targetList.split()
-suffix = '.Abs'
-
-depDict = dict()
-for target in targetList:
-    obj=target.replace(suffix, '.o')
-    depDict[target] = recurseDep(   obj, depFile=depFile)
-
-    ## output to stdout
-    print('%s : %s'%(target, obj), end=' ')
-    for f in depDict[target]:
-        print(f, end=' ')
-    print()
+if __name__ == '__main__':
+    verbose=False
+    depFile = sys.argv[1]
+    targetList = sys.argv[2]
+    if len(sys.argv) > 3:
+        verbose=bool(sys.argv[3])
+    targetList = targetList.split()
+    suffix = '.Abs'
+    
+    depDict = dict()
+    for target in targetList:
+        obj=target.replace(suffix, '.o')
+        depDict[target] = recurseDep(obj, depFile=depFile, verbose=verbose)
+    
+        ## output to stdout
+        print(f'{target} : {obj}', end=' ')
+        for f in depDict[target]:
+            print(f, end=' ')
+        print()
 
 # vim: set ts=4 sw=4:
