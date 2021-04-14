@@ -477,7 +477,7 @@ contains
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     tempo(:) = 0
     do obsIndex = 1, var1D_obsCount
-      tempo(obsIndex) = obs_headElem_i(obsSpaceData, OBS_IDO, var1D_obsPointer(obsIndex))
+      tempo(obsIndex) = obs_headPrimaryKey(obsSpaceData, var1D_obsPointer(obsIndex) )
     end do
 
     call rpn_comm_gather(tempo, nobs1DVarMax, 'MPI_INTEGER', obsPointerMpiGlobal, &

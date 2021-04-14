@@ -1,4 +1,10 @@
+#--------------------------------------
+1Dvar.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
+
+#--------------------------------------
 adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
@@ -20,7 +26,7 @@ diagHBHt.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 #--------------------------------------
 ensembleH.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
- 		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
+		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
 
 #--------------------------------------
 ensDiagnostics.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
@@ -29,13 +35,16 @@ ensDiagnostics.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 
 #--------------------------------------
 ensManip.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
-	  	rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
- 		$(VGRID_LIBNAME) irc $(MPILIB)
+                rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
+                $(VGRID_LIBNAME) irc $(MPILIB)
 
 #--------------------------------------
 ensPostProcess.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
- 		rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
-		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
+                rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
+                $(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
+
+#--------------------------------------
+extractBmatrixFor1Dvar.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 genCoeff.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
@@ -78,7 +87,7 @@ thinning.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 
 #--------------------------------------
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
-		rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 # vim: set noexpandtab noautoindent nolist:
