@@ -12,6 +12,7 @@
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="genCoeff"/>
+  <SUBMITS sub_name="SSTbias"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
   <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
@@ -407,6 +408,11 @@
   </FAMILY>
 
   <FAMILY  name="genCoeff">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="SSTbias">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
