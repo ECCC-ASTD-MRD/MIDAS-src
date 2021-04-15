@@ -270,7 +270,6 @@ contains
 
     deallocInterpInfo = .true.
 
-    ! Read trials into statevector without Z/P allocated
     call gsv_allocate( stateVectorTrial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        mpi_distribution_opt='Tiles', dataKind_opt=4,  &
@@ -283,6 +282,7 @@ contains
          gsv_varExist(stateVectorTrial,'P_T') .or. &
          gsv_varExist(stateVectorTrial,'P_M') ) then
 
+      ! Use statevector without Z/P allocated to read trials 
       call gsv_allocate( stateVectorTrialNoZorP, tim_nstepobs, hco_trl, vco_trl,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                          mpi_distribution_opt='Tiles', dataKind_opt=4,  &

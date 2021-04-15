@@ -174,11 +174,6 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Set/Read values for the namelist NAMINC
-  !
-  call inc_readNAMINC()
-
-  !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   call bmat_setup(hco_anl,vco_anl)
