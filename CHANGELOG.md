@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Groundwork to implement outer-loop for computing analysis increment (#474 and !452)
+ * Groundwork to implement outer-loop for computing analysis increment and results 
+   of `var` program affected when humidity is one of the analysis variables (#474 and !452)
  * Add ability to output on physics grid for LAM (#464 and !451)
  * Add footprint operator for TOVS (#237 and !417)
  * Add allsky background check and assimilation for ATMS (#449 and !429)
