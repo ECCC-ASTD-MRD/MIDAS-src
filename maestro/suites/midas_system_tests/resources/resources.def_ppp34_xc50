@@ -1,5 +1,5 @@
 # Machine stuff
-FRONTEND=eccc-ppp3
+FRONTEND=eccc-ppp4
 BACKEND=daley
 
 REFERENCE_MACHINE=eccc-ppp4

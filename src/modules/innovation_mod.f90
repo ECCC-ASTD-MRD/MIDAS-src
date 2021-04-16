@@ -206,6 +206,7 @@ contains
 
     ! locals
     type(struct_gsv)          :: stateVectorTrial
+    type(struct_gsv)          :: stateVectorTrialNoZorP 
     type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
@@ -242,7 +243,11 @@ contains
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
-    call gsv_setup()
+    ! check if gsv is initialized.
+    if ( .not. gsv_isInitialized() ) then
+       call utl_abort('inn_setupBackgroundColumns: add call to gsv_setup in the main program.')
+    end if
+
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
@@ -271,7 +276,26 @@ contains
                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                        beSilent_opt=.false. )
     call gsv_zero( stateVectorTrial )
-    call gsv_readTrials( stateVectorTrial )
+
+    if ( gsv_varExist(stateVectorTrial,'Z_T') .or. &
+         gsv_varExist(stateVectorTrial,'Z_M') .or. &
+         gsv_varExist(stateVectorTrial,'P_T') .or. &
+         gsv_varExist(stateVectorTrial,'P_M') ) then
+
+      ! Use statevector without Z/P allocated to read trials 
+      call gsv_allocate( stateVectorTrialNoZorP, tim_nstepobs, hco_trl, vco_trl,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                         allocHeight_opt=.false., allocPressure_opt=.false., &
+                         beSilent_opt=.false. )
+      call gsv_zero( stateVectorTrialNoZorP )
+      call gsv_readTrials( stateVectorTrialNoZorP )
+      call gsv_copy( stateVectorTrialNoZorP, stateVectorTrial, allowVarMismatch_opt=.true. )
+      call gsv_deallocate( stateVectorTrialNoZorP )
+    else
+      call gsv_readTrials( stateVectorTrial )
+    end if
 
     ! if requested, make trials available to calling routine after degrading timesteps
     if (present(stateVectorTrialOut_opt)) then

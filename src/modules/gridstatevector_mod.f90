@@ -58,7 +58,7 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
-  public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo
+  public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized 
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -511,6 +511,24 @@ module gridStateVector_mod
       end function varneed
 
   end subroutine gsv_setup
+
+  !--------------------------------------------------------------------------
+  ! gsv_isInitialized
+  !--------------------------------------------------------------------------
+  function gsv_isInitialized() result(gsvInitialized)
+    !
+    ! :Purpose: To verify gsv_setup has already run.
+    !
+    implicit none
+
+    ! Argument:
+    logical :: gsvInitialized
+
+    gsvInitialized = .false.
+
+    if ( initialized ) gsvInitialized = .true.
+
+  end function gsv_isInitialized
 
   !--------------------------------------------------------------------------
   ! gsv_allocate

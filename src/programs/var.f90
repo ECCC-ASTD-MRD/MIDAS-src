@@ -53,14 +53,20 @@ program midas_var
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
 
-  type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: trlColumnOnAnlLev
-  type(struct_columnData), target  :: trlColumnOnTrlLev
-  type(struct_gsv)                 :: stateVectorIncr
-  type(struct_gsv)                 :: stateVectorTrial
-  type(struct_hco), pointer        :: hco_anl => null()
-  type(struct_vco), pointer        :: vco_anl => null()
-  type(struct_hco), pointer        :: hco_core => null()
+  type(struct_obs)       , target :: obsSpaceData
+  type(struct_columnData), target :: trlColumnOnAnlLev
+  type(struct_columnData), target :: trlColumnOnTrlLev
+  type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorTrial
+  type(struct_gsv)                :: statevector_Psfc
+  type(struct_gsv)                :: stateVectorAnalHighRes
+  type(struct_gsv)       , target :: stateVectorTrialLowRes
+  type(struct_gsv)       , target :: stateVectorRefHU
+  type(struct_hco)      , pointer :: hco_anl => null()
+  type(struct_vco)      , pointer :: vco_anl => null()
+  type(struct_hco)      , pointer :: hco_core => null()
+
+  character(len=4), pointer :: varNames(:)
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -160,12 +166,12 @@ program midas_var
   !
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(2)
 
-  ! Read trials and horizontally interpolate to columns
-  call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
-                                   stateVectorTrialOut_opt=stateVectorTrial )
+  !
+  ! Initialize list of analyzed variables.
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -186,11 +192,43 @@ program midas_var
   call min_setup( cvm_nvadim ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! Read trials and horizontally interpolate to columns
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
+                                   stateVectorTrialOut_opt=stateVectorTrial )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Initialize stateVectorRefHU for doing variable transformation of the increments.
+  if ( gsv_varExist(stateVectorTrial,'HU') ) then
+    call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=(/'HU','P0'/) )
+
+    ! First interpolate trials to the low-resolution analysis grid.
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorTrial)
+    call gsv_allocate(stateVectorTrialLowRes, tim_nstepobsinc, hco_anl, vco_anl,   &
+                      dataKind_opt=pre_incrReal, &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=varNames)
+    call gsv_interpolate(stateVectorTrial, stateVectorTrialLowRes)        
+
+    ! Now copy only P0 and HU.
+    call gsv_copy( stateVectorTrialLowRes, stateVectorRefHU, &
+                   allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+    call gsv_deallocate(stateVectorTrialLowRes)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  end if
   call tmg_stop(2)
 
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
@@ -200,7 +238,9 @@ program midas_var
   end if
 
   ! Do minimization of cost function
-  call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVectorIncr)
+  call min_minimize(trlColumnOnAnlLev, obsSpaceData, controlVectorIncr, &
+                    stateVectorRef_opt=stateVectorRefHU)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
   call bcs_writebias(controlVectorIncr)
@@ -210,12 +250,20 @@ program midas_var
        dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
   ! get final increment with mask if it exists
-  call inc_getIncrement(controlVectorIncr,stateVectorIncr,cvm_nvadim)
+  call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
+                        statevectorRef_opt=stateVectorRefHU)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Compute high-resolution analysis on trial grid
+  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorTrial, &
+                                  statevector_Psfc, stateVectorAnalHighRes)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')
   call inc_writeIncrement(stateVectorIncr) ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
@@ -227,8 +275,9 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_computeAndWriteAnalysis(stateVectorIncr,                    &  ! IN
-                                   stateVectorTrial_opt=stateVectorTrial) ! IN
+  call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
+                                 statevector_Psfc, stateVectorAnalHighRes)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 
   if (mpi_myid == 0) then
@@ -237,6 +286,7 @@ program midas_var
   end if
 
   call gsv_deallocate(stateVectorIncr)
+  if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)

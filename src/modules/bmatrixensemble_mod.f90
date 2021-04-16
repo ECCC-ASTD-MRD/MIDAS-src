@@ -2561,8 +2561,9 @@ CONTAINS
       write(instanceNumber,'(I2.2)') instanceIndex
       fileName = './ens_pert001_i' // trim(instanceNumber) // '.fst'
 
-      call gsv_writeToFile(statevector,fileName,etiket, & ! IN
-                           dnens2,HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )    ! IN
+      call gsv_writeToFile(statevector,fileName,etiket, &                               ! IN
+                           scaleFactor_opt=dnens2, &                                    ! IN
+                           HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )       ! IN
       call gsv_deallocate(statevector)
     end do
 

@@ -29,6 +29,7 @@ program midas_obsSelection
   use verticalCoord_mod
   use timeCoord_mod
   use analysisGrid_mod
+  use gridStateVector_mod
   use backgroundCheck_mod
   use multi_ir_bgck_mod
   use innovation_mod
@@ -157,6 +158,11 @@ program midas_obsSelection
   call oer_setObsErrors(obsSpaceData, 'bgck')
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  ! Initialize list of analyzed variables.
+  !
+  call gsv_setup
 
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
