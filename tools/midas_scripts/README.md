@@ -13,24 +13,34 @@ Les variables d'environnement suivantes sont possibles:
    cette variable est vide.  Cela est utile pour débogguer le
    splitting des observations et pour examiner ce que les programmes
    MIDAS lisent comme fichier d'observations.
+
+ * `MIDAS_CONCURRENT_SPLITOBS`: Cette variable controle le nombre de
+   processus de splitting lancés en parallèle dans le script
+   `midas.mpi`.  Par défaut, elle n'est pas définie et ainsi aucune
+   limite n'est imposée.
+
  * `MIDAS_OBS_MPI_ORDERING`: Si cette variable est égale à `inverse`,
    alors on utilisera la répartition MPI des observations telle que
    cela était utilisée dans les versions `v_3.3.*` et antérieures de
    MIDAS.  Si elle est égale à `regular`, alors on utilisera la
    répartition définie dans les versions de MIDAS postérieures à
    `v_3.3`.
+
  * `MIDAS_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
    alors un `set -x` sera effectué dans le script `midas.mpi_barrier`.
+
  * `MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER`: Cette variable définit
    le nombre de threads utilisés pour traiter en parallèle chacun des
    trials d'ensemble dans le script `midas.interpEnsTrials.ksh`.  La
    parallélisation est faite sur les dates contenues dans chacun des
    trials d'ensemble.  Par défaut, cette variable est égale à 1.
+
  * `MIDAS_INTERPENSTRIALS_VARS_THERMO`: Argument `-var` donné à
    `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
    verticaux thermodynamiques dans le script
    `midas.interpEnsTrials.ksh`.  Par défaut, elle est égale à `CUB_TT
    LIN_HU`.
+
  * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`: Argument `-var` donné à
    `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
    verticaux momentum dans le script `midas.interpEnsTrials.ksh`.  Par
@@ -77,8 +87,9 @@ le code qui doit être exécuté avant de lancer le MPI.
 
 Ce script est lancé en MPI et est celui qui appelle vraiment les
 programmes de MIDAS.  C'est ce script qui appelle `midas.splitobs` qui
-fait le splitting des observations avant d'appeler les véritables
-programmes MPI.
+fait le splitting en parallèle des observations avant d'appeler les
+véritables programmes MPI.  On peut limiter le nombre de processus en
+parallèle envoyés avec la variable `MIDAS_CONCURRENT_SPLITOBS`.
 
 #### midas.splitobs
 

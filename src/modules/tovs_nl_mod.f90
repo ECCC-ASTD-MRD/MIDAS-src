@@ -1529,9 +1529,9 @@ contains
   !  tvs_isNameGeostationary
   !--------------------------------------------------------------------------
   logical function tvs_isNameGeostationary(cinstrum)
-    ! :Purpose: given an instrument name
+    ! :Purpose: given an instrument name following BUFR convention
     !           returns if it is a Geostationnary Imager
-    !           (information from namelist NAMGEO)
+    !           (information from namelist NAMGEOBUFR)
     implicit none
     !Arguments:
     character(len=*), intent(in) :: cinstrum
@@ -1540,18 +1540,18 @@ contains
     integer :: nulnam, ierr, i 
     integer, save :: ninst_geo
     logical, save :: lfirst = .true.
-    character (len=8) :: name_inst(maxsize)
+    character (len=8),save :: name_inst(maxsize)
     integer, external :: fnom, fclos
 
-    namelist /NAMGEO/ name_inst
+    namelist /NAMGEOBUFR/ name_inst
     if (lfirst) then
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = "XXXXXXXX"
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgeo, iostat=ierr)
+      read(nulnam,nml=namgeobufr, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namgeo)
+      if (mpi_myid == 0) write(*,nml=namgeobufr)
       ierr = fclos(nulnam)
       do i=1, maxsize
         if (name_inst(i) == "XXXXXXXX") then
@@ -1561,7 +1561,7 @@ contains
       end do
       lfirst = .false.
       if (ninst_geo == 0) then
-        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeo namelist !"
+        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeobufr namelist !" 
       end if
     end if
     

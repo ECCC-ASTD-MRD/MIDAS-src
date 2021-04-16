@@ -335,13 +335,14 @@ contains
 
     ! for statevector_FcstErr
     call gsv_allocate(statevector_FcstErr, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! for statevector_fso 
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
                       dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
- 
+
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
     call fso_calcFcstError(columng,statevector_FcstErr)
    
@@ -426,29 +427,34 @@ contains
     write(*,*) 'faExists', faExists
     call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt='LINEAR', &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfa
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     !for statevector_fb
     fileName_fb = trim(forecastPath) // '/forecast_b'
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt='LINEAR', &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfb
     call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! read verifying analysis
     fileName_a = trim(forecastPath) // '/analysis'
     call gsv_allocate(statevector_a, 1,hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt='LINEAR', &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
 
     ! compute error of both forecasts (overwrite forecasts with error)
