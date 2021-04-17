@@ -49,6 +49,7 @@ program midas_gencoeff
 
   type(struct_obs),        target  :: obsSpaceData
   type(struct_columnData), target  :: columnTrlOnAnlIncLev
+  type(struct_gsv)                 :: stateVectorTrialHighRes
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_hco), pointer        :: hco_core => null()
   type(struct_vco), pointer        :: vco_anl => null()
@@ -80,9 +81,17 @@ program midas_gencoeff
   call gencoeff_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
-  ! Read trials and horizontally interpolate to columns
   call tmg_start(3,'TRIALS')
-  call inn_setupBackgroundColumns( columnTrlOnAnlIncLev, obsSpaceData, hco_core )
+
+  ! Reading 15-min trials
+  call inn_readTrialsHighRes( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate 15-min trials to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnAnlIncLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   call tmg_stop(3)
 
   !

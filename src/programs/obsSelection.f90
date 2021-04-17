@@ -48,6 +48,7 @@ program midas_obsSelection
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
+  type(struct_gsv)               :: stateVectorTrialHighRes
   type(struct_hco), pointer      :: hco_anl => null()
   type(struct_vco), pointer      :: vco_anl => null()
   type(struct_hco), pointer      :: hco_core => null()
@@ -165,11 +166,17 @@ program midas_obsSelection
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
     
-  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
+  ! Reading 15-min trials
+  call inn_readTrialsHighRes( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate 15-min trials to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)

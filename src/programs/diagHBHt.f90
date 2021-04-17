@@ -53,6 +53,7 @@ program midas_diagHBHt
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
+  type(struct_gsv)               :: stateVectorTrialHighRes
 
   character(len=48) :: obsMpiStrategy, varMode
 
@@ -82,12 +83,17 @@ program midas_diagHBHt
   call var_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
-  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
+
+  ! Reading 15-min trials
+  call inn_readTrialsHighRes( stateVectorTrialHighRes )
+
+  ! Horizontally interpolate 15-min trials to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)

@@ -59,6 +59,7 @@ module oMinusF_mod
       type(struct_columnData),target, intent(inout)  :: columnTrlOnAnlIncLev
       type(struct_columnData),target, intent(inout)  :: columnTrlOnTrlLev
       type(struct_obs),       target, intent(inout)  :: obsSpaceData
+      type(struct_gsv)             :: stateVectorTrialHighRes
       character(len=*), intent(in) :: varMode
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
@@ -148,8 +149,13 @@ module oMinusF_mod
         call oer_setObsErrors(obsSpaceData, trim(varMode))
       end if
 
-      !- 1.14 Reading, horizontal interpolation and unit conversions of the 3D background fields
-      call inn_setupBackgroundColumns(columnTrlOnTrlLev,obsSpaceData,hco_core)
+      ! Reading 15-min trials
+      call inn_readTrialsHighRes( stateVectorTrialHighRes )
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      ! Horizontally interpolate 15-min trials to trial columns
+      call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                       stateVectorTrialHighRes )
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
@@ -168,7 +174,7 @@ module oMinusF_mod
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+        call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
         !- 2.3 Compute the background errors in observation space
         call ose_computeStddev(columnTrlOnAnlIncLev,hco_anl,obsSpaceData)
       end if

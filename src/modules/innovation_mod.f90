@@ -56,7 +56,8 @@ module innovation_mod
 
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
-  public :: inn_perturbObs, inn_setupBackgroundColumns, inn_setupBackgroundColumnsAnl
+  public :: inn_perturbObs, inn_setupColumnsOnTrialLev, inn_setupColumnsOnAnlLev
+  public :: inn_readTrialsHighRes
 
   character(len=48) :: innovationMode
 
@@ -190,80 +191,44 @@ contains
     end if
 
   end subroutine inn_setupobs
-  
+
   !--------------------------------------------------------------------------
-  ! inn_setupBackgroundColumns
+  ! inn_readTrialsHighRes
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumns(columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                        stateVectorTrialOut_opt)
+  subroutine inn_readTrialsHighRes(stateVectorTrial, stateVectorTrialOut_opt)
     !
-    !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
+    !:Purpose: Read high-resolution trials.
+    !
     implicit none
     
     ! arguments
-    type(struct_columnData)    :: columnTrlOnTrlLev
-    type(struct_obs)           :: obsSpaceData
-    type(struct_hco), pointer  :: hco_core
+    type(struct_gsv)           :: stateVectorTrial
     type(struct_gsv), optional :: stateVectorTrialOut_opt
 
     ! locals
-    type(struct_gsv)          :: stateVectorTrial
     type(struct_gsv)          :: stateVectorTrialNoZorP 
     type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
-    integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfo, allocHeightSfc
     real(8), pointer          :: onecolumn(:)
 
     character(len=4), pointer :: anlVar(:)
 
-    character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
-    integer           :: numObsBatches      ! number of batches for calling interp setup
-
-    NAMELIST /NAMINN/timeInterpType_nl, numObsBatches
-
-    write(*,*)
-    write(*,*) 'inn_setupBackgroundColumns: START'
+    write(*,*) 'inn_readTrialsHighRes: START'
     nullify(hco_trl,vco_trl)
-
-    timeInterpType_nl = 'NEAREST'
-    numObsBatches     = 20
-
-    if (utl_isNamelistPresent('naminn','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error opening file flnml')
-      read(nulnam,nml=naminn,iostat=ierr)
-      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=naminn)
-      ierr = fclos(nulnam)
-    else
-      write(*,*)
-      write(*,*) 'inn_setupBackgroundColumns: Namelist block NAMINN is missing in the namelist.'
-      write(*,*) '                            The default values will be taken.'
-      if (mpi_myid == 0) write(*,nml=naminn)
-    end if
-
-    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
     ! check if gsv is initialized.
     if ( .not. gsv_isInitialized() ) then
-       call utl_abort('inn_setupBackgroundColumns: add call to gsv_setup in the main program.')
+       call utl_abort('inn_readTrialsHighRes: add call to gsv_setup in the main program.')
     end if
+
+    call tmg_start(10,'SETUPCOLUMN')
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
 
     call vco_SetupFromFile(vco_trl, './trlm_01')
-
-    call col_setVco(columnTrlOnTrlLev,vco_trl)
-    call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
-
-    ! copy latitude from obsSpaceData
-    if ( obs_numHeader(obsSpaceData) > 0 ) then
-      call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
-    end if
 
     if (vco_trl%Vcode == 0) then
       allocHeightSfc = .false.
@@ -311,6 +276,73 @@ contains
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
     end if
 
+    call tmg_stop(10)
+
+    write(*,*) 'inn_readTrialsHighRes: END'
+
+  end subroutine inn_readTrialsHighRes
+
+  !--------------------------------------------------------------------------
+  ! inn_setupColumnsOnTrialLev
+  !--------------------------------------------------------------------------
+  subroutine inn_setupColumnsOnTrialLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                        stateVectorTrial)
+    !
+    !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
+    !
+    implicit none
+
+    ! arguments
+    type(struct_columnData)    :: columnTrlOnTrlLev
+    type(struct_obs)           :: obsSpaceData
+    type(struct_hco), pointer  :: hco_core
+    type(struct_gsv)           :: stateVectorTrial
+
+    ! locals
+    type(struct_vco), pointer :: vco_trl => null()
+    integer                   :: ierr, nulnam, fnom, fclos
+    logical                   :: deallocInterpInfo
+    real(8), pointer          :: onecolumn(:)
+
+    character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
+    integer           :: numObsBatches      ! number of batches for calling interp setup
+
+    NAMELIST /NAMINN/timeInterpType_nl, numObsBatches
+
+    write(*,*)
+    write(*,*) 'inn_setupColumnsOnTrialLev: START'
+    nullify(vco_trl)
+
+    timeInterpType_nl = 'NEAREST'
+    numObsBatches     = 20
+
+    if (utl_isNamelistPresent('naminn','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrialLev: Error opening file flnml')
+      read(nulnam,nml=naminn,iostat=ierr)
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrialLev: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=naminn)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'inn_setupColumnsOnTrialLev: Namelist block NAMINN is missing in the namelist.'
+      write(*,*) '                            The default values will be taken.'
+      if (mpi_myid == 0) write(*,nml=naminn)
+    end if
+
+    call tmg_start(10,'SETUPCOLUMN')
+
+    vco_trl => gsv_getVco(stateVectorTrial)
+
+    call col_setVco(columnTrlOnTrlLev,vco_trl)
+    call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
+
+    ! copy latitude from obsSpaceData
+    if ( obs_numHeader(obsSpaceData) > 0 ) then
+      call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
+    end if
+
     call s2c_nl( stateVectorTrial, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
@@ -342,14 +374,14 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupBackgroundColumns: END'
+    write(*,*) 'inn_setupColumnsOnTrialLev: END'
 
-  end subroutine inn_setupBackgroundColumns
+  end subroutine inn_setupColumnsOnTrialLev
 
   !--------------------------------------------------------------------------
-  ! inn_setupBackgroundColumnsAnl
+  ! inn_setupColumnsOnAnlLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  subroutine inn_setupColumnsOnAnlLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
     implicit none
@@ -362,9 +394,9 @@ contains
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
     write(*,*)
-    write(*,*) 'inn_setupBackgroundColumnsAnl: START'
+    write(*,*) 'inn_setupColumnsOnAnlLev: START'
 
-    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+    call tmg_start(10,'SETUPCOLUMN')
 
     !
     !- Data copying from columnh to columnTrlOnAnlIncLev
@@ -395,12 +427,12 @@ contains
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnTrlLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlLev, before vintprof, columnTrlOnTrlLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
         write(*,*) columnTrlOnTrlLev_ptr (:)
 
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlLev, before vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -454,7 +486,7 @@ contains
     ! Print pressure on thermo levels for the first column
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlLev, after vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -488,7 +520,7 @@ contains
     ! Print height info of the first original and interpolated columns
     if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
       write(*,*)
-      write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
+      write(*,*) 'inn_setupColumnsOnAnlLev, vIntProf output:'
 
       if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
         write(*,*) 'Z_T (columnTrlOnTrlLev):'
@@ -513,9 +545,9 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupBackgroundColumnsAnl: END'
+    write(*,*) 'inn_setupColumnsOnAnlLev: END'
 
-  end subroutine inn_setupBackgroundColumnsAnl
+  end subroutine inn_setupColumnsOnAnlLev
 
   !--------------------------------------------------------------------------
   ! inn_computeInnovation

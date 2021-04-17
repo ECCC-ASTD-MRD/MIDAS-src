@@ -54,6 +54,7 @@ program midas_obsimpact
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
+  type(struct_gsv)               :: stateVectorTrialHighRes
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
@@ -180,10 +181,14 @@ program midas_obsimpact
   call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  !- Reading and horizontal interpolation of the 3D trial fields
-  !
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
+  ! Reading 15-min trials
+  call inn_readTrialsHighRes( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate 15-min trials to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -201,7 +206,7 @@ program midas_obsimpact
   !
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)

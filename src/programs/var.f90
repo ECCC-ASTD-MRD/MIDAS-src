@@ -55,6 +55,7 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorTrialHighRes
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevector_Psfc
   type(struct_gsv)                :: stateVectorAnalHighRes
@@ -183,18 +184,22 @@ program midas_var
   !
   !- Set up the minimization module, now that the required parameters are known
   !  NOTE: some global variables remain in minimization_mod that must be initialized before
-  !        inn_setupBackgroundColumns
+  !        inn_setupColumnsOnTrialLev
   !
   call min_setup( cvm_nvadim, hco_anl ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Read trials and horizontally interpolate to columns
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
-                                   stateVectorTrialOut_opt=stateVectorTrial )
+  ! Reading 15-min trials
+  call inn_readTrialsHighRes( stateVectorTrialHighRes, stateVectorTrialOut_opt=stateVectorTrial )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate 15-min trials to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
