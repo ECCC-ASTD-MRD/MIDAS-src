@@ -86,7 +86,7 @@ program midas_diagHBHt
   call tmg_start(2,'PREMIN')
 
   ! Reading 15-min trials
-  call inn_readTrialsHighRes( stateVectorTrialHighRes )
+  call gsv_readTrialsHighRes( stateVectorTrialHighRes )
 
   ! Horizontally interpolate 15-min trials to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &

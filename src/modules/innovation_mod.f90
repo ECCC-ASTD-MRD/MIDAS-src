@@ -57,7 +57,6 @@ module innovation_mod
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
   public :: inn_perturbObs, inn_setupColumnsOnTrialLev, inn_setupColumnsOnAnlLev
-  public :: inn_readTrialsHighRes
 
   character(len=48) :: innovationMode
 

@@ -190,7 +190,7 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
-  call inn_readTrialsHighRes( stateVectorTrialHighRes, stateVectorTrialOut_opt=stateVectorTrial )
+  call gsv_readTrialsHighRes( stateVectorTrialHighRes, stateVectorTrialOut_opt=stateVectorTrial )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate 15-min trials to trial columns

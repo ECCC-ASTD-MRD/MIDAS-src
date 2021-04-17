@@ -150,7 +150,7 @@ module oMinusF_mod
       end if
 
       ! Reading 15-min trials
-      call inn_readTrialsHighRes( stateVectorTrialHighRes )
+      call gsv_readTrialsHighRes( stateVectorTrialHighRes )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! Horizontally interpolate 15-min trials to trial columns
