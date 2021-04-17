@@ -55,17 +55,19 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
-  type(struct_gsv)                :: stateVectorTrialHighRes
+  type(struct_gsv)                :: stateVectorUpdateHighRes
+  type(struct_gsv)                :: stateVectorUpdate
   type(struct_gsv)                :: stateVectorTrial
-  type(struct_gsv)                :: statevector_Psfc
+  type(struct_gsv)                :: statevectorPsfc
   type(struct_gsv)                :: stateVectorAnalHighRes
-  type(struct_gsv)       , target :: stateVectorTrialLowRes
+  type(struct_gsv)       , target :: stateVectorUpdateLowRes
   type(struct_gsv)       , target :: stateVectorRefHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
   character(len=4), pointer :: varNames(:)
+  logical :: allocHeightSfc
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -190,12 +192,28 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
-  call gsv_readTrialsHighRes( stateVectorTrialHighRes, stateVectorTrialOut_opt=stateVectorTrial )
+  call gsv_readTrialsHighRes( stateVectorUpdateHighRes, &
+                              stateVectorTrialOut_opt=stateVectorTrial )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Horizontally interpolate 15-min trials to trial columns
+  ! create stateVectorUpdate needed for computing high-resolution increments
+  if ( stateVectorTrial%vco%Vcode == 0 ) then
+    allocHeightSfc = .false.
+  else
+    allocHeightSfc = .true.
+  end if
+  call gsv_allocate( stateVectorUpdate, tim_nstepobsinc, &
+                     stateVectorTrial%hco, stateVectorTrial%vco, &
+                     dataKind_opt=pre_incrReal, &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_copy( stateVectorTrial, stateVectorUpdate,  &
+                 allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
+
+  ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorTrialHighRes )
+                                   stateVectorUpdateHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -203,30 +221,30 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
+  call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize stateVectorRefHU for doing variable transformation of the increments.
-  if ( gsv_varExist(stateVectorTrial,'HU') ) then
+  if ( gsv_varExist(stateVectorUpdate,'HU') ) then
     call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=(/'HU','P0'/) )
 
-    ! First interpolate trials to the low-resolution analysis grid.
+    ! First interpolate stateVectorUpdate to the low-resolution analysis grid.
     nullify(varNames)
-    call gsv_varNamesList(varNames, stateVectorTrial)
-    call gsv_allocate(stateVectorTrialLowRes, tim_nstepobsinc, hco_anl, vco_anl,   &
+    call gsv_varNamesList(varNames, stateVectorUpdate)
+    call gsv_allocate(stateVectorUpdateLowRes, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=varNames)
-    call gsv_interpolate(stateVectorTrial, stateVectorTrialLowRes)        
+    call gsv_interpolate(stateVectorUpdate, stateVectorUpdateLowRes)        
 
     ! Now copy only P0 and HU.
-    call gsv_copy( stateVectorTrialLowRes, stateVectorRefHU, &
+    call gsv_copy( stateVectorUpdateLowRes, stateVectorRefHU, &
                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-    call gsv_deallocate(stateVectorTrialLowRes)
+    call gsv_deallocate(stateVectorUpdateLowRes)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
@@ -239,8 +257,8 @@ program midas_var
   end if
 
   ! Do minimization of cost function
-  call min_minimize(columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
-                    stateVectorRef_opt=stateVectorRefHU)
+  call min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
+                     stateVectorRef_opt=stateVectorRefHU )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
@@ -257,8 +275,8 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute high-resolution analysis on trial grid
-  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorTrial, &
-                                  statevector_Psfc, stateVectorAnalHighRes)
+  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdate, &
+                                  statevectorPsfc, stateVectorAnalHighRes)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! output the analysis increment
@@ -269,15 +287,18 @@ program midas_var
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
-  call osd_ObsSpaceDiag(obsSpaceData,columnTrlOnAnlIncLev,hco_anl)
+  call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl )
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
 
+  ! Deallocate the high-resolution statevector 
+  call gsv_deallocate(stateVectorUpdateHighRes)
+
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_writeIncrementHighRes(stateVectorTrial, &
-                                 statevector_Psfc, stateVectorAnalHighRes)
+  call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
+                                 statevectorPsfc, stateVectorAnalHighRes)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 

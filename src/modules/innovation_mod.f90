@@ -285,7 +285,7 @@ contains
   ! inn_setupColumnsOnTrialLev
   !--------------------------------------------------------------------------
   subroutine inn_setupColumnsOnTrialLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                        stateVectorTrial)
+                                        stateVectorUpdateHighRes)
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     !
@@ -295,7 +295,7 @@ contains
     type(struct_columnData)    :: columnTrlOnTrlLev
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
-    type(struct_gsv)           :: stateVectorTrial
+    type(struct_gsv)           :: stateVectorUpdateHighRes
 
     ! locals
     type(struct_vco), pointer :: vco_trl => null()
@@ -332,7 +332,7 @@ contains
 
     call tmg_start(10,'SETUPCOLUMN')
 
-    vco_trl => gsv_getVco(stateVectorTrial)
+    vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
     call col_setVco(columnTrlOnTrlLev,vco_trl)
     call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
@@ -342,11 +342,10 @@ contains
       call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
     end if
 
-    call s2c_nl( stateVectorTrial, obsSpaceData, columnTrlOnTrlLev, hco_core, &
+    call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
                  dealloc_opt=deallocInterpInfo )
-    call gsv_deallocate(stateVectorTrial)
 
     if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
