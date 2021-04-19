@@ -285,6 +285,9 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
+  ! interpolate stateVectorTrial 7 to 25 timeStep
+  call gsv_tInterpolate( stateVectorTrial, stateVectorUpdateHighRes)
+
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
   call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl )

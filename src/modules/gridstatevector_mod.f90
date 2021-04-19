@@ -61,7 +61,7 @@ module gridStateVector_mod
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
-  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_readTrialsHighRes
+  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_readTrialsHighRes, gsv_tInterpolate
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -5307,6 +5307,131 @@ module gridStateVector_mod
     end do step_loop
 
   end subroutine gsv_vInterpolate_r4
+
+  !--------------------------------------------------------------------------
+  ! gsv_tInterpolate
+  !--------------------------------------------------------------------------
+  subroutine gsv_tInterpolate(statevector_in,statevector_out)
+    !
+    !:Purpose: Time interpolation from statevector with low temporal resolution to statevector 
+    !          with high termopral resolution.
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)  :: statevector_in
+    type(struct_gsv)  :: statevector_out
+
+    ! Locals:
+    integer :: kIndex, latIndex, lonIndex
+    integer :: stepIndexIn1, stepIndexIn2, stepIndexOut, numStepIn, numStepOut
+    integer :: lon1, lon2, lat1, lat2, k1, k2
+    integer :: dateStampIn, dateStampOut 
+    real(8) :: weight1, weight2
+    real(8) :: deltaHour, deltaHourInOut
+
+    if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
+      call utl_abort('gsv_tInterpolate: The input and output statevectors are not on the same vertical levels')
+    end if
+
+    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
+      call utl_abort('gsv_tInterpolate: The input and output statevectors are not on the same horizontal grid.')
+    end if
+
+    if ( statevector_in%numStep > statevector_out%numStep ) then
+      write(*,*) 'gsv_tInterpolate: numStep_out is less than numStep_in, calling gsv_copy.'
+      call gsv_copy(statevector_in, statevector_out, allowTimeMismatch_opt=.true.)
+      return
+    else if ( statevector_in%numStep == statevector_out%numStep ) then
+      write(*,*) 'gsv_tInterpolate: numStep_out is equal to numStep_in, calling gsv_copy.'
+      call gsv_copy(statevector_in, statevector_out)
+      return
+    end if
+
+    lon1 = statevector_in%myLonBeg
+    lon2 = statevector_in%myLonEnd
+    lat1 = statevector_in%myLatBeg
+    lat2 = statevector_in%myLatEnd
+    k1 = statevector_in%mykBeg
+    k2 = statevector_in%mykEnd
+
+    numStepIn = statevector_in%numStep
+    numStepOut = statevector_out%numStep
+    write(*,*) 'gsv_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
+
+    if ( numStepIn > 1 ) then
+      call difdatr(statevector_in%dateStampList(1), statevector_in%dateStampList(2), deltaHour)
+    else
+      deltaHour = 0.0d0
+      deltaHourInOut = 0.0d0
+    end if
+
+    do stepIndexOut = 1, numStepOut
+      if ( numStepIn == 1 ) then
+        stepIndexIn1 = 1
+        stepIndexIn2 = 1
+        weight1 = 1.0d0 
+        weight2 = 0.0d0 
+      else
+        ! find staevector_in%dateStamp on the left and right
+        if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then
+          stepIndexIn2 = numStepIn
+        else
+          stepIn_Loop9: do stepIndexIn2 = 1, numStepIn
+            dateStampIn = statevector_in%dateStampList(stepIndexIn2)
+            dateStampOut = statevector_out%dateStampList(stepIndexOut)
+            if ( dateStampIn > dateStampOut ) exit stepIn_loop9
+          end do stepIn_Loop9
+        end if
+        stepIndexIn1 = stepIndexIn2 - 1
+
+        ! compute deltaHour
+        dateStampIn = statevector_in%dateStampList(stepIndexIn1)
+        dateStampOut = statevector_out%dateStampList(stepIndexOut)
+        call difdatr(dateStampIn, dateStampOut, deltaHourInOut)
+
+        ! compute the interpolation weights
+        weight1 = 1.0d0 - deltaHourInOut / deltaHour
+        weight2 = deltaHourInOut / deltaHour
+      end if
+
+      write(*,*) 'gsv_tInterpolate: for stepIndexOut=', stepIndexOut, &
+                 ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
+                 ',weight1=', weight1, ',weight2=', weight2, &
+                 ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
+
+      !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+      do kIndex = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+
+            if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
+              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                real(weight1,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &
+                real(weight2,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2)
+
+            else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
+              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                weight1 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1),8) + &
+                weight2 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2),8)
+
+            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
+              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                real(weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1),4) + &
+                real(weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2),4)
+
+            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
+              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1) + &
+                weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2)
+            end if
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do
+
+  end subroutine gsv_tInterpolate
 
   !--------------------------------------------------------------------------
   ! gsv_writeToFile
