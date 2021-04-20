@@ -162,23 +162,8 @@ CONTAINS
     else
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
-    
-    !- In some cases we need to just extract a subset of levels from the trials
-    useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-    if ( useIncLevelsOnly ) then
-      write(*,*) 'inc_computeHighResAnalysis: extract only the increment levels from the trials'
-      allocate(stateVectorTrialUsed)
-      call gsv_allocate(stateVectorTrialUsed, tim_nstepobsinc, hco_trl, vco_inc,   &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
-                        allocHeight_opt=.false., allocPressure_opt=.false.)
-      call gsv_interpolate(stateVectorTrial, stateVectorTrialUsed)        
-      vco_trl => gsv_getVco(stateVectorTrialUsed)
-    else
-      write(*,*) 'inc_computeHighResAnalysis: use the supplied trials directly'
-      stateVectorTrialUsed => stateVectorTrial
-    end if
+
+    stateVectorTrialUsed => stateVectorTrial
 
     !
     !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
@@ -380,22 +365,7 @@ CONTAINS
     end if
     writeHeightSfc = allocHeightSfc
 
-    !- In some cases we need to just extract a subset of levels from the trials
-    useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-    if ( useIncLevelsOnly ) then
-      write(*,*) 'inc_writeIncrementHighRes: extract only the increment levels from the trials'
-      allocate(stateVectorTrialUsed)
-      call gsv_allocate(stateVectorTrialUsed, tim_nstepobsinc, hco_trl, vco_inc,   &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
-                        allocHeight_opt=.false., allocPressure_opt=.false.)
-      call gsv_interpolate(stateVectorTrial, stateVectorTrialUsed)        
-      vco_trl => gsv_getVco(stateVectorTrialUsed)
-    else
-      write(*,*) 'inc_writeIncrementHighRes: use the supplied trials directly'
-      stateVectorTrialUsed => stateVectorTrial
-    end if
+    stateVectorTrialUsed => stateVectorTrial
 
     !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrialUsed,   'AllTransformedToModel',allowOverWrite_opt=.true.)
