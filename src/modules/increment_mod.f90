@@ -112,7 +112,6 @@ CONTAINS
     type(struct_gsv), intent(out) :: stateVectorAnalHighRes
 
     ! Locals:
-    type(struct_gsv), pointer :: stateVectorTrialUsed
     type(struct_gsv) :: statevectorPsfcLowRes
     type(struct_gsv) :: statevector_mask
 
@@ -163,8 +162,6 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
 
-    stateVectorTrialUsed => stateVectorTrial
-
     !
     !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     !
@@ -207,13 +204,13 @@ CONTAINS
       !
       !- Compute analysis Psfc to use for interpolation of increment
       !
-      call gsv_getField(stateVectorTrialUsed,PsfcTrial,'P0')
+      call gsv_getField(stateVectorTrial,PsfcTrial,'P0')
       call gsv_getField(statevectorPsfc,PsfcIncrement,'P0')
       call gsv_getField(statevectorPsfc,PsfcAnalysis,'P0')
 
       if (.not. hco_trl%global .and. useAnalIncMask) then
         call gsv_getField(statevector_mask,analIncMask)
-        do stepIndex = 1, stateVectorTrialUsed%numStep
+        do stepIndex = 1, stateVectorTrial%numStep
           PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + PsfcIncrement(:,:,1,stepIndex)*analIncMask(:,:,1)
         end do
       else
@@ -224,7 +221,7 @@ CONTAINS
       !- Copy the surface height from trial into statevectorPsfc
       !
       HeightSfc_increment => gsv_getHeightSfc(statevectorPsfc)
-      HeightSfc_trial     => gsv_getHeightSfc(stateVectorTrialUsed)
+      HeightSfc_trial     => gsv_getHeightSfc(stateVectorTrial)
       HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
     end if
     writeHeightSfc = allocHeightSfc
@@ -241,7 +238,7 @@ CONTAINS
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_copy(stateVectorTrialUsed, stateVectorAnalHighRes)
+    call gsv_copy(stateVectorTrial, stateVectorAnalHighRes)
 
     !- Interpolate and add the input increments
     if (.not. hco_trl%global .and. useAnalIncMask) then
@@ -276,7 +273,7 @@ CONTAINS
         !
         !- Compute the continuous sea ice concentration field (LG)
         !
-        call gvt_transform(stateVectorAnalHighRes,'GLtoLG',stateVectorRef_opt=stateVectorTrialUsed)
+        call gvt_transform(stateVectorAnalHighRes,'GLtoLG',stateVectorRef_opt=stateVectorTrial)
 
       end if
 
@@ -323,7 +320,6 @@ CONTAINS
     type(struct_gsv), intent(in) :: stateVectorAnalHighRes
 
     ! Locals:
-    type(struct_gsv), pointer :: stateVectorTrialUsed
     type(struct_gsv) :: stateVectorIncHighRes
     type(struct_gsv) :: statevector_1step_r4, statevectorPsfc_1step_r4
 
@@ -365,10 +361,8 @@ CONTAINS
     end if
     writeHeightSfc = allocHeightSfc
 
-    stateVectorTrialUsed => stateVectorTrial
-
     !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
-    call gvt_transform(stateVectorTrialUsed,   'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
     !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
     nullify(varNames)
@@ -384,7 +378,7 @@ CONTAINS
     !
     call tmg_start(183,'INC_WRITEANLMREHM')
     call gsv_copy(stateVectorAnalHighRes, stateVectorIncHighRes)
-    call gsv_add(stateVectorTrialUsed, stateVectorIncHighRes, -1.0d0)
+    call gsv_add(stateVectorTrial, stateVectorIncHighRes, -1.0d0)
 
     ! figure out number of batches of time steps for writing
     numBatch = ceiling(real(stateVectorAnalHighRes%numStep) / real(mpi_nprocs))
@@ -481,7 +475,7 @@ CONTAINS
       call gsv_deallocate(statevectorPsfc)
     end if
     call gsv_deallocate(stateVectorIncHighRes)
-    call gsv_deallocate(stateVectorTrialUsed)
+    call gsv_deallocate(stateVectorTrial)
 
     write(*,*) 'inc_writeIncrementHighRes: END'
 
