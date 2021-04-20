@@ -2860,7 +2860,7 @@ module gridStateVector_mod
     integer :: stepIndex, varIndex
     character(len=4) :: varName
     logical :: doHorizInterp, doVertInterp, unitConversion
-    logical :: readHeightSfc, readSubsetOfLevels, containsFullField
+    logical :: readHeightSfc, containsFullField
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile 
@@ -2903,20 +2903,12 @@ module gridStateVector_mod
     ! set up vertical and horizontal coordinate for input file
     if ( present(vcoFileIn_opt)) then
       vco_file => vcoFileIn_opt
-      readSubsetOfLevels = .false.
+      write(*,*)
+      write(*,*) 'gsv_readFromFile: all the vertical levels will be read from ', trim(fileName) 
     else
       call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
-      readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)
-      if ( readSubsetOfLevels ) then
-        ! use the output vertical grid provided to read only a subset of the verical levels
-        write(*,*)
-        write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels from ', trim(fileName)
-        call vco_deallocate(vco_file)
-        vco_file => statevector_out%vco
-      else
-        write(*,*)
-        write(*,*) 'gsv_readFromFile: all the vertical levels will be read from ', trim(fileName) 
-      end if
+      write(*,*)
+      write(*,*) 'gsv_readFromFile: all the vertical levels will be read from ', trim(fileName) 
     end if
 
     foundVarNameInFile = .false.
@@ -2960,11 +2952,7 @@ write(*,*) 'here'
     call hco_setupFromFile( hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName )
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
-    if (readSubsetOfLevels) then
-      doVertInterp = .false.
-    else
-      doVertInterp = .not.vco_equal(vco_file,statevector_out%vco)
-    end if
+    doVertInterp = .not.vco_equal(vco_file,statevector_out%vco)
     doHorizInterp = .not.hco_equal(hco_file,statevector_out%hco)
     write(*,*) 'gsv_readFromFile: doVertInterp = ', doVertInterp, ', doHorizInterp = ', doHorizInterp
 
