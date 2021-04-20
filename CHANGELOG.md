@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Remove reading subset of the verical levels from trials (#486 and !458)
  * Groundwork to implement outer-loop for computing analysis increment and results 
    of `var` program affected when humidity is one of the analysis variables (#474 and !452)
  * Add ability to output on physics grid for LAM (#464 and !451)
