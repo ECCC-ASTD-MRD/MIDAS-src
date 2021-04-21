@@ -59,6 +59,8 @@ program midas_var
   type(struct_gsv)                :: stateVectorUpdate
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevectorPsfc
+  type(struct_gsv)                :: stateVectorLowResTime
+  type(struct_gsv)                :: stateVectorLowResSpace
   type(struct_gsv)                :: stateVectorAnalHighRes
   type(struct_gsv)       , target :: stateVectorUpdateLowRes
   type(struct_gsv)       , target :: stateVectorRefHU
@@ -225,26 +227,37 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize stateVectorRefHU for doing variable transformation of the increments.
-  if ( gsv_varExist(stateVectorUpdate,'HU') ) then
+  if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
     call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=(/'HU','P0'/) )
 
-    ! First interpolate stateVectorUpdate to the low-resolution analysis grid.
+    ! First degrade the time steps
+    call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
+                       stateVectorUpdateHighRes%hco, stateVectorUpdateHighRes%vco,  &
+                       dataKind_opt=pre_incrReal, &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime,  &
+                   allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
+
+    ! Second interpolate to the low-resolution spatial grid.
     nullify(varNames)
-    call gsv_varNamesList(varNames, stateVectorUpdate)
-    call gsv_allocate(stateVectorUpdateLowRes, tim_nstepobsinc, hco_anl, vco_anl,   &
+    call gsv_varNamesList(varNames, stateVectorLowResTime)
+    call gsv_allocate(stateVectorLowResSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=varNames)
-    call gsv_interpolate(stateVectorUpdate, stateVectorUpdateLowRes)        
+    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResSpace)        
 
     ! Now copy only P0 and HU.
-    call gsv_copy( stateVectorUpdateLowRes, stateVectorRefHU, &
+    call gsv_copy( stateVectorLowResSpace, stateVectorRefHU, &
                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-    call gsv_deallocate(stateVectorUpdateLowRes)
+    call gsv_deallocate(stateVectorLowResSpace)
+    call gsv_deallocate(stateVectorLowResTime)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
@@ -275,7 +288,7 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute high-resolution analysis on trial grid
-  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdate, &
+  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdateHighRes, &
                                   statevectorPsfc, stateVectorAnalHighRes)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -285,7 +298,7 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
-  ! interpolate stateVectorTrial 7 to 25 timeStep
+  ! Interpolate analysis stateVector from 7 to 25 timeStep
   call gsv_tInterpolate( stateVectorTrial, stateVectorUpdateHighRes)
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic

@@ -112,6 +112,7 @@ CONTAINS
     type(struct_gsv), intent(out) :: stateVectorAnalHighRes
 
     ! Locals:
+    type(struct_gsv), target  :: stateVectorLowResTime
     type(struct_gsv) :: statevectorPsfcLowRes
     type(struct_gsv) :: statevector_mask
 
@@ -131,10 +132,11 @@ CONTAINS
 
     logical  :: allocHeightSfc, writeHeightSfc
 
+    write(*,*) 'inc_computeHighResAnalysis: STARTING'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
     ! Set/Read values for the namelist NAMINC
     call readNameList
-
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! Setup timeCoord module (date read from trial file)
     numStep = tim_nstepobsinc
@@ -149,6 +151,15 @@ CONTAINS
     else
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
+
+    ! First degrade the time steps
+    call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl,  &
+                       dataKind_opt=pre_incrReal, &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_copy( stateVectorTrial, stateVectorLowResTime, &
+                   allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
     !
     !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
@@ -187,13 +198,13 @@ CONTAINS
       !
       !- Compute analysis Psfc to use for interpolation of increment
       !
-      call gsv_getField(stateVectorTrial,PsfcTrial,'P0')
+      call gsv_getField(stateVectorLowResTime,PsfcTrial,'P0')
       call gsv_getField(statevectorPsfc,PsfcIncrement,'P0')
       call gsv_getField(statevectorPsfc,PsfcAnalysis,'P0')
 
       if (.not. hco_trl%global .and. useAnalIncMask) then
         call gsv_getField(statevector_mask,analIncMask)
-        do stepIndex = 1, stateVectorTrial%numStep
+        do stepIndex = 1, stateVectorLowResTime%numStep
           PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + PsfcIncrement(:,:,1,stepIndex)*analIncMask(:,:,1)
         end do
       else
@@ -204,7 +215,7 @@ CONTAINS
       !- Copy the surface height from trial into statevectorPsfc
       !
       HeightSfc_increment => gsv_getHeightSfc(statevectorPsfc)
-      HeightSfc_trial     => gsv_getHeightSfc(stateVectorTrial)
+      HeightSfc_trial     => gsv_getHeightSfc(stateVectorLowResTime)
       HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
     end if
     writeHeightSfc = allocHeightSfc
@@ -221,7 +232,7 @@ CONTAINS
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_copy(stateVectorTrial, stateVectorAnalHighRes)
+    call gsv_copy(stateVectorLowResTime, stateVectorAnalHighRes)
 
     !- Interpolate and add the input increments
     if (.not. hco_trl%global .and. useAnalIncMask) then
@@ -256,7 +267,7 @@ CONTAINS
         !
         !- Compute the continuous sea ice concentration field (LG)
         !
-        call gvt_transform(stateVectorAnalHighRes,'GLtoLG',stateVectorRef_opt=stateVectorTrial)
+        call gvt_transform(stateVectorAnalHighRes,'GLtoLG',stateVectorRef_opt=stateVectorLowResTime)
 
       end if
 
@@ -283,6 +294,10 @@ CONTAINS
       write(*,*) 'inc_computeHighResAnalysis: applying minimum values to analysis for variables of CH kind'
       call gvt_transform(stateVectorAnalHighRes,'CH_bounds')
     end if
+
+    call gsv_deallocate(stateVectorLowResTime)
+
+    write(*,*) 'inc_computeHighResAnalysis: END'
 
   end subroutine inc_computeHighResAnalysis
 

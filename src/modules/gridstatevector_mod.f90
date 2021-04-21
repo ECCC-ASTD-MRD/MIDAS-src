@@ -5343,7 +5343,7 @@ module gridStateVector_mod
       return
     else if ( statevector_in%numStep == statevector_out%numStep ) then
       write(*,*) 'gsv_tInterpolate: numStep_out is equal to numStep_in, calling gsv_copy.'
-      call gsv_copy(statevector_in, statevector_out)
+      call gsv_copy(statevector_in, statevector_out, allowVarMismatch_opt=.true.)
       return
     end if
 
