@@ -56,13 +56,11 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorUpdateHighRes
-  type(struct_gsv)                :: stateVectorUpdate
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevectorPsfc
   type(struct_gsv)                :: stateVectorLowResTime
-  type(struct_gsv)                :: stateVectorLowResSpace
+  type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnalHighRes
-  type(struct_gsv)       , target :: stateVectorUpdateLowRes
   type(struct_gsv)       , target :: stateVectorRefHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
@@ -198,20 +196,11 @@ program midas_var
                               stateVectorTrialOut_opt=stateVectorTrial )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! create stateVectorUpdate needed for computing high-resolution increments
-  if ( stateVectorTrial%vco%Vcode == 0 ) then
+  if ( stateVectorUpdateHighRes%vco%Vcode == 0 ) then
     allocHeightSfc = .false.
   else
     allocHeightSfc = .true.
   end if
-  call gsv_allocate( stateVectorUpdate, tim_nstepobsinc, &
-                     stateVectorTrial%hco, stateVectorTrial%vco, &
-                     dataKind_opt=pre_incrReal, &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
-  call gsv_copy( stateVectorTrial, stateVectorUpdate,  &
-                 allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
@@ -246,17 +235,17 @@ program midas_var
     ! Second interpolate to the low-resolution spatial grid.
     nullify(varNames)
     call gsv_varNamesList(varNames, stateVectorLowResTime)
-    call gsv_allocate(stateVectorLowResSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
+    call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=varNames)
-    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResSpace)        
+    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
 
     ! Now copy only P0 and HU.
-    call gsv_copy( stateVectorLowResSpace, stateVectorRefHU, &
+    call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHU, &
                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-    call gsv_deallocate(stateVectorLowResSpace)
+    call gsv_deallocate(stateVectorLowResTimeSpace)
     call gsv_deallocate(stateVectorLowResTime)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
