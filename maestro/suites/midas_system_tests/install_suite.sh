@@ -2,12 +2,15 @@
 
 set -e
 
-toplevel=$(git rev-parse --show-toplevel)
+__toplevel=$(git rev-parse --show-toplevel)
 
-MIDAS_SUITE_LAUNCH_DIRECTORY=${toplevel}/maestro/suites/midas_system_tests
+## env. variable new naming convention + retrocompatibility
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
+
+MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 
 # set the resources.def file, which depends on the TRUE_HOST name
-${toplevel}/set_resources_def.sh
+${__toplevel}/set_resources_def.sh
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
@@ -118,8 +121,8 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
     mkdir -p $(dirname ${MIDAS_TESTS_SUITE})
 fi
 
-echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-${toplevel}/compiledir}/midas_abs" > abs.dot
-echo "MIDAS_version=\$(cd ${toplevel}; ./midas.version.sh)" >> abs.dot
+echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${__toplevel}/compiledir}/midas_abs" > abs.dot
+echo "MIDAS_version=\$(cd ${__toplevel}; ./midas.version.sh)" >> abs.dot
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
     mkdir -p ${ABS_DIR}
