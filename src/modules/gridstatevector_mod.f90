@@ -2904,7 +2904,7 @@ module gridStateVector_mod
     if ( present(vcoFileIn_opt)) then
       vco_file => vcoFileIn_opt
       write(*,*)
-      write(*,*) 'gsv_readFromFile: all the vertical levels will be read from ', trim(fileName) 
+      write(*,*) 'gsv_readFromFile: vertical levels defined in user-supplied vco object will be read'
     else
       call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
       write(*,*)
@@ -2917,13 +2917,13 @@ module gridStateVector_mod
       varName = vnl_varNameList(varIndex)
 
       if ( .not. gsv_varExist(statevector_out,varName) ) cycle
-write(*,*) 'varName = ', varName
+
       ! make sure variable is in the file
       if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
-write(*,*) 'found'
+
       ! adopt a variable on the full/dynamic LAM grid
       if ( .not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
-write(*,*) 'here'
+
       foundVarNameInFile = .true.
 
       exit

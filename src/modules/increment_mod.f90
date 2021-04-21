@@ -138,7 +138,7 @@ CONTAINS
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
     real(8), allocatable        :: PsfcAnalysis_r8(:,:)
 
-    logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
+    logical  :: allocHeightSfc, writeHeightSfc
 
     ! Set/Read values for the namelist NAMINC
     call readNameList
@@ -339,7 +339,7 @@ CONTAINS
 
     real(8)             :: deltaHours
 
-    logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
+    logical  :: allocHeightSfc, writeHeightSfc
 
     write(*,*) 'inc_writeIncrementHighRes: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
