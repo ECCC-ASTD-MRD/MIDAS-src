@@ -98,7 +98,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeHighResAnalysis(statevectorIncLowRes, stateVectorTrial, &
+  subroutine inc_computeHighResAnalysis(statevectorIncLowRes, stateVectorUpdateHighRes, &
                                         statevectorPsfc, stateVectorAnalHighRes)
     !
     ! :Purpose: Computing high-resolution analysis on the trial grid.
@@ -107,7 +107,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevectorIncLowRes
-    type(struct_gsv), intent(in), target :: statevectorTrial
+    type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
     type(struct_gsv), intent(out) :: statevectorPsfc
     type(struct_gsv), intent(out) :: stateVectorAnalHighRes
 
@@ -115,6 +115,7 @@ CONTAINS
     type(struct_gsv), target  :: stateVectorLowResTime
     type(struct_gsv) :: statevectorPsfcLowRes
     type(struct_gsv) :: statevector_mask
+    type(struct_gsv) :: stateVectorAnal
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -143,13 +144,13 @@ CONTAINS
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
-    !- Use stateVectorTrial
-    hco_trl => gsv_getHco(stateVectorTrial)
-    vco_trl => gsv_getVco(stateVectorTrial)
+    !- Use stateVectorUpdateHighRes
+    hco_trl => gsv_getHco(stateVectorUpdateHighRes)
+    vco_trl => gsv_getVco(stateVectorUpdateHighRes)
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
       allocHeightSfc = .false.
     else
-      allocHeightSfc = stateVectorTrial%heightSfcPresent
+      allocHeightSfc = stateVectorUpdateHighRes%heightSfcPresent
     end if
 
     ! First degrade the time steps
@@ -158,7 +159,7 @@ CONTAINS
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_copy( stateVectorTrial, stateVectorLowResTime, &
+    call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime, &
                    allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
     !
@@ -227,34 +228,43 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
     call tmg_start(181,'INC_COMPUTEANL')
 
-    call gsv_allocate(stateVectorAnalHighRes, numStep, hco_trl, vco_trl, &
+    call gsv_allocate(stateVectorAnal, numStep, hco_trl, vco_trl, &
                       dataKind_opt=pre_incrReal, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_copy(stateVectorLowResTime, stateVectorAnalHighRes)
+    call gsv_copy(stateVectorLowResTime, stateVectorAnal)
 
     !- Interpolate and add the input increments
     if (.not. hco_trl%global .and. useAnalIncMask) then
       if (gsv_varExist(varName='P0')) then
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnal, &
                                    PsfcReference_opt=PsfcAnalysis(:,:,1,:), statevectorMaskLAM_opt=statevector_mask)
       else
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnal, &
                                    statevectorMaskLAM_opt=statevector_mask)
       end if
     else
       if (gsv_varExist(varName='P0')) then
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes,&
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnal,&
                                    PsfcReference_opt=PsfcAnalysis(:,:,1,:))
       else
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes)
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnal)
       end if
     end if
     call tmg_stop(181)
 
-    if( gsv_varExist(stateVectorAnalHighRes,'GL') ) then
+    ! After spatial interpolation, do time interpolation to get high-res analysis
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorAnal)
+    call gsv_allocate(stateVectorAnalHighRes, tim_nstepobs, hco_trl, vco_trl, &
+                      dataKind_opt=pre_incrReal, &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                      varNames_opt=varNames)
+    call gsv_tInterpolate(stateVectorAnal, stateVectorAnalHighRes)
 
+    if( gsv_varExist(stateVectorAnalHighRes,'GL') ) then
       !
       !- Impose limits [0,1] on sea ice concentration analysis
       !
@@ -295,6 +305,7 @@ CONTAINS
       call gvt_transform(stateVectorAnalHighRes,'CH_bounds')
     end if
 
+    call gsv_deallocate(stateVectorAnal)
     call gsv_deallocate(stateVectorLowResTime)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
@@ -317,6 +328,7 @@ CONTAINS
     type(struct_gsv), intent(in) :: stateVectorAnalHighRes
 
     ! Locals:
+    type(struct_gsv) :: stateVectorAnal
     type(struct_gsv) :: stateVectorIncHighRes
     type(struct_gsv) :: statevector_1step_r4, statevectorPsfc_1step_r4
 
@@ -356,9 +368,20 @@ CONTAINS
     !- Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
-    !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
+    ! Degrade the time steps in high-res analysis
     nullify(varNames)
     call gsv_varNamesList(varNames, stateVectorAnalHighRes)
+    call gsv_allocate( stateVectorAnal, tim_nstepobsinc, hco_trl, vco_trl,  &
+                       dataKind_opt=pre_incrReal, &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                       varNames_opt=varNames )
+    call gsv_copy( stateVectorAnalHighRes, stateVectorAnal, allowTimeMismatch_opt=.true.)
+    call gsv_deallocate(stateVectorAnalHighRes)
+
+    !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorAnal)
     call gsv_allocate(stateVectorIncHighRes, numStep, hco_trl, vco_trl, &
                       dataKind_opt=pre_incrReal,  &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -369,17 +392,17 @@ CONTAINS
     !- Recompute increments and write out the files in parallel with respect to time steps
     !
     call tmg_start(183,'INC_WRITEANLMREHM')
-    call gsv_copy(stateVectorAnalHighRes, stateVectorIncHighRes)
+    call gsv_copy(stateVectorAnal, stateVectorIncHighRes)
     call gsv_add(stateVectorTrial, stateVectorIncHighRes, -1.0d0)
 
     ! figure out number of batches of time steps for writing
-    numBatch = ceiling(real(stateVectorAnalHighRes%numStep) / real(mpi_nprocs))
+    numBatch = ceiling(real(stateVectorAnal%numStep) / real(mpi_nprocs))
     write(*,*) 'inc_writeIncrementHighRes: writing will be done by number of batches = ', numBatch
 
     batch_loop: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
-      stepIndexEnd = min(stateVectorAnalHighRes%numStep, stepIndexBeg + mpi_nprocs - 1)
+      stepIndexEnd = min(stateVectorAnal%numStep, stepIndexBeg + mpi_nprocs - 1)
       write(*,*) 'inc_writeIncrementHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will write, if any (-1 if none)
@@ -393,7 +416,7 @@ CONTAINS
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
       if ( stepIndexToWrite /= -1 ) then
 
-        dateStamp = stateVectorAnalHighRes%dateStampList(stepIndexToWrite)
+        dateStamp = stateVectorAnal%dateStampList(stepIndexToWrite)
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
@@ -401,17 +424,17 @@ CONTAINS
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         endif
 
-        call gsv_allocate( stateVector_1step_r4, 1, stateVectorAnalHighRes%hco, stateVectorAnalHighRes%vco, &
+        call gsv_allocate( stateVector_1step_r4, 1, stateVectorAnal%hco, stateVectorAnal%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                            allocHeightSfc_opt=allocHeightSfc, &
                            varNames_opt=varNames )
-        call gsv_allocate( stateVectorPsfc_1step_r4, 1, stateVectorAnalHighRes%hco, stateVectorAnalHighRes%vco, &
+        call gsv_allocate( stateVectorPsfc_1step_r4, 1, stateVectorAnal%hco, stateVectorAnal%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                            varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc )
       end if
 
       ! transpose ANALYSIS data from Tiles to Steps
-      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVectorAnalHighRes, stepIndexBeg)
+      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVectorAnal, stepIndexBeg)
 
       ! write the ANALYSIS file for one timestep on all tasks with data
       if ( stepIndexToWrite /= -1 ) then
@@ -462,7 +485,7 @@ CONTAINS
     end do batch_loop
     call tmg_stop(183)
 
-    call gsv_deallocate(stateVectorAnalHighRes)
+    call gsv_deallocate(stateVectorAnal)
     if (gsv_varExist(varName='P0')) then
       call gsv_deallocate(statevectorPsfc)
     end if

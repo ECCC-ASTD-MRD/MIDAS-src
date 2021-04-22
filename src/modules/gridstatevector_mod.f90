@@ -5329,6 +5329,8 @@ module gridStateVector_mod
     real(8) :: weight1, weight2
     real(8) :: deltaHour, deltaHourInOut
 
+    write(*,*) 'gsv_tInterpolate: STARTING'
+
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
       call utl_abort('gsv_tInterpolate: The input and output statevectors are not on the same vertical levels')
     end if
@@ -5430,6 +5432,8 @@ module gridStateVector_mod
       !$OMP END PARALLEL DO
 
     end do
+
+    write(*,*) 'gsv_tInterpolate: END'
 
   end subroutine gsv_tInterpolate
 

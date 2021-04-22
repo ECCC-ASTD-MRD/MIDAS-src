@@ -56,6 +56,7 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorUpdateHighRes
+  type(struct_gsv)                :: stateVectorAnal
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevectorPsfc
   type(struct_gsv)                :: stateVectorLowResTime
@@ -287,18 +288,12 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
-  ! Interpolate analysis stateVector from 7 to 25 timeStep
-  call gsv_tInterpolate( stateVectorTrial, stateVectorUpdateHighRes)
-
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
   call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl )
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
-
-  ! Deallocate the high-resolution statevector 
-  call gsv_deallocate(stateVectorUpdateHighRes)
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
