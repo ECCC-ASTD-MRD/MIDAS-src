@@ -56,12 +56,13 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorUpdateHighRes
-  type(struct_gsv)                :: stateVectorAnal
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevectorPsfcHighRes
+  type(struct_gsv)                :: statevectorPsfc
   type(struct_gsv)                :: stateVectorLowResTime
   type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnalHighRes
+  type(struct_gsv)                :: stateVectorAnal
   type(struct_gsv)       , target :: stateVectorRefHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
@@ -295,10 +296,15 @@ program midas_var
   ! Deallocate memory related to B matrices
   call bmat_finalize()
 
+  ! Post processing of analyis before writing (variable transform+humidity clipping)
+  call inc_analPostProcessing( stateVectorUpdateHighRes, statevectorPsfcHighRes, &
+                               stateVectorAnalHighRes, statevectorPsfc, &
+                               stateVectorAnal )
+
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
   call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
-                                 statevectorPsfcHighRes, stateVectorAnalHighRes)
+                                 statevectorPsfc, stateVectorAnal)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 
