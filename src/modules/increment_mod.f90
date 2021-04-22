@@ -99,7 +99,7 @@ CONTAINS
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
   subroutine inc_computeHighResAnalysis(statevectorIncLowRes, stateVectorUpdateHighRes, &
-                                        statevectorPsfc, stateVectorAnalHighRes)
+                                        statevectorPsfcHighRes, stateVectorAnalHighRes)
     !
     ! :Purpose: Computing high-resolution analysis on the trial grid.
     !
@@ -108,7 +108,7 @@ CONTAINS
     ! Arguments:
     type(struct_gsv), intent(in) :: statevectorIncLowRes
     type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(out) :: statevectorPsfc
+    type(struct_gsv), intent(out) :: statevectorPsfcHighRes
     type(struct_gsv), intent(out) :: stateVectorAnalHighRes
 
     ! Locals:
@@ -116,6 +116,7 @@ CONTAINS
     type(struct_gsv) :: statevectorPsfcLowRes
     type(struct_gsv) :: statevector_mask
     type(struct_gsv) :: stateVectorAnal
+    type(struct_gsv) :: statevectorPsfc
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -263,6 +264,14 @@ CONTAINS
                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       varNames_opt=varNames)
     call gsv_tInterpolate(stateVectorAnal, stateVectorAnalHighRes)
+    if ( gsv_varExist(varName='P0') ) then
+      call gsv_allocate(statevectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt=hInterpolationDegree)
+      call gsv_tInterpolate(statevectorPsfc, statevectorPsfcHighRes)
+    end if
 
     if( gsv_varExist(stateVectorAnalHighRes,'GL') ) then
       !
@@ -306,6 +315,7 @@ CONTAINS
     end if
 
     call gsv_deallocate(stateVectorAnal)
+    if ( gsv_varExist(varName='P0') ) call gsv_deallocate(statevectorPsfc)
     call gsv_deallocate(stateVectorLowResTime)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
@@ -315,8 +325,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrementHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes(statevectorTrial, &
-                                       statevectorPsfc, stateVectorAnalHighRes)
+  subroutine inc_writeIncrementHighRes(statevectorIncLowRes, statevectorTrial, &
+                                       statevectorPsfcHighRes, stateVectorAnalHighRes)
     !
     ! :Purpose: Write the high-resolution analysis increments to the rehm file.
     !
@@ -324,11 +334,12 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(in), target :: statevectorTrial
-    type(struct_gsv), intent(in) :: statevectorPsfc
+    type(struct_gsv), intent(in) :: statevectorPsfcHighRes
     type(struct_gsv), intent(in) :: stateVectorAnalHighRes
 
     ! Locals:
     type(struct_gsv) :: stateVectorAnal
+    type(struct_gsv) :: statevectorPsfc
     type(struct_gsv) :: stateVectorIncHighRes
     type(struct_gsv) :: statevector_1step_r4, statevectorPsfc_1step_r4
 
@@ -345,6 +356,7 @@ CONTAINS
     character(len=4), pointer :: varNames(:)
 
     real(8)             :: deltaHours
+    real(8), pointer    :: HeightSfc_increment(:,:), HeightSfc_trial(:,:)
 
     logical  :: allocHeightSfc, writeHeightSfc
 
@@ -369,6 +381,15 @@ CONTAINS
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
     ! Degrade the time steps in high-res analysis
+    if ( gsv_varExist(varName='P0') ) then
+      call gsv_allocate(statevectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt=hInterpolationDegree)
+      call gsv_copy( statevectorPsfcHighRes, statevectorPsfc, allowTimeMismatch_opt=.true.)
+      call gsv_deallocate(statevectorPsfcHighRes)
+    end if
     nullify(varNames)
     call gsv_varNamesList(varNames, stateVectorAnalHighRes)
     call gsv_allocate( stateVectorAnal, tim_nstepobsinc, hco_trl, vco_trl,  &
@@ -378,6 +399,16 @@ CONTAINS
                        varNames_opt=varNames )
     call gsv_copy( stateVectorAnalHighRes, stateVectorAnal, allowTimeMismatch_opt=.true.)
     call gsv_deallocate(stateVectorAnalHighRes)
+    ! Copy the surface height from trial into statevectorPsfc and stateVectorAnal
+    if ( allocHeightSfc ) then
+      HeightSfc_trial     => gsv_getHeightSfc(stateVectorTrial)
+      HeightSfc_increment => gsv_getHeightSfc(statevectorPsfc)
+      HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
+
+      nullify(HeightSfc_increment)
+      HeightSfc_increment => gsv_getHeightSfc(stateVectorAnal)
+      HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
+    end if
 
     !- reAllocate incHighRes with the names of the model variables (e.g. VIS, PR)
     nullify(varNames)
