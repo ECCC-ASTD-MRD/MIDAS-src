@@ -1,7 +1,6 @@
-  &namEnsPostProc
-   nEns                  = 10
-   readTrlEnsemble       = .true.
-   readAnlEnsemble       = .false.
+
+  &namEnsDiagnostics
+   nEns                  = 4
 /
   &namEnsPostProcModule
    numBits     = 32

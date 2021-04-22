@@ -15,9 +15,30 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program midas_ensDiagnostics
+  ! :Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle     
+  use version_mod
+  use mpi_mod
+  use utilities_mod
   implicit none
 
-  write(*,*) 'hello'
+  integer :: ierr, nulnam
+  integer, external :: fnom, fclos
+  integer :: nEns ! ensemble size
+
+  NAMELIST /namEnsDiagnostics/nEns
+
+  call ver_printNameAndVersion('ensDiagnostics','Program to estimate imbalance in a model integration')
+  call mpi_initialize
+  write(*,*) 'hello from mpi-process: ',mpi_myid
+  !- Read the namelist
+  nulnam = 0
+  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+  read(nulnam, nml=namEnsDiagnostics, iostat=ierr)
+  if ( ierr /= 0) call utl_abort('midas-ensDiagnostics: Error reading namelist')
+  if (mpi_myid == 0) write(*,*) 'ensemble size: ',nEns
+  ierr = fclos(nulnam)
+  
+  call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      
 
