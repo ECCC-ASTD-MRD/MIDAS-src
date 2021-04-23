@@ -363,8 +363,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrementHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes(statevectorIncLowRes, statevectorTrial, &
-                                       statevectorPsfc, stateVectorAnal)
+  subroutine inc_writeIncrementHighRes( statevectorTrial, statevectorPsfc, &
+                                        stateVectorAnal )
     !
     ! :Purpose: Write the high-resolution analysis increments to the rehm file.
     !

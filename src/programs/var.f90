@@ -303,8 +303,8 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_writeIncrementHighRes(stateVectorIncr, stateVectorTrial, &
-                                 statevectorPsfc, stateVectorAnal)
+  call inc_writeIncrementHighRes( stateVectorTrial, statevectorPsfc, &
+                                  stateVectorAnal)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 
