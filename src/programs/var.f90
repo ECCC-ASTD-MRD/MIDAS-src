@@ -57,8 +57,8 @@ program midas_var
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorUpdateHighRes
   type(struct_gsv)                :: stateVectorTrial
-  type(struct_gsv)                :: statevectorPsfcHighRes
-  type(struct_gsv)                :: statevectorPsfc
+  type(struct_gsv)                :: stateVectorPsfcHighRes
+  type(struct_gsv)                :: stateVectorPsfc
   type(struct_gsv)                :: stateVectorLowResTime
   type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnalHighRes
@@ -194,8 +194,7 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
-  call gsv_readTrialsHighRes( stateVectorUpdateHighRes, &
-                              stateVectorTrialOut_opt=stateVectorTrial )
+  call gsv_readTrialsHighRes( stateVectorUpdateHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   if ( stateVectorUpdateHighRes%vco%Vcode == 0 ) then
@@ -274,13 +273,13 @@ program midas_var
 
   ! get final increment with mask if it exists
   call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
-                        statevectorRef_opt=stateVectorRefHU)
+                        stateVectorRef_opt=stateVectorRefHU)
   call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute high-resolution analysis on trial grid
-  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdateHighRes, &
-                                  statevectorPsfcHighRes, stateVectorAnalHighRes)
+  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdateHighRes, &    ! IN
+                                  stateVectorPsfcHighRes, stateVectorAnalHighRes) ! OUT
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! output the analysis increment
@@ -293,18 +292,18 @@ program midas_var
   ! computations controlled by NAMOSD namelist in flnml)
   call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl )
 
-  ! Deallocate memory related to B matrices
+  ! Deallocate memory related to B matrices and update stateVector
   call bmat_finalize()
+  call gsv_deallocate( stateVectorUpdateHighRes )
 
   ! Post processing of analyis before writing (variable transform+humidity clipping)
-  call inc_analPostProcessing( stateVectorUpdateHighRes, statevectorPsfcHighRes, &
-                               stateVectorAnalHighRes, statevectorPsfc, &
-                               stateVectorAnal )
+  call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorAnalHighRes, &    ! IN 
+                               stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_writeIncrementHighRes( stateVectorTrial, statevectorPsfc, &
-                                  stateVectorAnal)
+  call inc_writeIncrementHighRes( stateVectorTrial, stateVectorPsfc, &
+                                  stateVectorAnal )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 
