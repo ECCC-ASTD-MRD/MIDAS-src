@@ -19,8 +19,8 @@ SEQ_CONTAINER_METHOD=immediate
 # Define the number of openMP threads for various jobs
 NUMTHREAD_maxPerNode_ppp=40
 
-NUMTHREAD_var_EnVar_24mem_xc40=5
-MEMORY_var_EnVar_24mem_xc40=17500M
+NUMTHREAD_var_EnVar_24mem_xc40=10
+MEMORY_var_EnVar_24mem_xc40=30000M
 NUMTHREAD_var_EnVar_gdps=4
 NUMTHREAD_var_EnVar_geps=4
 NUMTHREAD_var_EnVar_rdps=4
