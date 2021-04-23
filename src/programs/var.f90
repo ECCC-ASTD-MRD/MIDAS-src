@@ -119,7 +119,10 @@ program midas_var
   !
   !- Initialize constants
   !
-  if (mpi_myid == 0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !
   !- Initialize the Analysis grid

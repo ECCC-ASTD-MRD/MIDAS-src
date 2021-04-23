@@ -21,6 +21,7 @@ program midas_obsSelection
   !           (O-F => Observation minus Forecast, i.e. y-H(x))
   !
   use version_mod
+  use codePrecision_mod
   use ramDisk_mod
   use mpi_mod
   use utilities_mod
@@ -104,7 +105,10 @@ program midas_obsSelection
   !
   !- Initialize constants
   !
-  if(mpi_myid.eq.0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !
   !- Initialize the Analysis grid

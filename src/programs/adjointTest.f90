@@ -20,6 +20,7 @@ program midas_adjointTest
   !           <x,L(y)> = <L^T(x),y>
   !
   use version_mod
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -77,7 +78,10 @@ program midas_adjointTest
   call tim_setup()
 
   !- 1.6 Constants
-  if (mpi_myid == 0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !- 1.8 Variables of the model states
   call gsv_setup

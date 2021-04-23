@@ -19,6 +19,7 @@ program midas_gencoeff
   ! :Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
   use version_mod
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -203,7 +204,10 @@ contains
     !
     !- Initialize constants
     !
-    if(mpi_myid == 0) call mpc_printConstants(6)
+    if ( mpi_myid == 0 ) then
+      call mpc_printConstants(6)
+      call pre_printPrecisions
+    end if
 
     !
     !- Initialize variables of the model states

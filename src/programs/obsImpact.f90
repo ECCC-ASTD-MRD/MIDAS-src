@@ -129,7 +129,10 @@ program midas_obsimpact
   !
   !- Initialize constants
   !
-  if (mpi_myid.eq.0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !
   !- Initialize variables of the model states

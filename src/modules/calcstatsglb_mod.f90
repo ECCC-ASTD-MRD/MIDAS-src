@@ -21,6 +21,7 @@ module calcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
+  use codePrecision_mod
   use mpi_mod
   use mpivar_mod
   use gridStateVector_mod
@@ -103,7 +104,10 @@ module calcStatsGlb_mod
       call fln_ensfileName(cflensin(memberIndex), 'ensemble', memberIndex_opt=memberIndex)
     end do
     
-    call mpc_printConstants(6)
+    if ( mpi_myid == 0 ) then
+      call mpc_printConstants(6)
+      call pre_printPrecisions
+    end if
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     ntrunc=108

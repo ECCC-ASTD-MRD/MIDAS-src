@@ -19,6 +19,7 @@ module oMinusF_mod
   !
   ! :Purpose: Module for Observation minus Forecast (O-F) computation
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -100,7 +101,10 @@ module oMinusF_mod
       call obsf_setup(dateStamp, trim(varMode))
 
       !- 1.6 Constants
-      if (mpi_myid == 0) call mpc_printConstants(6)
+      if ( mpi_myid == 0 ) then
+        call mpc_printConstants(6)
+        call pre_printPrecisions
+      end if
 
       !- 1.7 Variables of the model states
       call gsv_setup
