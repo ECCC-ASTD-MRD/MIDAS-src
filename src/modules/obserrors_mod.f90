@@ -1475,18 +1475,10 @@ contains
               if ( cstnid == 'NOAA18' .or. cstnid == 'NOAA19' .or. &
                    cstnid == 'METO-A' .or. cstnid == 'METO-B' .or. cstnid == 'NPP' ) then
 
-                llok = .false.
-                BODY2: do bodyIndex2 = idata, idatend          
-                  if ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_soz ) then
-                    cycle BODY2
-                  else  
-                    llok = .true.
-                    solarZenith = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex2 )
-                  end if  
-                end do BODY2
+                  solarZenith = obs_headElem_r( obsSpaceData, obs_sun, headerIndex )
 
-                if ( solarZenith == MPC_missingValue_R8 .or. .not. llok ) then
-                  write(*,*) myWarning//': Solar zenith value is missing for the headerIndex ', headerIndex,', bodyIndex ', bodyIndex
+                if ( solarZenith == MPC_missingValue_R8 ) then
+                  write(*,*) myWarning//': Solar zenith value is missing for ', cstnid, ', headerIndex ', headerIndex,', bodyIndex ', bodyIndex
                   call utl_abort( myName//': Solar zenith value is missing')
                 end if  
 

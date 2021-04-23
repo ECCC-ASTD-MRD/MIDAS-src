@@ -43,7 +43,14 @@
 /
 
  &namSSTbiasEstimate
-   horizontalSearchRadius = 200.
+   horizontalSearchRadius = 400.
+   numberSatellites = 5
+   satelliteList(1)='AMSR2'
+   satelliteList(2)='METO-B'
+   satelliteList(3)='METO-A'
+   satelliteList(4)='NOAA19'
+   satelliteList(5)='NPP'
+  
 /
  &NAMSQLsfc
    numberElem=1

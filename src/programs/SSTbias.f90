@@ -16,7 +16,7 @@
 
 program midas_sstBias
   !
-  ! :Purpose: Main program to compute SST bias correction
+  ! :Purpose: Main program to compute SST bias estimate
   !
   use version_mod
   use ramDisk_mod
@@ -56,6 +56,9 @@ program midas_sstBias
                                                             ! where to search satellite observations
   character(len=48),parameter     :: obsMpiStrategy = 'LIKESPLITFILES', &
                                      varMode        = 'analysis'
+  integer                         :: dateStamp
+  integer                         :: numberSatellites       ! number of satellites to treat
+  character(len=10)               :: satelliteList( 10 )    ! list of satellite names
 
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
@@ -74,10 +77,11 @@ program midas_sstBias
  
   ! Do initial set up
   call tmg_start(2,'SETUP')
-  call SSTbiasEstimation_setup('VAR') ! obsColumnMode
+  call SSTbiasEstimation_setup( 'VAR', dateStamp ) ! obsColumnMode
   call tmg_stop(2)
   
-  call sstb_computeGriddedObservations( obsSpaceData, hco_anl, horizontalSearchRadius )
+  call sstb_computeGriddedObservations( obsSpaceData, hco_anl, vco_anl, &
+                                        horizontalSearchRadius, numberSatellites, satelliteList, dateStamp )
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -94,19 +98,20 @@ program midas_sstBias
 
   contains
 
-  subroutine SSTbiasEstimation_setup(obsColumnMode)
+  subroutine SSTbiasEstimation_setup( obsColumnMode, dateStamp )
     !
     ! :Purpose:  Control of the preprocessing of bias estimation
     !
 
     implicit none
     !Arguments:
-    character(len=*), intent(in) :: obsColumnMode
+    character(len=*), intent(in)  :: obsColumnMode
+    integer         , intent(out) :: dateStamp
+    
     !Locals:	
-    integer :: datestamp
     type(struct_hco), pointer :: hco_core => null()
     character(len=*), parameter :: myName = 'SSTbiasEstimation_setup'
-    namelist /namSSTbiasEstimate/ horizontalSearchRadius
+    namelist /namSSTbiasEstimate/ horizontalSearchRadius, numberSatellites, satelliteList
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -134,6 +139,9 @@ program midas_sstBias
     ! Setting default namelist variable values
     horizontalSearchRadius = 100.  ! horizontal search radius, in km, around input grid points
                                    ! where to search satellite observations
+    numberSatellites = 0           ! number of satellites to treat
+    satelliteList(:) = ''
+    
     ! Read the namelist
     nulnam = 0
     ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
@@ -142,6 +150,7 @@ program midas_sstBias
     if ( mpi_myid == 0 ) write(*, nml = namSSTbiasEstimate )
     ierr = fclos( nulnam )
 
+    if ( numberSatellites == 0) call utl_abort( myName//': Number of satellites to treat is not defined!!!')
     !
     !- Initialize constants
     !
