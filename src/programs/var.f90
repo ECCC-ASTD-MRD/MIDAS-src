@@ -68,6 +68,8 @@ program midas_var
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
+  integer :: outerLoopIndex
+
   character(len=4), pointer :: varNames(:)
   logical :: allocHeightSfc
 
@@ -206,6 +208,9 @@ program midas_var
     allocHeightSfc = .true.
   end if
 
+  ! start of the outer-loop
+  outerLoopIndex = 1
+
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorUpdateHighRes )
@@ -226,7 +231,7 @@ program midas_var
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=(/'HU','P0'/) )
 
-    ! First degrade the time steps
+    ! First, degrade the time steps
     call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
                        stateVectorUpdateHighRes%hco, stateVectorUpdateHighRes%vco,  &
                        dataKind_opt=pre_incrReal, &
@@ -236,7 +241,7 @@ program midas_var
     call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime,  &
                    allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
-    ! Second interpolate to the low-resolution spatial grid.
+    ! Second, interpolate to the low-resolution spatial grid.
     nullify(varNames)
     call gsv_varNamesList(varNames, stateVectorLowResTime)
     call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
@@ -246,7 +251,7 @@ program midas_var
                       varNames_opt=varNames)
     call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
 
-    ! Now copy only P0 and HU.
+    ! Now copy only P0 and HU to create reference stateVector.
     call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHU, &
                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
     call gsv_deallocate(stateVectorLowResTimeSpace)
@@ -281,15 +286,21 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute high-resolution analysis on trial grid
-  call inc_computeHighResAnalysis(stateVectorIncr, stateVectorUpdateHighRes, &    ! IN
-                                  stateVectorPsfcHighRes, stateVectorAnalHighRes) ! OUT
+  call inc_computeHighResAnalysis( outerLoopIndex,                                & ! IN
+                                   stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
+                                   stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! output the analysis increment
   call tmg_start(6,'WRITEINCR')
-  call inc_writeIncrement(stateVectorIncr) ! IN
+  call inc_writeIncrement( outerLoopIndex, stateVectorIncr ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
+
+  call gsv_deallocate(stateVectorIncr)
+  if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
+
+  ! end of outer-loop
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
@@ -314,9 +325,6 @@ program midas_var
     clmsg = 'REBM_DONE'
     call utl_writeStatus(clmsg)
   end if
-
-  call gsv_deallocate(stateVectorIncr)
-  if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)

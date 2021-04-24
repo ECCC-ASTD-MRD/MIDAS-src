@@ -101,18 +101,20 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeHighResAnalysis(statevectorIncLowRes, stateVectorUpdateHighRes, &
-                                        statevectorPsfcHighRes, stateVectorAnalHighRes)
+  subroutine inc_computeHighResAnalysis( outerLoopIndex,                                 & ! IN
+                                         statevectorIncLowRes, stateVectorUpdateHighRes, & ! IN
+                                         stateVectorPsfcHighRes, stateVectorAnalHighRes)   ! OUT
     !
     ! :Purpose: Computing high-resolution analysis on the trial grid.
     !
     implicit none
 
     ! Arguments:
+    integer         , intent(in) :: outerLoopIndex 
     type(struct_gsv), intent(in) :: statevectorIncLowRes
     type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(out) :: statevectorPsfcHighRes
-    type(struct_gsv), intent(out) :: stateVectorAnalHighRes
+    type(struct_gsv), intent(inout) :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(inout) :: stateVectorAnalHighRes
 
     ! Locals:
     type(struct_gsv) :: statevectorPsfcLowRes
@@ -156,12 +158,16 @@ CONTAINS
     end if
 
     ! allocating high-res analysis 
-    call gsv_allocate( stateVectorAnalHighRes, tim_nstepobs, hco_trl, vco_trl, &
-                       dataKind_opt=pre_incrReal, &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=allocHeightSfc, &
-                       hInterpolateDegree_opt=hInterpolationDegree, &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    if ( outerLoopIndex == 1 ) then
+      call gsv_allocate( stateVectorAnalHighRes, tim_nstepobs, hco_trl, vco_trl, &
+                         dataKind_opt=pre_incrReal, &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=allocHeightSfc, &
+                         hInterpolateDegree_opt=hInterpolationDegree, &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+    else
+      call gsv_zero( stateVectorAnalHighRes )
+    end if
     call gsv_copy( stateVectorUpdateHighRes,stateVectorAnalHighRes, &
                    allowVarMismatch_opt=.true.)
 
@@ -220,12 +226,16 @@ CONTAINS
 
       ! Time interpolation to get high-res Psfc analysis increment
       if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
-      call gsv_allocate( statevectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
-                         hInterpolateDegree_opt=hInterpolationDegree)
-      call gsv_tInterpolate(statevectorPsfc, statevectorPsfcHighRes)
+      if ( outerLoopIndex == 1 ) then
+        call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
+                           dataKind_opt=pre_incrReal, &
+                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                           varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                           hInterpolateDegree_opt=hInterpolationDegree)
+      else
+        call gsv_zero( stateVectorPsfcHighRes )
+      end if
+      call gsv_tInterpolate(statevectorPsfc, stateVectorPsfcHighRes)
     end if
     writeHeightSfc = allocHeightSfc
 
@@ -262,8 +272,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_analPostProcessing
   !--------------------------------------------------------------------------
-  subroutine inc_analPostProcessing( statevectorPsfcHighRes, stateVectorAnalHighRes, &    ! IN
-                                     stateVectorTrial, statevectorPsfc, stateVectorAnal ) ! OUT
+  subroutine inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorAnalHighRes, &    ! IN
+                                     stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
     !
     ! :Purpose: Post processing of the high resolution analysis including degrading 
     !           temporal resolution, variable transform, and humidity clipping.
@@ -271,10 +281,10 @@ CONTAINS
     implicit none 
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevectorPsfcHighRes
+    type(struct_gsv), intent(in) :: stateVectorPsfcHighRes
     type(struct_gsv), intent(in) :: stateVectorAnalHighRes
     type(struct_gsv), intent(out) :: stateVectorTrial
-    type(struct_gsv), intent(out) :: statevectorPsfc
+    type(struct_gsv), intent(out) :: stateVectorPsfc
     type(struct_gsv), intent(out) :: stateVectorAnal
 
     ! Locals:
@@ -308,13 +318,13 @@ CONTAINS
 
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
     if ( gsv_varExist(varName='P0') ) then
-      call gsv_allocate( statevectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
+      call gsv_allocate( stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                          varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree)
-      call gsv_copy( statevectorPsfcHighRes, statevectorPsfc, allowTimeMismatch_opt=.true.)
-      call gsv_deallocate(statevectorPsfcHighRes)
+      call gsv_copy( stateVectorPsfcHighRes, stateVectorPsfc, allowTimeMismatch_opt=.true.)
+      call gsv_deallocate(stateVectorPsfcHighRes)
     end if
 
     nullify(varNames)
@@ -366,7 +376,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrementHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes( statevectorTrial, statevectorPsfc, &
+  subroutine inc_writeIncrementHighRes( stateVectorTrial, stateVectorPsfc, &
                                         stateVectorAnal )
     !
     ! :Purpose: Write the high-resolution analysis increments to the rehm file.
@@ -374,13 +384,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in), target :: statevectorTrial
-    type(struct_gsv), intent(in) :: statevectorPsfc
+    type(struct_gsv), intent(in), target :: stateVectorTrial
+    type(struct_gsv), intent(in) :: stateVectorPsfc
     type(struct_gsv), intent(in) :: stateVectorAnal
 
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes
-    type(struct_gsv) :: statevector_1step_r4, statevectorPsfc_1step_r4
+    type(struct_gsv) :: stateVector_1step_r4, stateVectorPsfc_1step_r4
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -407,8 +417,8 @@ CONTAINS
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
-    hco_trl => gsv_getHco(statevectorTrial)
-    vco_trl => gsv_getVco(statevectorTrial)
+    hco_trl => gsv_getHco(stateVectorTrial)
+    vco_trl => gsv_getVco(stateVectorTrial)
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
       allocHeightSfc = .false.
     else
@@ -419,10 +429,10 @@ CONTAINS
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
 
-    ! Copy the surface height from trial into statevectorPsfc and stateVectorAnal
+    ! Copy the surface height from trial into stateVectorPsfc and stateVectorAnal
     if ( allocHeightSfc ) then
       HeightSfc_trial     => gsv_getHeightSfc(stateVectorTrial)
-      HeightSfc_increment => gsv_getHeightSfc(statevectorPsfc)
+      HeightSfc_increment => gsv_getHeightSfc(stateVectorPsfc)
       HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
 
       nullify(HeightSfc_increment)
@@ -489,7 +499,7 @@ CONTAINS
       if ( stepIndexToWrite /= -1 ) then
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         anlFileName = './anlm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( statevector_1step_r4, trim(anlFileName), etiket_anlm,  &
+        call gsv_writeToFile( stateVector_1step_r4, trim(anlFileName), etiket_anlm,  &
                               typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                               numBits_opt=writeNumBits, containsFullField_opt=.true. )
       end if
@@ -503,7 +513,7 @@ CONTAINS
         if ( stepIndexToWrite /= -1 ) then
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
           incFileName = './rehm_' // trim(coffset) // 'm'
-          call gsv_writeToFile( statevector_1step_r4, trim(incFileName), etiket_rehm,  &
+          call gsv_writeToFile( stateVector_1step_r4, trim(incFileName), etiket_rehm,  &
                                 typvar_opt='R', &
                                 numBits_opt=writeNumBits, containsFullField_opt=.false. )
         end if
@@ -517,7 +527,7 @@ CONTAINS
           if ( stepIndexToWrite /= -1 ) then
             write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
             incFileName = './rehm_' // trim(coffset) // 'm'
-            call gsv_writeToFile( statevectorPsfc_1step_r4, trim(incFileName), etiket_rehm,  &
+            call gsv_writeToFile( stateVectorPsfc_1step_r4, trim(incFileName), etiket_rehm,  &
                                   typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                                   numBits_opt=writeNumBits, containsFullField_opt=.true. )
           end if
@@ -536,7 +546,7 @@ CONTAINS
 
     call gsv_deallocate(stateVectorAnal)
     if (gsv_varExist(varName='P0')) then
-      call gsv_deallocate(statevectorPsfc)
+      call gsv_deallocate(stateVectorPsfc)
     end if
     call gsv_deallocate(stateVectorIncHighRes)
     call gsv_deallocate(stateVectorTrial)
@@ -583,15 +593,17 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrement
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrement(statevector_incr)
+  subroutine inc_writeIncrement( outerLoopIndex, stateVector_incr )
     !
     ! :Purpose: Write the low-resolution analysis increments to the rebm file.
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv)     :: statevector_incr
-    ! locals
+    ! Arguments:
+    integer              :: outerLoopIndex
+    type(struct_gsv)     :: stateVector_incr
+
+    ! Locals:
     integer              :: stepIndex, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
@@ -602,8 +614,9 @@ CONTAINS
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
       if (statevector_incr%allocated) then
-        dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
-        if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
+        dateStamp = gsv_getDateStamp(stateVector_incr,stepIndex)
+        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: writing increment for time step: ', &
+                                         stepIndex, dateStamp
 
         ! write the increment file for this time step
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -611,12 +624,12 @@ CONTAINS
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
         else
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-        end if
+        endif
         fileName = './rebm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
-             ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
+        call gsv_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
+                              ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
       end if
-    end do
+    enddo
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
 
