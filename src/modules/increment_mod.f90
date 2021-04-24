@@ -172,21 +172,21 @@ CONTAINS
 
     ! Get the increment of Psfc
     if ( gsv_varExist(varName='P0') ) then
-      call gsv_allocate(statevectorPsfc, numStep, hco_trl, vco_trl, &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
-                        hInterpolateDegree_opt=hInterpolationDegree)
+      call gsv_allocate( statevectorPsfc, numStep, hco_trl, vco_trl, &
+                         dataKind_opt=pre_incrReal, &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                         hInterpolateDegree_opt=hInterpolationDegree )
 
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'inc_computeHighResAnalysis: horiz interpolation of the Psfc increment'
+      if( mpi_myid == 0 ) write(*,*) ''
+      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: horizontal interpolation of the Psfc increment'
 
       ! Extract Psfc inc at low resolution
-      call gsv_allocate(statevectorPsfcLowRes, numStep,  &
-                        statevectorIncLowRes%hco, vco_trl,  &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        dataKind_opt=pre_incrReal, &
-                        varNames_opt=(/'P0'/))
+      call gsv_allocate( statevectorPsfcLowRes, numStep,  &
+                         statevectorIncLowRes%hco, vco_trl,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                         dataKind_opt=pre_incrReal, &
+                         varNames_opt=(/'P0'/) )
       call gsv_getField(statevectorPsfcLowRes,PsfcIncLowRes,'P0')
       call gsv_getField(statevectorIncLowRes,PsfcIncLowResFrom3Dgsv,'P0')
       PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
@@ -196,6 +196,7 @@ CONTAINS
       call gsv_deallocate(statevectorPsfcLowRes)
 
       ! Compute analysis Psfc to use for interpolation of increment
+      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Computing Psfc analysis to use for interpolation of increment'
       call gsv_allocate(statevectorPsfcLowResTime, tim_nstepobsinc, hco_trl, vco_trl,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, &
@@ -209,14 +210,16 @@ CONTAINS
 
       if (.not. hco_trl%global .and. useAnalIncMask) then
         call gsv_getField(statevector_mask,analIncMask)
-        do stepIndex = 1, stateVectorUpdateHighRes%numStep
-          PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + PsfcIncrement(:,:,1,stepIndex)*analIncMask(:,:,1)
+        do stepIndex = 1, stateVectorPsfc%numStep
+          PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + &
+                                          PsfcIncrement(:,:,1,stepIndex) * analIncMask(:,:,1)
         end do
       else
         PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
       end if
 
       ! Time interpolation to get high-res Psfc analysis increment
+      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
       call gsv_allocate( statevectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
@@ -227,8 +230,8 @@ CONTAINS
     writeHeightSfc = allocHeightSfc
 
     ! Compute the analysis
-    if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
+    if( mpi_myid == 0 ) write(*,*) ''
+    if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
     call tmg_start(181,'INC_COMPUTEANL')
 
     ! Interpolate low-res increments to high-res and add to the initial state
