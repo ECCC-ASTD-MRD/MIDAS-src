@@ -32,6 +32,6 @@ MEMORY_var_Var3D_aladin_assim=8G
 NUMTHREAD_var_Var3D_gbc=10
 NUMTHREAD_var_Var3D_splitobs_xc40=4
 
-NUMTHREAD_var_vbc=5
+NUMTHREAD_var_vbc=10
 
 MPITOPO_ensembleH=10x4x1
