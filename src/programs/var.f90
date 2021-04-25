@@ -196,6 +196,11 @@ program midas_var
   !        inn_setupColumnsOnTrialLev
   !
   call min_setup( cvm_nvadim, hco_anl ) ! IN
+  allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
+  if (ierr /= 0) then
+    write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
+    call utl_abort('aborting in VAR')
+  end if
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
@@ -209,98 +214,97 @@ program midas_var
   end if
 
   ! start of the outer-loop
-  outerLoopIndex = 1
+  do outerLoopIndex = 1, 2
+    write(*,*) 'Outer-loop index=', outerLoopIndex
 
-  ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
-  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorUpdateHighRes )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  ! Initialize stateVectorRefHU for doing variable transformation of the increments.
-  if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-    call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                      varNames_opt=(/'HU','P0'/) )
-
-    ! First, degrade the time steps
-    call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
-                       stateVectorUpdateHighRes%hco, stateVectorUpdateHighRes%vco,  &
-                       dataKind_opt=pre_incrReal, &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime,  &
-                   allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
-
-    ! Second, interpolate to the low-resolution spatial grid.
-    nullify(varNames)
-    call gsv_varNamesList(varNames, stateVectorLowResTime)
-    call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                      dataKind_opt=pre_incrReal, &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                      varNames_opt=varNames)
-    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
-
-    ! Now copy only P0 and HU to create reference stateVector.
-    call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHU, &
-                   allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-    call gsv_deallocate(stateVectorLowResTimeSpace)
-    call gsv_deallocate(stateVectorLowResTime)
-
+    ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+    call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                     stateVectorUpdateHighRes )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  end if
-  call tmg_stop(2)
 
-  allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
-  if (ierr /= 0) then
-    write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
-    call utl_abort('aborting in VAR')
-  end if
+    call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Do minimization of cost function
-  call min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
-                     stateVectorRef_opt=stateVectorRefHU )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Compute satellite bias correction increment and write to file
-  call bcs_writebias(controlVectorIncr)
+    ! Initialize stateVectorRefHU for doing variable transformation of the increments.
+    if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
+      call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'HU','P0'/) )
 
-  call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
-       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-       dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
+      ! First, degrade the time steps
+      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
+                         stateVectorUpdateHighRes%hco, stateVectorUpdateHighRes%vco,  &
+                         dataKind_opt=pre_incrReal, &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime,  &
+                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
-  ! get final increment with mask if it exists
-  call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
-                        stateVectorRef_opt=stateVectorRefHU)
-  call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      ! Second, interpolate to the low-resolution spatial grid.
+      nullify(varNames)
+      call gsv_varNamesList(varNames, stateVectorLowResTime)
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=varNames)
+      call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
 
-  ! Compute high-resolution analysis on trial grid
-  call inc_computeHighResAnalysis( outerLoopIndex,                                & ! IN
-                                   stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
-                                   stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      ! Now copy only P0 and HU to create reference stateVector.
+      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHU, &
+                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_deallocate(stateVectorLowResTimeSpace)
+      call gsv_deallocate(stateVectorLowResTime)
 
-  ! output the analysis increment
-  call tmg_start(6,'WRITEINCR')
-  call inc_writeIncrement( outerLoopIndex, stateVectorIncr ) ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(6)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+    call tmg_stop(2)
 
-  call gsv_deallocate(stateVectorIncr)
-  if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
+    ! Do minimization of cost function
+    controlVectorIncr(:) = 0.0d0
+    call min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
+                       stateVectorRef_opt=stateVectorRefHU )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! end of outer-loop
+    ! Compute satellite bias correction increment and write to file
+    call bcs_writebias(controlVectorIncr)
+
+    call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
+         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+         dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
+
+    ! get final increment with mask if it exists
+    call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
+                          stateVectorRef_opt=stateVectorRefHU)
+    call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Compute high-resolution analysis on trial grid
+    call inc_computeHighResAnalysis( outerLoopIndex,                                & ! IN
+                                     stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
+                                     stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Use high-res analysis as updated state for the next iteration
+    call gsv_copy( stateVectorAnalHighRes, stateVectorUpdateHighRes, &
+                   allowVarMismatch_opt=.true. )
+
+    ! output the analysis increment
+    call tmg_start(6,'WRITEINCR')
+    call inc_writeIncrement( outerLoopIndex, stateVectorIncr ) ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tmg_stop(6)
+
+    call gsv_deallocate(stateVectorIncr)
+    if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
+
+  end do ! end of outer-loop
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
