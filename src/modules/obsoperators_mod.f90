@@ -53,7 +53,7 @@ module obsOperators_mod
   integer, external :: get_max_rss
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
-  logical :: firstCall
+  logical :: firstCallInOuterLoop
 
 contains
 
@@ -1894,11 +1894,11 @@ contains
 
     ! initialize if there are outer-loops
     if ( present(firstCall_opt) ) then
-      firstCall = firstCall_opt
+      firstCallInOuterLoop = firstCall_opt
     else
-      firstCall = .false.
+      firstCallInOuterLoop = .false.
     end if
-    if ( firstCall ) firstTime = .true.
+    if ( firstCallInOuterLoop ) firstTime = .true.
 
     if ( firstTime ) then
       !     Find interpolation layer in model profiles (used by several operators)
@@ -2679,11 +2679,11 @@ contains
 
     ! initialize if there are outer-loops
     if ( present(firstCall_opt) ) then
-      firstCall = firstCall_opt
+      firstCallInOuterLoop = firstCall_opt
     else
-      firstCall = .false. 
+      firstCallInOuterLoop = .false. 
     end if
-    if ( firstCall ) firstTime = .true.
+    if ( firstCallInOuterLoop ) firstTime = .true.
 
     !     Find interpolation layer in model profiles (used by several operators)
     if ( firstTime ) then
@@ -3567,7 +3567,7 @@ contains
     type(gps_diff), allocatable :: rstv(:)
 
     ! initialize if there are outer-loops
-    if ( firstCall ) lfirst = .true.
+    if ( firstCallInOuterLoop ) lfirst = .true.
 
     if ( .not. lfirst ) return
 
@@ -3747,7 +3747,7 @@ contains
     logical, save :: lfirstGB = .true.
 
     ! initialize if there are outer-loops
-    if ( firstCall ) lfirstGB = .true.
+    if ( firstCallInOuterLoop ) lfirstGB = .true.
 
     if ( .not. lfirstGB ) return
 
