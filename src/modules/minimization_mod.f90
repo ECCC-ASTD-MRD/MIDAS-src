@@ -56,7 +56,7 @@ module minimization_mod
   private
 
   ! public variables
-  public              :: min_niter,min_nsim
+  public              :: min_niter, min_nsim, min_numOuterLoopIterations
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
@@ -73,6 +73,7 @@ module minimization_mod
   integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
+  integer             :: min_numOuterLoopIterations
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
@@ -112,7 +113,7 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup(nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt)
+  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt )
     implicit none
 
     ! Arguments:
@@ -144,6 +145,7 @@ CONTAINS
     ! set default values for namelist variables
     nvamaj = 6
     nitermax = 0
+    min_numOuterLoopIterations = 1
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.

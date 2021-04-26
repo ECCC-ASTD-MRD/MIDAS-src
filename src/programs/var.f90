@@ -214,9 +214,9 @@ program midas_var
     allocHeightSfc = .true.
   end if
 
-  ! start of the outer-loop
-  do outerLoopIndex = 1, 2
-    write(*,*) 'Outer-loop index=', outerLoopIndex
+  ! Enter outer-loop
+  do outerLoopIndex = 1, min_numOuterLoopIterations
+    write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
     call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
@@ -310,7 +310,8 @@ program midas_var
     call gsv_deallocate(stateVectorIncr)
     if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
-  end do ! end of outer-loop
+    write(*,*) 'var: end of outer-loop index=', outerLoopIndex
+  end do
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()
