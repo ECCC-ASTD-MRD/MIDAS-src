@@ -593,7 +593,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrement
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrement( outerLoopIndex, stateVector_incr )
+  subroutine inc_writeIncrement( outerLoopIndex, numOuterLoopIterations, stateVector_incr )
     !
     ! :Purpose: Write the low-resolution analysis increments to the rebm file.
     !
@@ -601,15 +601,23 @@ CONTAINS
 
     ! Arguments:
     integer              :: outerLoopIndex
+    integer              :: numOuterLoopIterations
     type(struct_gsv)     :: stateVector_incr
 
     ! Locals:
-    integer              :: stepIndex, dateStamp
+    integer              :: stepIndex, dateStamp, ip3ForWriteToFile
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=30)    :: fileName
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: STARTING'
+
+    ! For backward cmpatibility, use ip3=0 to write to file if there is no outer-loop
+    if ( numOuterLoopIterations == 1 )  then
+      ip3ForWriteToFile = 0
+    else
+      ip3ForWriteToFile = outerLoopIndex
+    end if
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
@@ -627,7 +635,7 @@ CONTAINS
         endif
         fileName = './rebm_' // trim(coffset) // 'm'
         call gsv_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
-                              ip3_opt=outerLoopIndex, stepIndex_opt=stepIndex, &
+                              ip3_opt=ip3ForWriteToFile, stepIndex_opt=stepIndex, &
                               containsFullField_opt=.false. )
       end if
     enddo

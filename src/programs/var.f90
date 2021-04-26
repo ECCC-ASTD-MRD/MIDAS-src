@@ -303,7 +303,7 @@ program midas_var
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
-    call inc_writeIncrement( outerLoopIndex, stateVectorIncr ) ! IN
+    call inc_writeIncrement( outerLoopIndex, min_numOuterLoopIterations, stateVectorIncr ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
