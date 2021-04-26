@@ -53,6 +53,7 @@ module obsOperators_mod
   integer, external :: get_max_rss
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
+  logical :: firstCall
 
 contains
 
@@ -1872,7 +1873,7 @@ contains
   ! oop_Htl
   !--------------------------------------------------------------------------
   subroutine oop_Htl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
-                     min_nsim)
+                     min_nsim, firstCall_opt)
     ! :Purpose: Compute simulated observations from profiled model increments.
     !           It returns Hdx in OBS_WORK. Calls the several linear observation operators.
     implicit none
@@ -1881,14 +1882,23 @@ contains
     type(struct_obs)          :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     integer, intent(in)       :: min_nsim
+    logical, optional         :: firstCall_opt 
 
     logical, save :: firstTime = .true.
 
-    if (mpi_myid == 0) THEN
+    if ( mpi_myid == 0 ) then
        write(*,*)'OOP_Htl - Linearized observation operators'
     end if
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
+
+    ! initialize if there are outer-loops
+    if ( present(firstCall_opt) ) then
+      firstCall = firstCall_opt
+    else
+      firstCall = .false.
+    end if
+    if ( firstCall ) firstTime = .true.
 
     if ( firstTime ) then
       !     Find interpolation layer in model profiles (used by several operators)
@@ -2649,22 +2659,31 @@ contains
   !--------------------------------------------------------------------------
   ! oop_Had
   !--------------------------------------------------------------------------
-  subroutine oop_Had(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
+  subroutine oop_Had(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, firstCall_opt)
     ! :Purpose: Call the several adjoint of observation operators
     implicit none
 
     type(struct_columnData) :: columnAnlInc
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
+    logical, optional       :: firstCall_opt 
 
     type(struct_vco), pointer :: vco_anl
     logical, save :: firstTime = .true.
 
-    if (mpi_myid == 0) THEN
-       write(*,*)'OOP_HT- Adjoint of linearized observation operators'
+    if ( mpi_myid == 0 ) then
+      write(*,*)'OOP_HT- Adjoint of linearized observation operators'
     end if
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
+
+    ! initialize if there are outer-loops
+    if ( present(firstCall_opt) ) then
+      firstCall = firstCall_opt
+    else
+      firstCall = .false. 
+    end if
+    if ( firstCall ) firstTime = .true.
 
     !     Find interpolation layer in model profiles (used by several operators)
     if ( firstTime ) then
@@ -3547,6 +3566,9 @@ contains
     real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
 
+    ! initialize if there are outer-loops
+    if ( firstCall ) lfirst = .true.
+
     if ( .not. lfirst ) return
 
     write(*,*) 'ENTER oop_calcGPSROJacobian'
@@ -3564,8 +3586,8 @@ contains
     allocate(zuu (ngpslev))
     allocate(zvv (ngpslev))
 
-    if ( allocated(gps_vro_jacobian) ) call utl_abort('oop_calcGPSROJacobian: gps_vro_jacobian is already allocated!')
-    allocate(gps_vro_jacobian(gps_numroprofiles,gpsro_maxprfsize,4*ngpslev))
+    if ( allocated(gps_vro_jacobian) ) write(*,*) 'oop_calcGPSROJacobian: WARNING, gps_vro_jacobian is already allocated. Re-allocating'
+    call utl_reallocate(gps_vro_jacobian,gps_numroprofiles,gpsro_maxprfsize,4*ngpslev)
 
     allocate( h    (gpsro_maxprfsize) )
     allocate( azmv (gpsro_maxprfsize) )
@@ -3724,6 +3746,9 @@ contains
 
     logical, save :: lfirstGB = .true.
 
+    ! initialize if there are outer-loops
+    if ( firstCall ) lfirstGB = .true.
+
     if ( .not. lfirstGB ) return
 
     write(*,*) 'ENTER oop_calcGPSGBJacobian'
@@ -3739,8 +3764,8 @@ contains
 
     ! Initializations
     if ( .not. allocated(vGPSZTD_Index) ) call utl_abort('oop_calcGPSGBJacobian: ERROR:  vGPSZTD_Index not allocated!')
-    if ( allocated(vGPSZTD_Jacobian) ) call utl_abort('oop_calcGPSGBJacobian: ERROR: vGPSZTD_Jacobian is already allocated!')
-    allocate(vGPSZTD_Jacobian(numGPSZTD,4*NFLEV))
+    if ( allocated(vGPSZTD_Jacobian) ) write(*,*) 'oop_calcGPSGBJacobian: WARNING, vGPSZTD_Jacobian is already allocated. Re-allocating'
+    call utl_reallocate(vGPSZTD_Jacobian,numGPSZTD,4*NFLEV)
     vGPSZTD_Jacobian(:,:) = 0.0d0
 
     allocate(ZTTB(NFLEV))

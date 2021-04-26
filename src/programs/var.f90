@@ -37,6 +37,7 @@ program midas_var
   use minimization_mod
   use innovation_mod
   use bmatrix_mod
+  use rmatrix_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
@@ -222,6 +223,11 @@ program midas_var
                                      stateVectorUpdateHighRes )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    if ( outerLoopIndex > 1 ) then
+      call col_setVco(columnTrlOnAnlIncLev,vco_anl)
+      call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    end if
     call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -305,6 +311,9 @@ program midas_var
     if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
   end do ! end of outer-loop
+
+  ! Memory deallocations for non diagonal R matrices for radiances
+  call rmat_cleanup()
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)

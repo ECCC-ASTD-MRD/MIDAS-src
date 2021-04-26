@@ -82,10 +82,11 @@ module minimization_mod
 
   ! variables stored for later call to min_writeHessian
   real(8), allocatable :: vatra(:)
-  real(8), pointer :: dg_vbar(:)
+  real(8), allocatable :: dg_vbar(:)
   real(8) :: zeps1, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   logical :: llvazx
+  logical :: initializeForOuterLoop
 
   ! namelist variables
   INTEGER NVAMAJ,NITERMAX,NSIMMAX
@@ -197,7 +198,7 @@ CONTAINS
 
   end subroutine min_setup
 
-  subroutine min_minimize(columnTrlOnAnlIncLev,obsSpaceData,vazx,stateVectorRef_opt)
+  subroutine min_minimize( columnTrlOnAnlIncLev, obsSpaceData, vazx, stateVectorRef_opt)
     implicit none
 
     real*8 :: vazx(:)
@@ -218,6 +219,8 @@ CONTAINS
       if ( statevectorRef_opt%allocated ) stateVectorRefHU_ptr => stateVectorRef_opt
     end if
 
+    initializeForOuterLoop = .true.
+
     call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
     call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
@@ -229,8 +232,6 @@ CONTAINS
     call col_deallocate(columnAnlInc)
     call tmg_stop(3)
 
-    ! Memory deallocations for non diagonal R matrices for radiances
-    call rmat_cleanup()
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine minimize--'
 
@@ -289,22 +290,12 @@ CONTAINS
       endif
 
       ! allocate control vector related arrays (these are all mpilocal)
-
-      allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
-      if(ierr.ne.0) then
-        write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call utl_abort('min quasiNewtonMinimization')
-      endif
+      call utl_reallocate(dg_vbar,nvadim_mpilocal)
+      call utl_reallocate(vatra,nmtra)
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call utl_abort('min quasiNewtonMinimization')
-      endif
-
-      allocate(vatra(nmtra),stat=ierr)
-      if(ierr.ne.0) then
-        write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         call utl_abort('min quasiNewtonMinimization')
       endif
 
@@ -1043,7 +1034,7 @@ CONTAINS
        end if
       
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim,firstCall_opt=initializeForOuterLoop)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
        call res_compute(obsSpaceData_ptr)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
@@ -1080,7 +1071,7 @@ CONTAINS
        call col_zero(columnAnlInc_ptr)
 
        call tmg_start(41,'OBS_AD')
-       call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in columnAnlInc : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,firstCall_opt=initializeForOuterLoop)   ! Put in columnAnlInc : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        if (oneDVarMode) then
@@ -1113,6 +1104,8 @@ CONTAINS
     endif
     call tmg_stop(80)
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_start(70,'QN')
+
+    initializeForOuterLoop = .false.
 
     if(mpi_myid == 0) write(*,*) 'end of simvar'
 

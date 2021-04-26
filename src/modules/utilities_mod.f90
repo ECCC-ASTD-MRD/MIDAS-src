@@ -83,7 +83,9 @@ module utilities_mod
     module procedure utl_reAllocate_int_2d
     module procedure utl_reAllocate_int_3d
     module procedure utl_reAllocate_r4_1d
+    module procedure utl_reAllocate_r8_1d
     module procedure utl_reAllocate_r4_2d
+    module procedure utl_reAllocate_r8_2d
     module procedure utl_reAllocate_r4_3d
     module procedure utl_reAllocate_r8_3d
     module procedure utl_reAllocate_r4_4d
@@ -2138,6 +2140,24 @@ contains
 
   end subroutine utl_reAllocate_r4_1d
 
+  subroutine utl_reAllocate_r8_1d(array,dim1)
+    implicit none
+    real(8), allocatable :: array(:)
+    integer :: dim1
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1))
+    array(:) = 0.0d0
+
+  end subroutine utl_reAllocate_r8_1d
+
   subroutine utl_reAllocate_r4_2d(array,dim1,dim2)
     implicit none
     real(4), allocatable :: array(:,:)
@@ -2155,6 +2175,24 @@ contains
     array(:,:) = 0.0d0
 
   end subroutine utl_reAllocate_r4_2d
+
+  subroutine utl_reAllocate_r8_2d(array,dim1,dim2)
+    implicit none
+    real(8), allocatable :: array(:,:)
+    integer :: dim1, dim2
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2 ) then
+        return
+      else
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2))
+    array(:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r8_2d
 
   subroutine utl_reAllocate_r4_3d(array,dim1,dim2,dim3)
     implicit none
