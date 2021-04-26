@@ -627,7 +627,8 @@ CONTAINS
         endif
         fileName = './rebm_' // trim(coffset) // 'm'
         call gsv_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
-                              ip3_opt=0, stepIndex_opt=stepIndex, containsFullField_opt=.false. )
+                              ip3_opt=outerLoopIndex, stepIndex_opt=stepIndex, &
+                              containsFullField_opt=.false. )
       end if
     enddo
 
