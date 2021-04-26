@@ -18,14 +18,20 @@ program midas_ensDiagnostics
   ! :Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle     
   use version_mod
   use mpi_mod
+  use timeCoord_mod
   use utilities_mod
   implicit none
 
+  character(len=256) :: ensPathName,ensFileName
+  character(len=4) :: charmem
+  integer, allocatable :: dateStampList(:)
   integer :: ierr, nulnam
   integer, external :: fnom, fclos
-  integer :: nEns ! ensemble size
+  integer :: iEns,nEns ! ensemble size
+  character(len=12) :: prefix ! first part of input filenames. e.g. '2019061300'
+  character(len=12) :: postfix ! final part of input filenames. e.g. 'balance'
 
-  NAMELIST /namEnsDiagnostics/nEns
+  NAMELIST /namEnsDiagnostics/nEns,prefix,postfix
 
   call ver_printNameAndVersion('ensDiagnostics','Program to estimate imbalance in a model integration')
   call mpi_initialize
@@ -35,9 +41,23 @@ program midas_ensDiagnostics
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namEnsDiagnostics, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensDiagnostics: Error reading namelist')
-  if (mpi_myid == 0) write(*,*) 'ensemble size: ',nEns
+  if (mpi_myid == 0) then
+    write(*,nml=namEnsDiagnostics)      
+    write(*,*) 'ensemble size: ',nEns
+  endif
+  iens=1
+  write(charmem,'(I4.4)') iens
+  ensPathName = '../input/inputs/'
+  ensFileName = trim(ensPathName)//trim(prefix)//charmem//trim(postfix)
+  write(*,*) 'full input filename:',ensFileName 
   ierr = fclos(nulnam)
-  
+ 
+  !- 1. Initialize date/time-related info
+  call tim_setup()
+  allocate(dateStampList(tim_nstepobsinc))
+  call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
+  write(*,*) 'dateStamp of first time of trajectory: ',dateStampList(1)
+  write(*,*) 'dateStamp of last time of trajectory:  ',dateStampList(tim_nstepobsinc) 
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      

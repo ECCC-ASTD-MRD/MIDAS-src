@@ -1,13 +1,19 @@
 
   &namEnsDiagnostics
-   nEns                  = 4
+   nEns         = 4
+   prefix       = '2019061300_'
+   postfix      = '_balance'
 /
   &namEnsPostProcModule
    numBits     = 32
 /
  &NAMTIME
-   DSTEPOBS    = 1.0D0
-   DSTEPOBSINC = 1.0D0
+   DSTEPOBS    = 0.25D0
+   DSTEPOBSINC = 0.25D0
+   DWINDOWSIZE = 12.0D0
+   DATE        = 2019061303
+   REFERENCETIME = 'middle'
+   FULLYUSEEXTREMETIMEBINS = .TRUE.
 /
  &NAMVNL
    forceSfcOnly(1) = 'ES'
