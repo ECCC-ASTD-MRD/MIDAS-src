@@ -84,6 +84,7 @@ module minimization_mod
   ! variables stored for later call to min_writeHessian
   real(8), allocatable :: vatra(:)
   real(8), allocatable :: dg_vbar(:)
+  real(8), pointer     :: controlVectorIncrSum_ptr(:)
   real(8) :: zeps1, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   logical :: llvazx
@@ -200,14 +201,18 @@ CONTAINS
 
   end subroutine min_setup
 
-  subroutine min_minimize( columnTrlOnAnlIncLev, obsSpaceData, vazx, stateVectorRef_opt)
+  subroutine min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                           vazx, stateVectorRef_opt )
     implicit none
 
-    real*8 :: vazx(:)
-    type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: columnTrlOnAnlIncLev
-    type(struct_gsv), target, optional :: stateVectorRef_opt
+    ! Arguments:
+    type(struct_columnData)             :: columnTrlOnAnlIncLev
+    type(struct_obs)                    :: obsSpaceData
+    real(8)                   , target  :: controlVectorIncrSum(:)
+    real(8)                             :: vazx(:)
+    type(struct_gsv), target, optional  :: stateVectorRef_opt
 
+    ! Locals:
     type(struct_columnData)   :: columnAnlInc
     integer :: get_max_rss
 
@@ -223,15 +228,19 @@ CONTAINS
 
     initializeForOuterLoop = .true.
 
+    nullify(controlVectorIncrSum_ptr)
+    controlVectorIncrSum_ptr => controlVectorIncrSum
+
     call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
     call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
 
-    call quasiNewtonMinimization(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,vazx)
+    call quasiNewtonMinimization( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
+    nullify(controlVectorIncrSum_ptr)
     call tmg_stop(3)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1005,8 +1014,8 @@ CONTAINS
        endif
 
        ! note: dg_vbar = sum(v) of previous outer-loops
-       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)
-     
+       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + controlVectorIncrSum_ptr(1:nvadim_mpilocal)     
+
        ! Computation of background term of cost function:
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")

@@ -51,6 +51,7 @@ program midas_var
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
+  real(8), allocatable :: controlVectorIncrSum(:)
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -202,6 +203,7 @@ program midas_var
     write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
     call utl_abort('aborting in VAR')
   end if
+  call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
@@ -274,12 +276,18 @@ program midas_var
 
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0
-    call min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
-                       stateVectorRef_opt=stateVectorRefHU )
+    call min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                       controlVectorIncr, stateVectorRef_opt=stateVectorRefHU )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Compute satellite bias correction increment and write to file
-    call bcs_writebias(controlVectorIncr)
+    ! Accumulate control vector increments of all the previous iterations
+    controlVectorIncrSum(:) = controlVectorIncrSum(:) + controlVectorIncr(:)
+
+    ! Compute satellite bias correction increment and write to file on last outer-loop 
+    ! iteration
+    if ( outerLoopIndex == min_numOuterLoopIterations ) then
+      call bcs_writebias(controlVectorIncr)
+    end if
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
