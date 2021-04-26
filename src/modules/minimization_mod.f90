@@ -91,26 +91,27 @@ module minimization_mod
   logical :: initializeForOuterLoop
 
   ! namelist variables
-  INTEGER NVAMAJ,NITERMAX,NSIMMAX
-  logical :: lxbar,lwrthess,lgrtest,lvazx
-  REAL*8 REPSG,rdf1fac
-  logical :: lvarqc,pertBhiOnly, writeAnalysis
-  integer :: nwoqcv
-  integer :: numIterMax_pert, numAnalyses, ntrunc_pert
-  character(len=256) :: ensPathName
+  integer,parameter   :: maxNumLevels = 200
+  real(8) :: REPSG, rdf1fac
   real(8) :: e1_scaleFactor, e2_scaleFactor
-  integer,parameter   :: maxNumLevels=200
   real(8) :: pertScaleFactor_UV(maxNumLevels)
+  integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
+  integer :: numIterMax_pert, numAnalyses, ntrunc_pert
+  integer :: numOuterLoopIterations
+  logical :: lxbar, lwrthess, lgrtest, lvazx
+  logical :: lvarqc, pertBhiOnly, writeAnalysis
   logical :: oneDVarMode
+  character(len=256) :: ensPathName
 
-  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
-  NAMELIST /NAMMIN/LGRTEST
-  NAMELIST /NAMMIN/lxbar,lwrthess,lvazx
-  NAMELIST /NAMMIN/REPSG,rdf1fac
-  NAMELIST /NAMMIN/LVARQC,NWOQCV
-  NAMELIST /NAMMIN/numIterMax_pert,numAnalyses,ensPathName
-  NAMELIST /NAMMIN/e1_scaleFactor,e2_scaleFactor,pertBhiOnly
-  NAMELIST /NAMMIN/pertScaleFactor_UV,ntrunc_pert
+  NAMELIST /NAMMIN/ NVAMAJ, NITERMAX, NSIMMAX
+  NAMELIST /NAMMIN/ LGRTEST
+  NAMELIST /NAMMIN/ lxbar, lwrthess, lvazx
+  NAMELIST /NAMMIN/ REPSG, rdf1fac
+  NAMELIST /NAMMIN/ LVARQC, NWOQCV
+  NAMELIST /NAMMIN/ numIterMax_pert, numAnalyses, ensPathName
+  NAMELIST /NAMMIN/ e1_scaleFactor, e2_scaleFactor, pertBhiOnly
+  NAMELIST /NAMMIN/ pertScaleFactor_UV, ntrunc_pert
+  NAMELIST /NAMMIN/ numOuterLoopIterations
 
 CONTAINS
 
@@ -146,7 +147,7 @@ CONTAINS
     ! set default values for namelist variables
     nvamaj = 6
     nitermax = 0
-    min_numOuterLoopIterations = 1
+    numOuterLoopIterations = 1
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
@@ -172,6 +173,8 @@ CONTAINS
     if(ierr.ne.0) call utl_abort('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
+
+    min_numOuterLoopIterations = numOuterLoopIterations 
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
