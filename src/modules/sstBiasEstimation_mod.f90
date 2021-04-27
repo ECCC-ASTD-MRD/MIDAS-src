@@ -139,7 +139,7 @@ module SSTbiasEstimation_mod
                        datestamp_opt = -1, mpi_local_opt=.false., &
 		       hInterpolateDegree_opt='LINEAR', varNames_opt=(/'TM'/) )
     call gsv_zero( stateVector_ana )
-    call gsv_readFromFile( stateVector_ana, './analysisgrid', 'ANALYSIS', 'P@', &
+    call gsv_readFromFile( stateVector_ana, './analysisgrid', 'ANCHOR', 'P@', &
                            unitConversion_opt = .false.,  containsFullField_opt=.true. )
     call gsv_getField( stateVector_ana, anchorAnalysis_r4_ptr )
 
