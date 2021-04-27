@@ -30,6 +30,7 @@ module SSTbiasEstimation_mod
   use utilities_mod
   use mpi_mod
   use gridStateVector_mod
+  use oceanMask_mod
   
   implicit none
   save
@@ -46,13 +47,13 @@ module SSTbiasEstimation_mod
     implicit none
     
     ! Arguments: 
-    type(struct_obs), intent(in)          :: obsData                ! satellite observations
-    type(struct_hco), intent(in), pointer :: hco                    ! horizontal grid structure
-    type(struct_vco), intent(in), pointer :: vco                    ! vertical grid structure
-    real(8)         , intent(in)          :: horizontalSearchRadius ! horizontal search radius where to search observations
-    integer         , intent(in)          :: numberSatellites       ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
-    integer         , intent(in)          :: dateStamp              ! date to put into output fst files
-    character(len=*), intent(in)          :: satelliteList(:)       ! list of satellite names
+    type(struct_obs), intent(in)             :: obsData                ! satellite observations
+    type(struct_hco), intent(inout), pointer :: hco                    ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco                    ! vertical grid structure
+    real(8)         , intent(in)             :: horizontalSearchRadius ! horizontal search radius where to search observations
+    integer         , intent(in)             :: numberSatellites       ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
+    integer         , intent(in)             :: dateStamp              ! date to put into output fst files
+    character(len=*), intent(in)             :: satelliteList(:)       ! list of satellite names
 
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeGriddedObservations'
@@ -82,13 +83,13 @@ module SSTbiasEstimation_mod
     implicit none
     
     ! Arguments: 
-    type(struct_obs), intent(in)          :: obsData                ! satellite observations
-    type(struct_hco), intent(in), pointer :: hco                    ! horizontal grid structure
-    type(struct_vco), intent(in), pointer :: vco                    ! vertical grid structure
-    real(8)         , intent(in)          :: horizontalSearchRadius ! horizontal search radius where to search obs
-    character(len=*), intent(in)          :: instrument             ! name of instrument
-    character(len=*), intent(in)          :: dayOrNight             ! look for day or night obs
-    integer         , intent(in)          :: dateStamp              ! date to put into output fst files
+    type(struct_obs), intent(in)             :: obsData                ! satellite observations
+    type(struct_hco), intent(inout), pointer :: hco                    ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco                    ! vertical grid structure
+    real(8)         , intent(in)             :: horizontalSearchRadius ! horizontal search radius where to search obs
+    character(len=*), intent(in)             :: instrument             ! name of instrument
+    character(len=*), intent(in)             :: dayOrNight             ! look for day or night obs
+    integer         , intent(in)             :: dateStamp              ! date to put into output fst files
 
     ! locals
     integer, parameter          :: maxObsPointsSearch = 200000
@@ -105,10 +106,13 @@ module SSTbiasEstimation_mod
     integer                     :: numObsFound, numObsFoundMPIGlobal
     real(kdkind)                :: searchRadiusSquared
     integer, allocatable        :: headerIndexes(:)
-    type(struct_gsv)            :: stateVector
+    type(struct_gsv)            :: stateVector, stateVector_ana
+    type(struct_ocm)            :: oceanMask
+    integer, allocatable        :: mask( :, : )
     real(8), pointer            :: meanObs_ptr( :, :, : )
+    real(4), pointer            :: anchorAnalysis_r4_ptr( :, :, : )
     character(len=*), parameter :: myName = 'sstb_getSelectedObs'
-      
+     
     write(*,*) myName//': ##### computing mean '//trim(instrument)//' observations for ', trim(dayOrNight), ' time... #####'
 
     countObs = 0 
@@ -126,12 +130,37 @@ module SSTbiasEstimation_mod
 		
     end do
     
-    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt=8, &
+    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 8, &
                        datestamp_opt = dateStamp, mpi_local_opt=.false., &
 		       hInterpolateDegree_opt='LINEAR', varNames_opt=(/'TM'/) )
     call gsv_getField( stateVector, meanObs_ptr )
     meanObs_ptr = 0.0d0
+    call gsv_allocate( stateVector_ana, 1, hco, vco, dataKind_opt = 4, &
+                       datestamp_opt = -1, mpi_local_opt=.false., &
+		       hInterpolateDegree_opt='LINEAR', varNames_opt=(/'TM'/) )
+    call gsv_zero( stateVector_ana )
+    call gsv_readFromFile( stateVector_ana, './analysisgrid', 'ANALYSIS', 'P@', &
+                           unitConversion_opt = .false.,  containsFullField_opt=.true. )
+    call gsv_getField( stateVector_ana, anchorAnalysis_r4_ptr )
 
+    ! Get mask from analysisgrid file
+    call ocm_readMaskFromFile( oceanMask, hco, vco, './analysisgrid' )
+    allocate( mask( hco % ni, hco % nj ) )
+
+    ! land mask ( 1=water, 0=land )
+    do latIndex = 1, hco % nj
+      do lonIndex = 1, hco % ni
+          
+        if ( oceanMask%mask ( lonIndex, latIndex, 1 ) ) then
+          mask ( lonIndex, latIndex ) = 1
+        else
+          mask ( lonIndex, latIndex ) = 0
+        end if
+       
+      end do
+    end do
+    call ocm_deallocate( oceanMask )
+    
     if ( trim(dayOrNight) == 'day'   ) then
       write(*,*) myName//': found ', countObs, ' day observations'
     else if ( trim(dayOrNight) == 'night' ) then
@@ -185,52 +214,68 @@ module SSTbiasEstimation_mod
     
     do lonIndex = 1, hco % ni
       do latIndex = 1, hco % nj
+      
+        ! compute bias for every water point
+        if ( mask ( lonIndex, latIndex ) == 1 ) then 
         
-	lon_grd = real( hco % lon2d_4 ( lonIndex, latIndex ), 8 )
-	lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
-        refPosition(:) = kdtree2_3dPosition( lon_grd, lat_grd )
+	  lon_grd = real( hco % lon2d_4 ( lonIndex, latIndex ), 8 )
+	  lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
+          refPosition(:) = kdtree2_3dPosition( lon_grd, lat_grd )
 	
-        call kdtree2_r_nearest( tp = tree, qv = refPosition, r2 = searchRadiusSquared, nfound = numObsFound, & 
-				nalloc = maxObsPointsSearch, results = searchResults )
+          call kdtree2_r_nearest( tp = tree, qv = refPosition, r2 = searchRadiusSquared, nfound = numObsFound, & 
+		   		  nalloc = maxObsPointsSearch, results = searchResults )
 	
-	if ( numObsFound > maxObsPointsSearch ) &
-          call utl_abort( myName//': the parameter maxObsPointsSearch must be increased' )
+	  if ( numObsFound > maxObsPointsSearch ) &
+            call utl_abort( myName//': the parameter maxObsPointsSearch must be increased' )
 	
-        if ( numObsFound > 0 ) then
+          if ( numObsFound > 0 ) then
 	
-	  do localObsIndex = 1, numObsFound
+	    do localObsIndex = 1, numObsFound
 	  
-            bodyIndex  = obs_headElem_i( obsData, obs_rln, headerIndexes( searchResults( localObsIndex ) % idx ))
-            meanObs_ptr( lonIndex, latIndex, 1 ) = meanObs_ptr( lonIndex, latIndex, 1 ) + &
-	                                           obs_bodyElem_r( obsData, obs_var, bodyIndex ) 
+              bodyIndex  = obs_headElem_i( obsData, obs_rln, headerIndexes( searchResults( localObsIndex ) % idx ))
+              meanObs_ptr( lonIndex, latIndex, 1 ) = meanObs_ptr( lonIndex, latIndex, 1 ) + &
+	                                             obs_bodyElem_r( obsData, obs_var, bodyIndex ) 
 	    
-	  end do
+	    end do
 	  
-	end if 
+	  end if 
 	
-	! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
-        call mpi_allreduce_sumreal8scalar( meanObs_ptr( lonIndex, latIndex, 1 ), "grid" )
-	! doing the same for numObsFound, no need to preserve the order of summation 
-	call rpn_comm_allreduce( numObsFound, numObsFoundMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
+	  ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
+          call mpi_allreduce_sumreal8scalar( meanObs_ptr( lonIndex, latIndex, 1 ), "grid" )
+	  ! doing the same for numObsFound, no need to preserve the order of summation 
+	  call rpn_comm_allreduce( numObsFound, numObsFoundMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
 	
-        if ( numObsFoundMPIGlobal > 0 ) then
-	  meanObs_ptr( lonIndex, latIndex, 1 ) = meanObs_ptr( lonIndex, latIndex, 1 ) / real( numObsFoundMPIGlobal )
-	else  
+          if ( numObsFoundMPIGlobal > 0 ) then
+	
+	    ! compute OmA SST satellite data bias and put it into meanObs_ptr
+	    meanObs_ptr( lonIndex, latIndex, 1 ) = meanObs_ptr( lonIndex, latIndex, 1 ) / real( numObsFoundMPIGlobal ) - &
+	    dble( anchorAnalysis_r4_ptr( lonIndex, latIndex, 1 ))
+	  
+	  else  
+	
+	    meanObs_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
+	  
+	  end if
+	 
+	else if ( mask ( lonIndex, latIndex ) == 0 ) then
+	
 	  meanObs_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
-	end if
+	
+	end if 
 	  
       end do
     end do
     
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
     
       ! Save results
-      call gsv_writeToFile( stateVector, './mean_observations.fst', &
+      call gsv_writeToFile( stateVector, './satellite_bias.fst', &
                             trim(instrument)//'_'//trim(dayOrNight), &
 	                    containsFullField_opt=.true. )
     end if
       
     call gsv_deallocate( stateVector )
+    call gsv_deallocate( stateVector_ana )
     deallocate( headerIndexes )
     deallocate( positionArray )
     
