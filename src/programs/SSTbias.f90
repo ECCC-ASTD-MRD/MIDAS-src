@@ -167,7 +167,7 @@ program midas_sstBias
     !
     if(mpi_myid == 0) write(*,*)''
     if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
-    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANCHOR' ) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
