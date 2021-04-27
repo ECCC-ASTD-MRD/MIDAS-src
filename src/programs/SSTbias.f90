@@ -128,7 +128,7 @@ program midas_sstBias
     !
     call obsf_setup( dateStamp, varMode )
 
-    dateStamp = tim_getDatestampFromFile("./trlm_01")
+    dateStamp = tim_getDatestampFromFile('./analysisgrid')
 
     if ( dateStamp > 0 ) then
       call tim_setDatestamp(datestamp)     ! IN
