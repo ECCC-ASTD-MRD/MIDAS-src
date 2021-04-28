@@ -178,8 +178,8 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.0
     VGRID_LIBNAME="vgrid"
 
-    echo "... loading eccc/cmd/cmda/libs/19.6.0/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.6.0/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/19.6.0-2/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/19.6.0-2/${COMP_ARCH}
 
     ## For 'perftools' needed for TMG timings
     if [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
