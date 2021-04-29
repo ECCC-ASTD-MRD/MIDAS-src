@@ -1630,7 +1630,7 @@ contains
     type(fSQL_STATUS)      :: stat                 ! type for error status
     integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
-    real                   :: ensInnovStdDev, ensObsErrStdDev, zhad
+    real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
@@ -1687,11 +1687,12 @@ contains
                    &codtyp integer, date integer, time integer, elev real); &
                    &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                    &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                   &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+                   &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, fso real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
 
-    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
+    obs_error, sigi, sigo, zhad, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//': Insert query Data   = ', trim( queryData )
@@ -1703,7 +1704,7 @@ contains
     call fSQL_prepare( db, queryHeader, stmtHeader, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
-    numberInsertions = 0
+    numberInsertions = 0 
 
     call obs_set_current_header_list( obsdat, obsFamily )
     HEADER: do
@@ -1786,6 +1787,11 @@ contains
         else
           zhad = obs_missingValue_R
         end if
+        if ( obs_columnActive_RB(obsdat, OBS_FSO) ) then
+          fso = obs_bodyElem_r(obsdat, OBS_FSO, bodyIndex)
+        else
+          fso = obs_missingValue_R
+        end if
 
         select case( obsFamily )
           case ( 'UA', 'AI', 'SW' )
@@ -1851,6 +1857,11 @@ contains
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15, REAL_VAR = zhad )
+        end if 
+        if ( fso == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 16, REAL_VAR = fso )
         end if 
 
         call fSQL_exec_stmt ( stmtData )

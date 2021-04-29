@@ -388,3 +388,6 @@
   BITEMLIST(3)='FSO',
   TYPE_RESUME='POSTALT'
 /
+&NAMWRITEDIAG
+  lwritediagsql=.TRUE.
+  onlyAssimObs=.TRUE.
