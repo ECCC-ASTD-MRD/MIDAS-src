@@ -260,6 +260,14 @@
    name_inst(5)='gmsim',
    name_inst(6)='mtsatim',
 /
+ &NAMGEOBUFR
+   name_inst(1)='cgoes',
+   name_inst(2)='ahi',
+   name_inst(3)='mviri',
+   name_inst(4)='seviri',
+   name_inst(5)='gmsim',
+   name_inst(6)='abi',
+/
  &NAMCODTYP
 /
  &NAMBGCKIR
