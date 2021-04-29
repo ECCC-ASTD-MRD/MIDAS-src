@@ -179,23 +179,13 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="iasi"/>
-    <FAMILY  name="iasi">
+    <SUBMITS sub_name="BgckIasi_sqlite"/>
+    <FAMILY  name="BgckIasi_sqlite">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="airs"/>
-    <FAMILY  name="airs">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="iasi_sqlite"/>
-    <FAMILY  name="iasi_sqlite">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="airs_sqlite"/>
-    <FAMILY  name="airs_sqlite">
+    <SUBMITS sub_name="BgckAirs_sqlite"/>
+    <FAMILY  name="BgckAirs_sqlite">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
