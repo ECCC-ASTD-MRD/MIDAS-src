@@ -226,8 +226,6 @@ contains
     end if
     if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
     if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
-    ! Put the scale factor for FSO
-    !if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
