@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Using `eccc/cmd/cmda/libs/19.6.0-2` (#477 and !461)
    * This is fixing an allocation problem in the `burp_module` library.
+   * Adapt the [`tools/splitobs/unittest`](tools/splitobs/unittest) for
+     this library (#489 and !462)
 
 ### Removed
 

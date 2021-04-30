@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+fam=$1
+oldversion=19.5
+newversion=19.6.0
+
+[ ! -d work ] && mkdir -v work
+
+for version in ${oldversion} ${newversion}; do
+    /fs/ssm/eccc/cmd/cmda/utils/${version}/ubuntu-18.04-skylake-64/bin/rdbgen -f work/${fam}-${version} -type ${fam}
+    echo .schema | sqlite3 work/${fam}-${version} > work/${fam}-${version}.schema
+done
+
+status=0
+xxdiff --exit-on-same work/${fam}-${oldversion}.schema work/${fam}-${newversion}.schema || status=1
+
+echo
+if [ "${status}" -eq 0 ]; then
+    echo "The versions {oldversion} and ${newversion} generate the same SQL schemas"
+    rm work/${fam}-${oldversion} work/${fam}-${oldversion}.schema
+    rm work/${fam}-${newversion} work/${fam}-${newversion}.schema
+else
+    echo "The versions ${oldversion} and ${newversion} generate different SQL schemas"
+    exit 1
+fi
