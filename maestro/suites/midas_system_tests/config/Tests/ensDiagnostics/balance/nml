@@ -2,7 +2,6 @@
   &namEnsDiagnostics
    nEns         = 4
    prefix       = '2019061300_'
-   postfix      = '_balance'
 /
   &namEnsPostProcModule
    numBits     = 32
@@ -21,29 +20,6 @@
    forceSfcOnly(3) = 'TD'
 /
  &NAMSTATE
-   ANLVAR(1)    ='UU'
-   ANLVAR(2)    ='VV'
-   ANLVAR(3)    ='TT'
-   ANLVAR(4)    ='HU'
-   ANLVAR(5)    ='P0'
-   ANLVAR(6)    ='TG'
-   ANLVAR(7)    ='I0'
-   ANLVAR(8)    ='I1'
-   ANLVAR(9)    ='I2'
-   ANLVAR(10)   ='I3'
-   ANLVAR(11)   ='I4'
-   ANLVAR(12)   ='I5'
-   ANLVAR(13)   ='I6'
-   ANLVAR(14)   ='I7'
-   ANLVAR(15)   ='I8'
-   ANLVAR(16)   ='I9'
-   ANLVAR(17)   ='SD'
-   ANLVAR(18)   ='PN'
-   ANLVAR(19)   ='PR'
-   ANLVAR(20)   ='DN'
-   ANLVAR(21)   ='FB'
-   ANLVAR(22)   ='FI'
-   ANLVAR(23)   ='ES'
-   ANLVAR(24)   ='HR'
-   ANLVAR(25)   ='TD'
+   ANLVAR(1)    ='P0'
+   ANLVAR(2)    ='PR'
 /
