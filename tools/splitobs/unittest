@@ -1428,7 +1428,7 @@ EOF
 		say "Problem with burp2rdb with file ${file2}" 1 || return 1
 		not_validating="problem"
 	    else
-		case "${fam}" in
+		case "${typ}" in
 		    amsua|amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
 		    *) satel_elem="" ;;
 		esac
