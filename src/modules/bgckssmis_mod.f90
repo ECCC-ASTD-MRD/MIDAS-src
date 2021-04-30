@@ -2776,14 +2776,8 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! ssbg_inovqcSsmis
   !--------------------------------------------------------------------------
-  subroutine ssbg_inovqcSsmis
+  subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, obsToreject_inovqc)
 
-!  This program has been adapted from the following original work:
-!  TITLE:  bgck.satqc_amsua.f
-!  AUTEUR: Jacques Halle (CMC)
-!
-!  Language: FORTRAN 90
-!
 !  Object: Identify those observations in SSMIS data that have O-P
 !          values greater than a threshold proportional to known
 !          standard deviations (computed when the bias correction
@@ -2799,262 +2793,177 @@ end subroutine bennartz
 !               model surface height exceeds a specified limit
 !               (topography check)
 !
-!  Flag QC bits set in this program
-!
-!    bit             meaning
-!  --------         --------------------------------------------------------
-!     9             reject for asssim due innov.rogue/O-P, topo and bit 7 checks
-!                      (bit 7 is set by satqc_ssmis)
-!    11             data not selected for assim (UTIL val in stats file)
-!                   -or- data not bias corrected (bit 6 OFF/bit 3 ON)
-!    16             failed O-P rogue check
-!    18             failed topography check
+!------------------------------------------------------------------
 
-!
-!  History
-!  Version:      Date:      Comment:
-!  --------      -----      --------
-!    0.1       04/12/02     Adapted code.               D. Anselmo
-!    0.2       09/09/03     To avoid memory fault when applying
-!                           code to files with > 1400 obs per box,
-!                           allocate for buf1 array ilnmx*3 space
-!                           (previously ilnmx+100).     D. Anselmo
-!    0.3       24/03/06     Added check on UTIL values in statistics
-!                           file to systematically filter channels.
-!                                                       D. Anselmo
-!    0.4       26/09/07     Adapted for SSMIS           S. Macpherson
-!    0.5       11/10/07     Modifications for for AMSU-like channels
-!    0.6       12/10/07     Added topography rejection of AMSU-like channels
-!                           (ref: bgck.satqc_amsua(b).f)
-!                           Modified readdata to return lat,lon
-!                           Modified  s/r updatflg
-!                           Added new s/r check_topo
-!                                                       S. Macpherson
-!    0.7       31/10/08     Changed TOPO reject limit for channel 4
-!                           from 2500 to 250 m to agree with limit
-!                           used for AMSU-A chan. 6     S. Macpherson
-!
-!    0.8       13/02/09     Set bit 9 ON for topo rejected data
-!                           Set bit 16 ON for rogue rejected data
-!                           Set bit 20 ON for data that have bit [SINCE REMOVED]
-!                           9 ON already (and skip QC)
-!                           Set bit 11 ON for uncorrected data (group with
-!                           UTIL check -- systematic rejection)
-!                                                       S. Macpherson
-!    0.9       15/02/09     Add run check               S. Macpherson
-!    1.0       06/01/11     Remove setting of bit 20; add bit 7 check
-!                                                       S. Macpherson
-!    1.1       06/11/12     Adapt for new format stats_ssmis file
-!                                                       S. Macpherson
-!    1.2       11/01/13     Add status return code istatus (see Bugzilla 4985)
-!                           Use: Filter, not abort, when block/element missing
-!                                                       J. Garcia
-!
-!------------------------------------------------------------------
-! Variable Definitions:
-! ---------------------
-! mxsat   -  max number of satellites
-! mxelm   -  nombre maximum d'elements
-! mxval   -  nombre maximum de donnees par element
-! mxnt    -  nombre maximum de groupes de mxelm X mxval
-! rejcnt  -  counter of the rejected obs for each channel
-!            of each satellite (dimension: knomp*mxsat)
-! totobs  -  counter of the total obs for each channel
-!            of each satellite (dimension: knomp*mxsat)
-! rejper  -  percentage of obs rejected for each channel
-!            of each sat -  rejcnt / totobs
-!
-!            -  see subroutines for other variables  -
-!------------------------------------------------------------------
-    use readrun_type_sub
-    use readdata_sub
-    use readstats_sub
-    use check_stddev_sub
-    use check_topo_sub
-    use updatflg_sub
     implicit none
 
-    include 'version.f90'
+    !Arguments
+    type(struct_obs),     intent(inout) :: obsSpaceData  ! obspaceData Object
+    integer,              intent(in)    :: headerIndex
+    logical, allocatable, intent(out)   :: obsToreject_inovqc(:)
 
-    integer, parameter :: mxelm=20,mxval=28,mxnt=5000,ncles=9
-    integer, parameter :: mxsat=4,mxchn=24
-    integer, parameter :: iunent=10,iunsrt=20,iunstat=30,iungeo=50
-    integer, parameter :: mxlat=5,mxlon=5
+    ! Locals
+    character(len=9)     :: burpFileSatId            ! Satellite ID
+    character(len=4)     :: clnomvar
+    character(len=12)    :: etikxx
+    character(len=1)     :: grtyp
+    character(len=4)     :: nomvxx
+    character(len=2)     :: typxx
 
-    integer :: ier,nposit,inumsat,ilnmx
-    integer :: handle,istat,nombre
-    integer :: nele,nval,nt,inomp,inosat
-    integer :: status,ii,jj,jk,jn,i,j
-    integer :: irec,irec2
+    integer              :: actualNumChannel         ! actual Num channel
+    integer              :: bodyIndex
+    integer              :: bodyIndexbeg
+    integer              :: boxPoint
+    integer              :: boxPointNum
+    integer              :: codtyp                   ! code type
+    integer              :: channelIndex
+    integer              :: currentChannelNumber
+    integer              :: gdmg
+    integer              :: headerCompt
+    integer              :: headerIndex              ! header Index
+    integer              :: ier
+    integer              :: iPlatf
+    integer              :: iPlatform
+    integer              :: iSat
+    integer              :: istat
+    integer              :: latIndex
+    integer              :: lonIndex
+    integer              :: nLat
+    integer              :: nLon
+    integer              :: numObsToProcess          ! number of obs in current report
+    integer              :: obsIndex
+    integer              :: obsNumCurrentLoc
+    integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
+
+    integer, allocatable :: icheck(:)                ! flags for assimilation/rejection of obs
+    integer, allocatable :: obsChannels(:)           ! channel numbers
+    integer, allocatable :: obsFlags(:)              ! data flags
+
+    integer, parameter   :: iungeo=50
+    integer, parameter   :: mxElm = 20
+    integer, parameter   :: mxLat = 5
+    integer, parameter   :: mxLon = 5
+
+    real                 :: rejper
+    real                 :: topofact
+    real                 :: xLat
+    real                 :: xLon
+
+    real   , allocatable :: modelInterpTer(:)        ! topo in standard file interpolated to obs point
+    real   , allocatable, save :: mt(:)              ! topography model (MT)
+    real   , allocatable :: mtIntBox(:,:)            ! interpolated box
+    real   , allocatable :: obsLatitude(:)           ! obs. point latitude
+    real   , allocatable :: obsLongitude(:)          ! obs. point longitude
+    real   , allocatable :: ompTb(:)                 ! OMP values
+    real   , allocatable :: zLatBox(:,:)
+    real   , allocatable :: zLonBox(:,:)
+
+    real   , parameter   :: dLat = 0.4
+    real   , parameter   :: dLon = 0.6
+
+    ! Topography variables
+    integer :: irec,irec2,ip1
     integer :: idum,idum1,idum2,idum3,idum4,idum5,idum6,idum7
     integer :: idum8,idum9,idum10,idum11,idum12,idum13
     integer :: idum14,idum15,idum16,idum17,idum18
-    integer :: ig1,ig2,ig3,ig4,ig1r,ig2r,ig3r,ig4r,ip1
-    integer :: ni,nj,nk,nlat,nlon,indx
-
-    integer :: gdmg
-    integer :: istatus
-
-    integer, dimension(mxchn,mxsat)      :: iutilst
-    integer, dimension(mxelm*mxval*mxnt) :: tblval
-    integer, dimension(mxval*mxnt)       :: idata,icanomp,icheck,iflags
-    integer, dimension(mxval*mxnt)       :: ilansea
-    integer, dimension(mxchn,mxsat)      :: rejcnt,totobs,rejcnt2,totobs2
-    integer, dimension(mxnt)             :: kchkprf
-    integer, dimension(mxelm)            :: lstele,eldalt
-
-    !  F90 Allocatable arrays (deferred-shape).
-    integer, allocatable, dimension(:) :: buf1
+    integer :: ni,nj,nk,indx
 
     !  External functions
-    integer, external :: fclos,fnom,fstouv,fstinf,fstprm,fstlir,fstfrm
-    integer, external :: mrfopn,mrfmxl,mrfopc,mrfopr,mrfput,mrfcls,mrbupd
-    integer, external :: exdb,exfin
+    integer, external :: fclos,fstouv,fstinf,fstprm,fstlir
     integer, external :: ezsetopt,ezqkdef,gdllsval
     integer, external :: ip1_all
-    external :: ccard
 
-    real, parameter :: zmisg=9.9e09
-    real, parameter :: dlat=0.4, dlon=0.6
+    ! Temporary arrays
+    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: rejcnt
+    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: rejcnt2
+    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: totobs
+    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: totobs2
 
-    real :: rejper,xlat,xlon,topofact
+    !-------------------------------------------------------------------------
+    ! 1) INOVQC begins
+    !-------------------------------------------------------------------------
 
-    real, dimension(mxchn,mxsat)             :: sdstats
-    real, dimension(mxelm*mxval*mxnt)        :: donialt
-    real, dimension(mxval*mxnt)              :: zdata,zomp
-    real, dimension(mxval*mxnt)              :: zlat,zlon
-    real, dimension(mxlat*mxlon,mxnt)        :: zlatbox,zlonbox,mtintbox
-    real, dimension(mxnt)                    :: mtintrp
-
-    real, allocatable, dimension(:) :: mt
-    real, allocatable, dimension(:) :: tic
-    real, allocatable, dimension(:) :: tac
-
-    character(len=9)  :: stnid
-    character(len=12) :: etikresu,etikxx
-    character(len=1)  :: grtyp
-    character(len=4)  :: clnomvar,nomvxx
-    character(len=2)  :: typxx
-    character(len=3)  :: crun_type
-
-    character(len=128), dimension(ncles) :: cdef1,cdef2
-    character(len=9),   dimension(ncles) :: clist
-    character(len=9),   dimension(mxsat) :: csatid
-
-    logical :: resetqc
-
-    !  Initialize the CHARACTER arrays.
-    clist = (/'L.       ','I.       ','IXENT.   ','OXSRT.   ',   &
-        &   'DEBUG.   ','ETIKRESU.','ISSTAT.  ','RESETQC. ',   &
-        &   'IRGEO.   '/)
-
-    cdef1 = (/'$OUT             ','$IN              ',  &
-        &   'ssmi_ent         ','ssmi_srt         ',  &
-        &   'NON              ','>>EVALALT        ',  &
-        &   'stats_ssmi_errtot','NON              ',  &
-        &   'geo              '/)
-
-    cdef2 = (/'$OUT             ','$IN              ',  &
-        &   'ssmi_ent         ','ssmi_srt         ',  &
-        &   'NON              ','>>BGCKALT        ',  &
-        &   'stats_ssmi_errtot','NON              ',  &
-        &   'geo              '/)
-
-
-    !--------------------------------------------------------------------
-    ! 1) Begin.
-    !--------------------------------------------------------------------
-
-    nposit = -1
-    call ccard(clist,cdef1,cdef2,ncles,nposit)
-    ier = fnom(5     ,cdef2(2),'SEQ'   ,0)
-    ier = fnom(6     ,cdef2(1),'SEQ'   ,0)
-    ier = fnom(iungeo,cdef2(9) ,'STD+RND',0)
-
-    !--------------------------------------------------------------------
-    istat=exdb('SSMIS_INOVQC',VERSION,'NON')
-    !--------------------------------------------------------------------
-
-
-    !  Assign the label of the summary record.
-
-    etikresu = cdef2(6)
-    write(6,*) ' Etikresu value: ',etikresu
-
-
-    !  Was resetqc mode specified?
-
-    resetqc = .false.
-    if ( cdef2(8) == 'OUI' .or. cdef2(8) == 'oui' ) then
-       resetqc = .true.
+    ! Check if its ssmis data:
+    ssmisDataPresent = .false.
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+    if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
+      ssmisDataPresent = .true.
     end if
 
-
-    !  Open the input BURP file in READ mode.
-
-    ier = fnom(iunent,cdef2(3),'RND',0)
-    if ( ier /= 0 ) then
-       write(*,*) 'Error associating input BURP file'
-       call abort()
+    if ( .not. ssmisDataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_inovqcSsmis since no SSMIS DATA were found'
+      return
     end if
-    nombre = mrfopn(iunent,'READ')
-    istat = mrfopc('MSGLVL','ERROR')
 
+    ! find tvs_sensor index corresponding to current obs
 
-    !  Create the output BURP file to be written to.
+    iPlatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
+    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
 
-    ier = fnom(iunsrt,cdef2(4),'RND',0)
-    if ( ier /= 0 ) then
-       write(*,*) 'Error associating output BURP file'
-       call abort()
-    end if
-    nombre = mrfopn(iunsrt,'CREATE')
+    call tvs_mapSat( iPlatf, iPlatform, iSat )
+    call tvs_mapInstrum( instr, instrum )
 
+    sensorIndexFound = .false.
+    do sensorIndex =1, tvs_nsensors
+      if ( iPlatform ==  tvs_platforms(sensorIndex)  .and. &
+           iSat      ==  tvs_satellites(sensorIndex) .and. &
+           instrum   == tvs_instruments(sensorIndex)       ) then
+        sensorIndexFound = .true.
+        exit
+      end if
+    end do
+    if ( .not. sensorIndexFound ) call utl_abort('ssbg_inovqcSsmis: sensor Index not found')
 
-    !  Read the input BURP file to retrieve the length of the
-    !  longest report --> used to allocate space for BUF1.
+    !--------------------------------------------------------------------
+    ! 2) Allocating arrays
+    !--------------------------------------------------------------------
 
-    ilnmx = mrfmxl(iunent)
-    allocate ( buf1(ilnmx*3),stat=status )
-    if ( status /= 0 ) then
-       write(*,*) 'Allocation of memory for buf1 failed'
-       call abort()
-    end if
-    buf1(1)=ilnmx*3
+    ! find actual Number of channels
+    actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
 
-    istat = mrfopr('MISSING',zmisg)
+    headerCompt = 1
+    numObsToProcess = 1
 
+    ! ELEMENTS FROM OBSSPACEDATA
+    ! Allocate header elements
+    call utl_reAllocate(obsLatitude, numObsToProcess)
+    call utl_reAllocate(obsLongitude, numObsToProcess)
+    ! Allocate Body elements
+    call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
+    ! Allocate intent out array
+    call utl_reAllocate(obsToreject_inovqc, numObsToProcess*actualNumChannel)
+
+    ! Lecture dans obsspacedata (entiers)
+
+    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
+    bodyIndexbeg                       = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    obsNumCurrentLoc                   = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+
+    ! Lecture dans obsspacedata (reels)
+
+    obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
+    obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
+      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
+      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+    end do BODY
+
+    do channelIndex=1, actualNumChannel
+      obsChannels(channelIndex)    = channelIndex+tvs_channelOffset(sensorIndex)
+    end do
 
     !  Initialize the counters which tabulate the rejected observation
     !  statistics for each channel and each satellite.
-
     rejcnt(:,:)  = 0
     totobs(:,:)  = 0
     rejcnt2(:,:) = 0
     totobs2(:,:) = 0
 
-
     !--------------------------------------------------------------------
-    ! 2) Read the total error statistics for the SSMIS data (ASCII file
-    !    which contains the standard deviations).
+    ! 3) Extract model topography from the input GEO file
     !--------------------------------------------------------------------
-
-    ier = fnom(iunstat,cdef2(7),'SEQ+FMT',0)
-    if ( ier < 0 ) then
-       write(*,*) ' SSMIS_INOVQC: Problem opening total error '
-       write(*,*) ' statistics file ', cdef2(7)
-       call abort ()
-    end if
-
-    !  Extract the standard deviations and UTIL values from the total error statistics file.
-
-    call readstats(iunstat,inumsat,csatid,iutilst,sdstats,mxsat,mxchn)
-    write(6,*) " satid's = "
-    do ii = 1, inumsat
-       write(6,'(A)') csatid(ii)
-    end do
-
-    ! Extract model topography from the input GEO file
 
     ier = fstouv(iungeo,'RND')
 
@@ -3070,274 +2979,173 @@ end subroutine bennartz
     clnomvar = 'ME'
     ip1 = -1
     if (irec < 0) then
-       topofact = 1.0/9.80616   !  m2/s2 --> m
-       irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MX')
-       clnomvar = 'MX'
-       ip1 = -1
-       if (irec < 0 ) then  ! look for GZ at eta(sigma) or hybrid level = 1.0
-          irec  = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,1),-1,-1,' ','GZ')
-          irec2 = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
-          clnomvar = 'GZ'
-          topofact = 10.0  ! dam --> m
-          if (irec < 0 .and. irec2 < 0) then
-             write (6,*) ' LA TOPOGRAPHIE EST INEXISTANTE'
-             call abort()
-          endif
-          if (irec < 0) then
-             ip1 = 5  !  HYBRID COORDINATES      kind=5
-             irec = irec2
-          else
-             ip1 = 1  !  ETA(SIGMA) COORDINATES  kind=1
-          endif
-       endif
+      topofact = 1.0/9.80616   !  m2/s2 --> m
+      irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MX')
+      clnomvar = 'MX'
+      ip1 = -1
+      if (irec < 0 ) then  ! look for GZ at eta(sigma) or hybrid level = 1.0
+        irec  = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,1),-1,-1,' ','GZ')
+        irec2 = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
+        clnomvar = 'GZ'
+        topofact = 10.0  ! dam --> m
+        if (irec < 0 .and. irec2 < 0) then
+          call utl_abort('ssbg_inovqcSsmis: LA TOPOGRAPHIE EST INEXISTANTE')
+        endif
+        if (irec < 0) then
+          ip1 = 5  !  HYBRID COORDINATES      kind=5
+          irec = irec2
+        else
+          ip1 = 1  !  ETA(SIGMA) COORDINATES  kind=1
+        endif
+      endif
     endif
     if (irec < 0) then
-       write (6,*) ' LA TOPOGRAPHIE EST INEXISTANTE'
-       call abort()
+      call utl_abort('ssbg_inovqcSsmis: LA TOPOGRAPHIE EST INEXISTANTE')
     else
-       allocate ( mt(ni*nj), STAT=ier)
-       if ( ier /= 0 ) then
-          write(*,*) 'Allocation of array mt failed'
-          call abort()
-       end if
-       if (ip1 > 0) then
-          ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,ip1),-1,-1,' ','GZ')
-       else
-          ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1,-1,-1,' ',clnomvar)
-       endif
+      allocate ( mt(ni*nj), STAT=ier)
+      if ( ier /= 0 ) then
+        call utl_abort('ssbg_inovqcSsmis: Allocation of array mt failed')
+      end if
+      if (ip1 > 0) then
+        ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,ip1),-1,-1,' ','GZ')
+      else
+        ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1,-1,-1,' ',clnomvar)
+      endif
     endif
 
     mt(:) = mt(:)*topofact
 
-    write (6,*) 'Read MT (Model Topography) from GEO file.'
-    write (6,*) '  Minimum value (m) = ', minval(mt)
-    write (6,*) '  Maximum value (m) = ', maxval(mt)
+    write (*,*) 'Read MT (Model Topography) from GEO file.'
+    write (*,*) '  Minimum value (m) = ', minval(mt)
+    write (*,*) '  Maximum value (m) = ', maxval(mt)
 
     !  Get the grid type, ig1, ig2, etc...
 
     ier = fstprm ( irec, idum1, idum2, idum3, idum4, idum5, idum6,     &
-         &               idum7, idum8, idum9, idum10, idum11, typxx, nomvxx, &
-         &               etikxx, grtyp, ig1, ig2, ig3, ig4, idum12, idum13,  &
-         &               idum14, idum15, idum16, idum17, idum18 )
+         &         idum7, idum8, idum9, idum10, idum11, typxx, nomvxx, &
+         &         etikxx, grtyp, ig1, ig2, ig3, ig4, idum12, idum13,  &
+         &         idum14, idum15, idum16, idum17, idum18 )
 
-    write (6,*) ' GRTYP = ', grtyp
-
-
-    !--------------------------------------------------------------------
-    ! 3) Get the RUNN run type from the RESUME record
-    !--------------------------------------------------------------------
-    !
-
-    !  (handle = 0: start at the beginning of the file)
-
-    handle = 0
-
-    call readrun_type(iunent,handle,buf1,crun_type)
+    write (*,*) ' GRTYP = ', grtyp
 
 
-    !--------------------------------------------------------------------
-    ! 4) Read the SSMIS data, one record (box) at a time.
-    !--------------------------------------------------------------------
+    !-------------------------------------------------------------------------
+    ! 4) Interpolate the model topography MT to all observation points in the box
+    !-------------------------------------------------------------------------
 
-    !  Loop over all records of the input file.
-    !  (handle = 0: start at the beginning of the file)
+    boxPointNum = mxLat*mxLon
+    if(allocated(zLatBox)) deallocate(zLatBox)
+    allocate (zLatBox(boxPointNum, numObsToProcess), STAT=ier)
+    if(allocated(zLonBox)) deallocate(zLonBox)
+    allocate (zLonBox(boxPointNum, numObsToProcess), STAT=ier)
+    if(allocated(mtIntBox)) deallocate(mtIntBox)
+    allocate (mtIntBox(boxPointNum, numObsToProcess), STAT=ier)
 
-    handle = 0
-    records: do
+    nLat = (mxLat-1)/2
+    nLon = (mxLon-1)/2
+    do obsIndex = 1, numObsToProcess
+      indx = 0
+      do latIndex = -nLat, nLat
+        xLat = obsLatitude(obsIndex) +latIndex*dLat
+        xLat = max(-90.0,min(90.0,xLat))
+        do lonIndex = -nLon, nLon
+          indx = indx + 1
+          xLon = obsLongitude(obsIndex) +lonIndex*dLon
+          if ( xLon < -180. ) xLon = xLon + 360.
+          if ( xLon >  180. ) xLon = xLon - 360.
+          if ( xLon <    0. ) xLon = xLon + 360.
+          zLatBox(indx,obsIndex) = xLat
+          zLonBox(indx,obsIndex) = xLon
+        enddo
+      enddo
+    enddo
 
-       call readdata(iunent,handle,zmisg,buf1,tblval,lstele,eldalt,   &
-            &         idata,icanomp,inomp,donialt,zdata,zomp,stnid,    &
-            &         nele,nval,nt,iflags,zlat,zlon,crun_type,ilansea,istatus)
+    ier  = ezsetopt('INTERP_DEGREE','CUBIC')
+    gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
+    ier  = gdllsval(gdmg,mtIntBox,mt,zLatBox,zLonBox,boxPointNum*numObsToProcess)
 
+    if(allocated(modelInterpTer)) deallocate(modelInterpTer)
+    allocate (modelInterpTer(numObsToProcess) , STAT=ier)
 
-       !  Check whether all data has been read. Once we reach beyond the last
-       !  record, proceed to the end of the program.
+    do obsIndex = 1, numObsToProcess
+      modelInterpTer(obsIndex) = 0.0
+      do boxPoint = 1, boxPointNum
+        modelInterpTer(obsIndex) = max(modelInterpTer(obsIndex),mtIntBox(boxPoint,obsIndex))
+      enddo
+    enddo
 
-       if ( handle <= 0 ) exit
-
-       !  Is the record just read a summary record? (ie does the stnid begin with '>>')
-       !  If so: - MRBUPD updates the header of the record in the output file
-       !         - MRFPUT writes the data of the summary record (BUF1) to the output file
-       !         - proceed to the next record
-
-       if ( stnid(1:2) == '>>' ) then
-          write(6,*) ' ------------------ Updating summary record --------------------- '
-          ier = mrbupd(iunsrt,buf1,-1,-1,etikresu,-1,-1,-1,-1,-1,  &
-               &        -1,-1,-1,-1,-1,-1,0,-1,0)
-          istat = mrfput(iunsrt,0,buf1)
-          cycle records
-       end if
-       ! verify return code
-       if ( istatus > 0 ) then
-          cycle records
-       end if
-
-       !  Verify that number of obs in record does not exceed maximum.
-
-       if ( nt > mxnt ) then
-          write(*,*) ' SSMIS_INOVQC: ERROR nt > mxnt '
-          call abort ()
-       end if
-
-       if ( inomp > mxchn ) then
-          write(*,*) ' SSMIS_INOVQC: ERROR inomp > mxchn '
-          call abort ()
-       end if
-
-       !  Find the satellite's index (ie verify that the sat's id is valid).
-
-       inosat = 0
-       do ii = 1, mxsat
-          if ( stnid == '^'//csatid(ii) ) then
-             inosat = ii
-          end if
-       end do
-       if ( inosat == 0 ) then
-          write(*,*) 'Satellite not valid', stnid
-          call abort()
-       end if
-
-       !-------------------------------------------------------------------------
-       ! Interpolate the model topography MT to all observation points in the box
-       !-------------------------------------------------------------------------
-
-       nlat = (mxlat-1)/2
-       nlon = (mxlon-1)/2
-       do jn = 1, nt
-          indx = 0
-          do i = -nlat, nlat
-             xlat = zlat(jn) +i*dlat
-             xlat = max(-90.0,min(90.0,xlat))
-             do j = -nlon, nlon
-                indx = indx + 1
-                xlon = zlon(jn) +j*dlon
-                if ( xlon < -180. ) xlon = xlon + 360.
-                if ( xlon >  180. ) xlon = xlon - 360.
-                if ( xlon <    0. ) xlon = xlon + 360.
-                zlatbox(indx,jn) = xlat
-                zlonbox(indx,jn) = xlon
-             enddo
-          enddo
-       enddo
-
-       ier  = ezsetopt('INTERP_DEGREE','CUBIC')
-       gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-       ier  = gdllsval(gdmg,mtintbox,mt,zlatbox,zlonbox,mxlat*mxlon*nt)
-
-       mtintrp(:) = 0.0
-       do jn = 1, nt
-          do i=1,mxlat*mxlon
-             mtintrp(jn) = max(mtintrp(jn),mtintbox(i,jn))
-          enddo
-       enddo
-
+    istat = fclos(iungeo)
 
     !--------------------------------------------------------------------
     ! 5) Perform quality control on the data, checking O-P and topography
     !--------------------------------------------------------------------
 
-       call check_stddev(icanomp,zomp,kchkprf,icheck,inomp,nt,zmisg,inosat,  &
-            &             stnid,mxchn,iutilst,sdstats,rejcnt,totobs,iflags)
+    call utl_reAllocate(icheck, numObsToProcess*actualNumChannel)
 
-       call check_topo(icanomp,kchkprf,mtintrp,icheck,inomp,nt,zmisg,inosat, &
-            &           stnid,mxchn,rejcnt2,totobs2,iflags)
+    call check_stddev(obsChannels,ompTb,icheck,actualNumChannel,numObsToProcess,sensorIndex,  &
+        &             burpFileSatId,ssbg_maxNumChan,oer_tovutil,oer_sigmaObsErr,rejcnt,totobs,obsFlags)
 
-    !--------------------------------------------------------------------
-    ! 6) Update the flags.
-    !--------------------------------------------------------------------
-
-       call updatflg(buf1,lstele,tblval,eldalt,donialt,idata,zdata,  &
-            &         kchkprf,icheck,resetqc,crun_type)
+    call check_topo(obsChannels,modelInterpTer,icheck,actualNumChannel,numObsToProcess,sensorIndex, &
+        &           burpFileSatId,ssbg_maxNumChan,rejcnt2,totobs2)
 
 
     !--------------------------------------------------------------------
-    ! 7) Write the updated record to the output BURP file.
-    !--------------------------------------------------------------------
-
-       istat = mrfput(iunsrt,0,buf1)
-
-
-       !  Proceed to the next record.
-
-    end do records
-
-
-    !  All data in the input file read!
-
-    !--------------------------------------------------------------------
-    ! 8) Write the rejection statistics for each channel, satellite to the
+    ! 6) Write the rejection statistics for each channel, satellite to the
     !    output text file - out_ssmi_inovqc.
     !--------------------------------------------------------------------
 
-    write(6,*) ' '
-    write(6,*) ' '
-    write(6,*) ' ------------------ Innovation Rejection Statistics ---------------------- '
-    write(6,*) ' -(number of obs destined for assimilation that were flagged as outliers)- '
-    do jk = 1, inumsat
-       write(6,*) ' ----------------------------------------------------------------------- '
-       write(6,*) '                   Satellite: ', csatid(jk)
-       write(6,*) '      Channel       # rejected       # obs       % rejected  '
-       write(6,*) ' ------------------------------------------------------------ '
-       do jj = 1, mxchn
-          if ( totobs(jj,jk) /= 0 ) then
-             rejper = 100. * float(rejcnt(jj,jk)) / float(totobs(jj,jk))
-          else
-             rejper = 0.0
-          endif
-          write(6,199) jj,rejcnt(jj,jk),totobs(jj,jk),rejper
-       end do
+    write(*,*) ' '
+    write(*,*) ' '
+    write(*,*) ' ------------------ Innovation Rejection Statistics ---------------------- '
+    write(*,*) ' -(number of obs destined for assimilation that were flagged as outliers)- '
+    write(*,*) ' ----------------------------------------------------------------------- '
+    write(*,*) '                   Satellite: ', burpFileSatId
+    write(*,*) '      Channel       # rejected       # obs       % rejected  '
+    write(*,*) ' ------------------------------------------------------------ '
+    do channelIndex = 1, actualNumChannel
+      if ( totobs(channelIndex,1) /= 0 ) then
+        rejper = 100. * float(rejcnt(channelIndex,1)) / float(totobs(channelIndex,1))
+      else
+        rejper = 0.0
+      endif
+      write(*,199) channelIndex,rejcnt(channelIndex,1),totobs(channelIndex,1),rejper
     end do
 
-    write(6,*) ' '
-    write(6,*) ' '
-    write(6,*) ' ------------------ Topography Rejection Statistics ---------------------- '
-    write(6,*) ' ------------- (number of all obs rejected for topography) --------------- '
-    do jk = 1, inumsat
-       write(6,*) ' ----------------------------------------------------------------------- '
-       write(6,*) '                   Satellite: ', csatid(jk)
-       write(6,*) '      Channel       # rejected       # obs       % rejected  '
-       write(6,*) ' ------------------------------------------------------------ '
-       do jj = 1, mxchn
-          if ( totobs2(jj,jk) /= 0 ) then
-             rejper = 100. * float(rejcnt2(jj,jk)) / float(totobs2(jj,jk))
-          else
-             rejper = 0.0
-          endif
-          write(6,199) jj,rejcnt2(jj,jk),totobs2(jj,jk),rejper
-       end do
+    write(*,*) ' '
+    write(*,*) ' '
+    write(*,*) ' ------------------ Topography Rejection Statistics ---------------------- '
+    write(*,*) ' ------------- (number of all obs rejected for topography) --------------- '
+    write(*,*) ' ----------------------------------------------------------------------- '
+    write(*,*) '                   Satellite: ', burpFileSatId
+    write(*,*) '      Channel       # rejected       # obs       % rejected  '
+    write(*,*) ' ------------------------------------------------------------ '
+    do channelIndex = 1, actualNumChannel
+      if ( totobs2(channelIndex,1) /= 0 ) then
+        rejper = 100. * float(rejcnt2(channelIndex,1)) / float(totobs2(channelIndex,1))
+      else
+        rejper = 0.0
+      endif
+      write(*,199) channelIndex,rejcnt2(channelIndex,1),totobs2(channelIndex,1),rejper
     end do
 
 199 format(10x,i2,10x,i7,8x,i7,8x,f6.2,' %')
 
 
     !--------------------------------------------------------------------
-    ! 9) Clean up and end the program.
+    ! 7) Rejected data (all data that have icheck > 0 )
     !--------------------------------------------------------------------
-    !  Close the files.
 
-    istat = mrfcls(iunent)
-    istat = mrfcls(iunsrt)
-    istat = fclos(iunstat)
-    istat = fclos(iungeo)
-
-    !  Deallocate work space.
-
-    deallocate ( buf1,stat=status )
-    if ( status /= 0 ) then
-       write(*,*) 'Deallocation of memory for buf1 failed'
-       call abort()
-    end if
-
-    !--------------------------------------------------------------------
-    istat=exfin('SSMIS_INOVQC',VERSION,'NON')
-    !--------------------------------------------------------------------
+    obsToreject_inovqc(:) = .false.
+    do chanObsIndex = 1, numObsToProcess*actualNumChannel
+      if (icheck(chanObsIndex) > 0) obsToreject_inovqc(:) = .true.
+    end do
 
   end subroutine ssbg_inovqcSsmis
 
   !--------------------------------------------------------------------------
   ! check_stddev
   !--------------------------------------------------------------------------
-  subroutine check_stddev(kcanomp,ptbomp,kchkprf,icheck,knomp,knt,pmisg,knosat,  &
+  subroutine check_stddev(kcanomp,ptbomp,icheck,knomp,knt,knosat,  &
        &                  stnid,mxchn,iutilst,sdstats,rejcnt,totobs,kflags)
     !--------------------------------------------------------------------
     !
@@ -3350,7 +3158,7 @@ end subroutine bennartz
     !  Object: Perform quality control on the radiances by analysing the
     !          magnitude of the residuals.
     !
-    !  Call:   call check_stddev(icanomp,zomp,kchkprf,icheck,inomp,nt,zmisg,inosat
+    !  Call:   call check_stddev(icanomp,zomp,kchkprf,icheck,inomp,nt,inosat
     !                            stnid,mxchn,iutilst,sdstats,rejcnt,totobs,iflags)
     !
     !  History
@@ -3380,9 +3188,6 @@ end subroutine bennartz
     !   kflags  - input  -  radiance data flags (bit 7 on for data that
     !                       will not be assimilated)
     !                       --> IFLAGS in subroutine readdata
-    !   kchkprf - output -  quality control indicator for each observation pt
-    !                          =0  all channels are accepted,
-    !                          >0  at least one channel has been rejected.
     !   icheck  - output -  quality contol indicator for each channel of each
     !                       observation point
     !                          =0  ok
@@ -3395,7 +3200,6 @@ end subroutine bennartz
     !   knomp   - input  -  number of residual channels
     !   knt     - input  -  number of groups of NVAL*NELE
     !                       = nt; extracted from bloc header in XTRBLK (ie # of obs pts!!!)
-    !   pmisg   - input  -  valeur manquante burp
     !   knosat  - input  -  number of satellite (index # --> 1-nsat)
     !                       determined by stnid: DMSP13=1,DMSP14=2,DMSP15=3,DMSP16=4,etc...
     !   stnid   - input  -  identificateur du satellite
@@ -3424,10 +3228,8 @@ end subroutine bennartz
     integer, intent(in),    dimension(:,:)     :: iutilst
     integer, intent(in),    dimension(:)       :: kcanomp
     integer, intent(in),    dimension(:)       :: kflags
-    integer, intent(out),   dimension(:)       :: kchkprf,icheck
+    integer, intent(out),   dimension(:)       :: icheck
     integer, intent(inout), dimension(:,:)     :: rejcnt,totobs
-
-    real, intent(in) :: pmisg
 
     real, intent(in), dimension(:,:)     :: sdstats
     real, intent(in), dimension(:)       :: ptbomp
@@ -3440,7 +3242,6 @@ end subroutine bennartz
 
     real :: xcheckval
 
-    integer, dimension(mxchn) :: tmparr1
     real,    dimension(mxchn) :: roguefac
 
     logical :: debug, assim
@@ -3464,7 +3265,6 @@ end subroutine bennartz
     roguefac = (/2.0,3.0,4.0,4.0,4.0,4.0,4.0,2.0,4.0,4.0,4.0,2.0,2.0,2.0, &
          &             2.0,2.0,2.0,2.0,3.0,3.0,3.0,3.0,3.0,3.0/)
 
-    kchkprf(:) = 0
     icheck(:) = 0
 
     !  Loop through all observation points in the current record and check
@@ -3485,50 +3285,50 @@ end subroutine bennartz
 
     do ji = 1, knt*knomp
 
-       ichn = kcanomp(ji)
-       xcheckval = roguefac(ichn) * sdstats(ichn,knosat)
+      ichn = kcanomp(ji)
+      xcheckval = roguefac(ichn) * sdstats(ichn,knosat)
 
-       if ( .not. btest(kflags(ji),7) ) then
+      if ( .not. btest(kflags(ji),7) ) then
 
-          totobs(ichn,knosat) = totobs(ichn,knosat) + 1
+        totobs(ichn,knosat) = totobs(ichn,knosat) + 1
 
-          if ( iutilst(ichn,knosat) == 0 .or. (.not. btest(kflags(ji),6)) ) then
+        if ( iutilst(ichn,knosat) == 0 .or. (.not. btest(kflags(ji),6)) ) then
 
-             ! systematic rejection of this channel
-             icheck(ji) = 2
-             if ( (ptbomp(ji) /= pmisg) .and. (abs( ptbomp(ji) ) >= xcheckval) ) then
-                ! rogue check failure as well
-                icheck(ji) = 4
-             endif
+          ! systematic rejection of this channel
+          icheck(ji) = 2
+          if ( abs( ptbomp(ji) ) >= xcheckval ) then
+            ! rogue check failure as well
+            icheck(ji) = 4
+          endif
 
-          else
+        else
 
-             ! keep channel, now perform rogue check
-             if ( (ptbomp(ji) /= pmisg) .and. (abs( ptbomp(ji) ) >= xcheckval) ) then
-                icheck(ji) = 3
-             endif
+          ! keep channel, now perform rogue check
+          if ( abs( ptbomp(ji) ) >= xcheckval ) then
+            icheck(ji) = 3
+          endif
 
-          end if
+        end if
 
-       else
+      else
 
-          icheck(ji) = 1
+        icheck(ji) = 1
 
-       endif
+      endif
 
 
-       !  Keep statistics of obs rejected by rogue check.
+      !  Keep statistics of obs rejected by rogue check.
 
-       if ( icheck(ji) > 2 ) then
-          rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
-          if ( debug ) then
-             write(6,*) ' CHECK_STDDEV: '
-             write(6,*) stnid(2:9),' Rogue check reject: ',   &
-                  &  ' Obs = ',ji,' Channel = ',ichn,         &
-                  &  ' Check value = ',xcheckval,             &
-                  &  ' O-P = ',ptbomp(ji)
-          end if
-       endif
+      if ( icheck(ji) > 2 ) then
+        rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
+        if ( debug ) then
+          write(6,*) ' CHECK_STDDEV: '
+          write(6,*) stnid(2:9),' Rogue check reject: ',   &
+               &  ' Obs = ',ji,' Channel = ',ichn,         &
+               &  ' Check value = ',xcheckval,             &
+               &  ' O-P = ',ptbomp(ji)
+        end if
+      endif
 
     end do
 
@@ -3541,67 +3341,51 @@ end subroutine bennartz
     ! Loop over observation points (knomp = num. channels [24])
     do jj = 1, knt
 
-       indx1 = jj*knomp     ! index of ch.24 obs
-       indx2 = indx1 - (knomp-1)
-       iich1  = indx2       ! index of ch.1 obs
-       iich8  = indx2 + 7   ! index of ch.8 obs
-       iich4  = iich1 + 3   ! index of ch.4 obs
-       iich11 = iich8 + 3   ! index of ch.11 obs
+      indx1 = jj*knomp     ! index of ch.24 obs
+      indx2 = indx1 - (knomp-1)
+      iich1  = indx2       ! index of ch.1 obs
+      iich8  = indx2 + 7   ! index of ch.8 obs
+      iich4  = iich1 + 3   ! index of ch.4 obs
+      iich11 = iich8 + 3   ! index of ch.11 obs
 
-       ! AMSU-A like ch. 1-4
-       if ( (ptbomp(iich1) /= pmisg) .and. (sum(icheck(iich1:iich4)) /= 4) ) then
-          xcheckval = xfacch1 * sdstats(1,knosat)
-          if ( abs(ptbomp(iich1)) >= xcheckval ) then
-             do j = iich1, iich4
-                ichn = kcanomp(j)
-                if (icheck(j) /= 1) then
-                   if ( icheck(j) < 3 ) rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
-                   icheck(j) = max(icheck(j),3)
-                endif
-             end do
-          endif
-       endif
+      ! AMSU-A like ch. 1-4
+      if ( sum(icheck(iich1:iich4)) /= 4 ) then
+        xcheckval = xfacch1 * sdstats(1,knosat)
+        if ( abs(ptbomp(iich1)) >= xcheckval ) then
+          do j = iich1, iich4
+            ichn = kcanomp(j)
+            if (icheck(j) /= 1) then
+              if ( icheck(j) < 3 ) rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
+              icheck(j) = max(icheck(j),3)
+            endif
+          end do
+        endif
+      endif
 
-       ! AMSU-B like ch. 8-11
-       if ( (ptbomp(iich8) /= pmisg) .and. (sum(icheck(iich8:iich11)) /= 4) ) then
-          xcheckval = xompch8
-          if ( abs(ptbomp(iich8)) >= xcheckval ) then
-             do j = iich8, iich11
-                ichn = kcanomp(j)
-                if (icheck(j) /= 1) then
-                   if ( icheck(j) < 3 ) rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
-                   icheck(j) = max(icheck(j),3)
-                endif
-             end do
-          endif
-       endif
+      ! AMSU-B like ch. 8-11
+      if ( sum(icheck(iich8:iich11)) /= 4 ) then
+        xcheckval = xompch8
+        if ( abs(ptbomp(iich8)) >= xcheckval ) then
+          do j = iich8, iich11
+            ichn = kcanomp(j)
+            if (icheck(j) /= 1) then
+              if ( icheck(j) < 3 ) rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
+              icheck(j) = max(icheck(j),3)
+            endif
+          end do
+        endif
+      endif
 
     end do  ! end Loop over observation points
 
-    !--------------------------------------------------------------------------
-    ! 3. Check for any channel rejections at all observation points and set
-    !    kchkprf to highest icheck value accordingly.
-    !--------------------------------------------------------------------------
-
-    indx1 = 0
-    indx2 = 0
-    tmparr1(:) = 0
-    do jj = 1, knt
-       indx1 = jj*knomp
-       indx2 = indx1 - (knomp-1)
-       tmparr1(:) = icheck(indx2:indx1)
-       kchkprf(jj) = maxval(tmparr1)
-    end do
-
-    if ( debug ) write(6,*) ' CHECK_STDDEV: kchkprf= ',(kchkprf(jj),jj=1,knt)
 
   end subroutine check_stddev
 
   !--------------------------------------------------------------------------
   ! check_topo
   !--------------------------------------------------------------------------
-  subroutine check_topo(kcanomp,kchkprf,mtintrp,icheck,knomp,knt,pmisg,knosat,  &
-       &                stnid,mxchn,rejcnt,totobs,kflags)
+  subroutine check_topo(kcanomp,mtintrp,icheck,knomp,knt,knosat,  &
+       &                stnid,mxchn,rejcnt,totobs)
     !--------------------------------------------------------------------
     !
     !  This subroutine has been adapted from the following original work:
@@ -3617,29 +3401,14 @@ end subroutine bennartz
     !          -- for a single satellite (stnid,knosat)
     !          -- for a single box (nt observations)
     !
-    !  Call:   call check_topo(icanomp,kchkprf,mtintrp,icheck,inomp,nt,zmisg,inosat
+    !  Call:   call check_topo(icanomp,mtintrp,icheck,inomp,nt,inosat
     !                            stnid,mxchn,rejcnt2,totobs2,iflags)
-    !
-    !  History
-    !  Version:      Date:      Comment:
-    !  --------      -----      --------
-    !    0.1       11/10/07     Original version             S. Macpherson
-    !    0.2       15/02/09     Mods for changes to icheck in check_stddev.
-    !                           Bug fix to rejcnt incrementing.
-    !                                                        S. Macpherson
     !
     !------------------------------------------------------------------
     ! Variable Definitions:
     ! ---------------------
     !   kcanomp - input  -  channel numbers (1-mxchn) for each observation
-    !   kflags  - input  -  original radiance data flags (bit 7 on for data
-    !                       that will not be assimilated)
-    !                       --> IFLAGS in subroutine readdata
-    !                       *** NOT CURRENTLY USED ***
     !   mtintrp - input  -  model surface height (m) at each observation point
-    !   kchkprf - in/out -  quality control indicator for each observation pt
-    !                          =0  all channels are accepted,
-    !                          >0  at least one channel has been rejected.
     !   icheck  - in/out -  quality contol indicator for each channel of each
     !                       observation point
     !                         -- on INPUT
@@ -3663,7 +3432,6 @@ end subroutine bennartz
     !   knomp   - input  -  number of residual channels
     !   knt     - input  -  number of groups of NVAL*NELE
     !                       = nt; extracted from bloc header in XTRBLK (ie # of obs pts!!!)
-    !   pmisg   - input  -  valeur manquante burp
     !                       *** NOT CURRENTLY USED ***
     !   knosat  - input  -  number of satellite (index # --> 1-nsat)
     !                       determined by stnid: DMSP13=1,DMSP14=2,DMSP15=3,DMSP16=4,etc...
@@ -3681,12 +3449,9 @@ end subroutine bennartz
     integer, intent(in) :: knomp,knt,knosat
 
     integer, intent(in),    dimension(:)       :: kcanomp        ! dimension (knt*knomp)
-    integer, intent(in),    dimension(:)       :: kflags         ! dimension (knt*knomp)
-    integer, intent(inout), dimension(:)       :: kchkprf        ! dimension (knt)
     integer, intent(inout), dimension(:)       :: icheck         ! dimension (knt*knomp)
     integer, intent(inout), dimension(:,:)     :: rejcnt,totobs  ! dimension (mxchn,mxsat)
 
-    real, intent(in)                :: pmisg
     real, intent(in), dimension(:)  :: mtintrp  ! dimension (knt)
 
     character(len=9), intent(in)    :: stnid
@@ -3699,8 +3464,6 @@ end subroutine bennartz
     integer  ::  itrejcnt
 
     real     :: zcheckval, zmt
-
-    integer, dimension(mxchn)   :: tmparr1
 
     real,    dimension(nch2chk) :: topolimit
 
@@ -3730,389 +3493,45 @@ end subroutine bennartz
     itrejcnt = 0
     if (debug) write(6,*) ' CHECK_TOPO: First rejections in box. StnID = ', stnid(2:9)
     do jj = 1, knt
-       debug2 = .false.
-       indx1 = jj*knomp            ! channel mxchn index
-       indx2 = indx1 - (knomp-1)   ! channel     1 index
-       zmt = mtintrp(jj)           ! model topography height [m]
-       if (debug) then
-          if (zmt == maxval(mtintrp) .and. zmt > minval(topolimit)) then
-             write(6,*) ' CHECK_TOPO: ****** Max height point! zmt = ', zmt
-             debug2 = .true.
+      debug2 = .false.
+      indx1 = jj*knomp            ! channel mxchn index
+      indx2 = indx1 - (knomp-1)   ! channel     1 index
+      zmt = mtintrp(jj)           ! model topography height [m]
+      if (debug) then
+        if (zmt == maxval(mtintrp) .and. zmt > minval(topolimit)) then
+          write(6,*) ' CHECK_TOPO: ****** Max height point! zmt = ', zmt
+          debug2 = .true.
+        endif
+      endif
+      do ji = 1, nch2chk        ! loop over channels to check (mchan)
+        zcheckval = topolimit(ji)   ! height limit [m] for channel mchan(ji)
+        ii = indx2 + (mchan(ji)-1)  ! channel mchan(ji) index
+        if ( icheck(ii) /= 1 ) then
+          totobs(mchan(ji),knosat) = totobs(mchan(ji),knosat) + 1
+          if ( zmt > zcheckval ) then
+            icheck(ii) = max(1,icheck(ii)) + 4
+            if (debug .and. debug2) write(6,*) 'Incrementing itrejcnt for max zmt point for ch.= ', mchan(ji)
+            itrejcnt = itrejcnt + 1
+            rejcnt(mchan(ji),knosat) = rejcnt(mchan(ji),knosat) + 1
+            if (debug) then
+              if ( itrejcnt <= nch2chk ) then
+                write(6,*) '   Channel = ', mchan(ji),            &
+                     &     ' Height limit (m) = ', zcheckval,     &
+                     &     ' Model height (m) = ', zmt
+              endif
+            endif
           endif
-       endif
-       do ji = 1, nch2chk        ! loop over channels to check (mchan)
-          zcheckval = topolimit(ji)   ! height limit [m] for channel mchan(ji)
-          ii = indx2 + (mchan(ji)-1)  ! channel mchan(ji) index
-          if ( icheck(ii) /= 1 ) then
-             totobs(mchan(ji),knosat) = totobs(mchan(ji),knosat) + 1
-             if ( zmt > zcheckval ) then
-                icheck(ii) = max(1,icheck(ii)) + 4
-                if (debug .and. debug2) write(6,*) 'Incrementing itrejcnt for max zmt point for ch.= ', mchan(ji)
-                itrejcnt = itrejcnt + 1
-                rejcnt(mchan(ji),knosat) = rejcnt(mchan(ji),knosat) + 1
-                if (debug) then
-                   if ( itrejcnt <= nch2chk ) then
-                      write(6,*) '   Channel = ', mchan(ji),            &
-                           &     ' Height limit (m) = ', zcheckval,     &
-                           &     ' Model height (m) = ', zmt
-                   endif
-                endif
-             endif
-          endif
-       end do
+        endif
+      end do
 
-       tmparr1(:)  = icheck(indx2:indx1)
-       kchkprf(jj) = maxval(tmparr1)
     end do
 
     if (debug .and. (itrejcnt > 0) ) then
-       write(6,*) '   Number of topography rejections and observations for this box = ', itrejcnt, knt*knomp
+      write(6,*) '   Number of topography rejections and observations for this box = ', itrejcnt, knt*knomp
     endif
 
   end subroutine check_topo
 
-  !--------------------------------------------------------------------------
-  ! updatflg
-  !--------------------------------------------------------------------------
-  subroutine updatflg(kbuf1,kliste,ktblval,kdliste,prval,kdata,pdata,  &
-       &              kchkprf,icheck,resetqc,crun)
-    !--------------------------------------------------------------------
-    !
-    !  This subroutine has been adapted from the following original work:
-    !  TITLE:  subroutine UPDATFLG of bgck.satqc_amsua.f
-    !  AUTEUR: Jacques Halle (CMC)
-    !
-    !  Language: FORTRAN 90
-    !
-    !  Object: Switch bit #11 (QC flags) ON for observations from channels
-    !          that are to be systematically filtered. Switch bit #9+16 ON for
-    !          observations which have been found to have an O-P value too
-    !          large. Switch bit #9+18 on for topography rejections.
-    !          Switch bit #6 ON in global (record header) flag if any
-    !          observation in record (box) has failed a QC check.
-    !          Finally, modify the bktyp of the data, flag, and residual
-    !          blocs to show that the data has been QC'd.
-    !
-    !  Call:   call updatflg(buf1,lstele,tblval,eldalt,donialt,idata,zdata,
-    !                        kchkprf,icheck,resetqc)
-    !
-    !  History
-    !  Version:      Date:      Comment:
-    !  --------      -----      --------
-    !    0.1       05/12/02     Adapted code.                D. Anselmo
-    !    0.2       24/03/06     Added check on UTIL values in statistics
-    !                           file to systematically filter channels.
-    !                                                        D. Anselmo
-    !    0.3       08/06/06     Modified to include update of global flag
-    !                           values (055200) in 3D block. D. Anselmo
-    !    0.4       16/10/07     Modifications for topography rejection.
-    !                           Changed variable int to kint.
-    !                                                        S. Macpherson
-    !    0.5       13/02/09     Mods for changes to icheck in check_stddev
-    !                           Switch additional bits ON.
-    !                                                        S. Macpherson
-    !    0.6       15/02/09     Add run check                S. Macpherson
-    !    0.7       06/01/11     Remove setting of bit 20; if icheck()=1,
-    !                           set bit 9 (for data with bit 7 on)
-    !                                                        S. Macpherson
-    !
-    !------------------------------------------------------------------
-    ! Variable Definitions:
-    ! ---------------------
-    !   kbuf1   - in/out -  array containing all of the data from the report
-    !   kliste  - input  -  list of element names
-    !   ktblval - input  -  data field (integer values - before mrbcvt)
-    !   kdliste - input  -  list of element names decoded
-    !   prval   - input  -  data field (real values - after mrbcvt)
-    !   kdata   - input  -  extracted data (integer values)
-    !   pdata   - input  -  extracted data (real values)
-    !   kchkprf - input  -  quality control indicator for each observation pt
-    !                          =0  all channels are accepted,
-    !                          >0  at least one channel has been rejected.
-    !   icheck  - input  -  final quality control indicator for each channel of each obs point
-    !                          =0  ok
-    !                          =1  not checked because FLAG bit 7 ON already,
-    !                          =2  reject by UTIL value or FLAG bit 6 OFF (uncorrected data),
-    !                          =3  reject by rogue check,
-    !                          =4  reject by both UTIL value and rogue check.
-    !                          =5  rejection due to topography
-    !                          =6  rejection due to topography, reject by UTIL value
-    !                          =7  rejection due to topography, reject by rogue check
-    !                          =8  rejection due to topography, reject by UTIL value, reject by rogue check
-    !   resetqc - input  -  reset the quality control flag values to 0 before update
-    !   crun    - input  -  run type
-    !------------------------------------------------------------------
-    use xtrblk_sub
-    use xtrdata_sub
-    use repdata_sub
-    implicit none
-
-    !  Arguments:
-    integer, intent(in),    dimension(:) :: icheck,kchkprf
-    integer, intent(inout), dimension(:) :: kliste,kdliste
-    integer, intent(inout), dimension(:) :: ktblval,kdata,kbuf1
-
-    character(3), intent(in) :: crun
-
-    real, intent(inout), dimension(:) :: prval,pdata
-
-    logical, intent(in) :: resetqc
-
-    !  Locals:
-    integer :: mrbprm,mrbdel,mrbadd,mrbtyp
-    integer :: mrbxtr,mrbloc,mrbrep
-    integer :: idum1,idum2,idum3,ibfam
-    integer :: ibdesc,ibtyp,inbit,ibit0,idatyp
-    integer :: ibknat,ibktyp,ibkstp,nbtyp
-    integer :: inele,inval,kint,ipntr
-    integer :: ji,jj,iblkno,istat,imelerad
-
-    logical :: debug
-
-    debug = .false.
-
-    !------------------------------------------------------------------
-    ! 1) Modify the global 24bit flags in the 3-D block (5120), to indicate
-    !    for which observations at least one channel has failed one of the
-    !    QC tests.
-    !------------------------------------------------------------------
-
-    !  Extract the 3-D bloc.
-
-    call xtrblk(5120,-1,kbuf1,kliste,ktblval,kdliste,prval,inele,inval, &
-         &      kint,iblkno)
-    if ( iblkno == 0 ) then
-       write(*,*) ' WARNING: 3-D block not found '
-       call abort()
-    end if
-
-    !  Extract the 24 bit global flags (element=55200).
-
-    imelerad = 055200
-    call xtrdata(kdliste,ktblval,prval,inele,inval,kint,imelerad,kdata,  &
-         &       pdata,ipntr)
-    if ( ipntr == 0 ) then
-       write(*,*) ' WARNING: Global flag markers missing '
-       call abort()
-    end if
-    if ( debug ) then
-       write(6,*) ' UPDATFLG: old global flags = ', (kdata(jj),jj=1,inval*kint)
-       write(6,*) ' UPDATFLG: inval,kint = ', inval,kint
-    end if
-
-
-    !  For those observations which have at least one channel rejected by
-    !  the QC (kchkprf > 0), switch bit #6 ON.
-    !  Note: if the mode is set to resetqc, reset all the flag values to
-    !        the default value of 1024, before making the update.
-
-    do ji = 1, kint
-       if ( resetqc ) kdata(ji) = or(0,2**10)
-       if ( kchkprf(ji) /= 0 ) kdata(ji) = or(kdata(ji),2**6)
-    end do
-
-    if ( debug ) then
-       write(6,*) ' UPDATFLG: new global flags = ', (kdata(jj),jj=1,inval*kint)
-    end if
-
-    !  Replace the old flags with the new flags in ktblval.
-    call repdata(kdliste,ktblval,inele,inval,kint,imelerad,kdata,ipntr)
-
-    !  Replace the bloc.
-    istat = mrbrep(kbuf1,iblkno,ktblval)
-
-
-    !------------------------------------------------------------------
-    ! 2) Modify the value of the bktyp in the radiance data bloc (9248 or 9264)
-    !    to indicate that the data has been screened by the quality control.
-    !        --> becomes 9312 or 9328
-    !------------------------------------------------------------------
-
-    if ( crun == 'REG' ) then
-       nbtyp=9264
-    elseif ( crun == 'GLB' ) then
-       nbtyp=9248
-    else
-       write(6,*) ' Udefined run type '
-       call abort()
-    endif
-
-
-    !  Locate the radiance data bloc.
-
-    iblkno = mrbloc(kbuf1,-1,-1,nbtyp,0)
-    if ( iblkno == 0 ) then
-       write(*,*) ' WARNING: Radiance data block not found '
-       call abort()
-    end if
-
-    !  Extract data from the radiance bloc.
-    !  Replace the bloc, inserting the modified bktyp.
-
-    istat = mrbxtr(kbuf1,iblkno,kliste,ktblval)
-    istat = mrbprm(kbuf1,iblkno,inele,inval,kint,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp)
-    istat = mrbdel(kbuf1,iblkno)
-
-    istat = mrbtyp(ibknat,ibktyp,ibkstp,ibtyp)
-    ibktyp = ibktyp + 4
-    ibtyp = mrbtyp(ibknat,ibktyp,ibkstp,-1)
-    istat = mrbadd(kbuf1,iblkno,inele,inval,kint,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp,kliste,ktblval)
-
-
-    !------------------------------------------------------------------
-    ! 3) Modify the flags in the radiance data flag bloc (15392 or 15408), to
-    !    indicate which observations have failed the UTIL value test,
-    !    which have failed the stddev test, and which have failed both.
-    !    Modify the bktyp value in the radiance data flag bloc to
-    !    indicate that the data has been screened by the quality control.
-    !        --> becomes 15456 or 15472
-    !------------------------------------------------------------------
-
-    if ( crun == 'REG' ) then
-       nbtyp=15408
-    elseif ( crun == 'GLB' ) then
-       nbtyp=15392
-    else
-       write(6,*) ' Udefined run type '
-       call abort()
-    endif
-
-    !  Extract the radiance data flag bloc.
-
-    call xtrblk(nbtyp,-1,kbuf1,kliste,ktblval,kdliste,prval,inele,inval, &
-         &      kint,iblkno)
-    if ( iblkno == 0 ) then
-       write(*,*) ' WARNING: Radiance data flag block not found '
-       call abort()
-    end if
-
-    !  Extract the flags associated with each of the radiances.
-    !  Note: nbit=15 for FLAG and DATA blocks of input SSMIS file
-    !  --> nbit will be automatically increased by MRBADD() to
-    !      accomodate highest value in array ktblval (if higher
-    !      bits are set)
-
-    imelerad = 212163
-    call xtrdata(kdliste,ktblval,prval,inele,inval,kint,imelerad,kdata,  &
-         &       pdata,ipntr)
-    if ( ipntr == 0 ) then
-       write(*,*) ' WARNING: Radiance data flags missing '
-       call abort()
-    end if
-    if ( debug ) then
-       write(6,*) ' UPDATFLG: old flags = ', (kdata(jj),jj=1,inval*kint)
-       write(6,*) ' UPDATFLG: inval,kint = ', inval,kint
-    end if
-
-
-    !  For all obs that failed QC tests, switch bit #9 ON.
-    !  For observations of channels that are to be systematically
-    !  filtered (or for uncorrected data), switch bit #11 ON.
-    !  For observations which have failed the stddev O-P quality control
-    !  test, switch bit #16 ON.
-    !  For observations which have failed the topography check,
-    !  switch bit #18 ON
-    !  Note: if the mode is set to resetqc, reset all the flag values to
-    !        a value of 0, before making the update.
-
-    do ji = 1, inval*kint
-
-       if ( resetqc ) kdata(ji) = 0
-
-       select case (icheck(ji))
-       case (1)
-          kdata(ji) = or(kdata(ji),2**9)
-       case (2)
-          kdata(ji) = or(kdata(ji),2**11)
-       case (3)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**16)
-       case (4)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**11)
-          kdata(ji) = or(kdata(ji),2**16)
-       case (5)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**18)
-       case (6)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**11)
-          kdata(ji) = or(kdata(ji),2**18)
-       case (7)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**16)
-          kdata(ji) = or(kdata(ji),2**18)
-       case (8)
-          kdata(ji) = or(kdata(ji),2**9)
-          kdata(ji) = or(kdata(ji),2**11)
-          kdata(ji) = or(kdata(ji),2**16)
-          kdata(ji) = or(kdata(ji),2**18)
-       end select
-
-    end do
-
-    if ( debug ) then
-       write(6,*) ' UPDATFLG: icheck    = ', (icheck(jj),jj=1,inval*kint)
-       write(6,*) ' UPDATFLG: new flags = ', (kdata(jj),jj=1,inval*kint)
-    end if
-
-    !  Replace the old flags with the new flags in ktblval.
-    call repdata(kdliste,ktblval,inele,inval,kint,imelerad,kdata,ipntr)
-
-    !  Replace the bloc and modify the bktyp to indicate that the data
-    !  has undergone quality control.
-
-    istat = mrbprm(kbuf1,iblkno,idum1,idum2,idum3,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp)
-    istat = mrbdel(kbuf1,iblkno)
-
-    istat = mrbtyp(ibknat,ibktyp,ibkstp,ibtyp)
-    ibktyp = ibktyp + 4
-    ibtyp = mrbtyp(ibknat,ibktyp,ibkstp,-1)
-    istat = mrbadd(kbuf1,iblkno,inele,inval,kint,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp,kliste,ktblval)
-
-
-    !------------------------------------------------------------------
-    ! 4) Modify the value of the bktyp in the residual data bloc (9258)
-    !    to indicate that the data has been screened by the quality control.
-    !        --> becomes 9322
-    !------------------------------------------------------------------
-
-    if ( crun == 'REG' ) then
-       nbtyp=9274
-    elseif ( crun == 'GLB' ) then
-       nbtyp=9258
-    else
-       write(6,*) ' Udefined run type '
-       call abort()
-    endif
-
-    !  Locate the residual data bloc.
-
-    iblkno = mrbloc(kbuf1,-1,-1,nbtyp,0)
-    if ( iblkno == 0 ) then
-       write(*,*) ' WARNING: Residual data block not found '
-       call abort()
-    end if
-
-    !  Extract data from the residual bloc.
-    !  Replace the bloc, inserting the modified bktyp.
-
-    istat = mrbxtr(kbuf1,iblkno,kliste,ktblval)
-    istat = mrbprm(kbuf1,iblkno,inele,inval,kint,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp)
-    istat = mrbdel(kbuf1,iblkno)
-
-    istat = mrbtyp(ibknat,ibktyp,ibkstp,ibtyp)
-    ibktyp = ibktyp + 4
-    ibtyp = mrbtyp(ibknat,ibktyp,ibkstp,-1)
-    istat = mrbadd(kbuf1,iblkno,inele,inval,kint,ibfam,ibdesc,    &
-         &         ibtyp,inbit,ibit0,idatyp,kliste,ktblval)
-
-  end subroutine updatflg
 
   !--------------------------------------------------------------------------
   ! ssbg_bgCheckSSMIS
@@ -4127,6 +3546,7 @@ end subroutine bennartz
 
     ! Locals
     logical, allocatable                 :: obsToreject(:)
+    logical, allocatable                 :: obsToreject_inovqc(:)
     integer, allocatable                 :: ssmisNewInfoFlag(:)
 
     integer                              :: codtyp
@@ -4169,21 +3589,28 @@ end subroutine bennartz
        end if
 
        !###############################################################################
-       ! STEP 1) call satQC SSMIS program     !
+       ! STEP 1) call satQC SSMIS program                                             !
        !###############################################################################
        write(*,*) 'STEP 1) call satQC SSMIS program'
-       call ssbg_satqcSsmis(obsSpaceData, headerIndex , ssmisNewInfoFlag, obsToreject)
+       call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
 
        !###############################################################################
-       ! STEP 2) update Flags after satQC SSMIS program     !
+       ! STEP 2) update Flags after satQC SSMIS program                               !
        !###############################################################################
        write(*,*)' STEP 2) update Flags after satQC SSMIS program'
-       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex,obsToreject)
+       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
 
        !###############################################################################
-       ! STEP 3) call inovQC SSMIS program     !
+       ! STEP 3) call inovQC SSMIS program                                            !
        !###############################################################################
        write(*,*) 'STEP 3) call inovQC SSMIS program'
+       call ssbg_inovqcSsmis(obsSpaceData, headerIndex, obsToreject_inovqc)
+
+       !###############################################################################
+       ! STEP 4) update Flags after inovQC SSMIS program                              !
+       !###############################################################################
+       write(*,*)' STEP 4) update Flags after inovQC SSMIS program'
+       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject_inovqc)
 
     end do HEADER
 
