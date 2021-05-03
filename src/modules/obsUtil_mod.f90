@@ -34,7 +34,6 @@ module obsUtil_mod
   private
   public :: obsu_setassflg, obsu_updateSourceVariablesFlag
   public :: obsu_computeVertCoordSurfObs, obsu_setGbgpsError, obsu_cvt_obs_instrum
-  public :: obsu_scaleFSO
   
 contains
 
