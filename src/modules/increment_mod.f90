@@ -119,24 +119,16 @@ CONTAINS
     type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
-    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
-    integer              :: dateStamp, numBatch, batchIndex, procToWrite
+    integer              :: stepIndex, numStep
     integer, allocatable :: dateStampList(:)
-    integer              :: get_max_rss, latIndex, kIndex, lonIndex
+    integer              :: get_max_rss
 
-    character(len=256)  :: trialFileName, incFileName, anlFileName
-    character(len=4)    :: coffset
-    character(len=4), pointer :: anlVar(:)
-    character(len=4), pointer :: varNames(:)
-
-    real(8)             :: deltaHours
-    real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:), analInc(:,:,:,:)
+    real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
     real(pre_incrReal), pointer :: PsfcIncrement(:,:,:,:)
     real(pre_incrReal), pointer :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
     real(8), pointer            :: HeightSfc_increment(:,:), HeightSfc_trial(:,:)
     real(pre_incrReal), pointer :: GL_ptr(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
-    real(8), allocatable        :: PsfcAnalysis_r8(:,:)
 
     logical  :: allocHeightSfc, writeHeightSfc
 
@@ -330,11 +322,10 @@ CONTAINS
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
     integer              :: dateStamp, numBatch, batchIndex, procToWrite
     integer, allocatable :: dateStampList(:)
-    integer              :: get_max_rss, latIndex, kIndex, lonIndex
+    integer              :: get_max_rss
 
-    character(len=256)  :: trialFileName, incFileName, anlFileName
+    character(len=256)  :: incFileName, anlFileName
     character(len=4)    :: coffset
-    character(len=4), pointer :: anlVar(:)
     character(len=4), pointer :: varNames(:)
 
     real(8)             :: deltaHours
