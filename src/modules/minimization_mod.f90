@@ -99,7 +99,7 @@ module minimization_mod
   real(8) :: e1_scaleFactor, e2_scaleFactor
   integer,parameter   :: maxNumLevels=200
   real(8) :: pertScaleFactor_UV(maxNumLevels)
-  logical :: oneDVarMode=.false.
+  logical :: oneDVarMode
 
   NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
   NAMELIST /NAMMIN/LGRTEST
@@ -129,7 +129,11 @@ CONTAINS
 
     nvadim_mpilocal=nvadim_mpilocal_in
 
-    if ( present(oneDVarMode_opt) ) oneDVarMode = oneDVarMode_opt
+    if ( present(oneDVarMode_opt) ) then
+      oneDVarMode = oneDVarMode_opt
+    else
+      oneDVarMode = .false.
+    end if
 
     ! set default values for namelist variables
     nvamaj = 6
@@ -1531,28 +1535,8 @@ CONTAINS
   !    ------------------------------------
 
   nl_indic = 2
-<<<<<<< HEAD
   call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
-=======
-  call simul(nl_indic, na_dim, da_x0, dl_j0,dl_gradj0,dataptr(1))
-!  dl_x(:) = da_x0(:)
-!  xpert = 1.d-6
-!  do i=1, 320
-!    if (mpi_myId ==0 ) then
-!       xsave = dl_x(i)
-!       dl_x(i) = xpert + dl_x(i)
-!    end if 
-!    call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk,dataptr(1))
-!    if (mpi_myId ==0 ) then
-!      write(200,'(5e26.18)') da_x0(i), dl_x(i), dl_gradj0(i), dl_J, dl_j0
-!      dl_x(i) = xsave
-!   end if
-!  end do
-!  if (mpi_myId ==0 ) flush(200)
-!  call rpn_comm_barrier('GRID',ierr)
-!  call utl_abort('test Sylvain')
 
->>>>>>> Issue #309: introduction of code for 1Dvar program
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
   call mpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
   dl_start = 1.d0
