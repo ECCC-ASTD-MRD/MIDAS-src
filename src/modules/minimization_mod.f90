@@ -204,11 +204,12 @@ CONTAINS
 
   end subroutine min_setup
 
-  subroutine min_minimize( columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+  subroutine min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, stateVectorRef_opt )
     implicit none
 
     ! Arguments:
+    integer                             :: outerLoopIndex
     type(struct_columnData)             :: columnTrlOnAnlIncLev
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
@@ -240,7 +241,7 @@ CONTAINS
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
 
-    call quasiNewtonMinimization( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
+    call quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
     nullify(controlVectorIncrSum_ptr)
@@ -253,15 +254,18 @@ CONTAINS
 
 
 
-  subroutine quasiNewtonMinimization(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,vazx)
+  subroutine quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
       !
       !:Purpose: 3D/En-VAR minimization
+      !
       implicit none
 
       ! Arguments:
-      type(struct_columnData),target :: columnAnlInc,columnTrlOnAnlIncLev
-      type(struct_obs),target :: obsSpaceData
-      real*8 :: vazx(:)
+      integer                         :: outerLoopIndex
+      type(struct_columnData), target :: columnAnlInc
+      type(struct_columnData), target :: columnTrlOnAnlIncLev
+      type(struct_obs),        target :: obsSpaceData
+      real(8)                         :: vazx(:)
 
       ! Locals:
       integer              :: nulout = 6
@@ -415,8 +419,8 @@ CONTAINS
       ! Begin the minimization
       if(nitermax.gt.0) then
 
-        ! First do iterations without var-QC
-        if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
+        ! First do iterations without var-QC only at the beginning of first outer-loop.
+        if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv .and. outerLoopIndex == 1 ) then
           iitnovqc = min(nwoqcv - iterdone,itermax)
           isimnovqc = isimmax
           lvarqc = .false.
