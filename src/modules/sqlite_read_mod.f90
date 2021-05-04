@@ -1002,7 +1002,7 @@ contains
     query = ' update data set flag = ? '//trim(itemChar)
     query = trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
-    call   fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
+    call fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
@@ -1073,7 +1073,7 @@ contains
           call fSQL_bind_param( stmt, PARAM_INDEX = idobsindex, INT8_VAR  = headPrimaryKey )
           call fSQL_exec_stmt ( stmt)
 
-        end do HEADER2
+       end do HEADER2
     
        call fSQL_finalize( stmt )
 
