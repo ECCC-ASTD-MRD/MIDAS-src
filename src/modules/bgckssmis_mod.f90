@@ -2798,9 +2798,9 @@ end subroutine bennartz
     implicit none
 
     !Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,              intent(in)    :: headerIndex
-    logical, allocatable, intent(out)   :: obsToreject_inovqc(:)
+    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
+    integer,              intent(in)    :: headerIndex            ! header index
+    logical, allocatable, intent(out)   :: obsToreject_inovqc(:)  ! observations to reject
 
     ! Locals
     character(len=9)     :: burpFileSatId            ! Satellite ID
@@ -2817,11 +2817,13 @@ end subroutine bennartz
     integer              :: boxPointNum
     integer              :: codtyp                   ! code type
     integer              :: channelIndex
+    integer              :: chanObsIndex
     integer              :: currentChannelNumber
     integer              :: gdmg
     integer              :: headerCompt
-    integer              :: headerIndex              ! header Index
     integer              :: ier
+    integer              :: instr
+    integer              :: instrum
     integer              :: iPlatf
     integer              :: iPlatform
     integer              :: iSat
@@ -2844,6 +2846,9 @@ end subroutine bennartz
     integer, parameter   :: mxLat = 5
     integer, parameter   :: mxLon = 5
 
+    logical              :: sensorIndexFound
+    logical              :: ssmisDataPresent
+
     real                 :: rejper
     real                 :: topofact
     real                 :: xLat
@@ -2862,10 +2867,11 @@ end subroutine bennartz
     real   , parameter   :: dLon = 0.6
 
     ! Topography variables
-    integer :: irec,irec2,ip1
+    integer :: irec,irec2
     integer :: idum,idum1,idum2,idum3,idum4,idum5,idum6,idum7
     integer :: idum8,idum9,idum10,idum11,idum12,idum13
     integer :: idum14,idum15,idum16,idum17,idum18
+    integer :: ig1,ig2,ig3,ig4,ip1
     integer :: ni,nj,nk,indx
 
     !  External functions
@@ -2929,8 +2935,9 @@ end subroutine bennartz
     call utl_reAllocate(obsLatitude, numObsToProcess)
     call utl_reAllocate(obsLongitude, numObsToProcess)
     ! Allocate Body elements
-    call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsChannels, numObsToProcess*actualNumChannel)
     call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
     ! Allocate intent out array
     call utl_reAllocate(obsToreject_inovqc, numObsToProcess*actualNumChannel)
 
@@ -3083,7 +3090,7 @@ end subroutine bennartz
     call utl_reAllocate(icheck, numObsToProcess*actualNumChannel)
 
     call check_stddev(obsChannels,ompTb,icheck,actualNumChannel,numObsToProcess,sensorIndex,  &
-        &             burpFileSatId,ssbg_maxNumChan,oer_tovutil,oer_sigmaObsErr,rejcnt,totobs,obsFlags)
+        &             burpFileSatId,ssbg_maxNumChan,oer_tovutil,oer_toverrst,rejcnt,totobs,obsFlags)
 
     call check_topo(obsChannels,modelInterpTer,icheck,actualNumChannel,numObsToProcess,sensorIndex, &
         &           burpFileSatId,ssbg_maxNumChan,rejcnt2,totobs2)
@@ -3231,8 +3238,8 @@ end subroutine bennartz
     integer, intent(out),   dimension(:)       :: icheck
     integer, intent(inout), dimension(:,:)     :: rejcnt,totobs
 
-    real, intent(in), dimension(:,:)     :: sdstats
-    real, intent(in), dimension(:)       :: ptbomp
+    real(8), intent(in), dimension(:,:)     :: sdstats
+    real   , intent(in), dimension(:)       :: ptbomp
 
     character(len=9), intent(in) :: stnid
 
