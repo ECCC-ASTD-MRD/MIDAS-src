@@ -34,7 +34,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles, sqlf_cldprmsFile
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles, sqlf_addCloudParametersandEmissivity
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -234,7 +234,7 @@ module sqliteFiles_mod
   end subroutine sqlf_cleanFile
 
 
-  subroutine sqlf_cldprmsFile(obsSpaceData, fileIndex, fileName)
+  subroutine sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, fileName)
     !
     ! :Purpose: To insert cloud parameters in obsspace data into sqlite file
     !
@@ -246,10 +246,9 @@ module sqliteFiles_mod
     integer,           intent(in) :: fileIndex
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlf_cldprmsFile'
+    character(len=*), parameter :: myName = 'sqlf_addCloudParametersandEmissivity'
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    write(*,*) myName//': FileName   : ',trim(fileName)
     call fSQL_open( db, fileName, statusSqlite )
     if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
       write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
@@ -257,14 +256,7 @@ module sqliteFiles_mod
     end if
     call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
     call fSQL_close( db, statusSqlite )
-    write(*,*)'  closed database -->', trim(FileName)
-
-    write(*,*)' '
-    write(*,*)'================================================='
-    write(*,*)'                '//trim(myName)//'    END               '
-    write(*,*)'================================================='
-    write(*,*)' '
-  end subroutine sqlf_cldprmsFile
+  end subroutine sqlf_addCloudParametersandEmissivity
 
 
   subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )
