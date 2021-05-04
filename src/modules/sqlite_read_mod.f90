@@ -795,7 +795,7 @@ contains
           end if
 
           if ( trim(familyType) == 'TO' ) then
-            if ( obsvalue /= 0. ) then
+            if ( obsValue /= MPC_missingValue_R8 ) then
               call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
             else
               call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
