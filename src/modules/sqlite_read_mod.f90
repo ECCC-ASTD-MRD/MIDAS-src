@@ -926,9 +926,9 @@ contains
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
     integer                          :: obsRln, obsNlv, obsIdf, obsFlag
-    integer                          ::  obsStatus, last_question, landSea, terrainType
+    integer                          :: obsStatus, last_question, landSea, terrainType
     integer(8)                       :: headPrimaryKey, bodyPrimaryKey
-    integer                          :: itemId,idobsindex
+    integer                          :: itemId, idObsIndex
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
@@ -1029,7 +1029,7 @@ contains
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
             else
               scalfact=1.0
-              if (   updateList(itemId) == OBS_SEM ) scalfact=100.0
+              if ( updateList(itemId) == OBS_SEM ) scalfact=100.0
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scalfact )
             end if
           else
@@ -1052,10 +1052,10 @@ contains
        ! UPDATES FOR THE STATUS FLAGS and land_sea (for satellites) IN THE HEADER TABLE
        if ( trim(familyType) == 'TO' ) then
           query = ' update header set status  = ?,land_sea= ?  where id_obs = ? '
-          idobsindex=3
+          idObsIndex=3
        else
           query = ' update header set status  = ?   where id_obs = ? '
-          idobsindex=2
+          idObsIndex=2
        endif
        call fSQL_prepare( db, query , stmt, stat)
        if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
@@ -1070,7 +1070,7 @@ contains
           landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
           call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
           call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = landSea )
-          call fSQL_bind_param( stmt, PARAM_INDEX = idobsindex, INT8_VAR  = headPrimaryKey )
+          call fSQL_bind_param( stmt, PARAM_INDEX = idObsIndex, INT8_VAR  = headPrimaryKey )
           call fSQL_exec_stmt ( stmt)
 
        end do HEADER2
