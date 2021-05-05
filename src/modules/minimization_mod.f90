@@ -385,6 +385,7 @@ CONTAINS
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
       endif
 
+      if ( outerLoopIndex > 1 ) zeps0 = repsg
       zeps1 = zeps0
 
       itertot = iterdone
