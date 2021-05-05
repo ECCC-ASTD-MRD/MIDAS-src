@@ -194,7 +194,7 @@ contains
     integer                  :: avhrrSqlite
     integer                  :: obsIdo
     character(len=128)       :: querySqlite,avhrrSqliteCharacter
-    integer                  :: iRow, headerIndex, iobs
+    integer                  :: rowIndex, headerIndex, columnIndex
     integer                  :: numberRows ,  numberColumns
 
     real, allocatable        :: matdata(:,:)
@@ -238,30 +238,30 @@ contains
       matdata = MPC_missingValue_R4
       call fSQL_fill_matrix ( stmt, matdata )
 
-      iRow=1
-      do iobs=OBS_CF1,OBS_CF7
-        if(obs_columnActive_RH(obsdat,iobs)) then
-          CFRAC =matdata(iRow,3)
-          call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
-          iRow=iRow+6
+      rowIndex=1
+      do columnIndex=OBS_CF1,OBS_CF7
+        if(obs_columnActive_RH(obsdat,columnIndex)) then
+          CFRAC = matdata(rowIndex,3)
+          call obs_headSet_r(obsdat,columnIndex,headerIndex, CFRAC)
+          rowIndex = rowIndex+6
         end if
       end do
 
-      iRow=1
-      do iobs=OBS_M1C1,OBS_M7C6
-        if(obs_columnActive_RH(obsdat,iobs)) then
-          MOYRAD=matdata(iRow,1) * 100000.d0
-          call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
-          iRow=iRow+1
+      rowIndex=1
+      do columnIndex=OBS_M1C1,OBS_M7C6
+        if(obs_columnActive_RH(obsdat,columnIndex)) then
+          MOYRAD = matdata(rowIndex,1) * 100000.d0
+          call obs_headSet_r(obsdat,columnIndex,headerIndex, MOYRAD )
+          rowIndex = rowIndex+1
         endif
       end do
 
-      iRow=1
-      do iobs=OBS_S1C1,OBS_S7C6
-        if(obs_columnActive_RH(obsdat,iobs)) then
-          STDRAD=matdata(iRow,2) * 100000.d0
-          call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
-          iRow=iRow+1
+      rowIndex=1
+      do columnIndex=OBS_S1C1,OBS_S7C6
+        if(obs_columnActive_RH(obsdat,columnIndex)) then
+          STDRAD = matdata(rowIndex,2) * 100000.d0
+          call obs_headSet_r(obsdat,columnIndex,headerIndex,  STDRAD)
+          rowIndex = rowIndex+1
         end if
       end do
 
