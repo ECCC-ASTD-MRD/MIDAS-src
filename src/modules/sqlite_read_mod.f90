@@ -306,7 +306,7 @@ contains
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
-    integer                  :: iBit, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex
+    integer                  :: bitIndex, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex
     integer                  :: bitsFlagOn, bitsFlagOff, reportLocation, numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
     character(len=512)       :: query, queryData, queryHeader
@@ -539,12 +539,12 @@ contains
 
     ! Compose SQL queries
     bitsFlagOff=0
-    do iBit = 1, numberBitsOff
-      bitsFlagOff = ibset ( bitsFlagOff, 13 - bitsOff(iBit) )
+    do bitIndex = 1, numberBitsOff
+      bitsFlagOff = ibset ( bitsFlagOff, 13 - bitsOff(bitIndex) )
     end do
     bitsFlagOn=0
-    do iBit = 1, numberBitsOn
-      bitsFlagOn = ibset ( bitsFlagOn, 13 - bitsOn(iBit) )
+    do bitIndex = 1, numberBitsOn
+      bitsFlagOn = ibset ( bitsFlagOn, 13 - bitsOn(bitIndex) )
     end do
 
     write(cfgSqlite, '(i6)' ) bitsFlagOff
