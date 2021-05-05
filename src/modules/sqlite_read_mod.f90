@@ -196,17 +196,13 @@ contains
     character(len=128)       :: querySqlite,avhrrSqliteCharacter
     integer                  :: rowIndex, headerIndex, columnIndex
     integer                  :: numberRows ,  numberColumns
-
     real, allocatable        :: matdata(:,:)
-
     REAL(pre_obsReal) :: CFRAC,MOYRAD,STDRAD
-
     character(len=*), parameter :: myName = 'sqlr_readSqlite_avhrr'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //': ERROR: '
 
-    write(*,*) 'Subroutine '//myName
-    write(*,*) myName//': fileName   : ', trim(fileName)
+    write(*,*) myName//': fileName : ', trim(fileName)
 
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -214,28 +210,28 @@ contains
       call utl_abort( myError//': fSQL_open' )
     end if
     avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
-    write(*,'(4a)') myName//' START OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
+    write(*,'(4a)') myName//': START OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
 
     querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'avhrr' ;"
     avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
     read( avhrrSqliteCharacter, * ) avhrrSqlite 
     if (   avhrrSqlite ==1 ) then
-      write(*,*)myName//' Table avhrr exists: insert contents into obsdat '
+      write(*,*)myName//': Table avhrr exists: insert contents into obsdat '
     else
-      write(*,*)myName//' Table avhrr does not exist :  ... return  '
+      write(*,*)myName//': Table avhrr does not exist :  ... return  '
       return
     endif
 
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare( db, querySqlite , stmt, stat )
-    write(*,*)myName//' obs_getNchanAvhr=',obs_getNchanAvhrr()
+    write(*,*) myName//': obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
       obsIdo = obs_headPrimaryKey( obsdat, headerIndex )
       call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
       call fSQL_exec_stmt (stmt)
       call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
       allocate( matdata(numberRows, numberColumns) )
-      matdata = MPC_missingValue_R4
+      matdata(:,:) = MPC_missingValue_R4
       call fSQL_fill_matrix ( stmt, matdata )
 
       rowIndex=1
@@ -270,7 +266,7 @@ contains
 
     end do
     avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
-    write(*,'(4a)') myName//'  END OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
+    write(*,'(4a)') myName//':  END OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
@@ -320,8 +316,8 @@ contains
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
-    character(len=*), parameter :: myName = 'sqlr_readSqlite:'
-    character(len=*), parameter :: myError   = myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_readSqlite'
+    character(len=*), parameter :: myError   = myName //': ERROR: '
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -343,12 +339,11 @@ contains
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
 
-    write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
     write(*,*) myName//': familyType : ', trim(familyType)
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
+      write(*,*) myError//' fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort( myError//'fSQL_open' )
     end if
 
@@ -562,7 +557,7 @@ contains
     queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
-    write(*,*)' ========================================== '
+    write(*,*) myName//': =========================================='
 
     if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' ) then
       elevFact=1.
@@ -580,12 +575,12 @@ contains
     headerIndexStart = headerIndex
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)
-    write(*,*) myName//' DEBUT numheader  =', numHeader
-    write(*,*) myName//' DEBUT numbody    =', numBody
+    write(*,*) myName//': DEBUT numheader  =', numHeader
+    write(*,*) myName//': DEBUT numbody    =', numBody
     call fSQL_get_many( stmt2, nrows=numberRows, ncols=numberColumns, mode=FSQL_REAL8 )
-    write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
-    write(*,*) myName//'  rdbSchema = ', rdbSchema
-    write(*,*)' ========================================== '
+    write(*,*) myName//':  numberRows numberColumns =', numberRows, numberColumns
+    write(*,*) myName//':  rdbSchema = ', rdbSchema
+    write(*,*) myName//': =========================================='
     allocate( matdata(numberRows, numberColumns) )
     matdata = 0.0d0
     call fSQL_fill_matrix( stmt2, matdata )
@@ -861,12 +856,11 @@ contains
     deallocate(matdata)
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)
-    write(*,*)  myName//' FIN numheader  =', numHeader
-    write(*,*)  myName//' FIN numbody    =', numBody
-    write(*,*)  myName//' fin header '
+    write(*,*) myName//': FIN numheader  =', numHeader
+    write(*,*) myName//': FIN numbody    =', numBody
+    write(*,*) myName//': fin header '
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
-    write(*,*) 'end subroutine: ', myName
 
   end subroutine sqlr_readSqlite
 
@@ -937,11 +931,11 @@ contains
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
     real                             :: romp, obsValue, scaleFactor
-    character(len=*), parameter      :: myName = 'sqlr_updateSqlite:'
-    character(len=*), parameter      :: myError = myName //' ERROR: '
+    character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
+    character(len=*), parameter      :: myError = myName //': ERROR: '
     namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
 
-    write(*,*) myName//' Starting ===================  '
+    write(*,*) myName//': Starting ===================  '
 
     ! set default values of namelist variables
     itemUpdateList(:) = ''
@@ -1089,7 +1083,7 @@ contains
     end if
 
     call fSQL_commit(db)
-    write(*,*) myName//' End ===================  ', trim(familyType)
+    write(*,*) myName//': End ===================  ', trim(familyType)
 
   end subroutine sqlr_updateSqlite
 
@@ -1109,8 +1103,8 @@ contains
     integer                :: NCO2
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
     character(len=*), parameter :: myName    = 'sqlr_addCloudParametersandEmissivity'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //': ERROR: '
 
     query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
          ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
@@ -1165,7 +1159,7 @@ contains
 
     call fSQL_finalize( stmt )
     call fSQL_commit(db)
-    write(*,'(a,i8)') myName//'  NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(a,i8)') myName//': NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_addCloudParametersandEmissivity
 
@@ -1189,11 +1183,11 @@ contains
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
     logical                :: llok    
-    character(len=*), parameter :: myName = 'sqlr_insertSqlite:'
-    character(len=*), parameter :: myError   = myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_insertSqlite'
+    character(len=*), parameter :: myError   = myName //': ERROR: '
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
-    write(*,*)  myName//' --- Starting ---   '
+    write(*,*)  myName//': --- Starting ---   '
     numHeader = obs_numHeader(obsdat)
     write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', numHeader
     write(*,*)' fileName -> ', trim(fileName)   
@@ -1335,7 +1329,7 @@ contains
 
     call fSQL_finalize( stmt )
     call fSQL_commit(db)
-    write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(3a,i8)') myName//': FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_insertSqlite
 
@@ -1351,8 +1345,7 @@ contains
     character(len=*),    intent(in) :: fileName
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlr_cleanSqlite:'
-    character(len=*), parameter :: myError = myName //' ERROR: '
+    character(len=*), parameter :: myError = 'sqlr_cleanSqlite: ERROR: '
 
     character(len = 128) :: query
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
@@ -1624,9 +1617,9 @@ contains
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
-    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile:'
-    character(len=*), parameter :: myWarning = myName //' WARNING: '
-    character(len=*), parameter :: myError   = myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
+    character(len=*), parameter :: myWarning = myName //': WARNING: '
+    character(len=*), parameter :: myError   = myName //': ERROR: '
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
@@ -1668,7 +1661,7 @@ contains
 
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
 
-    write(*,*) myName//' Creating file: ', trim(fileName)
+    write(*,*) myName//': Creating file: ', trim(fileName)
     call fSQL_open( db, fileName, stat )
     if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//'fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
 
@@ -1684,8 +1677,8 @@ contains
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
-    write(*,*) myName//' Insert query Data   = ', trim( queryData )
-    write(*,*) myName//' Insert query Header = ', trim( queryHeader )
+    write(*,*) myName//': Insert query Data   = ', trim( queryData )
+    write(*,*) myName//': Insert query Header = ', trim( queryHeader )
 
     call fSQL_begin(db)
     call fSQL_prepare( db, queryData, stmtData, stat )
@@ -1851,7 +1844,7 @@ contains
      
     end do HEADER
 
-    write(*,*) myName// ' Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
+    write(*,*) myName// ': Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
     call fSQL_finalize( stmtData )
     call fSQL_commit(db)
     call fSQL_close( db, stat )

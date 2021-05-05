@@ -340,8 +340,15 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_IPT = OBS_IPC+1  ! mpi task id for latlontile
    integer, parameter, public :: OBS_ST1 = OBS_IPT+1  ! header level status/rejection flag
    integer, parameter, public :: OBS_IDF = OBS_ST1+1  ! id. no. of observation-source file
-   integer, parameter, public :: OBS_GQF = OBS_IDF+1  ! iasi GQISFLAGQUAL: general quality flag which indicates, when it is set to TRUE (=1), that some anomaly has been detected at some step in the Level 0 or Level 1 IASI Processing. The products should not be used if this occurs.
-   integer, parameter, public :: OBS_GQL = OBS_GQF+1  ! iasi GQISQUALINDEXLOC: It is defined as the uncertainty of the coregistration between IIS (IASI internal imager) and AVHRR.
+
+   integer, parameter, public :: OBS_GQF = OBS_IDF+1  ! iasi GQISFLAGQUAL: general quality flag which indicates,
+                                                      ! when it is set to TRUE (=1), that some anomaly has been
+                                                      ! detected at some step in the Level 0 or Level 1 IASI Processing.
+                                                      ! The products should not be used if this occurs.
+
+   integer, parameter, public :: OBS_GQL = OBS_GQF+1  ! iasi GQISQUALINDEXLOC: It is defined as the uncertainty of the
+                                                      ! coregistration between IIS (IASI internal imager) and AVHRR.
+
    integer, parameter, public :: OBS_NCO2= OBS_GQL+1  ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1 ! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1 ! QUALITY FLAGS FOR RADIO OCCULTATION DATA
