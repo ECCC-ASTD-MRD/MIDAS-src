@@ -30,6 +30,7 @@ module var1D_mod
   use utilities_mod
   use verticalCoord_mod
   use codeprecision_mod
+  use tovs_nl_mod
 
   implicit none
   save
@@ -252,10 +253,7 @@ contains
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_obsPointer(columnIndex)
       latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian 
-      surfaceType = obs_headElem_i(dataObs, OBS_STYP, headerIndex)
-      !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-      !       profiles(tovsIndex)%skin%surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
-      ! tvs_ChangedStypValue could be moved to another module (no real dependency with TOVS)
+      surfaceType = tvs_ChangedStypValue(dataObs, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
         oneDProfile(:) = matmul(bSqrtSea(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
@@ -319,10 +317,7 @@ contains
         call utl_abort('var1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
       latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian
-      surfaceType = obs_headElem_i(dataObs, OBS_STYP, headerIndex)
-      !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-      !       profiles(tovsIndex)%skin%surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
-      ! tvs_ChangedStypValue could be moved to another module (no real dependency with TOVS)
+      surfaceType =  tvs_ChangedStypValue(dataObs, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
         controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
