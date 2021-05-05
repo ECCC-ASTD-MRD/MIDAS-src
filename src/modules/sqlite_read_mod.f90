@@ -73,7 +73,7 @@ contains
 
   subroutine sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
                               earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                              solarAzimuth, terrainType, landSea, IGQISQUALINDEXLOC,IGQISFLAGQUAL,    &
+                              solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
                               headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
                               obsrzam,  obsrele, obsrans, obsrane, obsrdel)
@@ -95,8 +95,8 @@ contains
     integer          , intent(in)    :: obsStatus
     integer          , intent(in)    :: terrainType
     integer          , intent(in)    :: landSea
-    integer          , intent(in)    :: IGQISQUALINDEXLOC
-    integer          , intent(in)    :: IGQISFLAGQUAL
+    integer          , intent(in)    :: iasiImagerCollocationFlag
+    integer          , intent(in)    :: iasiGeneralQualityFlag
     integer          , intent(in)    :: roQcFlag
     integer          , intent(in)    :: obsSat
     integer          , intent(in)    :: instrument
@@ -138,8 +138,8 @@ contains
       call obs_headSet_i( obsdat, OBS_INS , headerIndex, instrument  )
       call obs_headSet_r( obsdat, OBS_SZA , headerIndex, zenith      )
       call obs_headSet_r( obsdat, OBS_SUN , headerIndex, solarZenith )
-      if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,headerIndex,IGQISFLAGQUAL)
-      if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,headerIndex,IGQISQUALINDEXLOC)
+      if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,headerIndex,iasiGeneralQualityFlag)
+      if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,headerIndex,iasiImagerCollocationFlag)
 
       if ( trim(rdbSchema) /= 'csr' ) then
         call obs_headSet_r( obsdat, OBS_AZA , headerIndex, azimuth )
@@ -304,7 +304,7 @@ contains
     integer                  :: trackCellNum
     real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
-    integer                  :: INDIC_NDX_QUAL_GEOM,FANION_QUAL_IASI_SYS_IND
+    integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: iBit, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex
     integer                  :: bitsFlagOn, bitsFlagOff, reportLocation, numBody, numHeader
@@ -384,7 +384,7 @@ contains
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
       vertCoordType = 1
     else if ( trim(rdbSchema) == 'radvel') then
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES  "
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES "
       vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -456,7 +456,7 @@ contains
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
-        columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth,FANION_QUAL_IASI_SYS_IND,INDIC_NDX_QUAL_GEOM  "
+        columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
@@ -602,8 +602,8 @@ contains
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation,                                    &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, INDIC_NDX_QUAL_GEOM, FANION_QUAL_IASI_SYS_IND, headPrimaryKey, xlat, xlon, codeType,      &
-                                obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), &
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,  &
+                                obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),        &
                                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),  real(obsrdel,kind=pre_obsReal) )
         exit HEADER
       end if
@@ -662,8 +662,8 @@ contains
 
         end if
         if ( trim(rdbSchema) == 'iasi'  ) then
-          call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = FANION_QUAL_IASI_SYS_IND, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = INDIC_NDX_QUAL_GEOM,      INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = iasiGeneralQualityFlag,    INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT )
         end if
 
         if ( instrument == 420 ) obsSat  = 784
@@ -680,7 +680,7 @@ contains
         ! It does not have the obsStatus column.
 
         if ( idStation(1:6) == 'METOP-') then
-          call fSQL_get_column( stmt, COL_INDEX = 8,   INT_VAR  = trackCellNum )
+          call fSQL_get_column( stmt, COL_INDEX = 8, INT_VAR  = trackCellNum )
           if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
           call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
           modelWindSpeed = modelWindSpeed_R8
@@ -736,7 +736,7 @@ contains
                roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                          &
                real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),    &
                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                    &
-               INDIC_NDX_QUAL_GEOM, FANION_QUAL_IASI_SYS_IND,                                    &
+               iasiImagerCollocationFlag, iasiGeneralQualityFlag,                                &
                headPrimaryKey, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
                trackCellNum, modelWindSpeed,                                                     &
                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                   &
@@ -751,12 +751,11 @@ contains
                  roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                          &
                  real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),    &
                  real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                    &
-                 INDIC_NDX_QUAL_GEOM, FANION_QUAL_IASI_SYS_IND,                                    &
+                 iasiImagerCollocationFlag, iasiGeneralQualityFlag,                                &
                  headPrimaryKey, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
                  trackCellNum, modelWindSpeed,                                                     &
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                   &
                  real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )
-                     
            end if
 
           lastId = rowIndex + 1
@@ -845,9 +844,9 @@ contains
         end if   
 
         if ( lastId > numberRows ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation,   &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, INDIC_NDX_QUAL_GEOM, FANION_QUAL_IASI_SYS_IND,   &
+                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,       &
                                 headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed , &
                                 real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal))
       else
