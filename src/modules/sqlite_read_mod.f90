@@ -209,8 +209,6 @@ contains
       write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort( myError//': fSQL_open' )
     end if
-    avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
-    write(*,'(4a)') myName//': START OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
 
     querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'avhrr' ;"
     avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
@@ -265,8 +263,7 @@ contains
       call fSQL_free_mem    ( stmt )
 
     end do
-    avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
-    write(*,'(4a)') myName//':  END OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
+
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
