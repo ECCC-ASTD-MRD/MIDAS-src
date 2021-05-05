@@ -306,8 +306,11 @@ CONTAINS
         if(mpi_myid == 0) write(*,*) 'NO PRECONDITIONING FILE FOUND:',preconFileName
       endif
 
-      ! allocate control vector related arrays (these are all mpilocal)
-      call utl_reallocate(vatra,nmtra)
+      ! Initialize Hessian only at first outerLoop (mpilocal)
+      if ( outerLoopIndex == 1 ) then
+        allocate(vatra(nmtra))
+        vatra(:) = 0.0d0
+      end if
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
@@ -323,13 +326,12 @@ CONTAINS
       ! Set-up the minimization
 
       ! initialize iteration/simulation counters to zero
-      ITERTOT  = 0
+      ITERTOT = 0
       isimtot = 0
 
       ! initialize control vector related arrays to zero
-      vazx(:)=0.0d0
-      vazg(:)=0.0d0
-      vatra(:)=0.0d0
+      vazx(:) = 0.0d0
+      vazg(:) = 0.0d0
 
       ! save user-requested varqc switch
       llvarqc = lvarqc
@@ -339,7 +341,7 @@ CONTAINS
 
       lldf1 = .true.
       if (preconFileExists) then
-        if(mpi_myid == 0) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
+        if ( mpi_myid == 0 ) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = lvazx ! from namelist (default is .false.)
@@ -350,8 +352,8 @@ CONTAINS
         zeps0 = repsg
       endif
 
-      ! read the hessian from preconin file
-      if (lrdvatra) then
+      ! read the hessian from preconin file at first outer-loop iteration
+      if ( lrdvatra .and. outerLoopIndex == 1 ) then
         ibrpstamp = tim_getDatestamp() ! ibrpstamp is a I/O argument of hessianIO
 
         call hessianIO (preconFileName,0,                    &
@@ -514,9 +516,7 @@ CONTAINS
 
       ! deallocate the gradient
       deallocate(vazg)
-      if ( .not. lwrthess ) then
-        deallocate(vatra)
-      end if
+      if ( .not. lwrthess ) deallocate(vatra)
 
   end subroutine quasiNewtonMinimization
 
