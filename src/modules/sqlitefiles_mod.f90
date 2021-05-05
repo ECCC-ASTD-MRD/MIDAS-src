@@ -246,8 +246,8 @@ module sqliteFiles_mod
     integer,           intent(in) :: fileIndex
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlf_addCloudParametersandEmissivity'
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myName  = 'sqlf_addCloudParametersandEmissivity'
+    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
 
     call fSQL_open( db, fileName, statusSqlite )
     if ( fSQL_error(statusSqlite) /= FSQL_OK ) then

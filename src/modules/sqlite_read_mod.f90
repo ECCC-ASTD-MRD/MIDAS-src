@@ -558,7 +558,7 @@ contains
 
     csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
     queryData= "select "//columnsData
-    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit) //trim(sqlLimit)//";"
+    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlLimit)//";"
     queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
@@ -731,30 +731,30 @@ contains
         ! ---------------------------------------------------
         if ( int(matdata(rowIndex,2)) > headPrimaryKey ) then 
 
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,    &
-               real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,          &
-               roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                          &
-               real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),    &
-               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                    &
-               iasiImagerCollocationFlag, iasiGeneralQualityFlag,                                &
-               headPrimaryKey, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
-               trackCellNum, modelWindSpeed,                                                     &
-               real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                   &
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
+               real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
+               roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
+               real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
+               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
+               iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
+               xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
+               trackCellNum, modelWindSpeed,                                                  &
+               real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) , real(obsrdel,kind=pre_obsReal) )
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == headPrimaryKey ) then
 
           if ( headerIndex == headerIndexStart .and. obsNlv == 0 ) then
-            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat,    &
-                 real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,          &
-                 roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                          &
-                 real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal),    &
-                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                    &
-                 iasiImagerCollocationFlag, iasiGeneralQualityFlag,                                &
-                 headPrimaryKey, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf, &
-                 trackCellNum, modelWindSpeed,                                                     &
-                 real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                   &
+            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
+                 real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
+                 roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
+                 real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
+                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
+                 iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
+                 xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
+                 trackCellNum, modelWindSpeed,                                                  &
+                 real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
                  real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )
            end if
 
@@ -844,11 +844,12 @@ contains
         end if   
 
         if ( lastId > numberRows ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation,   &
-                                earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,       &
-                                headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed , &
-                                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal))
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
+                                earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal),      &
+                                real(solarZenithReal,kind=pre_obsReal), real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                &
+                                iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100,         &
+                                obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal),                           &
+                                real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal))
       else
 
         headerIndex = headerIndex - 1
@@ -935,7 +936,7 @@ contains
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
-    real                             :: romp, obsValue, scalfact
+    real                             :: romp, obsValue, scaleFactor
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite:'
     character(len=*), parameter      :: myError = myName //' ERROR: '
     namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
@@ -1027,9 +1028,9 @@ contains
             if ( romp == obs_missingValue_R ) then
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
             else
-              scalfact=1.0
-              if ( updateList(itemId) == OBS_SEM ) scalfact=100.0
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scalfact )
+              scaleFactor=1.0
+              if ( updateList(itemId) == OBS_SEM ) scaleFactor=100.0
+              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scaleFactor )
             end if
           else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
