@@ -928,7 +928,7 @@ contains
     integer                          :: obsRln, obsNlv, obsIdf, obsFlag
     integer                          :: obsStatus, last_question, landSea, terrainType
     integer(8)                       :: headPrimaryKey, bodyPrimaryKey
-    integer                          :: itemId, idObsIndex
+    integer                          :: itemId, headPrimaryKeyIndex, landSeaIndex
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
@@ -1050,12 +1050,15 @@ contains
     if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' ) then
 
        ! UPDATES FOR THE STATUS FLAGS and land_sea (for satellites) IN THE HEADER TABLE
+       !! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined here and used below.
+       !! Any change in this logic must be coherent with the code below!
        if ( trim(familyType) == 'TO' ) then
-          query = ' update header set status  = ?,land_sea= ?  where id_obs = ? '
-          idObsIndex=3
-       else
-          query = ' update header set status  = ?   where id_obs = ? '
-          idObsIndex=2
+          query = ' update header set status  = ?, land_sea= ? where id_obs = ? '
+          landSeaIndex = 2
+          headPrimaryKeyIndex = 3
+        else
+          query = ' update header set status  = ?  where id_obs = ? '
+          headPrimaryKeyIndex = 2
        endif
        call fSQL_prepare( db, query , stmt, stat)
        if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
@@ -1069,8 +1072,14 @@ contains
           obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
           landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
           call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-          call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = landSea )
-          call fSQL_bind_param( stmt, PARAM_INDEX = idObsIndex, INT8_VAR  = headPrimaryKey )
+          !! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined above and
+          !! they must be coherent with the query designed above
+          call fSQL_bind_param( stmt, PARAM_INDEX = headPrimaryKeyIndex, INT8_VAR = headPrimaryKey )
+          if ( trim(familyType) == 'TO' ) then
+            call fSQL_bind_param( stmt, PARAM_INDEX = landSeaIndex, INT_VAR  = landSea )
+          else
+          end if
+
           call fSQL_exec_stmt ( stmt)
 
        end do HEADER2
