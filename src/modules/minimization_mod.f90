@@ -83,7 +83,6 @@ module minimization_mod
 
   ! variables stored for later call to min_writeHessian
   real(8), allocatable :: vatra(:)
-  real(8), allocatable :: dg_vbar(:)
   real(8), pointer     :: controlVectorIncrSum_ptr(:)
   real(8) :: zeps1, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
@@ -129,12 +128,12 @@ CONTAINS
     character(len=32) :: envVariable
     integer :: length_envVariable, status
 
-    if(nvadim_mpilocal_in.ne.cvm_nvadim) then
-      write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
+    if ( nvadim_mpilocal_in /= cvm_nvadim ) then
+      write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
       call utl_abort('min_setup: control vector dimension not consistent')
     endif
 
-    nvadim_mpilocal=nvadim_mpilocal_in
+    nvadim_mpilocal = nvadim_mpilocal_in
 
     if ( present(oneDVarMode_opt) ) then
       oneDVarMode = oneDVarMode_opt
@@ -244,7 +243,7 @@ CONTAINS
     call quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
-    nullify(controlVectorIncrSum_ptr)
+    if ( .not. lwrthess ) nullify(controlVectorIncrSum_ptr)
     call tmg_stop(3)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -308,7 +307,6 @@ CONTAINS
       endif
 
       ! allocate control vector related arrays (these are all mpilocal)
-      call utl_reallocate(dg_vbar,nvadim_mpilocal)
       call utl_reallocate(vatra,nmtra)
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
@@ -330,7 +328,6 @@ CONTAINS
 
       ! initialize control vector related arrays to zero
       vazx(:)=0.0d0
-      dg_vbar(:)=0.0d0
       vazg(:)=0.0d0
       vatra(:)=0.0d0
 
@@ -357,9 +354,9 @@ CONTAINS
       if (lrdvatra) then
         ibrpstamp = tim_getDatestamp() ! ibrpstamp is a I/O argument of hessianIO
 
-        call hessianIO (preconFileName,0,                     &
+        call hessianIO (preconFileName,0,                    &
           isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000,  &
-          isimdone_000,iztrl,vatra,dg_vbar,                  &
+          isimdone_000,iztrl,vatra,controlVectorIncrSum_ptr, &
           vazx,llxbar,llvazx,n1gc,imode)
 
         if (ibrpstamp == tim_getDatestamp() .and. lxbar) then
@@ -487,10 +484,6 @@ CONTAINS
           call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
         end if
 
-        do jdata = 1, nvadim_mpilocal
-          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
-        enddo
-
         ! Print some contents of obsSpaceData to the listing
         if(mpi_myid == 0) then
           do jdata = 1, min(1,obs_numHeader(obsSpaceData))
@@ -509,8 +502,8 @@ CONTAINS
 
 
       ! If requested, compute analysis increment for ensemble perturbations
-      if(numIterMax_pert.gt.0) then
-        dg_vbar(:) = 0.0d0
+      if ( numIterMax_pert > 0 ) then
+        controlVectorIncrSum_ptr(:) = 0.0d0
         call tmg_start(4,'MINPERT')
         call min_analysisPert(vatra,iztrl,zdf1,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)
         call tmg_stop(4)
@@ -523,7 +516,6 @@ CONTAINS
       deallocate(vazg)
       if ( .not. lwrthess ) then
         deallocate(vatra)
-        deallocate(dg_vbar)
       end if
 
   end subroutine quasiNewtonMinimization
@@ -534,18 +526,18 @@ CONTAINS
 
     real(8) :: vazx(:)
 
-    if ( nitermax > 0 .and. lwrthess) then
+    if ( nitermax > 0 .and. lwrthess ) then
       ! Write out the Hessian to file
-      if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call hessianIO (preconFileNameOut,1,  &
         min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
-        iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-      if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        iztrl,vatra,controlVectorIncrSum_ptr,vazx,.true.,llvazx,n1gc,imode)
+      if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     endif
 
     if ( lwrthess ) then
       deallocate(vatra)
-      deallocate(dg_vbar)
+      nullify(controlVectorIncrSum_ptr)
     end if
 
   end subroutine min_writeHessian
@@ -749,10 +741,10 @@ CONTAINS
     enddo
 
     ! Write out the final Hessian to file
-    if(lwrthess) then
+    if ( lwrthess ) then
       call hessianIO (preconFileNameOut_pert,1,  &
         min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,simtot,  &
-        iztrl,vatra,dg_vbar,incr_cv,.true.,llvazx,n1gc,imode)
+        iztrl,vatra,controlVectorIncrSum_ptr,incr_cv,.true.,llvazx,n1gc,imode)
     endif
 
     ! deallocate all local arrays
@@ -1020,7 +1012,7 @@ CONTAINS
          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        endif
 
-       ! note: dg_vbar = sum(v) of previous outer-loops
+       ! note: controlVectorIncrSum_ptr is sum of previous outer-loops
        dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + controlVectorIncrSum_ptr(1:nvadim_mpilocal)     
 
        ! Computation of background term of cost function:
