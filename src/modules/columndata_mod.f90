@@ -74,7 +74,7 @@ contains
     implicit none
     integer :: varIndex, loopIndex
     integer :: fnom,fclos,nulnam,ierr
-    integer :: numVar3D, numVar2D
+    integer :: numVar3D, numVar2D, numVarOther
     real(8) :: minClwAtSfc
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
@@ -116,11 +116,16 @@ contains
     col_minClwAtSfc = minClwAtSfc
     col_minValVarKindCH(:)=minValVarKindCH(:)
 
-    if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
-    if( varneed('P_T') .or. varneed('P_M') ) call utl_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
+    if( varneed('Z_T') .or. varneed('Z_M') ) then
+      call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
+    end if
+    if( varneed('P_T') .or. varneed('P_M') ) then
+      call utl_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
+    end if
 
-    numVar3D = 0
-    numVar2D = 0
+    numVar3D    = 0
+    numVar2D    = 0
+    numVarOther = 0
 
     do varIndex = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(varIndex))) then
@@ -137,6 +142,15 @@ contains
         numVar2D = numVar2D + 1
       else
         varExistList(varIndex+vnl_numvarmax3D) = .false.
+      end if
+    end do
+
+    do varIndex = 1, vnl_numvarmaxOther
+      if (varneed(vnl_varNameListOther(varIndex))) then
+        varExistList(varIndex+vnl_numvarmax3D+vnl_numvarmax2D) = .true.
+        numVarOther = numVarOther + 1
+      else
+        varExistList(varIndex+vnl_numvarmax3D+vnl_numvarmax2D) = .false.
       end if
     end do
 
@@ -170,12 +184,8 @@ contains
       end if 
     end do
 
-    if(mpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D = ', numVar3D, numVar2D
+    if(mpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D, numVarOther = ', numVar3D, numVar2D, numVarOther
     if(mpi_myid == 0) write(*,*) 'col_setup: varExistList (no Z_T/Z_M/P_T/P_M included) = ',varExistList
-
-    if(mpi_myid == 0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-    if(mpi_myid == 0) WRITE(*,FMT=9120) numVar3D, numVar2D
- 9120 FORMAT(4X,'  numVar3D =',I6,', numVar2D    =',I6)
 
     contains
 
@@ -282,17 +292,25 @@ contains
     iloc = 0
     do varIndex = 1, vnl_numvarmax3d
       if(column%varExistList(varIndex)) then
-        column%varOffset(varIndex)=iloc
-        column%varNumLev(varIndex)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+        column%varOffset(varIndex) = iloc
+        column%varNumLev(varIndex) = col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
         iloc = iloc + column%varNumLev(varIndex)
       end if
     end do
     do varIndex2 = 1, vnl_numvarmax2d
-      varIndex=varIndex2+vnl_numvarmax3d
+      varIndex = varIndex2+vnl_numvarmax3d
       if(column%varExistList(varIndex)) then
-        column%varOffset(varIndex)=iloc
-        column%varNumLev(varIndex)=1
+        column%varOffset(varIndex) = iloc
+        column%varNumLev(varIndex) = 1
         iloc = iloc + 1
+      end if
+    end do
+    do varIndex2 = 1, vnl_numvarmaxOther
+      varIndex = varIndex2+vnl_numvarmax3d+vnl_numvarmax2d
+      if(column%varExistList(varIndex)) then
+        column%varOffset(varIndex) = iloc
+        column%varNumLev(varIndex) = col_getNumLev(column,'OT',vnl_varNameListOther(varIndex2))
+        iloc = iloc + column%varNumLev(varIndex)
       end if
     end do
 
@@ -859,13 +877,14 @@ contains
   !--------------------------------------------------------------------------
   ! col_getNumLev
   !--------------------------------------------------------------------------
-  function col_getNumLev(column,varLevel) result(nlev)
+  function col_getNumLev(column,varLevel,varName_opt) result(nlev)
     implicit none
-    type(struct_columnData), intent(in) :: column
-    character(len=*), intent(in)        :: varLevel
+    type(struct_columnData),    intent(in) :: column
+    character(len=*),           intent(in) :: varLevel
+    character(len=*), optional, intent(in) :: varName_opt
     integer                             :: nlev
 
-    nlev = vco_getNumLev(column%vco,varLevel)
+    nlev = vco_getNumLev(column%vco,varLevel,varName_opt)
 
   end function col_getNumLev
 

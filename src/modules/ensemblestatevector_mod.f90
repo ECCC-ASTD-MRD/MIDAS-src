@@ -1105,7 +1105,7 @@ CONTAINS
       do varIndex = 1, size(varNamesInGsv)
         varName = varNamesInGsv(varIndex)
         if (.not. ens_varExist(ens,varName)) cycle
-        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
+        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName),varName)
         if (ens%dataKind == 8) then
           call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
           do stepIndex = 1, numStep
@@ -1218,7 +1218,7 @@ CONTAINS
 
       do varIndex = 1, size(varNamesInGsv)
         varName = varNamesInGsv(varIndex)
-        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
+        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName),varName)
         if (ens%dataKind == 8) then
           call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
           do stepIndex = 1, numStep
@@ -1337,7 +1337,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_getNumLev
   !--------------------------------------------------------------------------
-  function ens_getNumLev(ens,varLevel) result(nlev)
+  function ens_getNumLev(ens,varLevel,varName_opt) result(nlev)
     !
     !:Purpose: Return the number of vertical levels of the ensemble.
     !
@@ -1345,10 +1345,11 @@ CONTAINS
     integer                       :: nlev
 
     ! Arguments:
-    type(struct_ens), intent(in)  :: ens
-    character(len=*), intent(in)  :: varLevel
+    type(struct_ens),           intent(in)  :: ens
+    character(len=*),           intent(in)  :: varLevel
+    character(len=*), optional, intent(in)  :: varName_opt
 
-    nlev = vco_getNumLev(ens%statevector_work%vco,varLevel)
+    nlev = vco_getNumLev(ens%statevector_work%vco,varLevel,varName_opt)
 
   end function ens_getNumLev
   
