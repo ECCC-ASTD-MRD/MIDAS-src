@@ -3207,7 +3207,7 @@ CONTAINS
     INTEGER           :: NELE,NVAL,VCO,NONELEV
     integer           :: LISTE_ELE(:),NOBS,VARNO,IL,J,COUNT,NLV
     INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon,cloudFrac
-    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR,rolat1,rolon1
+    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2, L_dataCloudFrac
     
     L_EMISS = present( SURF_EMIS_opt )
@@ -3360,8 +3360,7 @@ CONTAINS
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
             if ( FAMTYP == 'TO') then
-                emmissivite=0.95
-                call obs_bodySet_r(obsdat,OBS_SEM,count,emmissivite)
+                call obs_bodySet_r(obsdat,OBS_SEM,count,tvs_defaultEmissivity)
              else
                 call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
              end if

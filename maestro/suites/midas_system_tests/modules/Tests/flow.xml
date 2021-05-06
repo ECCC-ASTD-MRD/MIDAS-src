@@ -179,8 +179,13 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="hyperir"/>
-    <FAMILY  name="hyperir">
+    <SUBMITS sub_name="BgckIasi_sqlite"/>
+    <FAMILY  name="BgckIasi_sqlite">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="BgckAirs_sqlite"/>
+    <FAMILY  name="BgckAirs_sqlite">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

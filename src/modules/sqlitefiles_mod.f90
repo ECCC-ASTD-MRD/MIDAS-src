@@ -34,7 +34,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles, sqlf_addCloudParametersandEmissivity
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -122,6 +122,9 @@ module sqliteFiles_mod
     call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
+    if ( trim(familyType) == 'TO' ) then
+      call sqlr_readSqlite_avhrr(obsdat, trim(fileName), headerIndexBegin, headerIndexEnd )
+    end if
 
     if ( trim(familyType) /= 'TO' ) then
       call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
@@ -147,6 +150,7 @@ module sqliteFiles_mod
       if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_BCOR) ) call obs_bodySet_r(obsdat, OBS_BCOR ,bodyIndex, missingValue )
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
@@ -228,6 +232,31 @@ module sqliteFiles_mod
     write(*,*)myName//': Finished'
     call tmg_stop(96)
   end subroutine sqlf_cleanFile
+
+
+  subroutine sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, fileName)
+    !
+    ! :Purpose: To insert cloud parameters in obsspace data into sqlite file
+    !
+    implicit none
+
+    ! arguments
+    type (struct_obs), intent(inout) :: obsSpaceData
+    character(len=*),  intent(in) :: fileName
+    integer,           intent(in) :: fileIndex
+
+    ! locals
+    character(len=*), parameter :: myName  = 'sqlf_addCloudParametersandEmissivity'
+    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
+
+    call fSQL_open( db, fileName, statusSqlite )
+    if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
+      write(*,*) myError, fSQL_errmsg(statusSqlite )
+    end if
+    call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
+    call fSQL_close( db, statusSqlite )
+  end subroutine sqlf_addCloudParametersandEmissivity
 
 
   subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )

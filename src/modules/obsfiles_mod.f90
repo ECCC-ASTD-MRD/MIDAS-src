@@ -239,7 +239,6 @@ contains
         call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
       end if
-
     end do
 
     if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then
@@ -907,7 +906,7 @@ contains
     !
     implicit none
     ! Arguments:
-    type(struct_obs)  :: obsSpaceData
+    type(struct_obs),  intent(inout)  :: obsSpaceData
 
     ! Locals:
     integer           :: fileIndex
@@ -918,13 +917,14 @@ contains
 
     do fileIndex = 1, obsf_nfiles
 
-      write(*,*) 'INPUT FILE TO  obsf_addCloudParametersAndEmissivity= ', trim( obsf_cfilnam(fileIndex) )
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-      if ( trim(obsFileType) /= 'BURP' ) then
-        write(*,*) 'obsFileType = ',obsFileType
-        call utl_abort('obsf_addCloudParametersAndEmissivity: this s/r is currently only compatible with BURP files')
-      else
+      if ( trim(obsFileType) == 'SQLITE' ) then
+        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+      else if ( trim(obsFileType) == 'BURP' ) then 
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+      else  
+        write(*,*) ' UNKNOWN FileType=',obsFileType
+        call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP or SQLITE observational files supported.")
       end if
     end do
 

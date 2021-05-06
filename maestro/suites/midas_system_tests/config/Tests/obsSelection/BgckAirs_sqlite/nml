@@ -1,3 +1,15 @@
+ &namObsSelection
+   doThinning = .true.
+/
+ &THIN_HYPER
+   removeUnCorrected = .true.
+   deltmax = 22
+   deltax  = 150
+   deltrad = 45
+/
+ &NAMCT0
+   NCONF = 111
+/
  &NAMBHI
    SCALEFACTOR   = 100*1.0D0
 /
@@ -45,20 +57,22 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   abortOnMpiImbalance = .false.
 /
  &NAMTOV
-   NSENSORS         =  4,
+   NSENSORS         =  1,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
-   CSATID(2)        = 'METOP-2',
+   CSATID(2)        = 'METOP-1',
    CINSTRUMENTID(2) = 'IASI',
-   CSATID(3)        = 'METOP-1',
+   CSATID(3)        = 'METOP-2',
    CINSTRUMENTID(3) = 'IASI',
+   CSATID(3)        = 'AQUA',
+   CINSTRUMENTID(3) = 'AIRS',
    CSATID(4)        = 'NPP',
    CINSTRUMENTID(4) = 'CRIS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   regLimitExtrap=.false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -248,6 +262,14 @@
    name_inst(5)='gmsim',
    name_inst(6)='mtsatim',
 /
+ &NAMGEOBUFR
+   name_inst(1)='cgoes',
+   name_inst(2)='ahi',
+   name_inst(3)='mviri',
+   name_inst(4)='seviri',
+   name_inst(5)='gmsim',
+   name_inst(6)='abi',
+/
  &NAMCODTYP
 /
  &NAMBGCKIR
@@ -394,9 +416,85 @@
   BLISTELEMENTS=12163
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=1,
+  BN_ITEMS=2,
   BITEMLIST(1)='OMP',
-  BITEMLIST(2)='OMA',
-  BITEMLIST(3)='FGE',
+  BITEMLIST(2)='COR',
   TYPE_RESUME='BGCKALT'
+/
+  &NAMSQLiasi
+  listElem='12163'
+  numberElem=1
+  sqlExtraDat=' and obsvalue is not null '
+  sqlExtraHeader="  "
+/
+  &NAMSQLairs
+  listElem='12163'
+  numberElem=1
+  sqlExtraDat='  and obsvalue is not null   '
+  sqlExtraHeader="     "
+/
+  &NAMSQLUPDATE
+  numberUpdateItems=4
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='COR'
+  itemUpdateList(3)='VAR'
+  itemUpdateList(4)='EMI'
+/
+  &NAMSQLInsert
+/
+&NAMBIASSAT
+    biasActive=.TRUE.,
+    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
+    biasmode="apply",
+    removeBiasCorrection=.false.
+    refreshBiasCorrection=.false.
+    mimicsatbcor=.true.
+    scanBiasCorLength=-1.d0
+    centerPredictors=.false.,
+    weightedEstimate=.false.,
+    outstats=.false.,
+    outcoeffcov=.false.,
+    filterObs = .false.,
+    cinst(1)="AMSUA"
+    nbscan(1)=30
+    cglobal(1)="DEF"
+    cinst(2)="AMSUB"
+    nbscan(2)=90
+    cglobal(2)="DEF"
+    cinst(3)="MHS"
+    nbscan(3)=90
+    cglobal(3)="DEF"
+    cinst(4)="SSMIS"
+    nbscan(4)=60
+    cglobal(4)="NON"
+    cinst(5)="AIRS"
+    nbscan(5)=1
+    cglobal(5)="NON"
+    cinst(6)="IASI"
+    nbscan(6)=1
+    cglobal(6)="NON"
+    cinst(7)="METS7"
+    nbscan(7)=1
+    cglobal(7)="OUI"
+    cinst(8)="SEVIRI"
+    nbscan(8)=1
+    cglobal(8)="OUI"
+    cinst(9)="MTSAT"
+    nbscan(9)=1
+    cglobal(9)="OUI"
+    cinst(10)="CGOES"
+    nbscan(10)=1
+    cglobal(10)="OUI"
+    cinst(11)="ATMS"
+    nbscan(11)=96
+    cglobal(11)="DEF"
+    cinst(12)="CRIS"
+    nbscan(12)=1
+    cglobal(12)="NON"
+    cinst(13)="CRISFSR"
+    nbscan(13)=1
+    cglobal(13)="NON"
+    cinst(14)="AHI"
+    nbscan(14)=1
+    cglobal(14)="OUI"
 /

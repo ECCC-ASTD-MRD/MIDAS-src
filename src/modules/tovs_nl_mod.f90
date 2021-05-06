@@ -93,7 +93,7 @@ module tovs_nl_mod
   public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
 
   ! public variables (parameters)
-  public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors
+  public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
   ! public variables (non-parameters)
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
   public :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
@@ -125,6 +125,7 @@ module tovs_nl_mod
   real(8), parameter :: o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
   real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
   real(8), parameter :: minClwValue = 1.0d-9
+  real(pre_obsReal), parameter :: tvs_defaultEmissivity = 0.95
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)

@@ -505,7 +505,7 @@ contains
     real, intent(out) :: iwv
 
     !  Locals:
-    integer :: ii,precip_screen,ngood
+    integer :: precip_screen
 
     real :: xx
     real :: tb19v,tb22v,tb37v,tb37h
@@ -735,7 +735,7 @@ contains
     real,    parameter :: clw_limit = 6.0
 
     REAL :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
-    REAL :: Tb19v, Tb19h, Tb22v, Tb37v, Tb37h, Tb85v, Tb85h
+    REAL :: Tb19v, Tb22v, Tb37v
     REAL :: Sea_Ice
     REAL :: ALG1, ALG2, ALG3
     REAL :: TPW
@@ -821,7 +821,7 @@ contains
   !--------------------------------------------------------------------------  
 
 
-  subroutine cld_filter_fweng(npts,ztb,alg_option,waterobs,ukbadobs,grossrej,  &
+  subroutine cld_filter_fweng(npts,ztb,alg_option,waterobs,grossrej,  &
             &                 cloudobs,iwvreject,precipobs,rclw,riwv,isatid,zlat, &
             &                 iNewIce)
     !--------------------------------------------------------------------
@@ -882,7 +882,7 @@ contains
 
     character(len=6), intent(in) :: alg_option
 
-    logical, intent(in),    dimension(:) :: ukbadobs,grossrej
+    logical, intent(in),    dimension(:) :: grossrej
     logical, intent(inout), dimension(:) :: cloudobs, precipobs
     logical, intent(inout), dimension(:) :: iwvreject,waterobs
 
@@ -892,7 +892,6 @@ contains
     integer, parameter :: SEAICE = 1
 
     !  Define local variables
-    INTEGER :: iChan, iLat, iLon, iError
     integer :: ii,indx1,indx2,Stype
     real :: clw,iwv, Lat
 
@@ -1586,8 +1585,7 @@ end subroutine bennartz
     integer :: idum12,idum13,idum14,idum15,idum16,idum17,idum18
   
     integer :: indx,ii,jj,kk
-    integer :: blat,blon,imask,glace
-    integer :: nlat,nlon
+    integer :: nlat,nlon,imask
   
     !
     real, parameter :: pi=3.141592654
@@ -2247,7 +2245,6 @@ end subroutine bennartz
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt
     integer                              :: currentChannelNumber
-    integer                              :: channelIndex
     integer                              :: numObsToProcess
     integer                              :: iplatform
     integer                              :: instrum, actualNumChannel
@@ -2446,7 +2443,7 @@ end subroutine bennartz
 
     ! --------------------------------------------------------------------
 
-    call cld_filter_fweng(numObsToProcess, obsTb, alg_option, waterObs, rainDetectionUKMethod, &
+    call cld_filter_fweng(numObsToProcess, obsTb, alg_option, waterObs, &
                           grossRej, cloudObs, iwvReject, precipObs, rclw, riwv, isatid,&
                           obsLatitude, numSeaIceObs)
     !
@@ -2860,40 +2857,3 @@ end subroutine bennartz
   end subroutine ssbg_bgCheckSSMIS
 
 end module bgckssmis_mod
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

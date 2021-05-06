@@ -299,7 +299,6 @@ contains
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
-    integer :: index1, index2, headerIndexProc 
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
@@ -3129,7 +3128,7 @@ contains
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
     integer :: subGridIndex, numLocalGridptsFoundSearch 
     real(4) :: lonObs_deg_r4, latObs_deg_r4
-    real(8) :: lonObs, latObs, lon, lat, maxRadiusSquared
+    real(8) :: lonObs, latObs, maxRadiusSquared
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
     integer :: lonIndex, latIndex, resultsIndex, gridIndex

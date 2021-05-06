@@ -1014,7 +1014,7 @@ contains
     integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode, fnom, fclos, nulnam, ierr
     real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
-    real(8) :: SimulatedDoppler, interpolation_weight, interpolation_length, zinc, zoer, maxRangeInterp
+    real(8) :: SimulatedDoppler, interpolation_weight, zinc, zoer, maxRangeInterp
 
     namelist /namradvel/ maxRangeInterp
     
