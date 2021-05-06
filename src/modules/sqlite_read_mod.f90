@@ -886,7 +886,7 @@ contains
     ! Put result of query into variable
     call fSQL_get_column( stmt, COL_INDEX = 1, CHAR_VAR = result )
     call fSQL_get_row( stmt, finished )
-    if ( .not. finished ) write(*,*)' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
+    if ( .not. finished ) write(*,*) ' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
     call fSQL_finalize( stmt )
     sqlr_query = trim(result)
 
@@ -956,7 +956,7 @@ contains
 
     do itemId = 1, numberUpdateItems
       item = itemUpdateList(itemId)
-      write(*,*)'Updating ', itemId, item
+      write(*,*) 'Updating ', itemId, item
       select case(item)
         case('OMA')
           updateList(itemId) = OBS_OMA
@@ -980,7 +980,7 @@ contains
           updateList(itemId) = OBS_BCOR
           item2='bias_corr'
         case DEFAULT
-          write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
+          write(*,*) 'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//'invalid item ' )
       end select
       itemChar = trim(itemChar)//','//trim(item2)//trim(' = ? ')
@@ -1186,8 +1186,8 @@ contains
 
     write(*,*)  myName//': --- Starting ---   '
     numHeader = obs_numHeader(obsdat)
-    write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', numHeader
-    write(*,*)' fileName -> ', trim(fileName)   
+    write(*,*) ' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', numHeader
+    write(*,*) ' fileName -> ', trim(fileName)
 
     ! set default values of namelist variables
     numberInsertItems = 0
@@ -1200,7 +1200,7 @@ contains
     if (mpi_myid == 0) write(*, nml = namSQLInsert )
     ierr=fclos( nulnam )
 
-    write(*,*)' INSERT INTO SQLITE FILE ELEMENTS :--> ',( itemInsertList(insertItem), insertItem = 1, numberInsertItems )
+    write(*,*) ' INSERT INTO SQLITE FILE ELEMENTS :--> ',( itemInsertList(insertItem), insertItem = 1, numberInsertItems )
 
     select case( trim( familyType ) )
 
@@ -1361,7 +1361,7 @@ contains
     call fSQL_exec_stmt(statement)
     call fSQL_finalize(statement)
     call fSQL_commit(db)
-    write(*,*)'  closed database -->', trim(FileName)
+    write(*,*) '  closed database -->', trim(FileName)
     call fSQL_close( db, status )
   end subroutine sqlr_cleanSqlite
 
