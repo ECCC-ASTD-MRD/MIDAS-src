@@ -767,6 +767,9 @@ contains
               end if
             else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else if (varLevel == 'OT') then
+              ! Most (all?) variables using the 'other' coordinate are surface
+              levIndex2 = nLev_weights
             else
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
@@ -803,6 +806,9 @@ contains
               end if
             else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            else if (varLevel == 'OT') then
+              ! Most (all?) variables using the 'other' coordinate are surface
+              levIndex2 = nLev_weights
             else
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
