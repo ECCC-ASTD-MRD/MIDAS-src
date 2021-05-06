@@ -179,6 +179,30 @@ contains
   end subroutine sqlr_initHeader
 
 
+  function sqlr_doesSQLTableExist(db, tableName) result(doesSQLTableExist)
+    ! :Purpose: check if the table 'tableName' exists in the SQLite database 'db'
+    !    The database 'db' should already have been opened with a call to 'fSQL_open'
+    !
+    implicit none
+    ! arguments:
+    type(fSQL_DATABASE)      :: db
+    character(len=*)         :: tableName
+    ! output
+    logical                  :: doesSQLTableExist
+    ! locals
+    character(len=128)       :: querySqlite, sqliteOutput
+
+    querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like '"// tableName //"' ;"
+    sqliteOutput = sqlr_query( db, trim( querySqlite ) )
+    if ( trim(sqliteOutput) == '1' ) then
+      doesSQLTableExist = .true.
+    else
+      doesSQLTableExist = .false.
+    end if
+
+  end function sqlr_doesSQLTableExist
+
+
   subroutine sqlr_readSqlite_avhrr(obsdat, fileName, headerIndexBegin, headerIndexEnd )
     ! :Purpose: To read SQLite avhrr_cloud parameters .
     ! 
@@ -210,15 +234,11 @@ contains
       call utl_abort( myError//': fSQL_open' )
     end if
 
-    querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'avhrr' ;"
-    avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
-    read( avhrrSqliteCharacter, * ) avhrrSqlite 
-    if (   avhrrSqlite ==1 ) then
-      write(*,*)myName//': Table avhrr exists: insert contents into obsdat '
-    else
-      write(*,*)myName//': Table avhrr does not exist :  ... return  '
+    if ( sqlr_doesSQLTableExist(db,'avhrr') ) then
+      write(*,*) myName//': Table avhrr does not exist :  ... return  '
       return
-    endif
+    end if
+    write(*,*) myName//': Table avhrr exists: insert contents into obsdat '
 
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare( db, querySqlite , stmt, stat )
