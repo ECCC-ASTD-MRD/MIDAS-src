@@ -84,7 +84,7 @@ module minimization_mod
   ! variables stored for later call to min_writeHessian
   real(8), allocatable :: vatra(:)
   real(8), pointer     :: controlVectorIncrSum_ptr(:)
-  real(8) :: zeps1, zdf1
+  real(8) :: zeps0, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   logical :: llvazx
   logical :: initializeForOuterLoop
@@ -274,18 +274,18 @@ CONTAINS
       real    :: zzsunused(1)
       integer :: intUnused(1)
 
-      real*8,allocatable :: vazg(:)
+      real(8),allocatable :: vazg(:)
 
-      real*8 :: dlds(1)
-      logical :: llvarqc, lldf1, lrdvatra, llxbar
+      real(8) :: dlds(1)
+      logical :: llvarqc, lrdvatra, llxbar
 
       integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc
       integer :: ierr, isimdone, jdata, isimnovqc
       integer :: ibrpstamp, isim3d
-      real*8 :: zjsp, zxmin, zeps0
-      real*8 :: dlgnorm, dlxnorm
+      real(8) :: zjsp, zxmin, zeps1
+      real(8) :: dlgnorm, dlxnorm
 
-      real*8 :: zeps0_000,zdf1_000
+      real(8) :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
 
       if (lvarqc) call vqc_setup(obsSpaceData)
@@ -339,7 +339,8 @@ CONTAINS
       ! If minimization start without qcvar : turn off varqc to compute
       ! innovations and test the gradients
 
-      lldf1 = .true.
+      if (outerLoopIndex == 1) zeps0 = repsg
+
       if (preconFileExists) then
         if ( mpi_myid == 0 ) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
         lrdvatra = .true.
@@ -349,7 +350,6 @@ CONTAINS
       else
         lrdvatra = .false.
         imode = 0
-        zeps0 = repsg
       endif
 
       ! read the hessian from preconin file at first outer-loop iteration
@@ -360,16 +360,6 @@ CONTAINS
           isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000,  &
           isimdone_000,iztrl,vatra,controlVectorIncrSum_ptr, &
           vazx,llxbar,llvazx,n1gc,imode)
-
-        if (ibrpstamp == tim_getDatestamp() .and. lxbar) then
-          ! use vbar for true outer loop
-          zeps0  = zeps0_000
-          zdf1   = zdf1_000
-          lldf1 = .false.     ! don't re-compute df1 base on Cost function
-        else
-          zeps0 = repsg
-          lldf1 = .true.      ! Compute df1 base on Cost function
-        endif
       endif
 
       iterdone = 0
@@ -385,16 +375,13 @@ CONTAINS
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
       endif
 
-      if ( outerLoopIndex > 1 ) zeps0 = repsg
-      zeps1 = zeps0
-
       itertot = iterdone
       isimtot = isimdone
 
       INDIC =2
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
 
-      if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
+      if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
 
 !     Put QCVAR logical to its original values
       lvarqc=llvarqc
@@ -425,6 +412,9 @@ CONTAINS
           isimnovqc = isimmax
           lvarqc = .false.
           call tmg_start(70,'QN')
+
+          zeps1 = zeps0
+
           call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
               iitnovqc, isimnovqc ,iztrl, vatra, nmtra, intUnused,   &
@@ -439,8 +429,7 @@ CONTAINS
           itertot = itertot + iitnovqc
           isimtot = isimtot + isimnovqc
 
-          zeps1 = zeps0/zeps1
-          zeps0 = zeps1
+          zeps0 = zeps0/zeps1
           lvarqc = .true.
 
           if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
@@ -455,6 +444,9 @@ CONTAINS
 
         ! Now do main minimization with var-QC
         call tmg_start(70,'QN')
+
+        zeps1 = zeps0
+
         call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
             itermaxtodo,isimmax, iztrl, vatra, nmtra, intUnused, zzsunused,   &
@@ -465,7 +457,7 @@ CONTAINS
         itertot = itertot + itermaxtodo
         isimtot = isimtot + isimmax
 
-        zeps1 = zeps0/zeps1
+        zeps0 = zeps0/zeps1
 
 
         WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
@@ -531,7 +523,7 @@ CONTAINS
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call hessianIO (preconFileNameOut,1,  &
-        min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
+        min_nsim,tim_getDatestamp(),zeps0,zdf1,itertot,isimtot,  &
         iztrl,vatra,controlVectorIncrSum_ptr,vazx,.true.,llvazx,n1gc,imode)
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     endif
@@ -574,6 +566,7 @@ CONTAINS
     real(8),allocatable :: vazg(:)
     real(8) :: zjsp, zxmin
     real(8) :: dlds(1)
+    real(8) :: zeps1
     real :: zzsunused(1)
     integer :: intUnused(1)
     integer :: nulout, impres, simtot, indic
