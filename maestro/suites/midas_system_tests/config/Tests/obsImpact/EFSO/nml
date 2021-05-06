@@ -389,4 +389,5 @@
 /
 &NAMWRITEDIAG
   lwritediagsql=.TRUE.
+  addFSOdiag=.TRUE.
 /

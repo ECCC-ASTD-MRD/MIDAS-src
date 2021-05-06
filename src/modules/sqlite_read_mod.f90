@@ -1432,7 +1432,7 @@ contains
   end function getObsFileName
 
 
-  subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs )
+  subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs, addFSOdiag )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !  
@@ -1442,6 +1442,7 @@ contains
     type(struct_obs)       :: obsdat       ! obsSpaceData object
     character(len=*)       :: sfFileName   ! fileName acronym used for surface obs file
     logical                :: onlyAssimObs ! only write assimilated obs
+    logical                :: addFSOdiag   ! only write FSO 
 
     ! locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
@@ -1455,6 +1456,8 @@ contains
 
     ! ensure all mpi tasks have same list of common obs family names
     call getObsFamilyListMpiGlobal(obsdat, obsFamilyListSize, obsFamilyList)
+
+    tovsAllCodeTypeListSize = 0
 
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
@@ -1495,7 +1498,7 @@ contains
 
           write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
           write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
-          call sqlr_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, &
+          call sqlr_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, &
                                      tovsFileNameList(fileIndex), &
                                      tovsCodeTypeList(1:tovsCodeTypeListSize)) 
         end do
@@ -1504,7 +1507,7 @@ contains
 
         fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
         call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex),  &
-                                   onlyAssimObs, fileName) 
+                                   onlyAssimObs, addFSOdiag, fileName) 
 
       end if   
       
@@ -1610,7 +1613,7 @@ contains
   end subroutine getObsFamilyListMpiGlobal
 
 
-  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, onlyAssimObs, &
+  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, onlyAssimObs, addFSOdiag, &
                                     instrumentFileName, codeTypeList_opt )
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
@@ -1621,6 +1624,7 @@ contains
     type(struct_obs)  :: obsdat
     character(len=*)  :: obsFamily
     logical           :: onlyAssimObs
+    logical           :: addFSOdiag 
     character(len=*)  :: instrumentFileName
     integer, optional :: codeTypeList_opt(:)
 
@@ -1683,16 +1687,29 @@ contains
     if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//'fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
-    queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+    if (addFSOdiag) then
+       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    &codtyp integer, date integer, time integer, elev real); &
                    &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                    &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, fso real);'
+    else
+       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+                   &codtyp integer, date integer, time integer, elev real); &
+                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
+                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
+                   &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+    end if
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
 
-    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
+    if (addFSOdiag) then
+       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
     obs_error, sigi, sigo, zhad, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    else
+       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
+    obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    end if
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//': Insert query Data   = ', trim( queryData )
@@ -1787,10 +1804,12 @@ contains
         else
           zhad = obs_missingValue_R
         end if
-        if ( obs_columnActive_RB(obsdat, OBS_FSO) ) then
-          fso = obs_bodyElem_r(obsdat, OBS_FSO, bodyIndex)
-        else
-          fso = obs_missingValue_R
+        if (addFSOdiag) then
+          if ( obs_columnActive_RB(obsdat, OBS_FSO) ) then
+            fso = obs_bodyElem_r(obsdat, OBS_FSO, bodyIndex)
+          else
+            fso = obs_missingValue_R
+          end if
         end if
 
         select case( obsFamily )
@@ -1857,12 +1876,14 @@ contains
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15, REAL_VAR = zhad )
-        end if 
-        if ( fso == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 16, REAL_VAR = fso )
-        end if 
+        end if
+        if (addFSOdiag) then 
+          if ( fso == obs_missingValue_R ) then
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        ) 
+          else
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 16, REAL_VAR = fso )
+          end if 
+        end if
 
         call fSQL_exec_stmt ( stmtData )
 
