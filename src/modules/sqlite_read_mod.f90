@@ -1106,7 +1106,7 @@ contains
     query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
          ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
     query=trim(query)
-    write(*,*) ' create query = ', trim(query)
+    write(*,*) myName//': create query = ', trim(query)
 
     call fSQL_do( db, trim(query), stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_do : ')
@@ -1136,7 +1136,7 @@ contains
       ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex )
       ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
       ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
-      !
+
       call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
       call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
@@ -1149,7 +1149,7 @@ contains
       call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
       call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
-      !
+
       call fSQL_exec_stmt ( stmt )
       numberInsert=numberInsert +1
     end do HEADER
