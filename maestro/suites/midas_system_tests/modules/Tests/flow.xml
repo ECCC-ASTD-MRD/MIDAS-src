@@ -311,6 +311,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="lamI0I1_ppp"/>
+    <FAMILY  name="lamI0I1_ppp">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="lam_xc40"/>
     <FAMILY  name="lam_xc40">
       <SUBMITS sub_name="UnitTest"/>
