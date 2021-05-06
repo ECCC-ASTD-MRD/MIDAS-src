@@ -35,7 +35,7 @@ module timeCoord_mod
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
-  public :: tim_getDateStampFromFile
+  public :: tim_getDateStampFromFile, tim_checkAnchorAnalysesFile
 
   character(len=4) :: varNameForDate
   character(len=6) ::  tim_referencetime
@@ -304,6 +304,80 @@ contains
     end if
 
   end function tim_getDateStampFromFile
+
+
+  subroutine tim_checkAnchorAnalysesFile(fileName, numberRecords, dateStampEnd )
+    !
+    ! :Purpose: to verify if the supplied anchor analyses file
+    !           contains the exact number of daily analyses as number of observation days
+    !           in the observation files.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*) :: fileName
+    integer          :: numberRecords ! number of records defined in the namelist
+    integer          :: dateStampEnd  ! end date stamp defined in the observation files
+    character(len=2) :: status
+
+    ! locals
+    integer :: nulFile, ierr
+    integer, parameter :: maxNumberRecords = 20
+    integer :: numDates, ikeys( maxNumberRecords ), varIndex
+    integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
+    integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
+    logical :: fileExists, foundWindow, foundVarNameInFile
+    real(8) :: windowBegHour, windowEndHour, fileHour, middleHour, incrementInHours
+    integer :: ideet, inpas, dateStamp_origin, ni, nj, nk, inbits, idatyp
+    integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc, nextDateStamp
+    integer :: iextra1, iextra2, iextra3, indexRecords, currentDateStamp
+    character(len=2)            :: typvar
+    character(len=4)            :: nomvar
+    character(len=12)           :: etiket
+    character(len=1)            :: grtyp
+    character(len=*), parameter :: myName='tim_checkAnchorAnalysesFile'
+    
+    if ( mpi_myid == 0 ) then
+
+      ! Check if file for any date within the analysis window (except the last) exists
+      inquire( file = trim( fileName ), exist = fileExists )
+      if ( .not. fileExists ) then
+        call utl_abort( myName//': File not found' )
+      end if
+
+      ! Extract the info from the file
+      nulFile = 0
+      ierr = fnom( nulFile, trim( fileName ), 'RND+OLD+R/O', 0 )
+      ierr = fstouv( nulFile, 'RND+OLD' )
+      ierr = fstinl( nulFile, ni, nj, nk, -1, ' ', -1, -1, -1, &
+                     'P@', 'TM', ikeys, numDates, maxNumberRecords )
+      write(*,*) myName//': number of dates found = ', numDates
+     
+      if ( numDates /= numberRecords ) &
+        call utl_abort( myName//': Could not find required number of records!')
+
+      currentDateStamp = dateStampEnd
+      do indexRecords = 1, numberRecords
+        ierr = newdate( currentDateStamp, prntdate, prnttime, -3)
+	write(*,*) myName//': looking for datestamp: ', currentDateStamp, ', date: ', prntdate, ', time: ', prnttime 
+        ierr = fstinl( nulFile,  ni,  nj,  nk, currentDateStamp, ' ', &
+	               -1, -1, -1, 'P@', 'TM', ikeys, numDates, maxNumberRecords )
+        
+	if ( ikeys(1) <= 0 ) &
+          call utl_abort( myName//': Could not find end date stamp')
+            
+        incrementInHours = -24.d0
+        call incdatr( currentDateStamp, currentDateStamp, incrementInHours )
+ 
+      end do
+      ierr = fstfrm(nulFile)
+      ierr = fclos(nulFile)
+      
+      write(*,*) myName//': anchor analysis file contains all necessary records.'
+
+    end if
+
+  end subroutine tim_checkAnchorAnalysesFile
 
 
   subroutine tim_setDatestamp(datestamp_in)

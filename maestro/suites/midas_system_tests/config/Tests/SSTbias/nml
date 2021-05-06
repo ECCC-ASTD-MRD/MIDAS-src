@@ -43,7 +43,9 @@
 /
 
  &namSSTbiasEstimate
-   horizontalSearchRadius = 400.
+   numberDays = 7
+   horizontalSearchRadius = 300.
+   iceFractionThreshold = 0.1
    numberSatellites = 5
    satelliteList(1)='AMSR2'
    satelliteList(2)='METO-B'

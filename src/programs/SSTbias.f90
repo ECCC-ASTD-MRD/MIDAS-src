@@ -57,6 +57,8 @@ program midas_sstBias
   character(len=48),parameter     :: obsMpiStrategy = 'LIKESPLITFILES', &
                                      varMode        = 'analysis'
   integer                         :: dateStamp
+  integer                         :: numberDays             ! number of days to perform temporal averaging of O and A
+  real(4)                         :: iceFractionThreshold   ! consider no ice condition below this threshold 
   integer                         :: numberSatellites       ! number of satellites to treat
   character(len=10)               :: satelliteList( 10 )    ! list of satellite names
 
@@ -80,8 +82,8 @@ program midas_sstBias
   call SSTbiasEstimation_setup( 'VAR', dateStamp ) ! obsColumnMode
   call tmg_stop(2)
   
-  call sstb_computeGriddedObservations( obsSpaceData, hco_anl, vco_anl, &
-                                        horizontalSearchRadius, numberSatellites, satelliteList, dateStamp )
+  call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, numberDays, iceFractionThreshold, &
+                         horizontalSearchRadius, numberSatellites, satelliteList, dateStamp )
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -109,9 +111,10 @@ program midas_sstBias
     integer         , intent(out) :: dateStamp
     
     !Locals:	
-    type(struct_hco), pointer :: hco_core => null()
+    type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: myName = 'SSTbiasEstimation_setup'
-    namelist /namSSTbiasEstimate/ horizontalSearchRadius, numberSatellites, satelliteList
+    integer                     :: satelliteIndex
+    namelist /namSSTbiasEstimate/ numberDays, horizontalSearchRadius, iceFractionThreshold, numberSatellites, satelliteList
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -128,17 +131,12 @@ program midas_sstBias
     !
     call obsf_setup( dateStamp, varMode )
 
-    dateStamp = tim_getDatestampFromFile('./analysisgrid')
-
-    if ( dateStamp > 0 ) then
-      call tim_setDatestamp(datestamp)     ! IN
-    else
-      call utl_abort( myName//': Problem getting dateStamp from observation first trial field')
-    end if
 
     ! Setting default namelist variable values
+    numberDays             = 1  
     horizontalSearchRadius = 100.  ! horizontal search radius, in km, around input grid points
                                    ! where to search satellite observations
+    iceFractionThreshold   = 0.05  ! if sea-ice fraction is smaller, open water is considered
     numberSatellites = 0           ! number of satellites to treat
     satelliteList(:) = ''
     
@@ -151,6 +149,11 @@ program midas_sstBias
     ierr = fclos( nulnam )
 
     if ( numberSatellites == 0) call utl_abort( myName//': Number of satellites to treat is not defined!!!')
+    write(*,*) myName//': satellites to treat: '
+    do satelliteIndex = 1, numberSatellites
+      write(*,*) myName//': satellite index: ', satelliteIndex, ', satellite: ', satelliteList( satelliteIndex )
+    end do
+       
     !
     !- Initialize constants
     !
