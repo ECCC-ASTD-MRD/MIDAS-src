@@ -966,6 +966,22 @@ contains
     if (tvs_nsensors == 0) then
       ! no tovs data will be read, therefore false
       idatypList(:) = MPC_missingValue_int
+    integer :: idatypListSize
+    integer :: idatypList(:)
+    
+    ! Locals:
+    logical, save :: first=.true.
+    integer, save :: ninst_tovs
+    integer :: nulnam, ierr, instrumentIndex 
+    integer, external :: fnom, fclos
+    integer, save :: list_inst(ninst)
+    character(len=22) :: inst_names(ninst)
+    namelist /namtovsinst/ inst_names
+
+    if (tvs_nsensors == 0) then
+      ! no tovs data will be read, therefore false
+      idatypList(:) = MPC_missingValue_int
+      idatypListSize = 0      
       return
     end if
 

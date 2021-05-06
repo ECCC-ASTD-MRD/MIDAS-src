@@ -1442,7 +1442,7 @@ contains
     type(struct_obs)       :: obsdat       ! obsSpaceData object
     character(len=*)       :: sfFileName   ! fileName acronym used for surface obs file
     logical                :: onlyAssimObs ! only write assimilated obs
-    logical                :: addFSOdiag   ! only write FSO 
+    logical                :: addFSOdiag   ! only write FSO
 
     ! locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
@@ -1456,8 +1456,6 @@ contains
 
     ! ensure all mpi tasks have same list of common obs family names
     call getObsFamilyListMpiGlobal(obsdat, obsFamilyListSize, obsFamilyList)
-
-    tovsAllCodeTypeListSize = 0
 
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
@@ -1624,7 +1622,7 @@ contains
     type(struct_obs)  :: obsdat
     character(len=*)  :: obsFamily
     logical           :: onlyAssimObs
-    logical           :: addFSOdiag 
+    logical           :: addFSOdiag
     character(len=*)  :: instrumentFileName
     integer, optional :: codeTypeList_opt(:)
 
@@ -1721,7 +1719,7 @@ contains
     call fSQL_prepare( db, queryHeader, stmtHeader, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
-    numberInsertions = 0 
+    numberInsertions = 0
 
     call obs_set_current_header_list( obsdat, obsFamily )
     HEADER: do
@@ -1876,13 +1874,13 @@ contains
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15, REAL_VAR = zhad )
-        end if
-        if (addFSOdiag) then 
+        end if 
+        if (addFSOdiag) then
           if ( fso == obs_missingValue_R ) then
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        )
           else
             call fSQL_bind_param( stmtData, PARAM_INDEX = 16, REAL_VAR = fso )
-          end if 
+          end if
         end if
 
         call fSQL_exec_stmt ( stmtData )
