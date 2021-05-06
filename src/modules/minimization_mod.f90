@@ -215,7 +215,6 @@ CONTAINS
 
     initializeForOuterLoop = .true.
 
-    nullify(controlVectorIncrSum_ptr)
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
     call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
@@ -227,7 +226,6 @@ CONTAINS
     call quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
-    if ( .not. lwrthess ) nullify(controlVectorIncrSum_ptr)
     call tmg_stop(3)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -504,7 +502,6 @@ CONTAINS
 
     if ( lwrthess ) then
       deallocate(vatra)
-      nullify(controlVectorIncrSum_ptr)
     end if
 
   end subroutine min_writeHessian
