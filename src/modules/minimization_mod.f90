@@ -269,7 +269,7 @@ CONTAINS
       real(8) :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
 
-      if (lvarqc) call vqc_setup(obsSpaceData)
+      if (lvarqc .and. outerLoopIndex==1) call vqc_setup(obsSpaceData)
 
       min_nsim=0 
 
