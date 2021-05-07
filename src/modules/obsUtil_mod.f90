@@ -34,7 +34,6 @@ module obsUtil_mod
   private
   public :: obsu_setassflg, obsu_updateSourceVariablesFlag
   public :: obsu_computeVertCoordSurfObs, obsu_setGbgpsError, obsu_cvt_obs_instrum
-  public :: obsu_scaleFSO
   
 contains
 
@@ -380,39 +379,5 @@ contains
     obsu_cvt_obs_instrum = instrument
 
   end function obsu_cvt_obs_instrum
-
-  !--------------------------------------------------------------------------
-  ! obsu_scaleFSO
-  !--------------------------------------------------------------------------
-  subroutine obsu_scaleFSO(obsdat)
-    !
-    implicit none
-
-    ! Arguments:
-    type (struct_obs), intent(inout):: obsdat
-
-    ! locals
-    integer  :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
-    real(pre_obsReal)  :: FSOVal
-
-    do headerIndex = 1, obs_numHeader(obsdat)
-
-      bodyIndexBeg = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
-      bodyIndexEnd = obs_headElem_i(obsdat,OBS_NLV,headerIndex) + bodyIndexBeg - 1
-
-      do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == obs_assimilated ) then
-          FSOVal = obs_bodyElem_r(obsdat,OBS_FSO,bodyIndex)
-          ! FSO value is quite small so giving scale factor 1.0e6 for storage in burp
-          ! but treating GBGPS variable 15031 differently from the others
-          if ( obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex)  /= 15031 ) then
-            call obs_bodySet_r(obsdat,OBS_FSO,bodyIndex, FSOVal*1.0e6)
-          end if
-        end if
-      end do
-
-    end do
-
-  end subroutine obsu_scaleFSO
 
 end module obsUtil_mod
