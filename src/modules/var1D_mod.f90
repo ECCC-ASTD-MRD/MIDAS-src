@@ -389,19 +389,16 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       primaryKeysList(columnIndex) = obs_headPrimaryKey(obsSpaceData, var1D_obsPointer(columnIndex) )
     end do
-    call rpn_comm_gather(primaryKeysList, nobs1DVarMax, 'MPI_INTEGER', obsPointerMpiGlobal, &
-         nobs1DVarMax, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mpi_myid == 0 ) then
-      call isort(obsPointerMpiGlobal, mpi_nprocs*nobs1DVarMax)
-      do globalObsIndex=1, mpi_nprocs * nobs1DvarMax 
-        if (obsPointerMpiGlobal(globalObsIndex) > 0) then
-          startIndex = globalObsIndex
-          exit
-        end if
-      end do
-    end if 
+    call rpn_comm_allgather(primaryKeysList, nobs1DVarMax, 'mpi_integer',  &
+         obsPointerMpiGlobal, nobs1DVarMax, 'mpi_integer', 'grid', ierr)
+    call isort(obsPointerMpiGlobal, mpi_nprocs*nobs1DVarMax)
+    do globalObsIndex = 1, mpi_nprocs * nobs1DvarMax 
+      if (obsPointerMpiGlobal(globalObsIndex) > 0) then
+        startIndex = globalObsIndex
+        exit
+      end if
+    end do
     call rpn_comm_bcast(startIndex, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(obsPointerMpiGlobal, size(obsPointerMpiGlobal), 'MPI_INTEGER', 0, 'GRID', ierr)
     write(*,*) "startindex", startIndex
     allocate(hco_yGrid)
     if (mpi_myId == 0 ) then
