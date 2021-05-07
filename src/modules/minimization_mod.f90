@@ -84,6 +84,7 @@ module minimization_mod
   real(8), pointer     :: controlVectorIncrSum_ptr(:)
   real(8) :: zeps0, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
+  integer :: outerLoopIndex
   logical :: llvazx
   logical :: initializeForOuterLoop
 
@@ -187,12 +188,12 @@ CONTAINS
   end subroutine min_setup
 
 
-  subroutine min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+  subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, stateVectorRef_opt )
     implicit none
 
     ! Arguments:
-    integer                             :: outerLoopIndex
+    integer                             :: outerLoopIndex_in
     type(struct_columnData)             :: columnTrlOnAnlIncLev
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
@@ -214,6 +215,7 @@ CONTAINS
     end if
 
     initializeForOuterLoop = .true.
+    outerLoopIndex = outerLoopIndex_in
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
@@ -223,7 +225,7 @@ CONTAINS
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
 
-    call quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
+    call quasiNewtonMinimization( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
     call tmg_stop(3)
@@ -234,14 +236,13 @@ CONTAINS
   end subroutine min_minimize
 
 
-  subroutine quasiNewtonMinimization( outerLoopIndex, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
+  subroutine quasiNewtonMinimization( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
       !
       !:Purpose: 3D/En-VAR minimization
       !
       implicit none
 
       ! Arguments:
-      integer                         :: outerLoopIndex
       type(struct_columnData), target :: columnAnlInc
       type(struct_columnData), target :: columnTrlOnAnlIncLev
       type(struct_obs),        target :: obsSpaceData
@@ -596,8 +597,8 @@ CONTAINS
 
        call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
 
-       IF (LVARQC) THEN
-          call vqc_tl(obsSpaceData_ptr)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+       IF ( LVARQC .and. outerLoopIndex == 1 ) THEN
+         call vqc_tl(obsSpaceData_ptr)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
@@ -613,8 +614,8 @@ CONTAINS
 
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
-       IF (LVARQC) THEN
-          call vqc_ad(obsSpaceData_ptr)
+       IF ( LVARQC .and. outerLoopIndex == 1 ) THEN
+         call vqc_ad(obsSpaceData_ptr)
        endif
 
        call res_computeAd(obsSpaceData_ptr)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
