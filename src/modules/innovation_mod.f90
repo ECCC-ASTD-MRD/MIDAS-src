@@ -550,13 +550,14 @@ contains
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, destObsColumn_opt, &
-                                   beSilent_opt)
+  subroutine inn_computeInnovation( outerLoopIndex, columnTrlOnTrlLev, obsSpaceData, &
+                                    destObsColumn_opt, beSilent_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
 
     ! Arguments:
+    integer                 :: outerLoopIndex
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
@@ -591,24 +592,34 @@ contains
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: Before filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
+    ! Reject observed elements too far below the surface. Pressure values
+    ! for elements slightly below the surface are replaced by the surface
+    ! pressure values of the trial field.
     !
-    !- Pre-processing
+    ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-
-    ! Reject observed elements too far below the surface
-    call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
-    ! ( Note: Pressure values for elements slightly below the surface are replaced by the surface
-    !   pressure values of the trial field. GB-GPS (met and ZTD) observations are processed in
-    !   s/r filt_topoSFC in obsFilter_mod.ftn90 )
-
+    if ( outerLoopIndex == 1 ) then
+      call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo for outer-loop index=', outerLoopIndex
+    end if
+    
     ! Remove surface station wind observations
-    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-      call filt_surfaceWind(obsSpaceData,beSilent)
+    if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
+      if ( outerLoopIndex == 1 ) then
+        call filt_surfaceWind(obsSpaceData,beSilent)
+      else
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind for outer-loop index=', outerLoopIndex
+      end if
     end if
     
     ! Find interpolation layer in model profiles
-    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) then
-      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) then 
+      if ( outerLoopIndex == 1 ) then
+        call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+      else
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oop_vobslyrs for outer-loop index=', outerLoopIndex
+      end if
     end if
     
     !
@@ -623,7 +634,11 @@ contains
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
 
     ! SatWinds
-    call oer_sw(columnTrlOnTrlLev,obsSpaceData)
+    if ( outerLoopIndex == 1 ) then
+      call oer_sw(columnTrlOnTrlLev,obsSpaceData)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for outer-loop index=', outerLoopIndex
+    end if
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
@@ -640,9 +655,13 @@ contains
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
 
     ! Sea ice concentration
-    call filt_iceConcentration(obsSpaceData, beSilent)
-    call filt_backScatAnisIce(obsSpaceData, beSilent)
-    call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    if ( outerLoopIndex == 1 ) then
+      call filt_iceConcentration(obsSpaceData, beSilent)
+      call filt_backScatAnisIce(obsSpaceData, beSilent)
+      call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for outer-loop index=', outerLoopIndex
+    end if
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
 
     ! Hydrology
@@ -666,9 +685,13 @@ contains
     ! GPS radio occultation
     JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-       call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
-       call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
-       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
+      if ( outerLoopIndex == 1 ) then
+        call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
+        call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
+      else
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for outer-loop index=', outerLoopIndex
+      end if
+      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
     end if
 
     ! Chemical constituents
@@ -678,11 +701,19 @@ contains
     JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
+        if ( outerLoopIndex == 1 ) then
+          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
+        else
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+        end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.true.)
       else
-        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
+        if ( outerLoopIndex == 1 ) then
+          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
+        else
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+        end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.false.)
       end if
