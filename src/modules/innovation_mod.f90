@@ -614,14 +614,7 @@ contains
     end if
     
     ! Find interpolation layer in model profiles
-    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) then 
-      if ( outerLoopIndex == 1 ) then
-        call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
-      else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oop_vobslyrs for outer-loop index=', outerLoopIndex
-      end if
-    end if
-    
+    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
