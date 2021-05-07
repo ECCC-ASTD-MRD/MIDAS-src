@@ -451,9 +451,12 @@
   NEW_BGCK_SW=.true.
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=3,
+  BN_ITEMS=2,
   BITEMLIST(1)='OMP',
   BITEMLIST(2)='OER',
-  BITEMLIST(3)='FSO',
   TYPE_RESUME='POSTALT'
+/
+&NAMWRITEDIAG
+  lwritediagsql=.TRUE.
+  addFSOdiag=.TRUE.
 /

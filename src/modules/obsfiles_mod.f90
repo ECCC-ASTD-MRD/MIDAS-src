@@ -198,8 +198,9 @@ contains
   ! namelist variables
   logical :: lwritediagsql
   logical :: onlyAssimObs
+  logical :: addFSOdiag
 
-  namelist /namwritediag/lwritediagsql,onlyAssimObs
+  namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
@@ -208,6 +209,7 @@ contains
   nulnam=0
   lwritediagsql = .false.
   onlyAssimObs = .false.
+  addFSOdiag = .false.
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namwritediag,iostat=ierr)
   if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
@@ -226,8 +228,6 @@ contains
     end if
     if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
     if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
-    ! Put the scale factor for FSO
-    if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
@@ -258,7 +258,7 @@ contains
   else
     sfFileName = 'sf'
   end if
-  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then
