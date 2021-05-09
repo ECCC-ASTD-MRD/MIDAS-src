@@ -360,7 +360,7 @@ CONTAINS
       itertot = iterdone
       isimtot = isimdone
 
-      if ( outerLoopIndex == 2 ) lvarqc=llvarqc
+      if ( outerLoopIndex > 1 ) lvarqc=llvarqc
       INDIC =2
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
 
