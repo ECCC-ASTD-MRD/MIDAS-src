@@ -360,6 +360,7 @@ CONTAINS
       itertot = iterdone
       isimtot = isimdone
 
+      if ( outerLoopIndex == 2 ) lvarqc=llvarqc
       INDIC =2
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
 
@@ -597,7 +598,7 @@ CONTAINS
 
        call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
 
-       IF ( LVARQC .and. outerLoopIndex == 1 ) THEN
+       IF ( LVARQC ) THEN
          call vqc_tl(obsSpaceData_ptr)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
@@ -614,7 +615,7 @@ CONTAINS
 
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
-       IF ( LVARQC .and. outerLoopIndex == 1 ) THEN
+       IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
        endif
 
