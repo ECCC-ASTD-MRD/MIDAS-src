@@ -64,8 +64,8 @@ module SSTbiasEstimation_mod
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
     integer                     :: headerIndex, satelliteIndex
-    real(8)                     :: averagedAnchorAna( hco % ni, hco % nj, numberDays ), incrementInHours
-    real(8)                     :: averagedObs( hco % ni, hco % nj, numberDays, numberSatellites, 2 )
+    real(8)                     :: averageAna( hco % ni, hco % nj, numberDays ), incrementInHours
+    real(8)                     :: averageObs( hco % ni, hco % nj, numberDays, numberSatellites, 2 )
     integer                     :: mask( hco % ni, hco % nj ) 
     real(4)                     :: seaice( hco % ni, hco % nj )
     integer                     :: ierr, idate, itime, newdate, delhh, inewhh, nbrphh,istampobs,nbrpdate
@@ -121,18 +121,18 @@ module SSTbiasEstimation_mod
     
       ierr = newdate( currentDateStamp, printDate, printTime, -3)
 
-      call sstb_getAveragedAna ( averagedAnchorAna(:,:,recordIndex), horizontalSearchRadius, &
-                                 hco, vco, mask, numberOpenWaterPoints, seaice, iceFractionThreshold, &
-				 currentDateStamp )
+      call sstb_averageAna ( averageAna(:,:,recordIndex), horizontalSearchRadius, &
+                             hco, vco, mask, numberOpenWaterPoints, seaice, iceFractionThreshold, &
+		             currentDateStamp )
 
       do satelliteIndex = 1, numberSatellites 
       
-        call sstb_getMeanObs( obsData, hco, vco, horizontalSearchRadius, mask, seaice, &
+        call sstb_averageObs( obsData, hco, vco, horizontalSearchRadius, mask, seaice, &
 	                      iceFractionThreshold, trim( satelliteList( satelliteIndex )), 'day'  , &
-			      currentDateStamp, printDate, averagedObs( :, : , recordIndex, satelliteIndex, 1 ))
-        call sstb_getMeanObs( obsData, hco, vco, horizontalSearchRadius, mask, seaice, &
+			      currentDateStamp, printDate, averageObs( :, : , recordIndex, satelliteIndex, 1 ))
+        call sstb_averageObs( obsData, hco, vco, horizontalSearchRadius, mask, seaice, &
 	                      iceFractionThreshold, trim( satelliteList( satelliteIndex )), 'night', &
-			      currentDateStamp, printDate, averagedObs( :, : , recordIndex, satelliteIndex, 2 ))
+			      currentDateStamp, printDate, averageObs( :, : , recordIndex, satelliteIndex, 2 ))
       end do
       
       incrementInHours = -24.d0
@@ -142,10 +142,10 @@ module SSTbiasEstimation_mod
     
     do satelliteIndex = 1, numberSatellites 
         
-      call sstb_getMeanOmA( averagedAnchorAna, averagedObs( :, : , :, satelliteIndex, 1),  &
+      call sstb_averageOmA( averageAna, averageObs( :, : , :, satelliteIndex, 1),  &
                             trim( satelliteList( satelliteIndex )), 'day', hco, vco, mask, &
                             seaice, iceFractionThreshold, dateStamp, outputFileName )
-      call sstb_getMeanOmA( averagedAnchorAna, averagedObs( :, : , :, satelliteIndex, 2),  &
+      call sstb_averageOmA( averageAna, averageObs( :, : , :, satelliteIndex, 2),  &
                             trim( satelliteList( satelliteIndex )), 'night', hco, vco, mask, &
                             seaice, iceFractionThreshold, dateStamp, outputFileName )
     end do			   
@@ -154,111 +154,25 @@ module SSTbiasEstimation_mod
   end subroutine sstb_computeBias
   
 
-  subroutine sstb_getMeanOmA( averagedAnchorAna, averagedObs, instrument, dayOrNight, &
-                              hco, vco, mask, seaice, iceFractionThreshold, dateStamp, outputFileName )
-    !
-    ! :Purpose: Compute satellite bias as mean(OmA) and save it into a std.file 
-    ! 
-    implicit none
-  
-    real(8)         , intent(inout)          :: averagedAnchorAna( :, :, : ) ! averaged anchor analysis
-    real(8)         , intent(inout)          :: averagedObs( :, :, : )       ! averaged obs 
-    character(len=*), intent(in)             :: instrument                   ! name of instrument
-    character(len=*), intent(in)             :: dayOrNight                   ! look for day or night obs
-    type(struct_hco), intent(inout), pointer :: hco                          ! horizontal grid structure
-    type(struct_vco), intent(in)   , pointer :: vco                          ! vertical grid structure
-    integer         , intent(in)             :: mask( :, : )                 ! ocean mask
-    real(4)         , intent(in)             :: seaice( :, : )               ! sea-ice fraction  
-    real(4)         , intent(in)             :: iceFractionThreshold         ! for ice fraction below it, consider open water      
-    integer         , intent(in)             :: dateStamp                    ! current date stamp
-    character(len=*), intent(in)             :: outputFileName               ! output file name
-    character(len=*), parameter :: myName = 'sstb_getMeanOmA'
- 
-    ! locals
-    type(struct_gsv) :: stateVectorBias
-    real(8), pointer :: bias_ptr( :, :, : )
-    integer          :: numberDays, recordIndex, countStates, lonIndex, latIndex, countStatesMPIGlobal, ierr
-
-    write(*,*) myName//': computing OmA: ', instrument, dayOrNight
-
-    numberDays = size( averagedAnchorAna, dim = 3 )
-
-    call gsv_allocate( stateVectorBias, 1, hco, vco, dataKind_opt = 8, &
-                       datestamp_opt = dateStamp, mpi_local_opt=.false., &
-		       varNames_opt=(/'TM'/) )
-    call gsv_getField( stateVectorBias, bias_ptr )
-    bias_ptr = 0.0d0
-    
-    do lonIndex = 1, hco % ni
-      do latIndex = 1, hco % nj
-     
-        countStates = 0 
-        do recordIndex = 1, numberDays
-	
-          if (   mask( lonIndex, latIndex ) == 1 .and. &
-	       seaice( lonIndex, latIndex ) <= iceFractionThreshold ) then
-	       
-    	    if ( averagedObs( lonIndex, latIndex, recordIndex ) /= MPC_missingValue_R8 ) then
-
-              countStates = countStates + 1
-              bias_ptr( lonIndex, latIndex, 1 ) = bias_ptr( lonIndex, latIndex, 1 ) + &
-	                                          averagedObs( lonIndex, latIndex, recordIndex ) - &
-	        				  averagedAnchorAna( lonIndex, latIndex, recordIndex )
-	    end if
-	    					  
-	  end if
-	  
-	end do
-	
-	! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
-        call mpi_allreduce_sumreal8scalar( bias_ptr( lonIndex, latIndex, 1 ), "grid" )
-	call rpn_comm_allreduce( countStates, countStatesMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
-	
-	if ( countStatesMPIGlobal > 0 ) then
-	  bias_ptr( lonIndex, latIndex, 1 ) = bias_ptr( lonIndex, latIndex, 1 ) / real(countStatesMPIGlobal)
-	else
-	  bias_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
-	end if
-	
-        if (   mask( lonIndex, latIndex ) == 0 .or. &
-	     seaice( lonIndex, latIndex ) >= iceFractionThreshold ) then
-	     
-          bias_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
-	 
-	end if  
-
-      end do 	  
-    end do
-    
-    ! Save results
-    if ( mpi_myid == 0 ) &
-    call gsv_writeToFile( stateVectorBias, outputFileName, 'B_'//trim(instrument)//'_'//trim(dayOrNight))
-   
-
-    call gsv_deallocate( stateVectorBias )
-
-  end subroutine sstb_getMeanOmA
-
-
-  subroutine sstb_getAveragedAna ( averagedAnchorAna, horizontalSearchRadius, &
-                                   hco, vco, mask, numberWaterPoints, seaice, &
-				   iceFractionThreshold, dateStamp )
+  subroutine sstb_averageAna ( averageAna, horizontalSearchRadius, &
+                               hco, vco, mask, numberWaterPoints, seaice, &
+			       iceFractionThreshold, dateStamp )
     !
     ! :Purpose: for every horizontal point of the input horizontal grid,
     !           compute the mean inside a given horizontal search radius
-    !           and save it into the output fst file where all bias will be stored 
+    ! 
     implicit none
 
     ! Arguments:    
-    real(8)         , intent(inout)          :: averagedAnchorAna( :, : ) ! averaged anchor analysis
-    real(8)         , intent(in)             :: horizontalSearchRadius    ! horizontal search radius where to search obs
-    type(struct_hco), intent(inout), pointer :: hco                       ! horizontal grid structure
-    type(struct_vco), intent(in)   , pointer :: vco                       ! vertical grid structure
-    integer         , intent(in)             :: mask( :, : )              ! ocean mask
-    integer         , intent(in)             :: numberWaterPoints         ! number of water points from ocean mask
-    real(4)         , intent(in)             :: seaice( :, : )            ! sea-ice fraction
-    real(4)         , intent(in)             :: iceFractionThreshold      ! for ice fraction below it, consider open water   
-    integer         , intent(in)             :: dateStamp                 ! current date stamp
+    real(8)         , intent(inout)          :: averageAna( :, : )     ! average anchor analysis
+    real(8)         , intent(in)             :: horizontalSearchRadius ! horizontal search radius where to search obs
+    type(struct_hco), intent(inout), pointer :: hco                    ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco                    ! vertical grid structure
+    integer         , intent(in)             :: mask( :, : )           ! ocean mask
+    integer         , intent(in)             :: numberWaterPoints      ! number of open water points
+    real(4)         , intent(in)             :: seaice( :, : )         ! sea-ice fraction
+    real(4)         , intent(in)             :: iceFractionThreshold   ! for ice fraction below it, consider open water   
+    integer         , intent(in)             :: dateStamp              ! current date stamp
     
     ! locals
     type(struct_gsv)            :: stateVector_ana
@@ -285,7 +199,7 @@ module SSTbiasEstimation_mod
                            unitConversion_opt=.false., containsFullField_opt=.true. )
     call gsv_getField( stateVector_ana, anchorAnalysis_r4_ptr )
 
-    averagedAnchorAna = 0.0d0
+    averageAna = 0.0d0
     
     allocate( positionArray( 3,  numberWaterPoints ))
     allocate( gridPointIndexes( 2, numberWaterPoints ))
@@ -333,22 +247,22 @@ module SSTbiasEstimation_mod
 	  
 	    localLonIndex = gridPointIndexes( 1, searchResults( localIndex ) % idx )
 	    localLatIndex = gridPointIndexes( 2, searchResults( localIndex ) % idx )
-	    averagedAnchorAna( lonIndex, latIndex ) = averagedAnchorAna( lonIndex, latIndex ) + &
-	                                              anchorAnalysis_r4_ptr( localLonIndex, localLatIndex, 1 )
+	    averageAna( lonIndex, latIndex ) = averageAna( lonIndex, latIndex ) + &
+	                                       anchorAnalysis_r4_ptr( localLonIndex, localLatIndex, 1 )
 	  
 	  end do 
 
 	  ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
-          call mpi_allreduce_sumreal8scalar( averagedAnchorAna( lonIndex, latIndex ), "grid" )
+          call mpi_allreduce_sumreal8scalar( averageAna( lonIndex, latIndex ), "grid" )
 	  ! doing the same for numObsFound, no need to preserve the order of summation 
 	  call rpn_comm_allreduce( numPointsFound, numPointsFoundMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
 	  
-	  averagedAnchorAna( lonIndex, latIndex ) = averagedAnchorAna( lonIndex, latIndex ) / real( numPointsFoundMPIGlobal )
+	  averageAna( lonIndex, latIndex ) = averageAna( lonIndex, latIndex ) / real( numPointsFoundMPIGlobal )
 	  
         else if (   mask( lonIndex, latIndex ) == 0 .or. & 
                   seaice( lonIndex, latIndex ) >= iceFractionThreshold ) then
 	
-	  averagedAnchorAna( lonIndex, latIndex ) = MPC_missingValue_R8
+	  averageAna( lonIndex, latIndex ) = MPC_missingValue_R8
 	  
 	end if 
 
@@ -360,21 +274,18 @@ module SSTbiasEstimation_mod
      
     call gsv_deallocate( stateVector_ana )
 
-  end subroutine sstb_getAveragedAna
+  end subroutine sstb_averageAna
    
 
 !########################################################################
 
 
-  subroutine sstb_getMeanObs( obsData, hco, vco, horizontalSearchRadius, mask, &
+  subroutine sstb_averageObs( obsData, hco, vco, horizontalSearchRadius, mask, &
                               seaice, iceFractionThreshold, instrument, dayOrNight, &
-                              dateStamp, printDate, averagedObs )
+                              dateStamp, printDate, averageObs )
     !
     ! :Purpose: for every horizontal point of the input horizontal grid,
-    !           compute:
-    !                   1) the mean within a given horizontal search radius,
-    !                   2) compute the SST satellite bias as mean(O) - mean(A)
-    !           and to save the output in a standard file.
+    !           compute mean Obs within a given horizontal search radius,
     !           The mean is computed for a given instrument and day / night time. 
     !
     implicit none
@@ -391,7 +302,7 @@ module SSTbiasEstimation_mod
     character(len=*), intent(in)             :: dayOrNight             ! look for day or night obs
     integer         , intent(in)             :: dateStamp              ! date to put into output fst files
     integer         , intent(in)             :: printDate              ! current date
-    real(8)         , intent(out)            :: averagedObs( :, : )    ! averaged obs for a given day
+    real(8)         , intent(out)            :: averageObs( :, : )     ! average obs for a given day
     
     ! locals
     integer, parameter          :: maxObsPointsSearch = 200000
@@ -409,7 +320,7 @@ module SSTbiasEstimation_mod
     real(kdkind)                :: searchRadiusSquared
     integer, allocatable        :: headerIndexes(:)
     real(8)                     :: currentObs
-    character(len=*), parameter :: myName = 'sstb_getSelectedObs'
+    character(len=*), parameter :: myName = 'sstb_averageObs'
      
     countObs = 0 
     do headerIndex = 1, obs_numheader( obsData )
@@ -418,21 +329,23 @@ module SSTbiasEstimation_mod
            obs_elem_c( obsData, 'STID' , headerIndex ) == trim(instrument) ) then
         
 	if ( trim(dayOrNight) == 'day'   ) then
-          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) <  solarZenithThreshold ) countObs = countObs + 1
+          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) <  solarZenithThreshold ) &
+	    countObs = countObs + 1
         else if ( trim(dayOrNight) == 'night' ) then
-          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) >= solarZenithThreshold ) countObs = countObs + 1
+          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) >= solarZenithThreshold ) &
+	    countObs = countObs + 1
 	end if  
 	
       end if	
 		
     end do
     
-    averagedObs = 0.0d0
+    averageObs = 0.0d0
     
     if ( trim(dayOrNight) == 'day'   ) then
-      write(*,*) myName//': found ', countObs, ' day observations'
+      write(*,*) myName//': found ', countObs, ' ',trim(instrument), ' day observations'
     else if ( trim(dayOrNight) == 'night' ) then
-      write(*,*) myName//': found ', countObs, ' night observations'
+      write(*,*) myName//': found ', countObs, ' ',trim(instrument), ' night observations'
     end if	
       	
     allocate( positionArray( 3, countObs ))
@@ -482,7 +395,7 @@ module SSTbiasEstimation_mod
     do lonIndex = 1, hco % ni
       do latIndex = 1, hco % nj
       
-        ! compute bias for every water point
+        ! compute bias for every open water point
         if (   mask( lonIndex, latIndex ) == 1 .and. &
 	     seaice( lonIndex, latIndex ) <= iceFractionThreshold ) then 
         
@@ -490,7 +403,8 @@ module SSTbiasEstimation_mod
 	  lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
           refPosition(:) = kdtree2_3dPosition( lon_grd, lat_grd )
 	
-          call kdtree2_r_nearest( tp = tree, qv = refPosition, r2 = searchRadiusSquared, nfound = numObsFound, & 
+          call kdtree2_r_nearest( tp = tree, qv = refPosition, r2 = searchRadiusSquared, &
+	                          nfound = numObsFound, & 
 		   		  nalloc = maxObsPointsSearch, results = searchResults )
 	
 	  if ( numObsFound > maxObsPointsSearch ) &
@@ -502,44 +416,130 @@ module SSTbiasEstimation_mod
 	  
               bodyIndex  = obs_headElem_i( obsData, obs_rln, headerIndexes( searchResults( localObsIndex ) % idx ))
  	      currentObs = obs_bodyElem_r( obsData, obs_var, bodyIndex ) - MPC_K_C_DEGREE_OFFSET_R8
-              averagedObs( lonIndex, latIndex ) = averagedObs( lonIndex, latIndex ) + currentObs 
+              averageObs( lonIndex, latIndex ) = averageObs( lonIndex, latIndex ) + currentObs 
 	      
 	    end do
 	    
 	  else
 	    
-	    averagedObs( lonIndex, latIndex ) = 0.d0
+	    averageObs( lonIndex, latIndex ) = 0.d0
 	  
 	  end if
 	  
 	  ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
-          call mpi_allreduce_sumreal8scalar( averagedObs( lonIndex, latIndex ), "grid" )
+          call mpi_allreduce_sumreal8scalar( averageObs( lonIndex, latIndex ), "grid" )
 	  call rpn_comm_allreduce( numObsFound, numObsFoundMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
 
           if ( numObsFoundMPIGlobal > 0 ) then
 
-	    averagedObs( lonIndex, latIndex ) = averagedObs( lonIndex, latIndex ) / real( numObsFoundMPIGlobal )
+	    averageObs( lonIndex, latIndex ) = averageObs( lonIndex, latIndex ) / real( numObsFoundMPIGlobal )
 	    
 	  else
 	  
-	    averagedObs( lonIndex, latIndex ) = MPC_missingValue_R8
+	    averageObs( lonIndex, latIndex ) = MPC_missingValue_R8
 	  
 	  end if  
 	 
 	else if (   mask( lonIndex, latIndex ) == 0 .or. &
 	          seaice( lonIndex, latIndex ) >= iceFractionThreshold ) then
 		   
-	  averagedObs( lonIndex, latIndex ) = MPC_missingValue_R8
+	  averageObs( lonIndex, latIndex ) = MPC_missingValue_R8
 	
 	end if 
 	  
       end do
     end do
     
-    call gsv_deallocate( stateVectorObs )
     deallocate( headerIndexes )
     deallocate( positionArray )
     
-  end subroutine sstb_getMeanObs  
+  end subroutine sstb_averageObs  
+
+
+  subroutine sstb_averageOmA( averageAna, averageObs, instrument, dayOrNight, &
+                              hco, vco, mask, seaice, &
+			      iceFractionThreshold, dateStamp, outputFileName )
+    !
+    ! :Purpose: Compute satellite bias as time averaged OmA and save it into a std.file 
+    ! 
+    implicit none
+  
+    real(8)         , intent(inout)          :: averageAna( :, :, : ) ! average anchor analysis
+    real(8)         , intent(inout)          :: averageObs( :, :, : ) ! average obs 
+    character(len=*), intent(in)             :: instrument            ! name of instrument
+    character(len=*), intent(in)             :: dayOrNight            ! look for day or night obs
+    type(struct_hco), intent(inout), pointer :: hco                   ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco                   ! vertical grid structure
+    integer         , intent(in)             :: mask( :, : )          ! ocean mask
+    real(4)         , intent(in)             :: seaice( :, : )        ! sea-ice fraction  
+    real(4)         , intent(in)             :: iceFractionThreshold  ! for ice fraction below it, consider open water      
+    integer         , intent(in)             :: dateStamp             ! current date stamp
+    character(len=*), intent(in)             :: outputFileName        ! output file name
+ 
+    ! locals
+    character(len=*), parameter :: myName = 'sstb_getMeanOmA'
+    type(struct_gsv) :: stateVectorBias
+    real(8), pointer :: bias_ptr( :, :, : )
+    integer          :: numberDays, recordIndex, countStates
+    integer          :: lonIndex, latIndex, countStatesMPIGlobal, ierr
+
+    write(*,*) myName//': computing OmA: ', instrument, ' ', dayOrNight
+
+    numberDays = size( averageAna, dim = 3 )
+
+    call gsv_allocate( stateVectorBias, 1, hco, vco, dataKind_opt = 8, &
+                       datestamp_opt = dateStamp, mpi_local_opt=.false., &
+		       varNames_opt=(/'TM'/) )
+    call gsv_getField( stateVectorBias, bias_ptr )
+    bias_ptr = 0.0d0
+    
+    do lonIndex = 1, hco % ni
+      do latIndex = 1, hco % nj
+     
+        if ( mask( lonIndex, latIndex ) == 1 .and. &
+	     seaice( lonIndex, latIndex ) <= iceFractionThreshold ) then
+        
+	  countStates = 0 
+          do recordIndex = 1, numberDays
+	  
+    	    if ( averageObs( lonIndex, latIndex, recordIndex ) /= MPC_missingValue_R8 ) then
+	  
+
+              countStates = countStates + 1
+              bias_ptr( lonIndex, latIndex, 1 ) = bias_ptr( lonIndex, latIndex, 1 ) + &
+	                                          averageObs( lonIndex, latIndex, recordIndex ) - &
+	      	      			          averageAna( lonIndex, latIndex, recordIndex )
+	    end if
+	    					  
+	  end do
+	     
+	  ! summing the values over all mpi tasks and sending them back 
+	  ! to all tasks preserving the order of summation
+          call mpi_allreduce_sumreal8scalar( bias_ptr( lonIndex, latIndex, 1 ), "grid" )
+	  call rpn_comm_allreduce( countStates, countStatesMPIGlobal, 1, "mpi_integer", "mpi_sum", "grid", ierr )
+	
+	  if ( countStatesMPIGlobal > 0 ) then
+	    bias_ptr( lonIndex, latIndex, 1 ) = bias_ptr( lonIndex, latIndex, 1 ) / real(countStatesMPIGlobal)
+	  else  
+            bias_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
+	  end if
+		    					  
+	else
+	  
+          bias_ptr( lonIndex, latIndex, 1 ) = MPC_missingValue_R8
+	 
+	end if  
+
+      end do 	  
+    end do
+    
+    ! Save results
+    if ( mpi_myid == 0 ) &
+    call gsv_writeToFile( stateVectorBias, outputFileName, 'B_'//trim(instrument)//'_'//trim(dayOrNight))
+   
+
+    call gsv_deallocate( stateVectorBias )
+
+  end subroutine sstb_averageOmA
 
 end module SSTbiasEstimation_mod
