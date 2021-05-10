@@ -31,6 +31,7 @@ module var1D_mod
   use verticalCoord_mod
   use codeprecision_mod
   use tovs_nl_mod
+  use mathphysconstants_mod
 
   implicit none
   save
@@ -206,7 +207,7 @@ contains
     allocate(  var1D_obsPointer(obs_numHeader(obsdat)) )
     do headerIndex = 1, obs_numHeader(obsdat)
       bodyStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
-      bodyEnd= obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyStart - 1
+      bodyEnd = obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyStart - 1
       countGood = 0
       do bodyIndex = bodyStart, bodyEnd
         if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) countGood = countGood + 1
@@ -371,7 +372,8 @@ contains
     integer, allocatable :: targetIndex(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
     integer :: nObs1DVarTotal,  nObs1DVarMax, ierr
-    integer, allocatable :: primaryKeysList(:), obsPointerMpiGlobal(:)
+    real(8), allocatable :: primaryKeys(:), primaryKeysMpiGlobal(:)
+    integer, allocatable :: obsPointerMpiGlobal(:)
     real(8) :: lat, lon, latMpiGlobal, lonMpiGlobal
     real(8), allocatable, target :: dummy(:)
     real(8), allocatable :: myColumnMpiGlobal(:)
@@ -381,24 +383,26 @@ contains
     call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarTotal, 1, "mpi_integer", "mpi_sum", "GRID", ierr)
     call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarMax, 1, "mpi_integer", "mpi_max", "GRID", ierr)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    allocate( primaryKeysMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
+    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     allocate( obsPointerMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate(primaryKeysList(nobs1DVarMax), stat=ierr )
+    allocate(primaryKeys(nobs1DVarMax), stat=ierr )
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    primaryKeysList(:) = 0
+    primaryKeys(:) = MPC_missingValue_R4
     do columnIndex = 1, var1D_validHeaderCount
-      primaryKeysList(columnIndex) = obs_headPrimaryKey(obsSpaceData, var1D_obsPointer(columnIndex) )
+      primaryKeys(columnIndex) = obs_headElem_r(obsSpaceData, OBS_LAT, var1D_obsPointer(columnIndex) ) + &
+           obs_headElem_r(obsSpaceData, OBS_LON, var1D_obsPointer(columnIndex) ) * MPC_PI_R8
     end do
-    call rpn_comm_allgather(primaryKeysList, nobs1DVarMax, 'mpi_integer',  &
-         obsPointerMpiGlobal, nobs1DVarMax, 'mpi_integer', 'grid', ierr)
-    call isort(obsPointerMpiGlobal, mpi_nprocs*nobs1DVarMax)
+    call rpn_comm_allgather(primaryKeys, nobs1DVarMax, 'mpi_real8',  &
+         primaryKeysMpiGlobal, nobs1DVarMax, 'mpi_real8', 'grid', ierr)
+    call ipsort8(obsPointerMpiGlobal, primaryKeysMpiGlobal, mpi_nprocs*nobs1DVarMax)
     do globalObsIndex = 1, mpi_nprocs * nobs1DvarMax 
-      if (obsPointerMpiGlobal(globalObsIndex) > 0) then
+      if ( primaryKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex) ) /= MPC_missingValue_R4) then
         startIndex = globalObsIndex
         exit
       end if
     end do
-    call rpn_comm_bcast(startIndex, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     write(*,*) "startindex", startIndex
     allocate(hco_yGrid)
     if (mpi_myId == 0 ) then
@@ -423,11 +427,11 @@ contains
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
     end if
-    allocate( targetIndex(size(obsPointerMpiGlobal)) )
+    allocate( targetIndex(size(primaryKeysMpiGlobal)) )
     targetIndex(:) = -1
-    do globalObsIndex = startIndex, size(obsPointerMpiGlobal)
+    do globalObsIndex = startIndex, size(primaryKeysMpiGlobal)
       search:do searchIndex = 1, var1D_validHeaderCount
-        if (obsPointerMpiGlobal(globalObsIndex) == primaryKeysList(searchIndex) ) then
+        if (primaryKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex)) == primaryKeys(searchIndex) ) then
           targetIndex(globalObsIndex) = searchIndex
           exit search
         end if
@@ -454,7 +458,7 @@ contains
       allocate(dummy(varDim))
       allocate(myColumnMpiGLobal(varDim))
       dummy(:) = huge( dummy(1) )
-      do globalObsIndex = startIndex, size(obsPointerMpiGlobal)
+      do globalObsIndex = startIndex, size(primaryKeysMpiGlobal)
         if (targetIndex(globalObsIndex) >0 ) then
           myColumn => col_getColumn(column, targetIndex(globalObsIndex), varName_opt=var1D_varList(varIndex)) 
         else
@@ -468,10 +472,10 @@ contains
       deallocate(dummy)
       deallocate(myColumnMpiGLobal)
     end do
-    deallocate(obsPointerMpiGlobal)
+    deallocate(primaryKeysMpiGlobal)
     deallocate(targetIndex)
-    deallocate(primaryKeysList)
-     
+    deallocate(primaryKeys)
+    deallocate( obsPointerMpiGlobal )
   end subroutine var1D_transferColumnToYGrid
 
   !--------------------------------------------------------------------------
