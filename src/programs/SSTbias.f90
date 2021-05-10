@@ -30,18 +30,12 @@ program midas_sstBias
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
-  use obsSpaceDiag_mod
   use obsFiles_mod
-  use obsFilter_mod  
   use innovation_mod
-  use obsErrors_mod
   use statetocolumn_mod
   use biasCorrectionSat_mod
-  use increment_mod
-  use stateToColumn_mod
-  use backgroundCheck_mod
   use analysisGrid_mod
-  use SSTbiasEstimation_mod
+  use SSTbias_mod
   
   implicit none
 
