@@ -315,8 +315,6 @@ CONTAINS
       vazx(:) = 0.0d0
       vazg(:) = 0.0d0
 
-      ! save user-requested varqc switch
-      llvarqc = lvarqc
 
       ! If minimization start without qcvar : turn off varqc to compute
       ! innovations and test the gradients
@@ -350,24 +348,27 @@ CONTAINS
       itermaxtodo = itermax
       isimmax = nsimmax
 
-      if (nwoqcv > 0) lvarqc = .false.
-
       ! do the gradient test for the starting point of minimization
-      if(lgrtest) then
+      if ( lgrtest .and. outerLoopIndex == 1 ) then
+        ! save user-requested varqc switch
+        llvarqc = lvarqc
+
+        if ( nwoqcv > 0 ) lvarqc = .false.
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
+
+        lvarqc = llvarqc
       endif
 
       itertot = iterdone
       isimtot = isimdone
 
-      if ( outerLoopIndex > 1 ) lvarqc=llvarqc
+      llvarqc = lvarqc
+      if ( nwoqcv > 0 .and. outerLoopIndex == 1 ) lvarqc = .false.
       INDIC =2
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
+      lvarqc = llvarqc
 
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
-
-!     Put QCVAR logical to its original values
-      lvarqc=llvarqc
 
       CALL PRSCAL(nvadim_mpilocal,VAZG,VAZG,DLGNORM)
       DLGNORM = DSQRT(DLGNORM)
@@ -456,7 +457,7 @@ CONTAINS
         min_niter = itertot
 
         ! Test the gradient at the final point
-        if (lgrtest) then
+        if ( lgrtest .and. outerLoopIndex == numOuterLoopIterations ) then
           WRITE(*,FMT=9400)
  9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
           call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
