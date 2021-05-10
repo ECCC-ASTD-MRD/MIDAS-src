@@ -44,7 +44,7 @@
 
  &namSSTbiasEstimate
    numberDays = 7
-   horizontalSearchRadius = 300.
+   horizontalSearchRadius = 450.
    iceFractionThreshold = 0.1
    numberSatellites = 5
    satelliteList(1)='AMSR2'
