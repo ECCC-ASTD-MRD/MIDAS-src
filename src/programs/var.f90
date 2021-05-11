@@ -27,6 +27,7 @@ program midas_var
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
+  use humidityLimits_mod
   use timeCoord_mod
   use obsSpaceData_mod
   use columnData_mod  
@@ -66,6 +67,7 @@ program midas_var
   type(struct_gsv)                :: stateVectorAnalHighRes
   type(struct_gsv)                :: stateVectorAnal
   type(struct_gsv)       , target :: stateVectorRefHU
+  type(struct_gsv)       , target :: stateVectorRefHUTT
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
@@ -239,10 +241,10 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'HU','P0'/) )
+                        varNames_opt=(/'HU','TT','P0'/) )
 
       ! First, degrade the time steps
       call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
@@ -264,11 +266,24 @@ program midas_var
                         varNames_opt=varNames)
       call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
 
-      ! Now copy only P0 and HU to create reference stateVector.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHU, &
+      ! Now copy only P0, HU, and TT to create reference stateVector.
+      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHUTT, &
                      allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
+
+      ! Impose limits on stateVectorRefHUTT
+      write(*,*) 'var: impose limits on stateVectorRefHUTT'
+      call qlim_saturationLimit(stateVectorRefHUTT)
+      call qlim_rttovLimit(stateVectorRefHUTT)
+
+      call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'HU','P0'/) )
+      call gsv_copy( stateVectorRefHUTT, stateVectorRefHU, &
+                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_deallocate(stateVectorRefHUTT)
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -304,6 +319,11 @@ program midas_var
                                      stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
                                      stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Impose limits on stateVectorAnalHighRes
+    write(*,*) 'var: impose limits on stateVectorAnalHighRes'
+    call qlim_saturationLimit(stateVectorAnalHighRes)
+    call qlim_rttovLimit(stateVectorAnalHighRes)
 
     ! Use high-res analysis as updated state for the next iteration
     call gsv_copy( stateVectorAnalHighRes, stateVectorUpdateHighRes, &
