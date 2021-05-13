@@ -41,50 +41,49 @@ module obsdbFiles_mod
  
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
-  integer, parameter :: lenSqlName = 60
-  integer, parameter :: sqlColIndex = 1
-  integer, parameter :: obsColIndex = 2
+  integer, parameter :: lenSqlName    = 60
+  integer, parameter :: sqlColIndex   = 1
+  integer, parameter :: obsColIndex   = 2
+  integer, parameter :: varNoColIndex = 2
 
-  character(len=lenSqlName) :: headTableName = 'header'
-  character(len=lenSqlName) :: bodyTableName = 'data'
+  character(len=lenSqlName) :: headTableName = 'Rapport'
+  character(len=lenSqlName) :: bodyTableName = 'Observation'
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 18
-  character(len=lenSqlName) :: headKeySqlName = 'ID_OBS'
+  integer, parameter :: numHeadMatch = 13
+  character(len=lenSqlName) :: headKeySqlName  = 'ID_RAPPORT'
+  character(len=lenSqlName) :: headDateSqlName = 'DATE_VALIDITE'
   character(len=lenSqlName) :: headMatchList(2,numHeadMatch) = (/ &
-       'ID_STN',        'STNID', &
-       'LAT',           'LAT ', &
-       'LON',           'LON ', &
-       'CODTYP',        'ITY ', &
-       'DATE',          'DAT ', &
-       'TIME',          'ETM ', &
-       'STATUS',        'ST1 ', &
+       'ID_STN',              'STNID', &
+       'LAT',                 'LAT ', &
+       'LON',                 'LON ', &
+       'ID_SATELLITE',        'SAT ', &
+       'SATELLITEINSTRUMENT', 'INS ', &
+       'ZENITHANGLE',         'SZA ', &
+       'SOLARZENITHANGLE',    'SUN ', &
+       'AZIMUTH',             'AZA ', &
+       'SOLARAZIMUTH',        'SAZ ', &
+
        'ELEV',          'ALT ', &
-       'ID_SAT',        'SAT ', &
-       'INSTRUMENT',    'INS ', &
-       'LAND_SEA',      'STYP', &
-       'ZENITH',        'SZA ', &
-       'SOLAR_ZENITH',  'SUN ', &
-       'AZIMUTH',       'AZA ', &
        'TERRAIN_TYPE',  'TTYP', &
-       'SENSOR',        'SEN ', &
-       'SOLAR_AZIMUTH', 'SAZ ', &
+       'LAND_SEA',      'STYP', &
        'CLOUD_COVER',   'CLF ' /)
 
   ! ...for the body table
-  integer, parameter :: numBodyMatch = 10
-  character(len=lenSqlName) :: bodyKeySqlName = 'ID_DATA'
+  integer, parameter :: numBodyMatch = 2
+  character(len=lenSqlName) :: bodyKeySqlName = 'ID_OBSERVATION'
   character(len=lenSqlName) :: bodyMatchList(2,numBodyMatch) = (/ &
-       'VCOORD',        'PPP ', &
-       'VARNO',         'VNM ', &
-       'OBSVALUE',      'VAR ', &
-       'FLAG',          'FLG ', &
-       'OMP',           'OMP ', &
-       'OMA',           'OMA ', &
-       'FSO',           'FSO ', &
-       'FG_ERROR',      'HPHT', &
-       'OBS_ERROR',     'OER ', &
-       'SURF_EMISS',    'SEM ' /)
+       'CHANNEL',       'PPP ', &
+       'BRIGHTNESSTEMPERATURE', 'VAR ' /)
+
+  ! Also need a dictionary of 'varno' value for each obsDB observation value column
+  integer, parameter :: numVarNo = 1
+  character(len=lenSqlName) :: varNoList(2,numVarNo) = (/ &
+       'BRIGHTNESSTEMPERATURE', '12163' /)
+
+  ! Other constants
+  integer, parameter :: codeTypeATMS = 192
+  logical, parameter :: setObsFlagZero = .true.
 
   ! NAMELIST variables
   logical :: obsDbActive
@@ -180,6 +179,7 @@ contains
     character(len=lenSqlName), allocatable :: headCharSqlNames(:)
     character(len=lenSqlName), allocatable :: headSqlNames(:),    bodySqlNames(:)
     character(len=50),         allocatable :: headCharValues(:,:)
+    integer,                   allocatable :: headDateValues(:), headTimeValues(:)
     real(8),                   allocatable :: headValues(:,:), bodyValues(:,:)
     integer(8),                allocatable :: headPrimaryKey(:)
     integer(8),                allocatable :: bodyPrimaryKey(:), bodyHeadKey(:)
@@ -220,12 +220,14 @@ contains
 
     call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, fileName=trim(fileName))
 
+    call odbf_getColumnValues_date(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                   tableName=headTableName, sqlColumnName=headDateSqlName)
     call odbf_getColumnValues_char(headCharValues, fileName=trim(fileName), &
                                    tableName=headTableName, sqlColumnNames=headCharSqlNames)
-    call odbf_getColumnValues_num(headValues, fileName=trim(fileName), &
-                                  tableName=headTableName, sqlColumnNames=headSqlNames)
-    call odbf_getColumnValues_num(bodyValues, fileName=trim(fileName), &
-                                  tableName=bodyTableName, sqlColumnNames=bodySqlNames)
+    call odbf_getColumnValues_num (headValues, fileName=trim(fileName), &
+                                   tableName=headTableName, sqlColumnNames=headSqlNames)
+    call odbf_getColumnValues_num (bodyValues, fileName=trim(fileName), &
+                                   tableName=bodyTableName, sqlColumnNames=bodySqlNames)
     numRowsBodyTable = size(bodyValues,1)
     numRowsHeadTable = size(headValues,1)
 
@@ -255,6 +257,10 @@ contains
     bodyIndexBegin = obs_numBody(obsdat) + 1
     headIndexBegin = obs_numHeader(obsdat) + 1
 
+    ! Header date/time values
+    call odbf_copyToObsSpaceHeadDate(obsdat, headDateValues, headTimeValues, &
+                                     headIndexBegin)
+
     ! Header-Character values
     call odbf_copyToObsSpaceHeadChar(obsdat, headCharSqlNames, headCharValues, &
                                      headIndexBegin)
@@ -274,6 +280,8 @@ contains
     !- 1.3 Set some other quantities in obsSpaceData
 
     do headIndex = headIndexBegin, headIndexEnd
+      call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeTypeATMS)
+      call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
       call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
       call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
       call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
@@ -586,7 +594,7 @@ contains
     if (trim(dataType) == 'varchar') then
       dataTypeCriteria = 'substr(type,1,7)="varchar"'
     else if (trim(dataType) == 'numeric') then
-      dataTypeCriteria = 'type="real" or type="integer"'
+      dataTypeCriteria = 'type="real" or type="REAL" or type="double" or type="DOUBLE" or type="integer" or type="INTEGER"'
     else
       call utl_abort('odbf_getSqlColumnNames: invalid dataType = ' // trim(dataType))
     end if
@@ -708,6 +716,73 @@ contains
   end subroutine odbf_getPrimaryKeys
 
   !--------------------------------------------------------------------------
+  ! odbf_getColumnValues_date
+  !--------------------------------------------------------------------------
+  subroutine odbf_getColumnValues_date(columnDateValues, columnTimeValues, fileName, &
+                                       tableName, sqlColumnName)
+    !
+    ! :Purpose: Read the column values from obsDB file for the specified table
+    !           and column names.
+    !
+    implicit none
+
+    ! arguments:
+    integer, allocatable, intent(out) :: columnDateValues(:)
+    integer, allocatable, intent(out) :: columnTimeValues(:)
+    character(len=*),     intent(in)  :: sqlColumnName
+    character(len=*),     intent(in)  :: fileName
+    character(len=*),     intent(in)  :: tableName
+
+    ! locals:
+    integer              :: numRows, numColumns, rowIndex
+    character(len=20), allocatable :: columnValuesStr(:,:)
+    character(len=3000)  :: query
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_getColumnValues_date: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getColumnValues_date: fSQL_open' )
+    end if
+
+    ! Get the date and time
+
+    ! build the sqlite query
+    query = "select strftime('%Y%m%d'," // trim(sqlColumnName) // "), strftime('%H%M'," // trim(sqlColumnName) // ")"
+    query = trim(query) // ' from ' // trim(tableName) // ';'
+    write(*,*) 'odbf_getColumnValues_date: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_getColumnValues_date: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_getColumnValues_date: problem with fSQL_get_many')
+    end if
+    write(*,*) 'odbf_getColumnValues_date: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValuesStr(numRows,2) )
+    call fSQL_fill_matrix( stmt, columnValuesStr )
+    allocate( columnDateValues(numRows) )
+    allocate( columnTimeValues(numRows) )
+    do rowIndex = 1, numRows
+      read(columnValuesStr(rowIndex,1),*) columnDateValues(rowIndex)
+      read(columnValuesStr(rowIndex,2),*) columnTimeValues(rowIndex)
+    end do
+
+    deallocate(columnValuesStr)
+
+    ! close the obsDB file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine odbf_getColumnValues_date
+
+  !--------------------------------------------------------------------------
   ! odbf_getColumnValues_char
   !--------------------------------------------------------------------------
   subroutine odbf_getColumnValues_char(columnValues, fileName, tableName, &
@@ -802,31 +877,31 @@ contains
     end if
 
     ! figure out sql column name for element ID (OBS_VNM)
-    elemIdSqlName = odbf_sqlNameFromObsSpaceName('VNM')
+    !elemIdSqlName = odbf_sqlNameFromObsSpaceName('VNM')
 
     ! build the sqlite query
     elemIdPresent = .false.
     query = 'select'
     numColumns = size(sqlColumnNames)
     do columnIndex = 1, numColumns
-      if (trim(sqlColumnNames(columnIndex)) == trim(elemIdSqlName)) elemIdPresent = .true.
+      !if (trim(sqlColumnNames(columnIndex)) == trim(elemIdSqlName)) elemIdPresent = .true.
       query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
     query = trim(query) // ' from ' // trim(tableName)
-    if (elemIdPresent) then
-      write(*,*) 'odbf_getColumnValues_num: selection only these element ids:', &
-                 elemIdList(1:numElemIdList)
-      query = trim(query) // ' where ' // trim(elemIdSqlName) // ' in ('
-      do elemIdIndex = 1, numElemIdList
-        write(elemIdStr,'(i6)') elemIdList(elemIdIndex)
-        query = trim(query) // elemIdStr
-        if (elemIdIndex < numElemIdList) then
-          query = trim(query) // ','
-        end if
-      end do
-      query = trim(query) // ')'
-    end if
+    !if (elemIdPresent) then
+    !  write(*,*) 'odbf_getColumnValues_num: selection only these element ids:', &
+    !             elemIdList(1:numElemIdList)
+    !  query = trim(query) // ' where ' // trim(elemIdSqlName) // ' in ('
+    !  do elemIdIndex = 1, numElemIdList
+    !    write(elemIdStr,'(i6)') elemIdList(elemIdIndex)
+    !    query = trim(query) // elemIdStr
+    !    if (elemIdIndex < numElemIdList) then
+    !      query = trim(query) // ','
+    !    end if
+    !  end do
+    !  query = trim(query) // ')'
+    !end if
     query = trim(query) // ';'
     write(*,*) 'odbf_getColumnValues_num: query ---> ', trim(query)
 
@@ -901,6 +976,39 @@ contains
     end do
 
   end subroutine odbf_copyToObsSpaceHeadChar
+
+  !--------------------------------------------------------------------------
+  ! odbf_copyToObsSpaceHeadDate
+  !--------------------------------------------------------------------------
+  subroutine odbf_copyToObsSpaceHeadDate(obsdat, headDateValues, headTimeValues, headIndexBegin)
+    !
+    ! :Purpose: Copy date values from a local table into
+    !           obsSpaceData header rows.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(in)    :: headDateValues(:)
+    integer,          intent(in)    :: headTimeValues(:)
+    integer,          intent(in)    :: headIndexBegin
+
+    ! locals:
+    integer :: headTableIndex, headIndex
+    integer :: numRowsHeadTable
+
+    numRowsHeadTable = size(headDateValues,1)
+
+    do headTableIndex = 1, numRowsHeadTable
+      headIndex = headTableIndex + headIndexBegin - 1
+      if (headTableIndex == 1) then
+        write(*,*) 'odbf_copyToObsSpaceHeadDate: set header date/time column'
+      end if
+      call obs_headSet_i(obsdat, obs_dat, headIndex, headDateValues(headTableIndex))
+      call obs_headSet_i(obsdat, obs_etm, headIndex, headTimeValues(headTableIndex))
+    end do
+
+  end subroutine odbf_copyToObsSpaceHeadDate
 
   !--------------------------------------------------------------------------
   ! odbf_copyToObsSpaceHead
@@ -999,9 +1107,8 @@ contains
     ! locals:
     character(len=lenSqlName) :: obsValueSqlName
     integer :: columnIndex, matchIndex, bodyTableIndex, bodyIndex, headIndex
-    integer :: numRowsBodyTable
-    integer :: bodyColumnIndexObsValue
-    integer :: lastHeadKey, obsNlv
+    integer :: numRowsBodyTable, bodyColumnIndexObsValue, obsNlv, obsVarNo
+    integer(8) :: lastHeadKey
     integer, allocatable :: matchIndexVec(:)
     integer, allocatable :: obsColumnIndex(:)
 
@@ -1021,10 +1128,17 @@ contains
     ! figure out column index for observation value (OBS_VAR)
     obsValueSqlName = odbf_sqlNameFromObsSpaceName('VAR')
     bodyColumnIndexObsValue = utl_findloc(bodySqlNames(:), obsValueSqlName)
-
+    if (bodyColumnIndexObsValue == 0) then
+      write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', trim(obsValueSqlName)
+      call utl_abort('odbf_copyToObsSpaceBody: column with obs value not present')
+    end if
     lastHeadKey = 0
     headIndex = headIndexBegin - 1
     bodyIndex = bodyIndexBegin - 1
+
+    ! determine varNo for the observation value
+    obsVarNo = odbf_varNoFromSqlName(obsValueSqlName)
+    write(*,*) 'odbf_copyToObsSpaceBody: obsVarNo = ', obsVarNo
 
     bodyIndex_loop: do bodyTableIndex = 1, numRowsBodyTable
       bodyIndex = bodyIndex + 1
@@ -1060,6 +1174,9 @@ contains
         write(*,*) 'odbf_copyToObsSpaceBody: set body primary key'
       end if
       call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
+
+      ! set the varNo, assuming only 1 observed value
+      call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNo)
 
       ! copy real and integer values into obsSpaceData
       columnIndex_loop: do columnIndex = 1, size(bodySqlNames)
@@ -1149,6 +1266,15 @@ contains
       obsTime = obsTime/100
       call obs_headSet_i(obsdat, OBS_ETM, headIndex, obsTime)
 
+      ! Set global and observation flags to zero if specified
+
+      if (setObsFlagZero) then
+        call obs_headSet_i(obsdat, OBS_ST1, headIndex, 0)
+        do bodyIndex = bodyIndexStart, bodyIndexEnd
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, 0)
+        end do
+      end if
+
       ! Various adjustment for radiance observations
 
       if ( obsFamily == 'TO' ) then
@@ -1196,7 +1322,7 @@ contains
   end subroutine odbf_adjustValues
 
   !--------------------------------------------------------------------------
-  ! odbf_adjustValues
+  ! odbf_sqlNameFromObsSpaceName
   !--------------------------------------------------------------------------
   function odbf_sqlNameFromObsSpaceName(obsSpaceName) result(sqlName)
     !
@@ -1232,5 +1358,35 @@ contains
     call utl_abort('odbf_sqlNameFromObsSpaceName: obsSpace name not found in matching list')
     
   end function odbf_sqlNameFromObsSpaceName
+
+  !--------------------------------------------------------------------------
+  ! odbf_varNoFromSqlName
+  !--------------------------------------------------------------------------
+  function odbf_varNoFromSqlName(sqlName) result(varNo)
+    !
+    ! :Purpose: Return the bufr element id number from the corresponding
+    !           sql file column name of an observed value.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*), intent(in) :: sqlName
+    integer                      :: varNo
+
+    ! locals:
+    integer                   :: matchIndex
+    character(len=10)         :: varNoStr
+    
+    matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
+    if (matchIndex > 0) then
+      varNoStr = varNoList(varNoColIndex,matchIndex)
+      read(varNoStr,*) varNo
+      return
+    end if
+
+    write(*,*) 'odbf_varNoFromSqlName: requested sqlName = ', trim(sqlName)
+    call utl_abort('odbf_varNoFromSqlName: not found in varNo list')
+    
+  end function odbf_varNoFromSqlName
 
 end module obsdbFiles_mod
