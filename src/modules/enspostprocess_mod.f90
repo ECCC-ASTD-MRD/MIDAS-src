@@ -1267,11 +1267,9 @@ contains
     character(len=4)              :: varLevel
     real(8), allocatable          :: weight(:,:), scaleFactor(:)
     real(4), allocatable          :: pressureOrDepth(:)
-    integer :: ierr, lonIndex, latIndex, lonIndexP1, latIndexP1, nulFile
+    integer :: ierr, latIndex, lonIndex, nulFile
     integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
-    real(8)                       :: lon1, lon2, lon3, lat1, lat2, lat3
-    real(8)                       :: distanceX, distanceY, sumWeight
     real(8)                       :: pSfc(1,1)
     real(8), pointer              :: pressures_T(:,:,:), pressures_M(:,:,:)
     integer, external             :: fnom, fclos
@@ -1284,31 +1282,14 @@ contains
     allocate(pressureOrDepth(numK))
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
+    write(*,*) 'dimensions weight: ',stateVectorStdDev%ni,stateVectorStdDev%nj
     allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
     weight(:,:) = 0.0d0
 
     ! compute a 2D weight field used for horizontal averaging
     hco => gsv_getHco(stateVectorStdDev)
-    sumWeight = 0.0D0
-    do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
-      do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
-        lonIndexP1 = min(stateVectorStdDev%ni,lonIndex+1)
-        latIndexP1 = min(stateVectorStdDev%nj,latIndex+1)
-        lon1 = hco%lon2d_4(lonIndex,latIndex)
-        lon2 = hco%lon2d_4(lonIndexP1,latIndex)
-        lon3 = hco%lon2d_4(lonIndex,latIndexP1)
-        lat1 = hco%lat2d_4(lonIndex,latIndex)
-        lat2 = hco%lat2d_4(lonIndexP1,latIndex)
-        lat3 = hco%lat2d_4(lonIndex,latIndexP1)
-        distanceX = phf_calcDistance(lat1, lon1, lat2, lon2)/1000.0D0
-        distanceY = phf_calcDistance(lat1, lon1, lat3, lon3)/1000.0D0
-        weight(lonIndex,latIndex) = distanceX * distanceY
-        sumWeight = sumWeight + weight(lonIndex,latIndex)
-      end do
-    end do
-    call mpi_allreduce_sumreal8scalar(sumWeight,'GRID')
-    weight(:,:) = weight(:,:) / sumWeight
-    
+    ! weights are reduced in the overlap region in case of a Yin-Yang grid
+    call hco_weight(hco, weight)
     ! compute global mean variance accounting for weights
     call gsv_getField(stateVectorStdDev,stdDev_ptr_r4)
     rmsvalue(:) = 0.0D0
