@@ -2776,7 +2776,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! ssbg_inovqcSsmis
   !--------------------------------------------------------------------------
-  subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, obsToreject_inovqc)
+  subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
 !  Object: Identify those observations in SSMIS data that have O-P
 !          values greater than a threshold proportional to known
@@ -2798,9 +2798,9 @@ end subroutine bennartz
     implicit none
 
     !Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)    :: headerIndex            ! header index
-    logical, allocatable, intent(out)   :: obsToreject_inovqc(:)  ! observations to reject
+    type(struct_obs),     intent(inout) :: obsSpaceData      ! obspaceData Object
+    integer,              intent(in)    :: headerIndex       ! header index
+    integer, allocatable, intent(out)   :: flagsInovQc(:)    ! flags for assimilation/rejection of obs
 
     ! Locals
     character(len=9)     :: burpFileSatId            ! Satellite ID
@@ -2827,7 +2827,6 @@ end subroutine bennartz
     integer              :: iPlatf
     integer              :: iPlatform
     integer              :: iSat
-    integer              :: istat
     integer              :: latIndex
     integer              :: lonIndex
     integer              :: nLat
@@ -2837,7 +2836,6 @@ end subroutine bennartz
     integer              :: obsNumCurrentLoc
     integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
 
-    integer, allocatable :: icheck(:)                ! flags for assimilation/rejection of obs
     integer, allocatable :: obsChannels(:)           ! channel numbers
     integer, allocatable :: obsFlags(:)              ! data flags
 
@@ -2875,8 +2873,8 @@ end subroutine bennartz
     integer :: ni,nj,nk,indx
 
     !  External functions
-    integer, external :: fclos,fstouv,fstinf,fstprm,fstlir
-    integer, external :: ezsetopt,ezqkdef,gdllsval
+    integer, external :: fclos,fnom,fstfrm,fstinf,fstlir,fstouv,fstprm
+    integer, external :: ezqkdef,ezsetopt,gdllsval
     integer, external :: ip1_all
 
     ! Temporary arrays
@@ -2939,7 +2937,7 @@ end subroutine bennartz
     call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
     call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
     ! Allocate intent out array
-    call utl_reAllocate(obsToreject_inovqc, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(flagsInovQc, numObsToProcess*actualNumChannel)
 
     ! Lecture dans obsspacedata (entiers)
 
@@ -2971,7 +2969,7 @@ end subroutine bennartz
     !--------------------------------------------------------------------
     ! 3) Extract model topography from the input GEO file
     !--------------------------------------------------------------------
-
+    ier = fnom(iungeo,'trlm_01','STD+RND+R/O',0)
     ier = fstouv(iungeo,'RND')
 
     !_____TOPOGRAPHIE (MT = 'ME', 'MX', or 'GZ'(eta=1)).
@@ -3009,6 +3007,7 @@ end subroutine bennartz
     if (irec < 0) then
       call utl_abort('ssbg_inovqcSsmis: LA TOPOGRAPHIE EST INEXISTANTE')
     else
+      if (allocated(mt)) deallocate(mt)
       allocate ( mt(ni*nj), STAT=ier)
       if ( ier /= 0 ) then
         call utl_abort('ssbg_inovqcSsmis: Allocation of array mt failed')
@@ -3081,71 +3080,18 @@ end subroutine bennartz
       enddo
     enddo
 
-    istat = fclos(iungeo)
+    ier = fstfrm(iungeo)
+    ier = fclos(iungeo)
 
     !--------------------------------------------------------------------
     ! 5) Perform quality control on the data, checking O-P and topography
     !--------------------------------------------------------------------
 
-    call utl_reAllocate(icheck, numObsToProcess*actualNumChannel)
-
-    call check_stddev(obsChannels,ompTb,icheck,actualNumChannel,numObsToProcess,sensorIndex,  &
+    call check_stddev(obsChannels,ompTb,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex,  &
         &             burpFileSatId,ssbg_maxNumChan,oer_tovutil,oer_toverrst,rejcnt,totobs,obsFlags)
 
-    call check_topo(obsChannels,modelInterpTer,icheck,actualNumChannel,numObsToProcess,sensorIndex, &
+    call check_topo(obsChannels,modelInterpTer,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex, &
         &           burpFileSatId,ssbg_maxNumChan,rejcnt2,totobs2)
-
-
-    !--------------------------------------------------------------------
-    ! 6) Write the rejection statistics for each channel, satellite to the
-    !    output text file - out_ssmi_inovqc.
-    !--------------------------------------------------------------------
-
-    write(*,*) ' '
-    write(*,*) ' '
-    write(*,*) ' ------------------ Innovation Rejection Statistics ---------------------- '
-    write(*,*) ' -(number of obs destined for assimilation that were flagged as outliers)- '
-    write(*,*) ' ----------------------------------------------------------------------- '
-    write(*,*) '                   Satellite: ', burpFileSatId
-    write(*,*) '      Channel       # rejected       # obs       % rejected  '
-    write(*,*) ' ------------------------------------------------------------ '
-    do channelIndex = 1, actualNumChannel
-      if ( totobs(channelIndex,1) /= 0 ) then
-        rejper = 100. * float(rejcnt(channelIndex,1)) / float(totobs(channelIndex,1))
-      else
-        rejper = 0.0
-      endif
-      write(*,199) channelIndex,rejcnt(channelIndex,1),totobs(channelIndex,1),rejper
-    end do
-
-    write(*,*) ' '
-    write(*,*) ' '
-    write(*,*) ' ------------------ Topography Rejection Statistics ---------------------- '
-    write(*,*) ' ------------- (number of all obs rejected for topography) --------------- '
-    write(*,*) ' ----------------------------------------------------------------------- '
-    write(*,*) '                   Satellite: ', burpFileSatId
-    write(*,*) '      Channel       # rejected       # obs       % rejected  '
-    write(*,*) ' ------------------------------------------------------------ '
-    do channelIndex = 1, actualNumChannel
-      if ( totobs2(channelIndex,1) /= 0 ) then
-        rejper = 100. * float(rejcnt2(channelIndex,1)) / float(totobs2(channelIndex,1))
-      else
-        rejper = 0.0
-      endif
-      write(*,199) channelIndex,rejcnt2(channelIndex,1),totobs2(channelIndex,1),rejper
-    end do
-
-199 format(10x,i2,10x,i7,8x,i7,8x,f6.2,' %')
-
-
-    !--------------------------------------------------------------------
-    ! 7) Rejected data (all data that have icheck > 0 )
-    !--------------------------------------------------------------------
-
-    obsToreject_inovqc(:) = .false.
-    do chanObsIndex = 1, numObsToProcess*actualNumChannel
-      if (icheck(chanObsIndex) > 0) obsToreject_inovqc(:) = .true.
-    end do
 
   end subroutine ssbg_inovqcSsmis
 
@@ -3385,7 +3331,6 @@ end subroutine bennartz
 
     end do  ! end Loop over observation points
 
-
   end subroutine check_stddev
 
   !--------------------------------------------------------------------------
@@ -3541,6 +3486,164 @@ end subroutine bennartz
 
 
   !--------------------------------------------------------------------------
+  ! ssbg_updateObsSpaceAfterInovQc
+  !--------------------------------------------------------------------------
+  subroutine ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
+
+    !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
+    implicit None
+
+    !Arguments
+    type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
+    integer,              intent(in)     :: headerIndex            ! current header index
+    integer,              intent(in)     :: flagsInovQc(:)         ! data flags
+
+    ! Locals
+    integer, allocatable                 :: obsFlags(:)
+    integer, allocatable                 :: obsGlobalFlag(:)
+    integer, allocatable                 :: satScanPosition(:)
+
+    logical                              :: sensorIndexFound
+
+    integer                              :: actualNumChannel
+    integer                              :: bodyIndex
+    integer                              :: bodyIndexbeg
+    integer                              :: channelIndex
+    integer                              :: currentChannelNumber
+    integer                              :: dataIndex
+    integer                              :: headerCompt
+    integer                              :: instr
+    integer                              :: instrum
+    integer                              :: iplatf
+    integer                              :: iplatform
+    integer                              :: isat
+    integer                              :: ntIndex
+    integer                              :: numObsToProcess
+    integer                              :: obsNumCurrentLoc
+    integer                              :: sensorIndex
+
+
+   ! find tvs_sensor index corresponding to current obs
+
+    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
+    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
+
+    call tvs_mapSat( iplatf, iplatform, isat )
+    call tvs_mapInstrum( instr, instrum )
+
+    sensorIndexFound = .false.
+    do sensorIndex =1, tvs_nsensors
+      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
+           isat      ==  tvs_satellites(sensorIndex) .and. &
+           instrum   == tvs_instruments(sensorIndex)       ) then
+        sensorIndexFound = .true.
+        exit
+      end if
+    end do
+    if ( .not. sensorIndexFound ) call utl_abort('ssbg_updateObsSpaceAfterInovQc: sensor Index not found')
+
+    ! find actual Number of channels
+    actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
+
+    headerCompt = 1
+    numObsToProcess = 1
+    ! Allocate Header elements
+    call utl_reAllocate(obsGlobalFlag, numObsToProcess)
+    call utl_reAllocate(satScanPosition, numObsToProcess)
+
+    ! Allocation
+    call utl_reAllocate(obsFlags,numObsToProcess*actualNumChannel)
+
+    ! Read elements in obsspace
+
+    obsGlobalFlag(headerCompt) = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex )
+    satScanPosition(headerCompt)  = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex)
+    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+
+    BODY2: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
+      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+    end do BODY2
+    ! Modify flags
+
+    !------------------------------------------------------------------
+    ! 1 - Mark global flags if any flagsInovQc > 0
+    !------------------------------------------------------------------
+    do ntIndex = 1 , numObsToProcess
+      if ( maxval(flagsInovQc) > 0 ) obsGlobalFlag(ntIndex) = ibset(obsGlobalFlag(ntIndex), 6)
+    end do
+
+    !------------------------------------------------------------------
+    ! 2 - Mark obs flags for each value of flagsInovQc
+    !------------------------------------------------------------------
+
+    dataIndex = 0
+    do ntIndex = 1 , numObsToProcess
+      do channelIndex = 1, actualNumChannel
+        dataIndex = dataIndex+1
+        if (resetQc) obsFlags(dataIndex) = 0
+
+        select case (flagsInovQc(dataIndex))
+        case(1)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+        case(2)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
+        case(3)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+        case(4)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+        case(5)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+        case(6)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+        case(7)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+        case(8)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+        end select
+
+      end do
+    end do
+
+    !-----------------------------------------------------------------
+    !TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
+    !    Subtract 270 from FOV values (element 005043).
+    ! TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
+    !-----------------------------------------------------------------
+    do ntIndex = 1 , numObsToProcess
+      !write(*,*) 'OLD FOV = ', satScanPosition(ntIndex)
+      if (satScanPosition(ntIndex) > 270) satScanPosition(ntIndex) = satScanPosition(ntIndex) - 270
+      !write(*,*) 'NEW FOV VALUE = ', satScanPosition(ntIndex)
+    end do
+
+    ! write elements in obsspace
+
+
+    call obs_headSet_i(obsSpaceData, OBS_FOV, headerIndex, satScanPosition(1))
+    call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalFlag(1))
+    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+      currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
+      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
+    end do BODY
+
+  end subroutine ssbg_updateObsSpaceAfterInovQc
+
+
+  !--------------------------------------------------------------------------
   ! ssbg_bgCheckSSMIS
   !--------------------------------------------------------------------------
   subroutine ssbg_bgCheckSSMIS( obsSpaceData )
@@ -3553,12 +3656,22 @@ end subroutine bennartz
 
     ! Locals
     logical, allocatable                 :: obsToreject(:)
-    logical, allocatable                 :: obsToreject_inovqc(:)
+
+    integer, allocatable                 :: flagsInovQc(:)
     integer, allocatable                 :: ssmisNewInfoFlag(:)
 
     integer                              :: codtyp
+    integer                              :: dataIndex
+    integer                              :: dataIndex1
     integer                              :: headerIndex
+    integer                              :: indexFlags
+    integer                              :: inovQcSize
     integer, external                    :: exdb, exfin, fnom, fclos
+
+    integer, dimension(10)               :: statsInovQcFlags
+
+    real,    dimension(9)                :: percentInovQcFlags
+
     logical                              :: ssmisDataPresent
 
     call tmg_start(30,'BGCHECK_SSMIS')
@@ -3577,6 +3690,9 @@ end subroutine bennartz
        write(*,*) 'WARNING: WILL NOT RUN ssbg_bgCheckSSMIS since no SSMIS'
        return
     end if
+
+    statsInovQcFlags(:) = 0
+    percentInovQcFlags(:) = 0.0
 
     write(*,*) ' SSMIS  QC PROGRAM STARTS ....'
     ! read nambgck
@@ -3604,22 +3720,61 @@ end subroutine bennartz
        !###############################################################################
        ! STEP 2) update Flags after satQC SSMIS program                               !
        !###############################################################################
-       write(*,*)' STEP 2) update Flags after satQC SSMIS program'
+       write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
        call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
 
        !###############################################################################
        ! STEP 3) call inovQC SSMIS program                                            !
        !###############################################################################
        write(*,*) 'STEP 3) call inovQC SSMIS program'
-       call ssbg_inovqcSsmis(obsSpaceData, headerIndex, obsToreject_inovqc)
+       call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
        !###############################################################################
        ! STEP 4) update Flags after inovQC SSMIS program                              !
        !###############################################################################
-       write(*,*)' STEP 4) update Flags after inovQC SSMIS program'
-       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject_inovqc)
+       write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
+       call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
+
+       !###############################################################################
+       ! STEP 5) compute statistics of different inovQc flags types                   !
+       !###############################################################################
+       inovQcSize = size(flagsInovQc)
+       if (maxval(flagsInovQc) > 8) call utl_abort('ssbg_bgCheckSSMIS: Problem with flagsInovQc, value greater than 8.')
+       do dataIndex = 1,inovQcSize
+         dataIndex1 = flagsInovQc(dataIndex)+1
+         ! Counting number of flags with value flagsInovQc(dataIndex)
+         statsInovQcFlags(dataIndex1) = statsInovQcFlags(dataIndex1) + 1
+         ! Counting total number of flags (observations)
+         statsInovQcFlags(10) = statsInovQcFlags(10) + 1
+       end do
 
     end do HEADER
+
+    !###############################################################################
+    ! STEP 6) displaying statistics of inovQc flags                                !
+    !###############################################################################
+
+    do indexFlags = 1,9
+      percentInovQcFlags(indexFlags) = float(statsInovQcFlags(indexFlags))/float(statsInovQcFlags(10)-statsInovQcFlags(2))*100
+    end do
+
+    write(*,*)   '------------------- Innovation Rejection Statistics -----------------------'
+    write(*,*)   '     Flag description                                   Nm. Obs.  Prct (%) '
+    write(*,256) ' Total number of observations :                        ', statsInovQcFlags(10)
+    write(*,256) ' (1) Not checked because flag bit 7 ON :               ', statsInovQcFlags(2)
+    write(*,256) ' Remaining number of observations :                    ', statsInovQcFlags(10)-statsInovQcFlags(2)
+    write(*,257) ' (0) Observations that are OK :                        ', statsInovQcFlags(1), percentInovQcFlags(1)
+    write(*,257) ' (2) Rejected by UTIL value or bit 6 OFF :             ', statsInovQcFlags(3), percentInovQcFlags(3)
+    write(*,257) ' (3) Rejected by rogue check (O-P) :                   ', statsInovQcFlags(4), percentInovQcFlags(4)
+    write(*,257) ' (4) Rejected by both UTIL and rogue check :           ', statsInovQcFlags(5), percentInovQcFlags(5)
+    write(*,257) ' (5) Topography rejection :                            ', statsInovQcFlags(6), percentInovQcFlags(6)
+    write(*,257) ' (6) Topography rejection and by UTIL value :          ', statsInovQcFlags(7), percentInovQcFlags(7)
+    write(*,257) ' (7) Topography rejection and by rogue check :         ', statsInovQcFlags(8), percentInovQcFlags(8)
+    write(*,257) ' (8) Topography rejection, by UTIL and rogue check :   ', statsInovQcFlags(9), percentInovQcFlags(9)
+    write(*,*)   '---------------------------------------------------------------------------'
+
+256 format(A55,i9)
+257 format(A55,i9,f7.2,' %')
 
     call tmg_stop(30)
   end subroutine ssbg_bgCheckSSMIS
