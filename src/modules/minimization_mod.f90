@@ -57,6 +57,7 @@ module minimization_mod
 
   ! public variables
   public              :: min_niter, min_nsim, min_numOuterLoopIterations
+  public              :: min_limitHuInOuterLoop
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
@@ -72,6 +73,7 @@ module minimization_mod
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
   integer             :: min_numOuterLoopIterations
+  logical             :: min_limitHuInOuterLoop
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
@@ -96,6 +98,7 @@ module minimization_mod
   integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
   integer :: numAnalyses, ntrunc_pert
   integer :: numOuterLoopIterations
+  logical :: limitHuInOuterLoop
   logical :: lxbar, lwrthess, lgrtest, lvazx
   logical :: lvarqc, pertBhiOnly, writeAnalysis
   logical :: oneDVarMode
@@ -109,7 +112,7 @@ module minimization_mod
   NAMELIST /NAMMIN/ numAnalyses, ensPathName
   NAMELIST /NAMMIN/ e1_scaleFactor, e2_scaleFactor, pertBhiOnly
   NAMELIST /NAMMIN/ pertScaleFactor_UV, ntrunc_pert
-  NAMELIST /NAMMIN/ numOuterLoopIterations
+  NAMELIST /NAMMIN/ numOuterLoopIterations, limitHuInOuterLoop
 
 CONTAINS
 
@@ -146,6 +149,7 @@ CONTAINS
     nvamaj = 6
     nitermax = 0
     numOuterLoopIterations = 1
+    limitHuInOuterLoop = .false.
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
@@ -172,6 +176,7 @@ CONTAINS
     ierr=fclos(nulnam)
 
     min_numOuterLoopIterations = numOuterLoopIterations 
+    min_limitHuInOuterLoop = limitHuInOuterLoop
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal

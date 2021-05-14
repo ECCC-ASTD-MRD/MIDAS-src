@@ -272,10 +272,12 @@ program midas_var
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
-      ! Impose limits on stateVectorRefHUTT
-      write(*,*) 'var: impose limits on stateVectorRefHUTT'
-      call qlim_saturationLimit(stateVectorRefHUTT)
-      call qlim_rttovLimit(stateVectorRefHUTT)
+      ! Impose limits on stateVectorRefHUTT only when outerLoopIndex > 1
+      if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
+        write(*,*) 'var: impose limits on stateVectorRefHUTT'
+        call qlim_saturationLimit(stateVectorRefHUTT)
+        call qlim_rttovLimit(stateVectorRefHUTT)
+      end if
 
       call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -320,10 +322,12 @@ program midas_var
                                      stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Impose limits on stateVectorAnalHighRes
-    write(*,*) 'var: impose limits on stateVectorAnalHighRes'
-    call qlim_saturationLimit(stateVectorAnalHighRes)
-    call qlim_rttovLimit(stateVectorAnalHighRes)
+    ! Impose limits on stateVectorAnalHighRes only when outerLoopIndex > 1
+    if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
+      write(*,*) 'var: impose limits on stateVectorAnalHighRes'
+      call qlim_saturationLimit(stateVectorAnalHighRes)
+      call qlim_rttovLimit(stateVectorAnalHighRes)
+    end if
 
     ! Use high-res analysis as updated state for the next iteration
     call gsv_copy( stateVectorAnalHighRes, stateVectorUpdateHighRes, &
