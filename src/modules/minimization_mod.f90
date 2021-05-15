@@ -434,6 +434,8 @@ CONTAINS
         ! Now do main minimization with var-QC
         call tmg_start(70,'QN')
 
+        if ( outerLoopIndex > 1 ) imode = 2
+
         zeps1 = zeps0
 
         call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
