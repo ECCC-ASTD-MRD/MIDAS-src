@@ -236,7 +236,7 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation( outerLoopIndex, columnTrlOnTrlLev, obsSpaceData )
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.

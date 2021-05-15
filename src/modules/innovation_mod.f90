@@ -550,16 +550,16 @@ contains
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation( outerLoopIndex, columnTrlOnTrlLev, obsSpaceData, &
-                                    destObsColumn_opt, beSilent_opt )
+  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt, &
+                                    destObsColumn_opt, beSilent_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
 
     ! Arguments:
-    integer                 :: outerLoopIndex
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
+    integer, optional       :: outerLoopIndex_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
 
@@ -567,16 +567,19 @@ contains
     real(8) :: Jo, JoRaob, JoSatWind, JoSurfc
     real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
-    integer :: destObsColumn, get_max_rss
+    integer :: destObsColumn, get_max_rss, outerloopIndex
     logical :: lgpdata, beSilent
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    !
-    !- Subroutine options seting
-    !
+    if ( present(outerLoopIndex_opt) ) then
+      outerLoopIndex = outerLoopIndex_opt
+    else
+      outerLoopIndex = 1
+    end if
+
     if ( present(destObsColumn_opt) ) then
       destObsColumn = destObsColumn_opt
     else
