@@ -4337,7 +4337,7 @@ contains
 
       integer :: unitout_
       integer :: obsRLN, obsONM, obsINS, obsOTP, obsITY
-      integer :: obsDAT, obsETM, obsNLV, obsST1
+      integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
       real(pre_obsReal) :: obsLON, obsLAT, obsALT
       character(len=12) :: stnid
 
@@ -4367,10 +4367,13 @@ contains
       obsETM = obs_headElem_i(obsdata,OBS_ETM,index_hd)
       obsALT = obs_headElem_r(obsdata,OBS_ALT,index_hd)
       obsNLV = obs_headElem_i(obsdata,OBS_NLV,index_hd)
+      obsSTYP= obs_headElem_i(obsdata,OBS_STYP,index_hd)
+      obsTTYP= obs_headElem_i(obsdata,OBS_TTYP,index_hd)
       obsST1 = obs_headElem_i(obsdata,OBS_ST1,index_hd)
       stnid  = obs_elem_c(obsdata,'STID',index_hd)
       write(unitout_,fmt=9200) obsRLN, obsONM, obsINS, obsOTP, obsITY, &
-           obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, obsST1
+           obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, &
+           obsSTYP, obsTTYP, obsST1
 
 9200  format(6x,'Position within realBodies:',i6,1x,'OBS. NUMBER:',i6,1x &
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
@@ -4383,6 +4386,8 @@ contains
          ,'STATION''S ALTITUDE:',g13.6,1x &
          ,'NUMBER OF DATA:',i6,1x &
          ,/,6x &
+         ,'SURFACE TYPE:',i4,1x &
+         ,'TERRAIN TYPE:',i4,1x &
          ,'REPORT STATUS 2:',i10,1x &
          ,/,6x &
          )

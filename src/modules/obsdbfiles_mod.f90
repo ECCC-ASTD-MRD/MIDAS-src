@@ -50,11 +50,12 @@ module obsdbFiles_mod
   character(len=lenSqlName) :: bodyTableName = 'Observation'
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 13
+  integer, parameter :: numHeadMatch = 10
   character(len=lenSqlName) :: headKeySqlName  = 'ID_RAPPORT'
   character(len=lenSqlName) :: headDateSqlName = 'DATE_VALIDITE'
   character(len=lenSqlName) :: headMatchList(2,numHeadMatch) = (/ &
-       'ID_STN',              'STNID', &
+       'ID_STN',              'STID', &
+       'TYPE',                'ITY',  &
        'LAT',                 'LAT ', &
        'LON',                 'LON ', &
        'ID_SATELLITE',        'SAT ', &
@@ -62,12 +63,7 @@ module obsdbFiles_mod
        'ZENITHANGLE',         'SZA ', &
        'SOLARZENITHANGLE',    'SUN ', &
        'AZIMUTH',             'AZA ', &
-       'SOLARAZIMUTH',        'SAZ ', &
-
-       'ELEV',          'ALT ', &
-       'TERRAIN_TYPE',  'TTYP', &
-       'LAND_SEA',      'STYP', &
-       'CLOUD_COVER',   'CLF ' /)
+       'SOLARAZIMUTH',        'SAZ ' /)
 
   ! ...for the body table
   integer, parameter :: numBodyMatch = 2
@@ -82,7 +78,6 @@ module obsdbFiles_mod
        'BRIGHTNESSTEMPERATURE', '12163' /)
 
   ! Other constants
-  integer, parameter :: codeTypeATMS = 192
   logical, parameter :: setObsFlagZero = .true.
 
   ! NAMELIST variables
@@ -216,7 +211,7 @@ contains
                  trim(bodySqlNames(columnIndex))
     end do
 
-    !- 1.1 Read the contents of the file into local tables
+    !- 1.1 Read most of the contents of the file into local tables
 
     call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, fileName=trim(fileName))
 
@@ -257,6 +252,10 @@ contains
     bodyIndexBegin = obs_numBody(obsdat) + 1
     headIndexBegin = obs_numHeader(obsdat) + 1
 
+    ! Set the columns related to surface type
+    call odbf_setSurfaceType(obsdat, headIndexBegin, fileName=trim(fileName), &
+                             tableName=headTableName)
+
     ! Header date/time values
     call odbf_copyToObsSpaceHeadDate(obsdat, headDateValues, headTimeValues, &
                                      headIndexBegin)
@@ -280,7 +279,6 @@ contains
     !- 1.3 Set some other quantities in obsSpaceData
 
     do headIndex = headIndexBegin, headIndexEnd
-      call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeTypeATMS)
       call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
       call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
       call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
@@ -783,6 +781,61 @@ contains
   end subroutine odbf_getColumnValues_date
 
   !--------------------------------------------------------------------------
+  ! odbf_setSurfaceType
+  !--------------------------------------------------------------------------
+  subroutine odbf_setSurfaceType(obsdat, headIndexBegin, fileName, tableName)
+    !
+    ! :Purpose: Set the surface type based on lat-lon and some external mask files.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(in)    :: headIndexBegin
+    character(len=*), intent(in)    :: fileName
+    character(len=*), intent(in)    :: tableName
+
+    ! locals:
+    integer              :: numRows, numColumns, headTableIndex, headIndex
+    integer, allocatable :: columnValues(:,:)
+    character(len=3000)  :: query
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_setSurfaceType: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_setSurfaceType: fSQL_open' )
+    end if
+
+    ! build the sqlite query
+    query = 'select mask_mer(lat,lon) from ' // trim(tableName) // ';'
+    write(*,*) 'odbf_setSurfaceType: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_INT, status=stat )
+    write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValues(numRows, numColumns) )
+    call fSQL_fill_matrix( stmt, columnValues )
+
+    do headTableIndex = 1, numRows
+      headIndex = headTableIndex + headIndexBegin - 1
+      call obs_headSet_i(obsdat, OBS_STYP, headIndex, columnValues(headTableIndex,1))
+      call obs_headSet_i(obsdat, OBS_TTYP, headIndex, -1)
+    end do
+
+    ! close the obsDB file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine odbf_setSurfaceType
+
+  !--------------------------------------------------------------------------
   ! odbf_getColumnValues_char
   !--------------------------------------------------------------------------
   subroutine odbf_getColumnValues_char(columnValues, fileName, tableName, &
@@ -931,7 +984,9 @@ contains
                                          headCharValues, headIndexBegin)
     !
     ! :Purpose: Copy character string values from a local table into
-    !           obsSpaceData header rows.
+    !           obsSpaceData header rows. Currently, only the STATION ID
+    !           and OBS_ITY (i.e. codeType from character sql column
+    !           containing obs type name).
     !
     implicit none
 
@@ -942,37 +997,46 @@ contains
     integer,          intent(in)    :: headIndexBegin
 
     ! locals:
-    character(len=lenSqlName) :: stnIdSqlName
-    integer :: columnIndex, matchIndex, headTableIndex, headIndex
-    integer :: numRowsHeadTable
+    character(len=lenSqlName) :: stIdSqlName, codeTypeSqlName
+    integer :: columnIndex, headTableIndex, headIndex
+    integer :: numRowsHeadTable, codeType
 
     numRowsHeadTable = size(headCharValues,1)
 
-    do columnIndex = 1, size(headCharSqlNames)
-      matchIndex = utl_findloc(headMatchList(sqlColIndex,:), headCharSqlNames(columnIndex))
-
-      if (matchIndex == 0) then
-
-        write(*,*) 'odbf_copyToObsSpaceHeadChar: name not in list of known ' // &
-                   'header column names = ', trim(headCharSqlNames(columnIndex))
-
-      else
-        stnIdSqlName = odbf_sqlNameFromObsSpaceName('STNID')
-        if (headCharSqlNames(columnIndex) /= trim(stnIdSqlName)) then
-          call utl_abort('odbf_copyToObsSpaceHeadChar: only valid char column is STNID')
-        end if
-        do headTableIndex = 1, numRowsHeadTable
-          headIndex = headTableIndex + headIndexBegin - 1
-          if (headTableIndex == 1) then
-            write(*,*) 'odbf_copyToObsSpaceHeadChar: set header char column   : ', &
-                       trim(headCharSqlNames(columnIndex))
-          end if
-          call obs_set_c(obsdat, 'STID', &
-                         headIndex, headCharValues(headTableIndex,columnIndex))
-        end do
-
+    ! Set the STATION ID
+    stIdSqlName = odbf_sqlNameFromObsSpaceName('STID')
+    columnIndex = utl_findloc(headCharSqlNames(:), trim(stIdSqlName))
+    if (columnIndex == 0) then
+      call utl_abort('odbf_copyToObsSpaceHeadChar: Station ID column not found in sql table')
+    end if
+    do headTableIndex = 1, numRowsHeadTable
+      headIndex = headTableIndex + headIndexBegin - 1
+      if (headTableIndex == 1) then
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: set header char column   : ', &
+                   trim(headCharSqlNames(columnIndex))
       end if
+      call obs_set_c(obsdat, 'STID', &
+                     headIndex, headCharValues(headTableIndex,columnIndex))
+    end do
 
+    ! Set the codeType (obs_ity) from a character column containing the obs type
+    codeTypeSqlName = odbf_sqlNameFromObsSpaceName('ITY')
+    columnIndex = utl_findloc(headCharSqlNames(:), trim(codeTypeSqlName))
+    if (columnIndex == 0) then
+      call utl_abort('odbf_copyToObsSpaceHeadChar: Obs type column not found in sql table')
+    end if
+    do headTableIndex = 1, numRowsHeadTable
+      headIndex = headTableIndex + headIndexBegin - 1
+      if (headTableIndex == 1) then
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: set header char column   : ', &
+                   trim(headCharSqlNames(columnIndex))
+      end if
+      codeType = codtyp_get_codtyp(trim(headCharValues(headTableIndex,columnIndex)))
+      if (codeType == -1) then
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: obs type =', trim(headCharValues(headTableIndex,columnIndex))
+        call utl_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found') 
+      end if
+      call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeType)
     end do
 
   end subroutine odbf_copyToObsSpaceHeadChar
