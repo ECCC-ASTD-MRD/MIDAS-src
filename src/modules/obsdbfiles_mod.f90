@@ -43,6 +43,7 @@ module obsdbFiles_mod
 
   integer, parameter :: lenSqlName    = 60
   integer, parameter :: sqlColIndex   = 1
+  integer, parameter :: sqlTabIndex   = 1
   integer, parameter :: obsColIndex   = 2
   integer, parameter :: varNoColIndex = 2
 
@@ -64,7 +65,7 @@ module obsdbFiles_mod
        'SOLARZENITHANGLE',    'SUN ', &
        'AZIMUTH',             'AZA ', &
        'SOLARAZIMUTH',        'SAZ ', &
-       'FIELDOFVIEW',         'FOV',  &
+       'FIELDOFVIEW',         'FOV ',  &
        'GEOLOCATIONQUALITY',  'AQF1', &
        'GRANULELEVELQUALITY', 'AQF2', &
        'SCANLEVELQUALITY',    'AQF3' /)
@@ -81,6 +82,14 @@ module obsdbFiles_mod
   integer, parameter :: numVarNo = 1
   character(len=lenSqlName) :: varNoList(2,numVarNo) = (/ &
        'BRIGHTNESSTEMPERATURE', '12163' /)
+
+  ! Table names for adding or updating the file
+  integer, parameter :: numUpdateTableNames = 4
+  character(len=lenSqlName) :: updateTableNames(2,numUpdateTableNames) = (/ &
+       'Obs_minus_background',  'OMP ', &
+       'Obs_minus_analysis',    'OMA ', &
+       'ObsErrorStdDev',        'OER ', &
+       'ObsFlags',              'FLG' /)
 
   ! Other constants
   logical, parameter :: setObsFlagZero = .true.
@@ -345,8 +354,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine odbf_updateFile(obsdat, fileName, familyType, fileIndex)
     !
-    ! :Purpose: Update the selected columns in an obsDB file using
-    !           values from obsSpaceData
+    ! :Purpose: Update the selected quantities in an obsDB file using
+    !           values from obsSpaceData. If table does not already
+    !           exist, it is created by copying the observation table.
     !
     implicit none
 
@@ -362,13 +372,13 @@ contains
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdd, obsIdo
     integer              :: obsIdf, obsStatus
-    integer              :: columnIndex, updateItemIndex, matchIndex
+    integer              :: columnIndex, updateItemIndex, matchIndex, tableIndex
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
     integer              :: updateValue_i, updateList(20), fnom, fclos, nulnam, ierr
     real(8)              :: updateValue_r, obsValue
     logical              :: headFlagPresent
     character(len=4)     :: obsSpaceColumnName
-    character(len=lenSqlName) :: sqlColumnName, headFlagSqlName
+    character(len=lenSqlName) :: sqlColumnName, headFlagSqlName, tableName
     character(len=3000)  :: query
     character(len=lenSqlName), allocatable :: headSqlNames(:)
     logical, save        :: nmlAlreadyRead = .false.
@@ -402,28 +412,18 @@ contains
       if ( mpi_myid == 0 ) write(*, nml=namObsDbUpdate)
       ierr = fclos(nulnam)
 
-      ! add the observation flag (OBS_FLG) to the list of items being updated
-      numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'FLG'
-
     end if
 
-    ! later, we need to know if the header-level flag (OBS_ST1) is in sql file
-    call odbf_getSqlColumnNames(headSqlNames, fileName=trim(fileName), &
-                                tableName=headTableName, dataType='numeric' )
-    headFlagPresent = .false.
-    do columnIndex = 1, size(headSqlNames)
-      matchIndex = utl_findloc(headMatchList(sqlColIndex,:), headSqlNames(columnIndex))
+    ! create table by copying observation table
+    do tableIndex = 1, numberUpdateItems
+      tableName = odbf_sqlTableFromObsSpaceName(updateItemList(tableIndex))
+      write(*,*) 'odbf_updateFile: name of table to be updated = ', trim(tableName)
 
-      ! if this column name is not in the match list, skip it
-      if (matchIndex == 0) cycle
+      ! copy bodyTable as template for new table
+      call odbf_copySqlTable(fileName, trim(bodyTableName), trim(tableName))
 
-      ! if this column corresponds with the header-level flag (OBS_ST1), save it
-      if (trim(headMatchList(obsColIndex,matchIndex)) == 'ST1') then
-        headFlagPresent = .true.
-        headFlagSqlName = trim(headSqlNames(columnIndex))
-      end if
     end do
+    return
     
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
@@ -1423,6 +1423,37 @@ contains
   end function odbf_sqlNameFromObsSpaceName
 
   !--------------------------------------------------------------------------
+  ! odbf_sqlNameFromObsSpaceName
+  !--------------------------------------------------------------------------
+  function odbf_sqlTableFromObsSpaceName(obsSpaceName) result(tableName)
+    !
+    ! :Purpose: Return the corresponding sql file table name for a
+    !           given obsSpaceData column name from the matching
+    !           tables.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*), intent(in) :: obsSpaceName
+    character(len=lenSqlName)    :: tableName
+
+    ! locals:
+    integer                   :: matchIndex
+
+    ! first try the body matching list
+    matchIndex = utl_findloc(updateTableNames(obsColIndex,:), trim(obsSpaceName))
+    if (matchIndex > 0) then
+      tableName = updateTableNames(sqlTabIndex,matchIndex)
+      return
+    end if
+
+    ! not found, abort
+    write(*,*) 'odbf_sqlTableFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
+    call utl_abort('odbf_sqlTableFromObsSpaceName: obsSpace name not found in updateTableNames')
+    
+  end function odbf_sqlTableFromObsSpaceName
+
+  !--------------------------------------------------------------------------
   ! odbf_varNoFromSqlName
   !--------------------------------------------------------------------------
   function odbf_varNoFromSqlName(sqlName) result(varNo)
@@ -1451,5 +1482,69 @@ contains
     call utl_abort('odbf_varNoFromSqlName: not found in varNo list')
     
   end function odbf_varNoFromSqlName
+
+  !--------------------------------------------------------------------------
+  ! odbf_copySqlTable
+  !--------------------------------------------------------------------------
+  subroutine odbf_copySqlTable(fileName, tableNameSource, tableNameNew)
+    !
+    ! :Purpose: Copy an existing sql table to a new table with a different name
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*),              intent(in)  :: fileName
+    character(len=*),              intent(in)  :: tableNameSource
+    character(len=*),              intent(in)  :: tableNameNew
+
+    ! locals:
+    integer :: numRows, numColumns, rowIndex, ierr
+    character(len=100), allocatable :: tableValues(:,:)
+    character(len=3000)      :: query
+    type(fSQL_STATUS)        :: stat ! sqlite error status
+    type(fSQL_DATABASE)      :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_getSqlColumnNames: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getSqlColumnNames: fSQL_open' )
+    end if
+
+    ! read the column names
+    query = 'select name, type from pragma_table_info("' // trim(tableNameSource) // '");'
+    call fSQL_prepare( db, trim(query) , stmt, stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_copySqlTable: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_copySqlTable: problem with fSQL_get_many')
+    end if
+    allocate( tableValues(numRows, numColumns) )
+    call fSQL_fill_matrix( stmt, tableValues )
+
+    ! create the new table
+    query = 'create table ' // trim(tableNameNew) // ' ('
+    do rowIndex = 1, numRows
+      query = trim(query) // trim(tableValues(rowIndex,1)) // ' ' // trim(tableValues(rowIndex,2))
+      if (rowIndex < numRows) query = trim(query) // ', '
+    end do
+    query = trim(query) // ');'
+    write(*,*) 'odbf_copySqlTable: query = ', trim(query)
+    call fSQL_do_many( db, query )
+
+    ! copy values from original to new table
+    query = 'insert into ' // trim(tableNameNew) // ' select * from ' // trim(tableNameSource) // ';'
+    write(*,*) 'odbf_copySqlTable: query = ', trim(query)
+    call fSQL_do_many( db, query )
+
+    ! clean up and close the obsDB file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+    deallocate( tableValues )
+
+  end subroutine odbf_copySqlTable
 
 end module obsdbFiles_mod
