@@ -56,11 +56,6 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="40mem_obsDB"/>
-      <FAMILY  name="40mem_obsDB">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
       <SUBMITS sub_name="2D_ppp"/>
       <FAMILY  name="2D_ppp">
         <SUBMITS sub_name="UnitTest"/>
@@ -148,6 +143,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckAtms_obsDB"/>
+    <FAMILY  name="BgckAtms_obsDB">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY> 
     <SUBMITS sub_name="BgckAmsua"/>
     <FAMILY  name="BgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
@@ -228,11 +228,6 @@
     </FAMILY>   
     <SUBMITS sub_name="o-p_diagsql"/>
     <FAMILY  name="o-p_diagsql">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY> 
-    <SUBMITS sub_name="o-p_obsDB"/>
-    <FAMILY  name="o-p_obsDB">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY> 

@@ -1,6 +1,13 @@
- &NAMOMF
-   ADDSIGMAO = .FALSE.
-   ADDHBHT   = .FALSE.
+ &NAMBGCK
+  instName = 'ATMS'
+  debug = .false.
+  RESETQC = .false.
+  clwQcThreshold = 0.6
+  useUnbiasedObsForClw =.true.
+  cloudyClwThresholdBcorr = 0.05,
+/
+ &namObsSelection
+  doThinning = .false.
 /
  &NAMobsDB
    obsDbActive = .true.
@@ -34,6 +41,8 @@
   NLISTFLG(6)=2,
   RLIMLVHU   = 70.D0
 /
+ &NAMRMAT
+/
  &NAMSTATE
    abortOnMpiImbalance = .false.
    addHeightSfcOffset = .false.
@@ -44,61 +53,20 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
-   NSENSORS         =  24,
-   CSATID(1)        = 'NOAA15',
-   CINSTRUMENTID(1) = 'AMSUA',
-   CSATID(2)        = 'NOAA16',
-   CINSTRUMENTID(2) = 'AMSUA',
-   CSATID(3)        = 'NOAA15',
-   CINSTRUMENTID(3) = 'AMSUB',
-   CSATID(4)        = 'NOAA16',
-   CINSTRUMENTID(4) = 'AMSUB',
-   CSATID(5)        = 'AQUA',
-   CINSTRUMENTID(5) = 'AMSUA',
-   CSATID(6)        = 'NOAA18',
-   CINSTRUMENTID(6) = 'AMSUA',
-   CSATID(7)        = 'NOAA18',
-   CINSTRUMENTID(7) = 'MHS',
-   CSATID(8)        = 'METOP-2',
-   CINSTRUMENTID(8) = 'AMSUA',
-   CSATID(9)        = 'METOP-1',
-   CINSTRUMENTID(9) = 'AMSUA',
-   CSATID(10)       = 'METOP-2',
-   CINSTRUMENTID(10)= 'MHS',
-   CSATID(11)       = 'METOP-1',
-   CINSTRUMENTID(11)= 'MHS',
-   CSATID(12)       = 'NOAA19',
-   CINSTRUMENTID(12)= 'AMSUA',
-   CSATID(13)       = 'NOAA19',
-   CINSTRUMENTID(13)= 'MHS',
-   CSATID(14)       = 'NPP',
-   CINSTRUMENTID(14)= 'ATMS',
-   CSATID(15)       = 'DMSP16',
-   CINSTRUMENTID(15)= 'SSMIS',
-   CSATID(16)       = 'DMSP17',
-   CINSTRUMENTID(16)= 'SSMIS',
-   CSATID(17)       = 'DMSP18',
-   CINSTRUMENTID(17)= 'SSMIS',
-   CSATID(18)       = 'GOES13',
-   CINSTRUMENTID(18)= 'GOESIMAGER',
-   CSATID(19)       = 'GOES15',
-   CINSTRUMENTID(19)= 'GOESIMAGER',
-   CSATID(20)       = 'MSG2',
-   CINSTRUMENTID(20)= 'SEVIRI',
-   CSATID(21)       = 'MSG3',
-   CINSTRUMENTID(21)= 'SEVIRI',
-   CSATID(22)       = 'METEOSAT7',
-   CINSTRUMENTID(22)= 'MVIRI',
-   CSATID(23)       = 'MTSAT2',
-   CINSTRUMENTID(23)= 'GMSMTSAT',
-   CSATID(24)       = 'HMWARI-8',
-   CINSTRUMENTID(24)= 'AHI',
-   CSATID(25)       = 'MTSAT1',
-   CINSTRUMENTID(25)= 'GMSMTSAT',
+   NSENSORS         =  2,
+   CSATID(1)        = 'NPP',
+   CINSTRUMENTID(1) = 'ATMS',
+   CSATID(2)        = 'NOAA20',
+   CINSTRUMENTID(2) = 'ATMS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
+   instrumentNamesUsingCLW(1) = 'atms'
+   mwInstrumUsingCLW_tl = .true.
+   cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
 /
  &NAMSAT
@@ -186,6 +154,18 @@
    LISTBURP(28)=173,! HMWARI-8
    LISTPLAT(28)="hmwari",
    LISTSAT(28)=008,
+   LISTBURP(29)=055,! METEOSAT 8
+   LISTPLAT(29)="msg",
+   LISTSAT(29)=001,
+   LISTBURP(30)=174,! HMWARI-9
+   LISTPLAT(30)="hmwari",
+   LISTSAT(30)=009,
+   LISTBURP(31)=270,! GOES 16
+   LISTPLAT(31)="goes",
+   LISTSAT(31)=016,
+   LISTBURP(32)=225,! NOAA 20
+   LISTPLAT(32)="noaa",
+   LISTSAT(32)=020,
 /
  &NAMINST
    LISTBURP(1)=050
@@ -250,6 +230,10 @@
    LISTINSTRUM(30)="airs",
    LISTBURP(31)=297,
    LISTINSTRUM(31)="ahi",
+   LISTBURP(32)=617,
+   LISTINSTRUM(32)="abi",
+   LISTBURP(33)=2046,
+   LISTINSTRUM(33)="crisfsr",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -273,11 +257,13 @@
    inst_names(7)='iasi',
    inst_names(8)='cris',
    inst_names(9)='radianceclear',
+   inst_names(10)='crisfsr',
 /
  &NAMHYPER
    name_inst(1)='airs',
    name_inst(2)='iasi',
    name_inst(3)='cris',
+   name_inst(4)='crisfsr',
 /
  &NAMGEO
    name_inst(1)='goesim',
@@ -285,11 +271,80 @@
    name_inst(3)='mviri',
    name_inst(4)='seviri',
    name_inst(5)='gmsim',
-   name_inst(6)='mtsatim',
+   name_inst(6)='abi',
+/
+ &NAMGEOBUFR
+   name_inst(1)='cgoes',
+   name_inst(2)='ahi',
+   name_inst(3)='mviri',
+   name_inst(4)='seviri',
+   name_inst(5)='gmsim',
+   name_inst(6)='abi',
 /
  &NAMCODTYP
 /
  &NAMGPSRO
 /
  &NAMGPSGB
+&NAMBIASSAT
+    biasActive=.TRUE.,
+    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
+    biasmode="apply",
+    removeBiasCorrection=.false.
+    refreshBiasCorrection=.false.
+    mimicsatbcor=.true.
+    scanBiasCorLength=-1.d0
+    centerPredictors=.false.,
+    weightedEstimate=.false.,
+    outstats=.false.,
+    outcoeffcov=.false.,
+    filterObs = .false.,
+    cinst(1)="AMSUA"
+    nbscan(1)=30
+    cglobal(1)="DEF"
+    cinst(2)="AMSUB"
+    nbscan(2)=90
+    cglobal(2)="DEF"
+    cinst(3)="MHS"
+    nbscan(3)=90
+    cglobal(3)="DEF"
+    cinst(4)="SSMIS"
+    nbscan(4)=60
+    cglobal(4)="NON"
+    cinst(5)="AIRS"
+    nbscan(5)=1
+    cglobal(5)="NON"
+    cinst(6)="IASI"
+    nbscan(6)=1
+    cglobal(6)="NON"
+    cinst(7)="METS7"
+    nbscan(7)=1
+    cglobal(7)="OUI"
+    cinst(8)="SEVIRI"
+    nbscan(8)=1
+    cglobal(8)="OUI"
+    cinst(9)="MTSAT"
+    nbscan(9)=1
+    cglobal(9)="OUI"
+    cinst(10)="CGOES"
+    nbscan(10)=1
+    cglobal(10)="OUI"
+    cinst(11)="ATMS"
+    nbscan(11)=96
+    cglobal(11)="DEF"
+    cinst(12)="CRIS"
+    nbscan(12)=1
+    cglobal(12)="NON"
+    cinst(13)="CRISFSR"
+    nbscan(13)=1
+    cglobal(13)="NON"
+    cinst(14)="AHI"
+    nbscan(14)=1
+    cglobal(14)="OUI"
+/
+/
+ &NAMOER
+  mwAllskyInflateByOmp = .true.,
+  mwAllskyInflateByClwDiff = .true.,
+  readOldSymmetricObsErrFile = .false.,
 /
