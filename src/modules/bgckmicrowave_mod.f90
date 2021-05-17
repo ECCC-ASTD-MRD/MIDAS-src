@@ -3336,7 +3336,7 @@ end subroutine bennartz
     integer                          :: ITEST(mwbg_maxNumTest) 
     integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO) 
-    logical, save                    :: LLFIRST
+    logical, save                    :: LLFIRST = .true.
     integer, save                    :: numReportWithMissigTb
     integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index             
     integer, save                    :: landcnt                         ! Number of obs pts found over land/ice 
@@ -3349,7 +3349,7 @@ end subroutine bennartz
     integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing 
     !                                                                     over water due bad data 
 
-    LLFIRST = .true.
+    !LLFIRST = .true.
     call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &

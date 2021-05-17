@@ -53,7 +53,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
-   ANLVAR(7)   ='LWCR'
+   !ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
    NSENSORS         =  2,
@@ -63,10 +63,10 @@
    CINSTRUMENTID(2) = 'ATMS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   mwAllskyAssim = .true.,
-   instrumentNamesUsingCLW(1) = 'atms'
-   mwInstrumUsingCLW_tl = .true.
-   cloudScaleFactor = 0.5D0
+   !mwAllskyAssim = .true.,
+   !instrumentNamesUsingCLW(1) = 'atms'
+   !mwInstrumUsingCLW_tl = .true.
+   !cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
 /
  &NAMSAT
@@ -344,7 +344,7 @@
 /
 /
  &NAMOER
-  mwAllskyInflateByOmp = .true.,
-  mwAllskyInflateByClwDiff = .true.,
+  mwAllskyInflateByOmp = .false.,
+  mwAllskyInflateByClwDiff = .false.,
   readOldSymmetricObsErrFile = .false.,
 /

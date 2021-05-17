@@ -50,7 +50,7 @@ module obsdbFiles_mod
   character(len=lenSqlName) :: bodyTableName = 'Observation'
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 10
+  integer, parameter :: numHeadMatch = 14
   character(len=lenSqlName) :: headKeySqlName  = 'ID_RAPPORT'
   character(len=lenSqlName) :: headDateSqlName = 'DATE_VALIDITE'
   character(len=lenSqlName) :: headMatchList(2,numHeadMatch) = (/ &
@@ -63,14 +63,19 @@ module obsdbFiles_mod
        'ZENITHANGLE',         'SZA ', &
        'SOLARZENITHANGLE',    'SUN ', &
        'AZIMUTH',             'AZA ', &
-       'SOLARAZIMUTH',        'SAZ ' /)
+       'SOLARAZIMUTH',        'SAZ ', &
+       'FIELDOFVIEW',         'FOV',  &
+       'GEOLOCATIONQUALITY',  'AQF1', &
+       'GRANULELEVELQUALITY', 'AQF2', &
+       'SCANLEVELQUALITY',    'AQF3' /)
 
   ! ...for the body table
-  integer, parameter :: numBodyMatch = 2
+  integer, parameter :: numBodyMatch = 3
   character(len=lenSqlName) :: bodyKeySqlName = 'ID_OBSERVATION'
   character(len=lenSqlName) :: bodyMatchList(2,numBodyMatch) = (/ &
-       'CHANNEL',       'PPP ', &
-       'BRIGHTNESSTEMPERATURE', 'VAR ' /)
+       'CHANNEL',               'PPP ', &
+       'BRIGHTNESSTEMPERATURE', 'VAR ', &
+       'CHANQUALITYFLAG',       'QCFL' /)
 
   ! Also need a dictionary of 'varno' value for each obsDB observation value column
   integer, parameter :: numVarNo = 1
@@ -1323,12 +1328,6 @@ contains
 
       call obs_headSet_r(obsdat, OBS_LON, headIndex, real(obsLon,pre_obsReal))
       call obs_headSet_r(obsdat, OBS_LAT, headIndex, real(obsLat,pre_obsReal))
-
-      ! Time
-
-      obsTime = obs_headElem_i( obsdat, OBS_ETM, headIndex )
-      obsTime = obsTime/100
-      call obs_headSet_i(obsdat, OBS_ETM, headIndex, obsTime)
 
       ! Set global and observation flags to zero if specified
 
