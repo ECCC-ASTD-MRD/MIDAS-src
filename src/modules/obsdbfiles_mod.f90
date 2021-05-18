@@ -370,17 +370,15 @@ contains
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer(8)           :: obsIdd, obsIdo
-    integer              :: obsIdf, obsStatus
-    integer              :: columnIndex, updateItemIndex, matchIndex, tableIndex
+    integer(8)           :: obsIdd
+    integer              :: obsIdf
+    integer              :: tableIndex
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
-    integer              :: updateValue_i, updateList(20), fnom, fclos, nulnam, ierr
+    integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     real(8)              :: updateValue_r, obsValue
-    logical              :: headFlagPresent
     character(len=4)     :: obsSpaceColumnName
-    character(len=lenSqlName) :: sqlColumnName, headFlagSqlName, tableName
+    character(len=lenSqlName) :: tableName, obsValueSqlName
     character(len=3000)  :: query
-    character(len=lenSqlName), allocatable :: headSqlNames(:)
     logical, save        :: nmlAlreadyRead = .false.
 
     ! namelist variables
@@ -414,17 +412,20 @@ contains
 
     end if
 
-    ! create table by copying observation table
+    ! create tables by copying observation table
     do tableIndex = 1, numberUpdateItems
       tableName = odbf_sqlTableFromObsSpaceName(updateItemList(tableIndex))
-      write(*,*) 'odbf_updateFile: name of table to be updated = ', trim(tableName)
+      write(*,*) 'odbf_updateFile: creating new sql table for update = ', trim(tableName)
 
       ! copy bodyTable as template for new table
       call odbf_copySqlTable(fileName, trim(bodyTableName), trim(tableName))
 
     end do
-    return
-    
+
+    ! determine which column(s) will be updated
+    obsValueSqlName = odbf_sqlNameFromObsSpaceName('VAR')
+    write(*,*) 'odbf_updateFile: column to be updated: ', trim(obsValueSqlName)
+
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -432,124 +433,81 @@ contains
       call utl_abort( 'odbf_updateFile: fSQL_open' )
     end if
 
-    ! Create the update sql query
-    query = 'update ' // trim(bodyTableName) // ' set'
-    do updateItemIndex = 1, numberUpdateItems
-      obsSpaceColumnName = updateItemList(updateItemIndex)
+    ! update the contents of the new tables
+    TABLE: do tableIndex = 1, numberUpdateItems
+
+      ! get obsSpaceData column index for source of updated sql column
+      obsSpaceColumnName = updateItemList(tableIndex)
       ierr = clib_toUpper(obsSpaceColumnName)
+      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
 
-      ! get obsSpaceData column index from the name
-      updateList(updateItemIndex) = obs_columnIndexFromName(trim(obsSpaceColumnName))
+      tableName = odbf_sqlTableFromObsSpaceName(updateItemList(tableIndex))
+      write(*,*) 'odbf_updateFile: updating columns in the table: ', trim(tableName)
+      write(*,*) 'odbf_updateFile: with contents of obsSpaceData column: ', &
+                 trim(obsSpaceColumnName)
 
-      ! get the sql column name from the obsSpaceData column index
-      matchIndex = utl_findloc(bodyMatchList(obsColIndex,:), obsSpaceColumnName)
-      if (matchIndex == 0) then
-        call utl_abort( 'odbf_updateFile: Invalid obsSpaceData column name ' // &
-                        'for file update: ' // trim(obsSpaceColumnName) )
-      end if
-      sqlColumnName = bodyMatchList(sqlColIndex,matchIndex)
+      ! create an index for the new table - necessary to speed up the update
+      query = 'create index idx_' // trim(tableName) // ' on ' // &
+              trim(tableName) // '(' // trim(bodyKeySqlName) // ');'
+      write(*,*) 'odbf_copySqlTable: query = ', trim(query)
+      call fSQL_do_many( db, query )
 
-      write(*,*) 'odbf_updateFile: Updating ', updateItemIndex, &
-                 ', obsSpace name = ', trim(obsSpaceColumnName), &
-                 ', sql column name = ', trim(sqlColumnName)
-      query = trim(query) // ' ' // trim(sqlColumnName) // ' = ?'
-      if (updateItemIndex < numberUpdateItems) then
-        query = trim(query) // ', '
-      end if
-    end do
+      call fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
 
-    query = trim(query)//' where ' // trim(bodyKeySqlName) // ' = ?  ;'
-    write(*,*) 'odbf_updateFile: query ---> ', trim(query)
-    call fSQL_prepare( db, query , stmt, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_updateFile: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_updateFile: fSQL_prepare' )
-    end if
-
-    call fSQL_begin(db)
-    HEADER: do headIndex = 1, obs_numHeader(obsdat)
- 
-      obsIdf = obs_headElem_i( obsdat,OBS_IDF, headIndex )
- 
-      if ( obsIdf /= fileIndex ) cycle HEADER
-      bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
-      bodyIndexEnd = bodyIndexBegin + &
-                     obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
-
-      BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-
-        obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
-        call fSQL_bind_param(stmt, PARAM_INDEX=numberUpdateItems+1, INT8_VAR=obsIdd)
-
-        ITEMS: do updateItemIndex = 1, numberUpdateItems
-
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue == obs_missingValue_R ) cycle BODY
-
-          if (obs_columnDataType(updateList(updateItemIndex)) == 'real') then
-
-            updateValue_r = obs_bodyElem_r(obsdat, updateList(updateItemIndex), bodyIndex)
-            if ( updateValue_r == obs_missingValue_R ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX=updateItemIndex)  ! sql null values
-            else
-              call fSQL_bind_param(stmt, PARAM_INDEX=updateItemIndex, REAL8_VAR=updateValue_r)
-            end if
-
-          else if (obs_columnDataType(updateList(updateItemIndex)) == 'integer') then
-
-            updateValue_i = obs_bodyElem_i(obsdat, updateList(updateItemIndex), bodyIndex)
-            if ( updateValue_i == nint(MPC_missingValue_R8) ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX=updateItemIndex)  ! sql null values
-            else
-              call fSQL_bind_param(stmt, PARAM_INDEX=updateItemIndex, INT_VAR=updateValue_i)
-            end if
-
-          else
-            call utl_abort('odbf_updateFile: unknown data type for obs header column')
-          end if
-
-        end do ITEMS
-
-        call fSQL_exec_stmt(stmt)
-
-      end do BODY
-
-    end do HEADER
-
-    call fSQL_finalize( stmt )
-
-    ! Update the header-level flag, if it is present in file
-
-    if ( headFlagPresent ) then
-
-      query = 'update ' // trim(headTableName) // ' set ' // &
-              trim(headFlagSqlName) // ' = ? where ' // &
-              trim(headKeySqlName) // ' = ? ;'
+      ! prepare sql update query
+      query = 'update ' // trim(tableName) // ' set'
+      query = trim(query) // ' ' // trim(obsValueSqlName) // ' = ?'
+      query = trim(query)//' where ' // trim(bodyKeySqlName) // ' = ?  ;'
       write(*,*) 'odbf_updateFile: query ---> ', trim(query)
-      call fSQL_prepare( db, query , stmt, status=stat )
+
+      call fSQL_prepare( db, query , stmt, stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'odbf_updateFile: fSQL_prepare: ', fSQL_errmsg(stat)
         call utl_abort( 'odbf_updateFile: fSQL_prepare' )
       end if
 
-      HEADER2: do headIndex = 1,obs_numHeader(obsdat)
+      call fSQL_begin(db)
+      HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
-        obsIdf = obs_headElem_i(obsdat, OBS_IDF, headIndex)
-        if ( obsIdf /= fileIndex ) cycle HEADER2
+        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if ( obsIdf /= fileIndex ) cycle HEADER
 
-        obsIdo    = obs_headPrimaryKey( obsdat, headIndex )
-        obsStatus = obs_headElem_i(obsdat, OBS_ST1, headIndex)
-        call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR = obsIdo )
-        call fSQL_exec_stmt ( stmt )
+        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+        bodyIndexEnd = bodyIndexBegin + &
+                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
 
-      end do HEADER2
-    
+        BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+
+          ! do not try to update if the observed value is missing
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          if ( obsValue == obs_missingValue_R ) cycle BODY
+
+          ! update the value, but set to null if it is missing
+          updateValue_r = obs_bodyElem_r(obsdat, obsSpaceColIndexSource, bodyIndex)
+          if ( updateValue_r == obs_missingValue_R ) then
+            call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
+          else
+            call fSQL_bind_param(stmt, PARAM_INDEX=1, REAL8_VAR=updateValue_r)
+          end if
+
+          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
+          call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
+
+          call fSQL_exec_stmt(stmt)
+
+        end do BODY
+
+      end do HEADER
+
       call fSQL_finalize( stmt )
+      call fSQL_commit( db )
 
-    end if
+      ! drop the index that we just created for the new table
+      query = 'drop index idx_' // trim(tableName) // ';'
+      write(*,*) 'odbf_copySqlTable: query = ', trim(query)
+      call fSQL_do_many( db, query )
 
-    call fSQL_commit( db )
+    end do TABLE
 
     ! close the obsDB file
     call fSQL_close( db, stat ) 
@@ -819,7 +777,7 @@ contains
     query = 'select mask_mer(lat,lon) from ' // trim(tableName) // ';'
     write(*,*) 'odbf_setSurfaceType: query ---> ', trim(query)
 
-    ! read the values from the file
+    ! read the values from the query result
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_INT, status=stat )
@@ -827,10 +785,11 @@ contains
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnValues )
 
+    ! set the values of STYP and TTYP
     do headTableIndex = 1, numRows
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_STYP, headIndex, columnValues(headTableIndex,1))
-      call obs_headSet_i(obsdat, OBS_TTYP, headIndex, -1)
+      call obs_headSet_i(obsdat, OBS_TTYP, headIndex, -1) ! Not sea ice
     end do
 
     ! close the obsDB file
@@ -918,11 +877,8 @@ contains
     character(len=*),     intent(in)  :: tableName
 
     ! locals:
-    integer :: numRows, numColumns, columnIndex, elemIdIndex
-    character(len=lenSqlName) :: elemIdSqlName
+    integer :: numRows, numColumns, columnIndex
     character(len=3000)       :: query
-    character(len=10)         :: elemIdStr
-    logical                   :: elemIdPresent
     type(fSQL_STATUS)         :: stat ! sqlite error status
     type(fSQL_DATABASE)       :: db   ! sqlite file handle
     type(fSQL_STATEMENT)      :: stmt ! precompiled sqlite statements
@@ -934,32 +890,14 @@ contains
       call utl_abort( 'odbf_getColumnValues_num: fSQL_open' )
     end if
 
-    ! figure out sql column name for element ID (OBS_VNM)
-    !elemIdSqlName = odbf_sqlNameFromObsSpaceName('VNM')
-
     ! build the sqlite query
-    elemIdPresent = .false.
     query = 'select'
     numColumns = size(sqlColumnNames)
     do columnIndex = 1, numColumns
-      !if (trim(sqlColumnNames(columnIndex)) == trim(elemIdSqlName)) elemIdPresent = .true.
       query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
     query = trim(query) // ' from ' // trim(tableName)
-    !if (elemIdPresent) then
-    !  write(*,*) 'odbf_getColumnValues_num: selection only these element ids:', &
-    !             elemIdList(1:numElemIdList)
-    !  query = trim(query) // ' where ' // trim(elemIdSqlName) // ' in ('
-    !  do elemIdIndex = 1, numElemIdList
-    !    write(elemIdStr,'(i6)') elemIdList(elemIdIndex)
-    !    query = trim(query) // elemIdStr
-    !    if (elemIdIndex < numElemIdList) then
-    !      query = trim(query) // ','
-    !    end if
-    !  end do
-    !  query = trim(query) // ')'
-    !end if
     query = trim(query) // ';'
     write(*,*) 'odbf_getColumnValues_num: query ---> ', trim(query)
 
@@ -1306,7 +1244,7 @@ contains
 
     ! locals:
     integer :: headIndex, bodyIndexStart, bodyIndexEnd, bodyIndex
-    integer :: obsTime, instrument, obsSat, codeType, sensor
+    integer :: instrument, obsSat, codeType, sensor
     real(8) :: obsLon, obsLat, surfEmiss
     character(len=2) :: obsFamily
 
@@ -1498,7 +1436,7 @@ contains
     character(len=*),              intent(in)  :: tableNameNew
 
     ! locals:
-    integer :: numRows, numColumns, rowIndex, ierr
+    integer :: numRows, numColumns, rowIndex
     character(len=100), allocatable :: tableValues(:,:)
     character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
@@ -1525,10 +1463,11 @@ contains
     call fSQL_fill_matrix( stmt, tableValues )
 
     ! create the new table
-    query = 'create table ' // trim(tableNameNew) // ' ('
+    query = 'create table ' // trim(tableNameNew) // ' (' // new_line('A')
     do rowIndex = 1, numRows
-      query = trim(query) // trim(tableValues(rowIndex,1)) // ' ' // trim(tableValues(rowIndex,2))
+      query = trim(query) // '  ' // trim(tableValues(rowIndex,1)) // ' ' // trim(tableValues(rowIndex,2))
       if (rowIndex < numRows) query = trim(query) // ', '
+      query = trim(query) // new_line('A')
     end do
     query = trim(query) // ');'
     write(*,*) 'odbf_copySqlTable: query = ', trim(query)

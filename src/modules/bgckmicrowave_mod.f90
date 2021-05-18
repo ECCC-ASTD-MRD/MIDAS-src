@@ -4362,7 +4362,7 @@ end subroutine bennartz
         icount =  icount + 1
       end if
     end do
-    if ( icount > 0 ) write(*,*) 'INFO: Num. pts with land/sea qualifier or terrain type changed (MG,LG) = ', icount
+    !if ( icount > 0 ) write(*,*) 'INFO: Num. pts with land/sea qualifier or terrain type changed (MG,LG) = ', icount
 
     ! 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 
