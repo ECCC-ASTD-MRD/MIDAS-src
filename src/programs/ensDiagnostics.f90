@@ -37,8 +37,7 @@ program midas_ensDiagnostics
   integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
   integer, external :: fnom, fclos, fstecr, fstopc, fstouv, fstfrm
   integer :: iEns,nEns ! ensemble size
-  real*4, dimension(:,:), allocatable :: weight_4,work
-  real*8, dimension(:,:), allocatable :: weight,testfunction
+  real*8, dimension(:,:), allocatable :: weight
   real*8, dimension(:), allocatable  :: MeanValMem, RainRate, Imbalance
   real*8, dimension(:,:,:,:), allocatable :: dp0dt2
   real*8  :: MeanVal, MeanValPrev
@@ -90,102 +89,40 @@ program midas_ensDiagnostics
   ! grid descriptor.
   write(*,*) 'ni, nj: ',hco_ens%ni, hco_ens%nj
   allocate(weight(hco_ens%ni,hco_ens%nj))
-  allocate(weight_4(hco_ens%ni,hco_ens%nj))
-  allocate(testfunction(hco_ens%ni,hco_ens%nj))
-  allocate(work(hco_ens%ni, hco_ens%nj))
   call hco_weight(hco_ens, weight)
 
-  debug=.false.
-  if (debug) then
-    write(*,*) 'PLH weights at 400, 130: ',weight(400,130) 
-    ! PLH Some code to test the weights below: 
-    j=130
-    do i=1,hco_ens%ni,10
-      write(*,*) 'weights, lon, lat: ',i,weight(i,130),hco_ens%lon2d_4(i,j),hco_ens%lat2d_4(i,j)
-    enddo
-    do j=1,hco_ens%nj
-      do i=1,hco_ens%ni
-!      testfunction(i,j)=1.0
-        testfunction(i,j)=2.0*(cos(hco_ens%lon2d_4(i,j))**2)
-      enddo
-    enddo
-    area=0.0
-      
-    do j=1,hco_ens%nj
-      do i=1,hco_ens%ni
-        area = area + testfunction(i,j)*weight(i,j)
-      enddo
-    enddo
-    write(*,*) 'integral should be one for cos(phi) square: ',area
-
-    if (mpi_myid == 0) then
-      outtest = 16
-      write(*,*) 'call fnom'
-      ier = fnom(outtest, 'weight.fst', 'STD+RND',0)
-      write(*,*) 'call fstouv'
-      ier = fstouv(outtest, 'RND')
-      nomvar = 'P0'
-      typvar = 'I'
-      etiket = 'weight_YY'
-      ione=1
-      npak=-16
-      dateo= 10199000
-      deet= 900
-      npas=0
-      datyp=134
-      ip1=0
-      ip2=0
-      ip3=0
-      write(*,*) 'call fstecr'
-    ! PLH FOR TESTING ONLY
-      weight_4 = weight * 1.0E6
-      ier = fstecr(weight, work, npak, outtest, dateo, &
-          deet, npas, hco_ens%ni, hco_ens%nj, ione, &
-          ip1, ip2, ip3, typvar, nomvar, etiket, hco_ens%grtyp, &
-          hco_ens%ig1, hco_ens%ig2, hco_ens%ig3, hco_ens%ig4, datyp, .true.)
-      write(*,*) 'call fstfrm'
-      ier = fstfrm(outtest)
-      ier = fclos(outtest)
-    endif
-  endif 
-  ! PLH some code to test the weight above
   call vco_setupFromFile(vco_ens, ensFileName)
   ! PLH: not sure what agd_Setup does and if this is needed
   call agd_SetupFromHCO(hco_ens)
   ! Allocate ensembles, read the Trl ensemble
   allocate(ensembleTrl)
-  ! PLH: need to make sure no interpolation will be done
   call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                     dateStampList)
-  write(*,*) 'proper exit from ens_allocate'
   call ens_readEnsemble(ensembleTrl, ensPathName, biPeriodic=.false.)
   num = ens_getNumMembers(ensembleTrl)
-  write(*,*) 'number of members that is stored: ',num
   numStep = ens_getNumStep(ensembleTrl)
-  write(*,*) 'number of time steps that is stored: ',numStep
   allocate(RainRate(numStep))
   allocate(Imbalance(numStep))
   numK = ens_getNumK(ensembleTrl)
-  write(*,*) 'number of variables: ',numK
-  write(*,*) 'precision: ',ens_getDataKind(ensembleTrl)
-  ! PLH storage is (variable)(memberindex, timeindex, lonindex, latindex)
-  idum = 1
-  write(*,*) 'k for P0: ',ens_getKFromLevVarName(ensembleTrl,idum,'P0')
-  write(*,*) 'k for PR: ',ens_getKFromLevVarName(ensembleTrl,idum,'PR')
   call ens_getLatLonBounds(ensembleTrl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-  write(*,*) 'longitude bounds: ',myLonBeg, myLonEnd
-  write(*,*) 'latitude bounds: ',myLatBeg, myLatEnd
+  if (mpi_myid == 0) then
+    write(*,*) 'number of members that is stored: ',num
+    write(*,*) 'number of time steps that is stored: ',numStep
+    write(*,*) 'number of variables: ',numK
+    write(*,*) 'precision: ',ens_getDataKind(ensembleTrl)
+    idum = 1
+    write(*,*) 'k for P0: ',ens_getKFromLevVarName(ensembleTrl,idum,'P0')
+    write(*,*) 'k for PR: ',ens_getKFromLevVarName(ensembleTrl,idum,'PR')
+    write(*,*) 'longitude bounds: ',myLonBeg, myLonEnd
+    write(*,*) 'latitude bounds: ',myLatBeg, myLatEnd
+  endif
   allocate(dp0dt2(nEns,numStep,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
   onevar => ens_getOneLev_r4(ensembleTrl,1)
-  write(*,*) 'pressure all time levels one member: '
-  do i=1,numStep
-    write(*,*) 'step and pressure: ',i,onevar(1,i,myLonBeg,myLatBeg)
-  enddo
   allocate(MeanValMem(nEns))
   do j=myLatBeg,myLatEnd
     do i=myLonBeg,myLonEnd
       do istep=2,numStep-1
-        do iEns=1,nEns !  estimate the second time difference
+        do iEns=1,nEns !  estimate the second time derivative (not normalized by timestep)
           dp0dt2(iEns,istep,i,j) = onevar(iEns,istep+1,i,j) + &
                   onevar(iEns,istep-1,i,j) - 2.0D0*onevar(iEns,istep,i,j)
         enddo
@@ -215,7 +152,6 @@ program midas_ensDiagnostics
     imbalance(istep)=MeanVal
   enddo
   if (mpi_myid == 0) then
-    write(*,*) 'write to file imbalance.dat'      
     ierr = fnom(17,'imbalance.dat','FTN+SQN+R/W',0)
     do istep=2,numStep-1
       write(17,'(I4,x,E12.5)') istep,imbalance(istep)
@@ -256,14 +192,12 @@ program midas_ensDiagnostics
   enddo
   deallocate(MeanValMem)
   if (mpi_myid == 0) then
-    write(*,*) 'write to file rainrate.dat'      
     ierr = fnom(17,'rainrate.dat','FTN+SQN+R/W',0)
     do istep=2,numStep
       write(17,'(I4,x,E12.5)') istep,RainRate(istep)
     enddo
     ierr= fclos(17)
   endif    
-  write(*,*) 'expecting issues with filenames prior to this'  
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      
