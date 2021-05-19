@@ -35,7 +35,7 @@ program midas_ensDiagnostics
   integer, allocatable :: dateStampList(:)
   integer :: i,idum, istep, j,ni,ierr, nulnam, num, numK, numStep
   integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
-  integer, external :: fnom, fclos, fstecr, fstopc, fstouv, fstfrm
+  integer, external :: fnom, fclos, fstopc
   integer :: iEns,nEns ! ensemble size
   real*8, dimension(:,:), allocatable :: weight
   real*8, dimension(:), allocatable  :: MeanValMem, RainRate, Imbalance
@@ -43,12 +43,6 @@ program midas_ensDiagnostics
   real*8  :: MeanVal, MeanValPrev
   logical :: debug
   character(len=12) :: prefix ! first part of input filenames. e.g. '2019061300'
-
-  character(len=4) :: nomvar
-  character(len=1) :: typvar
-  character(len=12) :: etiket
-  integer :: ier, datyp, dateo, deet, npak, npas, ione, ip1, ip2, ip3, outtest
-  real*8  :: area
   real(4), pointer :: onevar(:,:,:,:)
 
   NAMELIST /namEnsDiagnostics/nEns,prefix
