@@ -42,8 +42,6 @@ module var1D_mod
   public :: var1D_bsetup
   public :: var1D_transferColumnToYGrid, var1D_get1DVarIncrement
   public :: var1D_sqrtB, var1D_sqrtBT
-  ! public variables
-  public :: var1D_validHeaderCount, var1D_obsPointer, var1D_varCount, var1D_varList
 
   type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
@@ -368,11 +366,10 @@ contains
     type(struct_columnData), intent(inout) :: column
     ! Locals:
     integer :: columnIndex, varIndex, searchIndex, globalObsIndex
-    integer :: startIndex
     integer, allocatable :: targetIndex(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
     integer :: nObs1DVarTotal,  nObs1DVarMax, ierr
-    real(8), allocatable :: primaryKeys(:), primaryKeysMpiGlobal(:)
+    real(8), allocatable :: uniqueObsKeys(:), uniqueObsKeysMpiGlobal(:)
     integer, allocatable :: obsPointerMpiGlobal(:)
     real(8) :: lat, lon, latMpiGlobal, lonMpiGlobal
     real(8), allocatable, target :: dummy(:)
@@ -383,55 +380,32 @@ contains
     call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarTotal, 1, "mpi_integer", "mpi_sum", "GRID", ierr)
     call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarMax, 1, "mpi_integer", "mpi_max", "GRID", ierr)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate( primaryKeysMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
+    allocate( uniqueObsKeysMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     allocate( obsPointerMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate(primaryKeys(nobs1DVarMax), stat=ierr )
+    allocate(uniqueObsKeys(nobs1DVarMax), stat=ierr )
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    primaryKeys(:) = MPC_missingValue_R4
+    uniqueObsKeys(:) = huge(uniqueObsKeys(1))
     do columnIndex = 1, var1D_validHeaderCount
-      primaryKeys(columnIndex) = obs_headElem_r(obsSpaceData, OBS_LAT, var1D_obsPointer(columnIndex) ) + &
+      uniqueObsKeys(columnIndex) = obs_headElem_r(obsSpaceData, OBS_LAT, var1D_obsPointer(columnIndex) ) + &
            obs_headElem_r(obsSpaceData, OBS_LON, var1D_obsPointer(columnIndex) ) * MPC_PI_R8
     end do
-    call rpn_comm_allgather(primaryKeys, nobs1DVarMax, 'mpi_real8',  &
-         primaryKeysMpiGlobal, nobs1DVarMax, 'mpi_real8', 'grid', ierr)
-    call ipsort8(obsPointerMpiGlobal, primaryKeysMpiGlobal, mpi_nprocs*nobs1DVarMax)
-    do globalObsIndex = 1, mpi_nprocs * nobs1DvarMax 
-      if ( primaryKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex) ) /= MPC_missingValue_R4) then
-        startIndex = globalObsIndex
-        exit
-      end if
-    end do
-    write(*,*) "startindex", startIndex
-    allocate(hco_yGrid)
-    if (mpi_myId == 0 ) then
-      hco_yGrid%initialized = .true.
-      hco_yGrid%ni = 1
-      hco_yGrid%nj = nObs1DVarTotal
-      hco_yGrid%grtyp = 'Y'
-      hco_yGrid%grtypTicTac = 'L'
-      if (allocated(hco_yGrid%lat2d_4) ) then
-        deallocate(hco_yGrid%lat2d_4)
-        deallocate(hco_yGrid%lon2d_4) 
-      end if
-      allocate(hco_yGrid%lat2d_4(1, nObs1DvarTotal))
-      allocate(hco_yGrid%lon2d_4(1, nObs1DVarTotal)) 
-      hco_yGrid%xlat1 = 0.d0
-      hco_yGrid%xlon1 = 0.d0
-      hco_yGrid%xlat2 = 1.d0 
-      hco_yGrid%xlon2 = 1.d0
-      numStep = 1
-      call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_yGrid, vco_ptr=column%vco, &
+    call rpn_comm_allgather(uniqueObsKeys, nobs1DVarMax, 'mpi_real8',  &
+         uniqueObsKeysMpiGlobal, nobs1DVarMax, 'mpi_real8', 'grid', ierr)
+    call ipsort8(obsPointerMpiGlobal, uniqueObsKeysMpiGlobal, mpi_nprocs*nobs1DVarMax)
+    call hco_setupYgrid(hco_Ygrid, 1, nObs1DVarTotal)
+    if (mpi_myId ==0) then
+      call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=column%vco, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
     end if
-    allocate( targetIndex(size(primaryKeysMpiGlobal)) )
+    allocate( targetIndex(size(uniqueObsKeysMpiGlobal)) )
     targetIndex(:) = -1
-    do globalObsIndex = startIndex, size(primaryKeysMpiGlobal)
+    do globalObsIndex = 1, nobs1DVarTotal
       search:do searchIndex = 1, var1D_validHeaderCount
-        if (primaryKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex)) == primaryKeys(searchIndex) ) then
+        if (uniqueObsKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex)) == uniqueObsKeys(searchIndex) ) then
           targetIndex(globalObsIndex) = searchIndex
           exit search
         end if
@@ -445,8 +419,8 @@ contains
       call rpn_comm_allreduce(lat, latMpiGLobal, 1, "mpi_real8", "mpi_min", "GRID", ierr)
       call rpn_comm_allreduce(lon, lonMpiGlobal, 1, "mpi_real8", "mpi_min", "GRID", ierr)
       if (mpi_myId == 0 ) then
-        hco_yGrid%lat2d_4(1, globalObsIndex-startIndex+1) = latMpiGLobal
-        hco_yGrid%lon2d_4(1, globalObsIndex-startIndex+1) = lonMpiGlobal
+        hco_yGrid%lat2d_4(1, globalObsIndex) = latMpiGLobal
+        hco_yGrid%lon2d_4(1, globalObsIndex) = lonMpiGlobal
       end if
     end do
     do varIndex = 1, var1D_varCount      
@@ -458,7 +432,7 @@ contains
       allocate(dummy(varDim))
       allocate(myColumnMpiGLobal(varDim))
       dummy(:) = huge( dummy(1) )
-      do globalObsIndex = startIndex, size(primaryKeysMpiGlobal)
+      do globalObsIndex = 1, nobs1DVarTotal
         if (targetIndex(globalObsIndex) >0 ) then
           myColumn => col_getColumn(column, targetIndex(globalObsIndex), varName_opt=var1D_varList(varIndex)) 
         else
@@ -466,15 +440,15 @@ contains
         end if
         call rpn_comm_allreduce(myColumn, myColumnMpiGLobal, varDim, "mpi_real8", "mpi_min", "GRID", ierr)
         if (mpi_myId == 0 ) then
-          myField(1, globalObsIndex-startIndex+1, :) = myColumnMpiGLobal(:)
+          myField(1, globalObsIndex, :) = myColumnMpiGLobal(:)
         end if
       end do
       deallocate(dummy)
       deallocate(myColumnMpiGLobal)
     end do
-    deallocate(primaryKeysMpiGlobal)
+    deallocate(uniqueObsKeysMpiGlobal)
     deallocate(targetIndex)
-    deallocate(primaryKeys)
+    deallocate(uniqueObsKeys)
     deallocate( obsPointerMpiGlobal )
   end subroutine var1D_transferColumnToYGrid
 
@@ -530,7 +504,7 @@ contains
         write(*,*) "cvdim= ", cvdim
         cvdimPerInstance(1) = cvdim
       case default
-        call utl_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
+        call utl_abort( 'var1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
       end select
       !- 1.2 Append the info to the B matrix info arrays and setup the proper control sub-vectors
       do bMatInstanceIndex = 1, nBmatInstance
@@ -605,6 +579,8 @@ contains
                             column,      &  ! OUT
                             obsspacedata )  ! IN
         call tmg_stop(50)
+      case default
+        call utl_abort( 'var1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
 
@@ -639,6 +615,8 @@ contains
                               column,    &  ! OUT
                               obsData )     ! IN
         call tmg_stop(51)
+      case default
+        call utl_abort( 'var1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
 

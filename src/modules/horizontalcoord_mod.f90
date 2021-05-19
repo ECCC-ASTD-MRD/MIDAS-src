@@ -35,7 +35,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast, hco_weight
+  public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast, hco_weight, hco_setupYgrid
 
   integer, parameter :: maxNumSubGrid = 2
 
@@ -708,6 +708,9 @@ module HorizontalCoord_mod
 
   end function hco_equal
 
+!--------------------------------------------------------------------------
+! hco_deallocate
+!--------------------------------------------------------------------------
   subroutine hco_deallocate( hco )
     implicit none
     type(struct_hco), pointer :: hco
@@ -723,6 +726,9 @@ module HorizontalCoord_mod
 
   end subroutine hco_deallocate
 
+!--------------------------------------------------------------------------
+! grid_mask
+!--------------------------------------------------------------------------
   subroutine grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
     !
     ! :Purpose: 1) Find out where YIN lat lon points are in (YAN) grid with call to smat.
@@ -811,6 +817,9 @@ module HorizontalCoord_mod
 
   end subroutine grid_mask
 
+!--------------------------------------------------------------------------
+! inter_curve_boundary_yy
+!--------------------------------------------------------------------------
   subroutine inter_curve_boundary_yy (x,y,xi,yi,np)
     ! 
     ! :Purpose: compute the intersections between a line and the panel
@@ -851,10 +860,10 @@ module HorizontalCoord_mod
     if ( x > 0.d0 ) xc = - x
     if ( y > 0.d0 ) yc = - y
 
-    If ( abs(xc) < tol ) then
+    if ( abs(xc) < tol ) then
       xi = xc
       yi = ymin
-    Else
+    else
 
       s1 = yc / xc
       s2 = ymin/(xb-xmin)
@@ -867,7 +876,7 @@ module HorizontalCoord_mod
         test = -1.d0
         dxs  = -xb/(np-1)
         i = 1
-        Do while (test < 0.d0 )
+        do while (test < 0.d0 )
           xp1 = (i-1)*dxs + xb
           xp2 =   (i)*dxs + xb
           xr1 = atan2(sin(ymin),-cos(ymin)*cos(xp1))
@@ -879,15 +888,18 @@ module HorizontalCoord_mod
           yi = s1*xi
           test=(xi-xr1)*(xr2-xi)
           i = i+1
-        End do
+        end do
       end if
-    Endif
+    end if
 
     if ( x > 0.d0 ) xi = - xi
     if ( y > 0.d0 ) yi = - yi
 
   end subroutine inter_curve_boundary_yy
 
+!--------------------------------------------------------------------------
+! hco_weight
+!--------------------------------------------------------------------------
   subroutine hco_weight(hco, weight)
     ! 
     ! :Purpose: given the horizontal grid definition of the grid,
@@ -984,6 +996,9 @@ module HorizontalCoord_mod
 
   end subroutine hco_weight
 
+!--------------------------------------------------------------------------
+! yyg_weight
+!--------------------------------------------------------------------------
   real(8) function yyg_weight (x,y,dx,dy,np)
     Implicit none
 
@@ -1040,5 +1055,34 @@ module HorizontalCoord_mod
     end if
 
   end function yyg_weight
+
+!--------------------------------------------------------------------------
+! hco_setupYgrid
+!--------------------------------------------------------------------------
+  subroutine hco_setupYgrid( hco, ni, nj)
+    implicit none
+    type(struct_hco), pointer :: hco
+    integer, intent(in)       :: ni, nj
+
+    allocate(hco)
+    if (mpi_myId == 0 ) then
+      hco%initialized = .true.
+      hco%ni = ni !1
+      hco%nj = nj !nObs1DVarTotal
+      hco%grtyp = 'Y'
+      hco%grtypTicTac = 'L'
+      if (allocated(hco%lat2d_4) ) then
+        deallocate(hco%lat2d_4)
+        deallocate(hco%lon2d_4) 
+      end if
+      allocate(hco%lat2d_4(ni, nj))
+      allocate(hco%lon2d_4(ni, nj)) 
+      hco%xlat1 = 0.d0
+      hco%xlon1 = 0.d0
+      hco%xlat2 = 1.d0 
+      hco%xlon2 = 1.d0
+    end if
+
+  end subroutine hco_setupYgrid
 
 end module HorizontalCoord_mod
