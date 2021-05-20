@@ -33,17 +33,18 @@ program midas_ensDiagnostics
   character(len=256) :: ensPathName,ensFileName
   character(len=4) :: charmem
   integer, allocatable :: dateStampList(:)
-  integer :: i,idum, istep, j,ni,ierr, nulnam, num, numK, numStep
+  integer :: i,idum, iEns, istep, j,ni,ierr, nulnam, num, numK, numStep
   integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
   integer, external :: fnom, fclos, fstopc
-  integer :: iEns,nEns ! ensemble size
   real*8, dimension(:,:), allocatable :: weight
   real*8, dimension(:), allocatable  :: MeanValMem, RainRate, Imbalance
   real*8, dimension(:,:,:,:), allocatable :: dp0dt2
   real*8  :: MeanVal, MeanValPrev
-  logical :: debug
-  character(len=12) :: prefix ! first part of input filenames. e.g. '2019061300'
   real(4), pointer :: onevar(:,:,:,:)
+  logical :: debug
+  ! namelist variables
+  integer :: nEns ! ensemble size
+  character(len=12) :: prefix ! first part of input filenames. e.g. '2019061300'
 
   NAMELIST /namEnsDiagnostics/nEns,prefix
 
@@ -60,7 +61,7 @@ program midas_ensDiagnostics
   if (mpi_myid == 0) then
     write(*,nml=namEnsDiagnostics)      
     write(*,*) 'ensemble size: ',nEns
-  endif
+  end if
   iEns=1
   write(charmem,'(I4.4)') iEns
   ensPathName = '../input/inputs/'
@@ -109,7 +110,7 @@ program midas_ensDiagnostics
     write(*,*) 'k for PR: ',ens_getKFromLevVarName(ensembleTrl,idum,'PR')
     write(*,*) 'longitude bounds: ',myLonBeg, myLonEnd
     write(*,*) 'latitude bounds: ',myLatBeg, myLatEnd
-  endif
+  end if
   allocate(dp0dt2(nEns,numStep,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
   onevar => ens_getOneLev_r4(ensembleTrl,1)
   allocate(MeanValMem(nEns))
@@ -119,10 +120,10 @@ program midas_ensDiagnostics
         do iEns=1,nEns !  estimate the second time derivative (not normalized by timestep)
           dp0dt2(iEns,istep,i,j) = onevar(iEns,istep+1,i,j) + &
                   onevar(iEns,istep-1,i,j) - 2.0D0*onevar(iEns,istep,i,j)
-        enddo
-      enddo  
-    enddo
-  enddo
+        end do
+      end do  
+    end do
+  end do
 
   Imbalance=0.0D0
   do istep=2,numStep-1
@@ -131,27 +132,27 @@ program midas_ensDiagnostics
       do i=myLonBeg,myLonEnd
         do iEns=1,nEns ! the mean square value is of interest
           MeanValMem(iens) = MeanValMem(iEns) + (dp0dt2(iEns,istep,i,j)**2)*weight(i,j)
-        enddo
-      enddo
-    enddo
+        end do
+      end do
+    end do
     do iEns=1,nEns ! for each member average over the horizontal grid
       call mpi_allreduce_sumreal8scalar(MeanValMem(iEns),'GRID')
-    enddo
+    end do
     MeanVal=0.0D0
     do iEns=1,nEns ! for each member, we move to the rms 
       MeanVal=MeanVal+MeanValMem(iEns)**0.5
-    enddo
+    end do
     MeanVal=MeanVal/dble(nEns)
     write(*,*) 'second derivative of P0: ',istep,MeanVal
     imbalance(istep)=MeanVal
-  enddo
+  end do
   if (mpi_myid == 0) then
     ierr = fnom(17,'imbalance.dat','FTN+SQN+R/W',0)
     do istep=2,numStep-1
       write(17,'(I4,x,E12.5)') istep,imbalance(istep)
-    enddo
+    end do
     ierr = fclos(17)
-  endif    
+  end if    
   onevar => ens_getOneLev_r4(ensembleTrl,2)
   RainRate = 0.0D0
   do istep=1,numStep
@@ -160,16 +161,16 @@ program midas_ensDiagnostics
       do i=myLonBeg,myLonEnd
         do iEns=1,nEns
           MeanValMem(iens) = MeanValMem(iEns) + onevar(iEns,istep,i,j)*weight(i,j)
-        enddo  
-      enddo
-    enddo
+        end do  
+      end do
+    end do
     do iEns=1,nEns ! for each member average over the horizontal grid
       call mpi_allreduce_sumreal8scalar(MeanValMem(iEns),'GRID')
-    enddo
+    end do
     MeanVal=0.0D0
     do iEns=1,nEns
       MeanVal=MeanVal+MeanValMem(iEns)
-    enddo
+    end do
     MeanVal=MeanVal/dble(nEns)
     if (istep > 1) then
       if (istep == 2) then ! at time zero accumulated precip was zero
@@ -179,11 +180,11 @@ program midas_ensDiagnostics
         RainRate(istep) = MeanVal
       else      
         RainRate(istep) = MeanVal - MeanValPrev
-      endif      
+      end if      
       write(*,*) 'step and rain rate: ',istep,RainRate(istep)
-    endif
+    end if
     MeanValPrev = MeanVal
-  enddo
+  end do
   deallocate(MeanValMem)
   if (mpi_myid == 0) then
     ierr = fnom(17,'rainrate.dat','FTN+SQN+R/W',0)
@@ -191,7 +192,7 @@ program midas_ensDiagnostics
       write(17,'(I4,x,E12.5)') istep,RainRate(istep)
     enddo
     ierr= fclos(17)
-  endif    
+  end if    
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      
