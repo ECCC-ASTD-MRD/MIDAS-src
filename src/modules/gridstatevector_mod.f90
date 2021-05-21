@@ -1247,17 +1247,22 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! GSV_interpolate
   !--------------------------------------------------------------------------
-  subroutine gsv_interpolate(statevector_in,statevector_out, &
-                             PsfcReference_opt, PsfcReference_r4_opt)
+  subroutine gsv_interpolate(statevector_in,statevector_out,          &
+                             PsfcReference_opt, PsfcReference_r4_opt, &
+                             checkModelTop_opt)
     implicit none
     type(struct_gsv)  :: statevector_in,statevector_out
 
     real(8), optional :: PsfcReference_opt(:,:,:)
     real(4), optional :: PsfcReference_r4_opt(:,:,:)
-
+    
+    logical, optional :: checkModelTop_opt
+    
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
 
+    logical :: checkModelTop
+    
     character(len=4), pointer :: varNamesToInterpolate(:)
 
     !
@@ -1315,10 +1320,20 @@ module gridStateVector_mod
     call gsv_deallocate(statevector_in_varsLevs_hInterp)
 
     !- Vertical interpolation
+    
+    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
+    if ( present(checkModelTop_opt) ) then
+      checkModelTop = checkModelTop_opt
+    else
+      checkModelTop = .true.
+    end if
+    
     if (statevector_in_VarsLevs%dataKind == 4) then
-      call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt)
+      call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
+                               checkModelTop_opt=checkModelTop)
     else 
-      call gsv_vInterpolate(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt)
+      call gsv_vInterpolate(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
+                            checkModelTop_opt=checkModelTop)
     end if
 
     call gsv_deallocate(statevector_in_hInterp)

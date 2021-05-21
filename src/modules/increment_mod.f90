@@ -176,7 +176,7 @@ CONTAINS
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                           allocHeight_opt=.false., allocPressure_opt=.false.)
-        call gsv_interpolate(stateVectorTrial_opt, statevector_trial)        
+        call gsv_interpolate(stateVectorTrial_opt, statevector_trial, checkModelTop_opt=.false.)        
         vco_trl => gsv_getVco(statevector_trial)
       else
         write(*,*) 'inc_computeAndWriteAnalysis: use the supplied trials directly'
