@@ -50,6 +50,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.6.5]
+
+### Fixed
+
+ * Small changes in increment_mod and gridstatevector_mod to fix an abort problem in the var program for UMOS (2D mode). (#495 and !465)
+ * Using `eccc/cmd/cmda/libs/19.6.0-2` (#477 and !461)
+   * This is fixing an allocation problem in the `burp_module` library.
+   * Adapt the [`tools/splitobs/unittest`](tools/splitobs/unittest) for
+     this library (#489 and !462)
+
 ## [3.6.4]
 
 ### Added
@@ -721,7 +731,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...HEAD
+[3.6.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.4...v_3.6.5
 [3.6.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.4
 [3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.2...v_3.6.3
 [3.6.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.1...v_3.6.2

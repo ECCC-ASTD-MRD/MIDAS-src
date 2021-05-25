@@ -34,7 +34,7 @@ splitobs: version.h $(SRC)
 	s.compile -o $(PROGRAM)_$(ORDENV_PLAT) -src $(SRC) -librmn rmn -libappl sqlite3 burp_c $(DEBUG_OPTIONS) -O $(OPT_LEVEL); rm version.h
 
 splitobs_libs_19: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/19.6.0; . r.load.dot eccc/cmd/cmda/libs/19.6.0/${COMP_ARCH}; make splitobs
+	. r.load.dot eccc/mrd/rpn/libs/19.6.0; . r.load.dot eccc/cmd/cmda/libs/19.6.0-2/${COMP_ARCH}; make splitobs
 
 version.h:
 	echo "#define  VERSION   \"$(VERSION)\"" > version.h; echo "#define  VERSION_SHA1   \"$(VERSION_SHA1)\"" >> version.h

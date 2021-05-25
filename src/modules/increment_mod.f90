@@ -116,7 +116,6 @@ CONTAINS
     type(struct_gsv) :: statevector_mask
 
     type(struct_vco), pointer :: vco_trl => null()
-    type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
     integer              :: stepIndex, numStep
@@ -141,9 +140,6 @@ CONTAINS
     numStep = tim_nstepobsinc
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
-    !- Do we need to read all the vertical levels from the trial fields?
-    vco_inc => statevectorIncLowRes%vco
 
     !- Use stateVectorTrial
     hco_trl => gsv_getHco(stateVectorTrial)
@@ -316,7 +312,6 @@ CONTAINS
     type(struct_gsv) :: statevector_1step_r4, statevectorPsfc_1step_r4
 
     type(struct_vco), pointer :: vco_trl => null()
-    type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
@@ -339,9 +334,6 @@ CONTAINS
     numStep = tim_nstepobsinc
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
-    !- Do we need to read all the vertical levels from the trial fields?
-    vco_inc => statevectorIncLowRes%vco
 
     hco_trl => gsv_getHco(statevectorTrial)
     vco_trl => gsv_getVco(statevectorTrial)
