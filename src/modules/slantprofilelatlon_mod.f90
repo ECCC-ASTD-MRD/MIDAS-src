@@ -683,14 +683,15 @@ contains
     
     ! Radius of sphere of equal area from earthconstants_mod.f90
     ! earth_r2 = 6371007.1809
-    ! efective radius of the earth
+    ! effective radius of the earth
     Re = earth_r2 * (4./3.)
-    ! height radar beam  from range at rele and ralt 
-    h_radar = sqrt(r_radar**2.+(earth_r2+ralt)**2.+(2.*r_radar*(earth_r2+ralt)*sin(rele)))-(earth_r2) 
-    ! distance radar beam  from range at rele and ralt 
+
+    !compute height of radar observation
+    call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
+
+    ! distance following surface of the earth from Doviak and Zrnic (2.28c)
     d_radar = atan(r_radar*cos(rele)/(r_radar*sin(rele)+Re+ralt))*Re
-    ! second version -Book:Doppler Radar and Wheather Observation (Doviak and Zrnic)
-    !             d_radar = asin(r_range*cos(ele)/(Radius+alt))*Re    
+
     ! lat lon of the path along the radar beam  
     latSlant = asin( sin(lat)*cos(d_radar/earth_r2) + cos(lat)*sin(d_radar/earth_r2)*cos(rzam))
     lonSlant = lon + atan2(sin(rzam)*sin(d_radar/earth_r2)*cos(lat), cos(d_radar/earth_r2)-sin(lat)*sin(latSlant))
@@ -714,13 +715,19 @@ contains
     ! efective radius of the earth
     Re = earth_r2*(4./3.)
     ! height of radar beam  from range at rele and ralt 
-    h_radar = sqrt(r_radar**2.+(earth_r2+ralt)**2.+2.*r_radar*(earth_r2+ralt)*sin(rele))-(earth_r2)
+    h_radar = sqrt(r_radar**2.+(Re+ralt)**2.+2.*r_radar*(Re+ralt)*sin(rele))-(Re)
 
   end subroutine slp_radar_getHfromRange
 
   subroutine slp_radar_getRangefromH(h_radar, ralt, rele, r_radar)
     !
     ! :Purpose: Computation of range of the radar beam from height of the radar beam
+    !
+    !
+    !   To fix:
+    !   should use 4/3 radius of the earth
+    !
+    !
     !
     implicit none
     ! Argument

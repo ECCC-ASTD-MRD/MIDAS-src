@@ -20,6 +20,7 @@ module obsOperators_mod
   ! :Purpose: All observation operators, including nonlinear, tangent-linear
   !           and adjoint versions.
   !
+  use codePrecision_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -1012,9 +1013,9 @@ contains
 
     ! locals
     integer :: bodyIndex, headerIndex, jl, nwndlev, obsFlag, bufrCode, fnom, fclos, nulnam, ierr
-    real(8) :: r_radar, Dvel, Height1, Height2, ralt, rzam, rele, h_radar
+    real(8) :: range_m, observedDoppler, Height1, Height2, ralt, rzam, rele, h_radar
     real(8) :: UU1, UU2, VV1, VV2, range1, range2, UU_interpolated, VV_interpolated
-    real(8) :: SimulatedDoppler, interpolation_weight, zinc, zoer, maxRangeInterp
+    real(8) :: simulatedDoppler, interpolation_weight, zinc, zoer, maxRangeInterp
 
     namelist /namradvel/ maxRangeInterp
     
@@ -1062,41 +1063,55 @@ contains
         if ( bufrCode /= bufr_radvel ) cycle BODY
         ! only process observations flagged to be assimilated
         if (obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
-        
-        r_radar = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
-        Dvel    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
-        call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
+
+        !altitude AGL of observation
+        h_radar = obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex )
+        if ( h_radar == real(MPC_missingValue_R8,pre_obsReal)) then
+            ! height info is empty in observation file, compute it and save result
+            range_m = obs_bodyElem_r(obsSpaceData, OBS_LOCI, bodyIndex) 
+            call slp_radar_getHfromRange(range_m, ralt, rele, h_radar)
+            call obs_bodySet_r(obsSpaceData, OBS_PPP, bodyIndex, h_radar )
+        end if
        
+        !find between which model levels we wind up
         HEIGHT: do jl = 1, nwndlev-1
           Height1 = col_getHeight(columnhr,jl+1,headerIndex,'MM')
           Height2 = col_getHeight(columnhr,jl,headerIndex,'MM')
           if ( h_radar > Height1) exit HEIGHT
         end do HEIGHT
-        
+
+        ! deactivate this check until slp_radar_getRangefromH() is fixed
+        !
+        !!observations are rejected if horizontal distance between levels is too large
+        !if (maxRangeInterp > 0.0) then
+        !  call slp_radar_getRangefromH(Height1, ralt, rele, range1)
+        !  call slp_radar_getRangefromH(Height2, ralt, rele, range2)
+        !  if  (abs(range1-range2)>maxRangeInterp) then
+        !    obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
+        !    call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag,11))
+        !    cycle BODY
+        !  end if
+        !end if
+
+        !vertical interpolation of model wind at observation height
+        interpolation_weight =(h_radar-Height1)/(Height2-Height1)
         UU1 = col_getElem(columnhr,jl+1,headerIndex,'UU')
         UU2 = col_getElem(columnhr,jl,headerIndex,  'UU')
         VV1 = col_getElem(columnhr,jl+1,headerIndex,'VV')
         VV2 = col_getElem(columnhr,jl,headerIndex,  'VV')
-     
-        call slp_radar_getRangefromH(Height1, ralt, rele, range1)
-        call slp_radar_getRangefromH(Height2, ralt, rele, range2)
-
-        interpolation_weight =(h_radar-Height1)/(Height2-Height1)
         UU_interpolated = UU1+interpolation_weight*(UU2-UU1)
         VV_interpolated = VV1+interpolation_weight*(VV2-VV1)
-        SimulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
-        ! Flag the obs when the  maximum value of the interpolation interval is used
-        if (maxRangeInterp > 0.0) then
-          if  (abs(range1-range2)>maxRangeInterp) then
-            obsFlag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyindex)
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyindex, IBSET(obsFlag,11))
-          end if
-        end if
-        call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, Dvel-SimulatedDoppler)
+
+        !Doppler velocity is  projection of wind along direction of radar beam
+        simulatedDoppler = UU_interpolated*sin(rzam)+ VV_interpolated*cos(rzam)
+
+        observedDoppler    = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
+
+        call obs_bodySet_r(obsSpaceData, destObsColumn, bodyIndex, observedDoppler-simulatedDoppler)
         ! Observation error
         zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
         ! Normalized increment
-        zinc = (SimulatedDoppler - Dvel) / zoer
+        zinc = (simulatedDoppler - observedDoppler) / zoer
         ! Total jobs
         jobs = jobs + 0.5d0 * zinc * zinc 
 
