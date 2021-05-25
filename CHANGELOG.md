@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Small changes in increment_mod and gridstatevector_mod to fix an abort problem in the var program for UMOS ( 2D mode). (#495 and !465)	
  * Using `eccc/cmd/cmda/libs/19.6.0-2` (#477 and !461)
    * This is fixing an allocation problem in the `burp_module` library.
    * Adapt the [`tools/splitobs/unittest`](tools/splitobs/unittest) for
