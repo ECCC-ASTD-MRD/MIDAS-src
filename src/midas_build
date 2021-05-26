@@ -89,6 +89,7 @@ typeset __job_opt
 typeset __job_test_target
 typeset __here
 typeset __abs_exist_list
+typeset __abs_all
 
 __here=$(pwd)
 __date=$(date +%Y%m%d%H%S)
@@ -105,6 +106,7 @@ source ${__here}/config.dot.sh  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 mv .tmp.config.out ${__listing_config}
 
+__abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
 
 ##=========================================================
 ##  parsing input and building job for submissions
@@ -114,7 +116,7 @@ if [ $# -eq 0 ]
 ## default: make all 
 then 
     __target='all'
-    __abs_exist_list=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
+    __abs_exist_list=${__abs_all}
 else
     __target=$@
     __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
@@ -294,13 +296,24 @@ then
     [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
     if [ "${__status}" -eq 0 ]; then
-        echo "    All target programs have been installed correctly!"
-        echo
-        echo "╔═════════════════════════════╗"
-        echo "║                             ║"
-        echo "║ MIDAS COMPILATION COMPLETED ║"
-        echo "║                             ║"
-        echo "╚═════════════════════════════╝"
+        if [ "${__abs_exist_list}" = "${__abs_all}" ]; then
+            echo
+            echo "╔═════════════════════════════╗"
+            echo "║                             ║"
+            echo "║ MIDAS COMPILATION COMPLETED ║"
+            echo "║   ALL PROGRAMS INSTALLED    ║"
+            echo "║                             ║"
+            echo "╚═════════════════════════════╝"
+        else
+            echo "    All target programs have been installed correctly!"
+            for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
+            echo
+            echo "╔═════════════════════════════╗"
+            echo "║                             ║"
+            echo "║ MIDAS COMPILATION COMPLETED ║"
+            echo "║                             ║"
+            echo "╚═════════════════════════════╝"
+        fi
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}"
         echo

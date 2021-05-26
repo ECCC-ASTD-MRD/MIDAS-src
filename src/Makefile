@@ -446,6 +446,17 @@ info:	#> print build configuration
 	@echo
 
 install: $(ABS_INSTALL)			#> install compiled programs
+ifeq ($(sort $(ABS_COMPILED)), $(sort $(ABS)))
+	@echo
+	@echo All absolutes have been installed in $(ABS_INSTALL_DIR) from $(CURDIR)
+else ifeq ($(ABS_COMPILED),)
+	@echo No absolutes compiled in $(CURDIR)
+else
+	@echo
+	@echo Compiled absolutes installed in $(ABS_INSTALL_DIR) from $(CURDIR)
+	@for pgm in $(subst .Abs,,$(ABS_COMPILED)); do\
+		echo " * $$pgm"; done
+endif
 
 depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
