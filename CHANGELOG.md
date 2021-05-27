@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * midas_build detect circular dependency error (#498)
  * Add ability to include FSO in diagnostic sqlite files. Should no longer be in burp files. (#487 and !463)
  * Add ability to include soil variables with LETKF (#480 and !464)
  * Support for SQLite observations file for Airs and Iasi (#273 and !445)
