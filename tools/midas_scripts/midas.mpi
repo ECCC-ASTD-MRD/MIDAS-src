@@ -37,8 +37,8 @@ eval `${CCLARGS}  -D "" $0 \
   -df_cmd      "/bin/df"         "/bin/df"     "[path to 'df' command (default '/bin/df')]" \
   -mv_cmd      "/bin/mv"         "/bin/mv"     "[path to 'mv' command (default '/bin/mv')]" \
   -sed_cmd     "/bin/sed"        "/bin/sed"    "[path to 'sed' command (default '/bin/sed')]" \
-  -cut_cmd     "/usr/bin/cut"   "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
-  -rev_cmd     "/usr/bin/rev"   "/usr/bin/rev" "[path to 'rev' command (default '/usr/bin/rev')]" \
+  -cut_cmd     "/usr/bin/cut"    "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
+  -rev_cmd     "/usr/bin/rev"    "/usr/bin/rev" "[path to 'rev' command (default '/usr/bin/rev')]" \
   -echo_cmd    "/bin/echo"       "/bin/echo"   "[path to 'echo' command (default '/bin/echo')]" \
   -date_cmd    "/bin/date"       "/bin/date"   "[path to 'date' command (default '/bin/date')]" \
   -true_cmd    "/bin/true"       "/bin/true"   "[path to 'true' command (default '/bin/true')]" \
@@ -62,7 +62,16 @@ echo hostname=$(hostname)
 ${echo_cmd} starting preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 if [ "${fasttmp}" = yes ]; then
-    FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
+    if [ "${ramdiskpath}" = tmpfsdir ]; then
+        localramdiskpath=${TMPFSDIR[${MP_CHILD}]}
+        if [ -z "${localramdiskpath}" ]; then
+            echo "The array 'TMPFSDIR' does not contain any value for index MP_CHILD=${MP_CHILD}!"
+            exit 1
+        fi
+    else
+        localramdiskpath=${ramdiskpath}
+    fi
+    FASTTMPDIR=${localramdiskpath}/midas_${MP_CHILD}
     [ -d "${FASTTMPDIR}" ] && ${rm_cmd} -rf ${FASTTMPDIR}
     ${mkdir_cmd} -p ${FASTTMPDIR}
 
@@ -190,7 +199,7 @@ if [ -n "${observations}" ]; then
             echo ${mpchild2getObservations[@]}
             MINIMIZE_COPY=${mpchild2getObservations[${MP_CHILD}]}
 	    if [ "${fasttmp}" = yes ]; then
-	        obsdir=${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs
+	        obsdir=${localramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs
 	    else
 	        obsdir=${PWD}/obs.splitobs
 	    fi
@@ -294,7 +303,7 @@ if [ -n "${midas_mpi_barrier}" ]; then
 
     if [ "${splitobs_mode}" != no ]; then
         if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
-            ${rm_cmd} -fr ${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
+            ${rm_cmd} -fr ${localramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
         fi
     fi
 fi

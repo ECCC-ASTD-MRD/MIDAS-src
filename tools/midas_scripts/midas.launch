@@ -469,7 +469,11 @@ if [ -n "${observations}" ]; then
     observations_files="=-observations      ${observations_files}"
 fi
 
-ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
+if [ -n "${TMPFSDIR}" ]; then
+    ramdiskpath=tmpfsdir
+else
+    ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
+fi
 
 ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
