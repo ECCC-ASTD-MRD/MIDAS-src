@@ -5314,7 +5314,7 @@ module gridStateVector_mod
   subroutine gsv_tInterpolate(statevector_in,statevector_out)
     !
     !:Purpose: Time interpolation from statevector with low temporal resolution to statevector 
-    !          with high termopral resolution.
+    !          with high temporal resolution.
     implicit none
 
     ! Arguments:
@@ -5360,11 +5360,12 @@ module gridStateVector_mod
     numStepOut = statevector_out%numStep
     write(*,*) 'gsv_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
 
+    ! compute deltaHour between two first stepIndex of statevector_in (input temporal grid). 
+    ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
     if ( numStepIn > 1 ) then
       call difdatr(statevector_in%dateStampList(1), statevector_in%dateStampList(2), deltaHour)
     else
       deltaHour = 0.0d0
-      deltaHourInOut = 0.0d0
     end if
 
     do stepIndexOut = 1, numStepOut
@@ -5378,20 +5379,20 @@ module gridStateVector_mod
         if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then
           stepIndexIn2 = numStepIn
         else
-          stepIn_Loop9: do stepIndexIn2 = 1, numStepIn
+          stepInLoop: do stepIndexIn2 = 1, numStepIn
             dateStampIn = statevector_in%dateStampList(stepIndexIn2)
             dateStampOut = statevector_out%dateStampList(stepIndexOut)
-            if ( dateStampIn > dateStampOut ) exit stepIn_loop9
-          end do stepIn_Loop9
+            if ( dateStampIn > dateStampOut ) exit stepInLoop
+          end do stepInLoop
         end if
         stepIndexIn1 = stepIndexIn2 - 1
 
-        ! compute deltaHour
+        ! compute deltaHour between left stepIndex of statevector_in and statevector_out
         dateStampIn = statevector_in%dateStampList(stepIndexIn1)
         dateStampOut = statevector_out%dateStampList(stepIndexOut)
         call difdatr(dateStampIn, dateStampOut, deltaHourInOut)
 
-        ! compute the interpolation weights
+        ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2) 
         weight1 = 1.0d0 - deltaHourInOut / deltaHour
         weight2 = deltaHourInOut / deltaHour
       end if
