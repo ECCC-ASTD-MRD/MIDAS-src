@@ -547,7 +547,10 @@ if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
             -omp_stacksize    ${omp_stacksize}                            \
             -ramdiskpath      ${ramdiskpath}                              \
             -fasttmp          ${fasttmp}                                  \
+            -tmpfsdir         ${TMPFSDIR[@]}                              \
+            -mpchild2slots    ${mpchild2getObservations[@]}               \
             -nodelogger       ${nodelogger}
+
     fi ## Fin du 'else' relie au 'if [ "${splitobs_mode}" = no ]'
 fi  ## End of 'if [ -n "${observations}" ]'
 
