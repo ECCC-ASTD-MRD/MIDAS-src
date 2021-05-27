@@ -45,6 +45,7 @@ eval `${CCLARGS}  -D "" $0 \
   -mkdir_cmd   "/bin/mkdir"      "/bin/mkdir"  "[path to 'mkdir' command (default '/bin/mkdir')]"   \
   -printf_cmd  "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
   -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
+  -hostname_cmd "/bin/hostname"  "/bin/hostname" "[path to 'hostname' command (default '/bin/hostname')]" \
   ++ $arguments`
 
 ${echo_cmd} starting midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
@@ -57,7 +58,7 @@ function print_number {
 }
 
 let nprocs=npex*npey
-echo hostname=$(hostname)
+echo hostname=$(${hostname_cmd})
 
 ${echo_cmd} starting preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0

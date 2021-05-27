@@ -510,7 +510,8 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-true_cmd          $(which true)                                \
         =-mkdir_cmd         $(which mkdir)                               \
         =-printf_cmd        $(which printf)                              \
-        =-sleep_cmd         $(which sleep)
+        =-sleep_cmd         $(which sleep)                               \
+        =-hostname_cmd      $(which hostname)
 
 if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
     if [ "${splitobs_mode}" = no ]; then
