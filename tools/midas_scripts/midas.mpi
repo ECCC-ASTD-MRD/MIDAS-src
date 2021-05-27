@@ -72,17 +72,15 @@ if [ "${fasttmp}" = yes ]; then
     else
         localramdiskpath=${ramdiskpath}
     fi
-    FASTTMPDIR=${localramdiskpath}/midas_${MP_CHILD}
-    [ -d "${FASTTMPDIR}" ] && ${rm_cmd} -rf ${FASTTMPDIR}
-    ${mkdir_cmd} -p ${FASTTMPDIR}
+    export MIDAS_RAMDISKDIR=${localramdiskpath}/midas_${MP_CHILD}
+    [ -d "${MIDAS_RAMDISKDIR}" ] && ${rm_cmd} -rf ${MIDAS_RAMDISKDIR}
+    ${mkdir_cmd} -p ${MIDAS_RAMDISKDIR}
 
     if [ -n "${observations}" ]; then
         ## Create observations directory on RAMDisk to be used later
-        ${mkdir_cmd} ${FASTTMPDIR}/obs ${FASTTMPDIR}/obs.splitobs
-        OBS_DIRECTORY=${FASTTMPDIR}/obs
+        ${mkdir_cmd} ${MIDAS_RAMDISKDIR}/obs ${MIDAS_RAMDISKDIR}/obs.splitobs
+        OBS_DIRECTORY=${MIDAS_RAMDISKDIR}/obs
     fi
-
-    export MIDAS_RAMDISKDIR=${FASTTMPDIR}
 elif [ -n "${observations}" ]; then ## this preparation is needed only if we have observations
     OBS_DIRECTORY=obs
     if [ "${splitobs_mode}" != no ]; then
@@ -279,7 +277,7 @@ if [ -n "${observations}" ]; then
             cat ${listing}
             rm  ${listing}
         done
-        ${df_cmd} -hP ${FASTTMPDIR}
+        [ "${fasttmp}" = yes ] && ${df_cmd} -hP ${MIDAS_RAMDISKDIR}
         if [ -n "$(${ls_cmd} splitfiles.*.${MP_CHILD}.abort || ${true_cmd})" ]; then
             ${echo_cmd} "One of the splitting commands aborted!"
             exit 1
@@ -324,7 +322,7 @@ if [ -n "${observations}" ]; then
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then
             if [ "${fasttmp}" = yes ]; then
-                ${cp_cmd} ${FASTTMPDIR}/obs/* .
+                ${cp_cmd} ${MIDAS_RAMDISKDIR}/obs/* .
             else
                 ${cp_cmd} ./obs/* .
             fi
@@ -352,8 +350,8 @@ if [ -n "${observations}" ]; then
 fi ## End of 'if [ -n "${observations}" ]'
 
 if [ "${fasttmp}" = yes ]; then
-    ${df_cmd} -hP ${FASTTMPDIR}
-    ${rm_cmd} -rf ${FASTTMPDIR}
+    ${df_cmd} -hP ${MIDAS_RAMDISKDIR}
+    ${rm_cmd} -rf ${MIDAS_RAMDISKDIR}
 fi
 
 ${echo_cmd} ending midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
