@@ -298,21 +298,21 @@ then
     if [ "${__status}" -eq 0 ]; then
         if [ "${__abs_exist_list}" = "${__abs_all}" ]; then
             echo
-            echo "╔═════════════════════════════╗"
-            echo "║                             ║"
-            echo "║ MIDAS COMPILATION COMPLETED ║"
-            echo "║   ALL PROGRAMS INSTALLED    ║"
-            echo "║                             ║"
-            echo "╚═════════════════════════════╝"
+            echo "╔══════════════════════════════╗"
+            echo "║                              ║"
+            echo "║ MIDAS INSTALLATION COMPLETED ║"
+            echo "║   ALL PROGRAMS INSTALLED     ║"
+            echo "║                              ║"
+            echo "╚══════════════════════════════╝"
         else
+            echo
+            echo "╔══════════════════════════════╗"
+            echo "║                              ║"
+            echo "║ MIDAS INSTALLATION COMPLETED ║"
+            echo "║                              ║"
+            echo "╚══════════════════════════════╝"
             echo "    All target programs have been installed correctly!"
             for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
-            echo
-            echo "╔═════════════════════════════╗"
-            echo "║                             ║"
-            echo "║ MIDAS COMPILATION COMPLETED ║"
-            echo "║                             ║"
-            echo "╚═════════════════════════════╝"
         fi
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}"
