@@ -67,7 +67,7 @@ module obsFiles_mod
 
 contains
 
-  subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt, oneDvarMode_opt )
+  subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
 
     implicit none
 
@@ -75,7 +75,6 @@ contains
     integer         , intent(out)           :: dateStamp_out
     character(len=*), intent(in)            :: obsFileMode_in
     character(len=*), intent(out), optional :: obsFileType_opt
-    logical, intent(in)          , optional :: onedVarMode_opt
 
     ! locals
     character(len=10)                       :: obsFileType
@@ -107,11 +106,7 @@ contains
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else if ( obsFileType == 'SQLITE' ) then
-      if (present(onedVarmode_opt)) then
-        call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1), onedVarmode_opt )
-      else
-        call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1))
-      end if
+      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1))
     else
       dateStamp_out = -1
     end if

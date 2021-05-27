@@ -94,7 +94,7 @@ program midas_1Dvar
   !     
   !- Initialize observation file names and set datestamp
   !
-  call obsf_setup( dateStamp, varMode, onedvarMode_opt=.true. )
+  call obsf_setup( dateStamp, varMode )
   if ( dateStamp > 0 ) then
     call tim_setDatestamp(datestamp)     ! IN
   else
