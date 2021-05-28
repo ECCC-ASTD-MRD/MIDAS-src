@@ -595,7 +595,8 @@ CONTAINS
        end if
       
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim,firstCall_opt=initializeForOuterLoop)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
+                    initializeLinearization_opt=initializeForOuterLoop) ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
        call res_compute(obsSpaceData_ptr)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
@@ -632,7 +633,8 @@ CONTAINS
        call col_zero(columnAnlInc_ptr)
 
        call tmg_start(41,'OBS_AD')
-       call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,firstCall_opt=initializeForOuterLoop)   ! Put in columnAnlInc : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
+                    initializeLinearization_opt=initializeForOuterLoop)  ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        if (oneDVarMode) then

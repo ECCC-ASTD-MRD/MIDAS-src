@@ -53,7 +53,6 @@ module obsOperators_mod
   integer, external :: get_max_rss
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
-  logical :: firstCallInOuterLoop
 
 contains
 
@@ -1872,8 +1871,9 @@ contains
   !--------------------------------------------------------------------------
   ! oop_Htl
   !--------------------------------------------------------------------------
-  subroutine oop_Htl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
-                     min_nsim, firstCall_opt)
+  subroutine oop_Htl( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
+                      min_nsim, initializeLinearization_opt )
+    !
     ! :Purpose: Compute simulated observations from profiled model increments.
     !           It returns Hdx in OBS_WORK. Calls the several linear observation operators.
     implicit none
@@ -1882,32 +1882,31 @@ contains
     type(struct_obs)          :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     integer, intent(in)       :: min_nsim
-    logical, optional         :: firstCall_opt 
+    logical, optional         :: initializeLinearization_opt 
 
-    logical, save :: firstTime = .true.
+    logical, save :: initializeLinearization = .true.
 
     if ( mpi_myid == 0 ) then
-       write(*,*)'OOP_Htl - Linearized observation operators'
+      write(*,*) 'OOP_Htl - Linearized observation operators'
     end if
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
-    ! initialize if there are outer-loops
-    if ( present(firstCall_opt) ) then
-      firstCallInOuterLoop = firstCall_opt
-    else
-      firstCallInOuterLoop = .false.
+    ! Re-linearlize if it is asked for
+    if ( present(initializeLinearization_opt) ) then
+      if ( initializeLinearization_opt ) then
+        initializeLinearization = .true. 
+      end if
     end if
-    if ( firstCallInOuterLoop ) firstTime = .true.
 
-    if ( firstTime ) then
-      !     Find interpolation layer in model profiles (used by several operators)
+    if ( initializeLinearization ) then
+      ! Find interpolation layer in model profiles (used by several operators)
       if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnAnlIncLev, obsSpaceData, beSilent=.false.)
 
-      !     Initialize some operators needed by linearized H
+      ! Initialize some operators needed by linearized H
       call subasic_obs(columnTrlOnAnlIncLev)
 
-      firstTime = .false.
+      initializeLinearization = .false.
     end if
 
     call oop_Hpp()           ! fill in OBS_WORK : Hdx
@@ -1916,11 +1915,21 @@ contains
 
     call oop_Hto()           ! fill in OBS_WORK : Hdx
 
-    call oop_Hro()
+    if ( present(initializeLinearization_opt) ) then
+      call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
+    else
+      call oop_Hro()
+    end if
 
     call oop_Hzp()
 
-    if (numGPSZTD > 0)  call oop_Hgp()
+    if ( numGPSZTD > 0 ) then 
+      if ( present(initializeLinearization_opt) ) then
+        call oop_Hgp( initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_Hgp()
+      end if
+    end if
 
     call oop_Hchm()          ! fill in OBS_WORK : Hdx
 
@@ -2324,31 +2333,37 @@ contains
 
     end subroutine oop_Hto
 
-    !--------------------------------------------------------------------------
-
-    subroutine oop_Hro()
+    subroutine oop_Hro( initializeLinearization_opt )
+      !
       ! :Purpose: Compute the tangent operator for GPSRO observations.
+      !
       implicit none
+      logical, optional :: initializeLinearization_opt 
 
-      real(8) ZMHXL
-      real(8) DX (ngpscvmx)
+      real(8) :: ZMHXL
+      real(8) :: DX(ngpscvmx)
 
-      integer IDATYP
-      integer JL, JV, NGPSLEV, NWNDLEV
+      integer :: IDATYP
+      integer :: JL, JV, NGPSLEV, NWNDLEV
       integer :: headerIndex, bodyIndex, iProfile
 
-      logical  ASSIM
+      logical :: ASSIM
 
-      integer NH, NH1
+      integer :: NH, NH1
 
-      !     * 1.  Initializations
-      !     *     ---------------
-      !
-      NGPSLEV=col_getNumLev(columnAnlInc,'TH')
-      NWNDLEV=col_getNumLev(columnAnlInc,'MM')
+      !C     * 1.  Initializations
+      !C     *     ---------------
+      !C
+      NGPSLEV = col_getNumLev(columnAnlInc,'TH')
+      NWNDLEV = col_getNumLev(columnAnlInc,'MM')
 
       ! call to calculate the GPSRO Jacobians
-      call oop_calcGPSROJacobian(columnTrlOnAnlIncLev,obsSpaceData)
+      if ( present(initializeLinearization_opt) ) then
+        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                    initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+      end if
 
       !
       !    Loop over all header indices of the 'RO' family (Radio Occultation)
@@ -2537,18 +2552,20 @@ contains
     
     !--------------------------------------------------------------------------
 
-    subroutine oop_Hgp()
+    subroutine oop_Hgp( initializeLinearization_opt )
+      !
       ! :Purpose: Compute H'dx for all GPS ZTD observations
       !           oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
       implicit none
+      logical, optional :: initializeLinearization_opt 
 
-      real(8) ZHX
-      real(8) DX (ngpscvmx)
+      real(8) :: ZHX
+      real(8) :: DX(ngpscvmx)
 
-      integer headerIndex, bodyIndex
-      integer JL, NFLEV, status, iztd, icount
+      integer :: headerIndex, bodyIndex
+      integer :: JL, NFLEV, status, iztd, icount
 
-      logical      ASSIM
+      logical :: ASSIM
       character(len=12) :: cstnid
 
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
@@ -2556,7 +2573,12 @@ contains
       icount = 0
 
       ! call to calculate the GPSGB Jacobians
-      call oop_calcGPSGBJacobian(columnTrlOnAnlIncLev,obsSpaceData)
+      if ( present(initializeLinearization_opt) ) then
+        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                    initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+      end if
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       call obs_set_current_header_list(obsSpaceData,'GP')
@@ -2659,17 +2681,18 @@ contains
   !--------------------------------------------------------------------------
   ! oop_Had
   !--------------------------------------------------------------------------
-  subroutine oop_Had(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, firstCall_opt)
+  subroutine oop_Had(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, initializeLinearization_opt)
+    !
     ! :Purpose: Call the several adjoint of observation operators
     implicit none
 
     type(struct_columnData) :: columnAnlInc
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
-    logical, optional       :: firstCall_opt 
+    logical, optional       :: initializeLinearization_opt 
 
     type(struct_vco), pointer :: vco_anl
-    logical, save :: firstTime = .true.
+    logical, save :: initializeLinearization = .true.
 
     if ( mpi_myid == 0 ) then
       write(*,*)'OOP_HT- Adjoint of linearized observation operators'
@@ -2677,27 +2700,36 @@ contains
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
-    ! initialize if there are outer-loops
-    if ( present(firstCall_opt) ) then
-      firstCallInOuterLoop = firstCall_opt
-    else
-      firstCallInOuterLoop = .false. 
+    ! Re-linearlize if it is asked for
+    if ( present(initializeLinearization_opt) ) then
+      if ( initializeLinearization_opt ) then
+        initializeLinearization = .true. 
+      end if
     end if
-    if ( firstCallInOuterLoop ) firstTime = .true.
 
     !     Find interpolation layer in model profiles (used by several operators)
-    if ( firstTime ) then
+    if ( initializeLinearization ) then
       if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnAnlIncLev, obsSpaceData, beSilent=.false.)
-      firstTime = .false.
+      initializeLinearization = .false.
     end if
 
     call oop_HTchm
 
-    if (numGPSZTD > 0) call oop_HTgp
+    if ( numGPSZTD > 0 ) then
+      if ( present(initializeLinearization_opt) ) then
+        call oop_HTgp( initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_HTgp
+      end if
+    end if
 
     call oop_HTzp
 
-    call oop_HTro
+    if ( present(initializeLinearization_opt) ) then
+      call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
+    else
+      call oop_HTro
+    end if
 
     call oop_HTto
 
@@ -3078,23 +3110,25 @@ contains
 
     !--------------------------------------------------------------------------
 
-    subroutine oop_HTro
+    subroutine oop_HTro ( initializeLinearization_opt ) 
+      !
       ! :Purpose: Compute the adjoint operator for GPSRO observations.
       implicit none
+      logical, optional :: initializeLinearization_opt 
 
-      real(8) DPJO0(ngpscvmx)
-      real(8) DPJO1(ngpscvmx)
+      real(8) :: DPJO0(ngpscvmx)
+      real(8) :: DPJO1(ngpscvmx)
 
-      real(8) ZINC
+      real(8) :: ZINC
 
       real(8), pointer :: tt_column(:),hu_column(:),height_column(:),p_column(:)
-      integer IDATYP
-      integer JL, NGPSLEV
+      integer :: IDATYP
+      integer :: JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
 
-      logical  ASSIM, LUSE
+      logical :: ASSIM, LUSE
 
-      integer NH, NH1
+      integer :: NH, NH1
 
       !     * 1.  Initializations
       !     *     ---------------
@@ -3102,7 +3136,12 @@ contains
       NGPSLEV=col_getNumLev(columnAnlInc,'TH')
 
       ! call to calculate the GPSRO Jacobians
-      call oop_calcGPSROJacobian(columnTrlOnAnlIncLev,obsSpaceData)
+      if ( present(initializeLinearization_opt) ) then
+        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                    initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+      end if
 
       !
       !    Loop over all header indices of the 'RO' family (Radio Occultation)
@@ -3307,19 +3346,21 @@ contains
 
     !--------------------------------------------------------------------------
 
-    subroutine oop_HTgp
+    subroutine oop_HTgp( initializeLinearization_opt ) 
+      !
       ! :Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
       !
       ! :Note:  ZTD Jacobians are computed and stored in oop_Hgp (first iter.)
       implicit none
+      logical, optional :: initializeLinearization_opt 
 
-      real(8) DPJO0(ngpscvmx)
-      real(8) JAC(ngpscvmx)
-
-      real(8) ZINC
-      integer JL, NFLEV, iztd
+      real(8) :: DPJO0(ngpscvmx)
+      real(8) :: JAC(ngpscvmx)
+      ! 
+      real(8) :: ZINC
+      integer :: JL, NFLEV, iztd
       integer :: headerIndex, bodyIndex, icount
-      logical ASSIM
+      logical :: ASSIM
 
       real(8), pointer :: tt_column(:),hu_column(:),height_column(:),p_column(:)
 
@@ -3328,7 +3369,12 @@ contains
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
       ! call to calculate the GPSGB Jacobians
-      call oop_calcGPSGBJacobian(columnTrlOnAnlIncLev,obsSpaceData)
+      if ( present(initializeLinearization_opt) ) then
+        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                    initializeLinearization_opt=initializeLinearization_opt )
+      else
+        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+      end if
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       ! Set the header list & start at the beginning of the list
@@ -3542,12 +3588,14 @@ contains
   !--------------------------------------------------------------------------
   ! oop_calcGPSROJacobian
   !--------------------------------------------------------------------------
-  subroutine oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+  subroutine oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, initializeLinearization_opt )
+    !
     ! :Purpose: Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
     implicit none
 
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
+    logical, optional       :: initializeLinearization_opt 
 
     real(8) :: zlat, lat
     real(8) :: zlon, lon
@@ -3560,24 +3608,28 @@ contains
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
-    logical, save :: lfirst = .true.
+    logical, save :: firstTime = .true.
     integer :: nh, nh1
     type(gps_profile)           :: prf
     real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
 
-    ! initialize if there are outer-loops
-    if ( firstCallInOuterLoop ) lfirst = .true.
+    ! Re-compute the Jacobian for re-linearized state
+    if ( present(initializeLinearization_opt) ) then
+      if ( initializeLinearization_opt ) then
+        firstTime = .true.
+      end if
+    end if
 
-    if ( .not. lfirst ) return
+    if ( .not. firstTime ) return
 
     write(*,*) 'ENTER oop_calcGPSROJacobian'
 
-    lfirst=.FALSE.
+    firstTime = .false.
 
     ! Initializations
-    ngpslev=col_getNumLev(columnTrlOnAnlIncLev,'TH')
-    nwndlev=col_getNumLev(columnTrlOnAnlIncLev,'MM')
+    ngpslev = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+    nwndlev = col_getNumLev(columnTrlOnAnlIncLev,'MM')
 
     allocate(zpp (ngpslev))
     allocate(ztt (ngpslev))
@@ -3712,48 +3764,55 @@ contains
   !--------------------------------------------------------------------------
   ! oop_calcGPSGBJacobian
   !--------------------------------------------------------------------------
-  subroutine oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData )
+  subroutine oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, initializeLinearization_opt )
+    !
     ! :Purpose: Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
     implicit none
 
     type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
+    logical, optional       :: initializeLinearization_opt 
 
-    real(8) ZLAT, Lat
-    real(8) ZLON, Lon
+    real(8) :: ZLAT, Lat
+    real(8) :: ZLON, Lon
     real(8), allocatable :: ZTTB(:)
     real(8), allocatable :: ZHUB(:)
     real(8), allocatable :: zHeight(:)
     real(8), allocatable :: ZPPB(:)
-    real(8) ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
-    real(8) ZMT
-    real(8) sfcfield
-    real(8) dxq1, dxq2, dxq3
 
-    real(8) ZLEV, ZDZMIN
-    real(8) JAC(ngpscvmx)
+    real(8) :: ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
+    real(8) :: ZMT
+    real(8) :: sfcfield
+    real(8) :: dxq1, dxq2, dxq3
 
-    integer headerIndex, bodyIndex
-    integer JL, NFLEV, iztd, icount, stat, vcode
+    real(8) :: ZLEV, ZDZMIN
+    real(8) :: JAC(ngpscvmx)
 
-    logical      ASSIM
+    integer :: headerIndex, bodyIndex
+    integer :: JL, NFLEV, iztd, icount, stat, vcode
 
-    type(gps_profilezd)   :: PRF, PRF2
-    type(gps_diff)        :: ZTDOPV, ZTDOPV2
+    logical :: ASSIM
+
+    type(gps_profilezd) :: PRF, PRF2
+    type(gps_diff)      :: ZTDOPV, ZTDOPV2
 
     type(struct_vco), pointer :: vco_anl
     character(len=12) :: cstnid
 
-    logical, save :: lfirstGB = .true.
+    logical, save :: firstTime = .true.
 
-    ! initialize if there are outer-loops
-    if ( firstCallInOuterLoop ) lfirstGB = .true.
+    ! Re-compute the Jacobian for re-linearized state
+    if ( present(initializeLinearization_opt) ) then
+      if ( initializeLinearization_opt ) then
+        firstTime = .true.
+      end if
+    end if
 
-    if ( .not. lfirstGB ) return
+    if ( .not. firstTime ) return
 
     write(*,*) 'ENTER oop_calcGPSGBJacobian'
 
-    lfirstGB = .FALSE.
+    firstTime = .FALSE.
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
