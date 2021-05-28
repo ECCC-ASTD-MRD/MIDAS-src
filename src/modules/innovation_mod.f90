@@ -342,6 +342,7 @@ contains
       call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
     end if
 
+    deallocInterpInfo = .true.
     call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
