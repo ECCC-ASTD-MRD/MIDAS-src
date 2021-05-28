@@ -50,10 +50,14 @@ program midas_diagHBHt
   integer :: istamp,exdb,exfin
   integer :: ierr
 
-  type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: columnTrlOnAnlIncLev
-  type(struct_columnData),target :: columnTrlOnTrlLev
-  type(struct_gsv)               :: stateVectorTrialHighRes
+  type(struct_obs),        target :: obsSpaceData
+  type(struct_columnData), target :: columnTrlOnAnlIncLev
+  type(struct_columnData), target :: columnTrlOnTrlLev
+  type(struct_gsv)                :: stateVectorTrialHighRes
+  type(struct_hco),       pointer :: hco_trl => null()
+  type(struct_vco),       pointer :: vco_trl => null()
+
+  logical           :: allocHeightSfc
 
   character(len=48) :: obsMpiStrategy, varMode
 
@@ -86,7 +90,20 @@ program midas_diagHBHt
   call tmg_start(2,'PREMIN')
 
   ! Reading 15-min trials
-  call gsv_readTrialsHighRes( stateVectorTrialHighRes )
+  call gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  if (vco_trl%Vcode == 0) then
+    allocHeightSfc = .false.
+  else
+    allocHeightSfc = .true.
+  end if
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
 
   ! Horizontally interpolate 15-min trials to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &

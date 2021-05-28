@@ -48,17 +48,19 @@ program midas_gencoeff
   integer, external :: exdb,exfin,fnom, fclos, get_max_rss
   integer :: ierr,istamp
 
-  type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: columnTrlOnAnlIncLev
+  type(struct_obs),         target :: obsSpaceData
+  type(struct_columnData),  target :: columnTrlOnAnlIncLev
   type(struct_gsv)                 :: stateVectorTrialHighRes
-  type(struct_hco), pointer        :: hco_anl => null()
-  type(struct_hco), pointer        :: hco_core => null()
-  type(struct_vco), pointer        :: vco_anl => null()
+  type(struct_hco),        pointer :: hco_anl => null()
+  type(struct_hco),        pointer :: hco_core => null()
+  type(struct_vco),        pointer :: vco_anl => null()
+  type(struct_hco),        pointer :: hco_trl => null()
+  type(struct_vco),        pointer :: vco_trl => null()
 
+  logical :: allocHeightSfc
 
-  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
-                                 varMode        = 'analysis'
-
+  character(len=48), parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
+                                  varMode        = 'analysis'
 
   istamp = exdb('GENCOEFF','DEBUT','NON')
 
@@ -73,10 +75,8 @@ program midas_gencoeff
 
  
   ! 1. Top level setup
-
   call ram_setup()
  
-
   ! Do initial set up
   call tmg_start(2,'SETUP')
   call gencoeff_setup('VAR') ! obsColumnMode
@@ -85,7 +85,20 @@ program midas_gencoeff
   call tmg_start(3,'TRIALS')
 
   ! Reading 15-min trials
-  call gsv_readTrialsHighRes( stateVectorTrialHighRes )
+  call gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  if (vco_trl%Vcode == 0) then
+    allocHeightSfc = .false.
+  else
+    allocHeightSfc = .true.
+  end if
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate 15-min trials to trial columns

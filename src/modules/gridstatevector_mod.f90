@@ -62,6 +62,7 @@ module gridStateVector_mod
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_readTrialsHighRes, gsv_tInterpolate
+  public :: gsv_getHcoVcoFromFile
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -6154,11 +6155,13 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(stateVector_trial)
+  subroutine gsv_readTrials(stateVectorTrialIn)
     implicit none
 
-    type(struct_gsv)     :: stateVector_trial
+    type(struct_gsv), target, intent(inout) :: stateVectorTrialIn
 
+    type(struct_gsv),  target :: stateVectorTrial
+    type(struct_gsv), pointer :: stateVectorTrial_ptr 
     type(struct_gsv)     :: stateVector_1step_r4
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
     integer              :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
@@ -6179,8 +6182,36 @@ module gridStateVector_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
+    if ( gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
+         gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
+         gsv_varExist(stateVectorTrialIn,'P_T') .or. &
+         gsv_varExist(stateVectorTrialIn,'P_M') ) then
+
+      if ( stateVectorTrialIn%vco%Vcode == 0 ) then
+        allocHeightSfc = .false.
+      else
+        allocHeightSfc = .true.
+      end if
+
+      ! Use statevector without Z/P allocated to read trials
+      call gsv_allocate( stateVectorTrial, stateVectorTrialIn%numStep, &
+                         stateVectorTrialIn%hco, stateVectorTrialIn%vco, &
+                         dateStamp_opt=tim_getDateStamp(), &
+                         mpi_local_opt=stateVectorTrialIn%mpi_local, &
+                         mpi_distribution_opt='Tiles', &
+                         dataKind_opt=stateVectorTrialIn%dataKind,  &
+                         allocHeightSfc_opt=allocHeightSfc, &
+                         hInterpolateDegree_opt=stateVectorTrialIn%hInterpolateDegree, &
+                         allocHeight_opt=.false., allocPressure_opt=.false., &
+                         beSilent_opt=.false. )
+      call gsv_zero( stateVectorTrial )
+      stateVectorTrial_ptr => stateVectorTrial
+    else
+      stateVectorTrial_ptr => stateVectorTrialIn
+    end if
+
     nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, stateVector_trial)
+    call gsv_varNamesList(varNamesToRead, stateVectorTrial_ptr)
 
     varNameForDateStampSearch = ' '
     do varNameIndex = 1, size(varNamesToRead)
@@ -6194,22 +6225,22 @@ module gridStateVector_mod
     end do
 
     ! warn if not enough mpi tasks
-    if ( mpi_nprocs < stateVector_trial%numStep ) then
-      write(*,*) 'gsv_readTrials: number of trial time steps, mpi tasks = ', stateVector_trial%numStep, mpi_nprocs
+    if ( mpi_nprocs < stateVectorTrial_ptr%numStep ) then
+      write(*,*) 'gsv_readTrials: number of trial time steps, mpi tasks = ', stateVectorTrial_ptr%numStep, mpi_nprocs
       write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should '
       write(*,*) '                be at least as large as number of trial time steps'
     end if
 
-    allocHeightSfc = stateVector_trial%heightSfcPresent
+    allocHeightSfc = stateVectorTrial_ptr%heightSfcPresent
 
     ! figure out number of batches of time steps for reading
-    numBatch = ceiling(real(stateVector_trial%numStep) / real(mpi_nprocs))
+    numBatch = ceiling(real(stateVectorTrial_ptr%numStep) / real(mpi_nprocs))
     write(*,*) 'gsv_readTrials: reading will be done by number of batches = ', numBatch
 
     BATCH: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
-      stepIndexEnd = min(stateVector_trial%numStep, stepIndexBeg + mpi_nprocs - 1)
+      stepIndexEnd = min(stateVectorTrial_ptr%numStep, stepIndexBeg + mpi_nprocs - 1)
       write(*,*) 'gsv_readTrials: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will read, if any (-1 if none)
@@ -6222,7 +6253,7 @@ module gridStateVector_mod
 
       ! loop over all times for which stateVector is allocated
       if ( stepIndexToRead /= -1 ) then
-        dateStamp = stateVector_trial%dateStampList(stepIndexToRead)
+        dateStamp = stateVectorTrial_ptr%dateStampList(stepIndexToRead)
         write(*,*) 'gsv_readTrials: reading background for time step: ',stepIndexToRead, dateStamp
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -6250,11 +6281,11 @@ module gridStateVector_mod
 
         ! allocate stateVector for storing just 1 time step
         if ( batchIndex == 1 ) then
-          call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
+          call gsv_allocate( stateVector_1step_r4, 1, stateVectorTrial_ptr%hco, stateVectorTrial_ptr%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                              allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
-                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree,           &
-                             hExtrapolateDegree_opt=stateVector_trial%hExtrapolateDegree)
+                             hInterpolateDegree_opt=stateVectorTrial_ptr%hInterpolateDegree,           &
+                             hExtrapolateDegree_opt=stateVectorTrial_ptr%hExtrapolateDegree)
           call gsv_zero( stateVector_1step_r4 )
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
@@ -6273,13 +6304,13 @@ module gridStateVector_mod
 
       end if ! I read a time step
 
-      if ( stateVector_trial%mpi_distribution == 'VarsLevs' ) then
-        call gsv_transposeStepToVarsLevs(stateVector_1step_r4, stateVector_trial, stepIndexBeg)
-      else if ( stateVector_trial%mpi_distribution == 'Tiles' ) then
-        call gsv_transposeStepToTiles(stateVector_1step_r4, stateVector_trial, stepIndexBeg)
+      if ( stateVectorTrial_ptr%mpi_distribution == 'VarsLevs' ) then
+        call gsv_transposeStepToVarsLevs(stateVector_1step_r4, stateVectorTrial_ptr, stepIndexBeg)
+      else if ( stateVectorTrial_ptr%mpi_distribution == 'Tiles' ) then
+        call gsv_transposeStepToTiles(stateVector_1step_r4, stateVectorTrial_ptr, stepIndexBeg)
       else
         call utl_abort( 'gsv_readTrials: not compatible with mpi_distribution = ' // &
-                        trim(stateVector_trial%mpi_distribution) )
+                        trim(stateVectorTrial_ptr%mpi_distribution) )
       end if
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -6290,6 +6321,15 @@ module gridStateVector_mod
 
     end do BATCH
 
+    if ( gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
+         gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
+         gsv_varExist(stateVectorTrialIn,'P_T') .or. &
+         gsv_varExist(stateVectorTrialIn,'P_M') ) then
+
+      call gsv_copy( stateVectorTrial_ptr, stateVectorTrialIn, allowVarMismatch_opt=.true. )
+      call gsv_deallocate( stateVectorTrial )
+    end if
+
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_readTrials: FINISHED'
     write(*,*) ''
@@ -6299,33 +6339,25 @@ module gridStateVector_mod
   end subroutine gsv_readTrials
 
   !--------------------------------------------------------------------------
-  ! gsv_readTrialsHighRes
+  ! gsv_getHcoVcoFromFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrialsHighRes(stateVectorTrial, stateVectorTrialOut_opt)
+  subroutine gsv_getHcoVcoFromFile( hco_trl, vco_trl )
     implicit none
 
     ! arguments
-    type(struct_gsv)           :: stateVectorTrial
-    type(struct_gsv), optional :: stateVectorTrialOut_opt
+    type(struct_hco), pointer :: hco_trl
+    type(struct_vco), pointer :: vco_trl
 
     ! locals
-    type(struct_gsv)          :: stateVectorTrialNoZorP 
-    type(struct_hco), pointer :: hco_trl => null()
-    type(struct_vco), pointer :: vco_trl => null()
-    logical                   :: deallocInterpInfo, allocHeightSfc
-    real(8), pointer          :: onecolumn(:)
-
     character(len=4), pointer :: anlVar(:)
 
-    write(*,*) 'gsv_readTrialsHighRes: START'
+    write(*,*) 'gsv_getHcoVcoFromFile: START'
     nullify(hco_trl,vco_trl)
 
     ! check if gsv is initialized.
     if ( .not. gsv_isInitialized() ) then
-       call utl_abort('gsv_readTrialsHighRes: add call to gsv_setup in the main program.')
+       call utl_abort('gsv_getHcoVcoFromFile: add call to gsv_setup in the main program.')
     end if
-
-    call tmg_start(10,'SETUPCOLUMN')
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
@@ -6333,57 +6365,9 @@ module gridStateVector_mod
 
     call vco_SetupFromFile(vco_trl, './trlm_01')
 
-    if (vco_trl%Vcode == 0) then
-      allocHeightSfc = .false.
-    else
-      allocHeightSfc = .true.
-    end if
+    write(*,*) 'gsv_getHcoVcoFromFile: END'
 
-    deallocInterpInfo = .true.
-
-    call gsv_allocate( stateVectorTrial, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       beSilent_opt=.false. )
-    call gsv_zero( stateVectorTrial )
-
-    if ( gsv_varExist(stateVectorTrial,'Z_T') .or. &
-         gsv_varExist(stateVectorTrial,'Z_M') .or. &
-         gsv_varExist(stateVectorTrial,'P_T') .or. &
-         gsv_varExist(stateVectorTrial,'P_M') ) then
-
-      ! Use statevector without Z/P allocated to read trials 
-      call gsv_allocate( stateVectorTrialNoZorP, tim_nstepobs, hco_trl, vco_trl,  &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false., &
-                         beSilent_opt=.false. )
-      call gsv_zero( stateVectorTrialNoZorP )
-      call gsv_readTrials( stateVectorTrialNoZorP )
-      call gsv_copy( stateVectorTrialNoZorP, stateVectorTrial, allowVarMismatch_opt=.true. )
-      call gsv_deallocate( stateVectorTrialNoZorP )
-    else
-      call gsv_readTrials( stateVectorTrial )
-    end if
-
-    ! if requested, make trials available to calling routine after degrading timesteps
-    if (present(stateVectorTrialOut_opt)) then
-      call gsv_allocate( stateVectorTrialOut_opt, tim_nstepobsinc, hco_trl, vco_trl,  &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
-      call gsv_copy( stateVectorTrial, stateVectorTrialOut_opt,  &
-                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
-    end if
-
-    call tmg_stop(10)
-
-    write(*,*) 'gsv_readTrialsHighRes: END'
-
-  end subroutine gsv_readTrialsHighRes
+  end subroutine gsv_getHcoVcoFromFile
 
   !--------------------------------------------------------------------------
   ! gsv_transposeStepToVarsLevs

@@ -59,15 +59,18 @@ program midas_obsimpact
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
 
-  type(struct_obs),pointer        :: obsSpaceData_ptr
-  type(struct_columnData),pointer :: columnTrlOnAnlIncLev_ptr
-  type(struct_columnData),pointer :: column_ptr
-  type(struct_vco),pointer        :: vco_anl => null()
-  type(struct_hco),pointer        :: hco_anl => null()
-  type(struct_hco),pointer        :: hco_core => null()
+  type(struct_obs),        pointer :: obsSpaceData_ptr
+  type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr
+  type(struct_columnData), pointer :: column_ptr
+  type(struct_vco),        pointer :: vco_anl => null()
+  type(struct_hco),        pointer :: hco_anl => null()
+  type(struct_hco),        pointer :: hco_trl => null()
+  type(struct_vco),        pointer :: vco_trl => null()
+  type(struct_hco),        pointer :: hco_core => null()
   integer             :: fso_nsim, nvadim_mpilocal, dateStamp
   integer,external    :: get_max_rss
   real(8),allocatable :: vhat(:)
+  logical             :: allocHeightSfc
 
   ! namelist variables
   integer             :: nvamaj, nitermax, nsimmax
@@ -185,7 +188,20 @@ program midas_obsimpact
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
-  call gsv_readTrialsHighRes( stateVectorTrialHighRes )
+  call gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  if (vco_trl%Vcode == 0) then
+    allocHeightSfc = .false.
+  else
+    allocHeightSfc = .true.
+  end if
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate 15-min trials to trial columns
