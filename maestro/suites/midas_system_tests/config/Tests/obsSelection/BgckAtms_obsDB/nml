@@ -13,6 +13,8 @@
    obsDbActive = .true.
    numElemIdList = 1
    elemIdList(1) = 12163
+   updateMode = 'midasTable'
+!   updateMode = 'separateTables'
 /
  &namObsDbUpdate
    numberUpdateItems=1
