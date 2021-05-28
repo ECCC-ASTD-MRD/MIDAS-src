@@ -811,7 +811,7 @@ contains
             !if vcoord is missing in observation file its value will thus be set to 0.0d0
             !we change it to missing to make it more obvious that this value has to be calculated later
             if (vertCoord == real(0.0d0, pre_obsReal)) then
-                vertCoord = real(MPC_missingValue_R8, pre_obsReal)
+              vertCoord = real(MPC_missingValue_R8, pre_obsReal)
             end if
 
             !write standard body values to obsSpaceData
@@ -986,10 +986,12 @@ contains
     ierr = fclos( nulnam )
 
     ! Append extra sqlite columns to update to itemUpdateList
-    do itemId = 1, numberUpdateItemsRadar
-      numberUpdateItems = numberUpdateItems + 1
-      itemUpdateList(numberUpdateItems) = itemUpdateListRadar(itemId)
-    end do
+    if (trim(familyType) == 'RA') then
+      do itemId = 1, numberUpdateItemsRadar
+        numberUpdateItems = numberUpdateItems + 1
+        itemUpdateList(numberUpdateItems) = itemUpdateListRadar(itemId)
+      end do
+    end if
 
     write(*,*) myName//': Family Type   = ', trim(familyType)
     write(*,*) myName//': Number of items to update: ', numberUpdateItems
