@@ -5359,12 +5359,15 @@ module gridStateVector_mod
 
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep
-    write(*,*) 'gsv_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'gsv_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
+    end if
 
-    ! compute deltaHour between two first stepIndex of statevector_in (input temporal grid). 
+    ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
     ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
     if ( numStepIn > 1 ) then
       call difdatr(statevector_in%dateStampList(1), statevector_in%dateStampList(2), deltaHour)
+      deltaHour = abs(deltaHour)
     else
       deltaHour = 0.0d0
     end if
@@ -5383,7 +5386,8 @@ module gridStateVector_mod
           stepInLoop: do stepIndexIn2 = 1, numStepIn
             dateStampIn = statevector_in%dateStampList(stepIndexIn2)
             dateStampOut = statevector_out%dateStampList(stepIndexOut)
-            if ( dateStampIn > dateStampOut ) exit stepInLoop
+            call difdatr(dateStampIn, dateStampOut, deltaHourInOut)
+            if ( deltaHourInOut > 0.0d0 ) exit stepInLoop
           end do stepInLoop
         end if
         stepIndexIn1 = stepIndexIn2 - 1
@@ -5391,17 +5395,22 @@ module gridStateVector_mod
         ! compute deltaHour between left stepIndex of statevector_in and statevector_out
         dateStampIn = statevector_in%dateStampList(stepIndexIn1)
         dateStampOut = statevector_out%dateStampList(stepIndexOut)
-        call difdatr(dateStampIn, dateStampOut, deltaHourInOut)
+        call difdatr(dateStampOut, dateStampIn, deltaHourInOut)
+        if ( deltaHourInOut < 0.0d0 ) then 
+          call utl_abort('gsv_tInterpolate: deltaHourInOut should be greater or equal to 0')
+        end if
 
         ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2) 
         weight1 = 1.0d0 - deltaHourInOut / deltaHour
         weight2 = deltaHourInOut / deltaHour
       end if
 
-      write(*,*) 'gsv_tInterpolate: for stepIndexOut=', stepIndexOut, &
-                 ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
-                 ',weight1=', weight1, ',weight2=', weight2, &
-                 ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'gsv_tInterpolate: for stepIndexOut=', stepIndexOut, &
+                   ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
+                   ',weight1=', weight1, ',weight2=', weight2, &
+                   ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
+      end if
 
       !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
       do kIndex = k1, k2
