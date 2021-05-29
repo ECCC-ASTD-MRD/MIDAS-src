@@ -288,7 +288,6 @@ CONTAINS
     type(struct_gsv), intent(out) :: stateVectorAnal
 
     ! Locals:
-    type(struct_gsv)          :: stateVectorTrial_r4
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
 
@@ -309,21 +308,13 @@ CONTAINS
       allocHeightSfc = .true.
     end if
 
-    call gsv_allocate( stateVectorTrial_r4, tim_nstepobsinc, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='Tiles', dataKind_opt=4, &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       beSilent_opt=.false. )
-    call gsv_zero( stateVectorTrial_r4 )
-    call gsv_readTrials( stateVectorTrial_r4 )
-
     call gsv_allocate( stateVectorTrial, tim_nstepobsinc, hco_trl, vco_trl,  &
                        dataKind_opt=pre_incrReal, &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_copy( stateVectorTrial_r4, stateVectorTrial, allowVarMismatch_opt=.true. )
-    call gsv_deallocate( stateVectorTrial_r4 )
+    call gsv_zero( stateVectorTrial )
+    call gsv_readTrials( stateVectorTrial )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
