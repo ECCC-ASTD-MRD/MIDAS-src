@@ -58,11 +58,12 @@ Simply execute **`./midas_build`** from a frontend machine.
 Successful compilation, linking and installing will be confirmed with the 
 display
 ```
-╔═════════════════════════════╗
-║                             ║
-║ MIDAS COMPILATION COMPLETED ║
-║                             ║
-╚═════════════════════════════╝
+╔══════════════════════════════╗
+║                              ║
+║ MIDAS INSTALLATION COMPLETED ║
+║   ALL PROGRAMS INSTALLED     ║
+║                              ║
+╚══════════════════════════════╝
 ```
 
 It will 
@@ -93,6 +94,20 @@ A *target* is something (often a file) to build; you can get information on
 available targets by calling `make help`.
 See [this section](#using-make-advanced-use-cases) for more on targets.
 
+If the targets contains absolutes (`*.Abs`), `midas_build` will also install these and a sucessful installation of a subsets of programs will be confirmed with the display
+```
+╔══════════════════════════════╗
+║                              ║
+║ MIDAS INSTALLATION COMPLETED ║
+║                              ║
+╚══════════════════════════════╝
+    All target programs have been installed correctly!
+    * <target_program_1>
+    * <target_program_2>
+    ...
+```
+
+If there is no absolute in the target list, **there won't be this display**.
 
 ### Auto-completion
 
@@ -238,7 +253,7 @@ Omitting the target defaults to `all`.
 
 
 ### The install target
-Calling `make install` **after** `make [all]` will copy the absolute **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
+Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy the target absolutes **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
 
 
 A complete install is then 

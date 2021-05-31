@@ -305,10 +305,12 @@ DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
+ABS_COMPILED := $(notdir $(wildcard $(CURDIR)/*.Abs))
 ABS_INSTALL_DIR = $(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
-ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS)))
+ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),\
+				$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS_COMPILED)))
 
 ##  abort if there is an error with dependencies generation
 ##	for instance if `makedepf90` not present
@@ -443,7 +445,18 @@ info:	#> print build configuration
 	@echo '============================================'
 	@echo
 
-install: $(ABS_INSTALL)			#> install all programs
+install: $(ABS_INSTALL)			#> install compiled programs
+ifeq ($(sort $(ABS_COMPILED)), $(sort $(ABS)))
+	@echo
+	@echo All absolutes have been installed in $(ABS_INSTALL_DIR) from $(CURDIR)
+else ifeq ($(ABS_COMPILED),)
+	@echo No absolutes compiled in $(CURDIR)
+else
+	@echo
+	@echo Compiled absolutes installed in $(ABS_INSTALL_DIR) from $(CURDIR)
+	@for pgm in $(subst .Abs,,$(ABS_COMPILED)); do\
+		echo " * $$pgm"; done
+endif
 
 depend : $(DEP_OBJ) $(DEP_ABS)	#> generate all dependency files
 
