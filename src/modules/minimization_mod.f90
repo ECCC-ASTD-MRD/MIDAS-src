@@ -491,7 +491,7 @@ CONTAINS
 
       ! deallocate the gradient
       deallocate(vazg)
-      if ( .not. lwrthess ) deallocate(vatra)
+      if ( numOuterLoopIterations == 1 .and. .not. lwrthess ) deallocate(vatra)
 
   end subroutine quasiNewtonMinimization
 
