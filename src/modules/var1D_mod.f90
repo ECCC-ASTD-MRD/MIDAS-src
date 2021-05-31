@@ -365,91 +365,134 @@ contains
     type(struct_obs), intent(in)           :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
     ! Locals:
-    integer :: columnIndex, varIndex, searchIndex, globalObsIndex
-    integer, allocatable :: targetIndex(:)
+    integer :: columnIndex, varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
+    integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
-    integer :: nObs1DVarTotal,  nObs1DVarMax, ierr
-    real(8), allocatable :: uniqueObsKeys(:), uniqueObsKeysMpiGlobal(:)
-    integer, allocatable :: obsPointerMpiGlobal(:)
-    real(8) :: lat, lon, latMpiGlobal, lonMpiGlobal
     real(8), allocatable, target :: dummy(:)
-    real(8), allocatable :: myColumnMpiGlobal(:)
-    integer :: varDim, numStep
+    integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr, status
+    real(8) :: lat, lon
+    integer :: varDim, tag
 
     call rpn_comm_barrier("GRID",ierr)
-    call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarTotal, 1, "mpi_integer", "mpi_sum", "GRID", ierr)
-    call rpn_comm_allreduce(var1D_validHeaderCount, nobs1DVarMax, 1, "mpi_integer", "mpi_max", "GRID", ierr)
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate( uniqueObsKeysMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate( obsPointerMpiGlobal(nobs1DVarMax * mpi_nprocs), stat=ierr )
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    allocate(uniqueObsKeys(nobs1DVarMax), stat=ierr )
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    uniqueObsKeys(:) = huge(uniqueObsKeys(1))
-    do columnIndex = 1, var1D_validHeaderCount
-      uniqueObsKeys(columnIndex) = obs_headElem_r(obsSpaceData, OBS_LAT, var1D_obsPointer(columnIndex) ) + &
-           obs_headElem_r(obsSpaceData, OBS_LON, var1D_obsPointer(columnIndex) ) * MPC_PI_R8
-    end do
-    call rpn_comm_allgather(uniqueObsKeys, nobs1DVarMax, 'mpi_real8',  &
-         uniqueObsKeysMpiGlobal, nobs1DVarMax, 'mpi_real8', 'grid', ierr)
-    call ipsort8(obsPointerMpiGlobal, uniqueObsKeysMpiGlobal, mpi_nprocs*nobs1DVarMax)
-    call hco_setupYgrid(hco_Ygrid, 1, nObs1DVarTotal)
+    allocate( obsOffset(0:mpi_nprocs-1) )
+    if (mpi_myid ==0) then
+      allocate( var1D_validHeaderCountAllTasks(mpi_nprocs) )
+    else
+      allocate(var1D_validHeaderCountAllTasks(1))
+    end if
+
+    call RPN_COMM_gather(var1D_validHeaderCount  , 1, 'MPI_INTEGER', var1D_validHeaderCountAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
+    if (mpi_myId ==0) then
+      var1D_validHeaderCountMpiGlobal = sum( var1D_validHeaderCountAllTasks(:) )
+      var1D_validHeaderCountMax = maxval( var1D_validHeaderCountAllTasks(:) )
+      obsOffset(0) = 0
+      do taskIndex = 1, mpi_nprocs - 1
+        obsOffset(taskIndex) = obsOffset(taskIndex - 1) + var1D_validHeaderCountAllTasks(taskIndex)
+      end do
+      write(*,*) 'obsOffset: ', obsOffset(:)
+    end if
+    call RPN_COMM_bcast( obsOffset, mpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call RPN_COMM_bcast( var1D_validHeaderCountMax, 1, 'MPI_INTEGER', 0,  "GRID",ierr )
+
+    call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)
     if (mpi_myId ==0) then
       call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=column%vco, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
+      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'	
     end if
-    allocate( targetIndex(size(uniqueObsKeysMpiGlobal)) )
-    targetIndex(:) = -1
-    do globalObsIndex = 1, nobs1DVarTotal
-      search:do searchIndex = 1, var1D_validHeaderCount
-        if (uniqueObsKeysMpiGlobal( obsPointerMpiGlobal(globalObsIndex)) == uniqueObsKeys(searchIndex) ) then
-          targetIndex(globalObsIndex) = searchIndex
-          exit search
+
+    write(*,*) 'var1D_get1DVarIncrement: start of lat-lon dissemination'
+    do obsIndex = 1, var1D_validHeaderCountMax
+      if (obsIndex <= var1D_validHeaderCount ) then
+        headerIndex = var1D_obsPointer(obsIndex)      
+        lat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+        lon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
+      else
+        lat = MPC_missingValue_R8
+        lon = MPC_missingValue_R8
+      end if
+      if (mpi_myId == 0) then
+        if ( obsIndex <= var1D_validHeaderCount ) then
+          hco_yGrid%lat2d_4(1, obsIndex) = lat
+          hco_yGrid%lon2d_4(1, obsIndex) = lon
         end if
-      end do search
-      lat = huge(lat)
-      lon = huge(lon)
-      if (targetIndex(globalObsIndex) > 0) then
-        lat = obs_headElem_r(obsSpaceData, OBS_LAT, targetIndex(globalObsIndex))
-        lon = obs_headElem_r(obsSpaceData, OBS_LON, targetIndex(globalObsIndex))
+      else
+        tag = 2 * mpi_myID
+        call RPN_COMM_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
+        call RPN_COMM_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
       end if
-      call rpn_comm_allreduce(lat, latMpiGLobal, 1, "mpi_real8", "mpi_min", "GRID", ierr)
-      call rpn_comm_allreduce(lon, lonMpiGlobal, 1, "mpi_real8", "mpi_min", "GRID", ierr)
-      if (mpi_myId == 0 ) then
-        hco_yGrid%lat2d_4(1, globalObsIndex) = latMpiGLobal
-        hco_yGrid%lon2d_4(1, globalObsIndex) = lonMpiGlobal
+      
+      call rpn_comm_barrier("GRID",ierr)
+
+      if (mpi_myId == 0) then
+        do taskIndex = 1,  mpi_nprocs - 1
+          tag = 2 * taskIndex
+          call rpn_comm_recv( lat, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
+          call rpn_comm_recv( lon, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr )
+          if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then 
+            globalObsIndex = obsIndex + obsOffset(taskIndex)
+            hco_yGrid%lat2d_4(1, globalObsIndex) = lat
+            hco_yGrid%lon2d_4(1, globalObsIndex) = lon
+          end if
+        end do
       end if
+      call rpn_comm_barrier("GRID",ierr)
     end do
-    do varIndex = 1, var1D_varCount      
+
+    call rpn_comm_barrier("GRID",ierr)
+    write(*,*) 'var1D_get1DVarIncrement: end of lat-lon dissemination'
+    
+    do varIndex = 1, var1D_varCount
+      write(*,*) 'var1D_get1DVarIncrement: start of dissemination for ', var1D_varList(varIndex)
       if (mpi_myId == 0 ) then
         call gsv_getField(stateVector, myField, varName_opt=var1D_varList(varIndex), stepIndex_opt=1)
         varDim = gsv_getNumLevFromVarName(stateVector, var1D_varList(varIndex))
       end if
       call rpn_comm_bcast(varDim, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       allocate(dummy(varDim))
-      allocate(myColumnMpiGLobal(varDim))
-      dummy(:) = huge( dummy(1) )
-      do globalObsIndex = 1, nobs1DVarTotal
-        if (targetIndex(globalObsIndex) >0 ) then
-          myColumn => col_getColumn(column, targetIndex(globalObsIndex), varName_opt=var1D_varList(varIndex)) 
+      dummy(:) = MPC_missingValue_R8
+      do obsIndex = 1, var1D_validHeaderCountMax
+        if (obsIndex <= var1D_validHeaderCount ) then
+          headerIndex = var1D_obsPointer(obsIndex) 
+          myColumn => col_getColumn(column, headerIndex, varName_opt=var1D_varList(varIndex))
         else
           myColumn => dummy
         end if
-        call rpn_comm_allreduce(myColumn, myColumnMpiGLobal, varDim, "mpi_real8", "mpi_min", "GRID", ierr)
-        if (mpi_myId == 0 ) then
-          myField(1, globalObsIndex, :) = myColumnMpiGLobal(:)
+        if (mpi_myId == 0) then
+          if ( obsIndex <= var1D_validHeaderCount ) then
+            myField(1, obsIndex, :) = myColumn(:)
+          end if
+        else
+          tag = mpi_myId
+          call rpn_comm_send(myColumn , varDim, 'mpi_real8', 0, tag, 'GRID', ierr )
+        end if
+     
+        call rpn_comm_barrier("GRID",ierr)
+
+        if (mpi_myId == 0) then
+          do taskIndex = 1,  mpi_nprocs - 1
+            tag = taskIndex
+            call rpn_comm_recv(myColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
+            if (all( myColumn /=  MPC_missingValue_R8)) then
+              globalObsIndex = obsIndex + obsOffset(taskIndex)
+              myField(1, globalObsIndex, :) = myColumn(:)
+            end if
+          end do
         end if
       end do
+
+      write(*,*) 'var1D_get1DVarIncrement: end of dissemination for ', var1D_varList(varIndex)
       deallocate(dummy)
-      deallocate(myColumnMpiGLobal)
+
     end do
-    deallocate(uniqueObsKeysMpiGlobal)
-    deallocate(targetIndex)
-    deallocate(uniqueObsKeys)
-    deallocate( obsPointerMpiGlobal )
+
+    call rpn_comm_barrier("GRID",ierr)
+    deallocate( obsOffset )
+    deallocate( var1D_validHeaderCountAllTasks )
+    
+
   end subroutine var1D_transferColumnToYGrid
 
   !--------------------------------------------------------------------------
