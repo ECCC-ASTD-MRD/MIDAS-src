@@ -343,6 +343,8 @@
  numberUpdateItems=2
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
+ numberUpdateItemsRadar=1
+ itemUpdateListRadar(1)='ALT'
 /
  &NAMSQLamsua
 /
@@ -400,7 +402,7 @@
   listElem="11001,11002"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
- &NAMSQLradar
+ &NAMSQLradvel
   numberElem=1
   listElem="21014"
   sqlExtraDat=" order by id_obs "

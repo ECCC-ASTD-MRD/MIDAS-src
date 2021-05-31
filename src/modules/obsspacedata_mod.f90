@@ -608,7 +608,7 @@ module ObsColumnNames_mod
    ! (chosen such that every column number is unique, so that a mismatch between
    !  a column number and a column type (real, int, head, body) can be detected)
    integer, parameter :: NBDY_REAL_BEG   = 501
-   integer, parameter, public :: OBS_PPP = NBDY_REAL_BEG ! pressure (vertical coordinate)
+   integer, parameter, public :: OBS_PPP = NBDY_REAL_BEG ! vertical coordinate
    integer, parameter, public :: OBS_SEM = OBS_PPP +1 ! surface emissivity
    integer, parameter, public :: OBS_VAR = OBS_SEM +1 ! value of the observation
    integer, parameter, public :: OBS_OMP = OBS_VAR +1 ! obs - H (trial field)
@@ -633,9 +633,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ROLA= OBS_OMPE+1 ! individual obs latitude
    integer, parameter, public :: OBS_ROLO= OBS_ROLA+1 ! individual obs longitude
    integer, parameter, public :: OBS_BTCL= OBS_ROLO+1 ! clear-sky simulated observation
+   integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
 
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_BTCL
+   integer, parameter :: NBDY_REAL_END = OBS_LOCI
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -644,7 +645,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','HAHT','ZHA ','OMP6','OMA0',     &
          'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR','OMPE',     &
-         'ROLA','ROLO','VAR2' /)
+         'ROLA','ROLO','VAR2','LOCI' /)
 end module ObsColumnNames_mod
 
 
@@ -749,9 +750,10 @@ module ObsDataColumn_mod
    integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
       (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, &
         OBS_QCF2, OBS_CLA /)
-   integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
+   integer, public, parameter :: odc_ENKF_bdy_real_column_list(16) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_ROLA,OBS_ROLO /)
+        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_ROLA,&
+        OBS_ROLO,OBS_LOCI /)
 
 contains
 
@@ -1508,7 +1510,7 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
    public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS,OBS_BCOR
-   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO,OBS_BTCL
+   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO,OBS_BTCL,OBS_LOCI
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

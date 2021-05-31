@@ -298,7 +298,7 @@ contains
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
-    character(len=*) , intent(in)    :: familyType ! Family Type may be TOVS or CONV
+    character(len=*) , intent(in)    :: familyType ! Family Type 
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
 
     ! Locals:
@@ -315,7 +315,7 @@ contains
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss, biasCorrection
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: trackCellNum
-    real(pre_obsReal)        :: modelWindSpeed
+    real(pre_obsReal)        :: modelWindSpeed, range_m
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
@@ -355,6 +355,7 @@ contains
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLradvel/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
 
     write(*,*) myName//': fileName   : ', trim(fileName)
     write(*,*) myName//': familyType : ', trim(familyType)
@@ -529,9 +530,11 @@ contains
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
       case( 'radvel' )
         columnsHeader = trim(columnsHeader) 
-        read(nulnam, nml = NAMSQLradar, iostat = ierr )
+        ! add  range to data columns to read
+        columnsData = trim(columnsData)//", range "
+        read(nulnam, nml = NAMSQLradvel, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
-        if (mpi_myid == 0) write(*, nml =  NAMSQLradar )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLradvel )
       case DEFAULT
         write(*,*) myError//'Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//'Unsupported  SCHEMA in SQLITE file!' )
@@ -698,12 +701,8 @@ contains
           modelWindSpeed = modelWindSpeed_R8
         end if
 
-      else if ( trim(rdbSchema) == 'ra' ) then
-
-        ! Nothing more to read for RA now.
-        ! It does not have the obsStatus column.
-
-      else if ( trim(rdbSchema) == 'radvel') then
+      else if ( trim(familyType) == 'RA' ) then
+        if ( trim(rdbSchema) == 'radvel') then
           call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
           elevReal=elev
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL_VAR  = obsrzam)
@@ -711,6 +710,7 @@ contains
           call fSQL_get_column( stmt, COL_INDEX = 19, REAL_VAR  = obsrans)
           call fSQL_get_column( stmt, COL_INDEX = 18, REAL_VAR  = obsrane)
           call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR  = obsrdel)
+        end if
       else  ! familyType = CONV
 
         call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
@@ -805,14 +805,30 @@ contains
 
           end if
 
+          if (trim(rdbSchema) == 'radvel') then
+
+            !matdata is initialized with 0.0d0 
+            !if vcoord is missing in observation file its value will thus be set to 0.0d0
+            !we change it to missing to make it more obvious that this value has to be calculated later
+            if (vertCoord == real(0.0d0, pre_obsReal)) then
+              vertCoord = real(MPC_missingValue_R8, pre_obsReal)
+            end if
+
+            !write standard body values to obsSpaceData
+            call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+
+            !add range along radar beam
+            range_m = matdata(rowIndex,7)
+            call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, range_m )
+
+          end if
+
           if ( trim(familyType) == 'TO' ) then
             if ( obsValue /= MPC_missingValue_R8 ) then
               call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
             else
               call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
             endif
-          else if (trim(rdbSchema) == 'radvel') then
-            call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
           else ! CONV
  
@@ -940,8 +956,8 @@ contains
     integer                          :: obsStatus, last_question, landSea, terrainType
     integer(8)                       :: headPrimaryKey, bodyPrimaryKey
     integer                          :: itemId, headPrimaryKeyIndex, landSeaIndex
-    integer                          :: headerIndex, bodyIndex, numberUpdateItems
-    character(len =   3)             :: item, itemUpdateList(15)
+    integer                          :: headerIndex, bodyIndex, numberUpdateItems, numberUpdateItemsRadar
+    character(len =   3)             :: item, itemUpdateList(15), itemUpdateListRadar(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
     character(len =  10)             :: item2
     character(len = 128)             :: query
@@ -950,13 +966,16 @@ contains
     real                             :: romp, obsValue, scaleFactor
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
     character(len=*), parameter      :: myError = myName //': ERROR: '
-    namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
+    namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
+                           numberUpdateItemsRadar, itemUpdateListRadar
 
     write(*,*) myName//': Starting ===================  '
 
     ! set default values of namelist variables
     itemUpdateList(:) = ''
+    itemUpdateListRadar(:) = ''
     numberUpdateItems = 0
+    numberUpdateItemsRadar = 0
 
     ! Read the namelist for directives
     nulnam = 0
@@ -965,6 +984,14 @@ contains
     if ( ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
     if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
     ierr = fclos( nulnam )
+
+    ! Append extra sqlite columns to update to itemUpdateList
+    if (trim(familyType) == 'RA') then
+      do itemId = 1, numberUpdateItemsRadar
+        numberUpdateItems = numberUpdateItems + 1
+        itemUpdateList(numberUpdateItems) = itemUpdateListRadar(itemId)
+      end do
+    end if
 
     write(*,*) myName//': Family Type   = ', trim(familyType)
     write(*,*) myName//': Number of items to update: ', numberUpdateItems
@@ -999,6 +1026,9 @@ contains
         case('COR')
           updateList(itemId) = OBS_BCOR
           item2='bias_corr'
+        case('ALT')
+          updateList(itemId) = OBS_PPP
+          item2='vcoord'
         case DEFAULT
           write(*,*) 'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//'invalid item ' )
