@@ -960,6 +960,16 @@ contains
       etiket = 'STDDEV'
     end if
     call vco_setupFromFile(vco_randomPert, './bgcov', etiket)
+
+    ! Special modification to vco_randomPert if a soil variables is present
+    if ( vco_getNumLev(vco_ens,'OT','I0') > 0 .or. &
+         vco_getNumLev(vco_ens,'OT','I1') > 0 ) then
+      write(*,*)
+      write(*,*) 'epp_addRandomPert: copying number of levels for land surface variables!' 
+      write(*,*)
+      vco_randomPert%nlev_Other(:) = vco_ens%nlev_Other(:)
+    end if
+    
     if (firstCall) then
       call bmat_setup(hco_randomPert, vco_randomPert)
       firstCall = .false.
