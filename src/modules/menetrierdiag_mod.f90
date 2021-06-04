@@ -593,10 +593,10 @@ contains
           PressureProfile => pressureProfile_T
         endif
         do k=1,nlevEns
-          write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
-               localizationRadii(3,varLevOffset(jvar)+k)/1000.d0, &
-               localizationRadii(2,varLevOffset(jvar)+k)/1000.d0, &
-               localizationRadii(1,varLevOffset(jvar)+k)/1000.d0
+          write(99,'(I3,2X,F7.2,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
+               min(localizationRadii(3,varLevOffset(jvar)+k)/1000.d0,99999.9d0), &
+               min(localizationRadii(2,varLevOffset(jvar)+k)/1000.d0,99999.9d0), &
+               min(localizationRadii(1,varLevOffset(jvar)+k)/1000.d0,99999.9d0)
         end do
         close(unit=99)
       end do
@@ -609,8 +609,10 @@ contains
           outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar))//"_"//wbnum//".txt"
         end if
         open (unit=99,file=outfilename,action="write",status="new")
-        write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
-             localizationRadii(3,k)/1000.d0, localizationRadii(2,k)/1000.d0, localizationRadii(1,k)/1000.d0
+        write(99,'(I3,2X,F7.2,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
+             min(localizationRadii(3,k)/1000.d0,99999.9d0), &
+             min(localizationRadii(2,k)/1000.d0,99999.9d0), &
+             min(localizationRadii(1,k)/1000.d0,99999.9d0)
         close(unit=99)
       end do
 
@@ -1026,7 +1028,7 @@ contains
         
         do k=1,nlevEns
           do bin = 1, nlevEns
-            write(99,'(I3,2X,I3,2X,F6.1,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
+            write(99,'(I3,2X,I3,2X,F7.2,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
                  PressureProfile(bin)/100.d0, distanceBinInLnP(k,bin), nint(sumWeight(bin,varLevOffset(jvar)+k)), &
                  meanCorrel(bin,varLevOffset(jvar)+k), &
                  localizationFunctions(3,bin,varLevOffset(jvar)+k), &
@@ -1058,7 +1060,7 @@ contains
           PressureProfile => pressureProfile_T
         endif
         do k=1,nlevEns
-          write(99,'(I3,2X,F6.1,2X,F7.2,2X,F7.2,2X,F7.2)') k, PressureProfile(k)/100.d0, &
+          write(99,'(I3,2X,F7.2,2X,F7.2,2X,F7.2,2X,F7.2)') k, PressureProfile(k)/100.d0, &
                localizationRadii(3,varLevOffset(jvar)+k), &
                localizationRadii(2,varLevOffset(jvar)+k), &
                localizationRadii(1,varLevOffset(jvar)+k)

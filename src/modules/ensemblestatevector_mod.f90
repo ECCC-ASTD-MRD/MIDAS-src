@@ -42,7 +42,7 @@ module ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
-  public :: ens_computeMean, ens_removeMean, ens_recenter
+  public :: ens_computeMean, ens_removeMean, ens_removeGlobalMean, ens_recenter
   public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
   public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
   public :: ens_copyMask, ens_copyMaskToGsv
@@ -1915,6 +1915,68 @@ CONTAINS
 
   end subroutine ens_removeMean
 
+  !--------------------------------------------------------------------------
+  ! ens_removeGlobalMean
+  !--------------------------------------------------------------------------
+  subroutine ens_removeGlobalMean(ens)
+    !
+    !:Purpose: Subtract the 2D global mean from each member.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ens
+
+    ! Locals:
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
+    integer :: kIndex, latIndex, lonIndex, stepIndex, memberIndex
+
+    real(8)  :: globalMean, globalMean_mpiglobal
+
+    if ( .not. ens%statevector_work%hco%global ) then
+      call utl_abort('ens_removeGlobalMean: must never by applied to limited-area ensembles')
+    end if
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    do kIndex = k1, k2
+      do memberIndex = 1, ens%numMembers
+        do stepIndex = 1, numStep
+          
+          ! Compute the domain mean
+          globalMean = 0.d0
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              globalMean = globalMean + &
+                   real(ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
+            end do
+          end do
+          
+          call rpn_comm_allreduce(globalMean, globalMean_mpiglobal,1,&
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+          globalMean_mpiglobal = globalMean_mpiglobal / &
+               (real(ens%statevector_work%ni,8)*real(ens%statevector_work%nj,8))
+
+          ! Remove it
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                   ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) - real(globalMean_mpiglobal,4)
+            end do
+          end do
+          
+        end do
+      end do
+    end do
+
+  end subroutine ens_removeGlobalMean
+  
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------

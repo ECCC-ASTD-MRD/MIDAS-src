@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module CalcStatsGlb_mod
+module calcStatsGlb_mod
   ! MODULE CalcStatsGlb_mod (prefix='csg' category='1. High-level functionality')
   !
   ! :Purpose: To compute homogeneous and isotropic background error covariances
@@ -35,6 +35,7 @@ module CalcStatsGlb_mod
   use spectralFilter_mod
   use menetrierDiag_mod
   use fileNames_mod
+  use timeCoord_mod
   implicit none
   save
   private
@@ -49,6 +50,8 @@ module CalcStatsGlb_mod
   integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: mymBeg, mymEnd, mymSkip, mymCount, mynBeg, mynEnd, mynSkip, mynCount
+  integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
+  integer :: nEnsOverDimension
   integer :: nla_mpilocal, maxMyNla
   integer, pointer    :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
   
@@ -138,7 +141,6 @@ module CalcStatsGlb_mod
     nla=(ntrunc+1)*(ntrunc+2)/2
 
     !- Setup the global spectral transform 
-    !  NOTE: code only run with mpi 1x1 until now!!!
     gstID_nkgdimEns = gst_setup(ni,nj,ntrunc,nkgdimEns)
     gstID_nLevEns_M = gst_setup(ni,nj,ntrunc,nLevEns_M)
     gstID_nLevEns_T_P1 = gst_setup(ni,nj,ntrunc,nLevEns_T+1)
@@ -151,6 +153,12 @@ module CalcStatsGlb_mod
     call gst_ilaList_mpilocal(ilaList_mpilocal,  &
          gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
 
+    ! setup ensemble members mpi partinionning (when working with struct_ens)
+    call mpivar_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
+    call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
+                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    nEnsOverDimension = mpi_npex * maxMyMemberCount
+    
     !- Setup ip1s
     allocate(nip1_M(nLevEns_M))
     nip1_M(:)=vco_in%ip1_M(:)
@@ -459,112 +467,158 @@ module CalcStatsGlb_mod
     !       (no variable transform!!!)
 
     integer :: waveBandIndex
-    integer :: nulnam, ierr, fclos, fnom
+    integer :: nulnam, ierr, fclos, fnom, numStep
 
-    real(4), pointer     :: ensPerturbations(:,:,:,:)
-    real(8), pointer     :: stddev3d(:,:,:)
     real(8), allocatable :: corns(:,:,:), rstddev(:,:)
 
+    integer, allocatable :: dateStampList(:)
+    
+    type(struct_ens), target  :: ensPerts, ensPertsFilt
+
+    type(struct_ens), pointer :: ensPerts_ptr
+    
+    type(struct_gsv) :: statevector_template
+    
     integer :: variableType
 
+    logical :: ensContainsFullField
+    logical :: makeBiPeriodic
+    
     character(len=60) :: tool
 
-    NAMELIST /NAMTOOLBOX/tool
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField
 
     write(*,*)
     write(*,*) 'csg_toolbox'
     write(*,*)
 
-    variableType = modelSpace
-
     !
-    !- Tool selection
+    !- Set options
     !
+    variableType = modelSpace     ! hardwired
+    ensContainsFullField = .true. ! default value
+    
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMTOOLBOX)
     write(*,nml=NAMTOOLBOX)
     ierr = fclos(nulnam)
 
+    !
+    !- Read ensemble
+    !
+    numStep = 1
+    allocate(dateStampList(numStep))
+    dateStampList(:)  = -1
+    call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList)
+
+    if (nWaveBand > 1) then
+      call ens_allocate(ensPertsFilt, nEns, numStep, hco_ens, vco_ens, dateStampList)
+      ensPerts_ptr => ensPertsFilt
+    else
+      ensPerts_ptr => ensPerts
+    end if
+    
+    makeBiPeriodic = .false.
+    call ens_readEnsemble(ensPerts, './ensemble', makeBiPeriodic, &
+                          containsFullField_opt=ensContainsFullField)
+
+    !
+    !- Compute and remove the ensemble mean; compute the stdDev
+    !
+    call ens_computeMean(ensPerts)
+    call ens_removeMean (ensPerts)
+    
+    !
+    !- Tool selection
+    !
     select case(trim(tool))
     case ('HVCORREL_HI')
        write(*,*)
        write(*,*) 'Computing Homogeneous and Isotropic Correlation'
-    case ('HVCORREL_LOCAL')
-       write(*,*)
-       write(*,*) 'Computing Local Correlation'
+
+       if (mpi_nprocs > 1) then
+         call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
+       end if
+       
+       call spectralFilter2(ensPerts,          & ! IN
+                            ensPerts_ptr,      & ! OUT
+                            waveBandIndex_opt=1) ! IN
+       call ens_computeStdDev(ensPerts_ptr)
+       call ens_normalize(ensPerts_ptr)
+       call ens_removeGlobalMean(ensPerts_ptr)
+
+       allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
+       allocate(rstddev(nkgdimEns,0:ntrunc))
+       
+       call calcCorrelations2(ensPerts_ptr, & ! IN
+                              corns,        & ! OUT (vertical correlation in spectral space)
+                              rstddev)        ! OUT ( sqrt(normalized power spectrum) )
+
+       call writeStats(corns,rstddev,waveBandIndex_opt=1) ! IN
+       call calcHorizScale(rstddev,variableType,waveBandIndex_opt=1) ! IN
+       call horizCorrelFunction(rstddev,variableType,waveBandIndex_opt=1) ! IN
+
+       deallocate(rstddev)
+       deallocate(corns)
+       
+     case ('HVCORREL_LOCAL')
+      write(*,*)
+      write(*,*) 'Computing Local Correlation'
+
+      call ens_removeGlobalMean(ensPerts)
+      call spectralFilter2(ensPerts,          & ! IN
+                           ensPerts_ptr,      & ! OUT
+                           waveBandIndex_opt=1) ! IN
+      call ens_computeStdDev(ensPerts_ptr)
+      call ens_normalize(ensPerts_ptr)
+      call calcLocalCorrelations(ensPerts_ptr) ! IN
+
     case ('LOCALIZATIONRADII')
        write(*,*)
        write(*,*) 'Estimating the optimal covariance localization radii'
-       !call bmd_setup( hco_ens, nens, nLevEns_M, nLevEns_T,              & ! IN
-       !                nkgdimEns, pressureProfile_M, pressureProfile_T,  & ! IN
-       !                nvar3d, nvar2d, varLevOffset, nomvar3d, nomvar2d, & ! IN
-       !                nWaveBand)                                          ! IN
-       call utl_abort('work still to be done')
+
+       call ens_removeGlobalMean(ensPerts)
+
+       do waveBandIndex = 1, nWaveBand
+
+         call spectralFilter2(ensPerts,                      & ! IN
+                              ensPerts_ptr,                  & ! OUT
+                              waveBandIndex_opt=waveBandIndex) ! IN
+
+         call ens_computeStdDev(ensPerts_ptr)
+       
+         if (waveBandIndex == 1) then
+           call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
+           call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
+                          pressureProfile_T, nWaveBand)                             ! IN
+         end if
+         
+         call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
+
+       end do
+
     case default
        write(*,*)
        write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
-       call utl_abort('calbmatrix_glb')
+       call utl_abort('csg_toolbox')
     end select
-
-    !
-    !- Horizontal and vertical correlation diagnostics
-    !
-    allocate(ensPerturbations(ni,nj,nkgdimEns,nens))
-    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
-    if (trim(tool) == 'HVCORREL_HI') then
-       allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-       allocate(rstddev(nkgdimEns,0:ntrunc))
-    end if
-
-    do waveBandIndex = 1, nWaveBand
-
-       if ( nWaveBand /= 1 ) then
-          write(*,*)
-          write(*,*) ' ********* Processing WaveBand #',waveBandIndex
-          write(*,*)
-       end if
-
-       call readEnsemble(ensPerturbations) ! OUT
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-       call removeMean(ensPerturbations) ! INOUT
-       
-       if (trim(tool) /= 'HVCORREL_HI') then
-          call removeGlobalMean(ensPerturbations) ! INOUT
-       end if
-
-       call spectralFilter(ensPerturbations,nkgdimens,waveBandIndex_opt=waveBandIndex) ! INOUT, IN, IN
-
-       call calcStddev3d(ensPerturbations,stddev3d,nkgdimens) ! IN, OUT, IN
-
-       if (trim(tool) == 'HVCORREL_HI') then
-          call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
-
-          call removeGlobalMean(ensPerturbations) ! INOUT
-
-          call calcCorrelations(ensPerturbations, & ! IN
-                                corns,            & ! OUT (vertical correlation in spectral space)
-                                rstddev)            ! OUT ( sqrt(normalized power spectrum) )
-
-          call writeStats(corns,rstddev,waveBandIndex_opt=waveBandIndex) ! IN
-
-          call calcHorizScale(rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
-
-          call horizCorrelFunction(rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
-       else if (trim(tool) == 'HVCORREL_LOCAL') then
-          call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
-          call calcLocalCorrelations(ensPerturbations, variableType, waveBandIndex_opt=waveBandIndex) ! IN
-       !else
-          !call bmd_localizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex_opt=waveBandIndex) ! IN
-       end if
-
-    end do
 
     !
     !- Write the estimated pressure profiles
     !
-    call writePressureProfiles
+    if (vco_ens%vgridPresent) then
+      call writePressureProfiles
+    end if
+
+    !
+    !- Ending
+    !
+    call ens_deallocate(ensPerts)
+
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'csl_toolbox: Done!'
 
   end subroutine csg_toolbox
 
@@ -916,6 +970,126 @@ module CalcStatsGlb_mod
   end subroutine calcCorrelations
 
   !--------------------------------------------------------------------------
+  ! CALCCORRELATIONS2
+  !--------------------------------------------------------------------------
+  subroutine calcCorrelations2(ensPerts,corns,rstddev,latMask_opt)
+    implicit none
+
+    type(struct_ens) :: ensPerts
+    real(8), intent(out)          :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8), intent(out)          :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in) :: latMask_opt(:)
+
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    
+    real(8) :: corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
+    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
+    real(8) :: dfact, dfact2, dsummed
+    
+    integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
+    integer :: levIndex, latIndex, nsize, ierr
+
+    call tmg_start(3,'CALCCORRELATIONS2')
+
+    corns(:,:,:) = 0.0d0
+    do ensIndex = 1, nens
+
+      write(*,*) 'calcCorrelations: processing member ',ensIndex
+
+      !- 2.1 Extract fields from ensPerturbations
+      do levIndex = 1, ens_getNumK(ensPerts)
+        ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
+        gridState(:,:,levIndex) = real(ptr4d_r4(ensIndex,1,:,:),8)
+      end do
+      if ( present(latMask_opt) ) then
+        do latIndex = myLatBeg, myLatEnd
+          gridState(:,latIndex,:) = latMask_opt(latIndex)*gridState(:,latIndex,:)
+        end do
+      end if
+      call gst_setID(gstID_nkgdimEns)
+      call gst_reespe(spectralState,gridState)
+
+      !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila_mpilocal,ila_mpiglobal,jk1,jk2)
+      do jn = mynBeg, mynEnd, mynSkip
+        do jm = mymBeg, mymEnd, mymSkip
+          if(jm.le.jn) then
+            dfact = 2.0d0
+            if (jm.eq.0) dfact = 1.0d0
+            ila_mpiglobal = gst_getNind(jm,gstID_nkgdimEns) + jn - jm
+            ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
+            do jk1 = 1, nkgdimEns
+              do jk2 = 1, nkgdimEns
+                corns(jk1,jk2,jn) = corns(jk1,jk2,jn) +     &
+                     dfact*( spectralState(ila_mpilocal,1,jk1)*spectralState(ila_mpilocal,1,jk2) +   &
+                     spectralState(ila_mpilocal,2,jk1)*spectralState(ila_mpilocal,2,jk2)  )
+              end do
+            end do
+          end if
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do
+
+    ! communicate between all tasks
+    nsize = nkgdimEns*nkgdimEns*(1+ntrunc)
+    call rpn_comm_allreduce(corns,corns_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    corns(:,:,:) = corns_mpiglobal(:,:,:)
+    
+    !$OMP PARALLEL DO PRIVATE (jn,jk1)
+    do jn = 0, ntrunc
+      do jk1 = 1, nkgdimEns
+        if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
+          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+        else
+          rstddev(jk1,jn) = 0.0d0
+        end if
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
+    do jn = 0, ntrunc
+      do jk1 = 1, nkgdimEns
+        do jk2 = 1, nkgdimEns
+          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
+            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          else
+            corns(jk1,jk2,jn) = 0.0d0
+          end if
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    dfact2 = 1.0d0/sqrt(dble(nens-1))
+    do jn = 0, ntrunc
+      dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
+      do jk1 = 1, nkgdimEns
+        rstddev(jk1,jn) = rstddev(jk1,jn)*dfact2*dfact
+      end do
+    end do
+
+    ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
+    !$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
+    do jk1 = 1, nkgdimEns
+      dsummed=0.0d0
+      do jn = 0, ntrunc
+        dsummed=dsummed + (rstddev(jk1,jn)**2)*((2.0d0*dble(jn))+1.0d0)/2.0d0
+      end do
+      do jn = 0, ntrunc
+        if(dsummed.gt.0.0d0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    call tmg_stop(3)
+    write(*,*) 'finished computing correlations...'
+
+  end subroutine calcCorrelations2
+  
+  !--------------------------------------------------------------------------
   ! CALCPOWERSPEC
   !--------------------------------------------------------------------------
   subroutine calcPowerSpec(ensPerturbations,powerSpec)
@@ -1080,14 +1254,14 @@ module CalcStatsGlb_mod
     outfilename = "./pressureProfile_M.txt"
     open (unit=99,file=outfilename,action="write",status="new")
     do jk = 1, nLevEns_M
-       write(99,'(I3,2X,F6.1)') jk, pressureProfile_M(jk)/100.d0
+       write(99,'(I3,2X,F7.2)') jk, pressureProfile_M(jk)/100.d0
     end do
     close(unit=99)
        
     outfilename = "./pressureProfile_T.txt"
     open (unit=99,file=outfilename,action="write",status="new")
     do jk = 1, nLevEns_T
-       write(99,'(I3,2X,F6.1)') jk, pressureProfile_T(jk)/100.d0
+       write(99,'(I3,2X,F7.2)') jk, pressureProfile_T(jk)/100.d0
     end do
     close(unit=99)
 
@@ -1412,6 +1586,142 @@ module CalcStatsGlb_mod
 
   end subroutine spectralFilter
 
+  !--------------------------------------------------------------------------
+  ! SPECTRALFILTER2
+  !--------------------------------------------------------------------------
+  subroutine spectralFilter2(ensPerts_in,ensPerts_out,waveBandIndex_opt)
+    implicit none
+
+    type(struct_ens)  :: ensPerts_in
+    type(struct_ens)  :: ensPerts_out
+
+    integer, optional, intent(in) :: waveBandIndex_opt
+
+    real(8), allocatable :: ensPertSP(:,:,:)
+    real(8), allocatable :: ensPertGD(:,:,:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
+    
+    integer :: memberIndex, levIndex, latIndex, lonIndex
+    integer :: jn, jm, ila_mpilocal, ila_mpiglobal
+    integer :: gstFilterID
+
+    real(8), allocatable :: ResponseFunction(:)
+    real(8) :: waveLength
+
+    character(len=128) :: outfilename
+    character(len=2) :: wbnum
+
+    !
+    !- 1.  Pre-compute the response function (if needed)
+    !
+    if ( nWaveBand /= 1 ) then
+      write(*,*) 'Bandpass filtering step'
+      if (.not. present(waveBandIndex_opt)) then
+        write(*,*) 'Error: No waveBandIndex was supplied!!!'
+        call utl_abort('calbmatrix_glb: spectralFilter2')
+      end if
+      allocate(ResponseFunction(0:ntrunc))
+      write(wbnum,'(I2.2)') waveBandIndex_opt
+      outfilename = "./ResponseFunction_"//wbnum//".txt"
+      if (mpi_myid == 0) then
+        open (unit=99,file=outfilename,action="write",status="new")
+      end if
+      do jn = 0, ntrunc
+        ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
+        if ( jn /= 0) then
+          waveLength=4.d0*asin(1.d0)*ra/dble(jn)
+        else
+          waveLength=0.d0
+        end if
+        write(* ,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
+        if (mpi_myid == 0) then
+          write(99,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
+        end if
+      end do
+      if (mpi_myid == 0) then
+        close(unit=99)
+      end if
+    end if
+
+    !
+    !- 2.  Apply Filter
+    !
+    gstFilterID = gst_setup(ni,nj,nTrunc,nEnsOverDimension)
+
+    allocate(ensPertSP(nla_mpilocal,2,nEnsOverDimension))
+    allocate(ensPertGD(nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+    ensPertSP(:,:,:) = 0.0d0
+    
+    do levIndex = 1, ens_getNumK(ensPerts_in) ! Loop on variables and vertical levels
+
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts_in,levIndex)
+
+      do latIndex = myLatBeg, myLatEnd
+        ensPertGD(:,:,latIndex) = 0.0d0
+      end do
+
+      !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do memberIndex = 1, nEns
+            ensPertGD(memberIndex,lonIndex,latIndex) = dble(ptr4d_r4(memberIndex,1,lonIndex,latIndex))
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+      !- GridPoint space -> Spectral Space
+      call gst_setID(gstFilterID) ! IN
+      call gst_reespe_kij(ensPertSP, & ! OUT
+                          ensPertGD)   ! IN
+
+      !- Filtering
+      if ( nWaveBand /= 1 ) then
+        !$OMP PARALLEL DO PRIVATE (memberIndex,jn,jm,ila_mpilocal,ila_mpiglobal)
+        do memberIndex = 1, nEns
+          do jn = mynBeg, mynEnd, mynSkip
+            do jm = mymBeg, mymEnd, mymSkip
+              if (jm <= jn) then
+                ila_mpiglobal = gst_getNind(jm,gstFilterID) + jn - jm
+                ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
+                ensPertSP(ila_mpilocal,1,memberIndex) = ensPertSP(ila_mpilocal,1,memberIndex) * ResponseFunction(jn)
+                ensPertSP(ila_mpilocal,2,memberIndex) = ensPertSP(ila_mpilocal,2,memberIndex) * ResponseFunction(jn)
+              end if
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+
+      ! Spectral Space -> GridPoint space
+      call gst_setID(gstFilterID) ! IN
+      call gst_speree_kij(ensPertSP, & ! IN
+                          ensPertGD)   ! OUT
+
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts_out,levIndex)
+
+      !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do memberIndex = 1, nEns
+            ptr4d_r4(memberIndex,1,lonIndex,latIndex) = sngl(ensPertGD(memberIndex,lonIndex,latIndex))
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do
+
+    if ( nWaveBand /= 1 ) then
+       deallocate(ResponseFunction)
+    end if
+    deallocate(ensPertGD)
+    deallocate(ensPertSP)
+    
+    write(*,*) 'finished applying spectral filter...'
+
+  end subroutine spectralFilter2
+  
   !--------------------------------------------------------------------------
   ! CALCTHETA
   !--------------------------------------------------------------------------
@@ -2095,7 +2405,7 @@ module CalcStatsGlb_mod
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
-
+    
     write(*,*)
     write(*,*) 'Computing horizontal correlation functions'
 
@@ -2148,68 +2458,71 @@ module CalcStatsGlb_mod
     !
     !- 4.  Write to file
     !
-    if ( nWaveBand /= 1 ) then
-       if (.not. present(waveBandIndex_opt)) then
+    if (mpi_myid == 0) then
+      if ( nWaveBand /= 1 ) then
+        if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
-       end if
-       write(wbnum,'(I2.2)') waveBandIndex_opt
-    end if
-
-    !- 4.1 2D correlation function in fst format
-    if ( nWaveBand == 1 ) then
-       outfilename = "./horizCorrel.fst"
-    else
-       outfilename = "./horizCorrel_"//wbnum//".fst"
-    end if
-    call write3d(GridState,outfilename,'HORIZCORFUNC',variableType)
-
-    !- 4.2 1D correlation function in txt format (for plotting purposes)
-    iStart=iref
-    iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
-
-    do varIndex = 1, nvar3d
-       if ( nWaveBand == 1 ) then
+        end if
+        write(wbnum,'(I2.2)') waveBandIndex_opt
+      end if
+      
+      !- 4.1 2D correlation function in fst format
+      if ( nWaveBand == 1 ) then
+        outfilename = "./horizCorrel.fst"
+      else
+        outfilename = "./horizCorrel_"//wbnum//".fst"
+      end if
+      call write3d(GridState,outfilename,'HORIZCORFUNC',variableType)
+      
+      !- 4.2 1D correlation function in txt format (for plotting purposes)
+      iStart=iref
+      iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
+      
+      do varIndex = 1, nvar3d
+        if ( nWaveBand == 1 ) then
           outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//".txt"
-       else
+        else
           outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//"_"//wbnum//".txt"
-       end if
-       open (unit=99,file=outfilename,action="write",status="new")
-
-       if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        
+        if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
-       else
+        else
           nLevEns = nLevEns_T
-       end if
-       nLevStart = varLevOffset(varIndex)+ 1 
-       nLevEnd   = varLevOffset(varIndex)+ nLevEns
-
-       do ji=iStart,iEnd
+        end if
+        nLevStart = varLevOffset(varIndex)+ 1 
+        nLevEnd   = varLevOffset(varIndex)+ nLevEns
+        
+        do ji=iStart,iEnd
           do jk = nLevStart,nLevEnd
-             if ( jk == nLevStart  ) then
-                write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,jk)
-             else if ( jk == nLevEnd ) then 
-                write(99,'(2X,F6.4)')  GridState(ji,jref,jk) ! Saut de ligne
-             else
-                write(99,'(2X,F6.4,$)')  GridState(ji,jref,jk)
-             end if
+            if ( jk == nLevStart  ) then
+              write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,jk)
+            else if ( jk == nLevEnd ) then 
+              write(99,'(2X,F6.4)')  GridState(ji,jref,jk) ! Saut de ligne
+            else
+              write(99,'(2X,F6.4,$)')  GridState(ji,jref,jk)
+            end if
           end do
-       end do
-       close(unit=99)
-    end do
-
-    do varIndex = 1, nvar2d
-       if ( nWaveBand == 1 ) then
+        end do
+        close(unit=99)
+      end do
+      
+      do varIndex = 1, nvar2d
+        if ( nWaveBand == 1 ) then
           outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//".txt"
-       else
+        else
           outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//"_"//wbnum//".txt"
-       end if
-       open (unit=99,file=outfilename,action="write",status="new")
-       do ji=iStart,iEnd
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        do ji=iStart,iEnd
           write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,varLevOffset(nvar3d+1)+varIndex)
-       end do
-       close(unit=99)
-    end do
+        end do
+        close(unit=99)
+      end do
+
+    end if
 
   end subroutine horizCorrelFunction
 
@@ -2312,6 +2625,8 @@ module CalcStatsGlb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
+    if (mpi_myid /= 0) return
+    
     write(*,*)
     write(*,*) 'Computing horizontal correlation lengthscales'
 
@@ -2459,30 +2774,31 @@ module CalcStatsGlb_mod
   end subroutine writePowerSpec
 
   !--------------------------------------------------------------------------
-  ! CALCLOCALCORRELATIONS
+  ! calcLocalCorrelations (identical to the routine with the same name in calcstatslam)
   !--------------------------------------------------------------------------
-  subroutine calcLocalCorrelations(ensPerturbations,variableType,waveBandIndex_opt)
+  subroutine calcLocalCorrelations(ensPerts)
     implicit none
+    type(struct_ens) :: ensPerts
 
-    real(4), pointer, intent(in) :: ensPerturbations(:,:,:,:)
-    integer, intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex_opt
+    type(struct_gsv) :: statevector_locHorizCor
+    type(struct_gsv) :: statevector_oneMember
+    type(struct_gsv) :: statevector_oneMemberTiles
 
-    real(8), allocatable :: localHorizCorrel(:,:,:)
+    real(8), pointer :: ptr3d_r8(:,:,:)
+    real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
 
-    real(8) :: dnens
+    real(8) :: dnEns
 
     integer :: i, j, k, ens
-    integer :: blocklength, blockpadding, nirefpoint, njrefpoint
+    integer :: blocklength_x, blocklength_y, blockpadding, nirefpoint, njrefpoint
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
 
-    integer :: nulnam, ierr, fclos, fnom
-    
-    character(len=128) :: outfilename
-    character(len=2)   :: wbnum
+    character(len=4), pointer :: varNamesList(:)
 
-    NAMELIST /NAMHVCORREL_LOCAL/blocklength, blockpadding
+    integer :: ier, fclos, fnom, nulnam
+
+    NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding
 
     !
     ! To compute the local horizontal correlation for some 'reference' grid point
@@ -2490,82 +2806,85 @@ module CalcStatsGlb_mod
     !     the ensemble values were divided by the grid point std dev.
     !
 
-    blocklength = 100 ! Horizontal correlation will be compute blocklength x blocklength gridpoint
-                      ! around each reference point
+    nirefpoint = 4 ! Number of reference grid point in x
+    njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
     nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMHVCORREL_LOCAL)
     write(*,nml=NAMHVCORREL_LOCAL)
-    ierr = fclos(nulnam)
+    ier = fclos(nulnam)
 
-    nirefpoint = ni/blocklength ! Number of reference grid point in x
-    njrefpoint = nj/blocklength ! Number of reference grid point in y
+    blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
+    ! around each reference point
+    blocklength_y = hco_ens%nj / njrefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
+    ! around each reference point
 
-    allocate(localHorizCorrel(ni,nkgdimEns,nj))
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts) 
 
-    localHorizCorrel(:,:,:)=0.0d0
+    call gsv_allocate(statevector_locHorizCor, ens_getNumStep(ensPerts),                     &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='VarsLevs', dataKind_opt=8 )
 
-    dnens = 1.0d0/dble(nens-1)
+    call gsv_allocate(statevector_oneMemberTiles, ens_getNumStep(ensPerts),                  &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
 
-    !$OMP PARALLEL DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
-    do k = 1, nkgdimEns
+    call gsv_allocate(statevector_oneMember, ens_getNumStep(ensPerts),                       &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='VarsLevs', dataKind_opt=8 )
 
-       do ens = 1, nens
-          do jref_id = 1, njrefpoint
-             do iref_id = 1, nirefpoint
-                iref = (2*iref_id-1)*blocklength/2
-                jref = (2*jref_id-1)*blocklength/2
-                jmin = max(jref-(blocklength-blockpadding)/2,1)
-                jmax = min(jref+(blocklength-blockpadding)/2,nj)
-                imin = max(iref-(blocklength-blockpadding)/2,1)
-                imax = min(iref+(blocklength-blockpadding)/2,ni)
-                do j = jmin, jmax
-                   do i = imin, imax
-                      localHorizCorrel(i,k,j)=localHorizCorrel(i,k,j) + &
-                           ensPerturbations(i,j,k,ens) * ensPerturbations(iref,jref,k,ens)
-                   end do
-                end do
-             end do
+    call gsv_zero(statevector_locHorizCor)
+
+    dnEns = 1.0d0/dble(nEns-1)
+
+    call gsv_getField(statevector_locHorizCor,ptr3d_r8)
+
+    do ens = 1, nEns
+      call ens_copyMember(ensPerts, statevector_oneMemberTiles, ens)
+      call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember)
+      call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
+
+      do k = statevector_locHorizCor%mykBeg, statevector_locHorizCor%mykEnd
+        do jref_id = 1, njrefpoint
+          do iref_id = 1, nirefpoint
+            iref = (2*iref_id-1)*blocklength_x/2
+            jref = (2*jref_id-1)*blocklength_y/2
+            jmin = max(jref-(blocklength_y-blockpadding)/2,1)
+            jmax = min(jref+(blocklength_y-blockpadding)/2,hco_ens%nj)
+            imin = max(iref-(blocklength_x-blockpadding)/2,1)
+            imax = min(iref+(blocklength_x-blockpadding)/2,hco_ens%ni)
+            do j = jmin, jmax
+              do i = imin, imax
+                ptr3d_r8(i,j,k) = ptr3d_r8(i,j,k) + &
+                     ptr3d_r8_oneMember(i,j,k)*ptr3d_r8_oneMember(iref,jref,k)
+              end do
+            end do
           end do
-       end do
-
-       do j = myLatBeg, myLatEnd
-          do i = myLonBeg, myLonEnd
-             localHorizCorrel(i,k,j) = localHorizCorrel(i,k,j)*dnens
-          end do
-       end do
+        end do
+      end do
 
     end do
-    !$OMP END PARALLEL DO
+
+    call gsv_scale(statevector_locHorizCor,dnEns)
 
     write(*,*) 'finished computing the local horizontal correlations...'
 
     !
     !- 4.  Write to file
     !
-    if ( nWaveBand /= 1 ) then
-       if (.not. present(waveBandIndex_opt)) then
-          write(*,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
-       end if
-       write(wbnum,'(I2.2)') waveBandIndex_opt
-    end if
+    call gsv_writeToFile(statevector_locHorizCor, './horizCorrelLocal.fst', 'HCORREL_LOC', &
+                         typvar_opt = 'E', numBits_opt = 32)
 
-    !- 4.1 2D correlation function in fst format
-    if ( nWaveBand == 1 ) then
-       outfilename = "./horizCorrelLocal.fst"
-    else
-       outfilename = "./horizCorrelLocal_"//wbnum//".fst"
-    end if
-    call write3d(localHorizCorrel,outfilename,'HCORREL_LOC',variableType)
-
-    localHorizCorrel(:,:,:) = localHorizCorrel(:,:,:)**2
-    call write3d(localHorizCorrel,outfilename,'HCORREL2_LOC',variableType)
-
-    deallocate(localHorizCorrel)
+    call gsv_deallocate(statevector_locHorizCor)
+    call gsv_deallocate(statevector_oneMember)
+    call gsv_deallocate(statevector_oneMemberTiles)
 
   end subroutine calcLocalCorrelations
-
-end module CalcStatsGlb_mod
+  
+end module calcStatsGlb_mod
