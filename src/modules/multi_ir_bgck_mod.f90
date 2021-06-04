@@ -394,7 +394,7 @@ contains
     logical :: satelliteAzimuthAnglePresent, satelliteZenithAnglePresent, sunAzimuthAnglePresent
     integer, parameter :: nn=2
     integer, parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
-    integer :: countChannels
+    integer :: countInvalidChannels
     logical :: bad
     real(8), parameter :: sunzenmax=87.12d0
     real(8) :: minpavhrr(2:3)
@@ -597,10 +597,7 @@ contains
             channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max( 0,min( channelNumber,tvs_maxChannelNumber + 1 ) )
             call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
-            if (channelIndex == -1) then
-              write(*,*) "irbg_doQualityControl: channel not found", channelNumber, id
-              call utl_abort("irbg_doQualityControl")
-            end if
+            if (channelIndex == -1) cycle
             nchannels = nchannels + 1
             channelIndexes(nchannels) = channelIndex
             btObsErr(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
@@ -620,6 +617,7 @@ contains
 
         do jc = 1, nchannels
           channelIndex = channelIndexes(jc)
+          if ( channelIndex ==-1) cycle
           btCalc(channelIndex) = tvs_radiance(tvs_nobtov) % bt(channelIndex)
           rcal_clr(channelIndex) = tvs_radiance(tvs_nobtov) % clear(channelIndex)
           sfctau(channelIndex) = tvs_transmission(tvs_nobtov) % tau_total(channelIndex)
@@ -669,6 +667,7 @@ contains
         
         channels: do jc = 1, nchannels
           channelIndex = channelIndexes(jc)
+          if (channelIndex == -1) cycle channels
           if ( rejflag(channelIndex,9) == 1 ) cycle channels
           t_effective =  tvs_coefs(id) % coef % ff_bco(channelIndex) &
                + tvs_coefs(id) % coef % ff_bcs(channelIndex) * btObs(channelIndex)
@@ -688,21 +687,20 @@ contains
         
         ! Reference for window channel
         call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo, iwindow(qcid) )
-        if (iwindo == -1) then
-          write(*,*) 'Missing main window reference channel !', id
-          call utl_abort("irbg_doQualityControl")
-        end if
         call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo_alt, iwindow_alt(qcid) )
-        if (iwindo_alt == -1) then
-          write(*,*) 'Missing backup window reference channel', id
-          call utl_abort("irbg_doQualityControl")
+        ichref = -1
+        if (iwindo /= -1) then
+          if ( rejflag(iwindo,9) == 0) then
+            ichref = iwindo
+          end if
         end if
-        if (  rejflag(iwindo,9) == 0) then
-          ichref = iwindo
-        else if ( rejflag(iwindo_alt,9) == 0) then
-          ichref = iwindo_alt
-        else
-          ichref = -1
+        if (ichref == -1 .and. iwindo_alt /= -1) then
+          if ( rejflag(iwindo_alt,9) == 0) then
+            ichref = iwindo_alt
+          end if
+        end if
+
+        if (ichref == -1) then
           cldflag = -1
           rejflag(:,9) = 1
           write(*,*) 'WARNING'
@@ -941,18 +939,17 @@ contains
           call tvs_getLocalChannelIndexFromChannelNumber(id, ilist_co2_pair(channelIndex), ilist2_pair(qcid,channelIndex)  )
         end do
 
-        if ( any( ilist_co2 == -1) .or. any( ilist_co2_pair == -1) ) then
-          write(*,*) 'irbg_doQualityControl: Missing CO2 slicing channels:',  id, ilist_co2 , ilist_co2_pair
-          call utl_abort("irbg_doQualityControl")
-        end if
-
-        countChannels = 0
+        countInvalidChannels = 0
         do channelIndex = 1, nco2
-          if ( rejflag(ilist_co2(channelIndex),9) == 1 .or. &
-               rejflag(ilist_co2_pair(channelIndex),9) == 1 ) countChannels = countChannels + 1
+          if (  ilist_co2(channelIndex) == -1 .or. ilist_co2_pair(channelIndex) == -1 ) then
+            countInvalidChannels = countInvalidChannels + 1
+          else if ( rejflag(ilist_co2(channelIndex),9) == 1 .or. &
+               rejflag(ilist_co2_pair(channelIndex),9) == 1 ) then
+            countInvalidChannels = countInvalidChannels + 1
+          end if
         end do
          
-        if (countChannels == nco2) then
+        if (countInvalidChannels == nco2) then
           cldflag = -1
           rejflag(:,9) = 1
           write(*,*) 'WARNING'
@@ -962,21 +959,13 @@ contains
         end if
 
         !   Equivalent height of selected window channel
+        heff = MPC_missingValue_R8
         call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,2))
-        if (channelIndex == -1) then
-          write(*,*) 'irbg_doQualityControl: Missing main Heff channel:', id, ilist1(qcid,2)
-          call utl_abort("irbg_doQualityControl")
-        end if
-        heff = ptop_rd( channelIndex )
-
+        if (channelIndex /= -1) heff = ptop_rd( channelIndex )
               
         if (ichref == iwindo_alt) then
           call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,3))
-          if (channelIndex == -1) then
-            write(*,*) 'irbg_doQualityControl: Missing backup Heff channel:', id, ilist1(qcid,3)
-            call utl_abort("irbg_doQualityControl")
-          end if
-          heff = ptop_rd( channelIndex )
+          if (channelIndex /= -1) heff = ptop_rd( channelIndex )
         end if
         !  Cloud top based on co2 slicing 
 
@@ -1064,12 +1053,6 @@ contains
         fate(:) = sum(rejflag(:,:), DIM=2)            
 
         !     Further reasons to reject observations
-        !print *,"call 9", id, ichn_sun(qcid)
-        call  tvs_getLocalChannelIndexFromChannelNumber(id,ilist_sun,ichn_sun(qcid))
-        if (ilist_sun == -1) then
-          write(*,*) 'irbg_doQualityControl: Missing ich_sun:', id,ichn_sun(qcid)
-          call utl_abort("irbg_doQualityControl")
-        end if
         do channelIndex = 1, nchn
 
           if ( fate(channelIndex) == 0 ) then
@@ -1085,7 +1068,7 @@ contains
             ! *** Test # 5 ***
             ! *** Do not assimilate shortwave channels during the day ***
 
-            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang .and. sunZenithAnglePresent) then
+            if ( tvs_coefs(id) % coef % ff_cwn(channelIndex) >= 2000.d0 .and. sunZenithAngle < night_ang .and. sunZenithAnglePresent) then
               rejflag(channelIndex,11) = 1
               rejflag(channelIndex,7)  = 1
             end if
@@ -1200,10 +1183,7 @@ contains
           channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
           channelNumber = max(0, min(channelNumber, tvs_maxChannelNumber + 1))
           call tvs_getLocalChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
-          if (channelIndex == -1) then
-            write(*,*) 'Missing channel', id, channelNumber
-            call utl_abort('irbg_doQualityControl')
-          end if
+          if (channelIndex == -1) cycle
           call obs_bodySet_r(obsSpaceData,OBS_SEM,bodyIndex,emi_sfc(channelIndex))
           do bitIndex = 0, bitflag
             if ( rejflag(channelIndex,bitIndex) == 1 ) &
