@@ -1131,7 +1131,12 @@ contains
       else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
         fileName = 'to_amsub'
       else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
-        fileName = 'to_amsua'
+        if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name( codeType_opt ))) ) then
+          fileName = 'to_amsua_allsky'
+        else
+          fileName = 'to_amsua'
+        end if
       else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
         fileName = 'ssmis'
       else if ( codtyp_get_name( codeType_opt ) == 'crisfsr' ) then
