@@ -48,12 +48,8 @@ module var1D_mod
   integer             :: nlev_M, nlev_T, nkgdim
   integer             :: cvDim_mpilocal
   type(struct_vco), pointer :: vco_anl
-  ! originally from common blocks and possibly from the namelist:
-  integer, parameter  :: maxNumLevels=200
-  real(8)             :: scaleFactor(maxNumLevels)
-  real(8)             :: scaleFactorLQ(maxNumLevels)
-  integer             :: nulbgst=0
-  !variables added for oneDvar in Midas
+  integer, parameter   :: maxNumLevels=200
+  integer              :: nulbgst=0
   real(8), allocatable :: bMatrix(:,:)
   real(8), allocatable :: bSqrtLand(:,:,:), bSqrtSea(:,:,:)
   real(4), allocatable :: latLand(:), lonLand(:), latSea(:), lonSea(:)
@@ -74,6 +70,10 @@ module var1D_mod
   integer          :: bmatInstanceID(numBmatMax)
   logical          :: bmatIs3dList  (numBmatMax)
   logical          :: bmatActive    (numBmatMax)
+  !Namelist variables
+  real(8)             :: scaleFactor(maxNumLevels)    ! scaling factors for variances (no
+  real(8)             :: scaleFactorLQ(maxNumLevels)  ! scaling factors for LQ variances
+
 
 contains
 
@@ -81,15 +81,16 @@ contains
   !  var1D_setup
   !--------------------------------------------------------------------------
   subroutine var1D_setup(vco_in, obsdat, CVDIM_OUT)
+    !
     ! :Purpose: to setup var1D module
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     type(struct_vco), pointer, intent(in):: vco_in
     type (struct_obs), intent(in)        :: obsdat
     integer, intent(out)                 :: cvDim_out
-    ! Locals:
-    integer :: jlev, nulnam, ierr
+    ! locals:
+    integer :: levelIndex, nulnam, ierr
     integer, external ::  fnom, fclos
     integer :: status, Vcode_anl
     logical :: fileExists
@@ -99,11 +100,12 @@ contains
     integer :: extractDate, locationIndex, countGood, headerIndex
     integer :: bodyStart, bodyEnd, bodyIndex
  
-    NAMELIST /NAMVAR1D/scaleFactor,scaleFactorLQ
+    NAMELIST /NAMVAR1D/ scaleFactor, scaleFactorLQ
 
     call tmg_start(15,'BHI1D_SETUP')
-    if(mpi_myid == 0) write(*,*) 'var1D_setup: starting'
+    if(mpi_myid == 0) write(*,*) 'var1D_setup: Starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
     ! default values for namelist variables
     scaleFactor(:) = 1.0d0
     scaleFactorLQ(:) = 1.0d0
@@ -113,11 +115,12 @@ contains
     if ( ierr /= 0 ) call utl_abort( 'var1D_setup: Error reading namelist' )
     if ( mpi_myid == 0 ) write( *, nml = namvar1D )
     ierr = fclos( nulnam )
-    do jlev = 1, maxNumLevels
-      if( scaleFactor( jlev ) > 0.0d0 ) then 
-        scaleFactor( jlev ) = sqrt( scaleFactor( jlev ))
+
+    do levelIndex = 1, maxNumLevels
+      if( scaleFactor( levelIndex ) > 0.0d0 ) then 
+        scaleFactor( levelIndex ) = sqrt( scaleFactor( levelIndex ))
       else
-        scaleFactor( jlev ) = 0.0d0
+        scaleFactor( levelIndex ) = 0.0d0
       end if
     end do
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
@@ -126,16 +129,24 @@ contains
       call tmg_stop(15)
       return
     end if
+    do levelIndex = 1, maxNumLevels
+      if(scaleFactorLQ(levelIndex) > 0.0d0) then 
+        scaleFactorLQ(levelIndex) = sqrt(scaleFactorLQ(levelIndex))
+      else
+        scaleFactorLQ(levelIndex) = 0.0d0
+      end if
+    end do
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
     if (mpi_myid == 0) write(*,*) 'var1D_setup: nLev_M, nLev_T=',nLev_M, nLev_T
-    if (mpi_myid == 0) write(*,*) 'var1D_setup: read 1DVar background statistics'
+
+    if (mpi_myid == 0) write(*,*) 'var1D_setup: Read 1DVar background statistics'
     inquire(file=trim(oneDBmatLand), exist=fileExists)
     if ( fileExists ) then
       ierr = fnom(nulbgst, trim(oneDBmatLand), 'FTN+SEQ+UNF+OLD+R/O', 0)
     else
-      call utl_abort('var1D_setup:No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatLand))
+      call utl_abort('var1D_setup: No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatLand))
     end if
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
          vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, var1D_varCount, nkgdim, nLonLatPosLand
@@ -156,7 +167,7 @@ contains
     if ( fileExists ) then
       ierr = fnom(nulbgst, trim(oneDBmatSea), 'FTN+SEQ+UNF+OLD+R/O', 0)
     else
-      call utl_abort('var1D_setup:No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatSea))
+      call utl_abort('var1D_setup: No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatSea))
     end if
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
          vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, var1D_varCount, nkgdim, nLonLatPosSea
@@ -169,6 +180,7 @@ contains
       call utl_matsqrt(bSqrtSea(locationIndex,:,:), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     ierr = fclos(nulbgst)
+
     vco_1Dvar%initialized = .true.
     vco_1Dvar%vGridPresent = .false.
     vco_file => vco_1Dvar
@@ -191,15 +203,9 @@ contains
     end if
     if (.not. gsv_varExist(varName='TG')) then
       write(*,*) 'var1D_setup: WARNING: The TG field is missing. This must be present when assimilating'
-      write(*,*) '                    radiance observations'
+      write(*,*) 'radiance observations.'
     end if
-    do jlev = 1, max(nLev_M,nLev_T)
-      if(scaleFactorLQ(jlev) > 0.0d0) then 
-        scaleFactorLQ(jlev) = sqrt(scaleFactorLQ(jlev))
-      else
-        scaleFactorLQ(jlev) = 0.0d0
-      end if
-    end do
+
     !we want to count how many obs are really assimilable to minimize controlvector size
     var1D_validHeaderCount = 0
     allocate(  var1D_obsPointer(obs_numHeader(obsdat)) )
@@ -216,7 +222,7 @@ contains
         if (var1D_validHeaderCount == 1) write(*,*) 'first OBS', headerIndex
       end if
     end do
-    write(*,*) 'var1D_validHeaderCount', var1D_validHeaderCount, obs_numHeader(obsdat)
+    write(*,*) 'var1D_setup: var1D_validHeaderCount, obs_numHeader(obsdat)', var1D_validHeaderCount, obs_numHeader(obsdat)
     cvDim_out = nkgdim * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
     initialized = .true.
@@ -227,14 +233,15 @@ contains
   ! var1D_bSqrtHi
   !--------------------------------------------------------------------------
   subroutine var1D_bSqrtHi(controlVector_in, column, dataObs)
+    !
     ! :Purpose: HI component of B square root in 1DVar mode
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     real(8), intent(in)                    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs), intent(in)           :: dataObs
-    ! Locals:
+    ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -245,7 +252,7 @@ contains
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) '1Dvar B matrix not initialized'
+      if (mpi_myid == 0) write(*,*) 'var1D_bsqrtHi: 1Dvar B matrix not initialized'
       return
     end if
     allocate(oneDProfile(nkgdim))
@@ -268,7 +275,7 @@ contains
         offset = offset + size(currentColumn)
       end do
       if (offset /= nkgdim) then
-        write(*,*) 'offset, nkgdim', offset, nkgdim
+        write(*,*) 'var1D_bsqrtHi: offset, nkgdim', offset, nkgdim
         call utl_abort('var1D_bSqrtHi: inconsistency between Bmatrix and statevector size')
       end if
     end do
@@ -282,14 +289,15 @@ contains
   ! var1D_bSqrtHiAd
   !--------------------------------------------------------------------------
   subroutine var1D_bSqrtHiAd(controlVector_in, column, dataObs)
+    !
     ! :Purpose: HI component of B square root adjoint in 1DVar mode
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     real(8), intent(inout)                 :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
     type (struct_obs), intent(in)          :: dataObs
-    ! Locals:
+    ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -299,7 +307,7 @@ contains
     if (mpi_myid == 0) write(*,*) 'var1D_bSqrtHiAd: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) '1dvar Bmatrix not initialized'
+      if (mpi_myid == 0) write(*,*) 'var1D_bSqrtHiAd: 1dvar Bmatrix not initialized'
       return
     end if
     allocate(oneDProfile(nkgdim))
@@ -312,7 +320,7 @@ contains
         offset = offset + size(currentColumn)
       end do
       if (offset /= nkgdim) then
-        write(*,*) 'offset, nkgdim', offset, nkgdim
+        write(*,*) 'var1D_bSqrtHiAd: offset, nkgdim', offset, nkgdim
         call utl_abort('var1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
       latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian
@@ -339,8 +347,10 @@ contains
   ! var1D_Finalize
   !--------------------------------------------------------------------------
   subroutine var1D_Finalize()
+    !
+    ! :Purpose: to deallocate memory used by internal module strucures
+    !
     implicit none
-
     if (initialized) then
        deallocate( bMatrix)
        deallocate( bSqrtLand )
@@ -356,15 +366,16 @@ contains
   ! var1D_transferColumnToYGrid
   !--------------------------------------------------------------------------
   subroutine var1D_transferColumnToYGrid( stateVector, obsSpaceData, column)
+    !
     ! :Purpose: to transfer content of a columndata object to a statevector object
     !           without interpolation (to be used in 1DVar mode to write increments on Y grid).
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     type(struct_gsv), intent(in)           :: stateVector
     type(struct_obs), intent(in)           :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
-    ! Locals:
+    ! locals:
     integer :: columnIndex, varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
@@ -381,7 +392,7 @@ contains
       allocate(var1D_validHeaderCountAllTasks(1))
     end if
 
-    call RPN_COMM_gather(var1D_validHeaderCount  , 1, 'MPI_INTEGER', var1D_validHeaderCountAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
+    call rpn_comm_gather(var1D_validHeaderCount  , 1, 'MPI_INTEGER', var1D_validHeaderCountAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
     if (mpi_myId ==0) then
       var1D_validHeaderCountMpiGlobal = sum( var1D_validHeaderCountAllTasks(:) )
       var1D_validHeaderCountMax = maxval( var1D_validHeaderCountAllTasks(:) )
@@ -389,10 +400,10 @@ contains
       do taskIndex = 1, mpi_nprocs - 1
         obsOffset(taskIndex) = obsOffset(taskIndex - 1) + var1D_validHeaderCountAllTasks(taskIndex)
       end do
-      write(*,*) 'obsOffset: ', obsOffset(:)
+      write(*,*) 'var1D_transferColumnToYGrid: obsOffset: ', obsOffset(:)
     end if
-    call RPN_COMM_bcast( obsOffset, mpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
-    call RPN_COMM_bcast( var1D_validHeaderCountMax, 1, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call rpn_comm_bcast( obsOffset, mpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call rpn_comm_bcast( var1D_validHeaderCountMax, 1, 'MPI_INTEGER', 0,  "GRID",ierr )
 
     call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)
     if (mpi_myId ==0) then
@@ -420,8 +431,8 @@ contains
         end if
       else
         tag = 2 * mpi_myID
-        call RPN_COMM_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
-        call RPN_COMM_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
+        call rpn_comm_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
+        call rpn_comm_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
       end if
       
       call rpn_comm_barrier("GRID",ierr)
@@ -499,9 +510,11 @@ contains
   ! var1D_get1DVarIncrement
   !--------------------------------------------------------------------------
   subroutine var1D_get1DVarIncrement(incr_cv, column, columng, obsSpaceData, nvadim_mpilocal)
-
+    !
+    ! :Purpose: to compue 1Dvar increment from control vector
+    !
     implicit none
-    ! Arguments:
+    ! arguments:
     real(8), intent(in)                    :: incr_cv(:)
     type(struct_columnData), intent(inout) :: column
     type(struct_columnData), intent(in)    :: columng
@@ -522,10 +535,10 @@ contains
     !:Purpose: To initialize the 1Dvar analysis Background term.
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     type(struct_vco), pointer, intent(in) :: vco_anl
     type (struct_obs), intent(in)         :: obsdat
-    ! Locals:
+    ! locals:
     integer, allocatable :: cvDimPerInstance(:)
     integer :: cvdim
     integer :: masterBmatIndex, bMatInstanceIndex, nBmatInstance, bmatIndex
@@ -542,9 +555,9 @@ contains
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
-        write(*,*) 'Setting up the modular GLOBAL HI 1D covariances...'
+        write(*,*) 'var1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
         call var1D_Setup(vco_anl, obsdat, cvdim)
-        write(*,*) "cvdim= ", cvdim
+        write(*,*) " var1D_bsetup: cvdim= ", cvdim
         cvdimPerInstance(1) = cvdim
       case default
         call utl_abort( 'var1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
@@ -570,7 +583,7 @@ contains
     !- 2. Print a summary and set the active B matrices array
     !
     write(*,*)
-    write(*,*) " var1D_setup SUMMARY, number of B matrices found = ", numBmat
+    write(*,*) "var1D_setup SUMMARY, number of B matrices found = ", numBmat
     do bmatIndex = 1, numBmat
       write(*,*) "  B matrix #", bmatIndex
       active = cvm_subVectorExists(bmatLabelList(bmatIndex))
@@ -596,16 +609,15 @@ contains
   subroutine var1D_sqrtB(controlVector, cvdim, column, obsSpaceData)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
-    !          space.
-    !          
+    !          space.    
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     integer, intent(in)                    :: cvdim
     real(8), intent(in)                    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs), intent(in)           :: obsSpaceData
-    ! Locals:
+    ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
     !
@@ -638,12 +650,12 @@ contains
     !          error-covariance space.
     !
     implicit none
-    ! Arguments:
+    ! arguments:
     integer, intent(in)                    :: cvdim
     real(8), intent(in)                    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs), intent(in)           :: obsData
-    ! Locals:
+    ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
     ! Process components in opposite order as forward calculation
