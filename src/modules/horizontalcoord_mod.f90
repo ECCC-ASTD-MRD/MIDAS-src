@@ -75,7 +75,7 @@ contains
   ! hco_SetupFromFile
   !--------------------------------------------------------------------------
   subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName_opt, &
-       varName_opt)
+                               varName_opt)
     !
     ! :Purpose: to initialize hco structure from a template file
     !           
@@ -89,7 +89,7 @@ contains
     ! locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
-    
+
     real(8) :: maxDeltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
     real(8), save :: maxGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
@@ -114,7 +114,7 @@ contains
     character(len=2 ) :: typvar
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
-      
+    
     if( .not.associated(hco) ) then
       allocate(hco)
     else
@@ -125,10 +125,10 @@ contains
     !- 1.1  Determine which variable to use for defining the grid
     !
     if (present(varName_opt)) then
-
+      
       ! User specified variable name
       nomvar = varName_opt
-
+      
     else
 
       ! First try to use P0
@@ -136,7 +136,7 @@ contains
       
       if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) then
         ! P0 not present, look for another suitable variable in the file
-
+        
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           nomvar = vnl_varNameList(varIndex)
@@ -146,7 +146,7 @@ contains
 
           foundVarNameInFile = .true.
           exit
-      
+          
         end do
 
         if ( .not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
@@ -157,11 +157,12 @@ contains
 
     write(*,*) 'hco_SetupFromFile: defining hco by varname= ', nomvar
 
+
     !
     !- 1.2  Open/Check template file
     !
     inquire(file=trim(TemplateFile), exist=FileExist)
-
+    
     if ( FileExist ) then
       iu_template = 0
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
@@ -185,7 +186,7 @@ contains
     !
     !- 2.  Get Horizontal grid info
     !
-    
+
     !- 2.1 Grid size and grid projection info
     dateo  = -1
     etiket = EtiketName
@@ -221,13 +222,13 @@ contains
 
     allocate(lat_8(1:nj))
     allocate(lon_8(1:ni))
-
+    
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
-
+    
     ier = gdll( EZscintID,               & ! IN
                 hco%lat2d_4, hco%lon2d_4 ) ! OUT
-
+    
     xlat1_yan_4 = -999.9
     xlon1_yan_4 = -999.9
     xlat2_yan_4 = -999.9
@@ -239,7 +240,7 @@ contains
 
     !- 2.2 Rotated lat-lon grid
     if ( trim(grtyp) == 'Z' ) then
-
+      
       !-  2.2.1 Read the Longitudes
       dateo  = -1
       etiket = EtiketName
@@ -253,13 +254,13 @@ contains
                         iu_template,                                & ! IN
                         ni_t, nj_t, nlev_t,                         & ! OUT
                         dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
-      
+
       if (ier < 0) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
         call utl_abort('hco_setupFromFile')
       end if
-
+      
       !  Test if the dimensions are compatible with the grid
       if ( ni_t /= ni .or. nj_t /= 1 ) then
         write(*,*)
@@ -277,7 +278,7 @@ contains
       ip3    = -1
       typvar = 'X'
       nomvar = '^^'
-
+      
       ier = utl_fstlir( lat_8,                                      & ! OUT 
                         iu_template,                                & ! IN
                         ni_t, nj_t, nlev_t,                         & ! OUT
@@ -306,7 +307,7 @@ contains
       ip3    = -1
       typvar = 'X'
       nomvar = '^^'
-
+      
       key = fstinf( iu_template,                                   & ! IN
                     ni_t, nj_t, nk,                                & ! OUT
                     dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
@@ -338,7 +339,7 @@ contains
 
       !- 2.3 Gaussian Grid
     else if ( trim(grtyp) == 'G' ) then
-      
+    
       !-  2.3.1 Find the latitudes and longitudes
       lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
       lat_8(:) = real(hco%lat2d_4(1,:),8)
@@ -352,9 +353,9 @@ contains
       
       !- 2.3.3 We know this is a global grid
       global = .true.
-      
+    
       !- 2.4 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
-    elseif ( trim(grtyp) == 'U' ) then
+    else if ( trim(grtyp) == 'U' ) then
       
       !-  2.4.1 Read the tic-tac vector
       dateo  = -1
@@ -371,7 +372,7 @@ contains
                     iu_template,                                 & ! IN
                     ni_t, nj_t, nlev_t,                          & ! OUT
                     dateo, etiket, ip1, ip2, ip3, typvar, nomvar)  ! IN
-
+    
       if (ier < 0) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Unable to find ^> grid descriptors'
@@ -390,37 +391,37 @@ contains
       !-  2.4.1 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = -999.999d0
       lat_8(:) = -999.999d0
-
+      
       !-  2.4.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
       if ( numSubGrid /= 2 ) then
         call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
-
+      
       !-  2.4.3 Determine parameters related to Yin and Yan grid rotations
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
-
+      
       ier = ezgprm( EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
       call cigaxg ( grtypTicTac,                        & ! IN
                     xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
                     ig1_yy, ig2_yy, ig3_yy, ig4_yy )      ! IN
-
+      
       ier = ezgprm( EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
       call cigaxg ( grtypTicTac,                                        & ! IN
                     xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
                     ig1_yy, ig2_yy, ig3_yy, ig4_yy )                      ! IN
-
+      
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
-
+      
       !-  2.4.3 We know this is a global grid
       global = .true.
-
+      
       !- 2.5 Irregular structure
     else if ( trim(grtyp) == 'Y' ) then
-
+      
       !- 2.5.1 This grid type is not rotated
       rotated = .false.
       xlat1_4 = 0.0
@@ -429,7 +430,7 @@ contains
       xlon2_4 = 1.0
       
       grtypTicTac = 'L'
-
+      
       !- 2.5.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
       call global_or_lam( global,     & ! OUT
@@ -438,7 +439,7 @@ contains
       !-  2.5.3 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = -999.999d0
       lat_8(:) = -999.999d0
-
+      
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U or Y are supported !, grtyp = ', trim(grtyp)
@@ -482,13 +483,13 @@ contains
     hco%xlat2_yan            = real(xlat2_yan_4,8)
     hco%xlon2_yan            = real(xlon2_yan_4,8)
     hco%initialized          = .true.
-    
+  
     hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
     hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
-
+  
     deallocate(lat_8)
     deallocate(lon_8)
-
+    
     !- 3.1 Compute maxGridSpacing 
     if ( trim(grtyp) == 'U' ) then
       latIndexBeg = 1
@@ -497,37 +498,37 @@ contains
       latIndexBeg = 1
       latIndexEnd = nj
     end if
-
+    
     maxDeltaLat = maxval( abs(hco%lat2d_4(2:ni,(latIndexBeg+1):latIndexEnd) - &
-                          hco%lat2d_4(1:(ni-1),latIndexBeg:(latIndexEnd-1))) )
+         hco%lat2d_4(1:(ni-1),latIndexBeg:(latIndexEnd-1))) )
     maxDeltaLon = 0.0d0
     do lonIndex = 1, ni - 1
       do latIndex = latIndexBeg, latIndexEnd - 1
         deltaLon = abs(hco%lon2d_4(lonIndex+1,latIndex+1) - hco%lon2d_4(lonIndex,latIndex))
-
+        
         if ( deltaLon > MPC_PI_R8 ) deltaLon = deltaLon - 2.0d0 * MPC_PI_R8 
-
+        
         deltaLon = deltaLon * cos(hco%lat2d_4(lonIndex,latIndex))
-
+      
         if ( deltaLon > maxDeltaLon ) maxDeltaLon = deltaLon
       end do
     end do
 
     maxGridSpacing = RA * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
-
+  
     if ( mpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
       maxGridSpacingPrevious = maxGridSpacing
       write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
     end if
-
+  
     if ( maxGridSpacing > 1.0d6 ) then
       call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
     end if
     
     hco%maxGridSpacing = maxGridSpacing
-
+  
     !
     !- 4.  Close the input file
     !
@@ -1072,28 +1073,6 @@ contains
   end function yyg_weight
 
   !--------------------------------------------------------------------------
-  ! hco_deallocate
-  !--------------------------------------------------------------------------
-  subroutine hco_deallocate( hco )
-    !
-    ! :Purpose: to deallocate a pointer to a given hco structure
-    !        
-    implicit none
-    ! arguments:
-    type(struct_hco), pointer :: hco
-
-    if (allocated(hco%lat)) deallocate(hco%lat)
-    if (allocated(hco%lon)) deallocate(hco%lon)
-    if (allocated(hco%lat2d_4)) deallocate(hco%lat2d_4)
-    if (allocated(hco%lon2d_4)) deallocate(hco%lon2d_4)
-    if (allocated(hco%tictacU)) deallocate(hco%tictacU)
-    
-    if (associated(hco)) deallocate(hco)
-    nullify(hco)
-
-  end subroutine hco_deallocate
-
-  !--------------------------------------------------------------------------
   ! hco_setupYgrid
   !--------------------------------------------------------------------------
   subroutine hco_setupYgrid( hco, ni, nj)
@@ -1123,7 +1102,7 @@ contains
       hco%xlat2 = 1.d0 
       hco%xlon2 = 1.d0
     end if
-    
+
   end subroutine hco_setupYgrid
 
 end module HorizontalCoord_mod
