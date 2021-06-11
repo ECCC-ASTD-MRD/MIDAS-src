@@ -19,13 +19,15 @@ eval `cclargs_lite -D "" $0 \
   -rfiletype         "r.filetype"  "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
   -run_in_parallel   "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
   -midas_mpirun      "midas.mpirun" "midas.mpirun" "[script 'midas.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
-  -npex              "1"   "1"   "[number of MPI tiles in the x direction (default to 1]" \
-  -npey              "1"   "1"   "[number of MPI tiles in the y direction (default to 1]" \
-  -omp_stacksize     "2G"  "2G"  "[set the variable OMP_STACKSIZE to that number]" \
-  -mpi_ssm           ""    ""    "[SSM domains to load the MPI environment]" \
-  -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
-  -fasttmp           "no" "yes" "[Using the FASTTMP technology]" \
-  -ramdiskpath       "" "" "[path to RAMDisk]" \
+  -npex              "1"   "1"    "[number of MPI tiles in the x direction (default to 1]" \
+  -npey              "1"   "1"    "[number of MPI tiles in the y direction (default to 1]" \
+  -omp_stacksize     "2G"  "2G"   "[set the variable OMP_STACKSIZE to that number]" \
+  -mpi_ssm           ""    ""     "[SSM domains to load the MPI environment]" \
+  -splitobs_mode     "no"  "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
+  -fasttmp           "no"  "yes"  "[Using the FASTTMP technology]" \
+  -ramdiskpath       ""    ""     "[path to RAMDisk]" \
+  -tmpfsdir          ""    ""     "[array containing the ramdisk path for each node]" \
+  -mpchild2slots     ""    ""     "[list of number which indicates for each mpi tile on which slot it is]" \
   -nodelogger        "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
   ++ $arguments`
 
@@ -63,6 +65,8 @@ while [ "${base}" -lt "${number_of_families2process}" ]; do
              =-number_of_families_already_processed ${base}                           \
              =-fasttmp            ${fasttmp}                                          \
              =-ramdiskpath        ${ramdiskpath}                                      \
+             =-tmpfsdir           ${tmpfsdir}                                         \
+             =-mpchild2slots      ${mpchild2slots}                                    \
              =-splitobs_mode      ${splitobs_mode}                                    \
              =-families2process   ${families2process}                                 \
              =-reunir_obs         ${reunir_obs}                                       \

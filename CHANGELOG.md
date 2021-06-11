@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * The MIDAS scripts can now use the `TMPFSDIR` variable in the
+   `prod_persistent` queues (#499 and !473)
 
 ### Changed
 
