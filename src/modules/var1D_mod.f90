@@ -434,8 +434,6 @@ contains
         call rpn_comm_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
         call rpn_comm_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
       end if
-      
-      call rpn_comm_barrier("GRID",ierr)
 
       if (mpi_myId == 0) then
         do taskIndex = 1,  mpi_nprocs - 1
@@ -479,8 +477,6 @@ contains
           tag = mpi_myId
           call rpn_comm_send(myColumn , varDim, 'mpi_real8', 0, tag, 'GRID', ierr )
         end if
-     
-        call rpn_comm_barrier("GRID",ierr)
 
         if (mpi_myId == 0) then
           do taskIndex = 1,  mpi_nprocs - 1
