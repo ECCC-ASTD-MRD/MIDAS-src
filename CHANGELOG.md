@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Bug fix to handle properly CriS observations background check when band 1 (LW) is missing. (#502 and !474)
 
 ### Removed
 
