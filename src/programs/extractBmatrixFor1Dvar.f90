@@ -49,27 +49,26 @@ program midas_extractBmatrixFor1Dvar
   integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr
   integer :: index, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
+  integer :: kIndex1, kIndex2, idObsPointLocal, idObsPointGlobal, nulmat, varCount
   integer :: idate, itime, nulnam, dateStamp
-  integer :: oneobs_timeStepIndex
+  integer ::stepBinExtractIndex
   integer :: nLonLatPos, lonLatPosIndex
 
   integer, parameter :: lonColumn = 1
   integer, parameter :: latColumn = 2
 
-!  integer :: ndim
-
-  character(len=128) :: oneobs_timeStep
   character(len=10)  :: datestr
-  character(len=4)   :: varName1, varName2, oneobs_varName
+  character(len=4)   :: varName1, varName2
   character(len=4),allocatable :: varList(:)
+  real(8), allocatable :: Bmatrix(:,:)
 
   ! namelist variables
-  integer :: numperturbations, nrandseed, extractdate
-  integer ::  oneobs_lonlat(nmaxLevs,2)
-  real(8), allocatable :: Bmatrix(:,:)
-  integer :: kIndex1, kIndex2, idObsPointLocal, idObsPointGlobal, nulmat, varCount
-  namelist /namextract/numperturbations, nrandseed, extractdate, oneobs_lonlat, &
-                    oneobs_varName, oneobs_timeStep
+  integer :: extractdate               ! date for the B matrix extracted
+  integer :: lonlatExtract(nmaxLevs,2) ! lon lat pairs definining the locations where the B matrix is to be extracted
+  character(len=128) :: stepBinExtract ! number of step bins to extract (1 typically for B NMC)
+  character(len=4)   :: varNameExtract ! variables to extract (all to extract everything in namstate)
+  namelist /namextract/ extractdate, lonlatExtract, &
+                    varNameExtract, stepBinExtract
 
   call ver_printNameAndVersion('extractBmatrix','Extract 1Dvar B matrix')
 
@@ -81,11 +80,9 @@ program midas_extractBmatrixFor1Dvar
 
   ! Set default values for namelist NAMEXTRACT parameters
   extractdate          =  2011020100
-  numperturbations  = -1
-  nrandseed         =  1
-  oneobs_varName    = 'all'
-  oneobs_timeStep   = 'middle'
-  oneobs_lonlat(:,:)= -1
+  varNameExtract    = 'all'
+  stepBinExtract   = 'middle'
+  lonlatExtract(:,:)= -1
 
   ! Read the parameters from NAMEXTRACT
   nulnam=0
@@ -96,8 +93,8 @@ program midas_extractBmatrixFor1Dvar
   ierr=fclos(nulnam)
 
   nLonLatPos=0
-  do index = 1, size(oneobs_lonlat(:,lonColumn))
-    if (oneobs_lonlat(index,lonColumn) >= 1 .and. oneobs_lonlat(index,latColumn) >= 1) nLonLatPos = nLonLatPos + 1  
+  do index = 1, size(lonlatExtract(:,lonColumn))
+    if (lonlatExtract(index,lonColumn) >= 1 .and. lonlatExtract(index,latColumn) >= 1) nLonLatPos = nLonLatPos + 1  
   end do
 
   if ( nLonLatPos == 0 ) then
@@ -158,9 +155,9 @@ program midas_extractBmatrixFor1Dvar
   !
   !- Compute columns of the B matrix
   !
-  select case(trim(oneobs_timeStep))
+  select case(trim(stepBinExtract))
   case ('first')
-    oneobs_timeStepIndex = 1
+   stepBinExtractIndex = 1
   case ('middle')
     if (mod(tim_nstepobsinc,2) == 0) then
       write(*,*)
@@ -168,13 +165,13 @@ program midas_extractBmatrixFor1Dvar
       write(*,*) 'tim_nstepobsinc = ', tim_nstepobsinc
       call utl_abort('midas-extractBmatrix')
     end if
-    oneobs_timeStepIndex = (tim_nstepobsinc+1)/2
+   stepBinExtractIndex = (tim_nstepobsinc+1)/2
     
   case ('last')
-    oneobs_timeStepIndex = tim_nstepobsinc
+   stepBinExtractIndex = tim_nstepobsinc
   case default
     write(*,*)
-    write(*,*) 'Unsupported oneobs_timeStep : ', trim(oneobs_timeStep)
+    write(*,*) 'Unsupported stepBinExtract : ', trim(stepBinExtract)
     call utl_abort('midas-extractBmatrix')
   end select
   
@@ -184,21 +181,21 @@ program midas_extractBmatrixFor1Dvar
   write(*,*) 'midas-extractBmatrix: Compute columns of B matrix for 1Dvar'
   write(*,*) '************************************************************'
   write(*,*)
-  write(*,*) ' temporal location          = ',trim(oneobs_timeStep), oneobs_timeStepIndex
+  write(*,*) ' temporal location          = ',trim(stepBinExtract),stepBinExtractIndex
   write(*,*) ' number of lon-lat positions = ', nLonLatPos
   
   if (mpi_myId == 0) then
     varCount = 0
     do index=1, vnl_numvarmax
       if ( .not. gsv_varExist(varName=vnl_varNameList(index)) ) cycle
-      if ( trim(oneobs_varName)  /= 'all' .and. (trim(oneobs_varName) /= trim(vnl_varNameList(index))) ) cycle
+      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(index))) ) cycle
       varCount = varCount + 1
     end do
     allocate(varList(varCount))
     varCount = 0
     do index=1, vnl_numvarmax
       if ( .not. gsv_varExist(varName=vnl_varNameList(index)) ) cycle
-      if ( trim(oneobs_varName)  /= 'all' .and. (trim(oneobs_varName) /= trim(vnl_varNameList(index))) ) cycle
+      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(index))) ) cycle
       varCount = varCount + 1
       varList(varCount) = vnl_varNameList(index)
     end do
@@ -213,8 +210,8 @@ program midas_extractBmatrixFor1Dvar
 
     Bmatrix(:,:) = MPC_missingValue_R8
 
-    latIndex = oneobs_lonlat(lonLatPosIndex,latColumn)
-    lonIndex = oneobs_lonlat(lonLatPosIndex,lonColumn)
+    latIndex = lonlatExtract(lonLatPosIndex,latColumn)
+    lonIndex = lonlatExtract(lonLatPosIndex,lonColumn)
     
     latitude = hco_anl%lat2d_4(lonIndex, latIndex)
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
@@ -222,7 +219,7 @@ program midas_extractBmatrixFor1Dvar
     do kIndex1 = 1, nkgdim
       varName1 = gsv_getVarNameFromK(statevector, kIndex1)
       if ( .not. gsv_varExist(varName= varName1) ) cycle
-      if ( trim(oneobs_varName) /= 'all' .and. trim(oneobs_varName) /= trim(varName1) ) cycle
+      if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
       
       write(*,*)
       write(*,*) 'midas-extractBmatrix: simulating a pseudo-observation of ', trim(varName1)
@@ -234,9 +231,9 @@ program midas_extractBmatrixFor1Dvar
       if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
            lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
         if (vnl_varLevelFromVarname(varName1) == 'SF') then
-          field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0
+          field4d(lonIndex, latIndex, 1,stepBinExtractIndex) = 1.0D0
         else
-          field4d(lonIndex,latIndex,levIndex1, oneobs_timeStepIndex) = 1.0D0
+          field4d(lonIndex, latIndex, levIndex1,stepBinExtractIndex) = 1.0D0
         end if
       end if
       !ici field4d est initialise a zero sauf au point qui nous interesse ou on a 1
@@ -250,7 +247,7 @@ program midas_extractBmatrixFor1Dvar
       do kIndex2 = 1, nkgdim
         varName2 = gsv_getVarNameFromK(statevector, kIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
-        if ( trim(oneobs_varName)  /= 'all' .and. trim(oneobs_varName) /= trim(varName2) ) cycle
+        if ( trim(varNameExtract)  /= 'all' .and. trim(varNameExtract) /= trim(varName2) ) cycle
           idObsPointLocal = -1
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
                lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
@@ -258,7 +255,7 @@ program midas_extractBmatrixFor1Dvar
             call gsv_getField(statevector,field4d, varName2)
             factor2 = getConversionFactor( varName2 )
             levIndex2 = gsv_getLevFromK(statevector, kIndex2)
-            bmatrix(kIndex2, kIndex1) = factor1 * factor2 * field4d(lonIndex, latIndex, levIndex2, oneobs_timeStepIndex)
+            bmatrix(kIndex2, kIndex1) = factor1 * factor2 * field4d(lonIndex, latIndex, levIndex2,stepBinExtractIndex)
           end if
           call rpn_comm_allreduce(idObsPointLocal, idObsPointGlobal,1,"mpi_integer","mpi_max","GRID",ierr)
         end do
