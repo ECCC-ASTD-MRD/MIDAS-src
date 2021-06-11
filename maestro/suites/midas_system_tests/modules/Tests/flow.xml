@@ -15,7 +15,7 @@
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
   <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
-  <SUBMITS sub_name="1Dvar"/>
+  <SUBMITS sub_name="var1D"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -439,7 +439,7 @@
     </FAMILY>
   </FAMILY>
 
-  <FAMILY  name="1Dvar">
+  <FAMILY  name="var1D">
     <SUBMITS sub_name="tskinTest"/>
     <FAMILY  name="tskinTest">
       <SUBMITS sub_name="UnitTest"/>

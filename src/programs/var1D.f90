@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-program midas_1Dvar
+program midas_var1D
   !
   ! :Purpose: Main program for one dimensional variational minimization
   !
@@ -63,7 +63,7 @@ program midas_1Dvar
 
   istamp = exdb('1DVAR', 'DEBUT', 'NON')
 
-  call ver_printNameAndVersion('1Dvar', '1D Variational Assimilation')
+  call ver_printNameAndVersion('var1D', '1D Variational Assimilation')
 
   ! MPI initialization
   call mpi_initialize
@@ -110,7 +110,7 @@ program midas_1Dvar
   !- Initialize the Analysis grid
   !
   if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)'1Dvar: Set hco parameters for analysis grid'
+  if (mpi_myid == 0) write(*,*)'var1D: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
@@ -265,4 +265,4 @@ program midas_1Dvar
 
   call rpn_comm_finalize(ierr) 
 
-end program midas_1Dvar
+end program midas_var1D
