@@ -432,8 +432,8 @@
   </FAMILY>
 
   <FAMILY  name="extractBmatrixFor1Dvar">
-    <SUBMITS sub_name="for1Dvar"/>
-    <FAMILY  name="for1Dvar">
+    <SUBMITS sub_name="globalBnmcLand"/>
+    <FAMILY  name="globalBnmcLand">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

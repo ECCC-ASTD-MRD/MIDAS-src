@@ -1,0 +1,37 @@
+ &NAMEXTRACT
+   EXTRACTDATE = 2019060106
+   lonlatExtract(1,:)= 40,43
+   lonlatExtract(2,:)= 40,59
+   lonlatExtract(3,:)= 40,76
+   lonlatExtract(4,:)= 40,92
+   lonlatExtract(5,:)= 40,109
+   lonlatExtract(6,:)= 40,126
+   lonlatExtract(7,:)= 40,142
+   lonlatExtract(8,:)= 40,159
+   lonlatExtract(9,:)= 40,175
+   lonlatExtract(10,:)= 40,192
+   lonlatExtract(11,:)= 40,209
+   lonlatExtract(12,:)= 40,225
+   lonlatExtract(13,:)= 40,242
+   lonlatExtract(14,:)= 40,258
+/
+ &NAMBHI
+   NTRUNC  = 270,
+   SCALEFACTOR   = 100*1.00D0
+/
+ &NAMBEN
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &nams2c
+/
