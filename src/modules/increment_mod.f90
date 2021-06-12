@@ -548,7 +548,9 @@ CONTAINS
   ! inc_writeAnalysis
   !--------------------------------------------------------------------------
   subroutine inc_writeAnalysis(statevector_anal)
-
+    ! :Purpose: To write to output standard file the analysid from statevector strucure (1Dvar case) 
+    !           to output the results
+    !
     implicit none
 
     ! arguments
