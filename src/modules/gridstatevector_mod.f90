@@ -5319,8 +5319,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv)  :: statevector_in
-    type(struct_gsv)  :: statevector_out
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
     integer :: kIndex, latIndex, lonIndex
@@ -6165,10 +6165,15 @@ module gridStateVector_mod
   ! gsv_readTrials
   !--------------------------------------------------------------------------
   subroutine gsv_readTrials(stateVectorTrialIn)
+    !
+    !:Purpose: Reading 15-min trials
+    !
     implicit none
 
+    ! Arguments
     type(struct_gsv), target, intent(inout) :: stateVectorTrialIn
 
+    ! Locals
     type(struct_gsv),  target :: stateVectorTrial
     type(struct_gsv), pointer :: stateVectorTrial_ptr 
     type(struct_gsv)     :: stateVector_1step_r4
@@ -6351,11 +6356,14 @@ module gridStateVector_mod
   ! gsv_getHcoVcoFromFile
   !--------------------------------------------------------------------------
   subroutine gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+    !
+    !:Purpose: Get hco/vco of the trials
+    !
     implicit none
 
     ! arguments
-    type(struct_hco), pointer :: hco_trl
-    type(struct_vco), pointer :: vco_trl
+    type(struct_hco), pointer, intent(inout) :: hco_trl
+    type(struct_vco), pointer, intent(inout) :: vco_trl
 
     ! locals
     character(len=4), pointer :: anlVar(:)
