@@ -6185,6 +6185,7 @@ module gridStateVector_mod
     character(len=2)     :: fileNumber
     character(len=512)   :: fileName
     logical              :: fileExists, allocHeightSfc
+    logical              :: useInputStateVectorTrial 
     character(len=4), pointer :: varNamesToRead(:)
     character(len=4)     :: varNameForDateStampSearch
 
@@ -6196,10 +6197,14 @@ module gridStateVector_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
+    useInputStateVectorTrial = .true.
+
     if ( gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
          gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
          gsv_varExist(stateVectorTrialIn,'P_T') .or. &
          gsv_varExist(stateVectorTrialIn,'P_M') ) then
+
+      useInputStateVectorTrial = .false.
 
       if ( stateVectorTrialIn%vco%Vcode == 0 ) then
         allocHeightSfc = .false.
@@ -6335,11 +6340,7 @@ module gridStateVector_mod
 
     end do BATCH
 
-    if ( gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
-         gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
-         gsv_varExist(stateVectorTrialIn,'P_T') .or. &
-         gsv_varExist(stateVectorTrialIn,'P_M') ) then
-
+    if ( .not. useInputStateVectorTrial ) then
       call gsv_copy( stateVectorTrial_ptr, stateVectorTrialIn, allowVarMismatch_opt=.true. )
       call gsv_deallocate( stateVectorTrial )
     end if
