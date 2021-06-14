@@ -332,8 +332,7 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute high-resolution analysis on trial grid
-    call inc_computeHighResAnalysis( outerLoopIndex,                                & ! IN
-                                     stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
+    call inc_computeHighResAnalysis( stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
                                      stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

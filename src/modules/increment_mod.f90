@@ -101,8 +101,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeHighResAnalysis( outerLoopIndex,                                 & ! IN
-                                         statevectorIncLowRes, stateVectorUpdateHighRes, & ! IN
+  subroutine inc_computeHighResAnalysis( statevectorIncLowRes, stateVectorUpdateHighRes, & ! IN
                                          stateVectorPsfcHighRes, stateVectorAnalHighRes)   ! OUT
     !
     ! :Purpose: Computing high-resolution analysis on the trial grid.
@@ -110,7 +109,6 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer         , intent(in) :: outerLoopIndex 
     type(struct_gsv), intent(in) :: statevectorIncLowRes
     type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
     type(struct_gsv), intent(inout) :: stateVectorPsfcHighRes
@@ -158,7 +156,7 @@ CONTAINS
     end if
 
     ! allocating high-res analysis 
-    if ( outerLoopIndex == 1 ) then
+    if ( .not. stateVectorAnalHighRes%allocated ) then
       call gsv_allocate( stateVectorAnalHighRes, tim_nstepobs, hco_trl, vco_trl, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -226,7 +224,7 @@ CONTAINS
 
       ! Time interpolation to get high-res Psfc analysis increment
       if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
-      if ( outerLoopIndex == 1 ) then
+      if ( .not. stateVectorPsfcHighRes%allocated ) then
         call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
                            dataKind_opt=pre_incrReal, &
                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
