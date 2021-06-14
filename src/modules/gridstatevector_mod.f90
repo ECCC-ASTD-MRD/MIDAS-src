@@ -6374,7 +6374,9 @@ module gridStateVector_mod
 
     ! check if gsv is initialized.
     if ( .not. gsv_isInitialized() ) then
-       call utl_abort('gsv_getHcoVcoFromFile: add call to gsv_setup in the main program.')
+      write(*,*)
+      write(*,*) 'gsv_getHcoVcoFromFile: gsv_setup must be called first. Call it now'
+      call gsv_setup
     end if
 
     nullify(anlVar)
