@@ -298,7 +298,7 @@ CONTAINS
     write(*,*) 'inc_analPostProcessing: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    ! Re-Read 15-min trials to make stateVectorTrial with degraded timesteps available
+    ! Re-read trials to make stateVectorTrial with degraded timesteps available
     call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
     if ( vco_trl%Vcode == 0 ) then
       allocHeightSfc = .false.

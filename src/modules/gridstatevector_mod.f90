@@ -6166,7 +6166,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readTrials(stateVectorTrialIn)
     !
-    !:Purpose: Reading 15-min trials
+    !:Purpose: Reading trials
     !
     implicit none
 
@@ -6197,8 +6197,6 @@ module gridStateVector_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
-    useInputStateVectorTrial = .true.
-
     if ( gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
          gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
          gsv_varExist(stateVectorTrialIn,'P_T') .or. &
@@ -6226,6 +6224,8 @@ module gridStateVector_mod
       call gsv_zero( stateVectorTrial )
       stateVectorTrial_ptr => stateVectorTrial
     else
+      useInputStateVectorTrial = .true.
+
       stateVectorTrial_ptr => stateVectorTrialIn
     end if
 

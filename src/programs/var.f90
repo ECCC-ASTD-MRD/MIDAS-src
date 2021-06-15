@@ -210,7 +210,7 @@ program midas_var
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Reading 15-min trials
+  ! Reading trials
   call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   if (vco_trl%Vcode == 0) then
     allocHeightSfc = .false.
@@ -234,7 +234,7 @@ program midas_var
   end if
 
   ! Enter outer-loop
-  do outerLoopIndex = 1, min_numOuterLoopIterations
+  outer_loop: do outerLoopIndex = 1, min_numOuterLoopIterations
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
@@ -357,7 +357,7 @@ program midas_var
     if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
-  end do
+  end do outer_loop
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()

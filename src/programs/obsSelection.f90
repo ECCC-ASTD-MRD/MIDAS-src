@@ -173,7 +173,7 @@ program midas_obsSelection
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
     
-  ! Reading 15-min trials
+  ! Reading trials
   call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   if (vco_trl%Vcode == 0) then
     allocHeightSfc = .false.
