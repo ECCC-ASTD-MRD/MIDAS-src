@@ -739,7 +739,7 @@ module HorizontalCoord_mod
     real    :: xg(ni), yg(nj)
 
     ! locals: 
-    integer :: lonIndex,j,k,offi,offj,np_subd,ii,jj
+    integer :: lonIndex,latIndex,np_subd
     real(8)  :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
     real     :: area_4(ni,nj)
 
@@ -748,20 +748,20 @@ module HorizontalCoord_mod
     sp    = 0.d0
     sf    = 0.d0
 
-    do j = 1, nj
-      y_a_4 = yg(j)
+    do latIndex = 1, nj
+      y_a_4 = yg(latIndex)
       do lonIndex = 1, ni
 
         x_a_4 = xg(lonIndex)-acos(-1.d0)
 
-        area_4(lonIndex,j) = dx*dy*cos(yg(j))
-        poids (lonIndex,j) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
+        area_4(lonIndex,latIndex) = dx*dy*cos(yg(latIndex))
+        poids (lonIndex,latIndex) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
 
         !Check if poids <0
-        if (poids(lonIndex,j)*(1.d0-poids(lonIndex,j)) > 0.d0) then
-          sp = sp + poids(lonIndex,j)*area_4(lonIndex,j)
-        else if (abs(poids(lonIndex,j)-1.d0) < 1.d-14) then
-          sf = sf + poids(lonIndex,j)*area_4(lonIndex,j)
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          sp = sp + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
+          sf = sf + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
         end if
 
       end do
@@ -772,18 +772,18 @@ module HorizontalCoord_mod
     sp1 = 0.d0
     sf1 = 0.d0
 
-    do j = 1, nj
+    do latIndex = 1, nj
       do lonIndex = 1, ni
 
-        x_a_4 = poids(lonIndex,j)*(2.d0*acos(-1.d0) - sf)/sp
+        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
 
-        if (poids(lonIndex,j)*(1.d0-poids(lonIndex,j)) > 0.d0) then
-          poids(lonIndex,j) = min( 1.0d0, x_a_4 )
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          poids(lonIndex,latIndex) = min( 1.0d0, x_a_4 )
         end if
-        if (poids(lonIndex,j)*(1.0-poids(lonIndex,j)) > 0.d0) then
-          sp1 = sp1 + poids(lonIndex,j)*area_4(lonIndex,j)
-        else if (abs(poids(lonIndex,j)-1.d0) < 1.d-14) then
-          sf1 = sf1 + poids(lonIndex,j)*area_4(lonIndex,j)
+        if (poids(lonIndex,latIndex)*(1.0-poids(lonIndex,latIndex)) > 0.d0) then
+          sp1 = sp1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
+          sf1 = sf1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
         end if
 
       end do
@@ -791,21 +791,21 @@ module HorizontalCoord_mod
 
     !Correct
     !-------
-    do j = 1, nj
+    do latIndex = 1, nj
       do lonIndex = 1, ni
-        x_a_4 = poids(lonIndex,j)*(2.d0*acos(-1.d0) - sf1)/sp1
+        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
 
-        if (poids(lonIndex,j)*(1.d0-poids(lonIndex,j)) > 0.d0) then
-          poids(lonIndex,j) = min( 1.d0, x_a_4 )
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          poids(lonIndex,latIndex) = min( 1.d0, x_a_4 )
         end if
  
       end do
     end do
 
     F_mask_8 = 0.d0
-    do j=1,nj
+    do latIndex=1,nj
       do lonIndex = 1,ni
-        F_mask_8(lonIndex,j) = poids(lonIndex,j)
+        F_mask_8(lonIndex,latIndex) = poids(lonIndex,latIndex)
       end do
     end do
 

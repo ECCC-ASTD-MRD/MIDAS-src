@@ -55,22 +55,24 @@ program midas_ensDiagnostics
   call tmg_start(1,'MAIN')
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
+
   !- Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namEnsDiagnostics, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensDiagnostics: Error reading namelist')
+  ierr = fclos(nulnam)
   if (mpi_myid == 0) then
     write(*,nml=namEnsDiagnostics)      
     write(*,*) 'ensemble size: ',nEns
     write(*,*) 'pathname: ',pathname
   end if
+
   memberIndex = 1
   write(charmem,'(I4.4)') memberIndex
   ensPathName = pathname
   ensFileName = trim(ensPathName)//'/'//trim(prefix)//charmem
   write(*,*) 'full input filename:',ensFileName 
-  ierr = fclos(nulnam)
  
   !- 1. Initialize date/time-related info
   call tim_setup
