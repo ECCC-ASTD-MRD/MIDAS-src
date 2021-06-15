@@ -262,6 +262,7 @@ CONTAINS
     call tmg_stop(181)
 
     if ( statevectorPsfc%allocated ) call gsv_deallocate(statevectorPsfc)
+    if ( statevector_mask%allocated ) call gsv_deallocate(statevector_mask)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
 
@@ -299,7 +300,8 @@ CONTAINS
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! Re-read trials to make stateVectorTrial with degraded timesteps available
-    call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+    hco_trl => gsv_getHco(stateVectorAnalHighRes)
+    vco_trl => gsv_getVco(stateVectorAnalHighRes)
     if ( vco_trl%Vcode == 0 ) then
       allocHeightSfc = .false.
     else
