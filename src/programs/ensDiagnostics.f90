@@ -33,24 +33,26 @@ program midas_ensDiagnostics
   character(len=256) :: ensPathName,ensFileName
   character(len=4) :: charmem
   integer, allocatable :: dateStampList(:)
-  integer :: i,idum, iEns, istep, j,ni,ierr, nulnam, num, numK, numStep
-  integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
+  integer :: lonIndex,IndexP0,IndexPR, surfaceIndex, memberIndex, stepIndex, latIndex
+  integer :: ni,ierr, nulnam, numK, numStep
+  integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, unitNum
   integer, external :: fnom, fclos, fstopc
-  real*8, dimension(:,:), allocatable :: weight
-  real*8, dimension(:), allocatable  :: MeanValMem, RainRate, Imbalance
-  real*8, dimension(:,:,:,:), allocatable :: dp0dt2
-  real*8  :: MeanVal, MeanValPrev
+  real(8), allocatable :: weight(:,:)
+  real(8), allocatable :: MeanValMem(:), RainRate(:), Imbalance(:)
+  real(8), allocatable :: dp0dt2(:,:,:,:)
+  real(8)  :: MeanVal, MeanValPrev
   real(4), pointer :: onevar(:,:,:,:)
-  logical :: debug
   ! namelist variables
   integer :: nEns ! ensemble size
+  character(len=256) :: pathName ! directory with input files
   character(len=12) :: prefix ! first part of input filenames. e.g. '2019061300'
 
-  NAMELIST /namEnsDiagnostics/nEns,prefix
+  NAMELIST /namEnsDiagnostics/nEns,pathName,prefix
 
   call ver_printNameAndVersion('ensDiagnostics','Program to estimate imbalance in a model integration')
   call mpi_initialize
-  write(*,*) 'hello from mpi-process: ',mpi_myid
+  call tmg_init(mpi_myid, 'TMG_ENSDIAG')
+  call tmg_start(1,'MAIN')
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
   !- Read the namelist
@@ -61,16 +63,17 @@ program midas_ensDiagnostics
   if (mpi_myid == 0) then
     write(*,nml=namEnsDiagnostics)      
     write(*,*) 'ensemble size: ',nEns
+    write(*,*) 'pathname: ',pathname
   end if
-  iEns=1
-  write(charmem,'(I4.4)') iEns
-  ensPathName = '../input/inputs/'
-  ensFileName = trim(ensPathName)//trim(prefix)//charmem
+  memberIndex = 1
+  write(charmem,'(I4.4)') memberIndex
+  ensPathName = pathname
+  ensFileName = trim(ensPathName)//'/'//trim(prefix)//charmem
   write(*,*) 'full input filename:',ensFileName 
   ierr = fclos(nulnam)
  
   !- 1. Initialize date/time-related info
-  call tim_setup()
+  call tim_setup
   allocate(dateStampList(tim_nstepobsinc))
   call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
   write(*,*) 'dateStamp of first time of trajectory: ',dateStampList(1)
@@ -93,106 +96,119 @@ program midas_ensDiagnostics
   allocate(ensembleTrl)
   call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                     dateStampList)
-  call ens_readEnsemble(ensembleTrl, ensPathName, biPeriodic=.false.)
-  num = ens_getNumMembers(ensembleTrl)
+  call ens_readEnsemble(ensembleTrl, ensPathName, biPeriodic = .false.)
   numStep = ens_getNumStep(ensembleTrl)
   allocate(RainRate(numStep))
   allocate(Imbalance(numStep))
   numK = ens_getNumK(ensembleTrl)
   call ens_getLatLonBounds(ensembleTrl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
   if (mpi_myid == 0) then
-    write(*,*) 'number of members that is stored: ',num
     write(*,*) 'number of time steps that is stored: ',numStep
     write(*,*) 'number of variables: ',numK
     write(*,*) 'precision: ',ens_getDataKind(ensembleTrl)
-    idum = 1
-    write(*,*) 'k for P0: ',ens_getKFromLevVarName(ensembleTrl,idum,'P0')
-    write(*,*) 'k for PR: ',ens_getKFromLevVarName(ensembleTrl,idum,'PR')
     write(*,*) 'longitude bounds: ',myLonBeg, myLonEnd
     write(*,*) 'latitude bounds: ',myLatBeg, myLatEnd
   end if
+  surfaceIndex = 1 ! "surface" variables like P0 and PR have level index 1
+  indexP0 = ens_getKFromLevVarName(ensembleTrl, surfaceIndex, 'P0')
+  indexPR = ens_getKFromLevVarName(ensembleTrl, surfaceIndex, 'PR')
+
   allocate(dp0dt2(nEns,numStep,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
-  onevar => ens_getOneLev_r4(ensembleTrl,1)
+  onevar => ens_getOneLev_r4(ensembleTrl,IndexP0)
   allocate(MeanValMem(nEns))
-  do j=myLatBeg,myLatEnd
-    do i=myLonBeg,myLonEnd
-      do istep=2,numStep-1
-        do iEns=1,nEns !  estimate the second time derivative (not normalized by timestep)
-          dp0dt2(iEns,istep,i,j) = onevar(iEns,istep+1,i,j) + &
-                  onevar(iEns,istep-1,i,j) - 2.0D0*onevar(iEns,istep,i,j)
+  do latIndex = myLatBeg,myLatEnd
+    do lonIndex = myLonBeg,myLonEnd
+      do stepIndex = 2,numStep-1
+        do memberIndex = 1,nEns !  estimate the second time derivative (not normalized by timestep)
+          dp0dt2(memberIndex,stepIndex,lonIndex,latIndex) = &
+                  onevar(memberIndex,stepIndex+1,lonIndex,latIndex) + &
+                  onevar(memberIndex,stepIndex-1,lonIndex,latIndex) - &
+                  2.0D0*onevar(memberIndex,stepIndex,lonIndex,latIndex)
         end do
       end do  
     end do
   end do
 
-  Imbalance=0.0D0
-  do istep=2,numStep-1
-    MeanValMem=0.0D0
-    do j=myLatBeg,myLatEnd
-      do i=myLonBeg,myLonEnd
-        do iEns=1,nEns ! the mean square value is of interest
-          MeanValMem(iens) = MeanValMem(iEns) + (dp0dt2(iEns,istep,i,j)**2)*weight(i,j)
+  Imbalance = 0.0D0
+  do stepIndex = 2,numStep-1
+    MeanValMem = 0.0D0
+    do latIndex = myLatBeg,myLatEnd
+      do lonIndex = myLonBeg,myLonEnd
+        do memberIndex = 1,nEns ! the mean square value is of interest
+          MeanValMem(memberIndex) = MeanValMem(memberIndex) + &
+                  (dp0dt2(memberIndex,stepIndex,lonIndex,latIndex)**2)* &
+                  weight(lonIndex,latIndex)
         end do
       end do
     end do
-    do iEns=1,nEns ! for each member average over the horizontal grid
-      call mpi_allreduce_sumreal8scalar(MeanValMem(iEns),'GRID')
+    do memberIndex = 1,nEns ! for each member average over the horizontal grid
+      call mpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
     end do
-    MeanVal=0.0D0
-    do iEns=1,nEns ! for each member, we move to the rms 
-      MeanVal=MeanVal+MeanValMem(iEns)**0.5
+    MeanVal = 0.0D0
+    do memberIndex = 1,nEns ! for each member, we move to the rms 
+      MeanVal = MeanVal+MeanValMem(memberIndex)**0.5
     end do
-    MeanVal=MeanVal/dble(nEns)
-    write(*,*) 'second derivative of P0: ',istep,MeanVal
-    imbalance(istep)=MeanVal
+    MeanVal = MeanVal/dble(nEns)
+    write(*,*) 'second derivative of P0: ',stepIndex,MeanVal
+    imbalance(stepIndex) = MeanVal
   end do
   if (mpi_myid == 0) then
-    ierr = fnom(17,'imbalance.dat','FTN+SQN+R/W',0)
-    do istep=2,numStep-1
-      write(17,'(I4,x,E12.5)') istep,imbalance(istep)
+    unitNum = 0      
+    ierr = fnom(unitNum,'imbalance.dat','FTN+SQN+R/W',0)
+    do stepIndex = 2,numStep-1
+      write(unitNum,'(I4,x,E12.5)') stepIndex,imbalance(stepIndex)
     end do
-    ierr = fclos(17)
-  end if    
-  onevar => ens_getOneLev_r4(ensembleTrl,2)
+    ierr = fclos(unitNum)
+  end if
+
+  ! compute the rainrate per timestep (i.e. the increment in the 
+  ! cumulative variable that is seen during after one timestep).  
+  onevar => ens_getOneLev_r4(ensembleTrl,IndexPR)
   RainRate = 0.0D0
-  do istep=1,numStep
+  do stepIndex = 1,numStep
     MeanValMem = 0.0D0
-    do j=myLatBeg,myLatEnd
-      do i=myLonBeg,myLonEnd
-        do iEns=1,nEns
-          MeanValMem(iens) = MeanValMem(iEns) + onevar(iEns,istep,i,j)*weight(i,j)
+    do latIndex = myLatBeg,myLatEnd
+      do lonIndex = myLonBeg,myLonEnd
+        do memberIndex = 1,nEns
+          MeanValMem(memberIndex) = MeanValMem(memberIndex) + & 
+                  onevar(memberIndex,stepIndex,lonIndex,latIndex)* &
+                  weight(lonIndex,latIndex)
         end do  
       end do
     end do
-    do iEns=1,nEns ! for each member average over the horizontal grid
-      call mpi_allreduce_sumreal8scalar(MeanValMem(iEns),'GRID')
+    do memberIndex = 1,nEns ! for each member average over the horizontal grid
+      call mpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
     end do
-    MeanVal=0.0D0
-    do iEns=1,nEns
-      MeanVal=MeanVal+MeanValMem(iEns)
+    MeanVal = 0.0D0
+    do memberIndex = 1,nEns
+      MeanVal = MeanVal+MeanValMem(memberIndex)
     end do
-    MeanVal=MeanVal/dble(nEns)
-    if (istep > 1) then
-      if (istep == 2) then ! at time zero accumulated precip was zero
-        RainRate(istep) = MeanVal      
+    MeanVal = MeanVal/dble(nEns)
+    if (stepIndex > 1) then
+      if (stepIndex == 2) then ! at time zero accumulated precip was zero
+        RainRate(stepIndex) = MeanVal      
       else if (MeanVal < MeanValPrev) then 
         ! the PR variable is reset to zero at the central analysis time
-        RainRate(istep) = MeanVal
+        RainRate(stepIndex) = MeanVal
       else      
-        RainRate(istep) = MeanVal - MeanValPrev
+        RainRate(stepIndex) = MeanVal - MeanValPrev
       end if      
-      write(*,*) 'step and rain rate: ',istep,RainRate(istep)
+      write(*,*) 'step and rain rate: ',stepIndex,RainRate(stepIndex)
     end if
     MeanValPrev = MeanVal
   end do
   deallocate(MeanValMem)
   if (mpi_myid == 0) then
-    ierr = fnom(17,'rainrate.dat','FTN+SQN+R/W',0)
-    do istep=2,numStep
-      write(17,'(I4,x,E12.5)') istep,RainRate(istep)
+    unitNum=0      
+    ierr = fnom(unitNum,'rainrate.dat','FTN+SQN+R/W',0)
+    do stepIndex = 2,numStep
+      write(unitNum,'(I4,x,E12.5)') stepIndex,RainRate(stepIndex)
     enddo
-    ierr= fclos(17)
-  end if    
+    ierr= fclos(unitNum)
+  end if
+
+  call tmg_stop(1)
+  call tmg_terminate(mpi_myid, 'TMG_ENSDIAG')  
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      

@@ -1,6 +1,7 @@
 
   &namEnsDiagnostics
    nEns         = 4
+   pathname     = 'ensemble'
    prefix       = '2019061300_'
 /
   &namEnsPostProcModule
@@ -12,7 +13,6 @@
    DWINDOWSIZE = 12.0D0
    DATE        = 2019061303
    REFERENCETIME = 'middle'
-   FULLYUSEEXTREMETIMEBINS = .TRUE.
 /
  &NAMVNL
    forceSfcOnly(1) = 'ES'

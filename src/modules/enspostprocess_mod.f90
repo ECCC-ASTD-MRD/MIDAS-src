@@ -1282,7 +1282,6 @@ contains
     allocate(pressureOrDepth(numK))
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
-    write(*,*) 'dimensions weight: ',stateVectorStdDev%ni,stateVectorStdDev%nj
     allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
     weight(:,:) = 0.0d0
 
