@@ -6204,11 +6204,7 @@ module gridStateVector_mod
 
       useInputStateVectorTrial = .false.
 
-      if ( stateVectorTrialIn%vco%Vcode == 0 ) then
-        allocHeightSfc = .false.
-      else
-        allocHeightSfc = .true.
-      end if
+      allocHeightSfc = ( stateVectorTrialIn%vco%Vcode /= 0 )
 
       ! Use statevector without Z/P allocated to read trials
       call gsv_allocate( stateVectorTrial, stateVectorTrialIn%numStep, &

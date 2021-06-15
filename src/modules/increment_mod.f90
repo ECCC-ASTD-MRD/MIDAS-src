@@ -302,11 +302,7 @@ CONTAINS
     ! Re-read trials to make stateVectorTrial with degraded timesteps available
     hco_trl => gsv_getHco(stateVectorAnalHighRes)
     vco_trl => gsv_getVco(stateVectorAnalHighRes)
-    if ( vco_trl%Vcode == 0 ) then
-      allocHeightSfc = .false.
-    else
-      allocHeightSfc = .true.
-    end if
+    allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
     call gsv_allocate( stateVectorTrial, tim_nstepobsinc, hco_trl, vco_trl,  &
                        dataKind_opt=pre_incrReal, &

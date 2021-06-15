@@ -159,11 +159,7 @@ module oMinusF_mod
 
       ! Reading trials
       call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
-      if (vco_trl%Vcode == 0) then
-        allocHeightSfc = .false.
-      else
-        allocHeightSfc = .true.
-      end if
+      allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
       call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &

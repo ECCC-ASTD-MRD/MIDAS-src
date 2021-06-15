@@ -212,11 +212,7 @@ program midas_var
 
   ! Reading trials
   call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
-  if (vco_trl%Vcode == 0) then
-    allocHeightSfc = .false.
-  else
-    allocHeightSfc = .true.
-  end if
+  allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
   call gsv_allocate( stateVectorUpdateHighRes, tim_nstepobs, hco_trl, vco_trl,  &
                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -226,12 +222,6 @@ program midas_var
   call gsv_zero( stateVectorUpdateHighRes )
   call gsv_readTrials( stateVectorUpdateHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  if ( stateVectorUpdateHighRes%vco%Vcode == 0 ) then
-    allocHeightSfc = .false.
-  else
-    allocHeightSfc = .true.
-  end if
 
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, min_numOuterLoopIterations
