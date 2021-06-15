@@ -261,7 +261,7 @@ CONTAINS
     end if
     call tmg_stop(181)
 
-    if ( gsv_varExist(varName='P0') ) call gsv_deallocate(statevectorPsfc)
+    if ( statevectorPsfc%allocated ) call gsv_deallocate(statevectorPsfc)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
 
