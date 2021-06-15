@@ -154,6 +154,7 @@ module BmatrixEnsemble_mod
     integer             :: ensDateOfValidity
     character(len=20)   :: transformVarKindCH
     real(8)             :: huMinValue
+    character(len=12)   :: hInterpolationDegree
   end type struct_bEns
 
   integer :: nInstance = 0 ! The number of Bens instances
@@ -231,6 +232,7 @@ CONTAINS
     logical             :: useCmatrixOnly
     integer             :: ensDateOfValidity
     real(8)             :: huMinValue
+    character(len=12)   :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &
@@ -239,7 +241,7 @@ CONTAINS
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
          useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity, transformVarKindCH,        &
-         huMinValue
+         huMinValue, hInterpolationDegree
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -298,6 +300,7 @@ CONTAINS
       ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
       transformVarKindCH    = ''
       huMinValue            = MPC_missingValue_R8
+      hInterpolationDegree  = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -370,7 +373,8 @@ CONTAINS
       bEns(nInstance)%ensDateOfValidity          = ensDateOfValidity
       bEns(nInstance)%transformVarKindCH         = transformVarKindCH
       bEns(nInstance)%huMinValue                 = huMinValue
-
+      bEns(nInstance)%hInterpolationDegree       = hInterpolationDegree
+      
       bEns(nInstance)%hco_anl => hco_anl_in
       bEns(nInstance)%vco_anl => vco_anl_in
       
@@ -1167,8 +1171,10 @@ CONTAINS
     !- 1. Memory allocation
     allocate(bEns(instanceIndex)%ensPerts(bEns(instanceIndex)%nWaveBand))    
     do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
-      call ens_allocate(bEns(instanceIndex)%ensPerts(waveBandIndex), bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
-                         varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar))
+      call ens_allocate(bEns(instanceIndex)%ensPerts(waveBandIndex), bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep, &
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
+                        hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree)
     end do
 
     !- 2. Read ensemble
