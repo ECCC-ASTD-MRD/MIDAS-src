@@ -54,6 +54,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.6.6]
+
+### Added
+
+ * The MIDAS scripts can now use the `TMPFSDIR` variable in the
+   `prod_persistent` queues (#499 and !473)
+
+### Fixed
+
+ * Bug fix to handle properly CriS observations background check when
+   band 1 (LW) is missing. (#502 and !474)
+
 ## [3.6.5]
 
 ### Fixed
@@ -735,7 +747,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...HEAD
+[3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6
 [3.6.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.4...v_3.6.5
 [3.6.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.3...v_3.6.4
 [3.6.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.2...v_3.6.3

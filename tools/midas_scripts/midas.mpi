@@ -22,29 +22,31 @@ eval `${CCLARGS}  -D "" $0 \
   -splitobs_nomvar   ""   ""  "[value of '-nomvar' argument of 'splitobs.Abs']" \
   -splitobs_mpchild2getObservations   ""   ""  "[list of number which indicates for each mpi tile where it should take its observation file for splitting]" \
   -enstrials_extension_length "4" "4" "[Ensemble trials extension length (default: 4)]" \
-  -number_of_members ""   ""     "[number of ensemble trials]" \
-  -npex              "1"  "1"    "[number of MPI tiles in the x direction (default to 1]" \
-  -npey              "1"  "1"    "[number of MPI tiles in the y direction (default to 1]" \
-  -fasttmp           "no" "yes"  "[Using the FASTTMP technology]" \
-  -ramdiskpath       ""   ""     "[path to RAMDisk]" \
-  -editbrp     "editbrp"         "editbrp"     "[path to 'editbrp' (default: the one in the PATH)]" \
-  -reflex      "reflex"          "reflex"      "[path to 'reflex'  (default: the one in the PATH)]" \
-  -rfiletype   "r.filetype"      "r.filetype"  "[path to 'r.filetype'  (default: the one in the PATH)]" \
-  -ls_cmd      "/bin/ls"         "/bin/ls"     "[path to 'ls' command (default '/bin/ls')]" \
-  -cp_cmd      "/bin/cp"         "/bin/cp"     "[path to 'cp' command (default '/bin/cp')]" \
-  -rm_cmd      "/bin/rm"         "/bin/rm"     "[path to 'rm' command (default '/bin/rm')]" \
-  -mv_cmd      "/bin/mv"         "/bin/mv"     "[path to 'mv' command (default '/bin/mv')]" \
-  -df_cmd      "/bin/df"         "/bin/df"     "[path to 'df' command (default '/bin/df')]" \
-  -mv_cmd      "/bin/mv"         "/bin/mv"     "[path to 'mv' command (default '/bin/mv')]" \
-  -sed_cmd     "/bin/sed"        "/bin/sed"    "[path to 'sed' command (default '/bin/sed')]" \
-  -cut_cmd     "/usr/bin/cut"   "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
-  -rev_cmd     "/usr/bin/rev"   "/usr/bin/rev" "[path to 'rev' command (default '/usr/bin/rev')]" \
-  -echo_cmd    "/bin/echo"       "/bin/echo"   "[path to 'echo' command (default '/bin/echo')]" \
-  -date_cmd    "/bin/date"       "/bin/date"   "[path to 'date' command (default '/bin/date')]" \
-  -true_cmd    "/bin/true"       "/bin/true"   "[path to 'true' command (default '/bin/true')]" \
-  -mkdir_cmd   "/bin/mkdir"      "/bin/mkdir"  "[path to 'mkdir' command (default '/bin/mkdir')]"   \
-  -printf_cmd  "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
-  -sleep_cmd   "/bin/sleep"      "/bin/sleep"  "[path to 'sleep' command (default '/bin/sleep')]" \
+  -number_of_members ""   ""      "[number of ensemble trials]" \
+  -npex              "1"  "1"     "[number of MPI tiles in the x direction (default to 1]" \
+  -npey              "1"  "1"     "[number of MPI tiles in the y direction (default to 1]" \
+  -fasttmp           "no" "yes"   "[Using the FASTTMP technology]" \
+  -ramdiskpath       ""   ""      "[path to RAMDisk]" \
+  -tmpfsdir          ""   ""      "[array containing the ramdisk path for each node]" \
+  -editbrp      "editbrp"         "editbrp"       "[path to 'editbrp' (default: the one in the PATH)]" \
+  -reflex       "reflex"          "reflex"        "[path to 'reflex'  (default: the one in the PATH)]" \
+  -rfiletype    "r.filetype"      "r.filetype"    "[path to 'r.filetype'  (default: the one in the PATH)]" \
+  -ls_cmd       "/bin/ls"         "/bin/ls"       "[path to 'ls' command (default '/bin/ls')]" \
+  -cp_cmd       "/bin/cp"         "/bin/cp"       "[path to 'cp' command (default '/bin/cp')]" \
+  -rm_cmd       "/bin/rm"         "/bin/rm"       "[path to 'rm' command (default '/bin/rm')]" \
+  -mv_cmd       "/bin/mv"         "/bin/mv"       "[path to 'mv' command (default '/bin/mv')]" \
+  -df_cmd       "/bin/df"         "/bin/df"       "[path to 'df' command (default '/bin/df')]" \
+  -mv_cmd       "/bin/mv"         "/bin/mv"       "[path to 'mv' command (default '/bin/mv')]" \
+  -sed_cmd      "/bin/sed"        "/bin/sed"      "[path to 'sed' command (default '/bin/sed')]" \
+  -cut_cmd      "/usr/bin/cut"    "/usr/bin/cut"  "[path to 'cut' command (default '/usr/bin/cut')]" \
+  -rev_cmd      "/usr/bin/rev"    "/usr/bin/rev"  "[path to 'rev' command (default '/usr/bin/rev')]" \
+  -echo_cmd     "/bin/echo"       "/bin/echo"     "[path to 'echo' command (default '/bin/echo')]" \
+  -date_cmd     "/bin/date"       "/bin/date"     "[path to 'date' command (default '/bin/date')]" \
+  -true_cmd     "/bin/true"       "/bin/true"     "[path to 'true' command (default '/bin/true')]" \
+  -mkdir_cmd    "/bin/mkdir"      "/bin/mkdir"    "[path to 'mkdir' command (default '/bin/mkdir')]"   \
+  -printf_cmd   "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
+  -sleep_cmd    "/bin/sleep"      "/bin/sleep"    "[path to 'sleep' command (default '/bin/sleep')]" \
+  -hostname_cmd "/bin/hostname"   "/bin/hostname" "[path to 'hostname' command (default '/bin/hostname')]" \
   ++ $arguments`
 
 ${echo_cmd} starting midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
@@ -57,22 +59,42 @@ function print_number {
 }
 
 let nprocs=npex*npey
-echo hostname=$(hostname)
+${echo_cmd} hostname=$(${hostname_cmd})
+
+if [ -n "${splitobs_mpchild2getObservations}" ]; then
+    declare -a mpchild2getObservations
+    ## mpchild2getObservations="0 0 0 0 ... 20 20 20 ... 40 40 40 ..."
+    mpchild2getObservations=(${splitobs_mpchild2getObservations})
+    ${echo_cmd} ${mpchild2getObservations[*]}
+    ${echo_cmd} ${mpchild2getObservations[@]}
+fi
 
 ${echo_cmd} starting preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 if [ "${fasttmp}" = yes ]; then
-    FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
-    [ -d "${FASTTMPDIR}" ] && ${rm_cmd} -rf ${FASTTMPDIR}
-    ${mkdir_cmd} -p ${FASTTMPDIR}
+    if [ "${ramdiskpath}" = tmpfsdir ]; then
+        declare -a tmpfsdir_array=(${tmpfsdir})
+        echo tmpfsdir=${tmpfsdir}
+
+        ## We want to find the node number on which this mpi tile is running on
+        tmpfsdirIndex=${mpchild2getObservations[${MP_CHILD}]}
+        localramdiskpath=${tmpfsdir_array[${tmpfsdirIndex}]}
+        if [ -z "${localramdiskpath}" ]; then
+            ${echo_cmd} "The array 'TMPFSDIR' does not contain any value for index MP_CHILD=${MP_CHILD}!"
+            exit 1
+        fi
+    else
+        localramdiskpath=${ramdiskpath}
+    fi
+    export MIDAS_RAMDISKDIR=${localramdiskpath}/midas_${MP_CHILD}
+    [ -d "${MIDAS_RAMDISKDIR}" ] && ${rm_cmd} -rf ${MIDAS_RAMDISKDIR}
+    ${mkdir_cmd} -p ${MIDAS_RAMDISKDIR}
 
     if [ -n "${observations}" ]; then
         ## Create observations directory on RAMDisk to be used later
-        ${mkdir_cmd} ${FASTTMPDIR}/obs ${FASTTMPDIR}/obs.splitobs
-        OBS_DIRECTORY=${FASTTMPDIR}/obs
+        ${mkdir_cmd} ${MIDAS_RAMDISKDIR}/obs ${MIDAS_RAMDISKDIR}/obs.splitobs
+        OBS_DIRECTORY=${MIDAS_RAMDISKDIR}/obs
     fi
-
-    export MIDAS_RAMDISKDIR=${FASTTMPDIR}
 elif [ -n "${observations}" ]; then ## this preparation is needed only if we have observations
     OBS_DIRECTORY=obs
     if [ "${splitobs_mode}" != no ]; then
@@ -184,13 +206,13 @@ if [ -n "${observations}" ]; then
     elif [ "${splitobs_mode}" != no ]; then
         ${echo_cmd} starting splitting at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
         if [ -n "${splitobs_mpchild2getObservations}" ]; then
-            declare -a mpchild2getObservations
-            mpchild2getObservations=(${splitobs_mpchild2getObservations})
-            echo ${mpchild2getObservations[*]}
-            echo ${mpchild2getObservations[@]}
+            if [ -z "${mpchild2getObservations}" ]; then
+                ${echo_cmd} "This vector should have been initialized above!"
+                exit 1
+            fi
             MINIMIZE_COPY=${mpchild2getObservations[${MP_CHILD}]}
 	    if [ "${fasttmp}" = yes ]; then
-	        obsdir=${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs
+	        obsdir=${localramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs
 	    else
 	        obsdir=${PWD}/obs.splitobs
 	    fi
@@ -269,7 +291,7 @@ if [ -n "${observations}" ]; then
             cat ${listing}
             rm  ${listing}
         done
-        ${df_cmd} -hP ${FASTTMPDIR}
+        [ "${fasttmp}" = yes ] && ${df_cmd} -hP ${MIDAS_RAMDISKDIR}
         if [ -n "$(${ls_cmd} splitfiles.*.${MP_CHILD}.abort || ${true_cmd})" ]; then
             ${echo_cmd} "One of the splitting commands aborted!"
             exit 1
@@ -294,7 +316,7 @@ if [ -n "${midas_mpi_barrier}" ]; then
 
     if [ "${splitobs_mode}" != no ]; then
         if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
-            ${rm_cmd} -fr ${ramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
+            ${rm_cmd} -fr ${localramdiskpath}/midas_${MINIMIZE_COPY}/obs.splitobs || ${true_cmd}
         fi
     fi
 fi
@@ -314,7 +336,7 @@ if [ -n "${observations}" ]; then
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then
             if [ "${fasttmp}" = yes ]; then
-                ${cp_cmd} ${FASTTMPDIR}/obs/* .
+                ${cp_cmd} ${MIDAS_RAMDISKDIR}/obs/* .
             else
                 ${cp_cmd} ./obs/* .
             fi
@@ -342,8 +364,8 @@ if [ -n "${observations}" ]; then
 fi ## End of 'if [ -n "${observations}" ]'
 
 if [ "${fasttmp}" = yes ]; then
-    ${df_cmd} -hP ${FASTTMPDIR}
-    ${rm_cmd} -rf ${FASTTMPDIR}
+    ${df_cmd} -hP ${MIDAS_RAMDISKDIR}
+    ${rm_cmd} -rf ${MIDAS_RAMDISKDIR}
 fi
 
 ${echo_cmd} ending midas.mpi at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)

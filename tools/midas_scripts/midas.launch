@@ -469,7 +469,13 @@ if [ -n "${observations}" ]; then
     observations_files="=-observations      ${observations_files}"
 fi
 
-ramdiskpath=${MIDAS_RAMDISKPATH:-${TMPDIR}}
+if [ -n "${MIDAS_RAMDISKPATH}" ]; then
+    ramdiskpath=${MIDAS_RAMDISKPATH}
+elif [ -n "${TMPFSDIR}" ]; then
+    ramdiskpath=tmpfsdir
+else
+    ramdiskpath=${TMPDIR}
+fi
 
 ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -npex ${npex} -npey ${npey} \
     -tmpdir ${PWD}/midas_mpi_tmpdir                                      \
@@ -490,6 +496,7 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-npey              ${npey}                                      \
         =-fasttmp           ${fasttmp}                                   \
         =-ramdiskpath       ${ramdiskpath}                               \
+        =-tmpfsdir          ${TMPFSDIR[@]}                               \
         =-reflex            ${reflex}                                    \
         =-editbrp           ${editbrp}                                   \
         =-rfiletype         ${rfiletype_cmd}                             \
@@ -506,7 +513,8 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-true_cmd          $(which true)                                \
         =-mkdir_cmd         $(which mkdir)                               \
         =-printf_cmd        $(which printf)                              \
-        =-sleep_cmd         $(which sleep)
+        =-sleep_cmd         $(which sleep)                               \
+        =-hostname_cmd      $(which hostname)
 
 if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
     if [ "${splitobs_mode}" = no ]; then
@@ -539,7 +547,10 @@ if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
             -omp_stacksize    ${omp_stacksize}                            \
             -ramdiskpath      ${ramdiskpath}                              \
             -fasttmp          ${fasttmp}                                  \
+            -tmpfsdir         ${TMPFSDIR[@]}                              \
+            -mpchild2slots    ${mpchild2getObservations[@]}               \
             -nodelogger       ${nodelogger}
+
     fi ## Fin du 'else' relie au 'if [ "${splitobs_mode}" = no ]'
 fi  ## End of 'if [ -n "${observations}" ]'
 
