@@ -188,7 +188,7 @@ program midas_obsimpact
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading 15-min trials
-  call gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   if (vco_trl%Vcode == 0) then
     allocHeightSfc = .false.
   else

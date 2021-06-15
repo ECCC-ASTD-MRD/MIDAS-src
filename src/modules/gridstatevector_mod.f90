@@ -62,7 +62,7 @@ module gridStateVector_mod
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_readTrialsHighRes, gsv_tInterpolate
-  public :: gsv_getHcoVcoFromFile
+  public :: gsv_getHcoVcoFromTrlmFile
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -6354,9 +6354,9 @@ module gridStateVector_mod
   end subroutine gsv_readTrials
 
   !--------------------------------------------------------------------------
-  ! gsv_getHcoVcoFromFile
+  ! gsv_getHcoVcoFromTrlmFile
   !--------------------------------------------------------------------------
-  subroutine gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  subroutine gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
     !
     !:Purpose: Get hco/vco of the trials
     !
@@ -6369,13 +6369,13 @@ module gridStateVector_mod
     ! locals
     character(len=4), pointer :: anlVar(:)
 
-    write(*,*) 'gsv_getHcoVcoFromFile: START'
+    write(*,*) 'gsv_getHcoVcoFromTrlmFile: START'
     nullify(hco_trl,vco_trl)
 
     ! check if gsv is initialized.
     if ( .not. gsv_isInitialized() ) then
       write(*,*)
-      write(*,*) 'gsv_getHcoVcoFromFile: gsv_setup must be called first. Call it now'
+      write(*,*) 'gsv_getHcoVcoFromTrlmFile: gsv_setup must be called first. Call it now'
       call gsv_setup
     end if
 
@@ -6385,9 +6385,9 @@ module gridStateVector_mod
 
     call vco_SetupFromFile(vco_trl, './trlm_01')
 
-    write(*,*) 'gsv_getHcoVcoFromFile: END'
+    write(*,*) 'gsv_getHcoVcoFromTrlmFile: END'
 
-  end subroutine gsv_getHcoVcoFromFile
+  end subroutine gsv_getHcoVcoFromTrlmFile
 
   !--------------------------------------------------------------------------
   ! gsv_transposeStepToVarsLevs

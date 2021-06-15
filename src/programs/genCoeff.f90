@@ -85,7 +85,7 @@ program midas_gencoeff
   call tmg_start(3,'TRIALS')
 
   ! Reading 15-min trials
-  call gsv_getHcoVcoFromFile( hco_trl, vco_trl )
+  call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   if (vco_trl%Vcode == 0) then
     allocHeightSfc = .false.
   else
