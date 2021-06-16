@@ -95,10 +95,6 @@ program midas_var
     call utl_writeStatus(clmsg)
   end if 
 
-  write(*,*)
-  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
-  write(*,*)
-
   varMode='analysis'
 
   ! Setup the ram disk

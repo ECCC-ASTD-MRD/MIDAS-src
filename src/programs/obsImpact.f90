@@ -101,10 +101,6 @@ program midas_obsimpact
     call utl_writeStatus('VAR3D_BEG')
   end if
 
-  write(*,*)
-  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
-  write(*,*)
-
   call ram_setup
 
   !
