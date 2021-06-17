@@ -101,8 +101,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_computeHighResAnalysis
   !--------------------------------------------------------------------------
-  subroutine inc_computeHighResAnalysis( statevectorIncLowRes, stateVectorUpdateHighRes, & ! IN
-                                         stateVectorPsfcHighRes, stateVectorAnalHighRes)   ! OUT
+  subroutine inc_computeHighResAnalysis( statevectorIncLowRes,                            & ! IN
+                                         stateVectorUpdateHighRes, stateVectorPsfcHighRes)  ! OUT
     !
     ! :Purpose: Computing high-resolution analysis on the trial grid.
     !
@@ -110,15 +110,15 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevectorIncLowRes
-    type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
+    type(struct_gsv), intent(inout) :: stateVectorUpdateHighRes
     type(struct_gsv), intent(inout) :: stateVectorPsfcHighRes
-    type(struct_gsv), intent(inout) :: stateVectorAnalHighRes
 
     ! Locals:
     type(struct_gsv) :: statevectorPsfcLowRes
     type(struct_gsv) :: statevectorPsfcLowResTime
     type(struct_gsv) :: statevector_mask
     type(struct_gsv) :: statevectorPsfc
+    type(struct_gsv) :: stateVectorHighRes
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -133,7 +133,7 @@ CONTAINS
     real(pre_incrReal), pointer :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
 
-    logical  :: allocHeightSfc, writeHeightSfc
+    logical  :: allocHeightSfc
 
     write(*,*) 'inc_computeHighResAnalysis: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -154,20 +154,6 @@ CONTAINS
     else
       allocHeightSfc = stateVectorUpdateHighRes%heightSfcPresent
     end if
-
-    ! allocating high-res analysis 
-    if ( .not. stateVectorAnalHighRes%allocated ) then
-      call gsv_allocate( stateVectorAnalHighRes, tim_nstepobs, hco_trl, vco_trl, &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, &
-                         hInterpolateDegree_opt=hInterpolationDegree, &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
-    else
-      call gsv_zero( stateVectorAnalHighRes )
-    end if
-    call gsv_copy( stateVectorUpdateHighRes,stateVectorAnalHighRes, &
-                   allowVarMismatch_opt=.true.)
 
     ! Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     if (.not. hco_trl%global .and. useAnalIncMask) then
@@ -235,7 +221,6 @@ CONTAINS
       end if
       call gsv_tInterpolate(statevectorPsfc, stateVectorPsfcHighRes)
     end if
-    writeHeightSfc = allocHeightSfc
 
     ! Compute the analysis
     if( mpi_myid == 0 ) write(*,*) ''
@@ -243,23 +228,37 @@ CONTAINS
     call tmg_start(181,'INC_COMPUTEANL')
 
     ! Interpolate low-res increments to high-res and add to the initial state
+    call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
+                       dataKind_opt=stateVectorUpdateHighRes%dataKind, &
+                       dateStamp_opt=tim_getDateStamp(), &
+                       mpi_local_opt=stateVectorUpdateHighRes%mpi_local, &
+                       allocHeightSfc_opt=stateVectorUpdateHighRes%heightSfcPresent, &
+                       hInterpolateDegree_opt=hInterpolationDegree, &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_copy( stateVectorUpdateHighRes,stateVectorHighRes, &
+                   allowVarMismatch_opt=.true.)
+
     if (.not. hco_trl%global .and. useAnalIncMask) then
       if (gsv_varExist(varName='P0')) then
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    PsfcReference_opt=PsfcAnalysis(:,:,1,:), statevectorMaskLAM_opt=statevector_mask)
       else
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    statevectorMaskLAM_opt=statevector_mask)
       end if
     else
       if (gsv_varExist(varName='P0')) then
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes,&
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    PsfcReference_opt=PsfcAnalysis(:,:,1,:))
       else
-        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes)
+        call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes)
       end if
     end if
     call tmg_stop(181)
+
+    call gsv_copy( stateVectorHighRes, stateVectorUpdateHighRes, &
+                   allowVarMismatch_opt=.true.)
+    call gsv_deallocate(stateVectorHighRes)
 
     if ( statevectorPsfc%allocated ) call gsv_deallocate(statevectorPsfc)
     if ( statevector_mask%allocated ) call gsv_deallocate(statevector_mask)
@@ -271,7 +270,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_analPostProcessing
   !--------------------------------------------------------------------------
-  subroutine inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorAnalHighRes, &    ! IN
+  subroutine inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN
                                      stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
     !
     ! :Purpose: Post processing of the high resolution analysis including degrading 
@@ -281,7 +280,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(in) :: stateVectorPsfcHighRes
-    type(struct_gsv), intent(in) :: stateVectorAnalHighRes
+    type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
     type(struct_gsv), intent(out) :: stateVectorTrial
     type(struct_gsv), intent(out) :: stateVectorPsfc
     type(struct_gsv), intent(out) :: stateVectorAnal
@@ -292,16 +291,14 @@ CONTAINS
 
     real(pre_incrReal), pointer :: GL_ptr(:,:,:,:)
 
-    character(len=4), pointer :: varNames(:)
-
     logical  :: allocHeightSfc
 
     write(*,*) 'inc_analPostProcessing: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! Re-read trials to make stateVectorTrial with degraded timesteps available
-    hco_trl => gsv_getHco(stateVectorAnalHighRes)
-    vco_trl => gsv_getVco(stateVectorAnalHighRes)
+    hco_trl => gsv_getHco(stateVectorUpdateHighRes)
+    vco_trl => gsv_getVco(stateVectorUpdateHighRes)
     allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
     call gsv_allocate( stateVectorTrial, tim_nstepobsinc, hco_trl, vco_trl,  &
@@ -330,15 +327,13 @@ CONTAINS
       call gsv_deallocate(stateVectorPsfcHighRes)
     end if
 
-    nullify(varNames)
-    call gsv_varNamesList(varNames, stateVectorAnalHighRes)
     call gsv_allocate( stateVectorAnal, tim_nstepobsinc, hco_trl, vco_trl,  &
                        dataKind_opt=pre_incrReal, &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=varNames )
-    call gsv_copy( stateVectorAnalHighRes, stateVectorAnal, allowTimeMismatch_opt=.true.)
-    call gsv_deallocate(stateVectorAnalHighRes)
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_copy( stateVectorUpdateHighRes, stateVectorAnal, &
+                   allowVarMismatch_opt=.true., allowTimeMismatch_opt=.true. )
 
     ! Start the variable transformations
     if( gsv_varExist(stateVectorAnal,'GL') ) then

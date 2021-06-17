@@ -64,7 +64,6 @@ program midas_var
   type(struct_gsv)                :: stateVectorPsfc
   type(struct_gsv)                :: stateVectorLowResTime
   type(struct_gsv)                :: stateVectorLowResTimeSpace
-  type(struct_gsv)                :: stateVectorAnalHighRes
   type(struct_gsv)                :: stateVectorAnal
   type(struct_gsv)       , target :: stateVectorRefHU
   type(struct_gsv)       , target :: stateVectorRefHUTT
@@ -318,20 +317,16 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute high-resolution analysis on trial grid
-    call inc_computeHighResAnalysis( stateVectorIncr, stateVectorUpdateHighRes,     & ! IN
-                                     stateVectorPsfcHighRes, stateVectorAnalHighRes ) ! OUT
+    call inc_computeHighResAnalysis( stateVectorIncr,                                  & ! IN
+                                     stateVectorUpdateHighRes, stateVectorPsfcHighRes )  ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Impose limits on stateVectorAnalHighRes only when outerLoopIndex > 1
+    ! Impose limits on stateVectorUpdateHighRes only when outerLoopIndex > 1
     if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
-      write(*,*) 'var: impose limits on stateVectorAnalHighRes'
-      call qlim_saturationLimit(stateVectorAnalHighRes)
-      call qlim_rttovLimit(stateVectorAnalHighRes)
+      write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
+      call qlim_saturationLimit(stateVectorUpdateHighRes)
+      call qlim_rttovLimit(stateVectorUpdateHighRes)
     end if
-
-    ! Use high-res analysis as updated state for the next iteration
-    call gsv_copy( stateVectorAnalHighRes, stateVectorUpdateHighRes, &
-                   allowVarMismatch_opt=.true. )
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
@@ -354,11 +349,11 @@ program midas_var
 
   ! Deallocate memory related to B matrices and update stateVector
   call bmat_finalize()
-  call gsv_deallocate( stateVectorUpdateHighRes )
 
   ! Post processing of analyis before writing (variable transform+humidity clipping)
-  call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorAnalHighRes, &    ! IN 
+  call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN 
                                stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
+  call gsv_deallocate( stateVectorUpdateHighRes )
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
