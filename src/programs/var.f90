@@ -212,7 +212,7 @@ program midas_var
 
   call gsv_allocate( stateVectorUpdateHighRes, tim_nstepobs, hco_trl, vco_trl,  &
                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,  &
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorUpdateHighRes )

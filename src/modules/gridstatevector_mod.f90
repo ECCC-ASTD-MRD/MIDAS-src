@@ -4168,8 +4168,20 @@ module gridStateVector_mod
                               statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex)
         end do
         !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. inKind == 8 ) then
+        call gsv_getField(statevector_in,field_in_r8_ptr)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          gd_send_varsLevs_r4(1:statevector_in%lonPerPE, &
+                              1:statevector_in%latPerPE, &
+                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+              real(field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                                   statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                                   statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex),4)
+        end do
+        !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8')
+        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
       nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * maxkCount
@@ -4219,8 +4231,23 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. outKind == 8 ) then
+        call gsv_getField(statevector_out,field_out_r8_ptr)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
+                             statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
+                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                real(gd_recv_varsLevs_r4(1:statevector_in%allLonPerPE(youridx+1),  &
+                                         1:statevector_in%allLatPerPE(youridy+1),  &
+                                         1:statevector_out%mykCount, yourid+1), 8)
+          end do
+        end do
+        !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8')
+        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 after alltoall mpi comm')
       end if
 
       ! send copy of wind component to task that has other component
@@ -4562,7 +4589,7 @@ module gridStateVector_mod
                              maxkCount, mpi_nprocs )
       end if
 
-      if ( sendrecvKind == 4 ) then
+      if ( sendrecvKind == 4 .and. inKind == 4 ) then
         call gsv_getField(statevector_in,field_in_r4_ptr)
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 0, (mpi_npey-1)
@@ -4577,7 +4604,7 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
-      else
+      else if ( sendrecvKind == 8 .and. inKind == 8 ) then
         call gsv_getField(statevector_in,field_in_r8_ptr)
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 0, (mpi_npey-1)
@@ -4592,6 +4619,23 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. inKind == 8 ) then
+        call gsv_getField(statevector_in,field_in_r8_ptr)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                   statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),4)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+        call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
@@ -4611,7 +4655,7 @@ module gridStateVector_mod
         end if
       end if
 
-      if ( sendrecvKind == 4 ) then
+      if ( sendrecvKind == 4 .and. outKind == 4 ) then
         call gsv_getField(statevector_out,field_out_r4_ptr)
         !$OMP PARALLEL DO PRIVATE(yourid)
         do yourid = 0, (mpi_nprocs-1)
@@ -4623,7 +4667,7 @@ module gridStateVector_mod
                                 1:statevector_in%allkCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
-      else
+      else if ( sendrecvKind == 8 .and. outKind == 8 ) then
         call gsv_getField(statevector_out,field_out_r8_ptr)
         !$OMP PARALLEL DO PRIVATE(yourid)
         do yourid = 0, (mpi_nprocs-1)
@@ -4635,6 +4679,20 @@ module gridStateVector_mod
                                 1:statevector_in%allkCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. outKind == 8 ) then
+        call gsv_getField(statevector_out,field_out_r8_ptr)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
+                                     1:statevector_out%latPerPE,  &
+                                     1:statevector_in%allkCount(yourid+1), yourid+1),8)
+        end do
+        !$OMP END PARALLEL DO
+      else
+        call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 after alltoall mpi comm')
       end if
 
     end do ! stepIndex
