@@ -82,14 +82,12 @@ module sqliteFiles_mod
 
     kdate = kdate_recv
     ktime = ktime_recv
-
     ier = newdate(istampobs, kdate, ktime, 3)
     delhh = 3.0d0
     call INCDATR (datestamp, istampobs, delhh)
     ier = newdate(datestamp, nbrpdate, inewhh, -3)
     nbrphh = ktime
     ier = newdate(datestamp, nbrpdate, nbrphh * 1000000, 3)
-
     write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
     write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
     write(*,*)' SQLITE FILES DATESTAMP             : ', datestamp

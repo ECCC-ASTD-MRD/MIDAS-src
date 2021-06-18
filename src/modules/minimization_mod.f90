@@ -114,9 +114,10 @@ CONTAINS
 
   subroutine min_setup(nvadim_mpilocal_in, oneDVarMode_opt)
     implicit none
+    ! Arguments:
     integer,intent(in) :: nvadim_mpilocal_in
     logical,intent(in),optional :: oneDVarMode_opt
-
+    ! Locals:
     integer :: ierr,nulnam
     integer,external :: fnom,fclos
     character(len=32) :: envVariable
@@ -999,6 +1000,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
 
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
+
     call tmg_start(80,'MIN_SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
@@ -1026,18 +1028,18 @@ CONTAINS
            call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                 dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
            call gsv_readMaskFromFile(statevector,'./analysisgrid')
-       
-           if ( associated(stateVectorRefHU_ptr) ) then
-             call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
-                  stateVectorRef_opt=stateVectorRefHU_ptr)
-           else
-             call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
-           end if
-
-           call tmg_start(30,'OBS_INTERP')
-           call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-           call tmg_stop(30)
          end if
+
+         if ( associated(stateVectorRefHU_ptr) ) then
+           call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
+                stateVectorRef_opt=stateVectorRefHU_ptr)
+         else
+           call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+         end if
+
+         call tmg_start(30,'OBS_INTERP')
+         call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+         call tmg_stop(30)
        end if
       
        call tmg_start(40,'OBS_TL')
@@ -1093,7 +1095,7 @@ CONTAINS
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
 
        if (oneDVarMOde) then
-         call cvt_transform( column, columng, 'PsfcToP_ad')      ! IN
+         call cvt_transform( column_ptr, columng_ptr, 'PsfcToP_ad')      ! IN
          call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, column_ptr, obsSpaceData_ptr)
        else
          if ( associated(stateVectorRefHU_ptr) ) then
@@ -1101,8 +1103,8 @@ CONTAINS
                             stateVectorRef_opt=stateVectorRefHU_ptr)
          else
            call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
-           !call gsv_deallocate(statevector)
          end if
+         !call gsv_deallocate(statevector)
        end if
 
        if (na_indic .ne. 3) then
@@ -1525,10 +1527,10 @@ CONTAINS
   integer, intent(in) :: na_range
 
   ! Locals:
-  integer :: nl_indic, nl_j !, i, ierr
+  integer :: nl_indic, nl_j
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
-  real*8  :: dl_alpha, dl_gnorm0 !, xsave,xpert
+  real*8  :: dl_alpha, dl_gnorm0
 
 
   ! 1. Initialize dl_gradj0 at da_x0
@@ -1536,7 +1538,6 @@ CONTAINS
 
   nl_indic = 2
   call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
-
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
   call mpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
   dl_start = 1.d0

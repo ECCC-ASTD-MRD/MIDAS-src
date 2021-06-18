@@ -156,6 +156,14 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(2)
 
+
+  !
+  ! Initialize list of analyzed variables.
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+
   ! Read trials and horizontally interpolate to columns
   call tmg_start(2, 'PREMIN')
   call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
