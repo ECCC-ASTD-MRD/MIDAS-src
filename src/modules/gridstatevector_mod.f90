@@ -6264,13 +6264,12 @@ module gridStateVector_mod
 
       allocHeightSfc = ( stateVectorTrialIn%vco%Vcode /= 0 )
 
-      ! Use statevector without Z/P allocated to read trials
+      ! Allocate single-precision statevector without Z/P to read trials
       call gsv_allocate( stateVectorTrial, stateVectorTrialIn%numStep, &
                          stateVectorTrialIn%hco, stateVectorTrialIn%vco, &
                          dateStamp_opt=tim_getDateStamp(), &
                          mpi_local_opt=stateVectorTrialIn%mpi_local, &
-                         mpi_distribution_opt='Tiles', &
-                         dataKind_opt=stateVectorTrialIn%dataKind,  &
+                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                          allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=stateVectorTrialIn%hInterpolateDegree, &
                          allocHeight_opt=.false., allocPressure_opt=.false., &
