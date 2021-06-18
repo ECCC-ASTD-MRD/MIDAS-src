@@ -104,14 +104,10 @@ program midas_var
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  !
-  !- Initialize the Temporal grid
-  !
+  ! Initialize the Temporal grid
   call tim_setup
 
-  !     
-  !- Initialize observation file names and set datestamp
-  !
+  ! Initialize observation file names and set datestamp
   call obsf_setup( dateStamp, varMode )
   if ( dateStamp > 0 ) then
     call tim_setDatestamp(datestamp)     ! IN
@@ -119,17 +115,13 @@ program midas_var
     call utl_abort('var_setup: Problem getting dateStamp from observation file')
   end if
 
-  !
-  !- Initialize constants
-  !
+  ! Initialize constants
   if ( mpi_myid == 0 ) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
 
-  !
-  !- Initialize the Analysis grid
-  !
+  ! Initialize the Analysis grid
   if (mpi_myid == 0) write(*,*)''
   if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
@@ -137,72 +129,35 @@ program midas_var
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
-    !- Initialize the core (Non-Extended) analysis grid
+    ! Initialize the core (Non-Extended) analysis grid
     if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
-  !     
-  !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-  !
+  ! Initialisation of the analysis grid vertical coordinate from analysisgrid file
   call vco_SetupFromFile( vco_anl,        & ! OUT
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  !- Setup and read observations
-  !
+  ! Setup and read observations
   call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  !- Basic setup of columnData module
-  !
+  ! Basic setup of columnData module
   call col_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
   !- Memory allocation for background column data
-  !
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
-  !
-  !- Initialize the observation error covariances
-  !
+  ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
   ! Initialize list of analyzed variables.
-  !
   call gsv_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Initialize the background-error covariance, also sets up control vector module (cvm)
-  !
-  call bmat_setup(hco_anl,hco_core,vco_anl)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  ! - Initialize the gridded variable transform module
-  !
-  call gvt_setup(hco_anl,hco_core,vco_anl)
-
-  !
-  !- Set up the minimization module, now that the required parameters are known
-  !  NOTE: some global variables remain in minimization_mod that must be initialized before
-  !        inn_setupColumnsOnTrialLev
-  !
-  call min_setup( cvm_nvadim, hco_anl ) ! IN
-  allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
-  if (ierr /= 0) then
-    write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
-    call utl_abort('aborting in VAR')
-  end if
-  call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading trials
@@ -216,6 +171,25 @@ program midas_var
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorUpdateHighRes )
   call gsv_readTrials( stateVectorUpdateHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Initialize the background-error covariance, also sets up control vector module (cvm)
+  call bmat_setup(hco_anl,hco_core,vco_anl)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Initialize the gridded variable transform module
+  call gvt_setup(hco_anl,hco_core,vco_anl)
+
+  ! Set up the minimization module, now that the required parameters are known
+  ! NOTE: some global variables remain in minimization_mod that must be initialized before
+  !       inn_setupColumnsOnTrialLev
+  call min_setup( cvm_nvadim, hco_anl ) ! IN
+  allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
+  if (ierr /= 0) then
+    write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
+    call utl_abort('aborting in VAR')
+  end if
+  call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Enter outer-loop
@@ -390,9 +364,7 @@ program midas_var
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  !
-  ! 3. Job termination
-  !
+  ! Job termination
   istamp = exfin('VAR','FIN','NON')
 
   if (mpi_myid == 0) then
