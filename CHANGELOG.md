@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added new program ensDiagnostics to measure imbalance in a trial field trajectory. (#485 and !472)
  * Add `hInterpolationDegree` to namelist NAMBEN to control interpolation of ensembles (#503 and !475)
  * Update observation heights for Doppler velocity observation sqlite files (#482 and !467)
  * midas_build detects circular dependency error (#498 and !469)

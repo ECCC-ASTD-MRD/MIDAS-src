@@ -18,6 +18,7 @@ program midas_ensDiagnostics
   ! :Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle     
   use version_mod
   use mpi_mod
+  use mathPhysConstants_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use verticalCoord_mod
@@ -57,10 +58,18 @@ program midas_ensDiagnostics
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- Read the namelist
+  !- all values should be provided.
+  nEns = mpc_missingValue_int
+  pathName = 'UNDEFINED'
+  prefix = 'UNDEFINED'
+
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namEnsDiagnostics, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensDiagnostics: Error reading namelist')
+  if (nEns == mpc_missingValue_int) call utl_abort('midas-ensDiagnostics: set namelist value nEns')
+  if (pathName == 'UNDEFINED') call utl_abort('midas-ensDiagnostics: set namelist value pathName')
+  if (prefix == 'UNDEFINED') call utl_abort('midas-ensDiagnostics: set namelist value prefix')
   ierr = fclos(nulnam)
   if (mpi_myid == 0) then
     write(*,nml=namEnsDiagnostics)      
