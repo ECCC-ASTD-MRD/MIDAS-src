@@ -1200,6 +1200,7 @@ contains
     call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       hInterpolateDegree_opt = 'LINEAR', &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorRecenterAnl)
 
