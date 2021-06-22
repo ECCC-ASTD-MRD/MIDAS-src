@@ -26,6 +26,7 @@ module HorizontalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
+  use physicsFunctions_mod
   implicit none
   save
   private
@@ -34,7 +35,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast
+  public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast, hco_weight
 
   integer, parameter :: maxNumSubGrid = 2
 
@@ -102,7 +103,7 @@ module HorizontalCoord_mod
     integer :: ig1, ig2, ig3, ig4
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
-    integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd  
+    integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd
 
     logical :: FileExist, global, rotated, foundVarNameInFile
 
@@ -115,7 +116,7 @@ module HorizontalCoord_mod
       allocate(hco)
     else
       call utl_abort('hco_setupFromFile: supplied hco must be null')
-    endif
+    end if
 
     !
     !- 1.1  Determine which variable to use for defining the grid
@@ -591,8 +592,8 @@ module HorizontalCoord_mod
         allocate(hco)
       else
         call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
-      endif
-    endif
+      end if
+    end if
 
     call rpn_comm_bcastc(hco%gridname, len(hco%gridname), 'MPI_CHARACTER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
@@ -609,7 +610,7 @@ module HorizontalCoord_mod
       allocate(hco%lon(hco%ni))
       allocate(hco%lat2d_4(hco%ni,hco%nj))
       allocate(hco%lon2d_4(hco%ni,hco%nj))
-    endif
+    end if
     call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%lat2d_4, size(hco%lat2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
@@ -629,7 +630,7 @@ module HorizontalCoord_mod
     if ( hco%grtyp == 'U' ) then
       if ( mpi_myid > 0 ) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
-      endif
+      end if
       call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
     end if
 
@@ -640,8 +641,8 @@ module HorizontalCoord_mod
         ! special treatment since EZscintID not properly communicated: keep as is
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not communicated for grtyp = ', hco%grtyp
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT equals = ', hco%EZscintID
-      endif
-    endif
+      end if
+    end if
 
     write(*,*) 'hco_mpiBcast: done'
 
@@ -661,28 +662,28 @@ module HorizontalCoord_mod
     if (.not. equal) then
       write(*,*) 'hco_equal: dimensions not equal ', hco1%ni, hco1%nj, hco2%ni, hco2%nj
       return
-    endif
+    end if
 
     equal = equal .and. (hco1%grtyp   ==    hco2%grtyp)
     if (.not. equal) then
       write(*,*) 'hco_equal: grid type not equal'
       return
-    endif
+    end if
 
     equal = equal .and. (hco1%dlat == hco2%dlat)
     equal = equal .and. (hco1%dlon == hco2%dlon)
     if (.not. equal) then
       write(*,*) 'hco_equal: grid spacing not equal'
       return
-    endif
+    end if
 
     if(hco1%grtyp .eq. 'G') then
       equal = equal .and. (hco1%ig2 == hco2%ig2)
       if (.not. equal) then
         write(*,*) 'hco_equal: Gaussian grid ig2 not equal'
         return
-      endif
-    endif    
+      end if
+    end if    
 
     equal = equal .and. (hco1%rotated .eqv. hco2%rotated)
     equal = equal .and. (hco1%xlat1   ==    hco2%xlat1)
@@ -696,17 +697,16 @@ module HorizontalCoord_mod
     if (.not. equal) then
       write(*,*) 'hco_equal: rotation not equal'
       return
-    endif
+    end if
 
     equal = equal .and. all(hco1%lat(:) == hco2%lat(:))
     equal = equal .and. all(hco1%lon(:) == hco2%lon(:))
     if (.not. equal) then
       write(*,*) 'hco_equal: lat/lon not equal'
       return
-    endif
+    end if
 
   end function hco_equal
-
 
   subroutine hco_deallocate( hco )
     implicit none
@@ -722,5 +722,323 @@ module HorizontalCoord_mod
     nullify(hco)
 
   end subroutine hco_deallocate
+
+  subroutine grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
+    !
+    ! :Purpose: 1) Find out where YIN lat lon points are in (YAN) grid with call to smat.
+    !           2) If they are not outside of Yin grid, put area to zero for those points.
+    !
+    ! Author Qaddouri
+    !
+    implicit none
+
+    ! arguments:
+    integer,  intent(in)  :: Ni,Nj   
+    real(8) , intent(out) :: F_mask_8(Ni,Nj)
+    real(8) :: dx, dy
+    real    :: xg(ni), yg(nj)
+
+    ! locals: 
+    integer :: lonIndex,latIndex,np_subd
+    real(8)  :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
+    real     :: area_4(ni,nj)
+
+    np_subd = 4*ni
+
+    sp    = 0.d0
+    sf    = 0.d0
+
+    do latIndex = 1, nj
+      y_a_4 = yg(latIndex)
+      do lonIndex = 1, ni
+
+        x_a_4 = xg(lonIndex)-acos(-1.d0)
+
+        area_4(lonIndex,latIndex) = dx*dy*cos(yg(latIndex))
+        poids (lonIndex,latIndex) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
+
+        !Check if poids <0
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          sp = sp + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
+          sf = sf + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        end if
+
+      end do
+    end do
+
+    !Correct and scale poids
+    !-----------------------
+    sp1 = 0.d0
+    sf1 = 0.d0
+
+    do latIndex = 1, nj
+      do lonIndex = 1, ni
+
+        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
+
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          poids(lonIndex,latIndex) = min( 1.0d0, x_a_4 )
+        end if
+        if (poids(lonIndex,latIndex)*(1.0-poids(lonIndex,latIndex)) > 0.d0) then
+          sp1 = sp1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
+          sf1 = sf1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
+        end if
+
+      end do
+    end do
+
+    !Correct
+    !-------
+    do latIndex = 1, nj
+      do lonIndex = 1, ni
+        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
+
+        if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
+          poids(lonIndex,latIndex) = min( 1.d0, x_a_4 )
+        end if
+ 
+      end do
+    end do
+
+    F_mask_8 = 0.d0
+    do latIndex=1,nj
+      do lonIndex = 1,ni
+        F_mask_8(lonIndex,latIndex) = poids(lonIndex,latIndex)
+      end do
+    end do
+
+  end subroutine grid_mask
+
+  subroutine inter_curve_boundary_yy (x,y,xi,yi,np)
+    ! 
+    ! :Purpose: compute the intersections between a line and the panel
+    !         (yin or yang) boundary. The line passes through the panel
+    !         center point (0, 0) and the cell center point (x, y).
+    !
+    ! Author A. Qaddouri. October 2016
+    !
+    ! Note: this routine has been taken and adjusted from a routine
+    !       with the same name in the GEM model.
+    !
+    ! :Arguments: input:  (x, y):   longitude, latitude of the cell 
+    !                              center point,
+    !                     np:      workspace,
+    !            output: (xi, yi): longitude, latitude of the 
+    !                              intersection point.
+
+    implicit none
+    ! arguments:
+    real(8) :: x,y,xi,yi
+    integer :: np
+
+    ! locals:
+    real(8) :: tol, pi, xmin, ymin, xb
+    real(8) :: xc, yc, s1, s2, x1, test, dxs
+    real(8) :: xp1, xp2, xr1, yr1, xr2, yr2
+    integer :: i
+
+    tol = 1.0d-16
+    pi  = MPC_PI_R8 
+    xmin = -3.d0*pi/4.d0
+    ymin = -pi/4.d0
+    xb  = -0.5d0*pi
+
+    xc = x
+    yc = y
+
+    if ( x > 0.d0 ) xc = - x
+    if ( y > 0.d0 ) yc = - y
+
+    If ( abs(xc) < tol ) then
+      xi = xc
+      yi = ymin
+    Else
+
+      s1 = yc / xc
+      s2 = ymin/(xb-xmin)
+
+      x1 = s2*xmin/(s2-s1)
+      if (x1 > xb ) then
+        xi = ymin/s1
+        yi = ymin
+      else
+        test = -1.d0
+        dxs  = -xb/(np-1)
+        i = 1
+        Do while (test < 0.d0 )
+          xp1 = (i-1)*dxs + xb
+          xp2 =   (i)*dxs + xb
+          xr1 = atan2(sin(ymin),-cos(ymin)*cos(xp1))
+          yr1 = asin(cos(ymin)*sin(xp1))
+          xr2 = atan2(sin(ymin),-cos(ymin)*cos(xp2))
+          yr2 = asin(cos(ymin)*sin(xp2))
+          s2 = (yr1-yr2)/(xr1-xr2)
+          xi = (s2*xr2-yr2)/(s2-s1)
+          yi = s1*xi
+          test=(xi-xr1)*(xr2-xi)
+          i = i+1
+        End do
+      end if
+    Endif
+
+    if ( x > 0.d0 ) xi = - xi
+    if ( y > 0.d0 ) yi = - yi
+
+  end subroutine inter_curve_boundary_yy
+
+  subroutine hco_weight(hco, weight)
+    ! 
+    ! :Purpose: given the horizontal grid definition of the grid,
+    !         return appropriate weights for individual points (avoiding 
+    !         double counting in the overlap regions in the case of a Yin-Yang grid). 
+    !
+    ! author: Abdessamad Qaddouri and Peter Houtekamer
+    !         October 2016
+    !
+    ! Revision: imported code for the Yin-Yang grid on May 2021 from the EnKF library and 
+    !           combined with code for other grid types from the MIDAS library.
+    !
+    ! :Arguments: 
+    !    input:
+    !        hco: structure with the specification of the horizontal grid 
+    !    output:        
+    !        weight: weight to be given when computing a horizontal average
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_hco), intent(in) :: hco
+    real(8), intent(out) :: weight(:,:)
+    
+    ! locals:
+    integer :: sindx
+    integer :: ni,nj,err
+    integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
+
+    real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
+
+    real(8)  :: deg2rad,dx,dy,sum_weight
+    real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
+    real , allocatable :: xg(:),yg(:)
+               
+    deg2rad= MPC_RADIANS_PER_DEGREE_R8 
+    sindx  = 6
+
+    if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
+      write(*,*) 'compute weights for Yin_Yang grid'      
+      ni = nint(hco%tictacU(sindx  ))
+      nj = nint(hco%tictacU(sindx+1))
+      allocate (F_mask_8 (ni,nj))
+      allocate (F_mask(ni,2*nj))
+      allocate (xg(ni))
+      allocate (yg(nj))
+         
+      dx = hco%tictacU(sindx+10+1) -hco%tictacU(sindx+10)
+      dy=  hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
+      dx=  deg2rad* dx
+      dy=  deg2rad* dy
+      do lonIndex=1,ni
+        xg(lonIndex)=deg2rad* hco%tictacU(sindx+10+lonIndex-1)
+      end do
+      do latIndex=1,nj
+        yg(latIndex)=  deg2rad*hco%tictacU(sindx+10+ni+latIndex-1)
+        weight (:,latIndex) = cos( deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
+        weight (:,nj+latIndex)= weight (:,latIndex)
+      end do
+      call  grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
+      do latIndex=1,nj
+        F_mask (:,latIndex) = F_mask_8(:,latIndex)
+        F_mask (:,nj+latIndex)= F_mask (:,latIndex)
+      end do
+      do latIndex=1,nj*2
+        weight(:,latIndex) = weight(:, latIndex) * F_mask(:, latIndex)
+      end do
+      sum_weight=sum(weight)
+      weight = weight/sum_weight
+      deallocate(F_mask_8)
+      deallocate(F_mask)
+      deallocate(xg)
+      deallocate(yg)
+    else
+      write(*,*) 'compute weights for grid type: ',hco%grtyp
+      do latIndex=1,hco%nj
+        latIndexP1 = min(hco%nj,latIndex+1)
+        do lonIndex=1,hco%ni
+          lonIndexP1 = min(hco%ni,lonIndex+1)
+          lon1 = hco%lon2d_4(lonIndex,latIndex)
+          lon2 = hco%lon2d_4(lonIndexP1,latIndex)
+          lon3 = hco%lon2d_4(lonIndex,latIndexP1)
+          lat1 = hco%lat2d_4(lonIndex,latIndex)
+          lat2 = hco%lat2d_4(lonIndexP1,latIndex)
+          lat3 = hco%lat2d_4(lonIndex,latIndexP1)
+          dx = phf_calcDistance(lat1, lon1, lat2, lon2)/1000.0D0
+          dy = phf_calcDistance(lat1, lon1, lat3, lon3)/1000.0D0
+          weight(lonIndex,latIndex) = dx * dy
+        end do
+      end do
+      sum_weight=sum(weight)
+      weight = weight/sum_weight      
+    end if
+
+  end subroutine hco_weight
+
+  real(8) function yyg_weight (x,y,dx,dy,np)
+    Implicit none
+
+    ! arguments:
+    real(8) :: x,y,dx,dy
+    integer :: np
+
+    !
+    ! :Purpose:
+    !    Based on a Draft from Zerroukat (2013) - Evaluates weight
+    !    for each cell, so that the overlap is computed once.
+    !    
+    !author
+    !     Author Abdessamad Qaddouri -- Summer 2014
+    !
+    ! Note: this routine has been taken and adjusted from a routine
+    !       with the same name in the GEM model.
+    ! GEM revision:
+    ! v4_70 - Qaddouri A.     - initial version
+    !
+    ! :Arguments: input: x,y: (longitude, latitude) in radians of
+    !                           the cell center point.
+    !                   dx, dy: horizontal grid resolution in radiancs.
+    !                   np:  working dimension
+    !            output: cell weight. 
+
+    ! locals:
+    real(8) :: pi, xmin, xmax, ymin, ymax, xb1, xb2
+    real(8) :: t1x, t2x, t1y, dcell, xi, yi, di, dp, df, d
+
+    pi   = MPC_PI_R8 
+    xmin = -3.d0*pi/4.d0 ;  xmax = 3.d0*pi/4.d0
+    ymin = -pi/4.d0       ;  ymax = pi/4.d0
+    xb1  = -0.5d0*pi       ;  xb2  = 0.5d0*pi
+
+    t1x = (x-xmin)*(xmax-x)
+    t2x = (x-xb1)*(xb2-x)
+    t1y = (y-ymin)*(ymax-y)
+
+    if ( t1x < 0.d0 .or. t1y < 0.d0 ) then
+      yyg_weight = 0.0
+    else if ( t2x > 0.d0 .and. t1y > 0.d0 ) then
+      yyg_weight = 1.d0
+    else
+      dcell = 0.5d0*dsqrt(dx**2 + dy**2)
+
+      call inter_curve_boundary_yy (x, y, xi, yi, np)
+
+      di = sqrt( xi**2 + yi**2 )
+      dp = sqrt(  x**2 +  y**2 )
+      df = dp - di
+      d  = min(max(-dcell,df),dcell)
+      yyg_weight = 0.5d0*(1.d0 - (d/dcell))
+    end if
+
+  end function yyg_weight
 
 end module HorizontalCoord_mod
