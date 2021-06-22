@@ -269,7 +269,8 @@ program midas_var
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr, stateVectorRef_opt=stateVectorRefHU )
+                       controlVectorIncr, stateVectorRef_opt=stateVectorRefHU, &
+                       stateVectorRefHeight_opt=stateVectorUpdateHighRes )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations

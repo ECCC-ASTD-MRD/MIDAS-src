@@ -65,6 +65,7 @@ module minimization_mod
   type(struct_columnData), pointer :: columnAnlInc_ptr         => null()
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr => null()
   type(struct_gsv)       , pointer :: stateVectorRefHU_ptr     => null()
+  type(struct_gsv)       , pointer :: stateVectorRefHeight_ptr => null()
   type(struct_hco)       , pointer :: hco_anl                  => null()
 
   logical             :: initialized = .false.
@@ -194,7 +195,7 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx, stateVectorRef_opt )
+                           vazx, stateVectorRefHU_opt, stateVectorRefHeight_opt )
     implicit none
 
     ! Arguments:
@@ -203,7 +204,8 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
-    type(struct_gsv), target, optional  :: stateVectorRef_opt
+    type(struct_gsv), target, optional  :: stateVectorRefHU_opt
+    type(struct_gsv), target, optional  :: stateVectorRefHeight_opt
 
     ! Locals:
     type(struct_columnData)   :: columnAnlInc
@@ -215,8 +217,11 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_start(3,'MIN')
 
-    if ( present(statevectorRef_opt) ) then
-      if ( statevectorRef_opt%allocated ) stateVectorRefHU_ptr => stateVectorRef_opt
+    if ( present(stateVectorRefHU_opt) ) then
+      if ( stateVectorRefHU_opt%allocated ) stateVectorRefHU_ptr => stateVectorRefHU_opt
+    end if
+    if ( present(stateVectorRefHeight_opt) ) then
+      if ( stateVectorRefHeight_opt%allocated ) stateVectorRefHeight_ptr => stateVectorRefHeight_opt
     end if
 
     initializeForOuterLoop = .true.
@@ -589,26 +594,37 @@ CONTAINS
            call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
          end if
 
+         ! put in columnAnlInc H_horiz dx
          call tmg_start(30,'OBS_INTERP')
-         call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in columnAnlInc H_horiz dx
+         if ( associated(stateVectorRefHeight_ptr) ) then
+           call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
+                       stateVectorRefHeight_opt=stateVectorRefHeight_ptr)
+         else
+           call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
+         end if
          call tmg_stop(30)
        end if
-      
+
+       ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_start(40,'OBS_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
-                    initializeLinearization_opt=initializeForOuterLoop) ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+                    initializeLinearization_opt=initializeForOuterLoop) 
        call tmg_stop(40)
 
-       call res_compute(obsSpaceData_ptr)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       call res_compute(obsSpaceData_ptr)  
 
        call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  
 
-       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       call cfn_calcJo(obsSpaceData_ptr) 
 
+       ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        IF ( LVARQC ) THEN
-         call vqc_tl(obsSpaceData_ptr)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+         call vqc_tl(obsSpaceData_ptr) 
        endif
 
        dl_Jo = 0.d0
@@ -622,26 +638,35 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  
 
        IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
        endif
 
-       call res_computeAd(obsSpaceData_ptr)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       call res_computeAd(obsSpaceData_ptr)  
 
        call col_zero(columnAnlInc_ptr)
 
+       ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_start(41,'OBS_AD')
        call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
-                    initializeLinearization_opt=initializeForOuterLoop)  ! Put in column : -H_vert**T R**-1 (d-Hdx)
+                    initializeLinearization_opt=initializeForOuterLoop)
        call tmg_stop(41)
 
+       ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        if (oneDVarMode) then
          ! no interpolation needed for 1Dvar case
        else
          call tmg_start(31,'OBS_INTERPAD')
-         call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
+         if ( associated(stateVectorRefHeight_ptr) ) then
+           call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
+                       stateVectorRefHeight_opt=stateVectorRefHeight_ptr)
+         else
+           call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
+         end if
          call tmg_stop(31)
        end if
 
