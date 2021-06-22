@@ -102,6 +102,7 @@ contains
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
     real(8)  :: weightRecenter         ! weight applied to recentering increment
+    real(8)  :: weightRecenterLand     ! weight applied to recentering increment for land variables
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
     character(len=12) :: etiket0
@@ -110,7 +111,7 @@ contains
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
-                                   weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
+                                   weightRecenter, weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket0, numBits
 
     if (present(outputOnlyEnsMean_opt)) then
@@ -142,8 +143,9 @@ contains
     huLimitsBeforeRecenter = .true.
     imposeSaturationLimit = .false.
     imposeRttovHuLimits   = .false.
-    weightRecenter        = 0.0D0 ! means no recentering applied
-    numMembersToRecenter  = -1    ! means all members recentered by default
+    weightRecenter        = 0.0D0  ! means no recentering applied
+    weightRecenterLand    = -1.0D0 ! means same recentering for land as other variables
+    numMembersToRecenter  = -1     ! means all members recentered by default
     useOptionTableRecenter = .false.
     etiket0               = 'E26_0_0P'
     numBits               = 16
@@ -257,7 +259,8 @@ contains
       !- Recenter analysis ensemble on supplied analysis
       if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
         write(*,*) 'epp_postProcess: Recenter analyses on supplied analysis'
-        call epp_hybridRecentering(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
+        call epp_hybridRecentering(ensembleAnl, weightRecenter, weightRecenterLand, &
+                                   useOptionTableRecenter, numMembersToRecenter)
         ! And recompute analysis mean
         call ens_computeMean(ensembleAnl)
         call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
@@ -407,7 +410,7 @@ contains
         call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
         call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
 
-      end if
+      end if ! writeSubsample
 
       !- If SubSample requested, do remaining processing and output of sub-sampled members
       if (writeSubSampleUnPert) then
@@ -1160,7 +1163,7 @@ contains
   !-----------------------------------------------------------------
   ! epp_hybridRecentering
   !-----------------------------------------------------------------
-  subroutine epp_hybridRecentering(ensembleAnl, weightRecenter,  &
+  subroutine epp_hybridRecentering( ensembleAnl, weightRecenter, weightRecenterLand, &
                                     useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
     !           in the file "recentering_analysis".
@@ -1174,6 +1177,7 @@ contains
     ! Arguments
     type(struct_ens) :: ensembleAnl
     real(8)          :: weightRecenter
+    real(8)          :: weightRecenterLand
     logical          :: useOptionTableRecenter
     integer          :: numMembersToRecenter
 
@@ -1239,13 +1243,15 @@ contains
 
     ! apply recentering
     if (useOptionTableRecenter) then
-      call ens_recenter(ensembleAnl, stateVectorRecenterAnl,  &
+      call ens_recenter(ensembleAnl, stateVectorRecenterAnl, &
                         recenteringCoeffArray_opt=weightArray(1:numMembers),  &
-                        numMembersToRecenter_opt=numMembersToRecenter)
+                        numMembersToRecenter_opt=numMembersToRecenter, &
+                        recenteringCoeffLand_opt=weightRecenterLand)
     else
       call ens_recenter(ensembleAnl, stateVectorRecenterAnl,  &
                         recenteringCoeff_opt=weightRecenter,  &
-                        numMembersToRecenter_opt=numMembersToRecenter)
+                        numMembersToRecenter_opt=numMembersToRecenter, &
+                        recenteringCoeffLand_opt=weightRecenterLand)
     end if
 
     call gsv_deallocate(stateVectorRecenterAnl)

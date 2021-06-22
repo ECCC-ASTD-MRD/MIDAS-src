@@ -92,8 +92,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    logical          :: allocated
+    type(struct_ens), intent(in) :: ens
+    logical                      :: allocated
 
     allocated = ens%allocated
   end function ens_allocated
@@ -110,17 +110,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    integer :: numMembers, numStep
-    type(struct_hco), pointer :: hco_ens
-    type(struct_vco), pointer :: vco_ens
-    integer :: dateStampList(:)
-    character(len=*), optional :: varNames_opt(:)  ! allow specification of assigned variables
-    integer, optional          :: dataKind_opt
-    character(len=*), optional :: hInterpolateDegree_opt
+    type(struct_ens),           intent(inout) :: ens
+    integer,                    intent(in)    :: numMembers, numStep
+    type(struct_hco), pointer,  intent(in)    :: hco_ens
+    type(struct_vco), pointer,  intent(in)    :: vco_ens
+    integer,                    intent(in)    :: dateStampList(:)
+    character(len=*), optional, intent(in)    :: varNames_opt(:)
+    integer, optional,          intent(in)    :: dataKind_opt
+    character(len=*), optional, intent(in)    :: hInterpolateDegree_opt
 
     ! Locals:
-    integer :: jk, lon1, lon2, lat1, lat2, k1, k2
+    integer :: varLevIndex, lon1, lon2, lat1, lat2, k1, k2
     character(len=4), pointer :: varNames(:)
 
     if ( ens%allocated ) then
@@ -160,13 +160,13 @@ CONTAINS
 
     if (ens%dataKind == 8) then
       allocate( ens%allLev_r8(k1:k2) )
-      do jk = k1, k2
-        allocate( ens%allLev_r8(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
+      do varLevIndex = k1, k2
+        allocate( ens%allLev_r8(varLevIndex)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
       end do
     else if (ens%dataKind == 4) then
       allocate( ens%allLev_r4(k1:k2) )
-      do jk = k1, k2
-        allocate( ens%allLev_r4(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
+      do varLevIndex = k1, k2
+        allocate( ens%allLev_r4(varLevIndex)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
       end do
     else
       call utl_abort('ens_allocate: unknown value of datakind')
@@ -189,10 +189,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    integer :: lon1, lon2, lat1, lat2, k1, k2, jk, numStep
+    integer :: lon1, lon2, lat1, lat2, k1, k2, varLevIndex, numStep
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -203,9 +203,9 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     allocate( ens%allLev_ensMean_r8(k1:k2) )
-    do jk = k1, k2
-      allocate( ens%allLev_ensMean_r8(jk)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
-      ens%allLev_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+    do varLevIndex = k1, k2
+      allocate( ens%allLev_ensMean_r8(varLevIndex)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
+      ens%allLev_ensMean_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
     end do
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -222,10 +222,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    integer :: lon1, lon2, lat1, lat2, k1, k2, jk, numStep
+    integer :: lon1, lon2, lat1, lat2, k1, k2, varLevIndex, numStep
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -236,9 +236,9 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     allocate( ens%allLev_ensStdDev_r8(k1:k2) )
-    do jk = k1, k2
-      allocate( ens%allLev_ensStdDev_r8(jk)%onelevel(1,numStep,lon1:lon2,lat1:lat2) )
-      ens%allLev_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+    do varLevIndex = k1, k2
+      allocate( ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,numStep,lon1:lon2,lat1:lat2) )
+      ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
     end do
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -258,7 +258,7 @@ CONTAINS
     type(struct_ens) :: ens
 
     ! Locals:
-    integer :: k1, k2, jk
+    integer :: k1, k2, varLevIndex
 
     if ( .not. ens%allocated ) return
 
@@ -266,27 +266,27 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
 
     if (ens%dataKind == 8) then
-      do jk = k1, k2
-        deallocate( ens%allLev_r8(jk)%onelevel )
+      do varLevIndex = k1, k2
+        deallocate( ens%allLev_r8(varLevIndex)%onelevel )
       end do
       deallocate( ens%allLev_r8 )
     else if (ens%dataKind == 4) then
-      do jk = k1, k2
-        deallocate( ens%allLev_r4(jk)%onelevel )
+      do varLevIndex = k1, k2
+        deallocate( ens%allLev_r4(varLevIndex)%onelevel )
       end do
       deallocate( ens%allLev_r4 )
     end if
 
     if (ens%stdDevIsComputed) then
-      do jk = k1, k2
-        deallocate( ens%allLev_ensStdDev_r8(jk)%onelevel )
+      do varLevIndex = k1, k2
+        deallocate( ens%allLev_ensStdDev_r8(varLevIndex)%onelevel )
       end do
       deallocate( ens%allLev_ensStdDev_r8 )
     end if
 
     if (ens%meanIsComputed) then
-      do jk = k1, k2
-        deallocate( ens%allLev_ensMean_r8(jk)%onelevel )
+      do varLevIndex = k1, k2
+        deallocate( ens%allLev_ensMean_r8(varLevIndex)%onelevel )
       end do
       deallocate( ens%allLev_ensMean_r8 )
       deallocate( ens%subEnsIndexList )
@@ -309,9 +309,9 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: oldVarName
-    character(len=*) :: newVarName
+    type(struct_ens), intent(inout) :: ens
+    character(len=*), intent(in)    :: oldVarName
+    character(len=*), intent(in)    :: newVarName
     
     call gsv_modifyVarName(ens%statevector_work,oldVarName, newVarName)
     
@@ -327,11 +327,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens_in, ens_out
+    type(struct_ens), intent(in)    :: ens_in
+    type(struct_ens), intent(inout) :: ens_out
 
     ! Locals:
     integer           :: lon1, lon2, lat1, lat2, k1, k2
-    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+    integer           :: varLevIndex, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens_in%allocated) then
       call utl_abort('ens_copy: ens_in not yet allocated')
@@ -351,14 +352,14 @@ CONTAINS
  
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens_out%statevector_work%numStep
               do memberIndex = 1, ens_out%numMembers
-                ens_out%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
-                     ens_in %allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                ens_out%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     ens_in %allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -368,14 +369,14 @@ CONTAINS
 
     else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens_out%statevector_work%numStep
               do memberIndex = 1, ens_out%numMembers
-                ens_out%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
-                     ens_in %allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                ens_out%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     ens_in %allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -400,11 +401,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens_in, ens_out
+    type(struct_ens), intent(in)    :: ens_in
+    type(struct_ens), intent(inout) :: ens_out
 
     ! Locals:
     integer           :: lon1, lon2, lat1, lat2, k1, k2
-    integer           :: jk, latIndex, lonIndex, memberIndex
+    integer           :: varLevIndex, latIndex, lonIndex, memberIndex
     integer           :: numStepIn, numStepOut, middleStepIndex
 
     if (.not.ens_in%allocated) then
@@ -433,13 +435,13 @@ CONTAINS
 
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do memberIndex = 1, ens_out%numMembers
-              ens_out%allLev_r8(jk)%onelevel(memberIndex,1,lonIndex,latIndex) = &
-                   ens_in %allLev_r8(jk)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
+              ens_out%allLev_r8(varLevIndex)%onelevel(memberIndex,1,lonIndex,latIndex) = &
+                   ens_in %allLev_r8(varLevIndex)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
             end do
           end do
         end do
@@ -448,13 +450,13 @@ CONTAINS
 
     else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do memberIndex = 1, ens_out%numMembers
-              ens_out%allLev_r4(jk)%onelevel(memberIndex,1,lonIndex,latIndex) = &
-                   ens_in %allLev_r4(jk)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
+              ens_out%allLev_r4(varLevIndex)%onelevel(memberIndex,1,lonIndex,latIndex) = &
+                   ens_in %allLev_r4(varLevIndex)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
             end do
           end do
         end do
@@ -477,13 +479,14 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_ens)  :: ens_in, ens_inOut
-    real(8), optional :: scaleFactorIn_opt
-    real(8), optional :: scaleFactorInOut_opt
+    type(struct_ens),  intent(in)    :: ens_in
+    type(struct_ens),  intent(inout) :: ens_inOut
+    real(8), optional, intent(in)    :: scaleFactorIn_opt
+    real(8), optional, intent(in)    :: scaleFactorInOut_opt
 
     ! locals
     integer           :: lon1, lon2, lat1, lat2, k1, k2
-    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+    integer           :: varLevIndex, stepIndex, latIndex, lonIndex, memberIndex
     real(4)           :: scaleFactorIn_r4, scaleFactorInOut_r4
     real(8)           :: scaleFactorIn, scaleFactorInOut
 
@@ -514,15 +517,17 @@ CONTAINS
         scaleFactorInOut = 1.0d0
       end if
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens_inOut%statevector_work%numStep
               do memberIndex = 1, ens_inOut%numMembers
-                ens_inOut%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
-                     scaleFactorInOut * ens_inOut%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
-                     scaleFactorIn    * ens_in%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                ens_inOut%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     scaleFactorInOut *  &
+                     ens_inOut%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     scaleFactorIn    *  &
+                     ens_in%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -543,15 +548,17 @@ CONTAINS
         scaleFactorInOut_r4 = 1.0
       end if
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens_inOut%statevector_work%numStep
               do memberIndex = 1, ens_inOut%numMembers
-                ens_inOut%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
-                     scaleFactorInOut_r4 * ens_inOut%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
-                     scaleFactorIn_r4    * ens_in%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                ens_inOut%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     scaleFactorInOut_r4 *  &
+                     ens_inOut%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     scaleFactorIn_r4    *  &
+                     ens_in%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -575,11 +582,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer           :: lon1, lon2, lat1, lat2, k1, k2
-    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+    integer           :: varLevIndex, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens%allocated) then
       call utl_abort('ens_zero: ens not yet allocated')
@@ -594,13 +601,13 @@ CONTAINS
  
     if ( ens%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
               do memberIndex = 1, ens%numMembers
-                ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.d0
+                ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.d0
               end do
             end do
           end do
@@ -610,13 +617,13 @@ CONTAINS
 
     else if ( ens%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
-      do jk = k1, k2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
               do memberIndex = 1, ens%numMembers
-                ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.0
+                ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.0
               end do
             end do
           end do
@@ -641,15 +648,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: dataType
-    integer, optional:: memberIndex_opt
-    integer, optional:: subEnsIndex_opt
+    type(struct_ens),  intent(inout) :: ens
+    character(len=*),  intent(in)    :: dataType
+    integer, optional, intent(in)    :: memberIndex_opt
+    integer, optional, intent(in)    :: subEnsIndex_opt
 
     ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, numStep, stepIndex
+    integer          :: k1, k2, varLevIndex, numStep, stepIndex
     integer          :: memberIndex, subEnsIndex
 
     k1 = ens%statevector_work%mykBeg
@@ -679,26 +686,32 @@ CONTAINS
     if (ens%dataKind == 8) then
       call gsv_getField(ens%statevector_work,ptr4d_r8)
       do stepIndex = 1, numStep
-        do jk = k1, k2
+        do varLevIndex = k1, k2
           if (dataType == 'member') then
-            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
+            ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+                 ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
           else if (dataType == 'mean') then
-            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+            ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+                 ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:)
           else if (dataType == 'stdDev') then
-            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+            ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+                 ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:)
           end if
         end do
       end do
     else if (ens%dataKind == 4) then
       call gsv_getField(ens%statevector_work,ptr4d_r4)
       do stepIndex = 1, numStep
-        do jk = k1, k2
+        do varLevIndex = k1, k2
           if (dataType == 'member') then
-            ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+            ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+                 ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
           else if (dataType == 'mean') then
-            ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+            ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+                 real(ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:),4)
           else if (dataType == 'stdDev') then
-            ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+            ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+                 real(ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:),4)
           end if
         end do
       end do
@@ -717,15 +730,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: dataType
-    integer, optional:: memberIndex_opt
-    integer, optional:: subEnsIndex_opt
+    type(struct_ens),  intent(inout) :: ens
+    character(len=*),  intent(in)    :: dataType
+    integer, optional, intent(in)    :: memberIndex_opt
+    integer, optional, intent(in)    :: subEnsIndex_opt
 
     ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, numStep, stepIndex
+    integer          :: k1, k2, varLevIndex, numStep, stepIndex
     integer          :: memberIndex, subEnsIndex
 
     k1 = ens%statevector_work%mykBeg
@@ -755,26 +768,32 @@ CONTAINS
     if (ens%dataKind == 8) then
       call gsv_getField(ens%statevector_work,ptr4d_r8)
       do stepIndex = 1, numStep
-        do jk = k1, k2
+        do varLevIndex = k1, k2
           if (dataType == 'member') then
-            ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+            ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                 ptr4d_r8(:,:,varLevIndex,stepIndex)
           else if (dataType == 'mean') then
-            ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+            ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+                 ptr4d_r8(:,:,varLevIndex,stepIndex)
           else if (dataType == 'stdDev') then
-            ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+            ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+                 ptr4d_r8(:,:,varLevIndex,stepIndex)
           end if
         end do
       end do
     else if (ens%dataKind == 4) then
       call gsv_getField(ens%statevector_work,ptr4d_r4)
       do stepIndex = 1, numStep
-        do jk = k1, k2
+        do varLevIndex = k1, k2
           if (dataType == 'member') then
-            ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+            ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                 ptr4d_r4(:,:,varLevIndex,stepIndex)
           else if (dataType == 'mean') then
-            ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+            ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+                 real(ptr4d_r4(:,:,varLevIndex,stepIndex),8)
           else if (dataType == 'stdDev') then
-            ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+            ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+                 real(ptr4d_r4(:,:,varLevIndex,stepIndex),8)
           end if
         end do
       end do
@@ -794,9 +813,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(4), pointer :: oneLevLevel(:,:,:,:)
-    type(struct_ens) :: ens
-    integer          :: kIndex
+    real(4), pointer                :: oneLevLevel(:,:,:,:)
+    type(struct_ens), intent(inout) :: ens
+    integer,          intent(in)    :: kIndex
 
     ! Locals:
     integer          :: lon1, lat1
@@ -846,9 +865,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8), pointer  :: field(:,:,:)
-    type(struct_ens)  :: ens
-    integer           :: subEnsIndex, kIndex
+    real(8), pointer                :: field(:,:,:)
+    type(struct_ens), intent(inout) :: ens
+    integer,          intent(in)    :: subEnsIndex, kIndex
 
     ! Locals:
     integer           :: lon1, lat1
@@ -870,14 +889,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    type(struct_gsv)  :: statevector
-    integer, optional :: subEnsIndex_opt
+    type(struct_ens),  intent(inout) :: ens
+    type(struct_gsv),  intent(inout) :: statevector
+    integer, optional, intent(in)    :: subEnsIndex_opt
 
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
+    integer          :: k1, k2, varLevIndex, stepIndex, numStep, subEnsIndex
     character(len=4), pointer :: varNamesInEns(:)
 
     if( present(subEnsIndex_opt) ) then
@@ -906,15 +925,17 @@ CONTAINS
     if (statevector%dataKind == 8) then
       call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+        do varLevIndex = k1, k2
+          ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+               ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:)
         end do
       end do
     else
       call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+        do varLevIndex = k1, k2
+          ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+               real(ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:),4)
         end do
       end do
     end if
@@ -931,14 +952,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    type(struct_gsv)  :: statevector
-    integer, optional :: subEnsIndex_opt
+    type(struct_ens),  intent(inout) :: ens
+    type(struct_gsv),  intent(inout) :: statevector
+    integer, optional, intent(in)    :: subEnsIndex_opt
 
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
+    integer          :: k1, k2, varLevIndex, stepIndex, numStep, subEnsIndex
 
     if( present(subEnsIndex_opt) ) then
       subEnsIndex = subEnsIndex_opt
@@ -957,15 +978,17 @@ CONTAINS
     if (statevector%dataKind == 8) then
       call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+        do varLevIndex = k1, k2
+          ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+               ptr4d_r8(:,:,varLevIndex,stepIndex)
         end do
       end do
     else
       call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+        do varLevIndex = k1, k2
+          ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,:,:) = &
+               real(ptr4d_r4(:,:,varLevIndex,stepIndex),8)
         end do
       end do
     end if
@@ -982,13 +1005,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    type(struct_gsv)  :: statevector
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep
+    integer          :: k1, k2, varLevIndex, stepIndex, numStep
     character(len=4), pointer :: varNamesInEns(:)
 
     k1 = ens%statevector_work%mykBeg
@@ -1008,15 +1031,17 @@ CONTAINS
     if (statevector%dataKind == 8) then
       call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
+        do varLevIndex = k1, k2
+          ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+               ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,:,:)
         end do
       end do
     else
       call gsv_getField(statevector,ptr4d_r4)
       do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:),4)
+        do varLevIndex = k1, k2
+          ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+               real(ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,:,:),4)
         end do
       end do
     end if
@@ -1033,14 +1058,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    type(struct_gsv)  :: statevector
-    integer           :: memberIndex
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(inout) :: statevector
+    integer,          intent(in)    :: memberIndex
 
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep, varIndex
+    integer          :: k1, k2, varLevIndex, stepIndex, numStep, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
     character(len=4), pointer :: varNamesInEns(:)
     character(len=4), pointer :: varNamesInGsv(:)
@@ -1078,23 +1103,26 @@ CONTAINS
       if (ens%dataKind == 8) then
         call gsv_getField(statevector,ptr4d_r8)
         do stepIndex = 1, numStep
-          do jk = k1, k2
-            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
+          do varLevIndex = k1, k2
+            ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+                 ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
           end do
         end do
       else if (ens%dataKind == 4) then
         if (gsv_getDataKind(statevector) == 8) then
           call gsv_getField(statevector,ptr4d_r8)
           do stepIndex = 1, numStep
-            do jk = k1, k2
-              ptr4d_r8(:,:,jk,stepIndex) = real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:),8)
+            do varLevIndex = k1, k2
+              ptr4d_r8(:,:,varLevIndex,stepIndex) = &
+                   real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
             end do
           end do
         else
           call gsv_getField(statevector,ptr4d_r4)
           do stepIndex = 1, numStep
-            do jk = k1, k2
-              ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+            do varLevIndex = k1, k2
+              ptr4d_r4(:,:,varLevIndex,stepIndex) = &
+                   ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
             end do
           end do
         end if
@@ -1111,7 +1139,8 @@ CONTAINS
           do stepIndex = 1, numStep
             do gsvLevIndex = 1, nLev
               ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-              ptr4d_r8(:,:,gsvLevIndex,stepIndex) = ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+              ptr4d_r8(:,:,gsvLevIndex,stepIndex) = &
+                   ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
             end do
           end do
         else if (ens%dataKind == 4) then
@@ -1120,7 +1149,8 @@ CONTAINS
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-                ptr4d_r8(:,:,gsvLevIndex,stepIndex) = real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+                ptr4d_r8(:,:,gsvLevIndex,stepIndex) = &
+                     real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
               end do
             end do
           else
@@ -1128,7 +1158,8 @@ CONTAINS
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-                ptr4d_r4(:,:,gsvLevIndex,stepIndex) = ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+                ptr4d_r4(:,:,gsvLevIndex,stepIndex) = &
+                     ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
               end do
             end do
           end if
@@ -1152,14 +1183,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    type(struct_gsv)  :: statevector
-    integer           :: memberIndex
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(inout) :: statevector
+    integer,          intent(in)    :: memberIndex
 
     ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep, varIndex
+    integer          :: k1, k2, varLevIndex, stepIndex, numStep, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
     character(len=4), pointer :: varNamesInEns(:)
     character(len=4), pointer :: varNamesInGsv(:)
@@ -1192,23 +1223,26 @@ CONTAINS
       if (ens%dataKind == 8) then
         call gsv_getField(statevector,ptr4d_r8)
         do stepIndex = 1, numStep
-          do jk = k1, k2
-            ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          do varLevIndex = k1, k2
+            ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                 ptr4d_r8(:,:,varLevIndex,stepIndex)
           end do
         end do
       else if (ens%dataKind == 4) then
         if (gsv_getDataKind(statevector) == 8) then
           call gsv_getField(statevector,ptr4d_r8)
           do stepIndex = 1, numStep
-            do jk = k1, k2
-              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,jk,stepIndex),4)
+            do varLevIndex = k1, k2
+              ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                   real(ptr4d_r8(:,:,varLevIndex,stepIndex),4)
             end do
           end do
         else
           call gsv_getField(statevector,ptr4d_r4)
           do stepIndex = 1, numStep
-            do jk = k1, k2
-              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+            do varLevIndex = k1, k2
+              ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                   ptr4d_r4(:,:,varLevIndex,stepIndex)
             end do
           end do
         end if
@@ -1224,7 +1258,8 @@ CONTAINS
           do stepIndex = 1, numStep
             do gsvLevIndex = 1, nLev
               ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-              ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,gsvLevIndex,stepIndex)
+              ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                   ptr4d_r8(:,:,gsvLevIndex,stepIndex)
             end do
           end do
         else if (ens%dataKind == 4) then
@@ -1233,7 +1268,8 @@ CONTAINS
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,gsvLevIndex,stepIndex),4)
+                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                     real(ptr4d_r8(:,:,gsvLevIndex,stepIndex),4)
               end do
             end do
           else
@@ -1241,7 +1277,8 @@ CONTAINS
             do stepIndex = 1, numStep
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,gsvLevIndex,stepIndex)
+                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = &
+                     ptr4d_r4(:,:,gsvLevIndex,stepIndex)
               end do
             end do
           end if
@@ -1266,8 +1303,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    type(struct_ocm) :: oceanMask
+    type(struct_ens), intent(inout) :: ens
+    type(struct_ocm), intent(inout) :: oceanMask
 
     call ocm_copyMask(ens%statevector_work%oceanMask,oceanMask)
 
@@ -1284,8 +1321,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    type(struct_gsv) :: statevector
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(inout) :: statevector
 
     call ocm_copyMask(ens%statevector_work%oceanMask,statevector%oceanMask)
 
@@ -1302,7 +1339,7 @@ CONTAINS
     logical                      :: varExist 
 
     ! Arguments:
-    type(struct_ens)             :: ens
+    type(struct_ens), intent(in) :: ens
     character(len=*), intent(in) :: varName
 
     varExist = gsv_varExist(ens%statevector_work, varName)
@@ -1319,8 +1356,8 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_ens), optional :: ens
-    character(len=4), pointer  :: varNames(:)
+    type(struct_ens), optional, intent(in)    :: ens
+    character(len=4), pointer,  intent(inout) :: varNames(:)
 
     if (associated(varNames)) then
       call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
@@ -1433,7 +1470,7 @@ CONTAINS
     integer                      :: offset
 
     ! Arguments:
-    type(struct_ens)             :: ens
+    type(struct_ens), intent(in) :: ens
     character(len=*), intent(in) :: varName
 
     if (.not. ens_varExist(ens,varName)) then
@@ -1456,7 +1493,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer, intent(in)          :: kIndex
+    integer,          intent(in) :: kIndex
 
     levIndex = gsv_getLevFromK(ens%statevector_work,kIndex)
 
@@ -1475,8 +1512,8 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer                      :: levIndex
-    character(len=*)             :: varName
+    integer,          intent(in) :: levIndex
+    character(len=*), intent(in) :: varName
 
     kIndex = levIndex + gsv_getOffsetFromVarName(ens%statevector_work,trim(varName))
 
@@ -1494,7 +1531,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer, intent(in)          :: kIndex
+    integer,          intent(in) :: kIndex
 
     varName = gsv_getVarNameFromK(ens%statevector_work,kIndex)
 
@@ -1511,7 +1548,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_ptr
 
     ! Arguments:
-    type(struct_ens)          :: ens
+    type(struct_ens), intent(in) :: ens
 
     vco_ptr => ens%statevector_work%vco
 
@@ -1544,11 +1581,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)       :: ens
-    integer, intent(out)   :: myLonBeg
-    integer, intent(out)   :: myLonEnd
-    integer, intent(out)   :: myLatBeg
-    integer, intent(out)   :: myLatEnd
+    type(struct_ens), intent(in)  :: ens
+    integer,          intent(out) :: myLonBeg
+    integer,          intent(out) :: myLonEnd
+    integer,          intent(out) :: myLatBeg
+    integer,          intent(out) :: myLatEnd
 
     myLonBeg = ens%statevector_work%myLonBeg
     myLonEnd = ens%statevector_work%myLonEnd
@@ -1568,7 +1605,7 @@ CONTAINS
     integer :: numStep
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(in) :: ens
 
     numStep = ens%statevector_work%numStep
 
@@ -1584,9 +1621,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    logical, optional :: computeSubEnsMeans_opt
-    integer, optional :: numSubEns_opt
+    type(struct_ens),  intent(inout) :: ens
+    logical, optional, intent(in)    :: computeSubEnsMeans_opt
+    integer, optional, intent(out)   :: numSubEns_opt
 
     ! Locals:
     logical           :: computeSubEnsMeans, lExists
@@ -1594,7 +1631,7 @@ CONTAINS
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
 
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
-    integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
+    integer           :: k1, k2, varLevIndex, lon1, lon2, lat1, lat2, numStep, lonIndex, latIndex
     integer           :: fnom, fclos
 
     if (present(computeSubEnsMeans_opt)) then
@@ -1646,26 +1683,26 @@ CONTAINS
     if (.not. allocated(ens%allLev_ensMean_r8)) then
       call ens_allocateMean(ens)
     else
-      do jk = k1, k2
-        ens%allLev_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      do varLevIndex = k1, k2
+        ens%allLev_ensMean_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
       end do
     end if
     ens%meanIsComputed = .true.
 
     ! Compute ensemble mean(s)
-    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
-    do jk = k1, k2
-      do jj = lat1, lat2
-        do ji = lon1, lon2
+    !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex,subEnsIndex)
+    do varLevIndex = k1, k2
+      do latIndex = lat1, lat2
+        do lonIndex = lon1, lon2
           do stepIndex = 1, ens%statevector_work%numStep
             do memberIndex = 1, ens%numMembers
-              ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
-                   ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
-                   dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
+              ens%allLev_ensMean_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex) = &
+                   ens%allLev_ensMean_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex) + &
+                   dble(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex))
             end do
             do subEnsIndex = 1, ens%numSubEns
-              ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                   ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+              ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,lonIndex,latIndex) = &
+                   ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,stepIndex,lonIndex,latIndex) /  &
                    dble(ens%nEnsSubEns(subEnsIndex))
             end do
           end do
@@ -1689,12 +1726,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    logical, intent(in), optional :: containsScaledPerts_opt
+    type(struct_ens),  intent(inout) :: ens
+    logical, optional, intent(in)    :: containsScaledPerts_opt
 
     ! Locals:
     integer           :: memberIndex, stepIndex, subEnsIndex
-    integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
+    integer           :: k1, k2, varLevIndex, lon1, lon2, lat1, lat2, numStep, lonIndex, latIndex
     real(8), allocatable :: subEnsStdDev(:)
     logical           :: containsScaledPerts
 
@@ -1724,8 +1761,8 @@ CONTAINS
     if (.not. allocated(ens%allLev_ensStdDev_r8)) then
       call ens_allocateStdDev(ens)
     else
-      do jk = k1, k2
-        ens%allLev_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      do varLevIndex = k1, k2
+        ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
       end do
     end if
     ens%StdDevIsComputed = .true.
@@ -1739,22 +1776,22 @@ CONTAINS
       ! Compute the ensemble StdDev from previously scale ensemble perturbations 
       !  (i.e. pert = (fcst-mean)/(nEns-1) )
 
-      !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
-      do jk = k1, k2
-        do jj = lat1, lat2
-          do ji = lon1, lon2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex)
+      do varLevIndex = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
               
-              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = 0.d0
+              ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) = 0.d0
 
               do memberIndex = 1, ens%numMembers
-                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =      &
-                     ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
-                     dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))**2
+                ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) =      &
+                     ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) + &
+                     dble(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex))**2
               end do
 
-              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = &
-                   sqrt(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj))
+              ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) = &
+                   sqrt(ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex))
 
             end do
           end do
@@ -1771,10 +1808,10 @@ CONTAINS
       !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
       !   stddev = sqrt( var_allensensemble / numEnsTotal )
 
-      !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
-      do jk = k1, k2
-        do jj = lat1, lat2
-          do ji = lon1, lon2
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
+      do varLevIndex = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
 
               subEnsStdDev(:) = 0.0d0
@@ -1783,26 +1820,26 @@ CONTAINS
                 do memberIndex = 1, ens%numMembers
                   subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
                        subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
-                       (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)))**2
+                       (dble(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)))**2
                 end do
               else
                 do memberIndex = 1, ens%numMembers
                   subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
                        subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
-                       (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)) - &
-                       ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+                       (dble(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)) - &
+                       ens%allLev_ensMean_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex))**2
                 end do
               end if
 
               do subEnsIndex = 1, ens%numSubEns
-                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =      &
-                     ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) =      &
+                     ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) + &
                      ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
                      
               end do
 
-              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =        &
-                   sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+              ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) =        &
+                   sqrt( ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) / dble(ens%numMembers) )
               
             end do
           end do
@@ -1826,11 +1863,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
-    integer :: jk, jj, ji, stepIndex, memberIndex
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
 
     real(8) :: factor
 
@@ -1847,21 +1884,21 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,factor)
-    do jk = k1, k2
-      do jj = lat1, lat2
-        do ji = lon1, lon2
+    !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex,factor)
+    do varLevIndex = k1, k2
+      do latIndex = lat1, lat2
+        do lonIndex = lon1, lon2
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
 
-              if (ens%allLev_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) > 0.0d0 ) then
-                factor = 1.0d0/ens%allLev_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)
+              if (ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex) > 0.0d0 ) then
+                factor = 1.0d0/ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex)
               else
                 factor = 0.0d0
               endif
 
-              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                   real( real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) * factor, 4)
+              ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) =  &
+                   real( real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8) * factor, 4)
             end do
           end do
         end do
@@ -1881,11 +1918,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
-    integer :: jk, jj, ji, stepIndex, memberIndex
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -1895,15 +1932,15 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
-    do jk = k1, k2
-      do jj = lat1, lat2
-        do ji = lon1, lon2
+    !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex)
+    do varLevIndex = k1, k2
+      do latIndex = lat1, lat2
+        do lonIndex = lon1, lon2
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
-              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                   real( (real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
-                   ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
+              ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) =  &
+                   real( (real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8) -  &
+                   ens%allLev_ensMean_r8(varLevIndex)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,lonIndex,latIndex)), 4 )
             end do
           end do
         end do
@@ -1981,6 +2018,7 @@ CONTAINS
   ! ens_recenter
   !--------------------------------------------------------------------------
   subroutine ens_recenter(ens, recenteringMean, recenteringCoeff_opt,  &
+                          recenteringCoeffLand_opt,  &
                           recenteringCoeffArray_opt, &
                           alternativeEnsembleMean_opt, &
                           ensembleControlMember_opt, scaleFactor_opt, &
@@ -1997,23 +2035,29 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    type(struct_gsv) :: recenteringMean
-    type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
-    real(8), optional :: recenteringCoeff_opt
-    real(8), optional :: recenteringCoeffArray_opt(:)
-    real(8), optional :: scaleFactor_opt(:)
-    integer, optional :: numMembersToRecenter_opt
+    type(struct_ens),           intent(inout) :: ens
+    type(struct_gsv),           intent(in)    :: recenteringMean
+    type(struct_gsv), optional, intent(in)    :: alternativeEnsembleMean_opt
+    type(struct_gsv), optional, intent(in)    :: ensembleControlMember_opt
+    real(8), optional,          intent(in)    :: recenteringCoeff_opt
+    real(8), optional,          intent(in)    :: recenteringCoeffLand_opt
+    real(8), optional,          intent(in)    :: recenteringCoeffArray_opt(:)
+    real(8), optional,          intent(in)    :: scaleFactor_opt(:)
+    integer, optional,          intent(in)    :: numMembersToRecenter_opt
 
     ! Locals:
-    integer,parameter    :: maxNumLevels=200
-    real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
+    integer, parameter :: maxNumLevels=200
+    real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:)
+    real(8), pointer :: ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
     real(8) :: recenteringCoeffArray(ens%numMembers)
+    real(8) :: recenteringCoeffArrayLand(ens%numMembers)
+    real(8) :: recenteringCoeffArrayUsed(ens%numMembers)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, numMembersToRecenter
-    integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex, levIndex
     character(len=4) :: varLevel
+    character(len=2) :: varKind
 
     ! if an alternative mean is not provided, we need to ensure ens mean is present
     if ( .not. present(alternativeEnsembleMean_opt)) then
@@ -2039,6 +2083,21 @@ CONTAINS
       scaleFactor = scaleFactor_opt
     else
       scaleFactor(:) = 1.0D0
+    end if
+
+    if ( present(recenteringCoeffLand_opt) ) then
+      if (recenteringCoeffLand_opt < 0.0D0) then
+        ! negative coeff specified for land, apply same coeff as other variables
+        recenteringCoeffArrayLand(:) = recenteringCoeffArray(:)
+      else
+        ! specified coeff for land variables used for all members
+        write(*,*) 'ens_recenter: different recentering applied to land variables:', &
+                   recenteringCoeffLand_opt
+        recenteringCoeffArrayLand(:) = recenteringCoeffLand_opt
+      end if
+    else
+      ! coeff for land not specified, apply same coeff as other variables
+      recenteringCoeffArrayLand(:) = recenteringCoeffArray(:)
     end if
 
     if (present(numMembersToRecenter_opt)) then
@@ -2073,50 +2132,65 @@ CONTAINS
       nullify(ptr4d_ensembleControlmember_r8)
     end if
 
-    !$OMP PARALLEL DO PRIVATE (jk,varLevel,levIndex,thisScaleFactor,jj,ji,stepIndex,memberIndex,increment)
-    do jk = k1, k2
+    !$OMP PARALLEL DO PRIVATE(varLevIndex,varLevel,varKind,levIndex,thisScaleFactor), &
+    !$OMP PRIVATE(latIndex,lonIndex,stepIndex,memberIndex,increment,recenteringCoeffArrayUsed)
+    do varLevIndex = k1, k2
 
       ! define scaling factor as a function of vertical level and variable type
-      varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, jk))
+      varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, varLevIndex))
       if ( trim(varLevel) == 'SF' .or. trim(varLevel) == 'SFMM' .or. trim(varLevel) == 'SFTH' ) then
         ! use lowest momentum level for surface variables
         levIndex = ens_getNumLev(ens, 'MM')
       else if ( (trim(varLevel) == 'MM') .and. (ens%statevector_work%vco%Vcode == 5002) ) then
-        levIndex = ens_getLevFromK(ens, jk) + 1
+        levIndex = ens_getLevFromK(ens, varLevIndex) + 1
       else
-        levIndex = ens_getLevFromK(ens, jk)
+        levIndex = ens_getLevFromK(ens, varLevIndex)
       end if
       thisScaleFactor = scaleFactor(levIndex)
 
-      do jj = lat1, lat2
-        do ji = lon1, lon2
+      ! determine which recentering coeff are used: general or land-specific
+      varKind = vnl_varKindFromVarname(ens_getVarNameFromK(ens, varLevIndex))
+      if ( varKind == 'LD' ) then
+        recenteringCoeffArrayUsed(:) = recenteringCoeffArrayLand(:)
+      else
+        recenteringCoeffArrayUsed(:) = recenteringCoeffArray(:)
+      end if
+
+      do latIndex = lat1, lat2
+        do lonIndex = lon1, lon2
           do stepIndex = 1, numStep
             if(present(alternativeEnsembleMean_opt)) then
               if (associated(ptr4d_r8)) then
-                increment = ptr4d_r8(ji,jj,jk,stepIndex) -  &
-                            thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+                increment = ptr4d_r8(lonIndex,latIndex,varLevIndex,stepIndex) -  &
+                     thisScaleFactor * &
+                     alternativeEnsembleMean_r8(lonIndex,latIndex,varLevIndex,stepIndex)
               else
-                increment = real(ptr4d_r4(ji,jj,jk,stepIndex),8) -  &
-                            thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+                increment = real(ptr4d_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) -  &
+                     thisScaleFactor * &
+                     alternativeEnsembleMean_r8(lonIndex,latIndex,varLevIndex,stepIndex)
               end if
             else
               if (associated(ptr4d_r8)) then
-                increment = ptr4d_r8(ji,jj,jk,stepIndex) -  &
-                            thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+                increment = ptr4d_r8(lonIndex,latIndex,varLevIndex,stepIndex) -  &
+                     thisScaleFactor * &
+                     ens%allLev_ensMean_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex)
               else
-                increment = real(ptr4d_r4(ji,jj,jk,stepIndex),8) -  &
-                            thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+                increment = real(ptr4d_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) -  &
+                     thisScaleFactor * &
+                     ens%allLev_ensMean_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex)
               end if
             end if
             if (present(ensembleControlMember_opt)) then
-              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) =  &
-                   thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) +  &
-                   recenteringCoeffArray(1)*increment
+              ptr4d_ensembleControlMember_r8(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                   thisScaleFactor * &
+                   ptr4d_ensembleControlMember_r8(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                   recenteringCoeffArrayUsed(1)*increment
             else
               do memberIndex = 1, numMembersToRecenter
-                ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                     real( real(thisScaleFactor*ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) +  &
-                     recenteringCoeffArray(memberIndex)*increment, 4)
+                ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) =  &
+                     real( real(thisScaleFactor * &
+                                ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8) +  &
+                     recenteringCoeffArrayUsed(memberIndex)*increment, 4)
               end do
             end if
           end do
@@ -2165,7 +2239,8 @@ CONTAINS
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numLevelsToSend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, procIndex, kIndexBeg, kIndexEnd, kCount
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, procIndex
+    integer :: kIndexBeg, kIndexEnd, kCount
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
@@ -2502,7 +2577,8 @@ CONTAINS
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
                 ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
-                     gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, kCount, yourid+1)
+                     gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, &
+                                kCount, yourid+1)
               end do
             end do
             !$OMP END PARALLEL DO
@@ -2560,16 +2636,16 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ens
-    character(len=*)  :: ensPathName
-    character(len=*)  :: ensFileNamePrefix
-    character(len=*)  :: etiket
-    character(len=*)  :: typvar
-    character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
-    integer, optional :: ip3_opt, numBits_opt
-    logical, optional :: etiketAppendMemberNumber_opt
-    logical, optional :: containsFullField_opt
-    logical, optional :: resetTimeParams_opt
+    type(struct_ens),           intent(inout) :: ens
+    character(len=*),           intent(in)    :: ensPathName
+    character(len=*),           intent(in)    :: ensFileNamePrefix
+    character(len=*),           intent(in)    :: etiket
+    character(len=*),           intent(in)    :: typvar
+    character(len=*), optional, intent(in)    :: varNames_opt(:)
+    integer, optional,          intent(in)    :: ip3_opt, numBits_opt
+    logical, optional,          intent(in)    :: etiketAppendMemberNumber_opt
+    logical, optional,          intent(in)    :: containsFullField_opt
+    logical, optional,          intent(in)    :: resetTimeParams_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
@@ -2582,8 +2658,10 @@ CONTAINS
     integer :: batchnum, nsize, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
-    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, numK, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, kIndexBeg, kIndexEnd, kCount, ip3, ensFileExtLength, maximumBaseEtiketLength
+    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
+    integer :: numK, numStep, numlevelstosend, numlevelstosend2
+    integer :: memberIndex, memberIndex2, stepIndex, kIndexBeg, kIndexEnd, kCount
+    integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
@@ -2695,7 +2773,8 @@ CONTAINS
               do kCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = real(ens%allLev_r8(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
+                       real(ens%allLev_r8(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2704,7 +2783,8 @@ CONTAINS
               do kCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
+                       ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2744,10 +2824,13 @@ CONTAINS
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
             if ( typvar == 'R' ) then
-              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
-                                       ensFileNamePrefix_opt=ensFileNamePrefix, ensFileNameSuffix_opt='inc' )
+              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), &
+                                       memberIndex_opt=memberIndex,  &
+                                       ensFileNamePrefix_opt=ensFileNamePrefix, &
+                                       ensFileNameSuffix_opt='inc' )
             else
-              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
+              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), &
+                                       memberIndex_opt=memberIndex,  &
                                        ensFileNamePrefix_opt=ensFileNamePrefix )
             end if
             ensFileExtLength = 4
