@@ -24,7 +24,7 @@ eval $(cclargs_lite -D ' ' $0 "[ Cost function display program ]"\
  ++ $*)
 
 if [[ ${list} = "1" ]] ; then
-    echo "jo ua ai sf to sw go sc hu pr ro gp"
+    echo "jo ua ai sf to sw go sc hu pr ro gp ch"
     exit
 fi
 integer lcnt
@@ -104,6 +104,11 @@ defstr2grep() #
     gp)
 	string2grep='Jo(GP)'
 	maintitle="GB-GPS cost function"
+	skip1stline=NON
+	;;
+    ch)
+	string2grep='Jo(CH)'
+	maintitle="CHEM cost function"
 	skip1stline=NON
 	;;
     jo)

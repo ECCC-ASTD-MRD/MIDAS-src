@@ -517,38 +517,26 @@ module BmatrixChem_mod
     !Locals
     integer :: ierr, fnom, fstouv, fstfrm, fclos
     logical :: lExists
-    character(len=12) :: bFileName1 = './bgchemcov'
-    character(len=8)  :: bFileName2 = './bgcov'
+    character(len=12) :: bFileName = './bgchemcov'
     type(struct_vco),pointer :: vco_file => null()
 
-    inquire(file=bFileName1,exist=lExists)
+    inquire(file=bFileName,exist=lExists)
     if ( lexists ) then
-      ierr = fnom(nulbgst,bFileName1,'RND+OLD+R/O',0)
+      ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
       if ( ierr == 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call utl_abort('bchm_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+        call utl_abort('bchm_RDSTATS: Problem in opening the background chemical constituent stat file')
       endif
     else
-      ! Assume chemical constituent stats in file bgcov. 
-      inquire(file=bFileName2,exist=lExists)  
-      if (lexists) then 
-        ierr = fnom(nulbgst,bFileName2,'RND+OLD+R/O',0)
-        if ( ierr == 0 ) then
-          ierr =  fstouv(nulbgst,'RND+OLD')
-        else
-          call utl_abort('bchm_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
-        endif 
-      else          
-        call utl_abort('bchm_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
-      end if
+      call utl_abort('bchm_RDSTATS: Background chemical constituent stat file is missing')
     endif
 
     ! check if analysisgrid and covariance file have the same vertical levels
     call vco_SetupFromFile( vco_file,  & ! OUT
-                            bFileName2 )  ! IN
+                            bFileName )  ! IN
     if (.not. vco_equal(vco_anl,vco_file)) then
-      call utl_abort('bmatrixchem: vco from analysisgrid and cov file do not match')
+      call utl_abort('bmatrixchem: vco from analysisgrid and chem cov file do not match')
     end if
 
     ! Read spectral space correlations
