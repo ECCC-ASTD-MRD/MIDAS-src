@@ -1585,7 +1585,8 @@ contains
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, hco_core, &
                      timeInterpType, varName_opt, &
-                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
+                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt, &
+                     initializeStateVectorRef_opt )
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
     !           the innovation vector).
@@ -1602,6 +1603,7 @@ contains
     integer, optional          :: numObsBatches_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
+    logical, optional          :: initializeStateVectorRef_opt
 
     ! locals
     type(struct_gsv) :: stateVector_VarsLevs 
@@ -1620,6 +1622,7 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: dealloc, moveObsAtPole, rejectOutsideObs
+    logical              :: initializeStateVectorRef
     character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
@@ -1647,6 +1650,12 @@ contains
       moveObsAtPole = .false.
     end if
 
+    if ( present(initializeStateVectorRef_opt) ) then
+      initializeStateVectorRef = initializeStateVectorRef_opt
+    else
+      initializeStateVectorRef = .false.
+    end if
+
     ! check the column and statevector have same nk/varNameList
     call checkColumnStatevectorMatch(column,statevector)
 
@@ -1654,8 +1663,9 @@ contains
     ! calculate P_T/P_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call gvt_transform( stateVector, & ! INOUT
-                          'PsfcToP_nl')  ! IN
+      call gvt_transform( stateVector,  &                       ! INOUT
+                          'PsfcToP_nl', &                       ! IN
+                          initializeStateVectorRef_opt=initializeStateVectorRef )
     end if
 
     ! calculate Z_T/Z_M on the grid

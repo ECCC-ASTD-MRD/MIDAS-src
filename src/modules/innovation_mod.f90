@@ -284,8 +284,9 @@ contains
   !--------------------------------------------------------------------------
   ! inn_setupColumnsOnTrialLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupColumnsOnTrialLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                        stateVectorUpdateHighRes)
+  subroutine inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                         stateVectorUpdateHighRes, &
+                                         initializeStateVectorRef_opt )
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     !
@@ -296,11 +297,13 @@ contains
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
     type(struct_gsv)           :: stateVectorUpdateHighRes
+    logical, optional          :: initializeStateVectorRef_opt
 
     ! locals
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfo
+    logical                   :: initializeStateVectorRef
     real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
@@ -310,7 +313,6 @@ contains
 
     write(*,*)
     write(*,*) 'inn_setupColumnsOnTrialLev: START'
-    nullify(vco_trl)
 
     timeInterpType_nl = 'NEAREST'
     numObsBatches     = 20
@@ -332,6 +334,13 @@ contains
 
     call tmg_start(10,'SETUPCOLUMN')
 
+    if ( present(initializeStateVectorRef_opt) ) then
+      initializeStateVectorRef = initializeStateVectorRef_opt
+    else
+      initializeStateVectorRef = .false.
+    end if
+
+    nullify(vco_trl)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
     call col_setVco(columnTrlOnTrlLev,vco_trl)
@@ -346,7 +355,8 @@ contains
     call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
-                 dealloc_opt=deallocInterpInfo )
+                 dealloc_opt=deallocInterpInfo, &
+                 initializeStateVectorRef_opt=initializeStateVectorRef )
 
     if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'

@@ -180,8 +180,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_gsv
   !--------------------------------------------------------------------------
-  subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
-                               stateVectorRef_opt, varName_opt, allowOverWrite_opt)
+  subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
+                                stateVectorRef_opt, varName_opt, allowOverWrite_opt, &
+                                initializeStateVectorRef_opt )
     implicit none
    
     ! Arguments
@@ -190,6 +191,7 @@ CONTAINS
     type(struct_gsv), optional :: statevectorOut_opt
     type(struct_gsv), optional :: statevectorRef_opt
     logical, optional          :: allowOverWrite_opt
+    logical, optional          :: initializeStateVectorRef_opt
     character(len=*), optional :: varName_opt
 
     ! check stateVector and statevectorOut_opt are on the same grid
@@ -198,6 +200,11 @@ CONTAINS
            .not. vco_equal(stateVectorRef_opt%vco, stateVector%vco) ) then
         call utl_abort('gvt_transform: stateVectorRef_opt not on same grid as stateVector')
       end if
+    end if
+
+    ! initialize stateVectorTrialHeight for each outer-loop iteration
+    if ( present(initializeStateVectorRef_opt) ) then
+      if ( initializeStateVectorRef_opt ) heightTrialsInitialized = .false.
     end if
 
     select case(trim(transform))
@@ -337,7 +344,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'Z_M')  ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoHeight_nl(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for TTHUtoHeight_nl, the option statevectorOut_opt is not yet available')
+      end if
+      call TTHUtoHeight_nl(stateVector)
 
     case ('TTHUtoHeight_tl')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
@@ -355,7 +365,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'Z_M')  ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoHeight_tl(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for TTHUtoHeight_tl, the option statevectorOut_opt is not yet available')
+      end if
+      call TTHUtoHeight_tl(stateVector, stateVectorRef_opt)
 
     case ('TTHUtoHeight_ad')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
@@ -373,7 +386,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'Z_M')  ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoHeight_ad(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for TTHUtoHeight_ad, the option statevectorOut_opt is not yet available')
+      end if
+      call TTHUtoHeight_ad(stateVector, stateVectorRef_opt)
 
     case ('PsfcToP_nl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -385,7 +401,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('gvt_transform: for PsfcToP_nl, variable P0 must be allocated in gridstatevector')
       end if
-      call PsfcToP_nl(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for PsfcToP_nl, the option statevectorOut_opt is not yet available')
+      end if
+      call PsfcToP_nl(stateVector)
 
     case ('PsfcToP_tl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -397,7 +416,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('gvt_transform: for PsfcToP_tl, variable P0 must be allocated in gridstatevector')
       end if
-      call PsfcToP_tl(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for PsfcToP_tl, the option statevectorOut_opt is not yet available')
+      end if
+      call PsfcToP_tl(stateVector, stateVectorRef_opt)
 
     case ('PsfcToP_ad')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -409,7 +431,10 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('gvt_transform: for PsfcToP_ad, variable P0 must be allocated in gridstatevector')
       end if
-      call PsfcToP_ad(statevector)
+      if ( present(statevectorOut_opt) ) then
+        call utl_abort('gvt_transform: for PsfcToP_ad, the option statevectorOut_opt is not yet available')
+      end if
+      call PsfcToP_ad(stateVector, stateVectorRef_opt)
 
     case ('expCH_tlm')
       if ( .not. gsv_varKindExist('CH')  ) then
@@ -670,14 +695,14 @@ CONTAINS
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
-    if (present(statevectorRef_opt)) then
+    if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
       call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
-    if (gsv_getDataKind(statevector) == 4) then
+    if ( gsv_getDataKind(statevector) == 4 ) then
       call gsv_getField(statevector,hu_ptr_r4,'HU')
       call gsv_getField(statevector,lq_ptr_r4,'HU')
 
@@ -730,14 +755,14 @@ CONTAINS
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
-    if (present(statevectorRef_opt)) then
+    if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
       call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
-    if (gsv_getDataKind(statevector) == 4) then
+    if ( gsv_getDataKind(statevector) == 4 ) then
       call gsv_getField(statevector,hu_ptr_r4,'HU')
       call gsv_getField(statevector,lq_ptr_r4,'HU')
 
@@ -1161,28 +1186,77 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_tl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(statevector)
+  subroutine TTHUtoHeight_tl(stateVector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
+    type(struct_gsv)           :: stateVector
+    type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. heightTrialsInitialized ) call gvt_setupTrials('height')
+    if ( .not. heightTrialsInitialized ) then
+      if ( present(stateVectorRef_opt) ) then
 
-    call tt2phi_tl(statevector, stateVectorTrialHeight)
+        if ( .not. stateVectorTrialHeight%allocated ) then
+          call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                            allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        else
+          call gsv_zero( stateVectorTrialHeight )
+        end if
+
+        call gsv_copy( stateVectorRef_opt, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+
+        ! do height/P calculation of the grid
+        call PsfcToP_nl( stateVectorTrialHeight )
+        call tt2phi( stateVectorTrialHeight )
+
+      else
+        call gvt_setupTrials('height')
+      end if
+
+      heightTrialsInitialized = .true.
+    end if
+
+    call tt2phi_tl(stateVector, stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_tl
 
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_ad
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(statevector)
+  subroutine TTHUtoHeight_ad(stateVector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
+    type(struct_gsv)           :: stateVector
+    type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. heightTrialsInitialized ) call gvt_setupTrials('height')
+    if ( .not. heightTrialsInitialized ) then
 
-    call tt2phi_ad(statevector,stateVectorTrialHeight)
+      if ( present(stateVectorRef_opt) ) then
+
+        if ( .not. stateVectorTrialHeight%allocated ) then
+          call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                            allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        else
+          call gsv_zero( stateVectorTrialHeight )
+        end if
+
+        call gsv_copy( stateVectorRef_opt, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+
+        ! do height/P calculation of the grid
+        call PsfcToP_nl( stateVectorTrialHeight )
+        call tt2phi( stateVectorTrialHeight )
+
+      else
+        call gvt_setupTrials('height')
+      end if
+
+      heightTrialsInitialized = .true.
+    end if
+
+    call tt2phi_ad(stateVector, stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_ad
 
@@ -1205,28 +1279,76 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! PsfcToP_tl
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(statevector)
+  subroutine PsfcToP_tl(stateVector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
+    type(struct_gsv)           :: stateVector
+    type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. heightTrialsInitialized ) call gvt_setupTrials('height')
+    if ( .not. heightTrialsInitialized ) then
+      if ( present(stateVectorRef_opt) ) then
 
-    call calcpressure_tl(statevector,stateVectorTrialHeight)
+        if ( .not. stateVectorTrialHeight%allocated ) then
+          call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                            allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        else
+          call gsv_zero( stateVectorTrialHeight )
+        end if
+
+        call gsv_copy( stateVectorRef_opt, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+
+        ! do height/P calculation of the grid
+        call PsfcToP_nl( stateVectorTrialHeight )
+        call tt2phi( stateVectorTrialHeight )
+
+      else
+        call gvt_setupTrials('height')
+      end if
+
+      heightTrialsInitialized = .true.
+    end if
+
+    call calcpressure_tl(stateVector, stateVectorTrialHeight)
 
   end subroutine PsfcToP_tl
 
   !--------------------------------------------------------------------------
   ! PsfcToP_ad
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(statevector)
+  subroutine PsfcToP_ad(stateVector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
+    type(struct_gsv)           :: stateVector
+    type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. heightTrialsInitialized ) call gvt_setupTrials('height')
+    if ( .not. heightTrialsInitialized ) then
+      if ( present(stateVectorRef_opt) ) then
 
-    call calcpressure_ad(statevector,stateVectorTrialHeight)
+        if ( .not. stateVectorTrialHeight%allocated ) then
+          call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                            allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        else
+          call gsv_zero( stateVectorTrialHeight )
+        end if
+
+        call gsv_copy( stateVectorRef_opt, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+
+        ! do height/P calculation of the grid
+        call PsfcToP_nl( stateVectorTrialHeight )
+        call tt2phi( stateVectorTrialHeight )
+
+      else
+        call gvt_setupTrials('height')
+      end if
+
+      heightTrialsInitialized = .true.
+    end if
+
+    call calcpressure_ad(stateVector, stateVectorTrialHeight)
 
   end subroutine PsfcToP_ad
 
