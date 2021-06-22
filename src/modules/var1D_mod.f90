@@ -56,8 +56,8 @@ module var1D_mod
   integer              :: nLonLatPosLand, nLonLatPosSea, var1D_varCount
   character(len=4), allocatable :: var1D_varList(:)
   integer, external    :: get_max_rss
-  integer, allocatable :: var1D_obsPointer(:)    ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
-  integer              :: var1D_validHeaderCount !taille effective de  var1D_obsPointer
+  integer, allocatable :: var1D_validHeaderIndex(:)    ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
+  integer              :: var1D_validHeaderCount !taille effective de  var1D_validHeaderIndex
   type(struct_vco), target  :: vco_1Dvar
   integer,          parameter :: numMasterBmat = 1
   character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'   /)
@@ -208,7 +208,7 @@ contains
 
     !we want to count how many obs are really assimilable to minimize controlvector size
     var1D_validHeaderCount = 0
-    allocate(  var1D_obsPointer(obs_numHeader(obsdat)) )
+    allocate(  var1D_validHeaderIndex(obs_numHeader(obsdat)) )
     do headerIndex = 1, obs_numHeader(obsdat)
       bodyStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
       bodyEnd = obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyStart - 1
@@ -218,7 +218,7 @@ contains
       end do
       if (countGood > 0)  then
         var1D_validHeaderCount = var1D_validHeaderCount + 1
-        var1D_obsPointer(var1D_validHeaderCount) = headerIndex
+        var1D_validHeaderIndex(var1D_validHeaderCount) = headerIndex
         if (var1D_validHeaderCount == 1) write(*,*) 'first OBS', headerIndex
       end if
     end do
@@ -257,7 +257,7 @@ contains
     end if
     allocate(oneDProfile(nkgdim))
     do columnIndex = 1, var1D_validHeaderCount 
-      headerIndex = var1D_obsPointer(columnIndex)
+      headerIndex = var1D_validHeaderIndex(columnIndex)
       latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian 
       surfaceType = tvs_ChangedStypValue(dataObs, headerIndex)
       if (surfaceType == 1) then !Sea
@@ -312,7 +312,7 @@ contains
     end if
     allocate(oneDProfile(nkgdim))
     do columnIndex = 1, var1D_validHeaderCount
-      headerIndex = var1D_obsPointer(columnIndex)
+      headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
       do varIndex = 1, var1D_varCount
         currentColumn => col_getColumn(column, headerIndex, varName_opt=var1D_varList(varIndex))
@@ -356,11 +356,10 @@ contains
        deallocate( bSqrtLand )
        deallocate( bSqrtSea )
        deallocate( latLand, lonLand, latSea, lonSea )
-       deallocate( var1D_obsPointer )
+       deallocate( var1D_validHeaderIndex )
     end if
 
   end subroutine var1D_Finalize
-
 
   !--------------------------------------------------------------------------
   ! var1D_transferColumnToYGrid
@@ -414,10 +413,10 @@ contains
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'	
     end if
 
-    write(*,*) 'var1D_get1DVarIncrement: start of lat-lon dissemination'
+    write(*,*) 'var1D_transferColumnToYGrid: start of lat-lon dissemination'
     do obsIndex = 1, var1D_validHeaderCountMax
       if (obsIndex <= var1D_validHeaderCount ) then
-        headerIndex = var1D_obsPointer(obsIndex)      
+        headerIndex = var1D_validHeaderIndex(obsIndex)      
         lat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
         lon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
       else
@@ -451,10 +450,10 @@ contains
     end do
 
     call rpn_comm_barrier("GRID",ierr)
-    write(*,*) 'var1D_get1DVarIncrement: end of lat-lon dissemination'
+    write(*,*) 'var1D_transferColumnToYGrid: end of lat-lon dissemination'
     
     do varIndex = 1, var1D_varCount
-      write(*,*) 'var1D_get1DVarIncrement: start of dissemination for ', var1D_varList(varIndex)
+      write(*,*) 'var1D_transferColumnToYGrid: start of dissemination for ', var1D_varList(varIndex)
       if (mpi_myId == 0 ) then
         call gsv_getField(stateVector, myField, varName_opt=var1D_varList(varIndex), stepIndex_opt=1)
         varDim = gsv_getNumLevFromVarName(stateVector, var1D_varList(varIndex))
@@ -464,7 +463,7 @@ contains
       dummy(:) = MPC_missingValue_R8
       do obsIndex = 1, var1D_validHeaderCountMax
         if (obsIndex <= var1D_validHeaderCount ) then
-          headerIndex = var1D_obsPointer(obsIndex) 
+          headerIndex = var1D_validHeaderIndex(obsIndex) 
           myColumn => col_getColumn(column, headerIndex, varName_opt=var1D_varList(varIndex))
         else
           myColumn => dummy
@@ -490,7 +489,7 @@ contains
         end if
       end do
 
-      write(*,*) 'var1D_get1DVarIncrement: end of dissemination for ', var1D_varList(varIndex)
+      write(*,*) 'var1D_transferColumnToYGrid: end of dissemination for ', var1D_varList(varIndex)
       deallocate(dummy)
 
     end do
@@ -521,7 +520,6 @@ contains
     call cvt_transform(column, columng, 'PsfcToP_tl')
 
   end subroutine var1D_get1DVarIncrement
-
 
   !--------------------------------------------------------------------------
   ! bmat_setup

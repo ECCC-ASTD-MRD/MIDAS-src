@@ -32,9 +32,6 @@ module increment_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
   use varNamelist_mod
-  use obsSpaceData_mod
-  use columnData_mod 
-  use columnVariableTransforms_mod
 
   implicit none
   save
@@ -583,7 +580,7 @@ CONTAINS
         end if
         fileName = './anlm_' // trim(coffset) // 'm'
         call gsv_writeToFile( statevector_anal, fileName, etiket_anlm, scaleFactor_opt = 1.0d0, &
-             ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=.false. )
+             ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=.true. )
       end if
     end do
 

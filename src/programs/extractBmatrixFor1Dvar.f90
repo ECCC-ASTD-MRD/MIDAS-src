@@ -48,10 +48,10 @@ program midas_extractBmatrixFor1Dvar
   real(4) :: latitude, longitude
   integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr
-  integer :: index, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
-  integer :: kIndex1, kIndex2, idObsPointLocal, idObsPointGlobal, nulmat, varCount
+  integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2, locationIndex
+  integer :: kIndex1, kIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
   integer :: idate, itime, nulnam, dateStamp
-  integer ::stepBinExtractIndex
+  integer :: stepBinExtractIndex
   integer :: nLonLatPos, lonLatPosIndex
 
   integer, parameter :: lonColumn = 1
@@ -93,14 +93,13 @@ program midas_extractBmatrixFor1Dvar
   ierr=fclos(nulnam)
 
   nLonLatPos=0
-  do index = 1, size(lonlatExtract(:,lonColumn))
-    if (lonlatExtract(index,lonColumn) >= 1 .and. lonlatExtract(index,latColumn) >= 1) nLonLatPos = nLonLatPos + 1  
+  do lonlatPosIndex = 1, size(lonlatExtract(:,lonColumn))
+    if (lonlatExtract(lonlatPosIndex,lonColumn) >= 1 .and. lonlatExtract(lonlatPosIndex,latColumn) >= 1) nLonLatPos = nLonLatPos + 1  
   end do
 
   if ( nLonLatPos == 0 ) then
     call utl_abort('midas-extractBmatrix: You should specify at least one lonlat position !')
   end if
-
 
   ! Decompose extractdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
   ! and calculate date-time stamp
@@ -151,10 +150,6 @@ program midas_extractBmatrixFor1Dvar
   !- Compute columns of B matrix
   !==============================================
   !
-
-  !
-  !- Compute columns of the B matrix
-  !
   select case(trim(stepBinExtract))
   case ('first')
    stepBinExtractIndex = 1
@@ -186,18 +181,18 @@ program midas_extractBmatrixFor1Dvar
   
   if (mpi_myId == 0) then
     varCount = 0
-    do index=1, vnl_numvarmax
-      if ( .not. gsv_varExist(varName=vnl_varNameList(index)) ) cycle
-      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(index))) ) cycle
+    do varIndex=1, vnl_numvarmax
+      if ( .not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
+      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(varIndex))) ) cycle
       varCount = varCount + 1
     end do
     allocate(varList(varCount))
     varCount = 0
-    do index=1, vnl_numvarmax
-      if ( .not. gsv_varExist(varName=vnl_varNameList(index)) ) cycle
-      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(index))) ) cycle
+    do varIndex=1, vnl_numvarmax
+      if ( .not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
+      if ( trim(varNameExtract)  /= 'all' .and. (trim(varNameExtract) /= trim(vnl_varNameList(varIndex))) ) cycle
       varCount = varCount + 1
-      varList(varCount) = vnl_varNameList(index)
+      varList(varCount) = vnl_varNameList(varIndex)
     end do
     nulmat = 0
     ierr = fnom(nulmat,'./Bmatrix.bin','FTN+SEQ+UNF',0)
@@ -206,7 +201,7 @@ program midas_extractBmatrixFor1Dvar
     write(nulmat) vco_anl % ip1_T(:), vco_anl % ip1_M(:), varList(:)
   end if
   
-  do lonLatPosIndex = 1, nLonLatPos
+  locationLoop:do lonLatPosIndex = 1, nLonLatPos
 
     Bmatrix(:,:) = MPC_missingValue_R8
 
@@ -216,7 +211,7 @@ program midas_extractBmatrixFor1Dvar
     latitude = hco_anl%lat2d_4(lonIndex, latIndex)
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
 
-    do kIndex1 = 1, nkgdim
+    variableLoop1:do kIndex1 = 1, nkgdim
       varName1 = gsv_getVarNameFromK(statevector, kIndex1)
       if ( .not. gsv_varExist(varName= varName1) ) cycle
       if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
@@ -242,40 +237,42 @@ program midas_extractBmatrixFor1Dvar
       call bmat_sqrtBT(controlVector,cvm_nvadim,statevector)
       call bmat_sqrtB (controlVector,cvm_nvadim,statevector)
       ! ici statevector contient la colonne correspondante de la matrice B
-      write(*,*)'midas-extractBmatrix: writing out the column of B, levIndex1,lonIndex,latIndex=',levIndex1,lonIndex,latIndex
-       
-      do kIndex2 = 1, nkgdim
+      write(*,*) 'midas-extractBmatrix: writing out the column of B. levIndex1,lonIndex,latIndex=', &
+                 levIndex1,lonIndex,latIndex
+      
+      variableLoop2:do kIndex2 = 1, nkgdim
         varName2 = gsv_getVarNameFromK(statevector, kIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
         if ( trim(varNameExtract)  /= 'all' .and. trim(varNameExtract) /= trim(varName2) ) cycle
-          idObsPointLocal = -1
-          if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
-               lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
-            idObsPointLocal = mpi_myId
-            call gsv_getField(statevector,field4d, varName2)
-            factor2 = getConversionFactor( varName2 )
-            levIndex2 = gsv_getLevFromK(statevector, kIndex2)
-            bmatrix(kIndex2, kIndex1) = factor1 * factor2 * field4d(lonIndex, latIndex, levIndex2,stepBinExtractIndex)
-          end if
-          call rpn_comm_allreduce(idObsPointLocal, idObsPointGlobal,1,"mpi_integer","mpi_max","GRID",ierr)
-        end do
-      end do
+        columnProcIdLocal = -1
+        if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
+             lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
+          columnProcIdLocal = mpi_myId
+          call gsv_getField(statevector,field4d, varName2)
+          factor2 = getConversionFactor( varName2 )
+          levIndex2 = gsv_getLevFromK(statevector, kIndex2)
+          bmatrix(kIndex2, kIndex1) = factor1 * factor2 * field4d(lonIndex, latIndex, levIndex2,stepBinExtractIndex)
+        end if
+        call rpn_comm_allreduce(columnProcIdLocal, columnProcIdGlobal,1,"mpi_integer","mpi_max","GRID",ierr)
+      end do variableLoop2
 
-      call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', idObsPointGlobal, 'GRID', ierr )
-      if (mpi_myId ==0) then
-        write(nulmat) latitude, longitude,  Bmatrix(:,:)
-      end if
+    end do variableLoop1
 
-    end do
+    call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
+    if (mpi_myId ==0) then
+      write(nulmat) latitude, longitude,  Bmatrix(:,:)
+    end if
+
+  end do locationLoop
     
-    ierr = fclos(nulmat)
+  ierr = fclos(nulmat)
 
-    deallocate(Bmatrix)
-    deallocate(controlVector)
+  deallocate(Bmatrix)
+  deallocate(controlVector)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call gsv_deallocate(statevector)
+  call gsv_deallocate(statevector)
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   
@@ -287,7 +284,6 @@ program midas_extractBmatrixFor1Dvar
   write(*,*) ' --------------------------------'
   write(*,*) ' midas-extractBmatrix ENDS'
   write(*,*) ' --------------------------------'
-
 
 contains
 
@@ -301,6 +297,5 @@ contains
       getConversionFactor = 1.0 ! no conversion
     end if
   end function getConversionFactor
-
 
 end program midas_extractBmatrixFor1Dvar

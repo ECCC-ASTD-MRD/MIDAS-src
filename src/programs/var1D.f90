@@ -61,7 +61,7 @@ program midas_var1D
   type(struct_vco), pointer        :: vco_anl => null()
   type(struct_hco), pointer        :: hco_core => null()
 
-  istamp = exdb('1DVAR', 'DEBUT', 'NON')
+  istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
   call ver_printNameAndVersion('var1D', '1D Variational Assimilation')
 
@@ -98,7 +98,7 @@ program midas_var1D
   if ( dateStamp > 0 ) then
     call tim_setDatestamp(datestamp)     ! IN
   else
-    call utl_abort('1DVar: Problem getting dateStamp from observation file')
+    call utl_abort('var1D: Problem getting dateStamp from observation file')
   end if
 
   !
@@ -117,7 +117,7 @@ program midas_var1D
     call agd_SetupFromHCO( hco_anl ) ! IN
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if (mpi_myid == 0) write(*,*)'1DVar: Set hco parameters for core grid'
+    if (mpi_myid == 0) write(*,*)'var1D: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
     !- Setup the LAM analysis grid metrics
     call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
@@ -156,13 +156,11 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(2)
 
-
   !
   ! Initialize list of analyzed variables.
   !
   call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(2, 'PREMIN')
@@ -189,7 +187,6 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  ! Is it still necessary ?
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
@@ -198,8 +195,8 @@ program midas_var1D
 
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
-    write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
-    call utl_abort('aborting in VAR')
+    write(*,*) 'var1D: Problem allocating memory for ''controlVectorIncr''',ierr
+    call utl_abort('aborting in VAR1D')
   end if
 
   ! Do minimization of cost function
@@ -265,7 +262,7 @@ program midas_var1D
   !
   ! 3. Job termination
   !
-  istamp = exfin('1DVAR','FIN','NON')
+  istamp = exfin('VAR1D','FIN','NON')
 
   call tmg_stop(1)
 
