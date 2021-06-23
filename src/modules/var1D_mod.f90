@@ -522,7 +522,7 @@ contains
   end subroutine var1D_get1DVarIncrement
 
   !--------------------------------------------------------------------------
-  ! bmat_setup
+  ! var1D_bsetup
   !--------------------------------------------------------------------------
   subroutine var1D_bsetup(vco_anl, obsdat)
     !
@@ -598,7 +598,7 @@ contains
   end subroutine var1D_bsetup
 
   !--------------------------------------------------------------------------
-  ! bmat_sqrtB
+  ! var1D_sqrtB
   !-------------------------------------------------------------------------- 
   subroutine var1D_sqrtB(controlVector, cvdim, column, obsSpaceData)
     !
@@ -636,7 +636,7 @@ contains
   end subroutine var1D_sqrtB
 
   !--------------------------------------------------------------------------
-  ! bmat_sqrtBT
+  ! var1D_sqrtBT
   !--------------------------------------------------------------------------
   subroutine var1D_sqrtBT(controlVector, cvdim, column, obsData)
     !
