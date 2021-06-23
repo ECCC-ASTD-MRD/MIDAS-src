@@ -438,8 +438,8 @@ cat > which_hostname <<EOF
 echo midas.launch executing \${MP_CHILD} \$(hostname)
 EOF
 chmod +x which_hostname
-which_hostname_listing=$(${midas_mpirun} ${PWD}/which_hostname "Getting the hostnames for each MPI tile" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} \
-    -npex ${npex} -npey ${npey} -tmpdir ${PWD}/hostname_mpi_tmpdir | grep 'midas.launch executing')
+which_hostname_listing=$(${midas_mpirun} ${PWD}/which_hostname "Getting the hostnames for each MPI tile" "${mpi_ssm}" "${omp_stacksize}" \
+                                         ${run_in_parallel} -npex ${npex} -npey ${npey} -tmpdir ${PWD}/hostname_mpi_tmpdir | grep 'midas.launch executing')
 
 child_hostnames=$(printf "${which_hostname_listing}" | awk '/^oe-[0-9]*-[0-9]*: midas.launch executing / {print $4, $5}')
 
