@@ -93,7 +93,6 @@ CONTAINS
     vco_anl => vco_in
 
     call agd_setupFromHco(hco_anl,hco_core)
-    call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
 
     write(*,*) 'gvt_setup: done'
 
@@ -586,6 +585,10 @@ CONTAINS
     end if
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
+
+    if ( .not. associated(hco_trl) .or. .not. associated(vco_trl) ) then
+      call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+    end if
 
     if ( .not. stateVectorTrialHeight%allocated ) then
       call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
