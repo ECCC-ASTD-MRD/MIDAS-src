@@ -27,7 +27,7 @@ Edit and commit your code as follows :
 ```bash
 cd midas-${ISSUE_NUMBER}
 ```
-(edit some files)
+(edit some files, following the MIDAS coding standards: https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10)
 ```bash
 git add $file1 $file2
 git commit
