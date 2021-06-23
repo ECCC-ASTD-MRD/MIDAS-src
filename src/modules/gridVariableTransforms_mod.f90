@@ -50,6 +50,8 @@ module gridVariableTransforms_mod
   logical                   :: heightTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
+  type(struct_hco), pointer :: hco_trl => null()
+  type(struct_vco), pointer :: vco_trl => null()
 
   type(struct_gsv), target :: stateVectorTrialHU
   type(struct_gsv), target :: stateVectorTrialvarKindCH(vnl_numVarMax)
@@ -90,6 +92,7 @@ CONTAINS
     vco_anl => vco_in
 
     call agd_setupFromHco(hco_anl,hco_core)
+    call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
 
     write(*,*) 'gvt_setup: done'
 
@@ -566,18 +569,46 @@ CONTAINS
     !
     implicit none
 
-    type(struct_gsv), intent(in)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(in) :: stateVector
+
+    ! Locals
+    type(struct_gsv) :: stateVectorLowResTime
+    type(struct_gsv) :: stateVectorLowResTimeSpace
+
+    character(len=4), pointer :: varNames(:)
 
     if ( .not. stateVectorTrialHeight%allocated ) then
-      call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+      call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                         varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
     else
       call gsv_zero( stateVectorTrialHeight )
     end if
 
-    call gsv_copy( stateVector, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+    ! First, degrade the time steps
+    call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                       varNames_opt=(/'TT','HU','P0'/) )
+    call gsv_copy( stateVector, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
+                   allowVarMismatch_opt=.true. )
+
+    ! Second, interpolate to the low-resolution spatial grid.
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorLowResTime)
+    call gsv_allocate( stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                       varNames_opt=varNames )
+    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
+
+    ! Now copy to create final stateVector height.
+    call gsv_copy( stateVectorLowResTimeSpace, stateVectorTrialHeight, &
+                   allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+    call gsv_deallocate(stateVectorLowResTimeSpace)
+    call gsv_deallocate(stateVectorLowResTime)
 
     ! do height/P calculation of the grid
     call PsfcToP_nl( stateVectorTrialHeight )
