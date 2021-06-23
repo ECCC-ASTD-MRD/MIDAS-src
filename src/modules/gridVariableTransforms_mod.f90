@@ -44,6 +44,7 @@ module gridVariableTransforms_mod
 
   ! public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
+  public :: gvt_computeStateVectorHeight
 
   logical                   :: huTrialsInitialized  = .false.
   logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
@@ -561,9 +562,9 @@ CONTAINS
   end function gvt_getStateVectorTrial
 
   !--------------------------------------------------------------------------
-  ! computeStateVectorHeight
+  ! gvt_computeStateVectorHeight
   !--------------------------------------------------------------------------
-  subroutine computeStateVectorHeight(stateVector)
+  subroutine gvt_computeStateVectorHeight( stateVector, stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector.
     !
@@ -571,6 +572,7 @@ CONTAINS
 
     ! Arguments
     type(struct_gsv), intent(in) :: stateVector
+    type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
     type(struct_gsv) :: stateVectorLowResTime
@@ -614,9 +616,11 @@ CONTAINS
     call PsfcToP_nl( stateVectorTrialHeight )
     call tt2phi( stateVectorTrialHeight )
 
+    if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
+
     heightTrialsInitialized = .true.
 
-  end subroutine computeStateVectorHeight
+  end subroutine gvt_computeStateVectorHeight
 
   !--------------------------------------------------------------------------
   ! LQtoHU
@@ -1255,7 +1259,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) then
       if ( present(stateVectorRef_opt) ) then
-        call computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
         call gvt_setupTrials('height')
       end if
@@ -1276,7 +1280,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) then
       if ( present(stateVectorRef_opt) ) then
-        call computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
         call gvt_setupTrials('height')
       end if
@@ -1313,7 +1317,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) then
       if ( present(stateVectorRef_opt) ) then
-        call computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
         call gvt_setupTrials('height')
       end if
@@ -1334,7 +1338,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) then
       if ( present(stateVectorRef_opt) ) then
-        call computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
         call gvt_setupTrials('height')
       end if

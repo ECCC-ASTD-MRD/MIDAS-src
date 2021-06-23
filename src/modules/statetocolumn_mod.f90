@@ -523,7 +523,8 @@ contains
 
       else
         if ( present(stateVectorRefHeight_opt) ) then
-          stateVector_Tiles_ptr => stateVectorRefHeight_opt
+          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
+                                            stateVectorOut_opt=stateVector_Tiles_ptr) 
         else
           stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
         end if
