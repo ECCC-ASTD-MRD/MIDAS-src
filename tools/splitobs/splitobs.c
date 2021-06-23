@@ -963,6 +963,7 @@ int f77name(splitobs)(int argc, char** argv) {
 /* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
                   opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
           append_id_obs_table_list_requests(requete_sql,table_list);
+          strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);");
           strcat(requete_sql,"detach dbin;");
 
           printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
