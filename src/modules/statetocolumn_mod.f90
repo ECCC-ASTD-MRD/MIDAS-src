@@ -1121,6 +1121,7 @@ contains
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
+    type(struct_gsv), pointer  :: stateVectorHeight_ptr
     integer :: kIndex, kIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
@@ -1166,12 +1167,16 @@ contains
       if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_transform( statevector,  &                               ! INOUT
-                              'PsfcToP_tl', &                               ! IN
-                              stateVectorRef_opt=stateVectorRefHeight_opt ) ! IN
+
+          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
+                                            stateVectorOut_opt=stateVectorHeight_ptr)
+
+          call gvt_transform( statevector,  &                            ! INOUT
+                              'PsfcToP_tl', &                            ! IN
+                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
         else
-          call gvt_transform( statevector,  &                               ! INOUT
-                              'PsfcToP_tl' )                                ! IN
+          call gvt_transform( statevector,  &                            ! INOUT
+                              'PsfcToP_tl' )                             ! IN
         end if
       end if
 
@@ -1179,12 +1184,16 @@ contains
       if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_transform( statevector,       &                          ! INOUT
-                              'TTHUtoHeight_tl', &                          ! IN
-                              stateVectorRef_opt=stateVectorRefHeight_opt ) ! IN
+
+          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
+                                            stateVectorOut_opt=stateVectorHeight_ptr)
+
+          call gvt_transform( statevector,       &                       ! INOUT
+                              'TTHUtoHeight_tl', &                       ! IN
+                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
         else
-          call gvt_transform( statevector,       &                          ! INOUT
-                              'TTHUtoHeight_tl' )                           ! IN
+          call gvt_transform( statevector,       &                       ! INOUT
+                              'TTHUtoHeight_tl' )                        ! IN
         end if
       end if
     end if
@@ -1390,6 +1399,7 @@ contains
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
+    type(struct_gsv), pointer  :: stateVectorHeight_ptr
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
@@ -1600,12 +1610,16 @@ contains
       if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_transform( statevector,       &                          ! INOUT
-                              'TTHUtoHeight_ad', &                          ! IN
-                              stateVectorRef_opt=stateVectorRefHeight_opt ) ! IN
+
+          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
+                                            stateVectorOut_opt=stateVectorHeight_ptr)
+
+          call gvt_transform( statevector,       &                       ! INOUT
+                              'TTHUtoHeight_ad', &                       ! IN
+                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
         else
-          call gvt_transform( statevector,       &                          ! INOUT
-                              'TTHUtoHeight_ad')                            ! IN
+          call gvt_transform( statevector,       &                       ! INOUT
+                              'TTHUtoHeight_ad')                         ! IN
         end if
       end if
 
@@ -1613,12 +1627,16 @@ contains
       if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_transform( statevector,  &                               ! INOUT
-                              'PsfcToP_ad', &                               ! IN
-                              stateVectorRef_opt=stateVectorRefHeight_opt ) ! IN
+
+          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
+                                            stateVectorOut_opt=stateVectorHeight_ptr)
+
+          call gvt_transform( statevector,  &                            ! INOUT
+                              'PsfcToP_ad', &                            ! IN
+                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
         else
-          call gvt_transform( statevector,  &                               ! INOUT
-                              'PsfcToP_ad')                                 ! IN
+          call gvt_transform( statevector,  &                            ! INOUT
+                              'PsfcToP_ad')                              ! IN
         end if
       end if
     end if

@@ -580,6 +580,13 @@ CONTAINS
 
     character(len=4), pointer :: varNames(:)
 
+    if ( heightTrialsInitialized ) then 
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
+      return
+    end if
+
+    if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
+
     if ( .not. stateVectorTrialHeight%allocated ) then
       call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -619,6 +626,8 @@ CONTAINS
     if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
 
     heightTrialsInitialized = .true.
+
+    if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: END'
 
   end subroutine gvt_computeStateVectorHeight
 
