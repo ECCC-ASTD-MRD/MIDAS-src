@@ -172,6 +172,9 @@ elif [ "${filetype}" = SQLite ]; then
     ## on copie le schema de la base de donnees
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
 
+    ${sqlite3_cmd} ${rdbout} <<EOF
+drop index if exists idx1;
+EOF
     status=0
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE rdb4_schema' || status=1
     if [ "${status}" -eq 0 ]; then
