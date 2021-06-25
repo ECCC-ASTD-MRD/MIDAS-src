@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The `midas.splitobs.Abs` program now creates an index for each SQL observation SQL output file (#506 and !479)
+  * As a corrolary, we must add a `drop index` in each input SQL
+    observation file in `midas.reunir_obs_mpi` because keeping the
+    index is slower.
  * Add separate ensemble recentering coefficient for soil variables I0/I1 (#501 and !478)
- * Added new program ensDiagnostics to measure imbalance in a trial field trajectory. (#485 and !472)
+ * Added new program `ensDiagnostics` to measure imbalance in a trial field trajectory (#485 and !472)
  * Add `hInterpolationDegree` to namelist NAMBEN to control interpolation of ensembles (#503 and !475)
  * Update observation heights for Doppler velocity observation sqlite files (#482 and !467)
  * midas_build detects circular dependency error (#498 and !469)
