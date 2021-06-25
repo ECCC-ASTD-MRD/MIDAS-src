@@ -33,13 +33,18 @@ eval `${CCLARGS} -D "" $0 \
   -grep_cmd "/bin/grep" "/bin/grep" "[path to 'grep' command (default '/bin/grep')]" \
   -mkdir_cmd "/bin/mkdir" "/bin/mkdir" "[path to 'mkdir' command (default '/bin/mkdir')]" \
   -wc_cmd "/usr/bin/wc" "/usr/bin/wc" "[path to 'wc' command (default '/usr/bin/wc')]" \
+  -bc_cmd "/usr/bin/bc" "/usr/bin/bc" "[path to 'bc' command (default '/usr/bin/bc')]" \
   -tr_cmd "/usr/bin/tr" "/usr/bin/tr" "[path to 'tr' command (default '/usr/bin/tr')]" \
   -cut_cmd "/usr/bin/cut" "/usr/bin/cut" "[path to 'cut' command (default '/usr/bin/cut')]" \
+  -date_cmd "/bin/date" "/bin/date" "[path to 'date' command (default '/bin/date')]" \
   -printf_cmd "/usr/bin/printf" "/usr/bin/printf" "[path to 'printf' command (default '/usr/bin/printf')]" \
   -xargs_cmd "/usr/bin/xargs" "/usr/bin/xargs" "[path to 'xargs' command (default '/usr/bin/xargs')]" \
   -basename_cmd "/usr/bin/basename" "/usr/bin/basename" "[path to 'basename' command (default '/usr/bin/basename')]" \
   -sqlite3_cmd "/usr/bin/sqlite3" "/usr/bin/sqlite3" "[path to 'sqlite3' command (default '/usr/bin/sqlite3')]" \
   ++ $arguments`
+
+${echo_cmd} starting reunir at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+start_date=$(${date_cmd} +%s.%N)
 
 MP_CHILD=${MP_CHILD:-0}
 let base=number_of_families_already_processed+MP_CHILD || true
@@ -64,6 +69,8 @@ if [ -z "${fam}" ]; then
     exit 1
 fi
 ${echo_cmd} "fam=${fam} will be processed"
+
+${echo_cmd} starting reunir for fam=${fam} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 
 files="$(${ls_cmd} -1 ${obsin}/${fam}/* | ${grep_cmd} -v num_headers || ${true_cmd})"
 [ -z "${files}" ] && exit 0
@@ -200,7 +207,7 @@ PRAGMA journal_mode = OFF;
 PRAGMA  synchronous = OFF;
 EOF
     for file in ${files}; do
-        ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'var.Abs'
+        ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
         COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
         COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
 
@@ -235,3 +242,8 @@ cd ${MIDAS_WORKDIR}
 if [ "${fasttmp}" = yes ]; then
     ${rm_cmd} -rf ${FASTTMP}
 fi
+
+end_date=$(${date_cmd} +%s.%N)
+${echo_cmd} ending reunir for fam=${fam} in $(${echo_cmd} "${end_date} - ${start_date}" | ${bc_cmd} -l) seconds
+
+${echo_cmd} ending reunir for fam=${fam} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
