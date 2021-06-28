@@ -49,7 +49,7 @@ module obsdbFiles_mod
 
   character(len=lenSqlName) :: headTableName  = 'Rapport'
   character(len=lenSqlName) :: bodyTableName  = 'Observation'
-  character(len=lenSqlName) :: midasTableName = 'midasTable'
+  character(len=lenSqlName) :: midasTableName = 'midasOutput'
 
   ! ...for the header table
   integer, parameter :: numHeadMatch = 14
@@ -94,13 +94,14 @@ module obsdbFiles_mod
        'ObsErrorStdDev',        'OER ', &
        'ObsFlags',              'FLG' /)
 
-  ! Column names for the MIDAS table and corresponding obsSpace names
+  ! Column names for the MIDAS output table and corresponding obsSpace names
   character(len=lenSqlName) :: midasKeySqlName = 'ID_MIDAS'
   integer, parameter :: numColMidasTable = 9
+  integer, parameter :: numColMidasTableRequired = 3
   character(len=lenSqlName) :: midasTableNames(2,numColMidasTable) = (/ &
-       'vcoord',             'PPP', &
-       'varNo',              'VNM', &
-       'obsValue',           'VAR', &
+       'vcoord',             'PPP', &  ! required
+       'varNo',              'VNM', &  ! required
+       'obsValue',           'VAR', &  ! required
        'flag',               'FLG', &
        'obsMinusBackground', 'OMP', &
        'obsMinusAnalysis',   'OMA', &
@@ -731,7 +732,7 @@ contains
 
     end if ! .not.midasTableExists
 
-    ! now that the table definitely exists, we can update the selected columns
+    ! now that the table exists, we can update the selected columns
 
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
@@ -1844,7 +1845,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine odbf_createMidasTable(fileName)
     !
-    ! :Purpose: Copy an existing sql table to a new table with a different name
+    ! :Purpose: Create the midasOutput table that stores all quantities computed
+    !           in MIDAS at the level of the obsSpaceData Body table (e.g. OMP, OMA, FLG).
     !
     implicit none
 
@@ -1870,15 +1872,15 @@ contains
             '  ' // trim(midasKeySqlName) // ' integer primary key,' // new_line('A') // &
             '  ' // trim(headKeySqlName) // ' integer,' // new_line('A') // &
             '  ' // trim(bodyKeySqlName) // ' integer,' // new_line('A')
-    do columnIndex = 1, numColMidasTable
+    do columnIndex = 1, numColMidasTableRequired
       obsColumnIndex = obs_columnIndexFromName(trim(midasTableNames(2,columnIndex)))
       if (obs_columnDataType(obsColumnIndex) == 'real') then
         sqlDataType = 'double'
-      else
+     else
         sqlDataType = 'integer'
       end if
       query = trim(query) // '  ' // trim(midasTableNames(1,columnIndex)) // ' ' // trim(sqlDataType)
-      if (columnIndex < numColMidasTable) query = trim(query) // ', '
+      if (columnIndex < numColMidasTableRequired) query = trim(query) // ', '
       query = trim(query) // new_line('A')
     end do
     query = trim(query) // ');'
