@@ -197,6 +197,8 @@ if [ $mode == full ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1
   fi
+  grep -A 2 "This variable has not been used" listing* || true
+
   cp ${midasAbs} ${absdir}/
 
   if [ "${deleteCompileDir}" == yes ] ; then

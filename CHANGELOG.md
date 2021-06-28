@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Inform the user about declared but unused variables at compilation time
  * The `midas.splitobs.Abs` program now creates an index for each SQL observation SQL output file (#506 and !479)
   * As a corrolary, we must add a `drop index` in each input SQL
     observation file in `midas.reunir_obs_mpi` because keeping the
