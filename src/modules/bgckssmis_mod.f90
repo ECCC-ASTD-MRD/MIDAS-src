@@ -34,7 +34,6 @@ module bgckssmis_mod
   public :: ssbg_computeSsmisSurfaceType
   public :: ssbg_bgCheckSSMIS
   real    :: ssbg_clwQcThreshold
-  logical :: ssbg_debug
 
   real,    parameter :: ssbg_realMissing=-99. 
   integer, parameter :: ssbg_intMissing=-1
@@ -92,8 +91,6 @@ contains
     if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
     if (mpi_myid == 0) write(*, nml=nambgck)
     ierr = fclos(nulnam)
-
-    ssbg_debug = debug
 
   end subroutine ssbg_init 
 
@@ -888,6 +885,8 @@ contains
 
     REAL, DIMENSION(ssbg_maxNumChan) :: F16TDR, RemappedTa, Tb
 
+    logical :: debug
+
     !---------------------------------------------------
 
     ! Convert Tbs received from UKMO to Tas, by reversing Ta to Tb
@@ -983,8 +982,10 @@ contains
         endif
 
         ! Store CLW and IWV
-        write(*,*)'CLOUD BY DETERM_CLW = ', clw
-        write(*,*)'IWV BY DETERM_CLW = ', iwv
+        if (debug) then
+          write(*,*)'CLOUD BY DETERM_CLW = ', clw
+          write(*,*)'IWV BY DETERM_CLW = ', iwv
+        endif
         rclw(ii) = clw
         riwv(ii) = iwv
         !   write(6,130) ii,iwv,iwv_thresh,iwvreject(ii)
@@ -1125,6 +1126,7 @@ contains
 
     !     Notes: In the case where an output parameter cannot be calculated, the
     !     value of this parameter is to to the missing value, i.e. -99.
+    logical         :: debug
     ! Locals: 
     real, parameter :: zmisg = -99.
     integer :: i 
@@ -1162,7 +1164,7 @@ contains
           scatl(i) = (tb89(i)-tb150(i)) -     &
                      (0.158+0.0163*pangl(i))
         endif
-      else if ( (ier(i) /= 0  ) .and. (i <= 100 ) ) then 
+      else if ( (ier(i) /= 0  ) .and. (i <= 100 ) .and. (debug)) then 
         print *, ' Input Parameters are not all valid: '
         print *, ' i,tb89(i),tb150(i),pangl(i),ktermer(i) = ',     &
                    i,tb89(i),tb150(i),pangl(i),ktermer(i)
@@ -1174,45 +1176,37 @@ contains
 end subroutine bennartz
 
   !--------------------------------------------------------------------------
-  ! mwbg_readGeophysicFieldsAndInterpolate 
+  ! ssbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
+  subroutine ssbg_readGeophysicFieldsAndInterpolate(zlat, zlon, MTINTRP)
 
     implicit none
 
     !:Purpose: Reads Modele Geophysical variables and save for the first time
-    !         TOPOGRAPHIE (MF ou MX):
-    !             MF est la topographie filtree avec unites en metres (filtered ME).
+    !          TOPOGRAPHIE (ME, MX ou GZ):
+    !             ME est la topographie filtree avec unites en metres (filtered ME).
     !             MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
-    !         Glace de Mer (GL)
-    !         Masque Terre-Mer (MG)
+    !             GZ is geopotential height; GZ at surface = surface height (dam)
+    !               -- looks for surface GZ (hybrid or eta level = 1.0)
+    !               -- uses new librmn_008 function ip1_all(level,kind)
+    !                  so ip1 can be old or new style encoding
     !         Then Interpolate Those variables to observation location
     !Arguments: 
-    character(*),       intent(in)   :: instName       ! Instrument Name
-    real,               intent(in)   :: zlat(:)        ! Obseravtion Lats
+    real,               intent(in)   :: zlat(:)        ! Observation Lats
     real,               intent(in)   :: zlon(:)        ! Observation Lons
-    real, allocatable,  intent(out)  :: MGINTRP(:)     ! Glace de mer interpolees au pt d'obs.
     real, allocatable,  intent(out)  :: MTINTRP(:)     ! topographie filtree (en metres) et interpolees
-    real ,allocatable,  intent(out)  :: GLINTRP(:)     ! Glace de mer interpolees au pt d'obs.
   
     ! Locals:
-    real, allocatable, save  :: GL(:)                  ! Modele Glace de Mer (GL)
-    real, allocatable, save  :: MG(:)                  ! Modele Masque Terre-Mer (MG)
     real, allocatable, save  :: MT(:)                  ! Modele Topographie (MT)
-    real,              save  :: TOPOFACT               ! Facteur x topo pour avoir des unites en metre
     logical,           save  :: ifFirstCall = .True.   ! If .True. we read GL, MT and MG
-    integer,           save  ::  gdmt                  ! topo interpolation param
-    integer,           save  ::  gdmg                  ! mask terre-mer interpolation param
-    integer,           save  ::  gdgl                  ! glace interpolation param
-    integer                  ::  gdllsval          
-    integer                  :: IUNGEO
-    logical                  :: readGlaceMask 
+    integer,           save  :: gdmt                   ! topo interpolation param
+    integer                  :: gdllsval
     logical                  :: debug 
-    integer                  :: ier, irec 
+    integer                  :: ier, irec, irec2
     integer                  :: ezqkdef, ezsetopt
     integer                  :: FSTINF,FSTPRM,FCLOS
     integer                  :: FSTLIR,FSTFRM, FNOM, FSTOUV
-    integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4
+    integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4, ip1
     integer                  :: IDUM1,IDUM2,IDUM3,IDUM4
     integer                  :: IDUM5,IDUM6,IDUM7,IDUM8
     integer                  :: IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -1224,18 +1218,18 @@ end subroutine bennartz
     character(len=1)         :: GRTYP
     integer                  :: NLAT
     integer                  :: NLON
+    integer, PARAMETER       :: IUNGEO = 50
     integer, PARAMETER       :: MXLON = 5
     integer, PARAMETER       :: MXLAT = 5
-    integer, PARAMETER       :: MXELM = 40
+    integer, PARAMETER       :: MXELM = 20
     real,    PARAMETER       :: DLAT = 0.4
     real,    PARAMETER       :: DLON = 0.6
     real                     :: XLAT
     real                     :: XLON
+    real                     :: TOPOFACT               ! Facteur x topo pour avoir des unites en metre
     real, allocatable        :: ZLATBOX (:,:)
     real, allocatable        :: ZLONBOX (:,:)
-    real, allocatable        :: MGINTBOX(:,:)
     real, allocatable        :: MTINTBOX(:,:)
-    real, allocatable        :: GLINTBOX(:,:)
     integer                  :: dataIndex
     integer                  :: boxPointIndex
     integer                  :: latIndex
@@ -1245,102 +1239,83 @@ end subroutine bennartz
     integer                  :: dataNum
     integer                  :: boxPointNum
 
-    ! STEP 0: CHECK if ZLAT AND ZLON ARE SAME DIMENSION
+    !  External function
+    integer, external :: ip1_all
+
+    ! STEP 1: CHECK if ZLAT AND ZLON ARE SAME DIMENSION
     zlatNum = size(zlat)
     zlonNum = size(zlon)
     if (zlatNum .ne. zlonNum) then
-      call utl_abort ('bgckMicrowave_mod: ERREUR: OBSERVATION ZLAT and ZLON should have SAME LENGTH')
+      call utl_abort ('ssbg_readGeophysicFieldsAndInterpolate: OBSERVATION ZLAT and ZLON should have SAME LENGTH')
     else 
       dataNum = zlatNum
     end if
 
-    ! STEP 1: READ MT, GL and MG from the FST FILE 
-    debug = ssbg_debug 
-    readGlaceMask = .True.
-    if (instName == 'ATMS') readGlaceMask = .False.
+    ! STEP 2: READ MT from the FST FILE
     if(ifFirstCall) then
-      IUNGEO = 0 
-      IER = FNOM(IUNGEO,glmg_file,'STD+RND+R/O',0)
-
-      ! 3) Lecture des champs geophysiques (MF/MX) du modele
+      IER = FNOM(IUNGEO,'trlm_01','STD+RND',0)
       IER = FSTOUV(IUNGEO,'RND')
 
-      ! TOPOGRAPHIE (MF ou MX).
-      !     MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
+      !_____TOPOGRAPHIE (MT = 'ME', 'MX', or 'GZ'(eta=1)).
+      !     ME est la topographie avec unites en metres.
+      !     MX est la topographie avec unites en m2/s2 (geopotential).
+      !     GZ is geopotential height; GZ at surface = surface height (dam)
+      !       -- looks for surface GZ (hybrid or eta level = 1.0)
+      !       -- uses new librmn_008 function ip1_all(level,kind)
+      !          so ip1 can be old or new style encoding
 
-      IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MX')
-      if (IREC .GE. 0) then
-        TOPOFACT = 9.80616
-        CLNOMVAR = 'MX'
-        if(allocated(MT)) deallocate(MT)
-        allocate ( MT(NI*NJ), STAT=ier)
-        IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
-           ' ',CLNOMVAR)
-      else
-        call utl_abort ('bgckMicrowave_mod: ERREUR: LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE')
+      !topofact = 1.0
+      !irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','ME')
+      !clnomvar = 'ME'
+      !ip1 = -1
+      !if (irec < 0) then
+      !  topofact = 1.0/9.80616   !  m2/s2 --> m
+      !  irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MX')
+      !  clnomvar = 'MX'
+      !  ip1 = -1
+      !  if (irec < 0 ) then  ! look for GZ at eta(sigma) or hybrid level = 1.0
+          irec  = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,1),-1,-1,' ','GZ')
+          irec2 = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
+          clnomvar = 'GZ'
+          topofact = 10.0  ! dam --> m
+          if (irec < 0 .and. irec2 < 0) then
+            call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: LA TOPOGRAPHIE EST INEXISTANTE')
+          endif
+          if (irec < 0) then
+            ip1 = 5  !  HYBRID COORDINATES      kind=5
+            irec = irec2
+          else
+            ip1 = 1  !  ETA(SIGMA) COORDINATES  kind=1
+          endif
+      !  endif
+      !endif
+
+      if (allocated(MT)) deallocate(MT)
+      allocate ( MT(ni*nj), STAT=ier)
+      if ( ier /= 0 ) then
+        call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Allocation of array mt failed')
       end if
-      
+      if (ip1 > 0) then
+        ier = fstlir(MT,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,ip1),-1,-1,' ','GZ')
+      else
+        ier = fstlir(MT,iungeo,ni,nj,nk,-1,' ',ip1,-1,-1,' ',clnomvar)
+      endif
+
+      MT(:) = MT(:)*TOPOFACT
+
       IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
-          IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
-          IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
-          IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
-          IDUM15, IDUM16, IDUM17, IDUM18 )
-       write (*,*) ' GRILLE MT : ',grtyp,ni,nj, &
-                ig1,ig2,ig3,ig4
-      ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-      ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
+                     IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
+                     IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
+                     IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
+                     IDUM15, IDUM16, IDUM17, IDUM18 )
+      write (*,*) ' GRILLE MT : ',grtyp,ni,nj, &
+                     ig1,ig2,ig3,ig4
+      ier  = ezsetopt('INTERP_DEGREE','LINEAR')
       gdmt = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
 
-      if (readGlaceMask) then 
-        ! MG
-        IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MG')
-        if (IREC .LT. 0) then
-          call utl_abort ('bgckMicrowave_mod: ERREUR: LE MASQUE TERRE-MER EST INEXISTANT')
-        end if
-
-        if(allocated(MG)) deallocate(MG)
-        allocate ( MG(NI*NJ), STAT=ier)
-        IER = FSTLIR(MG,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,&
-                 ' ','MG')
-
-        IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, &
-             IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10, &
-             IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1,&
-             IG2, IG3, IG4, IDUM12, IDUM13, IDUM14, &
-             IDUM15, IDUM16, IDUM17, IDUM18 )
-        write (*,*) ' GRILLE MG : ',grtyp,ni,nj, &
-                ig1,ig2,ig3,ig4
-        ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
-        gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-        ! GL
-        IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','GL')
-        if (IREC .LT. 0) then
-          call utl_abort ('bgckMicrowave_mod: ERREUR: LE CHAMP GLACE DE MER EST INEXISTANT')
-        end if
-
-        if(allocated(GL)) deallocate(GL)
-        allocate ( GL(NI*NJ), STAT=ier)
-        IER = FSTLIR(GL,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
-                 ' ','GL')
-
-        IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
-             IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10, &
-             IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
-             IG2, IG3, IG4, IDUM12, IDUM13, IDUM14, &
-             IDUM15, IDUM16, IDUM17, IDUM18 )
-        write (*,*) ' GRILLE GL : ',grtyp,ni,nj, &
-                ig1,ig2,ig3,ig4
-        ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
-        gdgl = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-      else 
-        gdgl = -1
-        gdmg = -1
-      end if 
       IER = FSTFRM(IUNGEO)
       IER = FCLOS(IUNGEO)
-      ifFirstCall = .False. 
+      ifFirstCall = .False.
     end if
 
     ! STEP 3:  Interpolation de la glace et le champ terre/mer du modele aux pts TOVS.
@@ -1352,10 +1327,7 @@ end subroutine bennartz
     allocate (ZLONBOX(boxPointNum, dataNum) , STAT=ier) 
     if(allocated(MTINTBOX)) deallocate(MTINTBOX)
     allocate (MTINTBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocated(GLINTBOX)) deallocate(GLINTBOX)
-    allocate (GLINTBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocated(MGINTBOX)) deallocate(MGINTBOX)
-    allocate (MGINTBOX(boxPointNum, dataNum) , STAT=ier) 
+
     NLAT = (MXLAT-1)/2
     NLON = (MXLON-1)/2
     do dataIndex = 1, dataNum
@@ -1369,35 +1341,23 @@ end subroutine bennartz
           if ( XLON < -180. ) XLON = XLON + 360.
           if ( XLON >  180. ) XLON = XLON - 360.
           if ( XLON <    0. ) XLON = XLON + 360.
-           ZLATBOX(boxPointIndex,dataIndex) = XLAT
-           ZLONBOX(boxPointIndex,dataIndex) = XLON
+          ZLATBOX(boxPointIndex,dataIndex) = XLAT
+          ZLONBOX(boxPointIndex,dataIndex) = XLON
          end do
       end do
     end do
-    ier = ezsetopt('INTERP_DEGREE','LINEAR')
-    ier = gdllsval(gdmt,mtintbox,mt,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
+
+    ier = gdllsval(gdmt,mtintbox,MT,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
     if (ier < 0) then
-      call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MT')
+      call utl_abort ('ssbg_readGeophysicFieldsAndInterpolate: ERROR in the interpolation of MT')
     end if
-    if(readGlaceMask) then   
-      ier = gdllsval(gdmg,mgintbox,mg,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
-      if (ier < 0) then
-        call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MG')
-      end if
-      ier = gdllsval(gdgl,glintbox,gl,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
-      if (ier < 0) then
-        call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of GL')
-      end if
-    end if 
 
     if(allocated(MTINTRP)) deallocate(MTINTRP)
     allocate (MTINTRP(dataNum) , STAT=ier) 
-    if(allocated(MGINTRP)) deallocate(MGINTRP)
-    allocate (MGINTRP(dataNum) , STAT=ier) 
-    if(allocated(GLINTRP)) deallocate(GLINTRP)
-    allocate (GLINTRP(dataNum) , STAT=ier) 
+
+    MTINTRP(:) = 0.0
     do dataIndex = 1, dataNum
-      if (DEBUG) then
+      if (debug) then
         print *, ' ------------------  '
         print *, ' dataIndex = ', dataIndex
         print *, '   '
@@ -1407,30 +1367,18 @@ end subroutine bennartz
         print *,  (ZLATBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
         print *, ' ZLONBOX = '
         print *,  (ZLONBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        print *, ' MGINTBOX = '
-        print *,  (MGINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
         print *, ' MTINTBOX = '
         print *,  (MTINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        print *, ' GLINTBOX = '
-        print *,  (GLINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
       end if
-      MGINTRP(dataIndex) = 0.0
-      MTINTRP(dataIndex) = 0.0
-      GLINTRP(dataIndex) = 0.0
-      do boxPointIndex=1,MXLAT*MXLON
-        MTINTRP(dataIndex) = MAX(MTINTRP(dataIndex),MTINTBOX(boxPointIndex,dataIndex)/TOPOFACT)
-        if(readGlaceMask) then      
-          MGINTRP(dataIndex) = MAX(MGINTRP(dataIndex),MGINTBOX(boxPointIndex,dataIndex))
-          GLINTRP(dataIndex) = MAX(GLINTRP(dataIndex),GLINTBOX(boxPointIndex,dataIndex))
-        end if
+      do boxPointIndex=1, boxPointNum
+        MTINTRP(dataIndex) = MAX(MTINTRP(dataIndex),MTINTBOX(boxPointIndex,dataIndex))
       end do
-      if (DEBUG) then
-        print *, ' MGINTRP = ', MGINTRP(dataIndex)
+      if (debug) then
         print *, ' MTINTRP = ', MTINTRP(dataIndex)
-        print *, ' GLINTRP = ', GLINTRP(dataIndex)
       end if
     end do
-  end subroutine mwbg_readGeophysicFieldsAndInterpolate
+
+  end subroutine ssbg_readGeophysicFieldsAndInterpolate
 
 
   !--------------------------------------------------------------------
@@ -2804,22 +2752,14 @@ end subroutine bennartz
 
     ! Locals
     character(len=9)     :: burpFileSatId            ! Satellite ID
-    character(len=4)     :: clnomvar
-    character(len=12)    :: etikxx
-    character(len=1)     :: grtyp
-    character(len=4)     :: nomvxx
-    character(len=2)     :: typxx
 
     integer              :: actualNumChannel         ! actual Num channel
     integer              :: bodyIndex
     integer              :: bodyIndexbeg
-    integer              :: boxPoint
-    integer              :: boxPointNum
     integer              :: codtyp                   ! code type
     integer              :: channelIndex
     integer              :: chanObsIndex
     integer              :: currentChannelNumber
-    integer              :: gdmg
     integer              :: headerCompt
     integer              :: ier
     integer              :: instr
@@ -2827,10 +2767,6 @@ end subroutine bennartz
     integer              :: iPlatf
     integer              :: iPlatform
     integer              :: iSat
-    integer              :: latIndex
-    integer              :: lonIndex
-    integer              :: nLat
-    integer              :: nLon
     integer              :: numObsToProcess          ! number of obs in current report
     integer              :: obsIndex
     integer              :: obsNumCurrentLoc
@@ -2839,43 +2775,13 @@ end subroutine bennartz
     integer, allocatable :: obsChannels(:)           ! channel numbers
     integer, allocatable :: obsFlags(:)              ! data flags
 
-    integer, parameter   :: iungeo=50
-    integer, parameter   :: mxElm = 20
-    integer, parameter   :: mxLat = 5
-    integer, parameter   :: mxLon = 5
-
     logical              :: sensorIndexFound
     logical              :: ssmisDataPresent
 
-    real                 :: rejper
-    real                 :: topofact
-    real                 :: xLat
-    real                 :: xLon
-
     real   , allocatable :: modelInterpTer(:)        ! topo in standard file interpolated to obs point
-    real   , allocatable, save :: mt(:)              ! topography model (MT)
-    real   , allocatable :: mtIntBox(:,:)            ! interpolated box
     real   , allocatable :: obsLatitude(:)           ! obs. point latitude
     real   , allocatable :: obsLongitude(:)          ! obs. point longitude
     real   , allocatable :: ompTb(:)                 ! OMP values
-    real   , allocatable :: zLatBox(:,:)
-    real   , allocatable :: zLonBox(:,:)
-
-    real   , parameter   :: dLat = 0.4
-    real   , parameter   :: dLon = 0.6
-
-    ! Topography variables
-    integer :: irec,irec2
-    integer :: idum,idum1,idum2,idum3,idum4,idum5,idum6,idum7
-    integer :: idum8,idum9,idum10,idum11,idum12,idum13
-    integer :: idum14,idum15,idum16,idum17,idum18
-    integer :: ig1,ig2,ig3,ig4,ip1
-    integer :: ni,nj,nk,indx
-
-    !  External functions
-    integer, external :: fclos,fnom,fstfrm,fstinf,fstlir,fstouv,fstprm
-    integer, external :: ezqkdef,ezsetopt,gdllsval
-    integer, external :: ip1_all
 
     ! Temporary arrays
     integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: rejcnt
@@ -2959,6 +2865,11 @@ end subroutine bennartz
       obsChannels(channelIndex)    = channelIndex+tvs_channelOffset(sensorIndex)
     end do
 
+    ! Convert lat/lon to degrees
+    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
+    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
+
     !  Initialize the counters which tabulate the rejected observation
     !  statistics for each channel and each satellite.
     rejcnt(:,:)  = 0
@@ -2967,124 +2878,14 @@ end subroutine bennartz
     totobs2(:,:) = 0
 
     !--------------------------------------------------------------------
-    ! 3) Extract model topography from the input GEO file
+    ! 3) Extract model topography from the input GEO file and interpolate
+    !    to all observation points in the box
     !--------------------------------------------------------------------
-    ier = fnom(iungeo,'trlm_01','STD+RND+R/O',0)
-    ier = fstouv(iungeo,'RND')
 
-    !_____TOPOGRAPHIE (MT = 'ME', 'MX', or 'GZ'(eta=1)).
-    !     ME est la topographie avec unites en metres.
-    !     MX est la topographie avec unites en m2/s2 (geopotential).
-    !     GZ is geopotential height; GZ at surface = surface height (dam)
-    !       -- looks for surface GZ (hybrid or eta level = 1.0)
-    !       -- uses new librmn_008 function ip1_all(level,kind)
-    !          so ip1 can be old or new style encoding
-    topofact = 1.0
-    irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','ME')
-    clnomvar = 'ME'
-    ip1 = -1
-    if (irec < 0) then
-      topofact = 1.0/9.80616   !  m2/s2 --> m
-      irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MX')
-      clnomvar = 'MX'
-      ip1 = -1
-      if (irec < 0 ) then  ! look for GZ at eta(sigma) or hybrid level = 1.0
-        irec  = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,1),-1,-1,' ','GZ')
-        irec2 = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
-        clnomvar = 'GZ'
-        topofact = 10.0  ! dam --> m
-        if (irec < 0 .and. irec2 < 0) then
-          call utl_abort('ssbg_inovqcSsmis: LA TOPOGRAPHIE EST INEXISTANTE')
-        endif
-        if (irec < 0) then
-          ip1 = 5  !  HYBRID COORDINATES      kind=5
-          irec = irec2
-        else
-          ip1 = 1  !  ETA(SIGMA) COORDINATES  kind=1
-        endif
-      endif
-    endif
-    if (irec < 0) then
-      call utl_abort('ssbg_inovqcSsmis: LA TOPOGRAPHIE EST INEXISTANTE')
-    else
-      if (allocated(mt)) deallocate(mt)
-      allocate ( mt(ni*nj), STAT=ier)
-      if ( ier /= 0 ) then
-        call utl_abort('ssbg_inovqcSsmis: Allocation of array mt failed')
-      end if
-      if (ip1 > 0) then
-        ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,ip1),-1,-1,' ','GZ')
-      else
-        ier = fstlir(mt,iungeo,ni,nj,nk,-1,' ',ip1,-1,-1,' ',clnomvar)
-      endif
-    endif
-
-    mt(:) = mt(:)*topofact
-
-    write (*,*) 'Read MT (Model Topography) from GEO file.'
-    write (*,*) '  Minimum value (m) = ', minval(mt)
-    write (*,*) '  Maximum value (m) = ', maxval(mt)
-
-    !  Get the grid type, ig1, ig2, etc...
-
-    ier = fstprm ( irec, idum1, idum2, idum3, idum4, idum5, idum6,     &
-         &         idum7, idum8, idum9, idum10, idum11, typxx, nomvxx, &
-         &         etikxx, grtyp, ig1, ig2, ig3, ig4, idum12, idum13,  &
-         &         idum14, idum15, idum16, idum17, idum18 )
-
-    write (*,*) ' GRTYP = ', grtyp
-
-
-    !-------------------------------------------------------------------------
-    ! 4) Interpolate the model topography MT to all observation points in the box
-    !-------------------------------------------------------------------------
-
-    boxPointNum = mxLat*mxLon
-    if(allocated(zLatBox)) deallocate(zLatBox)
-    allocate (zLatBox(boxPointNum, numObsToProcess), STAT=ier)
-    if(allocated(zLonBox)) deallocate(zLonBox)
-    allocate (zLonBox(boxPointNum, numObsToProcess), STAT=ier)
-    if(allocated(mtIntBox)) deallocate(mtIntBox)
-    allocate (mtIntBox(boxPointNum, numObsToProcess), STAT=ier)
-
-    nLat = (mxLat-1)/2
-    nLon = (mxLon-1)/2
-    do obsIndex = 1, numObsToProcess
-      indx = 0
-      do latIndex = -nLat, nLat
-        xLat = obsLatitude(obsIndex) +latIndex*dLat
-        xLat = max(-90.0,min(90.0,xLat))
-        do lonIndex = -nLon, nLon
-          indx = indx + 1
-          xLon = obsLongitude(obsIndex) +lonIndex*dLon
-          if ( xLon < -180. ) xLon = xLon + 360.
-          if ( xLon >  180. ) xLon = xLon - 360.
-          if ( xLon <    0. ) xLon = xLon + 360.
-          zLatBox(indx,obsIndex) = xLat
-          zLonBox(indx,obsIndex) = xLon
-        enddo
-      enddo
-    enddo
-
-    ier  = ezsetopt('INTERP_DEGREE','CUBIC')
-    gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-    ier  = gdllsval(gdmg,mtIntBox,mt,zLatBox,zLonBox,boxPointNum*numObsToProcess)
-
-    if(allocated(modelInterpTer)) deallocate(modelInterpTer)
-    allocate (modelInterpTer(numObsToProcess) , STAT=ier)
-
-    do obsIndex = 1, numObsToProcess
-      modelInterpTer(obsIndex) = 0.0
-      do boxPoint = 1, boxPointNum
-        modelInterpTer(obsIndex) = max(modelInterpTer(obsIndex),mtIntBox(boxPoint,obsIndex))
-      enddo
-    enddo
-
-    ier = fstfrm(iungeo)
-    ier = fclos(iungeo)
+    call ssbg_readGeophysicFieldsAndInterpolate(obsLatitude,obsLongitude,modelInterpTer)
 
     !--------------------------------------------------------------------
-    ! 5) Perform quality control on the data, checking O-P and topography
+    ! 4) Perform quality control on the data, checking O-P and topography
     !--------------------------------------------------------------------
 
     call check_stddev(obsChannels,ompTb,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex,  &
@@ -3207,8 +3008,6 @@ end subroutine bennartz
     ! -- should be consistent with bgck.satqc_amsua.f (AMSU-A)
     real, parameter :: xfacch1 = 2.0   ! xfacch1*errtot
     !  Initialization. Assume all observations are to be kept.
-
-    debug = .false.
 
     ! roguefac(1:7) should be consistent with bgck.satqc_amsua.f (for AMSUA ch. 3-10)
     ! roguefac(8:11) should be consistent with bgck.satqc_amsub.f (for AMSUB ch. 2-5)
@@ -3422,8 +3221,6 @@ end subroutine bennartz
     integer, dimension(nch2chk) :: mchan
 
     logical :: debug, assim, debug2
-
-    debug   = .false.
 
     !------------------------------------------------------------------
     ! Define channels to check and height limits (m) for rejection
@@ -3674,6 +3471,8 @@ end subroutine bennartz
 
     logical                              :: ssmisDataPresent
 
+    logical                              :: debug
+
     call tmg_start(30,'BGCHECK_SSMIS')
     ssmisDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -3714,25 +3513,25 @@ end subroutine bennartz
        !###############################################################################
        ! STEP 1) call satQC SSMIS program                                             !
        !###############################################################################
-       write(*,*) 'STEP 1) call satQC SSMIS program'
+       if (debug) write(*,*) 'STEP 1) call satQC SSMIS program'
        call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
 
        !###############################################################################
        ! STEP 2) update Flags after satQC SSMIS program                               !
        !###############################################################################
-       write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
+       if (debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
        call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
 
        !###############################################################################
        ! STEP 3) call inovQC SSMIS program                                            !
        !###############################################################################
-       write(*,*) 'STEP 3) call inovQC SSMIS program'
+       if (debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
        call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
        !###############################################################################
        ! STEP 4) update Flags after inovQC SSMIS program                              !
        !###############################################################################
-       write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
+       if (debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
        call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
 
        !###############################################################################
