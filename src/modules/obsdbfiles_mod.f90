@@ -43,7 +43,6 @@ module obsdbFiles_mod
 
   integer, parameter :: lenSqlName    = 60
   integer, parameter :: sqlColIndex   = 1
-  integer, parameter :: sqlTabIndex   = 1
   integer, parameter :: obsColIndex   = 2
   integer, parameter :: varNoColIndex = 2
 
@@ -80,25 +79,17 @@ module obsdbFiles_mod
        'ANTENNATEMPERATURE',    'VAR ', &
        'CHANQUALITYFLAG',       'QCFL' /)
 
-  ! Also need a dictionary of 'varno' value for each obsDB observation value column
+  ! Dictionary of 'varno' value for each obsDB observation value column
   integer, parameter :: numVarNo = 2
   character(len=lenSqlName) :: varNoList(2,numVarNo) = (/ &
        'BRIGHTNESSTEMPERATURE', '12163', &
        'ANTENNATEMPERATURE',    '12999' /)
 
-  ! Table names for adding or updating the file
-  integer, parameter :: numUpdateTableNames = 4
-  character(len=lenSqlName) :: updateTableNames(2,numUpdateTableNames) = (/ &
-       'Obs_minus_background',  'OMP ', &
-       'Obs_minus_analysis',    'OMA ', &
-       'ObsErrorStdDev',        'OER ', &
-       'ObsFlags',              'FLG' /)
-
   ! Column names for the MIDAS output table and corresponding obsSpace names
   character(len=lenSqlName) :: midasKeySqlName = 'ID_MIDAS'
   integer, parameter :: numColMidasTable = 9
   integer, parameter :: numColMidasTableRequired = 3
-  character(len=lenSqlName) :: midasTableNames(2,numColMidasTable) = (/ &
+  character(len=lenSqlName) :: midasOutputNames(2,numColMidasTable) = (/ &
        'vcoord',             'PPP', &  ! required
        'varNo',              'VNM', &  ! required
        'obsValue',           'VAR', &  ! required
@@ -116,7 +107,6 @@ module obsdbFiles_mod
   logical :: obsDbActive
   integer :: numElemIdList
   integer :: elemIdList(100)
-  character(len=20) :: updateMode ! should be 'separateTables' or 'midasTable'
 
 contains
 
@@ -134,7 +124,7 @@ contains
     integer, external :: fnom, fclos
     logical, save     :: nmlAlreadyRead = .false.
 
-    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList, updateMode
+    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
 
     if ( nmlAlreadyRead ) return
 
@@ -144,7 +134,6 @@ contains
     obsDbActive = .false.
     numElemIdList = 0
     elemIdList(:) = 0
-    updateMode = 'midasTable'
 
     if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -160,13 +149,6 @@ contains
       ierr = fclos(nulnam)
     end if
     if ( mpi_myid == 0 ) write(*, nml=namObsDb)
-
-    ! ensure updateMode is all upper case and is valid
-    ierr = clib_toUpper(updateMode)
-    if ( trim(updateMode) /= 'SEPARATETABLES' .and. &
-         trim(updateMode) /= 'MIDASTABLE' ) then
-      call utl_abort('odbf_setup: invalid value for namelist variable updateMode: ' // trim(updateMode))
-    end if
 
     if (obsDbActive .and. numElemIdList==0) then
       call utl_abort('odbf_setup: element list is empty')
@@ -382,214 +364,6 @@ contains
   subroutine odbf_updateFile(obsdat, fileName, familyType, fileIndex)
     !
     ! :Purpose: Update the selected quantities in an obsDB file using
-    !           values from obsSpaceData. This routine calls one of two
-    !           possible routines that update the obsDB file is very
-    !           different ways. The choice is controlled by a namelist
-    !           variable.
-    !
-    implicit none
-
-    ! arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: fileName   
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: fileIndex
-
-    if (trim(updateMode) == 'SEPARATETABLES') then
-      call odbf_updateFileSeparateTables(obsdat, fileName, familyType, fileIndex)
-    else if (trim(updateMode) == 'MIDASTABLE') then
-      call odbf_updateFileMidasTable(obsdat, fileName, familyType, fileIndex)
-    end if
-
-  end subroutine odbf_updateFile
-
-  !--------------------------------------------------------------------------
-  ! odbf_updateFileSeparateTables
-  !--------------------------------------------------------------------------
-  subroutine odbf_updateFileSeparateTables(obsdat, fileName, familyType, fileIndex)
-    !
-    ! :Purpose: Update the selected quantities in an obsDB file using
-    !           values from obsSpaceData. If table does not already
-    !           exist, it is created by copying the observation table.
-    !           A separate table is created for each quantity being updated.
-    !
-    implicit none
-
-    ! arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: fileName   
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: fileIndex
-
-    ! locals:
-    type(fSQL_STATUS)    :: stat ! sqlite error status
-    type(fSQL_DATABASE)  :: db   ! sqlite file handle
-    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer(8)           :: obsIdd
-    integer              :: obsIdf
-    integer              :: tableIndex
-    integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
-    integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
-    real(8)              :: updateValue_r, obsValue
-    character(len=4)     :: obsSpaceColumnName
-    character(len=lenSqlName) :: tableName
-    character(len=lenSqlName), allocatable :: obsValueSqlName(:)
-    character(len=3000)  :: query
-    logical, save        :: nmlAlreadyRead = .false.
-
-    ! namelist variables
-    integer,          save :: numberUpdateItems  ! number of items to use from the list
-    character(len=4), save :: updateItemList(15) ! obsSpace column names used to update the file
-
-    namelist/namObsDbUpdate/ numberUpdateItems, updateItemList
-
-    call tmg_start(97,'obdf_updateFile')
-
-    write(*,*)
-    write(*,*) 'odbf_updateFileSeparateTables: Starting'
-    write(*,*)
-    write(*,*) 'odbf_updateFileSeparateTables: FileName   : ', trim(FileName)
-    write(*,*) 'odbf_updateFileSeparateTables: FamilyType : ', FamilyType
-
-    if (.not. nmlAlreadyRead) then
-      nmlAlreadyRead = .true.
-
-      ! set default values of namelist variables
-      updateItemList(:) = ''
-      numberUpdateItems = 0
-
-      ! Read the namelist for directives
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namObsDbUpdate, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('odbf_updateFileSeparateTables: Error reading namelist')
-      if ( mpi_myid == 0 ) write(*, nml=namObsDbUpdate)
-      ierr = fclos(nulnam)
-
-    end if
-
-    ! create tables by copying observation table
-    do tableIndex = 1, numberUpdateItems
-      tableName = odbf_sqlTableFromObsSpaceName(updateItemList(tableIndex))
-      write(*,*) 'odbf_updateFileSeparateTables: creating new sql table for update = ', trim(tableName)
-
-      ! copy bodyTable as template for new table
-      call odbf_copySqlTable(fileName, trim(bodyTableName), trim(tableName))
-
-    end do
-
-    ! determine which column(s) will be updated
-    obsValueSqlName = odbf_sqlNameFromObsSpaceName('VAR')
-    write(*,*) 'odbf_updateFileSeparateTables: column to be updated: ', trim(obsValueSqlName(1))
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_updateFileSeparateTables: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_updateFileSeparateTables: fSQL_open' )
-    end if
-
-    ! update the contents of the new tables
-    TABLE: do tableIndex = 1, numberUpdateItems
-
-      ! get obsSpaceData column index for source of updated sql column
-      obsSpaceColumnName = updateItemList(tableIndex)
-      ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-
-      tableName = odbf_sqlTableFromObsSpaceName(updateItemList(tableIndex))
-      write(*,*) 'odbf_updateFileSeparateTables: updating columns in the table: ', trim(tableName)
-      write(*,*) 'odbf_updateFileSeparateTables: with contents of obsSpaceData column: ', &
-                 trim(obsSpaceColumnName)
-
-      ! create an index for the new table - necessary to speed up the update
-      query = 'create index idx_' // trim(tableName) // ' on ' // &
-              trim(tableName) // '(' // trim(bodyKeySqlName) // ');'
-      write(*,*) 'odbf_updateFileSeparateTables: query = ', trim(query)
-      call fSQL_do_many( db, query, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_updateFileSeparateTables: Problem with fSQL_do_many')
-      end if
-
-      call fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
-
-      ! prepare sql update query
-      query = 'update ' // trim(tableName) // ' set ' // &
-              trim(obsValueSqlName(1)) // ' = ? ' // ' where ' // &
-              trim(bodyKeySqlName) // ' = ?  ;'
-      write(*,*) 'odbf_updateFileSeparateTables: query ---> ', trim(query)
-
-      call fSQL_prepare( db, query , stmt, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateFileSeparateTables: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateFileSeparateTables: fSQL_prepare' )
-      end if
-
-      call fSQL_begin(db)
-      HEADER: do headIndex = 1, obs_numHeader(obsdat)
-
-        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
-        if ( obsIdf /= fileIndex ) cycle HEADER
-
-        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
-        bodyIndexEnd = bodyIndexBegin + &
-                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
-
-        BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-
-          ! do not try to update if the observed value is missing
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue == obs_missingValue_R ) cycle BODY
-
-          ! update the value, but set to null if it is missing
-          updateValue_r = obs_bodyElem_r(obsdat, obsSpaceColIndexSource, bodyIndex)
-          if ( updateValue_r == obs_missingValue_R ) then
-            call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
-          else
-            call fSQL_bind_param(stmt, PARAM_INDEX=1, REAL8_VAR=updateValue_r)
-          end if
-
-          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
-          call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
-
-          call fSQL_exec_stmt(stmt)
-
-        end do BODY
-
-      end do HEADER
-
-      call fSQL_finalize( stmt )
-      call fSQL_commit( db )
-
-      ! drop the index that we just created for the new table
-      query = 'drop index idx_' // trim(tableName) // ';'
-      write(*,*) 'odbf_updateFileSeparateTables: query = ', trim(query)
-      call fSQL_do_many( db, query, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_updateFileSeparateTables: Problem with fSQL_do_many')
-      end if
-
-    end do TABLE
-
-    ! close the obsDB file
-    call fSQL_close( db, stat ) 
-
-    write(*,*)
-    write(*,*) 'odbf_updateFileSeparateTables: finished'
-    write(*,*)
-
-    call tmg_stop(97)
-
-  end subroutine odbf_updateFileSeparateTables
-
-  !--------------------------------------------------------------------------
-  ! odbf_updateFileMidasTable
-  !--------------------------------------------------------------------------
-  subroutine odbf_updateFileMidasTable(obsdat, fileName, familyType, fileIndex)
-    !
-    ! :Purpose: Update the selected quantities in an obsDB file using
     !           values from obsSpaceData. If the MIDAS table does not already
     !           exist, it is created by copying the observation table.
     !           A single table is created that contains all quantities being
@@ -631,10 +405,10 @@ contains
     call tmg_start(97,'obdf_updateFile')
 
     write(*,*)
-    write(*,*) 'odbf_updateFileMidasTable: Starting'
+    write(*,*) 'odbf_updateFile: Starting'
     write(*,*)
-    write(*,*) 'odbf_updateFileMidasTable: FileName   : ', trim(FileName)
-    write(*,*) 'odbf_updateFileMidasTable: FamilyType : ', FamilyType
+    write(*,*) 'odbf_updateFile: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_updateFile: FamilyType : ', FamilyType
 
     if (.not. nmlAlreadyRead) then
       nmlAlreadyRead = .true.
@@ -647,7 +421,7 @@ contains
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=namObsDbUpdate, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('odbf_updateFileMidasTable: Error reading namelist')
+      if ( ierr /= 0 ) call utl_abort('odbf_updateFile: Error reading namelist')
       ierr = fclos(nulnam)
 
       ! Add "FLG" to the updateItemList to ensure it is always updated
@@ -655,7 +429,7 @@ contains
       updateItemList(numberUpdateItems) = 'FLG'
 
       if ( mpi_myid == 0 ) then
-        write(*,*) 'odbf_updateFileMidasTable: NOTE: the FLG column is always added to update list'
+        write(*,*) 'odbf_updateFile: NOTE: the FLG column is always added to update list'
         write(*, nml=namObsDbUpdate)
       end if
     end if ! not nmlAlreadyRead
@@ -675,8 +449,8 @@ contains
       ! open the obsDB file
       call fSQL_open( db, trim(fileName), stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateFileMidasTable: fSQL_open: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateFileMidasTable: fSQL_open' )
+        write(*,*) 'odbf_updateFile: fSQL_open: ', fSQL_errmsg(stat)
+        call utl_abort( 'odbf_updateFile: fSQL_open' )
       end if
 
       ! set the primary key, keys to main obsDB tables and other basic info
@@ -686,7 +460,7 @@ contains
               trim(bodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
               trim(pppSqlName)      // ',' // trim(varSqlname)     // &
               ') values(?,?,?,?,?,?);'
-      write(*,*) 'odbf_updateFileMidasTable: query = ', trim(query)
+      write(*,*) 'odbf_updateFile: query = ', trim(query)
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
@@ -730,11 +504,11 @@ contains
       query = 'create index idx_midasTable on ' // &
               trim(midasTableName) // &
               '(' // trim(bodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
-      write(*,*) 'odbf_updateFileMidasTable: query = ', trim(query)
+      write(*,*) 'odbf_updateFile: query = ', trim(query)
       call fSQL_do_many( db, query, stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_updateFileMidasTable: Problem with fSQL_do_many')
+        call utl_abort('odbf_updateFile: Problem with fSQL_do_many')
       end if
 
       ! close the obsDB file
@@ -742,7 +516,7 @@ contains
 
     else
 
-      write(*,*) 'odbf_updateFileMidasTable: the midasTable already exists, will just update its values'
+      write(*,*) 'odbf_updateFile: the midas output table already exists, will just update its values'
 
     end if ! .not.midasTableExists
 
@@ -758,8 +532,8 @@ contains
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_updateFileMidasTable: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_updateFileMidasTable: fSQL_open' )
+      write(*,*) 'odbf_updateFile: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_updateFile: fSQL_open' )
     end if
     
     ! updating the contents of the MIDAS table, one column at a time
@@ -771,8 +545,8 @@ contains
       obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
 
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex))
-      write(*,*) 'odbf_updateFileMidasTable: updating midasTable column: ', trim(sqlColumnName)
-      write(*,*) 'odbf_updateFileMidasTable: with contents of obsSpaceData column: ', &
+      write(*,*) 'odbf_updateFile: updating midasTable column: ', trim(sqlColumnName)
+      write(*,*) 'odbf_updateFile: with contents of obsSpaceData column: ', &
                  trim(obsSpaceColumnName)
 
       ! add column to sqlite table
@@ -784,11 +558,11 @@ contains
         end if
         query = 'alter table ' // trim(midasTableName) // ' add column ' // &
                 trim(sqlColumnName) // ' ' // trim(sqlDataType) // ';'
-        write(*,*) 'odbf_updateFileMidasTable: query ---> ', trim(query)
+        write(*,*) 'odbf_updateFile: query ---> ', trim(query)
         call fSQL_do_many( db, query, stat )
         if ( fSQL_error(stat) /= FSQL_OK ) then
           write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_updateFileMidasTable: Problem with fSQL_do_many')
+          call utl_abort('odbf_updateFile: Problem with fSQL_do_many')
         end if
       end if
 
@@ -798,12 +572,12 @@ contains
               trim(bodyKeySqlName) // ' = ? and '   // &
               trim(vnmSqlName)     // ' = ? and '   // &
               trim(pppSqlName)     // ' = ? ;'
-      write(*,*) 'odbf_updateFileMidasTable: query ---> ', trim(query)
+      write(*,*) 'odbf_updateFile: query ---> ', trim(query)
 
       call fSQL_prepare( db, query , stmt, stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateFileMidasTable: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateFileMidasTable: fSQL_prepare' )
+        write(*,*) 'odbf_updateFile: fSQL_prepare: ', fSQL_errmsg(stat)
+        call utl_abort( 'odbf_updateFile: fSQL_prepare' )
       end if
 
       call fSQL_begin(db)
@@ -862,12 +636,12 @@ contains
     deallocate(midasColumnExists)
 
     write(*,*)
-    write(*,*) 'odbf_updateFileMidasTable: finished'
+    write(*,*) 'odbf_updateFile: finished'
     write(*,*)
 
     call tmg_stop(97)
 
-  end subroutine odbf_updateFileMidasTable
+  end subroutine odbf_updateFile
 
   !--------------------------------------------------------------------------
   ! odbf_getSqlColumnNames
@@ -1688,7 +1462,7 @@ contains
 
     ! locals:
     integer                   :: matchIndex, numMatchFound
-    character(len=lenSqlName) :: sqlNamesTemp(20)
+    character(len=lenSqlName) :: sqlNamesTemp(50)
 
     if (allocated(sqlName)) deallocate(sqlName)
 
@@ -1724,37 +1498,6 @@ contains
   end function odbf_sqlNameFromObsSpaceName
 
   !--------------------------------------------------------------------------
-  ! odbf_sqlTableFromObsSpaceName
-  !--------------------------------------------------------------------------
-  function odbf_sqlTableFromObsSpaceName(obsSpaceName) result(tableName)
-    !
-    ! :Purpose: Return the corresponding sql file table name for a
-    !           given obsSpaceData column name from the matching
-    !           tables.
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*), intent(in) :: obsSpaceName
-    character(len=lenSqlName)    :: tableName
-
-    ! locals:
-    integer                   :: matchIndex
-
-    ! look in the body matching list
-    matchIndex = utl_findloc(updateTableNames(obsColIndex,:), trim(obsSpaceName))
-    if (matchIndex > 0) then
-      tableName = updateTableNames(sqlTabIndex,matchIndex)
-      return
-    end if
-
-    ! not found, abort
-    write(*,*) 'odbf_sqlTableFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
-    call utl_abort('odbf_sqlTableFromObsSpaceName: obsSpace name not found in updateTableNames')
-    
-  end function odbf_sqlTableFromObsSpaceName
-
-  !--------------------------------------------------------------------------
   ! odbf_midasTabColFromObsSpaceName
   !--------------------------------------------------------------------------
   function odbf_midasTabColFromObsSpaceName(obsSpaceName) result(tableName)
@@ -1773,15 +1516,15 @@ contains
     integer                   :: matchIndex
 
     ! look in the midas table matching list
-    matchIndex = utl_findloc(midasTableNames(obsColIndex,:), trim(obsSpaceName))
+    matchIndex = utl_findloc(midasOutputNames(obsColIndex,:), trim(obsSpaceName))
     if (matchIndex > 0) then
-      tableName = midasTableNames(sqlColIndex,matchIndex)
+      tableName = midasOutputNames(sqlColIndex,matchIndex)
       return
     end if
 
     ! not found, abort
     write(*,*) 'odbf_midasTabColFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
-    call utl_abort('odbf_midasTabColFromObsSpaceName: obsSpace name not found in updateTableNames')
+    call utl_abort('odbf_midasTabColFromObsSpaceName: obsSpace name not found in midasOutputNames')
     
   end function odbf_midasTabColFromObsSpaceName
 
@@ -1921,13 +1664,13 @@ contains
             '  ' // trim(headKeySqlName) // ' integer,' // new_line('A') // &
             '  ' // trim(bodyKeySqlName) // ' integer,' // new_line('A')
     do columnIndex = 1, numColMidasTableRequired
-      obsColumnIndex = obs_columnIndexFromName(trim(midasTableNames(2,columnIndex)))
+      obsColumnIndex = obs_columnIndexFromName(trim(midasOutputNames(2,columnIndex)))
       if (obs_columnDataType(obsColumnIndex) == 'real') then
         sqlDataType = 'double'
      else
         sqlDataType = 'integer'
       end if
-      query = trim(query) // '  ' // trim(midasTableNames(1,columnIndex)) // ' ' // trim(sqlDataType)
+      query = trim(query) // '  ' // trim(midasOutputNames(1,columnIndex)) // ' ' // trim(sqlDataType)
       if (columnIndex < numColMidasTableRequired) query = trim(query) // ', '
       query = trim(query) // new_line('A')
     end do
