@@ -1221,7 +1221,11 @@ contains
                                      bodyIndexBegin, headIndexBegin)
     !
     ! :Purpose: Copy real and integer values from a local table into
-    !           obsSpaceData body rows.
+    !           obsSpaceData body rows. Note: this version currently
+    !           assumes that only 1 observed quantity is present for
+    !           each row of the sqlite table. This is likely only valid
+    !           for radiance observation types and therefore modifications
+    !           will be required for other observation types.
     !
     implicit none
 
@@ -1235,12 +1239,15 @@ contains
     integer,          intent(in)    :: headIndexBegin
 
     ! locals:
-    character(len=lenSqlName), allocatable :: obsValueSqlName(:)
+    character(len=lenSqlName), allocatable :: obsValueSqlNames(:)
     integer :: columnIndex, matchIndex, bodyTableIndex, bodyIndex, headIndex
-    integer :: numRowsBodyTable, bodyColumnIndexObsValue, obsNlv, obsVarNo
+    integer :: numRowsBodyTable, obsNlv, obsValueIndex, numObsValues
     integer(8) :: lastHeadKey
+    integer, allocatable :: bodyColumnIndexObsValueList(:)
+    integer, allocatable :: obsVarNoList(:)
     integer, allocatable :: matchIndexVec(:)
     integer, allocatable :: obsColumnIndex(:)
+    logical              :: firstHead
 
     numRowsBodyTable = size(bodyValues,1)
 
@@ -1255,35 +1262,42 @@ contains
       obsColumnIndex(matchIndex) = obs_columnIndexFromName(bodyMatchList(obsColIndex,matchIndex))
     end do
 
-    ! figure out column index for observation value (OBS_VAR)
-    obsValueSqlName = odbf_sqlNameFromObsSpaceName('VAR')
-    bodyColumnIndexObsValue = utl_findloc(bodySqlNames(:), obsValueSqlName(1))
-    if (bodyColumnIndexObsValue == 0) then
-      write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', trim(obsValueSqlName(1))
-      call utl_abort('odbf_copyToObsSpaceBody: column with obs value not present')
-    end if
+    ! figure out column index for observation values (OBS_VAR)
+    obsValueSqlNames = odbf_sqlNameFromObsSpaceName('VAR')
+    numObsValues = size(obsValueSqlNames)
+    allocate(obsVarNoList(numObsValues))
+    allocate(bodyColumnIndexObsValueList(numObsValues))
+    do obsValueIndex = 1, numObsValues
+      bodyColumnIndexObsValueList(obsValueIndex) = utl_findloc(bodySqlNames(:), obsValueSqlNames(obsValueIndex))
+      if (bodyColumnIndexObsValueList(obsValueIndex) == 0) then
+        write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', trim(obsValueSqlNames(obsValueIndex))
+        call utl_abort('odbf_copyToObsSpaceBody: column with obs value not present')
+      end if
+      ! determine varNo for the observation value
+      obsVarNoList(obsValueIndex) = odbf_varNoFromSqlName(obsValueSqlNames(obsValueIndex))
+      write(*,*) 'odbf_copyToObsSpaceBody: obsVarNo = ', obsVarNoList(obsValueIndex)
+    end do
+
     lastHeadKey = 0
+    firstHead = .true.
     headIndex = headIndexBegin - 1
     bodyIndex = bodyIndexBegin - 1
-
-    ! determine varNo for the observation value
-    obsVarNo = odbf_varNoFromSqlName(obsValueSqlName(1))
-    write(*,*) 'odbf_copyToObsSpaceBody: obsVarNo = ', obsVarNo
 
     bodyIndex_loop: do bodyTableIndex = 1, numRowsBodyTable
       bodyIndex = bodyIndex + 1
 
       ! check if obs value is null/missing
-      if ( bodyValues(bodyTableIndex,bodyColumnIndexObsValue) == MPC_missingValue_R8 ) then
+      if ( bodyValues(bodyTableIndex,bodyColumnIndexObsValueList(1)) == MPC_missingValue_R8 ) then
         bodyIndex = bodyIndex - 1
         cycle bodyIndex_loop
       end if
 
       ! count number of body rows for each header row (OBS_NLV)
-      if ( bodyHeadKey(bodyTableIndex) /= lastHeadKey ) then
+      if ( firstHead .or. (bodyHeadKey(bodyTableIndex) /= lastHeadKey) ) then
         headIndex = headIndex + 1
         call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
         lastHeadKey = bodyHeadKey(bodyTableIndex)
+        firstHead = .false.
       end if
       obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
       call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
@@ -1306,7 +1320,7 @@ contains
       call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
 
       ! set the varNo, assuming only 1 observed value
-      call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNo)
+      call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(1))
 
       ! copy real and integer values into obsSpaceData
       columnIndex_loop: do columnIndex = 1, size(bodySqlNames)
@@ -1347,6 +1361,8 @@ contains
 
     deallocate(matchIndexVec)
     deallocate(obsColumnIndex)
+    deallocate(obsVarNoList)
+    deallocate(bodyColumnIndexObsValueList)
 
   end subroutine odbf_copyToObsSpaceBody
 
@@ -1461,33 +1477,30 @@ contains
     character(len=lenSqlName), allocatable :: sqlName(:)
 
     ! locals:
-    integer                   :: matchIndex, numMatchFound
-    character(len=lenSqlName) :: sqlNamesTemp(50)
+    integer                   :: numMatchFound, matchFoundIndex
+    integer, allocatable      :: matchIndexList(:)
 
     if (allocated(sqlName)) deallocate(sqlName)
 
     ! first try the body matching list
-    numMatchFound = 0
-    matchIndex = utl_findloc(bodyMatchList(obsColIndex,:), trim(obsSpaceName))
-    if (matchIndex > 0) then
-      numMatchFound = numMatchFound + 1
-      sqlNamesTemp(numMatchFound) = bodyMatchList(sqlColIndex,matchIndex)
-    end if
-    if (numMatchFound > 0) then
+    matchIndexList = utl_findlocs(bodyMatchList(obsColIndex,:), trim(obsSpaceName))
+    if (matchIndexList(1) > 0) then
+      numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))
-      sqlName(:) = sqlNamesTemp(1:numMatchFound)
+      do matchFoundIndex = 1, numMatchFound
+        sqlName(matchFoundIndex) = bodyMatchList(sqlColIndex,matchIndexList(matchFoundIndex))
+      end do
       return
     end if
 
     ! now try the header matching list
-    matchIndex = utl_findloc(headMatchList(obsColIndex,:), trim(obsSpaceName))
-    if (matchIndex > 0) then
-      numMatchFound = numMatchFound + 1
-      sqlNamesTemp(numMatchFound) = headMatchList(sqlColIndex,matchIndex)
-    end if
-    if (numMatchFound > 0) then
+    matchIndexList = utl_findlocs(headMatchList(obsColIndex,:), trim(obsSpaceName))
+    if (matchIndexList(1) > 0) then
+      numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))
-      sqlName(:) = sqlNamesTemp(1:numMatchFound)
+      do matchFoundIndex = 1, numMatchFound
+        sqlName(matchFoundIndex) = headMatchList(sqlColIndex,matchIndexList(matchFoundIndex))
+      end do
       return
     end if
 
@@ -1513,7 +1526,7 @@ contains
     character(len=lenSqlName)    :: tableName
 
     ! locals:
-    integer                   :: matchIndex
+    integer :: matchIndex
 
     ! look in the midas table matching list
     matchIndex = utl_findloc(midasOutputNames(obsColIndex,:), trim(obsSpaceName))
@@ -1543,8 +1556,8 @@ contains
     integer                      :: varNo
 
     ! locals:
-    integer                   :: matchIndex
-    character(len=10)         :: varNoStr
+    integer           :: matchIndex
+    character(len=10) :: varNoStr
     
     matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
     if (matchIndex > 0) then

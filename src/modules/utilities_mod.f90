@@ -36,7 +36,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_allReduce, utl_findloc
+  public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
 
   ! module interfaces
   ! -----------------
@@ -95,6 +95,10 @@ module utilities_mod
   interface utl_findloc
     module procedure utl_findloc_char
   end interface utl_findloc
+
+  interface utl_findlocs
+    module procedure utl_findlocs_char
+  end interface utl_findlocs
 
 contains
 
@@ -2591,5 +2595,52 @@ contains
     end if
 
   end function utl_findloc_char
+
+  !--------------------------------------------------------------------------
+  ! utl_findlocs_char
+  !--------------------------------------------------------------------------
+  function utl_findlocs_char(charArray, value) result(locations)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: charArray(:)
+    character(len=*), intent(in) :: value
+    integer, allocatable         :: locations(:)
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    if (allocated(locations)) deallocate(locations)
+
+    ! count number of matches found
+    numFound = 0
+    do arrayIndex = 1, size(charArray)
+      if (trim(charArray(arrayIndex)) == trim(value)) numFound = numFound + 1
+    end do
+
+    if (numFound > 0) then
+
+      ! return all found locations
+      allocate(locations(numFound))
+      numFound = 0
+      do arrayIndex = 1, size(charArray)
+        if (trim(charArray(arrayIndex)) == trim(value)) then
+          numFound = numFound + 1
+          locations(numFound) = arrayIndex
+        end if
+      end do
+
+    else
+
+      ! return zero if not found
+      allocate(locations(1))
+      locations(1) = 0
+
+    end if
+
+  end function utl_findlocs_char
 
 end module utilities_mod
