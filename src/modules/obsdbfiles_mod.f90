@@ -236,16 +236,17 @@ contains
 
     !- 1.1 Read most of the contents of the file into local tables
 
-    call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, fileName=trim(fileName))
+    call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, &
+                             fileName=trim(fileName))
 
-    call odbf_getColumnValues_date(headDateValues, headTimeValues, fileName=trim(fileName), &
-                                   tableName=headTableName, sqlColumnName=headDateSqlName)
-    call odbf_getColumnValues_char(headCharValues, fileName=trim(fileName), &
-                                   tableName=headTableName, sqlColumnNames=headCharSqlNames)
-    call odbf_getColumnValues_num (headValues, fileName=trim(fileName), &
-                                   tableName=headTableName, sqlColumnNames=headSqlNames)
-    call odbf_getColumnValues_num (bodyValues, fileName=trim(fileName), &
-                                   tableName=bodyTableName, sqlColumnNames=bodySqlNames)
+    call odbf_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                  tableName=headTableName, sqlColumnName=headDateSqlName)
+    call odbf_getColumnValuesChar(headCharValues, fileName=trim(fileName), &
+                                  tableName=headTableName, sqlColumnNames=headCharSqlNames)
+    call odbf_getColumnValuesNum (headValues, fileName=trim(fileName), &
+                                  tableName=headTableName, sqlColumnNames=headSqlNames)
+    call odbf_getColumnValuesNum (bodyValues, fileName=trim(fileName), &
+                                  tableName=bodyTableName, sqlColumnNames=bodySqlNames)
     numRowsBodyTable = size(bodyValues,1)
     numRowsHeadTable = size(headValues,1)
 
@@ -343,9 +344,9 @@ contains
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD observations (element 15031)
-    if ( trim(familyType) == 'GP') then
-      write(*,*)'odbf_readFile: Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
-      call obsu_setGbgpsError(obsdat, headIndexBegin, headIndexEnd )
+    if ( trim(familyType) == 'GP' ) then
+      write(*,*) 'odbf_readFile: Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
+      call obsu_setGbgpsError( obsdat, headIndexBegin, headIndexEnd )
     end if
 
     numHead = obs_numHeader(obsdat)
@@ -516,7 +517,8 @@ contains
 
     else
 
-      write(*,*) 'odbf_updateFile: the midas output table already exists, will just update its values'
+      write(*,*) 'odbf_updateFile: the midas output table already exists, ' // &
+                 'will just update its values'
 
     end if ! .not.midasTableExists
 
@@ -524,7 +526,8 @@ contains
     allocate(midasColumnExists(numberUpdateItems))
     do updateItemIndex = 1, numberUpdateItems
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex))
-      midasColumnExists(updateItemIndex) = odbf_sqlColumnExists(fileName, midasTableName, sqlColumnName)
+      midasColumnExists(updateItemIndex) = &
+           odbf_sqlColumnExists(fileName, midasTableName, sqlColumnName)
     end do
 
     ! now that the table exists, we can update the selected columns
@@ -678,7 +681,8 @@ contains
     if (trim(dataType) == 'varchar') then
       dataTypeCriteria = 'substr(type,1,7)="varchar"'
     else if (trim(dataType) == 'numeric') then
-      dataTypeCriteria = 'type="real" or type="REAL" or type="double" or type="DOUBLE" or type="integer" or type="INTEGER"'
+      dataTypeCriteria = 'type="real" or type="REAL" or type="double" or ' // &
+                         'type="DOUBLE" or type="integer" or type="INTEGER"'
     else
       call utl_abort('odbf_getSqlColumnNames: invalid dataType = ' // trim(dataType))
     end if
@@ -800,10 +804,10 @@ contains
   end subroutine odbf_getPrimaryKeys
 
   !--------------------------------------------------------------------------
-  ! odbf_getColumnValues_date
+  ! odbf_getColumnValuesDate
   !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValues_date(columnDateValues, columnTimeValues, fileName, &
-                                       tableName, sqlColumnName)
+  subroutine odbf_getColumnValuesDate(columnDateValues, columnTimeValues, fileName, &
+                                      tableName, sqlColumnName)
     !
     ! :Purpose: Read the column values from obsDB file for the specified table
     !           and column names.
@@ -828,8 +832,8 @@ contains
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_date: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValues_date: fSQL_open' )
+      write(*,*) 'odbf_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getColumnValuesDate: fSQL_open' )
     end if
 
     ! Get the date and time
@@ -838,17 +842,17 @@ contains
     query = "select strftime('%Y%m%d'," // trim(sqlColumnName) // &
             "), strftime('%H%M'," // trim(sqlColumnName) // ") " // &
             "from " // trim(tableName) // ";"
-    write(*,*) 'odbf_getColumnValues_date: query ---> ', trim(query)
+    write(*,*) 'odbf_getColumnValuesDate: query ---> ', trim(query)
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_date: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValues_date: problem with fSQL_get_many')
+      write(*,*) 'odbf_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_getColumnValuesDate: problem with fSQL_get_many')
     end if
-    write(*,*) 'odbf_getColumnValues_date: numRows = ', numRows, ', numColumns = ', numColumns
+    write(*,*) 'odbf_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValuesStr(numRows,2) )
     call fSQL_fill_matrix( stmt, columnValuesStr )
     allocate( columnDateValues(numRows) )
@@ -865,7 +869,7 @@ contains
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
-  end subroutine odbf_getColumnValues_date
+  end subroutine odbf_getColumnValuesDate
 
   !--------------------------------------------------------------------------
   ! odbf_setSurfaceType
@@ -924,10 +928,10 @@ contains
   end subroutine odbf_setSurfaceType
 
   !--------------------------------------------------------------------------
-  ! odbf_getColumnValues_char
+  ! odbf_getColumnValuesChar
   !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValues_char(columnValues, fileName, tableName, &
-                                       sqlColumnNames)
+  subroutine odbf_getColumnValuesChar(columnValues, fileName, tableName, &
+                                      sqlColumnNames)
     !
     ! :Purpose: Read the column values from obsDB file for the specified table
     !           and column names.
@@ -950,8 +954,8 @@ contains
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_char: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValues_char: fSQL_open' )
+      write(*,*) 'odbf_getColumnValuesChar: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getColumnValuesChar: fSQL_open' )
     end if
 
     ! build the sqlite query
@@ -962,17 +966,17 @@ contains
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
     query = trim(query) // ' from ' // trim(tableName) // ';'
-    write(*,*) 'odbf_getColumnValues_char: query ---> ', trim(query)
+    write(*,*) 'odbf_getColumnValuesChar: query ---> ', trim(query)
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_char: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValues_char: problem with fSQL_get_many')
+      write(*,*) 'odbf_getColumnValuesChar: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_getColumnValuesChar: problem with fSQL_get_many')
     end if
-    write(*,*) 'odbf_getColumnValues_char: numRows = ', numRows, ', numColumns = ', numColumns
+    write(*,*) 'odbf_getColumnValuesChar: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnValues )
 
@@ -981,13 +985,13 @@ contains
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
-  end subroutine odbf_getColumnValues_char
+  end subroutine odbf_getColumnValuesChar
 
   !--------------------------------------------------------------------------
-  ! odbf_getColumnValues_num
+  ! odbf_getColumnValuesNum
   !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValues_num(columnValues, fileName, tableName, &
-                                      sqlColumnNames)
+  subroutine odbf_getColumnValuesNum(columnValues, fileName, tableName, &
+                                     sqlColumnNames)
     !
     ! :Purpose: Read the column values from obsDB file for the specified table
     !           and column names.
@@ -1010,8 +1014,8 @@ contains
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_num: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValues_num: fSQL_open' )
+      write(*,*) 'odbf_getColumnValuesNum: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_getColumnValuesNum: fSQL_open' )
     end if
 
     ! build the sqlite query
@@ -1022,17 +1026,17 @@ contains
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
     query = trim(query) // ' from ' // trim(tableName) // ';'
-    write(*,*) 'odbf_getColumnValues_num: query ---> ', trim(query)
+    write(*,*) 'odbf_getColumnValuesNum: query ---> ', trim(query)
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query) , stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8, &
                         real8_missing=MPC_missingValue_R8, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValues_num: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValues_num: problem with fSQL_get_many')
+      write(*,*) 'odbf_getColumnValuesNum: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_getColumnValuesNum: problem with fSQL_get_many')
     end if
-    write(*,*) 'odbf_getColumnValues_num: numRows = ', numRows, ', numColumns = ', numColumns
+    write(*,*) 'odbf_getColumnValuesNum: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnValues )
 
@@ -1041,7 +1045,7 @@ contains
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
-  end subroutine odbf_getColumnValues_num
+  end subroutine odbf_getColumnValuesNum
 
   !--------------------------------------------------------------------------
   ! odbf_copyToObsSpaceHeadChar
@@ -1099,7 +1103,8 @@ contains
       end if
       codeType = codtyp_get_codtyp(trim(headCharValues(headTableIndex,columnIndex)))
       if (codeType == -1) then
-        write(*,*) 'odbf_copyToObsSpaceHeadChar: obs type =', trim(headCharValues(headTableIndex,columnIndex))
+        write(*,*) 'odbf_copyToObsSpaceHeadChar: obs type =', &
+                   trim(headCharValues(headTableIndex,columnIndex))
         call utl_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found') 
       end if
       call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeType)
@@ -1188,15 +1193,18 @@ contains
           if (obs_columnDataType(obsColumnIndex) == 'real') then
             if ( obs_columnActive_RH(obsdat, obsColumnIndex) ) then
               if (headTableIndex == 1) then
-                write(*,*) 'odbf_copyToObsSpaceHead: set header real column   : ', trim(headSqlNames(columnIndex))
+                write(*,*) 'odbf_copyToObsSpaceHead: set header real column   : ', &
+                           trim(headSqlNames(columnIndex))
               end if
-              call obs_headSet_r(obsdat, obsColumnIndex, &
-                                 headIndex, real(headValues(headTableIndex,columnIndex),pre_obsReal))
+              call obs_headSet_r(obsdat, obsColumnIndex, headIndex, &
+                                 real(headValues(headTableIndex,columnIndex),&
+                                 pre_obsReal))
             end if
           else if (obs_columnDataType(obsColumnIndex) == 'integer') then
             if ( obs_columnActive_IH(obsdat, obsColumnIndex) ) then
               if (headTableIndex == 1) then
-                write(*,*) 'odbf_copyToObsSpaceHead: set header integer column: ', trim(headSqlNames(columnIndex))
+                write(*,*) 'odbf_copyToObsSpaceHead: set header integer column: ', &
+                           trim(headSqlNames(columnIndex))
               end if
               call obs_headSet_i(obsdat, obsColumnIndex, &
                                  headIndex, nint(headValues(headTableIndex,columnIndex)))
@@ -1268,9 +1276,11 @@ contains
     allocate(obsVarNoList(numObsValues))
     allocate(bodyColumnIndexObsValueList(numObsValues))
     do obsValueIndex = 1, numObsValues
-      bodyColumnIndexObsValueList(obsValueIndex) = utl_findloc(bodySqlNames(:), obsValueSqlNames(obsValueIndex))
+      bodyColumnIndexObsValueList(obsValueIndex) = &
+           utl_findloc(bodySqlNames(:), obsValueSqlNames(obsValueIndex))
       if (bodyColumnIndexObsValueList(obsValueIndex) == 0) then
-        write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', trim(obsValueSqlNames(obsValueIndex))
+        write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', &
+                   trim(obsValueSqlNames(obsValueIndex))
         call utl_abort('odbf_copyToObsSpaceBody: column with obs value not present')
       end if
       ! determine varNo for the observation value
@@ -1302,8 +1312,8 @@ contains
                      obs_headPrimaryKey( obsdat, headIndex )
           write(*,*) 'odbf_copyToObsSpaceBody: same key in BODY table      = ', &
                      bodyHeadKey(bodyTableIndex)
-          call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table not equal ' // &
-                         'to value in BODY table')
+          call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table ' // &
+                         'not equal to value in BODY table')
         end if
 
         ! check if obs value is null/missing
@@ -1365,8 +1375,9 @@ contains
                   write(*,*) 'odbf_copyToObsSpaceBody: set body real column   : ', &
                              trim(bodySqlNames(columnIndex))
                 end if
-                call obs_bodySet_r(obsdat, obsColumnIndex(matchIndex), &
-                                   bodyIndex, real(bodyValues(bodyTableIndex,columnIndex),pre_obsReal))
+                call obs_bodySet_r(obsdat, obsColumnIndex(matchIndex), bodyIndex, &
+                                   real(bodyValues(bodyTableIndex,columnIndex), &
+                                   pre_obsReal))
               end if
             else if (obs_columnDataType(obsColumnIndex(matchIndex)) == 'integer') then
               ! integer values
@@ -1603,79 +1614,6 @@ contains
   end function odbf_varNoFromSqlName
 
   !--------------------------------------------------------------------------
-  ! odbf_copySqlTable
-  !--------------------------------------------------------------------------
-  subroutine odbf_copySqlTable(fileName, tableNameSource, tableNameNew)
-    !
-    ! :Purpose: Copy an existing sql table to a new table with a different name
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*),              intent(in)  :: fileName
-    character(len=*),              intent(in)  :: tableNameSource
-    character(len=*),              intent(in)  :: tableNameNew
-
-    ! locals:
-    integer :: numRows, numColumns, rowIndex
-    character(len=100), allocatable :: tableValues(:,:)
-    character(len=3000)      :: query
-    type(fSQL_STATUS)        :: stat ! sqlite error status
-    type(fSQL_DATABASE)      :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getSqlColumnNames: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getSqlColumnNames: fSQL_open' )
-    end if
-
-    ! read the column names
-    query = 'select name, type from pragma_table_info("' // trim(tableNameSource) // '");'
-    call fSQL_prepare( db, trim(query) , stmt, stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
-                        mode=FSQL_CHAR, status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_copySqlTable: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_copySqlTable: problem with fSQL_get_many')
-    end if
-    allocate( tableValues(numRows, numColumns) )
-    call fSQL_fill_matrix( stmt, tableValues )
-
-    ! create the new table
-    query = 'create table ' // trim(tableNameNew) // ' (' // new_line('A')
-    do rowIndex = 1, numRows
-      query = trim(query) // '  ' // trim(tableValues(rowIndex,1)) // ' ' // trim(tableValues(rowIndex,2))
-      if (rowIndex < numRows) query = trim(query) // ', '
-      query = trim(query) // new_line('A')
-    end do
-    query = trim(query) // ');'
-    write(*,*) 'odbf_copySqlTable: query = ', trim(query)
-    call fSQL_do_many( db, query, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_copySqlTable: Problem with fSQL_do_many')
-    end if
-
-    ! copy values from original to new table
-    query = 'insert into ' // trim(tableNameNew) // ' select * from ' // trim(tableNameSource) // ';'
-    write(*,*) 'odbf_copySqlTable: query = ', trim(query)
-    call fSQL_do_many( db, query, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_copySqlTable: Problem with fSQL_do_many')
-    end if
-
-    ! clean up and close the obsDB file
-    call fSQL_free_mem( stmt )
-    call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
-    deallocate( tableValues )
-
-  end subroutine odbf_copySqlTable
-
-  !--------------------------------------------------------------------------
   ! odbf_createMidasTable
   !--------------------------------------------------------------------------
   subroutine odbf_createMidasTable(fileName)
@@ -1714,7 +1652,8 @@ contains
      else
         sqlDataType = 'integer'
       end if
-      query = trim(query) // '  ' // trim(midasOutputNames(1,columnIndex)) // ' ' // trim(sqlDataType)
+      query = trim(query) // '  ' // trim(midasOutputNames(1,columnIndex)) // &
+              ' ' // trim(sqlDataType)
       if (columnIndex < numColMidasTableRequired) query = trim(query) // ', '
       query = trim(query) // new_line('A')
     end do
@@ -1764,8 +1703,8 @@ contains
     upperTableName = trim(tableName)
     ierr = clib_toUpper(upperTableName)
 
-    query = "select upper(name) as uppername from sqlite_master where type='table' and uppername='" // &
-            trim(upperTableName) // "';"
+    query = "select upper(name) as uppername from sqlite_master where " // &
+            "type='table' and uppername='" // trim(upperTableName) // "';"
     write(*,*) 'odbf_sqlTableExists: query = ', trim(query)
 
     call fSQL_prepare( db, trim(query), stmt, stat)
@@ -1816,8 +1755,8 @@ contains
     upperColumnName = trim(columnName)
     ierr = clib_toUpper(upperColumnName)
 
-    query = "select upper(name) as uppername from pragma_table_info('" // trim(tableName) // &
-            "') where uppername='" // trim(upperColumnName) // "' ;"
+    query = "select upper(name) as uppername from pragma_table_info('" // &
+            trim(tableName) // "') where uppername='" // trim(upperColumnName) // "';"
     write(*,*) 'odbf_sqlColumnExists: query = ', trim(query)
 
     call fSQL_prepare( db, trim(query), stmt, stat)
