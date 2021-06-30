@@ -299,7 +299,7 @@ contains
     bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
-    !- 1.3 Set some other quantities in obsSpaceData
+    !- 1.3 Set some other quantities in obsSpaceData Header table
 
     do headIndex = headIndexBegin, headIndexEnd
       call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
@@ -1262,7 +1262,7 @@ contains
       obsColumnIndex(matchIndex) = obs_columnIndexFromName(bodyMatchList(obsColIndex,matchIndex))
     end do
 
-    ! figure out column index for observation values (OBS_VAR)
+    ! figure out column indexes for observation values (OBS_VAR)
     obsValueSqlNames = odbf_sqlNameFromObsSpaceName('VAR')
     numObsValues = size(obsValueSqlNames)
     allocate(obsVarNoList(numObsValues))
@@ -1284,78 +1284,109 @@ contains
     bodyIndex = bodyIndexBegin - 1
 
     bodyIndex_loop: do bodyTableIndex = 1, numRowsBodyTable
-      bodyIndex = bodyIndex + 1
 
-      ! check if obs value is null/missing
-      if ( bodyValues(bodyTableIndex,bodyColumnIndexObsValueList(1)) == MPC_missingValue_R8 ) then
-        bodyIndex = bodyIndex - 1
-        cycle bodyIndex_loop
-      end if
+      obsValueIndex_loop: do obsValueIndex = 1, numObsValues
 
-      ! count number of body rows for each header row (OBS_NLV)
-      if ( firstHead .or. (bodyHeadKey(bodyTableIndex) /= lastHeadKey) ) then
-        headIndex = headIndex + 1
-        call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
-        lastHeadKey = bodyHeadKey(bodyTableIndex)
-        firstHead = .false.
-      end if
-      obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
-      call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
-
-      ! check that the primary key for header table matches the value in the body table
-      if ( obs_headPrimaryKey( obsdat, headIndex ) /= &
-           bodyHeadKey(bodyTableIndex) ) then
-        write(*,*) 'odbf_copyToObsSpaceBody: primary key in HEADER table = ', &
-                   obs_headPrimaryKey( obsdat, headIndex )
-        write(*,*) 'odbf_copyToObsSpaceBody: same key in BODY table      = ', &
-                   bodyHeadKey(bodyTableIndex)
-        call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table not equal ' // &
-                       'to value in BODY table')
-      end if
-
-      ! copy body primary key to obsSpaceData
-      if (bodyTableIndex == 1) then
-        write(*,*) 'odbf_copyToObsSpaceBody: set body primary key'
-      end if
-      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
-
-      ! set the varNo, assuming only 1 observed value
-      call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(1))
-
-      ! copy real and integer values into obsSpaceData
-      columnIndex_loop: do columnIndex = 1, size(bodySqlNames)
-        matchIndex = matchIndexVec(columnIndex)
-
-        if (matchIndex == 0) then
-          if (bodyTableIndex == 1) then
-            write(*,*) 'odbf_copyToObsSpaceBody: unknown column name    : ', &
-                       trim(bodySqlNames(columnIndex))
-          end if
-        else
-          if (obs_columnDataType(obsColumnIndex(matchIndex)) == 'real') then
-            ! real values
-            if ( obs_columnActive_RB(obsdat, obsColumnIndex(matchIndex)) ) then
-              if (bodyTableIndex == 1) then
-                write(*,*) 'odbf_copyToObsSpaceBody: set body real column   : ', trim(bodySqlNames(columnIndex))
-              end if
-              call obs_bodySet_r(obsdat, obsColumnIndex(matchIndex), &
-                                 bodyIndex, real(bodyValues(bodyTableIndex,columnIndex),pre_obsReal))
-            end if
-          else if (obs_columnDataType(obsColumnIndex(matchIndex)) == 'integer') then
-            ! integer values
-            if ( obs_columnActive_IB(obsdat, obsColumnIndex(matchIndex)) ) then
-              if (bodyTableIndex == 1) then
-                write(*,*) 'odbf_copyToObsSpaceBody: set body integer column: ', trim(bodySqlNames(columnIndex))
-              end if
-              call obs_bodySet_i(obsdat, obsColumnIndex(matchIndex), &
-                                 bodyIndex, nint(bodyValues(bodyTableIndex,columnIndex)))
-            end if
-          else
-            call utl_abort('odbf_copyToObsSpaceBody: unknown data type for obs body column')
-          end if
+        ! initialize count of number of body rows for each header row (OBS_NLV)
+        if ( firstHead .or. (bodyHeadKey(bodyTableIndex) /= lastHeadKey) ) then
+          headIndex = headIndex + 1
+          call obs_headSet_i(obsdat, OBS_NLV, headIndex, 0)
+          lastHeadKey = bodyHeadKey(bodyTableIndex)
+          firstHead = .false.
         end if
 
-      end do columnIndex_loop
+        ! check that the primary key for header table matches the value in the body table
+        if ( obs_headPrimaryKey( obsdat, headIndex ) /= &
+             bodyHeadKey(bodyTableIndex) ) then
+          write(*,*) 'odbf_copyToObsSpaceBody: primary key in HEADER table = ', &
+                     obs_headPrimaryKey( obsdat, headIndex )
+          write(*,*) 'odbf_copyToObsSpaceBody: same key in BODY table      = ', &
+                     bodyHeadKey(bodyTableIndex)
+          call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table not equal ' // &
+                         'to value in BODY table')
+        end if
+
+        ! check if obs value is null/missing
+        if ( bodyValues(bodyTableIndex,bodyColumnIndexObsValueList(obsValueIndex)) == &
+             MPC_missingValue_R8 ) then
+          cycle obsValueIndex_loop
+        end if
+
+        ! check if element id is in list
+        if ( utl_findloc(elemIdList(1:numElemIdList),obsVarNoList(obsValueIndex)) == 0 ) then
+          cycle obsValueIndex_loop
+        end if
+
+        ! add to count of number of body rows for each header row (OBS_NLV)
+        obsNLV = obs_headElem_i(obsdat, OBS_NLV, headIndex)
+        call obs_headSet_i(obsdat, OBS_NLV, headIndex, obsNLV + 1)
+
+        bodyIndex = bodyIndex + 1
+
+        ! copy body primary key to obsSpaceData
+        if (bodyTableIndex == 1) then
+          write(*,*) 'odbf_copyToObsSpaceBody: set body primary key'
+        end if
+        call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
+
+        ! set the varNo for this obsValue
+        call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(obsValueIndex))
+
+        ! copy real and integer values into obsSpaceData
+        columnIndex_loop: do columnIndex = 1, size(bodySqlNames)
+          matchIndex = matchIndexVec(columnIndex)
+
+          if (matchIndex == 0) then
+
+            if (bodyTableIndex == 1) then
+              write(*,*) 'odbf_copyToObsSpaceBody: unknown column name    : ', &
+                         trim(bodySqlNames(columnIndex))
+            end if
+
+          else
+
+            ! if this column corresponds to the obs value, then check if it is the one we want
+            if ( obsColumnIndex(matchIndex) == OBS_VAR ) then
+              if ( columnIndex /= bodyColumnIndexObsValueList(obsValueIndex) ) then
+                ! skip this column
+                cycle columnIndex_loop
+                if (bodyTableIndex == 1) then
+                  write(*,*) 'odbf_copyToObsSpaceBody: skip obs body column   : ', &
+                             trim(bodySqlNames(columnIndex)), &
+                             ' for obsValueIndex = ', obsValueIndex
+                end if
+              end if
+            end if
+
+            if (obs_columnDataType(obsColumnIndex(matchIndex)) == 'real') then
+              ! real values
+              if ( obs_columnActive_RB(obsdat, obsColumnIndex(matchIndex)) ) then
+                if (bodyTableIndex == 1) then
+                  write(*,*) 'odbf_copyToObsSpaceBody: set body real column   : ', &
+                             trim(bodySqlNames(columnIndex))
+                end if
+                call obs_bodySet_r(obsdat, obsColumnIndex(matchIndex), &
+                                   bodyIndex, real(bodyValues(bodyTableIndex,columnIndex),pre_obsReal))
+              end if
+            else if (obs_columnDataType(obsColumnIndex(matchIndex)) == 'integer') then
+              ! integer values
+              if ( obs_columnActive_IB(obsdat, obsColumnIndex(matchIndex)) ) then
+                if (bodyTableIndex == 1) then
+                  write(*,*) 'odbf_copyToObsSpaceBody: set body integer column: ', &
+                             trim(bodySqlNames(columnIndex))
+                end if
+                call obs_bodySet_i(obsdat, obsColumnIndex(matchIndex), &
+                                   bodyIndex, nint(bodyValues(bodyTableIndex,columnIndex)))
+              end if
+            else
+              call utl_abort('odbf_copyToObsSpaceBody: unknown data type for obs body column')
+            end if
+
+          end if
+
+        end do columnIndex_loop
+
+      end do obsValueIndex_loop
 
     end do bodyIndex_loop
 

@@ -94,6 +94,7 @@ module utilities_mod
 
   interface utl_findloc
     module procedure utl_findloc_char
+    module procedure utl_findloc_int
   end interface utl_findloc
 
   interface utl_findlocs
@@ -2595,6 +2596,45 @@ contains
     end if
 
   end function utl_findloc_char
+
+  !--------------------------------------------------------------------------
+  ! utl_findloc_int
+  !--------------------------------------------------------------------------
+  function utl_findloc_int(intArray, value) result(location)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: intArray(:)
+    integer, intent(in) :: value
+    integer             :: location
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    numFound = 0
+    LOOP: do arrayIndex = 1, size(intArray)
+      if (intArray(arrayIndex) == value) then
+        numFound = numFound + 1
+        ! return the first location found
+        if (numFound == 1) location = arrayIndex
+      end if
+    end do LOOP
+
+    ! give warning if more than 1 found
+    if (numFound > 1) then
+      write(*,*) 'utl_findloc_int: found multiple locations of ', value
+      write(*,*) 'utl_findloc_int: number locations found =  ', numFound    
+    end if
+
+    ! return zero if not found
+    if (numFound == 0) then
+      location = 0
+    end if
+
+  end function utl_findloc_int
 
   !--------------------------------------------------------------------------
   ! utl_findlocs_char
