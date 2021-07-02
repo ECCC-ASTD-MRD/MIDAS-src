@@ -8,11 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Inform the user about declared but unused variables at compilation time
- * The `midas.splitobs.Abs` program now creates an index for each SQL observation SQL output file (#506 and !479)
-  * As a corrolary, we must add a `drop index` in each input SQL
-    observation file in `midas.reunir_obs_mpi` because keeping the
-    index is slower.
+ * The `midas.splitobs.Abs` program now creates an index for each SQL observation output file (#506 and !479)
  * Add separate ensemble recentering coefficient for soil variables I0/I1 (#501 and !478)
  * Added new program `ensDiagnostics` to measure imbalance in a trial field trajectory (#485 and !472)
  * Add `hInterpolationDegree` to namelist NAMBEN to control interpolation of ensembles (#503 and !475)
