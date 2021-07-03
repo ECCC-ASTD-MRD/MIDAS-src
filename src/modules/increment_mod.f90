@@ -32,7 +32,6 @@ module increment_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
   use varNamelist_mod
-
   implicit none
   save
   private
@@ -499,7 +498,6 @@ CONTAINS
     end if
 
   end subroutine inc_getIncrement
-
 
   !--------------------------------------------------------------------------
   ! inc_writeIncrement
