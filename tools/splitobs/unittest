@@ -92,7 +92,7 @@ unittest () {
         test_rdb_avhrr || return 1
         test_rdb_resume_schema_SAR || return 1
         test_rdb_resume_schema_AL || return 1
-	test_rdb_dropindex || return 1
+	test_rdb_index || return 1
 	test_rdb_resume || return 1
 	test_rdb_round_robin || return 1
 	test_rdb_cherrypick_roundrobin || return 1
@@ -533,37 +533,42 @@ test_rdb_cherrypick_roundrobin () {
 } ## End of function 'test_rdb_cherrypick_roundrobin'
 
 
-test_rdb_dropindex () {
+test_rdb_index () {
     set -e
     [ -n "${SET_MX}" ] && ${SET_MX}
 
-    echo "test_rdb_dropindex() begins"
+    echo "test_rdb_index() begins"
 
-    test_rdb_dropindex_ndigits=4
-    test_rdb_dropindex_npex=1
-    test_rdb_dropindex_npey=22
+    test_rdb_index_ndigits=4
+    test_rdb_index_npex=1
+    test_rdb_index_npey=22
 
-    typeset -Z${test_rdb_dropindex_ndigits} procx procy
+    typeset -Z${test_rdb_index_ndigits} procx procy
 
-    procx=${test_rdb_dropindex_npex}
-    procy=${test_rdb_dropindex_npey}
+    procx=${test_rdb_index_npex}
+    procy=${test_rdb_index_npey}
 
     status=0
     program_status=0
-    ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_dropindex_npex} -npey ${test_rdb_dropindex_npey} -ndigits ${test_rdb_dropindex_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
-    assert "test_rdb_dropindex splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_index splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     check_status=0
     fileout=obsal_${procx}_${procy}
     check_result ${REFERENCE}/rdb/obsal_${procx}_${procy}_v2 ${fileout} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-    assert "test_rdb_dropindex fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    assert "test_rdb_index fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    check_status=0
+    fileout=obsal_${procx}_${procy}
+    echo .schema | ${sqlite3} ${fileout} | grep -sqi "create index idx1 on" || check_status=1
+    assert "test_rdb_index fileout=${fileout} check index (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
     [ "${status}" -ne 0 ] && return 1
     rm ${fileout}
-    unset fileout test_rdb_dropindex_ndigits test_rdb_dropindex_npex test_rdb_dropindex_npey procx procy
+    unset fileout test_rdb_index_ndigits test_rdb_index_npex test_rdb_index_npey procx procy
 
-    echo "test_rdb_dropindex() ends"
-} ## End of function 'test_rdb_dropindex'
+    echo "test_rdb_index() ends"
+} ## End of function 'test_rdb_index'
 
 
 test_rdb_resume () {

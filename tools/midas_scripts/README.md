@@ -7,7 +7,8 @@ et à manipuler les fichiers d'input ou bien d'output.
 Les variables d'environnement suivantes sont possibles:
  * `MIDAS_RAMDISKPATH`: Cette variable définit le path vers le RAMDisk
    Par defaut, elle est égale à `${TMPDIR}`.
- * `MIDAS_SAVE_SPLITOBS`: Si cette variable est égale à `yes`, on
+
+  * `MIDAS_SAVE_SPLITOBS`: Si cette variable est égale à `yes`, on
    copie les observations qui ont été splittés mais conservés en
    RAMDisk dans le répertoire de travail de `midas.Abs`.  Par défaut,
    cette variable est vide.  Cela est utile pour débogguer le

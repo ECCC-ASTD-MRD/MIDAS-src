@@ -81,9 +81,11 @@ while [ "${base}" -lt "${number_of_families2process}" ]; do
              =-sed_cmd            $(which sed)                                        \
              =-grep_cmd           $(which grep)                                       \
              =-echo_cmd           $(which echo)                                       \
+             =-date_cmd           $(which date)                                       \
              =-true_cmd           $(which true)                                       \
              =-tr_cmd             $(which tr)                                         \
              =-wc_cmd             $(which wc)                                         \
+             =-bc_cmd             $(which bc)                                         \
              =-cut_cmd            $(which cut)                                        \
              =-mkdir_cmd          $(which mkdir)                                      \
              =-xargs_cmd          $(which xargs)                                      \
