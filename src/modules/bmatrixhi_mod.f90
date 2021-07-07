@@ -2318,7 +2318,7 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
-
+    gd_in(:,:,:) = 0.d0
     if (gsv_varExist(statevector,'HU')) then
       call gvt_transform( statevector, &                          ! INOUT
                           'LQtoHU_ad', &                          ! IN
