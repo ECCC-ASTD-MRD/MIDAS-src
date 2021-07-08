@@ -19,7 +19,7 @@ module columnData_mod
   !
   ! :Purpose: A derived type and related procedures for storing and manipulating
   !           vertical columns of analysis variables on model or analysis grid
-  !           levels. These columns are general produced by horizontally
+  !           levels. These columns are generally produced by horizontally
   !           interpolating a gridStateVector object to the observation
   !           locations.
   !
