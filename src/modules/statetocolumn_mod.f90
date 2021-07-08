@@ -54,7 +54,7 @@ module stateToColumn_mod
   
   ! public routines
   public :: s2c_tl, s2c_ad, s2c_nl
-  public :: s2c_column_hbilin, s2c_bgcheck_bilin
+  public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
 
   ! private module variables and derived types
 
@@ -115,7 +115,7 @@ module stateToColumn_mod
   logical :: calcHeightPressIncrOnColumn
   logical :: useFootprintForTovs
 
-  integer, external    :: get_max_rss
+  integer, external :: get_max_rss
 
 contains 
 
@@ -3126,16 +3126,16 @@ contains
     integer :: depotIndex
     integer :: ierr
     integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
-    integer :: subGridIndex, numLocalGridptsFoundSearch 
+    integer :: subGridIndex, numLocalGridptsFoundSearch
     real(4) :: lonObs_deg_r4, latObs_deg_r4
-    real(8) :: lonObs, latObs, maxRadiusSquared
+    real(8) :: lonObs, latObs
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer :: ipoint, gridptCount
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
     integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
 
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
-    real(kdkind)              :: refPosition(3)
+    real(kdkind)              :: refPosition(3), maxRadiusSquared
     type(kdtree2), pointer    :: tree
 
     numGridpt(:) = 0
@@ -3683,5 +3683,58 @@ contains
     end if
 
   end function getTovsFootprintRadius
+
+  ! -------------------------------------------------------------
+  ! s2c_getWeightsAndGridPointIndexes
+  ! -------------------------------------------------------------
+  subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+       interpWeight, latIndex, lonIndex, gridptCount)
+    ! :Purpose: Returns the weights and grid point indexes for a single observation.
+    !           
+    !
+    implicit none
+
+    ! arguments
+    integer, intent(in)  :: headerIndex
+    integer, intent(in)  :: kIndex
+    integer, intent(in)  :: stepIndex
+    integer, intent(in)  :: procIndex
+    real(8), intent(out) :: interpWeight(:)
+    integer, intent(out) :: latIndex(:)
+    integer, intent(out) :: lonIndex(:)
+    integer, intent(out) :: gridptCount
+
+    ! locals
+    integer :: indexBeg, indexEnd, gridptIndex
+    integer :: subGridIndex, maxGridpt
+
+    maxGridpt = size( interpWeight )
+
+    gridptCount = 0
+
+    subGrid_loop: do subGridIndex = 1, interpInfo_tlad%hco%numSubGrid
+
+      indexBeg = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+      indexEnd = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+
+      if ( indexEnd < IndexBeg ) cycle subGrid_loop
+
+      do gridptIndex = indexBeg, indexEnd
+
+        gridptCount = gridptCount + 1
+
+        if ( gridptCount > maxGridpt ) then
+          call utl_abort('s2c_getWeightsAndGridPointIndexes: maxGridpt must be increased')
+        end if
+
+        lonIndex(gridptCount) = interpInfo_tlad%lonIndexDepot(gridptIndex)
+        latIndex(gridptCount) = interpInfo_tlad%latIndexDepot(gridptIndex)
+        interpWeight(gridptCount) = interpInfo_tlad%interpWeightDepot(gridptIndex)
+
+      end do
+
+    end do subGrid_loop
+
+  end subroutine s2c_getWeightsAndGridPointIndexes
 
 end module stateToColumn_mod
