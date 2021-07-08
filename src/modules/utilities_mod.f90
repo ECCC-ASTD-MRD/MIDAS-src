@@ -1070,12 +1070,12 @@ contains
         pseudoInverse(lineIndex,:) = ( 1.d0 / singularValues(lineIndex) ) * leftSingularVector(:,lineIndex)
       end if
     end do
-    
+
     pseudoInverse = matmul( transpose(rightSingularVectorT), pseudoInverse)
 
     deallocate( singularValues, rightSingularVectorT )
     deallocate( leftSingularVector, copyMatrix )
-    
+
   end subroutine utl_pseudo_inverse
 
 
@@ -1087,14 +1087,14 @@ contains
     INTEGER :: iulstatus,fnom,fclos, ierr
     character(len=*) :: cmsg
     character(len=22):: clmsg
-    
+
     clmsg='VAR3D_STATUS='//cmsg
     iulstatus = 0
     IERR =  FNOM(iulstatus,'VAR3D_STATUS.dot','SEQ+FMT',0)
     rewind (iulstatus)
     WRITE(iulstatus,'(a22)') clmsg
     ierr = fclos(iulstatus)
-    
+
   end subroutine utl_writeStatus
 
 
@@ -1730,12 +1730,12 @@ contains
     real(8), intent(out), allocatable, optional :: lvls_opt(:), xlat_opt(:),xlong_opt(:)
 
     integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
-    
+
     real(4) :: lvl_r4
-    
+
     logical :: Exists
     character(len=1) :: string
-     
+
     integer, parameter :: iun=0
     integer :: i,ier, kindi
 
