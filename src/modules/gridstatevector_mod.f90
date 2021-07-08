@@ -481,9 +481,9 @@ module gridStateVector_mod
           if ( trim(vnl_varNameList(varIndex)) == trim(AnlVar(loopIndex)) ) &
              gsv_minValVarKindCH(varIndex) = minValVarKindCH(loopIndex)
         end do
-      end if 
+      end if
     end do
-    
+
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: global varExistList =',varExistList
 
     ! Check value for ANLTIME_BIN
@@ -862,14 +862,14 @@ module gridStateVector_mod
        statevector%anltime=numStep
     case default
       call utl_abort('gsv_allocate: unsupported value for ANLTIME_BIN = '//trim(ANLTIME_BIN))
-    end select          
+    end select
 
     if (present(dateStamp_opt) .and. present(dateStampList_opt)) then
       call utl_abort('gsv_allocate: Either dateStamp or dateStampList should be presented but not both')
     else if (present(dateStampList_opt)) then
       allocate(statevector%dateStampList(numStep))
       do stepIndex = 1, numStep
-       statevector%dateStampList(stepIndex)= dateStampList_opt(stepIndex)
+        statevector%dateStampList(stepIndex)= dateStampList_opt(stepIndex)
       end do
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
     else if (present(dateStamp_opt)) then
@@ -2961,7 +2961,7 @@ module gridStateVector_mod
     end if   
 
     if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: NO variables found in the file!!!')
-    
+
     write(*,*) 'gsv_readFromFile: defining hco by varname= ', varName
 
     call hco_setupFromFile( hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName )
@@ -3959,9 +3959,9 @@ module gridStateVector_mod
         end if
       else
         if ( sendrecvKind == 4 ) then
-           gd_recv_varsLevs_r4(:,:,:,1) = gd_send_varsLevs_r4(:,:,:,1)
+          gd_recv_varsLevs_r4(:,:,:,1) = gd_send_varsLevs_r4(:,:,:,1)
         else
-           gd_recv_varsLevs_r8(:,:,:,1) = gd_send_varsLevs_r8(:,:,:,1)
+          gd_recv_varsLevs_r8(:,:,:,1) = gd_send_varsLevs_r8(:,:,:,1)
         end if
       end if
 
@@ -4031,9 +4031,9 @@ module gridStateVector_mod
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
             gd_send_height(1:statevector_out%allLonPerPE(youridx+1),  &
-                       1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
+                           1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
               field_height_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
+                                  statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
           end do
         end do
         !$OMP END PARALLEL DO
@@ -4051,9 +4051,9 @@ module gridStateVector_mod
                              0, 'grid', ierr)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                       statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
         gd_recv_height(1:statevector_out%lonPerPE,  &
-                   1:statevector_out%latPerPE)
+                       1:statevector_out%latPerPE)
 
       deallocate(displs)
       deallocate(nsizes)
@@ -4063,6 +4063,14 @@ module gridStateVector_mod
 
     ! Copy over the mask, if it exists
     call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+
+    ! Copy metadata
+    if ( associated(statevector_in%dateStampList) ) statevector_out%dateStampList = statevector_in%dateStampList
+    if ( associated(statevector_in%dateOriginList) ) statevector_out%dateOriginList = statevector_in%dateOriginList
+    if ( associated(statevector_in%npasList) )      statevector_out%npasList = statevector_in%npasList
+    if ( associated(statevector_in%ip2List) )       statevector_out%ip2List = statevector_in%ip2List
+    statevector_out%deet = statevector_in%deet
+    statevector_out%etiket = statevector_in%etiket
 
     call tmg_stop(151)
 
