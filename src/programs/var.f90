@@ -36,7 +36,7 @@ program midas_var
   use obsFiles_mod
   use minimization_mod
   use innovation_mod
-  use minimization_mod
+  use analysisGrid_mod
   use bmatrix_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
