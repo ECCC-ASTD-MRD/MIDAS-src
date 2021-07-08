@@ -358,7 +358,7 @@ contains
              end if
           endif
        enddo
-       
+
        ! multiply by H
        call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
        call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
@@ -367,14 +367,14 @@ contains
        enddo
 
     end if
-   
+
     ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben
 
     if (cvm_subVectorExists('B_ENS')) then
 
        cvBen => cvm_getSubVector(controlVector,'B_ENS')
        HxBen(:) = 0.0d0
-   
+
        ! compute random control vector
 
        controlVector(:) = 0.0d0
@@ -600,7 +600,7 @@ contains
     deallocate(bmatHiStd)
     deallocate(bmatEnStd)
     deallocate(counts)
-    
+
     deallocate(HxBhi)
     deallocate(HxBen)
 
