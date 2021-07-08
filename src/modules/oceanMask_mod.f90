@@ -72,21 +72,22 @@ module oceanMask_mod
     ! locals:
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
-    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
+    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui
     integer, allocatable :: mask(:,:)
+    integer :: maxkeys
 
     ! Check if any mask is present in file, return if not
     if ( .not. utl_varNamePresentInFile(' ',fileName_opt=trim(fileName),typvar_opt='@@') ) then
       return
     end if
 
-    !- Open input field
+    !- Open input file
     nulfile = 0
     write(*,*) 'ocm_readMaskFromFile: file name = ',trim(fileName)
     ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
-       
+
     if ( ierr >= 0 ) then
-      ierr = fstouv(nulfile,'RND+OLD')
+      maxkeys = fstouv(nulfile,'RND+OLD')
     else
       call utl_abort('ocm_readMaskFromFile: problem opening input file')
     end if
@@ -110,14 +111,17 @@ module oceanMask_mod
           call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
 
+        do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
+          ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
+        end do
+
         if (ni_file == hco%ni .and. nj_file == hco%nj) then
           write(*,*) 'ocm_readMaskFromFile: read mask for ip1 = ', ip1
           if (.not. associated(oceanMask%mask)) then
             call ocm_allocate(oceanMask,hco,vco%nLev_depth)
           end if
-          if (.not.allocated(mask)) allocate(mask(hco%ni,hco%nj))
-          ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                        -1, ' ', ip1, -1, -1, '@@', ' ')
+          if (.not. allocated(mask)) allocate(mask(hco%ni,hco%nj))
+          ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
           call ocm_copyFromInt(oceanMask,mask,levIndex)
           if (ierr < 0) then
             call utl_abort('ocm_readMaskFromFile: error when reading mask record')
@@ -142,13 +146,16 @@ module oceanMask_mod
         call utl_abort('ocm_readMaskFromFile: cannot find any mask in file ' // trim(fileName))
       end if
 
+      do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
+        ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
+      end do
+
       if (ni_file == hco%ni .and. nj_file == hco%nj) then
         write(*,*) 'ocm_readMaskFromFile: reading mask'
         if (.not. associated(oceanMask%mask)) then
           call ocm_allocate(oceanMask,hco,1)
-          if (.not.allocated(mask)) allocate(mask(hco%ni,hco%nj))
-          ierr = fstlir(mask(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                        -1, ' ', -1, -1, -1, '@@', ' ')
+          if (.not. allocated(mask)) allocate(mask(hco%ni,hco%nj))
+          ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
           call ocm_copyFromInt(oceanMask,mask,1)
           if (ierr < 0) then
             call utl_abort('ocm_readMaskFromFile: error when reading mask record')
