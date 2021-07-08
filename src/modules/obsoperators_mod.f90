@@ -1082,7 +1082,7 @@ contains
           levelAltHigh = col_getHeight(columnhr, levelIndex,   headerIndex,'MM')
           levelAltLow  = col_getHeight(columnhr, levelIndex+1, headerIndex,'MM')
           if (levelAltLow < obsAltitude) exit 
-        end do 
+        end do
 
         ! deactivate this check until slp_radar_getRangefromH() is fixed
         !
