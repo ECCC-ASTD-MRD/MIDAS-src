@@ -264,7 +264,7 @@ contains
           if ( currentMin < mindxy ) then
             mindxy = currentMin
           end if
-        
+
         end if
 
       end do
@@ -274,7 +274,7 @@ contains
     write(*,*) myName//': Minimim grid spacing: mindxy = ', mindxy
 
     if ( corr_len == -1 ) then
-       
+
       write(*,*) myName//': Correlation length scale 2D field will be read from the file: ', correlationLengthFileName
       call gsv_allocate( statevector, 1, hco, vco, dateStamp_opt=-1, dataKind_opt=4, &
                          hInterpolateDegree_opt='LINEAR', varNames_opt=bdiff_varNameList, &
