@@ -15,9 +15,9 @@
    elemIdList(1) = 12163
 /
  &namObsDbUpdate
-   numberUpdateItems=1
+   numberUpdateItems=3
    updateItemList(1)='OMP'
-   updateItemList(2)='OMA'
+   updateItemList(2)='BCOR'
    updateItemList(3)='OER'
 /
  &NAMDIMO
