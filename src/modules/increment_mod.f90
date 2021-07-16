@@ -113,7 +113,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevectorPsfcLowRes
-    type(struct_gsv) :: statevector_mask
+    type(struct_gsv), pointer :: statevector_mask => null()
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -154,12 +154,7 @@ CONTAINS
     !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     !
     if (.not. hco_trl%global .and. useAnalIncMask) then
-      call gsv_allocate(statevector_mask, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
-                        dataKind_opt=pre_incrReal, &
-                        mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
-                        hInterpolateDegree_opt=hInterpolationDegree)
-      call gsv_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
-                            vcoFileIn_opt=vco_trl)
+      call gsv_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
     !
@@ -661,21 +656,7 @@ CONTAINS
     !- Masking
     !
     if (present(mask2d_opt)) then
-      call gsv_getField(statevector_in_hvInterp,increment)
-      call gsv_getField(mask2d_opt,analIncMask)
-      do stepIndex = 1, statevector_in_hvInterp%numStep
-        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-        do kIndex = 1, statevector_in_hvInterp%nk
-          do latIndex =  statevector_in_hvInterp%myLatBeg,  statevector_in_hvInterp%myLatEnd
-            do lonIndex =  statevector_in_hvInterp%myLonBeg,  statevector_in_hvInterp%myLonEnd
-              increment(lonIndex,latIndex,kIndex,stepIndex) =      &
-                   increment(lonIndex,latIndex,kIndex,stepIndex) * &
-                   analIncMask(lonIndex,latIndex,1)
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end do
+      call gsv_applyMaskLAM(statevector_in_hvInterp,mask2d_opt)
     end if
 
     !
