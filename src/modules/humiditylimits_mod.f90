@@ -31,7 +31,7 @@ module humidityLimits_mod
   private
 
   ! public procedures
-  public :: qlim_saturationLimit, qlim_rttovLimit
+  public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
 
@@ -40,13 +40,18 @@ module humidityLimits_mod
     module procedure qlim_saturationLimit_gsv
     module procedure qlim_saturationLimit_ens
   end interface qlim_saturationLimit
-
+  
   ! interface for qlim_rttovLimit
   interface qlim_rttovLimit
     module procedure qlim_rttovLimit_gsv
     module procedure qlim_rttovLimit_ens
   end interface qlim_rttovLimit
 
+  ! interface for qlim_setMin
+  interface qlim_setMin
+    module procedure qlim_setMin_ens
+  end interface qlim_setMin
+  
 contains
 
   !--------------------------------------------------------------------------
@@ -607,4 +612,62 @@ contains
 
   end subroutine qlim_lintv_minmax
 
+  !--------------------------------------------------------------------------
+  ! qlim_setMin_ens
+  !--------------------------------------------------------------------------
+  subroutine qlim_setMin_ens(ensemble,huMinValue)
+    !
+    !:Purpose: To impose lower limit on humidity variable of an ensemble
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensemble
+    real(8),          intent(in)    :: huMinValue
+
+    ! Locals:
+    type(struct_vco), pointer :: vco_ptr
+    real(4), pointer :: hu_ptr_r4(:,:,:,:)
+    real(4)          :: hu, hu_modified
+    integer          :: lon1, lon2, lat1, lat2, numLev
+    integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
+
+    if (mpi_myid == 0) write(*,*) 'qlim_setMin_ens: STARTING'
+
+    if (ens_getDataKind(ensemble) == 8) then
+      call utl_abort('qlim_setMin_ens: Not compatible with dataKind = 8')
+    end if
+
+    if( .not. ens_varExist(ensemble,'HU') ) then
+      if( mpi_myid == 0 ) write(*,*) 'qlim_setMin_ens: ensemble does not ' // &
+           'contain humidity ... doing nothing'
+      return
+    end if
+
+    vco_ptr => ens_getVco(ensemble)
+    numLev = vco_getNumLev(vco_ptr,'TH')
+    call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
+
+    do latIndex = lat1, lat2
+      do lonIndex = lon1, lon2
+        do levIndex = 1, numLev
+          varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
+          hu_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+
+          !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, hu, hu_modified)
+          do stepIndex = 1, ens_getNumStep(ensemble)
+            do memberIndex = 1, ens_getNumMembers(ensemble)
+              hu = hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
+              hu_modified = max(hu, real(huMinValue,4))
+              hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = hu_modified
+            end do ! memberIndex
+          end do ! stepIndex
+          !$OMP END PARALLEL DO
+
+        end do ! levIndex
+      end do ! lonIndex
+    end do ! latIndex
+
+  end subroutine qlim_setMin_ens
+  
 end module humidityLimits_mod
