@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * Add option to impose a minimum value on HU when using HU as the control variable in BmatrixEnsemble (#509 and !481)
  * Add new programs `var1D` and `extractBmatrixFor1Dvar` to do 1D-Var (#309 and !454)
  * The `midas.splitobs.Abs` program now creates an index for each SQL observation output file (#506 and !479)
  * Add separate ensemble recentering coefficient for soil variables I0/I1 (#501 and !478)
