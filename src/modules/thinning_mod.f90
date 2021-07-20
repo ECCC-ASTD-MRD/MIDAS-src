@@ -632,7 +632,7 @@ contains
                                 'TO', codtyp_get_codtyp('cris'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
-                                'TO', codtyp_get_codtyp('crisfsr'))
+                                'TO', codtyp_get_codtyp('cris-fsr'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_stop(114)
 

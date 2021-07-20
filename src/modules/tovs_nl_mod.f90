@@ -420,10 +420,12 @@ contains
         tvs_opts(sensorIndex) % config % apply_reg_limits = .true. ! if true application of profiles limits
         tvs_opts(sensorIndex) % config % verbose = .false. ! verbose output
         tvs_opts(sensorIndex) % config % do_checkinput = .true. ! to check if input profiles are within absolute and regression limits
+        tvs_opts(sensorIndex) % config % fix_hgpl = .false. ! for backward compatibility with RTTOV-12 should be changed later
         !< General RT options
         tvs_opts(sensorIndex) % rt_all % switchrad = .true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
         tvs_opts(sensorIndex) % rt_all % use_q2m = .false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
         tvs_opts(sensorIndex) % rt_all % addrefrac = .true.  ! to account for atmospheric refraction
+        tvs_opts(sensorIndex) % rt_all % dtau_test = .true.  ! for backward compatibility with RTTOV-12 should be changed later
         !< VIS/IR RT options
         tvs_opts(sensorIndex) % rt_ir % addsolar = .false.  ! to model solar component in the near IR (2000 cm-1 et plus)
         tvs_opts(sensorIndex) % rt_ir % addaerosl = .false. ! to account for scattering due to aerosols
@@ -436,29 +438,37 @@ contains
         !< MW RT options
         tvs_opts(sensorIndex) % rt_mw % clw_data = tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
+        tvs_opts(sensorIndex) % rt_mw%clw_scheme = 1 ! default and recommended is 2 just for backward compatibility
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .true. ! use of internal profile interpolator (rt calculation on model levels)
         tvs_opts(sensorIndex) % interpolation % lgradp = .true.    ! allow tl/ad of user pressure levels
         tvs_opts(sensorIndex) % interpolation % interp_mode = interp_rochon_loglinear_wfn ! see table 9 page 37 of RTTOV 12.1 users guide
         tvs_opts(sensorIndex) % interpolation % reg_limit_extrap = tvs_regLimitExtrap 
 
-        tvs_opts(sensorIndex) % rt_ir % co2_data = .false.
-        tvs_opts(sensorIndex) % rt_ir % n2o_data = .false.
-        tvs_opts(sensorIndex) % rt_ir % co_data  = .false.
-        tvs_opts(sensorIndex) % rt_ir % ch4_data = .false.
+        tvs_opts(sensorIndex) % rt_all % co2_data = .false.
+        tvs_opts(sensorIndex) % rt_all % n2o_data = .false.
+        tvs_opts(sensorIndex) % rt_all % co_data  = .false.
+        tvs_opts(sensorIndex) % rt_all % ch4_data = .false.
 
         errorStatus = errorStatus_success
 
         call utl_tmg_start(16,'----RttovSetup')
         write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
-        call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
+        call rttov_read_coefs ( &
+           errorStatus(1),             &! out
+           tvs_coefs(sensorIndex),           &
+           tvs_opts(sensorIndex),            &
+           instrument= tvs_listSensors(:,sensorIndex),      &! in
+           channels=  tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) )     ! in option
+        !call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), 
+        ! tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         if (errorStatus(1) /= errorStatus_success) then
-          write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
+          write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
         call utl_tmg_stop(16)
 
-        tvs_opts(sensorIndex) % rt_ir % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
+        tvs_opts(sensorIndex) % rt_all % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 
         ! Ensure the options and coefficients are consistent
         call rttov_user_options_checkinput(errorStatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
@@ -1274,7 +1284,7 @@ contains
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
     integer, external :: fclos, fnom
-    character (len=7) :: name_inst(maxsize)
+    character (len=8) :: name_inst(maxsize)
     namelist /NAMHYPER/ name_inst
 
     if (first) then
@@ -1331,8 +1341,8 @@ contains
     integer, save :: ninst_hir
     logical, save :: lfirst = .true.
     integer, external :: fclos, fnom
-    character (len=7),save  :: name_inst(maxsize)
-    character (len=7) :: name2
+    character (len=8),save  :: name_inst(maxsize)
+    character (len=8) :: name2
     namelist /NAMHYPER/ name_inst
 
     if (lfirst) then
@@ -2161,7 +2171,7 @@ contains
         profiles(tovsIndex) % s2m % v         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'VV')
         profiles(tovsIndex) % s2m % o         = 0.0d0 !surface ozone never used
         profiles(tovsIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
-        profiles(tovsIndex) % idg             = 0
+        profiles(tovsIndex) % icede_param     = 0
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
@@ -3708,13 +3718,14 @@ contains
     ! Third step: common (i.e. independent from the channel list) parameters are simply broadcasted to other processors
     ! Scalar and fixed size arrays and  strings first
 
-    call rpn_comm_bcast(coefs%initialised, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Logical flag for initialization
-    call rpn_comm_bcast(coefs%coef%id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs%coef%id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  !ok
-    call rpn_comm_bcast(coefs%coef%id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  !ok
-    call rpn_comm_bcast(coefs%coef%id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs%coef%id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)!ok
-    call rpn_comm_bcast(coefs%coef%id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr)!ok
+    call rpn_comm_bcast(coefs%initialised, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)     ! OK Logical flag for initialization
+    call rpn_comm_bcast(coefs%coef%id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
+    call rpn_comm_bcast(coefs%coef%id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)     ! OK
+    call rpn_comm_bcast(coefs%coef%id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)    ! OK
+    call rpn_comm_bcast(coefs%coef%id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  ! OK 
+    call rpn_comm_bcast(coefs%coef%id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
+    call rpn_comm_bcast(coefs%coef%id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK
+
     call rpn_comm_bcast(coefs%coef%fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
     call rpn_comm_bcast(coefs%coef%fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
     call rpn_comm_bcast(coefs%coef%fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
@@ -3749,14 +3760,14 @@ contains
 
     call rpn_comm_bcast(coefs%coef%ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-    call rpn_comm_bcast(coefs%coef%id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) 
-    call rpn_comm_bcastc(coefs%coef%id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr) 
-    call rpn_comm_bcastc(coefs%coef%id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+    call rpn_comm_bcast(coefs%coef%id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK 
+    call rpn_comm_bcastc(coefs%coef%id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr)  ! OK 
+    call rpn_comm_bcastc(coefs%coef%id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) !OK
     do i=1, 100
       call rpn_comm_bcastc(coefs%coef%line_by_line(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
       call rpn_comm_bcastc(coefs%coef%readme_srf(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
     end do
-    call rpn_comm_bcastc(coefs%coef%fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !ok
+    call rpn_comm_bcastc(coefs%coef%fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !OK
     call rpn_comm_bcast(coefs%coef%fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4)) !ok
     call rpn_comm_bcast(coefs%coef%fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4)) !ok
     call rpn_comm_bcast(coefs%coef%fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km) !ok
@@ -3771,7 +3782,7 @@ contains
     call rpn_comm_bcast(coefs%coef%iremis_angle0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(coefs%coef%iremis_tskin0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(coefs%coef%ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
-    call rpn_comm_bcast(coefs%coef%mwcldtop, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    !call rpn_comm_bcast(coefs%coef%mwcldtop, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
     ! then variable size vectors
     ! this one must be done first because it is used to dimension other ones ....
     if (mpi_myid > 0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
@@ -3782,6 +3793,7 @@ contains
       allocate( coefs%coef%fmv_gas_pos(ngases_max)) !size is from rttov consts
       allocate( coefs%coef%fmv_var(coefs%coef%fmv_gas))
       allocate( coefs%coef%fmv_coe(coefs%coef%fmv_gas)) ! number of coefficients by gas (fmv_gas)
+      allocate( coefs%coef%fmv_ncorr(coefs%coef%fmv_gas)) ! number of coefs by gas for correction term (fmv_gas) (v13 only)
       allocate( coefs%coef%ws_npoint(coefs%coef%ws_nomega) )
       allocate( coefs%coef%ws_k_omega(coefs%coef%ws_nomega) )
       allocate( coefs%coef%ref_prfl_p(coefs%coef%fmv_lvl(gas_id_mixed) ) )
@@ -3807,6 +3819,7 @@ contains
     call broadcastI41dArray( coefs%coef%fmv_gas_pos )
     call broadcastI41dArray( coefs%coef%fmv_var )
     call broadcastI41dArray( coefs%coef%fmv_coe )
+    call broadcastI41dArray( coefs%coef%fmv_ncorr )
     call broadcastR81dArray( coefs%coef%ws_npoint )
     call broadcastR81dArray( coefs%coef%ws_k_omega )
     call broadcastR81dArray( coefs%coef%ref_prfl_p )

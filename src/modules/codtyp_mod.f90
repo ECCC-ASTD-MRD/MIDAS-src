@@ -302,7 +302,7 @@ contains
     icod(111 + ncodtyp) = 254 
     cnames(112 + ncodtyp) = 'ssmis'
     icod(112 + ncodtyp) = 168 
-    cnames(113 + ncodtyp) = 'crisfsr'
+    cnames(113 + ncodtyp) = 'cris-fsr'
     icod(113 + ncodtyp) = 202
     cnames(114 + ncodtyp) = 'mwhs2'
     icod(114 + ncodtyp) = 200

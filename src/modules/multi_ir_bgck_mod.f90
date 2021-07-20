@@ -413,7 +413,8 @@ contains
 
     liasi= ( trim(instrumentName) == "IASI" .or.  trim(instrumentName) == "iasi")
     lairs= ( trim(instrumentName) == "AIRS" .or.  trim(instrumentName) == "airs")
-    lcris= ( trim(instrumentName) == "CRIS" .or.  trim(instrumentName) == "cris" .or. trim(instrumentName) == "CRISFSR" .or.  trim(instrumentName) == "crisfsr")
+    lcris= ( trim(instrumentName) == "CRIS" .or.  trim(instrumentName) == "cris" .or. trim(instrumentName) == "CRIS-FSR" .or. &
+             trim(instrumentName) == "cris-fsr" )
 
     call bgck_get_qcid(instrumentName,qcid)
     

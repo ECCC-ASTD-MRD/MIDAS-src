@@ -164,9 +164,9 @@
    CSATID(35)        = 'NOAA20',
    CINSTRUMENTID(35) = 'ATMS',
    CSATID(36)        = 'NPP',
-   CINSTRUMENTID(36) = 'CRISFSR',
+   CINSTRUMENTID(36) = 'CRIS-FSR',
    CSATID(37)        = 'NOAA20',
-   CINSTRUMENTID(37) = 'CRISFSR',
+   CINSTRUMENTID(37) = 'CRIS-FSR',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    instrumentNamesUsingCLW(1) = 'amsua'
@@ -338,7 +338,7 @@
    LISTBURP(32)=617,
    LISTINSTRUM(32)="abi",
    LISTBURP(33)=2046,
-   LISTINSTRUM(33)="crisfsr",
+   LISTINSTRUM(33)="cris-fsr",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -362,13 +362,13 @@
    inst_names(7)='iasi',
    inst_names(8)='cris',
    inst_names(9)='radianceclear',
-   inst_names(10)='crisfsr',
+   inst_names(10)='cris-fsr',
 /
  &NAMHYPER
    name_inst(1)='airs',
    name_inst(2)='iasi',
    name_inst(3)='cris',
-   name_inst(4)='crisfsr',
+   name_inst(4)='cris-fsr',
 /
  &NAMGEO
    name_inst(1)='goesim',
@@ -379,7 +379,7 @@
    name_inst(6)='abi',
 /
  &NAMCODTYP
-   cnames(1)='crisfsr',
+   cnames(1)='cris-fsr',
    icod(1)=202,
 /
  &NAMGPSRO

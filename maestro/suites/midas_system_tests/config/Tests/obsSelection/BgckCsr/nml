@@ -225,7 +225,7 @@
    LISTBURP(32)=617,
    LISTINSTRUM(32)="abi",
    LISTBURP(33)=2046,
-   LISTINSTRUM(33)="crisfsr",
+   LISTINSTRUM(33)="cris-fsr",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -249,13 +249,13 @@
    inst_names(7)='iasi',
    inst_names(8)='cris',
    inst_names(9)='radianceclear',
-   inst_names(10)='crisfsr',
+   inst_names(10)='cris-fsr',
 /
  &NAMHYPER
    name_inst(1)='airs',
    name_inst(2)='iasi',
    name_inst(3)='cris',
-   name_inst(4)='crisfsr',
+   name_inst(4)='cris-fsr',
 /
  &NAMGEO
    name_inst(1)='goesim',
@@ -371,7 +371,7 @@
     cinst(12)="CRIS"
     nbscan(12)=1
     cglobal(12)="NON"
-    cinst(13)="CRISFSR"
+    cinst(13)="CRIS-FSR"
     nbscan(13)=1
     cglobal(13)="NON"
     cinst(14)="AHI"
@@ -486,7 +486,7 @@
    ILIST2_PAIR(3,12)=153,
    ILIST2_PAIR(3,13)=97,	
    ICHN_SUN(3)=1147,
-   INST(4)='CRISFSR',
+   INST(4)='CRIS-FSR',
    IWINDOW(4)=427,
    IWINDOW_ALT(4)=534,
    ILIST1(4,1)=275,

@@ -2311,7 +2311,7 @@ contains
         lSsmis = .true.
       case("csr")
         lGeo = .true.
-      case("airs", "iasi", "cris", "crisfsr")
+      case("airs","iasi","cris","cris-fsr")
         lHyperIr = .true.
       case default
         lTovs = .true.
