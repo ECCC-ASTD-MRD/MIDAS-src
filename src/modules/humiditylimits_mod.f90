@@ -98,7 +98,7 @@ contains
     lat1 = statevector%myLatBeg
     lat2 = statevector%myLatEnd
     lev1 = 1
-    lev2 = vco_getNumLev(vco_ptr,'TH')
+    lev2 = gsv_getNumLev(statevector,'TH')
 
     allocate(psfc(lon2-lon1+1,lat2-lat1+1))
     do stepIndex = 1, statevector%numStep
@@ -197,7 +197,7 @@ contains
     end if
 
     vco_ptr => ens_getVco(ensemble)
-    numLev = vco_getNumLev(vco_ptr,'TH')
+    numLev = ens_getNumLev(ensemble,'TH')
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
     allocate(psfc(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
 
@@ -325,7 +325,7 @@ contains
     lat1 = statevector%myLatBeg
     lat2 = statevector%myLatEnd
     lev1 = 1
-    lev2 = vco_getNumLev(vco_ptr,'TH')
+    lev2 = gsv_getNumLev(statevector,'TH')
 
     ni = lon2 - lon1 + 1
     nj = lat2 - lat1 + 1
@@ -462,7 +462,7 @@ contains
     end if
 
     vco_ptr => ens_getVco(ensemble)
-    numLev = vco_getNumLev(vco_ptr,'TH')
+    numLev = ens_getNumLev(ensemble,'TH')
     numMember = ens_getNumMembers(ensemble)
     numStep = ens_getNumStep(ensemble)
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
@@ -626,7 +626,6 @@ contains
     real(8),          intent(in)    :: huMinValue
 
     ! Locals:
-    type(struct_vco), pointer :: vco_ptr
     real(4), pointer :: hu_ptr_r4(:,:,:,:)
     real(4)          :: hu, hu_modified
     integer          :: lon1, lon2, lat1, lat2, numLev
@@ -644,8 +643,7 @@ contains
       return
     end if
 
-    vco_ptr => ens_getVco(ensemble)
-    numLev = vco_getNumLev(vco_ptr,'TH')
+    numLev = ens_getNumLev(ensemble,'TH')
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
     do latIndex = lat1, lat2
