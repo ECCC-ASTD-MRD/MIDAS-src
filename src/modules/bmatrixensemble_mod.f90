@@ -41,6 +41,7 @@ module BmatrixEnsemble_mod
   use varNameList_mod
   use advection_mod
   use gridBinning_mod
+  use humidityLimits_mod
   implicit none
   save
   private
@@ -299,7 +300,7 @@ CONTAINS
       useCmatrixOnly        = .false.
       ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
       transformVarKindCH    = ''
-      huMinValue            = MPC_missingValue_R8
+      huMinValue            = MPC_missingValue_R8  ! i.e. undefined
       hInterpolationDegree  = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
       
       !- Read the namelist
@@ -1189,6 +1190,9 @@ CONTAINS
     if ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1),'HU') .and. &
          bEns(instanceIndex)%ensContainsFullField ) then
       call gvt_transform(bEns(instanceIndex)%ensPerts(1),'HUtoLQ',huMinValue_opt=bEns(instanceIndex)%huMinValue)
+    else if ( bEns(instanceIndex)%ctrlVarHumidity == 'HU' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1),'HU') .and. &
+         bEns(instanceIndex)%ensContainsFullField .and. bEns(instanceIndex)%huMinValue /= MPC_missingValue_R8 ) then
+      call qlim_setMin(bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%huMinValue)
     else if ( trim(bEns(instanceIndex)%transformVarKindCH) /= '' ) then
       do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
         if ( vnl_varKindFromVarname(bEns(instanceIndex)%includeAnlVar(varIndex)) /= 'CH' ) cycle            
