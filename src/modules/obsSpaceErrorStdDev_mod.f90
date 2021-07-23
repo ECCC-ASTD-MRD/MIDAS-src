@@ -21,7 +21,6 @@ module obsSpaceErrorStdDev_mod
   !           standard deviations in observation space
   !
   use mpi_mod
-  use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr_mod
@@ -32,7 +31,6 @@ module obsSpaceErrorStdDev_mod
   use gridStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use bmatrixhi_mod
   use obsOperators_mod
   use gps_mod
@@ -94,13 +92,14 @@ module obsSpaceErrorStdDev_mod
   end type struct_OmPStdDevCH
 
   type(struct_OmPStdDevCH)  :: OmPstdCH
-  
+  type(struct_hco), pointer :: hco_anl => null()
+
   contains
 
   !--------------------------------------------------------------------------
   ! ose_computeStddev
   !--------------------------------------------------------------------------
-  subroutine ose_computeStddev(columng,obsSpaceData)
+  subroutine ose_computeStddev(columng,hco_anl_in,obsSpaceData)
     !
     !:Purpose: To set OmP-error std dev when possible. Otherwise 
     !          compute background-error stddev in observation space to 
@@ -110,6 +109,7 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     type(struct_columnData) :: columng       ! Columns of the background interpolated to analysis levels and to obs horizontal locations
+    type(struct_hco), pointer :: hco_anl_in
     type(struct_obs) :: obsSpaceData         ! Observation-related data
     
     ! Locals:
@@ -128,6 +128,9 @@ module obsSpaceErrorStdDev_mod
 
     !namelist
     NAMELIST /NAMHBHT/hybrid_mode
+
+    ! set the module variable hco_anl
+    hco_anl => hco_anl_in
 
     ! return if there is no observation.
     if ( obs_numheader(obsSpaceData) == 0 ) return
@@ -295,7 +298,6 @@ module obsSpaceErrorStdDev_mod
       logical                 :: active
       
       ! Locals:
-      type(struct_hco), pointer        :: hco_anl
       type(struct_vco), pointer        :: vco_anl
       type(struct_columnData) :: lcolumn
       type(struct_gsv)        :: statevector
@@ -324,8 +326,7 @@ module obsSpaceErrorStdDev_mod
 
       real(8), allocatable  :: scaleFactor(:)
 
-      !- Get the appropriate Horizontal and Vertical Coordinate
-      hco_anl => agd_getHco('ComputationalGrid')
+      !- Get the appropriate Vertical Coordinate
       vco_anl => col_getVco(lcolumng)
 
       ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
@@ -775,13 +776,11 @@ module obsSpaceErrorStdDev_mod
     logical                 :: active        ! flag to indicate if chemical constituents are to be used
 
     ! Locals:
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
        
     integer :: cvdim
  
-    !- Get the appropriate Horizontal and Vertical Coordinate
-    hco_anl => agd_getHco('ComputationalGrid')
+    !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columng)
   
     call bchm_setup( hco_anl,vco_anl, &  ! IN
@@ -825,7 +824,6 @@ module obsSpaceErrorStdDev_mod
     type(struct_columnData) :: column
     type(struct_gsv)        :: statevector
 
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
 
     real(8), allocatable :: HBHT_ens(:)
@@ -837,12 +835,11 @@ module obsSpaceErrorStdDev_mod
     !- 1.  Initialization
     !
 
-    !- 1.1 Get vertical and horizontal analysis grid attributes
+    !- 1.1 Get vertical analysis grid attributes
     vco_anl => col_getVco(columng)
-    hco_anl => agd_getHco('ComputationalGrid')
 
     !- 1.2 Initialize/Read the flow-dependent ensemble perturbations
-    call ben_Setup( hco_anl,             & ! IN
+    call ben_Setup( hco_anl, hco_anl,    & ! IN
                     vco_anl,             & ! IN
                     cvdim,               & ! OUT
                     'BackgroundCheck' )    ! IN

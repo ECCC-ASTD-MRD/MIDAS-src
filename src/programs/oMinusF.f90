@@ -21,7 +21,6 @@ program midas_ominusf
   use version_mod
   use oMinusF_mod
   use obsSpaceData_mod
-  use obsSpaceErrorStdDev_mod
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
@@ -72,11 +71,6 @@ program midas_ominusf
   call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
 
   call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO") ! Apply bias correction to O-F
-
-  if ( addHBHT ) then
-    ! 2.2 Compute the background errors in observation space
-    call ose_computeStddev(trlColumnOnAnlLev,obsSpaceData)
-  end if
 
   ! 2.3 Write the results
 

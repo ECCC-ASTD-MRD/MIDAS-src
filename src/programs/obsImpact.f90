@@ -35,7 +35,6 @@ program midas_obsimpact
   use bmatrix_mod
   use bmatrixensemble_mod
   use stateToColumn_mod
-  use analysisGrid_mod
   use obsOperators_mod
   use costFunction_mod
   use quasinewton_mod
@@ -144,12 +143,10 @@ program midas_obsimpact
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   !     
@@ -163,7 +160,7 @@ program midas_obsimpact
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
+  call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -186,18 +183,18 @@ program midas_obsimpact
   !
   !- Reading and horizontal interpolation of the 3D trial fields
   !
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
-  call bmat_setup(hco_anl,vco_anl)
+  call bmat_setup(hco_anl,hco_anl,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   ! - Initialize the gridded variable transform module
   !
-  call gvt_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,hco_core,vco_anl)
 
   !
   !- 2. Do the actual job
@@ -298,7 +295,6 @@ contains
     type(struct_obs),target         :: obsSpaceData
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_FcstErr, statevector_fso
-    type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
@@ -309,7 +305,6 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
-    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     nvadim_mpilocal = cvm_nvadim
@@ -408,11 +403,9 @@ contains
     logical                         :: faExists
     type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
 
-    type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
     integer                         :: dateStamp_fcst, dateStamp
     
-    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     ! compute dateStamp_fcst
@@ -687,7 +680,6 @@ contains
     real(8) :: ahat_vhat(nvadim)
     real(8) :: Jb, Jobs
     type(struct_gsv) :: statevector
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
     if (indic == 1 .or. indic == 4) call tmg_stop(70)
 
@@ -708,7 +700,6 @@ contains
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
 
-      hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(columng_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
                         dataKind_opt=pre_incrReal, mpi_local_opt=.true.)

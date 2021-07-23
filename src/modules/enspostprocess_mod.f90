@@ -974,10 +974,10 @@ contains
     end if
     
     if (firstCall) then
-      call bmat_setup(hco_randomPert, vco_randomPert)
+      call bmat_setup(hco_randomPert, hco_randomPert, vco_randomPert)
       firstCall = .false.
     end if
-    call gvt_setup(hco_randomPert, vco_randomPert)
+    call gvt_setup(hco_randomPert, hco_randomPert, vco_randomPert)
 
     call rng_setup(abs(randomSeed))
 
@@ -1126,10 +1126,12 @@ contains
     call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
 
     call ens_allocate(ensembleAnlSubSample, numSubSample, tim_nstepobsinc,  &
-                      ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
+                      ens_getHco(ensembleAnl), ens_getHco(ensembleAnl), &
+                      ens_getVco(ensembleAnl), dateStampListInc)
     if (present(ensembleTrlSubSample_opt)) then
       call ens_allocate(ensembleTrlSubSample_opt, numSubSample, tim_nstepobsinc,  &
-                        ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
+                        ens_getHco(ensembleAnl), ens_getHco(ensembleAnl), &
+                        ens_getVco(ensembleAnl), dateStampListInc)
     end if
 
     call gsv_allocate(stateVectorMember, tim_nstepobsinc,  &

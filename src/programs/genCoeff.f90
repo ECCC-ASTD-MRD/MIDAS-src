@@ -41,7 +41,6 @@ program midas_gencoeff
   use increment_mod
   use stateToColumn_mod
   use backgroundCheck_mod
-  use analysisGrid_mod
 
   implicit none
 
@@ -51,6 +50,7 @@ program midas_gencoeff
   type(struct_obs),        target  :: obsSpaceData
   type(struct_columnData), target  :: trlColumnOnAnlLev
   type(struct_hco), pointer        :: hco_anl => null()
+  type(struct_hco), pointer        :: hco_core => null()
   type(struct_vco), pointer        :: vco_anl => null()
 
 
@@ -82,7 +82,7 @@ program midas_gencoeff
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(3,'TRIALS')
-  call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData )
+  call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData, hco_core )
   call tmg_stop(3)
 
   !
@@ -167,7 +167,6 @@ contains
     character(len=*), intent(in) :: obsColumnMode
     !Locals:	
     integer :: datestamp
-    type(struct_hco),pointer :: hco_core => null()
 
     write(*,*) ''
     write(*,*) '----------------------------------------'
@@ -211,13 +210,11 @@ contains
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
+      hco_core => hco_anl
     else
       !- Initialize the core (Non-Extended) analysis grid
       if(mpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     !     
@@ -232,7 +229,7 @@ contains
     !
     !- Setup and read observations
     !
-    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
+    call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !

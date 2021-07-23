@@ -42,6 +42,7 @@ module BmatrixEnsemble_mod
   use advection_mod
   use gridBinning_mod
   use humidityLimits_mod
+  use analysisGrid_mod
   implicit none
   save
   private
@@ -102,8 +103,8 @@ module BmatrixEnsemble_mod
     type(struct_vco), pointer :: vco_anl, vco_ens, vco_file => null()
 
     ! Horizontal grid
-    type(struct_hco), pointer :: hco_anl  ! Analysis   horizontal grid parameters
     type(struct_hco), pointer :: hco_ens  ! Ensemble   horizontal grid parameters
+    type(struct_hco), pointer :: hco_core ! Core grid for limited area EnVar
     type(struct_hco), pointer :: hco_file ! Input file horizontal grid parameters
     
     ! Amplitude parameters
@@ -182,7 +183,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ben_setup
   !--------------------------------------------------------------------------
-  subroutine ben_setup(hco_anl_in, vco_anl_in, cvDimPerInstance, &
+  subroutine ben_setup(hco_anl_in, hco_core_in, vco_anl_in, cvDimPerInstance, &
                        mode_opt)
     !
     !:Purpose: To configure the ensemble B matrix
@@ -191,6 +192,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco_anl_in
+    type(struct_hco), pointer, intent(in) :: hco_core_in
     type(struct_vco), pointer, intent(in) :: vco_anl_in
 
     character(len=*), intent(in), optional :: mode_opt
@@ -376,8 +378,12 @@ CONTAINS
       bEns(nInstance)%huMinValue                 = huMinValue
       bEns(nInstance)%hInterpolationDegree       = hInterpolationDegree
       
-      bEns(nInstance)%hco_anl => hco_anl_in
-      bEns(nInstance)%vco_anl => vco_anl_in
+      bEns(nInstance)%hco_ens  => hco_anl_in
+      bEns(nInstance)%hco_core => hco_core_in
+      bEns(nInstance)%vco_anl  => vco_anl_in
+
+      !- Setup the LAM analysis grid metrics
+      call agd_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
       
       !- Set the instance
       call ben_setupOneInstance(nInstance,               & ! IN
@@ -481,7 +487,6 @@ CONTAINS
     end if
 
     !- 1.3 Horizontal grid
-    bEns(instanceIndex)%hco_ens => bEns(instanceIndex)%hco_anl ! ensemble members must be on analysis grid
     bEns(instanceIndex)%ni = bEns(instanceIndex)%hco_ens%ni
     bEns(instanceIndex)%nj = bEns(instanceIndex)%hco_ens%nj
     if (bEns(instanceIndex)%hco_ens%global) then
@@ -834,7 +839,8 @@ CONTAINS
 
       if (trim(bEns(instanceIndex)%varianceSmoothing) == 'horizMean') then
         if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
-        call gbi_setup(gbi_horizontalMean, 'HorizontalMean', bEns(instanceIndex)%statevector_ensStdDev)
+        call gbi_setup(gbi_horizontalMean, 'HorizontalMean', &
+                       bEns(instanceIndex)%statevector_ensStdDev, bEns(instanceIndex)%hco_core)
         call gbi_mean(gbi_horizontalMean, bEns(instanceIndex)%statevector_ensStdDev, & ! IN
                       bEns(instanceIndex)%statevector_ensStdDev)                       ! OUT
         call gbi_deallocate(gbi_horizontalMean)
@@ -843,6 +849,7 @@ CONTAINS
                                   bEns(instanceIndex)%footprintRadius)         ! IN
       else if (trim(bEns(instanceIndex)%varianceSmoothing) == 'footprintLandSeaTopo') then
         call gbi_setup(gbi_landSeaTopo, 'landSeaTopo', bEns(instanceIndex)%statevector_ensStdDev, &
+                       bEns(instanceIndex)%hco_core, &
                        mpi_distribution_opt='None', writeBinsToFile_opt=bEns(instanceIndex)%ensDiagnostic)
         call gsv_getField(gbi_landSeaTopo%statevector_bin2d,bin2d)
         HeightSfc => gsv_getHeightSfc(gbi_landSeaTopo%statevector_bin2d)
@@ -1049,9 +1056,10 @@ CONTAINS
     else
       write(*,*) 'ben_setupOneInstance: using saved memory for ensemble amplitudes for improved efficiency'
       bEns(instanceIndex)%useSaveAmp = .true.
-      call ens_allocate(ensAmplitudeSave(instanceIndex), bEns(instanceIndex)%nEnsOverDimension,     &
+      call ens_allocate(ensAmplitudeSave(instanceIndex), bEns(instanceIndex)%nEnsOverDimension,       &
                         bEns(instanceIndex)%numStepAmplitudeAssimWindow, bEns(instanceIndex)%hco_ens, &
-                        bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList,               &
+                        bEns(instanceIndex)%hco_core, bEns(instanceIndex)%vco_ens,                    &
+                        bEns(instanceIndex)%dateStampList,                                            &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       call ens_zero(ensAmplitudeSave(instanceIndex))
     end if
@@ -1060,7 +1068,9 @@ CONTAINS
     if (bEns(instanceIndex)%keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setupOneInstance: ensAmplitude fields will be store for potential write to file'
-      call ens_allocate(bEns(instanceIndex)%ensAmplitudeStorage, bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStepAmplitudeAssimWindow, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, &
+      call ens_allocate(bEns(instanceIndex)%ensAmplitudeStorage, bEns(instanceIndex)%nEns,   &
+                        bEns(instanceIndex)%numStepAmplitudeAssimWindow, &
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, bEns(instanceIndex)%vco_ens, &
                         bEns(instanceIndex)%dateStampList, varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
     end if
 
@@ -1173,7 +1183,8 @@ CONTAINS
     allocate(bEns(instanceIndex)%ensPerts(bEns(instanceIndex)%nWaveBand))    
     do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
       call ens_allocate(bEns(instanceIndex)%ensPerts(waveBandIndex), bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep, &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, &
+                        bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
                         varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
                         hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree)
     end do
@@ -1893,7 +1904,8 @@ CONTAINS
       ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
       call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core,  &
+                        bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       ensAmplitude_ptr => ensAmplitude
     end if
@@ -2046,7 +2058,8 @@ CONTAINS
       ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
       call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, &
+                        bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       ensAmplitude_ptr => ensAmplitude
     end if

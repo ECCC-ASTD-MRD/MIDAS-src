@@ -23,7 +23,6 @@ program midas_ensDiagnostics
   use gridStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use utilities_mod
   implicit none
@@ -101,11 +100,10 @@ program midas_ensDiagnostics
   call hco_weight(hco_ens, weight)
 
   call vco_setupFromFile(vco_ens, ensFileName)
-  ! PLH: not sure what agd_Setup does and if this is needed
-  call agd_SetupFromHCO(hco_ens)
+
   ! Allocate ensembles, read the Trl ensemble
   allocate(ensembleTrl)
-  call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
+  call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, &
                     dateStampList)
   call ens_readEnsemble(ensembleTrl, ensPathName, biPeriodic = .false.)
   numStep = ens_getNumStep(ensembleTrl)

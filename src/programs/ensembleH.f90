@@ -28,7 +28,6 @@ program midas_ensembleH
   use columnData_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
@@ -47,7 +46,6 @@ program midas_ensembleH
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
-  type(struct_hco), pointer :: hco_ens_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
   integer              :: memberIndex, numStep, numBody
@@ -122,19 +120,11 @@ program midas_ensembleH
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
-  if ( hco_ens % global ) then
-    call agd_SetupFromHCO( hco_ens ) ! IN
-  else
-    !- Setup the LAM analysis grid metrics
-    hco_ens_core => hco_ens
-    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
-  end if
-
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   call tmg_start(4,'SETUPOBS')
   ! read in the observations
-  call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode )
+  call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode )
 
   ! Initialize obs error covariances
   call oer_setObsErrors(obsSpaceData, midasMode)
@@ -183,7 +173,7 @@ program midas_ensembleH
     call tmg_start(6,'SETUP_COLS')
     dealloc = .false.
     if ( memberIndex == nEns ) dealloc = .true.
-    call s2c_nl( stateVector_tiles, obsSpaceData, column, timeInterpType='LINEAR', dealloc_opt=dealloc )
+    call s2c_nl( stateVector_tiles, obsSpaceData, column, hco_ens, timeInterpType='LINEAR', dealloc_opt=dealloc )
     call tmg_stop(6)
 
     write(*,*) ''

@@ -30,6 +30,7 @@ module backgroundCheck_mod
   use obsSpaceDiag_mod
   use earthConstants_mod
   use verticalCoord_mod
+  use horizontalCoord_mod
   use obsSpaceErrorStdDev_mod
   use obsFamilyList_mod
   
@@ -49,16 +50,17 @@ module backgroundCheck_mod
   !--------------------------------------------------------------------------
   ! bgck_bgcheck_conv
   !--------------------------------------------------------------------------
-  subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
+  subroutine bgck_bgcheck_conv( columng, columnhr, hco_anl, obsSpaceData )
      !
      !:Purpose: Do background check on all conventional observations
      !
      implicit none
 
      ! Arguments:
-     type(struct_obs)        :: obsSpaceData  ! Observation-related data
-     type(struct_columnData) :: columng       !
-     type(struct_columnData) :: columnhr      ! 
+     type(struct_obs)          :: obsSpaceData  ! Observation-related data
+     type(struct_columnData)   :: columng       !
+     type(struct_columnData)   :: columnhr      ! 
+     type(struct_hco), pointer :: hco_anl
 
      ! Locals:
      integer :: familyIndex
@@ -100,8 +102,8 @@ module backgroundCheck_mod
      ! Otherwise calc HBHT contribution (sigma_B in observation space)  
      ! -------------------------------------------------------------------- 
 
-     call ose_computeStddev( columng,     & ! IN
-                             obsSpaceData ) ! INOUT
+     call ose_computeStddev( columng, hco_anl, & ! IN
+                             obsSpaceData )      ! INOUT
 
      ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
      ! ----------------------------------------------
@@ -118,7 +120,7 @@ module backgroundCheck_mod
      ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
      ! computations controlled by NAMOSD namelist in flnml)
 
-     call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
+     call osd_ObsSpaceDiag( obsSpaceData, columng, hco_anl, analysisMode_opt = .false. )
 
      call tmg_stop(3)
 

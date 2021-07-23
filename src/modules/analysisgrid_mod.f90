@@ -35,7 +35,7 @@ module analysisGrid_mod
   ! public procedures
   public :: agd_SetupFromHCO, agd_mach, agd_mach_r4
   public :: agd_PsiChiToUV, agd_PsiChiToUVAdj, agd_UVToVortDiv
-  public :: agd_getHco, agd_createLamTemplateGrids
+  public :: agd_createLamTemplateGrids
 
   ! Definition of some parameters characterizing the geometry of
   ! the Limited-Area (LA) analysis grid and associated metric factors
@@ -94,6 +94,15 @@ contains
     real(8) :: dlon_test, dlat_test, dlon_ref, dlat_ref
 
     integer :: i, j
+
+    logical, save :: firstCall = .true.
+
+    ! Ensure subroutine only runs one time during program execution
+    if (firstCall) then
+      firstCall = .false.
+    else
+      return
+    end if
 
     write(*,*)
     write(*,*) 'agd_SetupFromHCO: Starting...'
@@ -981,27 +990,6 @@ contains
     deallocate(vimg_sym)
 
   end subroutine agd_UVToVortDiv
-
-  !--------------------------------------------------------------------------
-  ! agd_getHco
-  !--------------------------------------------------------------------------
-  function agd_getHco(gridname) result(hco_ptr)
-    implicit none
-
-    type(struct_hco), pointer    :: hco_ptr
-    character(len=*), intent(in) :: gridname
-
-    if( gridname == 'ComputationalGrid' ) then
-      if (.not. associated(hco_ext)) call utl_abort('agd_getHco: hco_ext not initialized')
-      hco_ptr => hco_ext
-    elseif( gridname == 'CoreGrid' ) then
-      if (.not. associated(hco_core)) call utl_abort('agd_getHco: hco_core not initialized')
-      hco_ptr => hco_core
-    else
-      call utl_abort('agd_getHco: unknown grid name: ' // gridname)
-    endif
-
-  end function agd_getHco
 
   !--------------------------------------------------------------------------
   ! agd_createLamTemplateGrids

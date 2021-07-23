@@ -20,21 +20,10 @@ module bgckcsr_mod
   ! :Purpose: To perform CSR data background Check
   !
   use mpi_mod
-  use burp_module
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
-  use obsFiles_mod
-  use codePrecision_mod
-  use obsFilter_mod
   use tovs_nl_mod
-  use gridStateVector_mod
-  use timeCoord_mod
-  use columnData_mod
-  use biasCorrectionSat_mod
-  use horizontalCoord_mod
-  use analysisGrid_mod
-  use obsUtil_mod
   use obsErrors_mod
 
   implicit none

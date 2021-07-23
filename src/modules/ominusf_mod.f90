@@ -34,11 +34,11 @@ module oMinusF_mod
   use obsFiles_mod
   use obsFilter_mod
   use innovation_mod
-  use analysisGrid_mod
   use tovs_nl_mod
   use obsErrors_mod
   use obsOperators_mod
   use biasCorrectionConv_mod
+  use obsSpaceErrorStdDev_mod
   implicit none
   private
 
@@ -108,16 +108,14 @@ module oMinusF_mod
       if ( addHBHT ) then
         call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS') ! IN
         if ( hco_anl % global ) then
-          call agd_SetupFromHCO( hco_anl ) ! IN
+          hco_core => hco_anl
         else
           !- Iniatilized the core (Non-Exteded) analysis grid
           call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID') ! IN
-          !- Setup the LAM analysis grid metrics
-          call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
         end if
       else
         call hco_SetupFromFile(hco_anl, trim(trialFileName), ' ') ! IN
-        call agd_SetupFromHCO( hco_anl ) ! IN
+        hco_core => hco_anl
       end if
 
       ! 1.9 Setup a column vector following the analysis vertical grid
@@ -128,7 +126,7 @@ module oMinusF_mod
       end if
 
       !- 1.10 Setup and read observations
-      call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
+      call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
 
       ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
       ! (Only reverse existing corrections when namelist logicals aiRevOnly, gpRevOnly are TRUE)
@@ -151,7 +149,7 @@ module oMinusF_mod
       end if
 
       !- 1.14 Reading, horizontal interpolation and unit conversions of the 3D background fields
-      call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+      call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData,hco_core)
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
@@ -171,6 +169,8 @@ module oMinusF_mod
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
         call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+        !- 2.3 Compute the background errors in observation space
+        call ose_computeStddev(trlColumnOnAnlLev,hco_anl,obsSpaceData)
       end if
 
     end subroutine omf_oMinusF

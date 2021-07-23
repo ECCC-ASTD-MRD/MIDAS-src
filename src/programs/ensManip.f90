@@ -39,7 +39,6 @@ program midas_ensManip
   use fileNames_mod
   use ensembleStateVector_mod
   use verticalCoord_mod
-  use analysisGrid_mod
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
@@ -55,7 +54,6 @@ program midas_ensManip
 
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
-  type(struct_hco), pointer :: hco_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
   integer              :: stepIndex, numStep, subEnsIndex
@@ -207,19 +205,11 @@ program midas_ensManip
     call vco_setupFromFile(vco, ensFileName)
   end if
 
-  if ( hco % global ) then
-    call agd_SetupFromHCO(hco) ! IN
-  else
-    !- Setup the LAM analysis grid metrics
-    hco_core => hco
-    call agd_SetupFromHCO(hco, hco_core) ! IN
-  end if
-
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList, &
+  call ens_allocate(ensemble, nEns, numStep, hco, hco, vco, dateStampList, &
                     hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
 

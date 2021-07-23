@@ -30,7 +30,6 @@ module stateToColumn_mod
   use gridstatevector_mod
   use obsSpaceData_mod
   use columnData_mod
-  use analysisgrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsTimeInterp_mod
@@ -122,18 +121,18 @@ contains
   !---------------------------------------------------------
   ! latlonChecksAnlGrid
   !---------------------------------------------------------
-  subroutine latlonChecksAnlGrid(obsSpaceData, moveObsAtPole)
+  subroutine latlonChecksAnlGrid(obsSpaceData, hco_core, moveObsAtPole)
     !
     ! :Purpose: Check the lat/lon of observations and modify if necessary
     !
     implicit none
 
     ! arguments
-    type(struct_obs) :: obsSpaceData
-    logical          :: moveObsAtPole
+    type(struct_obs)          :: obsSpaceData
+    type(struct_hco), pointer :: hco_core
+    logical                   :: moveObsAtPole
 
     ! locals
-    type(struct_hco), pointer :: hco_anl
     integer :: headerIndex, ierr
     integer :: idata, idatend, jdata, subGridIndex
     real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4
@@ -153,14 +152,12 @@ contains
     !
     !-    Get the Analysis Grid structure
     !
-    hco_anl => agd_getHco('CoreGrid')
-
-    if ( hco_anl % global ) then
+    if ( hco_core % global ) then
        xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
        xposUpperBoundAnl_r4 = + huge(1.0) ! no limit since grid is global (periodic)
     else
        xposLowerBoundAnl_r4 = 1.0
-       xposUpperBoundAnl_r4 = real(hco_anl % ni)
+       xposUpperBoundAnl_r4 = real(hco_core % ni)
     end if
 
     header_loop: do headerIndex=1, obs_numheader(obsSpaceData)
@@ -179,7 +176,7 @@ contains
       !
       !- Find the position in the analysis grid
       !
-      ierr = gpos_getPositionXY( hco_anl % EZscintID,  &
+      ierr = gpos_getPositionXY( hco_core % EZscintID,  &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
@@ -187,9 +184,9 @@ contains
       if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
            xpos_r4 > xposUpperBoundAnl_r4  .or. &
            ypos_r4 < 1.0                   .or. &
-           ypos_r4 > real(hco_anl % nj) ) then
+           ypos_r4 > real(hco_core % nj) ) then
 
-        if ( hco_anl % global ) then
+        if ( hco_core % global ) then
 
           if ( moveObsAtPole ) then
             ! Modify latitude if we have an observation at or near the poles
@@ -199,9 +196,9 @@ contains
 
             !- Move the observation to the nearest grid point
             if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
-            if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
+            if ( ypos_r4 > real(hco_core % nj) ) ypos_r4 = real(hco_core % nj)
 
-            ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
+            ierr = gdllfxy( hco_core % EZscintID, &    ! IN
                             lat_deg_r4, lon_deg_r4, & ! OUT
                             xpos_r4, ypos_r4, 1)      ! IN
 
@@ -1586,7 +1583,8 @@ contains
   !---------------------------------------------------------
   ! s2c_nl
   !---------------------------------------------------------
-  subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
+  subroutine s2c_nl( stateVector, obsSpaceData, column, hco_core, &
+                     timeInterpType, varName_opt, &
                      numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
@@ -1598,6 +1596,7 @@ contains
     type(struct_gsv)           :: stateVector
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column
+    type(struct_hco), pointer  :: hco_core
     character(len=*)           :: timeInterpType
     character(len=*), optional :: varName_opt
     integer, optional          :: numObsBatches_opt
@@ -1682,7 +1681,7 @@ contains
       call tmg_start(165,'S2CNL_SETUPS')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
-      call latlonChecksAnlGrid( obsSpaceData, moveObsAtPole )
+      call latlonChecksAnlGrid( obsSpaceData, hco_core, moveObsAtPole )
 
       ! Do not reject obs for global domain
       rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
