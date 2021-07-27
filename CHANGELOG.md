@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Avoid copying the `.ssm` files under `/fs/ssm/eccc/mrd/rpn/anl/midas` to save disk space (#512 and !483)
 
 ### Fixed
 
