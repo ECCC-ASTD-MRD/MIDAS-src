@@ -188,8 +188,9 @@ cp -vi ${MIDAS_SOURCE_CODE}/ssm/publish .
 cp -vi ${MIDAS_SOURCE_CODE}/ssm/ssm_publish .
 cp -vi ${MIDAS_SOURCE_CODE}/ssm/post-install .
 
-## update the script '${HOME}/ssm/midas/post-install'
 cd ..  ## current directory is now '${HOME}/ssm/midas'
+
+## update the script '${HOME}/ssm/midas/post-install'
 echo "Removing ${PWD}/post-install which is now pointing to $(true_path post-install)"
 rm -v post-install
 ln -svi ${VERSION}/post-install .
@@ -199,8 +200,9 @@ echo "Removing ${PWD}/publish which is now pointing to $(true_path publish)"
 rm -v ssm_publish
 ln -svi ${VERSION}/publish .
 
-## update the script '${HOME}/ssm/ssm_publish'
 cd ..  ## current directory is now '${HOME}/ssm'
+
+## update the script '${HOME}/ssm/ssm_publish'
 echo "Removing ${PWD}/ssm_publish which is now pointing to $(true_path ssm_publish)"
 rm -v ssm_publish
 ln -svi midas/${VERSION}/ssm_publish .
