@@ -176,9 +176,11 @@ which takes two optional arguments:
 For security considerations, the scripts that the user `sanl000` is
 using are not coming directly from the MIDAS depot itself but reviewed
 copies under his control.  So when scripts under directory `ssm` are
-modified, we must updated them manually.  If the version of MIDAS is
-`${VERSION}` in the directory `${MIDAS_SOURCE_CODE}`, then here are
-the commands to do:
+modified, we must update them manually.
+
+If the version of MIDAS is `${VERSION}` in the directory
+`${MIDAS_SOURCE_CODE}`, then here are the commands the user `sanl000`
+has to do for this update:
 ```bash
 cd ${HOME}/ssm
 
