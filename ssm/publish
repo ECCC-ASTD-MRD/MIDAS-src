@@ -97,16 +97,16 @@ for package in ${packages}/*.ssm; do
     pkgname=$(basename ${package} .ssm)
     echo "Working with package ${pkgname}"
 
+    ssminstall_args=
     if [ -n "${postinstall}" -a -f "${postinstall}" ]; then
         echo "Insert '${postinstall}' in ${pkgname}.ssm"
         ## add the post-install script
         tar zxf ${package}
         cp ${postinstall} ${pkgname}/.ssm.d/post-install
         tar czf ${pkgname}.ssm ${pkgname}
-        cp ${pkgname}.ssm ${domainpath}
-        rm -r ${pkgname} ${pkgname}.ssm
+        rm -r ${pkgname}
     else
-        cp ${package} ${domainpath}
+        ssminstall_args="-r $(dirname ${package})"
     fi
 
     ssmpublish_args=
@@ -114,10 +114,12 @@ for package in ${packages}/*.ssm; do
     [ "${platform}" = all ] && ssmpublish_args="-pp all"
 
     echo "Install package ${pkgname} in domain ${domainpath}"
-    ssm install -d ${domainpath} -p ${pkgname} -r ${domainpath}
+    ssm install -d ${domainpath} -p ${pkgname} ${ssminstall_args}
     echo "Publish package ${pkgname} in domain ${domainpath}"
     ssm publish -d ${domainpath} -p ${pkgname} ${ssmpublish_args}
     echo "Done with package ${pkgname} in domain ${domainpath}"
+
+    [ -f ${pkgname}.ssm ] && rm ${pkgname}.ssm
 done
 
 ## Freeze the domain

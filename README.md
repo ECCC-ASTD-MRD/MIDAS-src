@@ -171,6 +171,45 @@ which takes two optional arguments:
  2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
    * default: `${DOMAIN_BASE}/packages`
 
+## Updating the scripts under `sanl000`
+
+For security considerations, the scripts that the user `sanl000` is
+using are not coming directly from the MIDAS depot itself but reviewed
+copies under his control.  So when scripts under directory `ssm` are
+modified, we must update them manually.
+
+If the version of MIDAS is `${VERSION}` in the directory
+`${MIDAS_SOURCE_CODE}`, then here are the commands the user `sanl000`
+has to do for this update:
+```bash
+cd ${HOME}/ssm
+
+mkdir -v midas/${VERSION}
+cd midas/${VERSION}
+cp -vi ${MIDAS_SOURCE_CODE}/ssm/publish .
+cp -vi ${MIDAS_SOURCE_CODE}/ssm/ssm_publish .
+cp -vi ${MIDAS_SOURCE_CODE}/ssm/post-install .
+
+cd ..  ## current directory is now '${HOME}/ssm/midas'
+
+## update the script '${HOME}/ssm/midas/post-install'
+echo "Removing ${PWD}/post-install which is now pointing to $(true_path post-install)"
+rm -v post-install
+ln -svi ${VERSION}/post-install .
+
+## update the script '${HOME}/ssm/midas/publish'
+echo "Removing ${PWD}/publish which is now pointing to $(true_path publish)"
+rm -v ssm_publish
+ln -svi ${VERSION}/publish .
+
+cd ..  ## current directory is now '${HOME}/ssm'
+
+## update the script '${HOME}/ssm/ssm_publish'
+echo "Removing ${PWD}/ssm_publish which is now pointing to $(true_path ssm_publish)"
+rm -v ssm_publish
+ln -svi midas/${VERSION}/ssm_publish .
+```
+
 # Tools
 
 Several tools related to MIDAS are included in the codebase.  Those
