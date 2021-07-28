@@ -935,7 +935,7 @@ contains
     type(struct_gsv)         :: statevectorTrlHU
     type(struct_gsv)         :: stateVectorVtr
     type(struct_vco), pointer :: vco_randomPert, vco_ens
-    type(struct_hco), pointer :: hco_randomPert, hco_ens
+    type(struct_hco), pointer :: hco_randomPert, hco_ens, hco_core
     character(len=12)  :: etiket
     real(8), allocatable :: controlVector_mpiglobal(:), controlVector(:)
     real(8), allocatable :: perturbationMean(:,:,:)
@@ -973,11 +973,12 @@ contains
       vco_randomPert%nlev_Other(:) = vco_ens%nlev_Other(:)
     end if
     
+    hco_core => hco_randomPert
     if (firstCall) then
-      call bmat_setup(hco_randomPert, hco_randomPert, vco_randomPert)
+      call bmat_setup(hco_randomPert, hco_core, vco_randomPert)
       firstCall = .false.
     end if
-    call gvt_setup(hco_randomPert, hco_randomPert, vco_randomPert)
+    call gvt_setup(hco_randomPert, hco_core, vco_randomPert)
 
     call rng_setup(abs(randomSeed))
 

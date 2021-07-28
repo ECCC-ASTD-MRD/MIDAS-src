@@ -137,7 +137,7 @@ program midas_extractBmatrixFor1Dvar
   nkgdim = statevector%nk
   allocate( Bmatrix(nkgdim, nkgdim) )
   ! Setup the B matrix
-  call bmat_setup(hco_anl,hco_anl,vco_anl)
+  call bmat_setup(hco_anl,hco_core,vco_anl)
   !- Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_core,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
