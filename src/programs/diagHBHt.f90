@@ -40,7 +40,6 @@ program midas_diagHBHt
   use obsTimeInterp_mod
   use stateToColumn_mod
   use innovation_mod
-  use analysisGrid_mod
   use bmatrix_mod
   use tovs_nl_mod
   use obsErrors_mod
@@ -56,6 +55,9 @@ program midas_diagHBHt
   type(struct_columnData),target :: trlColumnOnTrlLev
 
   character(len=48) :: obsMpiStrategy, varMode
+
+  type(struct_hco), pointer :: hco_anl => null()
+  type(struct_hco), pointer :: hco_core => null()
 
   istamp = exdb('diagHBHt','DEBUT','NON')
 
@@ -82,7 +84,7 @@ program midas_diagHBHt
 
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -93,9 +95,6 @@ program midas_diagHBHt
 
   ! Compute perturbed
   call diagHBHt(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
-  ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
-  ! computations controlled by NAMOSD namelist in flnml)
-  call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
@@ -141,8 +140,6 @@ contains
     character (len=*) :: obsColumnMode
     integer :: datestamp
     type(struct_vco),pointer :: vco_anl => null()
-    type(struct_hco),pointer :: hco_anl => null()
-    type(struct_hco),pointer :: hco_core => null()
 
     integer :: get_max_rss
 
@@ -185,12 +182,10 @@ contains
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
+      hco_core => hco_anl
     else
       !- Iniatilized the core (Non-Exteded) analysis grid
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     !     
@@ -205,7 +200,7 @@ contains
     !
     !- Setup and read observations
     !
-    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
+    call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -228,14 +223,14 @@ contains
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    call bmat_setup(hco_anl,vco_anl)
+    call bmat_setup(hco_anl,hco_core,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     ! - Initialize the gridded variable transform module
     !
    
-    call gvt_setup(hco_anl,vco_anl)
+    call gvt_setup(hco_anl,hco_core,vco_anl)
     
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -250,7 +245,6 @@ contains
                                           ! to analysis levels and to obs horizontal locations
     type(struct_columnData) :: column
 
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
@@ -264,7 +258,6 @@ contains
     write(*,*) 'Computing perturbations for randomized HBHT evaluation START'
 
     vco_anl => col_getVco(columng)
-    hco_anl => agd_getHco('ComputationalGrid')
     !- 1.3 Create a gridstatevector to store the perturbations
     call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl, &
                       dataKind_opt=pre_incrReal,mpi_local_opt=.true.)

@@ -28,7 +28,6 @@ module obsSpaceDiag_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use controlVector_mod
   use obsSpaceData_mod
@@ -168,7 +167,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_ObsSpaceDiag
   !--------------------------------------------------------------------------
-  subroutine osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt )
+  subroutine osd_ObsSpaceDiag( obsSpaceData, columng, hco_anl, analysisMode_opt )
     !           
     ! :Purpose: Calls routines to perform observation-space diagnostic tasks
     !
@@ -185,6 +184,7 @@ contains
     !Arguments:
     type(struct_obs)              :: obsSpaceData
     type(struct_columnData)       :: columng
+    type(struct_hco), pointer     :: hco_anl
     logical, intent(in), optional :: analysisMode_opt
     
     !Locals:
@@ -212,7 +212,7 @@ contains
 
     ! Perform diagnostics from random perturbations
     
-    call osd_calcInflation(obsSpaceData,columng,dateprnt)
+    call osd_calcInflation(obsSpaceData,columng,hco_anl,dateprnt)
 
    ! write(*,*) 'osd_obsspace_diag: Completed'
 
@@ -221,7 +221,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_calcInflation
   !--------------------------------------------------------------------------
-  subroutine osd_calcInflation( obsSpaceData, columng, dateprnt )
+  subroutine osd_calcInflation( obsSpaceData, columng, hco_anl, dateprnt )
     !      
     ! :Purpose: Calculates observation-space diagnostics from random perturbations
     !
@@ -229,14 +229,14 @@ contains
     implicit none
  
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columng
-    integer                 :: dateprnt
+    type(struct_obs)            :: obsSpaceData
+    type(struct_columnData)     :: columng
+    type(struct_hco), pointer   :: hco_anl
+    integer                     :: dateprnt
 
     ! Locals:
     type(struct_gsv)            :: statevector
     type(struct_columnData)     :: column
-    type(struct_hco), pointer   :: hco_anl
     type(struct_vco), pointer   :: vco_anl
     real(8), allocatable,target :: controlVector(:)
 
@@ -279,7 +279,6 @@ contains
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
 
     ! initialize gridStateVector object for increment
-    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
     call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                       dataKind_opt=pre_incrReal, mpi_local_opt=.true.)

@@ -69,7 +69,7 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_setup
   !--------------------------------------------------------------------------
-  subroutine bmat_setup(hco_anl, vco_anl)
+  subroutine bmat_setup(hco_anl, hco_core, vco_anl)
     !
     !:Purpose: To initialize the analysis Background term for the specific
     !          analysis configuration used.
@@ -79,6 +79,7 @@ contains
     ! Arguments:
     type(struct_vco), pointer :: vco_anl
     type(struct_hco), pointer :: hco_anl
+    type(struct_hco), pointer :: hco_core
 
     ! Locals:
     integer, allocatable :: cvDimPerInstance(:)
@@ -119,8 +120,8 @@ contains
         else
           write(*,*)
           write(*,*) 'Setting up the modular LAM HI covariances...'
-          call lbhi_Setup( hco_anl, vco_anl, & ! IN
-                           cvdim )             ! OUT
+          call lbhi_Setup( hco_anl, hco_core, vco_anl, & ! IN
+                           cvdim )                       ! OUT
         end if
 
         cvdimPerInstance(1) = cvdim
@@ -146,7 +147,7 @@ contains
         !- 2.3 Flow-dependent Ensemble-Based
         write(*,*)
         write(*,*) 'Setting up the modular ENSEMBLE covariances...'
-        call ben_Setup( hco_anl, vco_anl, & ! IN
+        call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                         cvdimPerInstance )  ! OUT
 
         nBmatInstance = size(cvdimPerInstance)

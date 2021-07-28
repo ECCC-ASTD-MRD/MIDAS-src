@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add option to impose a minimum value on HU when using HU as the control variable in BmatrixEnsemble (#509 and !481)
+ * Add option to impose a minimum value on HU when using HU as the control variable in `BmatrixEnsemble` (#509 and !481)
  * Add new programs `var1D` and `extractBmatrixFor1Dvar` to do 1D-Var (#309 and !454)
  * The `midas.splitobs.Abs` program now creates an index for each SQL observation output file (#506 and !479)
  * Add separate ensemble recentering coefficient for soil variables I0/I1 (#501 and !478)
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Add ability to include soil variables with LETKF (#480 and !464)
  * Support for SQLite observations file for Airs and Iasi (#273 and !445)
  * Remove reading subset of the verical levels from trials (#486 and !458)
- * Groundwork to implement outer-loop for computing analysis increment and results 
+ * Groundwork to implement outer-loop for computing analysis increment and results
    of `var` program affected when humidity is one of the analysis variables (#474 and !452)
  * Add ability to output on physics grid for LAM (#464 and !451)
  * Add footprint operator for TOVS (#237 and !417)
@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * bmatrixchem_mod is now independent from the meteorological Bnmc (bgcov) file (#505 and !477)	
+ * Move `analysisGrid_mod` setup from main programs to lower level and remove `agd_getHco` (#496 and !482)
+ * Module `bmatrixchem_mod` is now independent from the meteorological Bnmc (bgcov) file (#505 and !477)
  * Store header and body table primary keys in 64-bit integer arrays (#476 and !450)
  * SST observations now stored in the files separated by instrument name (#467 and !442)
  * Change to some environment variable naming convention: start with `MIDAS_`

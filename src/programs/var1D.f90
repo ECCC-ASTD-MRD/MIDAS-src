@@ -30,13 +30,11 @@ program midas_var1D
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
-  use obsSpaceDiag_mod
   use controlVector_mod
   use obsFiles_mod
   use minimization_mod
   use innovation_mod
   use minimization_mod
-  use analysisGrid_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
@@ -114,13 +112,11 @@ program midas_var1D
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
     if (mpi_myid == 0) write(*,*)'var1D: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   !     
@@ -135,7 +131,7 @@ program midas_var1D
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, 'VAR', obsMpiStrategy, varMode) ! IN
+  call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
@@ -164,7 +160,7 @@ program midas_var1D
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(2, 'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core,  &
                                    stateVectorTrialOut_opt=stateVectorTrial )
 
   !
@@ -176,14 +172,14 @@ program midas_var1D
   !
   ! - Initialize the gridded variable transform module
   !
-  call gvt_setup(hco_anl, vco_anl)
+  call gvt_setup(hco_anl, hco_core, vco_anl)
 
   !
   !- Set up the minimization module, now that the required parameters are known
   !  NOTE: some global variables remain in minimization_mod that must be initialized before
   !        inn_setupBackgroundColumns
   !
-  call min_setup( cvm_nvadim, oneDVarMode_opt=.true. ) ! IN
+  call min_setup( cvm_nvadim, hco_anl, oneDVarMode_opt=.true. ) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -217,10 +213,6 @@ program midas_var1D
   call inc_writeIncrement(stateVectorIncr)
   call tmg_stop(6)
 
-  ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
-  ! computations controlled by NAMOSD namelist in flnml)
-  call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
- 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18, 'ADDINCREMENT')
   call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, trlColumnOnAnlLev)

@@ -68,6 +68,7 @@ module ensembleStateVector_mod
     integer                       :: numMembers
     integer                       :: dataKind = 4 ! default value
     type(struct_gsv)              :: statevector_work
+    type(struct_hco), pointer     :: hco_core
     type(struct_oneLev_r8), allocatable :: allLev_ensMean_r8(:), allLev_ensStdDev_r8(:)
     type(struct_oneLev_r4), allocatable :: allLev_r4(:)
     type(struct_oneLev_r8), allocatable :: allLev_r8(:)
@@ -101,8 +102,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_allocate
   !--------------------------------------------------------------------------
-  subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
-                          dateStampList, varNames_opt, dataKind_opt, &
+  subroutine ens_allocate(ens, numMembers, numStep, hco_comp, vco_ens, &
+                          dateStampList, hco_core_opt, varNames_opt, dataKind_opt, &
                           hInterpolateDegree_opt)
     !
     !:Purpose: Allocate an ensembleStateVector object
@@ -110,14 +111,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens),           intent(inout) :: ens
-    integer,                    intent(in)    :: numMembers, numStep
-    type(struct_hco), pointer,  intent(in)    :: hco_ens
-    type(struct_vco), pointer,  intent(in)    :: vco_ens
-    integer,                    intent(in)    :: dateStampList(:)
-    character(len=*), optional, intent(in)    :: varNames_opt(:)
-    integer, optional,          intent(in)    :: dataKind_opt
-    character(len=*), optional, intent(in)    :: hInterpolateDegree_opt
+    type(struct_ens),                    intent(inout) :: ens
+    integer,                             intent(in)    :: numMembers, numStep
+    type(struct_hco), pointer,           intent(in)    :: hco_comp
+    type(struct_hco), pointer, optional, intent(in)    :: hco_core_opt
+    type(struct_vco), pointer,           intent(in)    :: vco_ens
+    integer,                             intent(in)    :: dateStampList(:)
+    character(len=*), optional,          intent(in)    :: varNames_opt(:)
+    integer, optional,                   intent(in)    :: dataKind_opt
+    character(len=*), optional,          intent(in)    :: hInterpolateDegree_opt
 
     ! Locals:
     integer :: varLevIndex, lon1, lon2, lat1, lat2, k1, k2
@@ -146,7 +148,7 @@ CONTAINS
     end if
 
     call gsv_allocate( ens%statevector_work, &
-                       numStep, hco_ens, vco_ens,  &
+                       numStep, hco_comp, vco_ens,  &
                        datestamplist_opt=dateStampList, mpi_local_opt=.true., &
                        varNames_opt=varNames, dataKind_opt=ens%dataKind, &
                        hInterpolateDegree_opt = hInterpolateDegree_opt)
@@ -174,6 +176,11 @@ CONTAINS
 
     ens%allocated = .true.
     ens%numMembers = numMembers
+    if (present(hco_core_opt)) then
+      ens%hco_core => hco_core_opt
+    else
+      ens%hco_core => hco_comp
+    end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -2226,7 +2233,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
-    type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid, hco_compgrid
+    type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid
     type(struct_vco), pointer :: vco_file, vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
@@ -2339,6 +2346,7 @@ CONTAINS
       call vco_mpiBcast(vco_file)
     end if
     hco_ens  => gsv_getHco(ens%statevector_work)
+    hco_coregrid => ens%hco_core
     vco_ens  => gsv_getVco(ens%statevector_work)
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
     verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
@@ -2353,14 +2361,12 @@ CONTAINS
     ! In limited-area mode, avoid horizontal interpolation when the ensemble is on the coregrid
     horizontalPaddingNeeded = .false.
     if ( .not. hco_file%global ) then
-      hco_coregrid => agd_getHco('CoreGrid')
-      hco_compgrid => agd_getHco('ComputationalGrid')
       if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj ) then
         if (mpi_myid == 0) then
           write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
         end if
         horizontalInterpNeeded = .false.
-        if ( hco_file%ni /= hco_compgrid%ni .or. hco_file%nj /= hco_compgrid%nj ) then
+        if ( hco_file%ni /= hco_ens%ni .or. hco_file%nj /= hco_ens%nj ) then
           if (mpi_myid == 0) then
             write(*,*) 'ens_readEnsemble: horizontal padding needed for limited-area ensemble'
           end if

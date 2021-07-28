@@ -25,7 +25,6 @@ program midas_ensPostProcess
   use gridStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
@@ -36,7 +35,6 @@ program midas_ensPostProcess
   type(struct_ens) :: ensembleAnl
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
-  type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
@@ -139,14 +137,6 @@ program midas_ensPostProcess
   end if
   call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, gridFileName)
-
-  if ( hco_ens % global ) then
-    call agd_SetupFromHCO( hco_ens ) ! IN
-  else
-    ! Setup the LAM analysis grid metrics
-    hco_ens_core => hco_ens
-    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
-  end if
 
   !- Read the sfc height from trial ensemble member 1 - only if we are doing NWP!
   if (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0) then

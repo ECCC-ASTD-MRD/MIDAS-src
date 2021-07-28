@@ -29,7 +29,6 @@ program midas_adjointTest
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use analysisGrid_mod
   use gridVariableTransforms_mod
   use bmatrixhi_mod
   use bmatrixensemble_mod
@@ -86,12 +85,10 @@ program midas_adjointTest
   !- 1.9 Set the horizontal domain
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS') ! IN
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID') ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   !- 1.10 Initialize the vertical coordinate
@@ -103,7 +100,7 @@ program midas_adjointTest
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !- 1.11 Variable transforms
-  call gvt_Setup(hco_anl, vco_anl)
+  call gvt_Setup(hco_anl, hco_core, vco_anl)
 
   !
   !- 2.  The tests
@@ -163,8 +160,8 @@ contains
       call bhi_Setup( hco_anl, vco_anl, & ! IN
                       cvdim )             ! OUT
     else
-      call lbhi_Setup( hco_anl, vco_anl, & ! IN
-                      cvdim )             ! OUT
+      call lbhi_Setup( hco_anl, hco_core, vco_anl, & ! IN
+                      cvdim )                        ! OUT
     end if
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
@@ -266,7 +263,7 @@ contains
 
     integer, allocatable :: cvDimPerInstance(:)
 
-    call ben_Setup( hco_anl, vco_anl, & ! IN
+    call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                     cvdimPerInstance )  ! OUT
 
     cvDim = cvdimPerInstance(1)
@@ -366,7 +363,7 @@ contains
     write(*,*) 'check_loc: tim_getDatestamp = ', dateStamp
     write(*,*) 'check_loc: dateStampList = ', dateStampList(:)
 
-    call ben_Setup( hco_anl, vco_anl, & ! IN
+    call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                     cvDimPerInstance )             ! OUT
 
     cvDim = cvDimPerInstance(1)
@@ -393,9 +390,9 @@ contains
                       mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
 
     call ens_allocate(ensAmplitude_x, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
     call ens_allocate(ensAmplitude_Ly, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
+                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
     allocate ( controlVector1(cvDim) )
 
@@ -499,7 +496,7 @@ contains
 !!$    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
 !!$    write(*,*) 'JFC dateStampList = ', dateStampList(:)
 !!$
-!!$    call ben_Setup( hco_anl, vco_anl, & ! IN
+!!$    call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
 !!$                    cvdim )             ! OUT
 !!$
 !!$    write(*,*) 'JFC ben_Setup done '
@@ -661,13 +658,13 @@ contains
     deallocate(advectFactor)
     
     call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ens_Ly, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ens_y, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ens_LTx, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
                       mpi_local_opt=.true., &

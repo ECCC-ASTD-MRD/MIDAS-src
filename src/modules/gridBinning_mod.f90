@@ -26,7 +26,6 @@ module gridBinning_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use utilities_mod
-  use analysisGrid_mod
   use horizontalCoord_mod
   use timeCoord_mod
   implicit none
@@ -63,18 +62,18 @@ contains
   !--------------------------------------------------------------------------
   ! gbi_setup
   !--------------------------------------------------------------------------
-  subroutine gbi_setup(gbi, binningStrategy, statevector_template, &
+  subroutine gbi_setup(gbi, binningStrategy, statevector_template, hco_coregrid, &
                        mpi_distribution_opt, writeBinsToFile_opt)
     implicit none
 
     type(struct_gbi) :: gbi
     character(len=*),  intent(in) :: binningStrategy
     type(struct_gsv) :: statevector_template
+    type(struct_hco), pointer :: hco_coregrid
     character(len=*), optional, intent(in) :: mpi_distribution_opt
     logical, optional, intent(in) :: writeBinsToFile_opt
 
     type(struct_gsv) :: statevector_landSeaTopo
-    type(struct_hco), pointer :: hco_coregrid
 
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
@@ -193,10 +192,6 @@ contains
                             readHeightSfc_opt=.true.)
 
       call gsv_getField(statevector_landSeaTopo,data2d)
-
-      if (.not. statevector_template%hco%global) then
-        hco_coregrid => agd_getHco('CoreGrid')
-      end if
 
       gbi%numBins2d = 2 ! (land or sea)
       do latIndex= myLatBeg, myLatEnd

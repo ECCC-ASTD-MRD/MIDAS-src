@@ -37,7 +37,6 @@ program midas_var
   use minimization_mod
   use innovation_mod
   use minimization_mod
-  use analysisGrid_mod
   use bmatrix_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
@@ -126,13 +125,11 @@ program midas_var
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
     if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   !     
@@ -147,7 +144,7 @@ program midas_var
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, 'VAR', obsMpiStrategy, varMode) ! IN
+  call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -176,24 +173,24 @@ program midas_var
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
-  call bmat_setup(hco_anl,vco_anl)
+  call bmat_setup(hco_anl,hco_core,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   ! - Initialize the gridded variable transform module
   !
-  call gvt_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,hco_core,vco_anl)
 
   !
   !- Set up the minimization module, now that the required parameters are known
   !  NOTE: some global variables remain in minimization_mod that must be initialized before
   !        inn_setupBackgroundColumns
   !
-  call min_setup( cvm_nvadim ) ! IN
+  call min_setup( cvm_nvadim, hco_anl ) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Read trials and horizontally interpolate to columns
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData,  &
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core,  &
                                    stateVectorTrialOut_opt=stateVectorTrial )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -268,7 +265,7 @@ program midas_var
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
-  call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
+  call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev,hco_anl)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()

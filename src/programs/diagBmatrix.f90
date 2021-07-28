@@ -31,7 +31,6 @@ program midas_diagBmatrix
   use bmatrixEnsemble_mod
   use localization_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use advection_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -158,12 +157,10 @@ program midas_diagBmatrix
   call hco_SetupFromFile( hco_anl,'./analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -180,10 +177,10 @@ program midas_diagBmatrix
   nkgdim = statevector%nk
 
   ! Setup the B matrix
-  call bmat_setup(hco_anl,vco_anl)
+  call bmat_setup(hco_anl,hco_core,vco_anl)
 
   !- Initialize the gridded variable transform module
-  call gvt_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,hco_core,vco_anl)
 
   ! Setup of the L matrix done in bmat_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

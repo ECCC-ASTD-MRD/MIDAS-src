@@ -217,7 +217,8 @@ contains
     numStep = 1
     allocate(dateStampList(numStep))
     dateStampList(:)  = -1
-    call ens_allocate(ensPerts, nEns, numStep, hco_bhi, vco_bhi, dateStampList)
+    call ens_allocate(ensPerts, nEns, numStep, hco_bhi, vco_bhi, dateStampList, &
+                      hco_core_opt=hco_ens)
 
     ensContainsFullField = .false.
     ctrlVarHumidity = 'LQ'
@@ -464,7 +465,7 @@ contains
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
                       dataKind_opt=8 )
 
-    call gbi_setup(gbi_horizontalMean, 'HorizontalMean', statevector_stdDev)
+    call gbi_setup(gbi_horizontalMean, 'HorizontalMean', statevector_stdDev, hco_ens)
 
     call gbi_stdDev(gbi_horizontalMean, ensPerts, & ! IN
                     statevector_stdDev)             ! OUT

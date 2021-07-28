@@ -20,21 +20,10 @@ module bgckmicrowave_mod
   ! :Purpose: Variables for microwave background check and quality control.
   !
   use mpi_mod
-  use burp_module
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
-  use obsFiles_mod
-  use codePrecision_mod
-  use obsFilter_mod
   use tovs_nl_mod
-  use gridStateVector_mod
-  use timeCoord_mod
-  use columnData_mod
-  use biasCorrectionSat_mod
-  use horizontalCoord_mod
-  use analysisGrid_mod
-  use obsUtil_mod
   use obsErrors_mod
 
   implicit none
@@ -3995,7 +3984,7 @@ end subroutine bennartz
     integer :: gdllsval,gdid,gdidlg
 
     ! Define FORTRAN FST functions:
-    integer, external :: fstinf,fstprm,fstlir
+    integer, external :: fstinf,fstprm,fstlir,fnom,fclos
     integer, external :: fstouv,fstfrm,fstinl,fstvoi
 
     integer :: idum1,idum2,idum3

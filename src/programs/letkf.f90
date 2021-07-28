@@ -32,7 +32,6 @@ program midas_letkf
   use verticalCoord_mod
   use horizontalCoord_mod
   use oceanMask_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use utilities_mod
@@ -63,7 +62,6 @@ program midas_letkf
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
-  type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
@@ -228,20 +226,12 @@ program midas_letkf
     call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
   end if
 
-  if ( hco_ens % global ) then
-    call agd_SetupFromHCO( hco_ens ) ! IN
-  else
-    ! Setup the LAM analysis grid metrics
-    hco_ens_core => hco_ens
-    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
-  end if
-
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.5 Read in the observations and other obs-related set up
 
   ! Read the observations
-  call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
+  call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode,  &
                      obsClean_opt = .false. )
 
   ! Initialize obs error covariances and set flag using 'util' column of stats_tovs
@@ -346,7 +336,8 @@ program midas_letkf
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
     end if
 
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                 timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
     ! Compute Y-H(X) in OBS_OMP
     call tmg_start(6,'LETKF-obsOperators')
@@ -381,7 +372,8 @@ program midas_letkf
   if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
-  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+               timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setVertLocation
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
@@ -490,7 +482,8 @@ program midas_letkf
   if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
-  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )
+  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+               timeInterpType=obsTimeInterpType )
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
   call tmg_stop(6)

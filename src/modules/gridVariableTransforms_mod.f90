@@ -66,7 +66,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_setup
   !--------------------------------------------------------------------------
-  subroutine gvt_setup(hco_in,vco_in)
+  subroutine gvt_setup(hco_in,hco_core,vco_in)
     ! 
     ! :Purpose: To set up a variable transformation object
     !
@@ -77,6 +77,7 @@ CONTAINS
     implicit none
 
     type(struct_hco), pointer :: hco_in
+    type(struct_hco), pointer :: hco_core
     type(struct_vco), pointer :: vco_in
     
     if (huTrialsInitialized) return
@@ -87,6 +88,8 @@ CONTAINS
 
     hco_anl => hco_in
     vco_anl => vco_in
+
+    call agd_setupFromHco(hco_anl,hco_core)
 
     write(*,*) 'gvt_setup: done'
 

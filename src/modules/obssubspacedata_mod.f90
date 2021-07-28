@@ -453,10 +453,8 @@ contains
     ! :Caveat: The current version assumes the only source of difference would stem from
     !          a shift to the nearest latitude of the analysis grid from points near the pole.
     !          (this source of difference identified by M. Sitwell)
-    !          Also currently assumes that most poleward analsysis grid latitudes are within 1 degree
-    !          away from a pole. To be more rigourous, one would need hco_anl%nj and hco_anl%global from
-    !          "hco_anl => agd_getHco('CoreGrid')" with use of horizontalCoord_mod and analysisGrid_mod 
-    !          (see innovation_mod.f90).
+    !          Also currently assumes that most poleward analysis grid latitudes are within 1 degree
+    !          away from a pole.
     !
     ! :Arguments:
     !           :test_code: code for comparison to ref_code  

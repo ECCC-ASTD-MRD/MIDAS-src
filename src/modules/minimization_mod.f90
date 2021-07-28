@@ -32,7 +32,6 @@ module minimization_mod
   use mpi_mod
   use mpivar_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use gridStateVector_mod
   use bmatrix_mod
   use var1D_mod
@@ -66,6 +65,7 @@ module minimization_mod
   type(struct_columnData), pointer :: columng_ptr      => null()
 
   type(struct_gsv), pointer :: stateVectorRefHU_ptr => null()
+  type(struct_hco), pointer :: hco_anl => null()
 
   logical             :: initialized = .false.
 
@@ -112,11 +112,14 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup(nvadim_mpilocal_in, oneDVarMode_opt)
+  subroutine min_setup(nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt)
     implicit none
+
     ! Arguments:
-    integer,intent(in) :: nvadim_mpilocal_in
-    logical,intent(in),optional :: oneDVarMode_opt
+    integer, intent(in)                   :: nvadim_mpilocal_in
+    type(struct_hco), pointer, intent(in) :: hco_anl_in
+    logical, intent(in), optional         :: oneDVarMode_opt
+
     ! Locals:
     integer :: ierr,nulnam
     integer,external :: fnom,fclos
@@ -135,6 +138,8 @@ CONTAINS
     else
       oneDVarMode = .false.
     end if
+
+    hco_anl => hco_anl_in
 
     ! set default values for namelist variables
     nvamaj = 6
@@ -555,7 +560,6 @@ CONTAINS
     ! Locals
     type(struct_gsv) :: statevector_ens(numAnalyses)
     type(struct_gsv) :: statevector_mean, statevector_incr, statevector_incr_perturbed, statevector_randpert
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: incr_cv(:)
     real(8)           :: scalefactor
@@ -581,7 +585,6 @@ CONTAINS
     endif
 
     ! initialization
-    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
@@ -996,7 +999,6 @@ CONTAINS
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv), save :: statevector
-    type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
 
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
@@ -1023,7 +1025,6 @@ CONTAINS
        else
          if (.not.statevector%allocated) then
            write(*,*) 'min-simvar: allocating increment stateVector'
-           hco_anl => agd_getHco('ComputationalGrid')
            vco_anl => col_getVco(columng_ptr)
            call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                 dataKind_opt=pre_incrReal, mpi_local_opt=.true.)

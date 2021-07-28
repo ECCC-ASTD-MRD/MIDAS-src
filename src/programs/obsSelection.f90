@@ -28,7 +28,6 @@ program midas_obsSelection
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
-  use analysisGrid_mod
   use gridStateVector_mod
   use backgroundCheck_mod
   use multi_ir_bgck_mod
@@ -114,13 +113,11 @@ program midas_obsSelection
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
     if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO(hco_anl, hco_core)
   end if
 
   !     
@@ -134,7 +131,7 @@ program midas_obsSelection
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, 'ALL', 'LIKESPLITFILES', 'bgck')
+  call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', 'bgck')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! if ssmis, compute the surface type ele and update obspacedata
@@ -169,7 +166,7 @@ program midas_obsSelection
   call bcc_applyGPBcor(obsSpaceData)
     
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -181,7 +178,7 @@ program midas_obsSelection
   !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
 
   ! Do the conventional data background check
-  call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData)
+  call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, hco_anl, obsSpaceData)
 
   if (obs_famExist(obsSpaceData,'TO')) then
 

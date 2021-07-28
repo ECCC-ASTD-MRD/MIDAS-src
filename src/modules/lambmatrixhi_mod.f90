@@ -93,10 +93,11 @@ contains
   !--------------------------------------------------------------------------
   ! lbhi_SETUP
   !--------------------------------------------------------------------------
-  subroutine lbhi_Setup( hco_anl_in, vco_anl_in, cvDim_out )
+  subroutine lbhi_Setup( hco_anl_in, hco_core_in, vco_anl_in, cvDim_out )
     implicit none
 
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
+    type(struct_hco), pointer, intent(in)    :: hco_core_in
     type(struct_vco), pointer, intent(in)    :: vco_anl_in
     integer,          intent(out)   :: cvDim_out
 
@@ -148,6 +149,9 @@ contains
       return
     end if
 
+    !- Setup the LAM analysis grid metrics
+    call agd_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
+    
     trunc = ntrunc
     write(*,*)
     write(*,*) 'Spectral TRUNCATION = ', trunc

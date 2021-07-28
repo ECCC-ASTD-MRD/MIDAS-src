@@ -35,7 +35,6 @@ module innovation_mod
   use mpivar_mod
   use horizontalCoord_mod
   use varNameList_mod
-  use analysisGrid_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use tt2phi_mod
@@ -66,7 +65,7 @@ contains
   !--------------------------------------------------------------------------
   ! inn_setupObs
   !--------------------------------------------------------------------------
-  subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
+  subroutine inn_setupobs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, &
        innovationMode_in, obsClean_opt )
     !
     !:Purpose: To initialize the observation parameters and constants
@@ -74,6 +73,7 @@ contains
 
     ! Arguments:
     type(struct_obs)                        :: obsSpaceData
+    type(struct_hco), pointer               :: hco_anl
     character(len=*)                        :: obsMpiStrategy
     character(len=*)                        :: obsColumnMode
     character(len=*), intent(in)            :: innovationMode_in
@@ -166,7 +166,7 @@ contains
     !
     write(*,*)
     write(*,*) 'inn_setupObs - Using obsMpiStrategy = ', trim(obsMpiStrategy)
-    call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+    call setObsMpiStrategy(obsSpaceData,hco_anl,obsMpiStrategy)
 
     !
     ! Check if burp files already split
@@ -196,12 +196,13 @@ contains
   end subroutine inn_setupobs
 
 
-  subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, stateVectorTrialOut_opt)
+  subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, hco_core, stateVectorTrialOut_opt)
     implicit none
 
     ! arguments
     type(struct_columnData)    :: columnhr
     type(struct_obs)           :: obsSpaceData
+    type(struct_hco), pointer  :: hco_core
     type(struct_gsv), optional :: stateVectorTrialOut_opt
 
     ! locals
@@ -308,7 +309,8 @@ contains
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
     end if
 
-    call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
+    call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, hco_core, &
+                 timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
                  dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVectorTrial)
@@ -726,19 +728,18 @@ contains
   end subroutine inn_computeInnovation
 
 
-  subroutine setObsMpiStrategy(obsSpaceData, mpiStrategy)
+  subroutine setObsMpiStrategy(obsSpaceData, hco_anl, mpiStrategy)
     !
     !:Purpose: To distribute header indices following the chosen strategy,
     !          current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES".
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    character(len=*), intent(in)    :: mpiStrategy
+    type(struct_obs),          intent(inout) :: obsSpaceData
+    type(struct_hco), pointer, intent(in)    :: hco_anl
+    character(len=*),          intent(in)    :: mpiStrategy
 
     ! Locals:
-    type(struct_hco), pointer :: hco_anl
-
     real(8) :: lat_r8, lon_r8
     real    :: lat_r4, lon_r4
     real    :: xpos_r4, ypos_r4
@@ -746,13 +747,6 @@ contains
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
     integer :: gdxyfll
-    !
-    !- 1.  Get some info
-    !
-
-    !- 1.1 Get the horizontal coordinate of the analysis grid
-    hco_anl => agd_getHco('ComputationalGrid')
-
     !
     !- 2.  Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
     !
