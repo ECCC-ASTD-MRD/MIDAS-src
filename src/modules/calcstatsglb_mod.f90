@@ -510,10 +510,10 @@ module calcStatsGlb_mod
     numStep = 1
     allocate(dateStampList(numStep))
     dateStampList(:)  = -1
-    call ens_allocate(ensPerts, nEns, numStep, hco_ens, hco_ens, vco_ens, dateStampList)
+    call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList)
 
     if (nWaveBand > 1) then
-      call ens_allocate(ensPertsFilt, nEns, numStep, hco_ens, hco_ens, vco_ens, dateStampList)
+      call ens_allocate(ensPertsFilt, nEns, numStep, hco_ens, vco_ens, dateStampList)
       ensPerts_ptr => ensPertsFilt
     else
       ensPerts_ptr => ensPerts
@@ -2239,7 +2239,7 @@ module calcStatsGlb_mod
     numStep = 1
     allocate(dateStampList(numStep))
     dateStampList(:)  = -1
-    call ens_allocate(ensPerts, nEns, numStep, hco_ens, hco_ens, vco_ens, dateStampList)
+    call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList)
 
     makeBiPeriodic = .false.
     call ens_readEnsemble(ensPerts, './ensemble', makeBiPeriodic, &

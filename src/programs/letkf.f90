@@ -286,7 +286,7 @@ program midas_letkf
   call gsv_zero(stateVectorWithZandP4D)
 
   !- 2.10 Allocate ensembles, read the Trl ensemble
-  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, hco_ens, vco_ens, dateStampList)
+  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
                         ignoreDate_opt=ignoreEnsDate)
 
@@ -435,7 +435,7 @@ program midas_letkf
   !- 4.1 Copy trial ensemble to nstepobsinc time steps
   if (tim_nstepobsinc < tim_nstepobs) then
     allocate(ensembleTrl)
-    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, dateStampListInc)
+    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
     call ens_copy4Dto3D(ensembleTrl4D,ensembleTrl)
     call ens_deallocate(ensembleTrl4D)
   else
@@ -444,7 +444,7 @@ program midas_letkf
   end if
 
   !- 4.2 Copy trl ensemble to anl ensemble
-  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, dateStampListInc)
+  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
   call ens_copy(ensembleTrl,ensembleAnl)
 
   !- 4.3 Setup for interpolating weights from coarse to full resolution

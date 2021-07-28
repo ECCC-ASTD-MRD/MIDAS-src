@@ -1056,10 +1056,13 @@ CONTAINS
     else
       write(*,*) 'ben_setupOneInstance: using saved memory for ensemble amplitudes for improved efficiency'
       bEns(instanceIndex)%useSaveAmp = .true.
-      call ens_allocate(ensAmplitudeSave(instanceIndex), bEns(instanceIndex)%nEnsOverDimension,       &
-                        bEns(instanceIndex)%numStepAmplitudeAssimWindow, bEns(instanceIndex)%hco_ens, &
-                        bEns(instanceIndex)%hco_core, bEns(instanceIndex)%vco_ens,                    &
-                        bEns(instanceIndex)%dateStampList,                                            &
+      call ens_allocate(ensAmplitudeSave(instanceIndex),                 &
+                        bEns(instanceIndex)%nEnsOverDimension,           &
+                        bEns(instanceIndex)%numStepAmplitudeAssimWindow, &
+                        bEns(instanceIndex)%hco_ens,                     &
+                        bEns(instanceIndex)%vco_ens,                     &
+                        bEns(instanceIndex)%dateStampList,               &
+                        hco_core_opt=bEns(instanceIndex)%hco_core,       &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       call ens_zero(ensAmplitudeSave(instanceIndex))
     end if
@@ -1068,10 +1071,12 @@ CONTAINS
     if (bEns(instanceIndex)%keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setupOneInstance: ensAmplitude fields will be store for potential write to file'
-      call ens_allocate(bEns(instanceIndex)%ensAmplitudeStorage, bEns(instanceIndex)%nEns,   &
+      call ens_allocate(bEns(instanceIndex)%ensAmplitudeStorage, bEns(instanceIndex)%nEns, &
                         bEns(instanceIndex)%numStepAmplitudeAssimWindow, &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, bEns(instanceIndex)%vco_ens, &
-                        bEns(instanceIndex)%dateStampList, varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
+                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, &
+                        bEns(instanceIndex)%dateStampList, &
+                        hco_core_opt=bEns(instanceIndex)%hco_core, &
+                        varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
     end if
 
   end subroutine ben_setupOneInstance
@@ -1182,9 +1187,11 @@ CONTAINS
     !- 1. Memory allocation
     allocate(bEns(instanceIndex)%ensPerts(bEns(instanceIndex)%nWaveBand))    
     do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
-      call ens_allocate(bEns(instanceIndex)%ensPerts(waveBandIndex), bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep, &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, &
+      call ens_allocate(bEns(instanceIndex)%ensPerts(waveBandIndex),  &
+                        bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep, &
+                        bEns(instanceIndex)%hco_ens,  &
                         bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        hco_core_opt = bEns(instanceIndex)%hco_core, &
                         varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
                         hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree)
     end do
@@ -1904,8 +1911,9 @@ CONTAINS
       ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
       call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core,  &
+                        bEns(instanceIndex)%hco_ens,   &
                         bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        hco_core_opt=bEns(instanceIndex)%hco_core, &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       ensAmplitude_ptr => ensAmplitude
     end if
@@ -2058,8 +2066,9 @@ CONTAINS
       ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
       call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
-                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%hco_core, &
+                        bEns(instanceIndex)%hco_ens,  &
                         bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
+                        hco_core_opt=bEns(instanceIndex)%hco_core,  &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
       ensAmplitude_ptr => ensAmplitude
     end if

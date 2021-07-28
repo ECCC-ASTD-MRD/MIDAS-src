@@ -389,10 +389,10 @@ contains
     call gsv_allocate(statevector_Ly , numStepAmplitude, loc%hco, loc%vco, &
                       mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
 
-    call ens_allocate(ensAmplitude_x, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
-    call ens_allocate(ensAmplitude_Ly, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
+    call ens_allocate(ensAmplitude_x, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+    call ens_allocate(ensAmplitude_Ly, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
     allocate ( controlVector1(cvDim) )
 
@@ -657,14 +657,14 @@ contains
 
     deallocate(advectFactor)
     
-    call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, hco_core, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
-    call ens_allocate(ens_Ly, nEns, numStepAdvect, hco_anl, hco_core, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
-    call ens_allocate(ens_y, nEns, numStepAdvect, hco_anl, hco_core, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
-    call ens_allocate(ens_LTx, nEns, numStepAdvect, hco_anl, hco_core, vco_anl, dateStampList, &
-                      varNames_opt=varNameALFA, dataKind_opt=8)
+    call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
+    call ens_allocate(ens_Ly, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
+    call ens_allocate(ens_y, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
+    call ens_allocate(ens_LTx, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
+                      hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
                       mpi_local_opt=.true., &

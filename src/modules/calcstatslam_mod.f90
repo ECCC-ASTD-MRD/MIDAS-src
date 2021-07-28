@@ -217,7 +217,8 @@ contains
     numStep = 1
     allocate(dateStampList(numStep))
     dateStampList(:)  = -1
-    call ens_allocate(ensPerts, nEns, numStep, hco_bhi, hco_ens, vco_bhi, dateStampList)
+    call ens_allocate(ensPerts, nEns, numStep, hco_bhi, vco_bhi, dateStampList, &
+                      hco_core_opt=hco_ens)
 
     ensContainsFullField = .false.
     ctrlVarHumidity = 'LQ'

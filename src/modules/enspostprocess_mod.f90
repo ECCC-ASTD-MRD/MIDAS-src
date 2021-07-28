@@ -1126,12 +1126,10 @@ contains
     call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
 
     call ens_allocate(ensembleAnlSubSample, numSubSample, tim_nstepobsinc,  &
-                      ens_getHco(ensembleAnl), ens_getHco(ensembleAnl), &
-                      ens_getVco(ensembleAnl), dateStampListInc)
+                      ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
     if (present(ensembleTrlSubSample_opt)) then
       call ens_allocate(ensembleTrlSubSample_opt, numSubSample, tim_nstepobsinc,  &
-                        ens_getHco(ensembleAnl), ens_getHco(ensembleAnl), &
-                        ens_getVco(ensembleAnl), dateStampListInc)
+                        ens_getHco(ensembleAnl), ens_getVco(ensembleAnl), dateStampListInc)
     end if
 
     call gsv_allocate(stateVectorMember, tim_nstepobsinc,  &

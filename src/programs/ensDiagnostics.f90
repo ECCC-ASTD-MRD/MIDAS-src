@@ -103,7 +103,7 @@ program midas_ensDiagnostics
 
   ! Allocate ensembles, read the Trl ensemble
   allocate(ensembleTrl)
-  call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, &
+  call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                     dateStampList)
   call ens_readEnsemble(ensembleTrl, ensPathName, biPeriodic = .false.)
   numStep = ens_getNumStep(ensembleTrl)

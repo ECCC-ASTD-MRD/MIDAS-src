@@ -160,7 +160,7 @@ program midas_ensPostProcess
   !- Allocate ensembles, read the Anl ensemble
   if (readAnlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-    call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, &
+    call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                       dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
     call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
   end if
@@ -169,7 +169,7 @@ program midas_ensPostProcess
   allocate(ensembleTrl)
   if (readTrlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
-    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, hco_ens, vco_ens, &
+    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
                       dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
 

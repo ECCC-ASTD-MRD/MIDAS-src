@@ -341,7 +341,7 @@ program midas_diagBmatrix
         call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
         call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-        call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%hco, loc%vco, &
+        call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
                           datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
         call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, loc%hco, loc%vco, &

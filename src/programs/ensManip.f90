@@ -209,7 +209,7 @@ program midas_ensManip
 
   !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco, hco, vco, dateStampList, &
+  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList, &
                     hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
 

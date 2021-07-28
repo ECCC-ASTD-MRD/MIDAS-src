@@ -102,8 +102,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_allocate
   !--------------------------------------------------------------------------
-  subroutine ens_allocate(ens, numMembers, numStep, hco_comp, hco_core, vco_ens, &
-                          dateStampList, varNames_opt, dataKind_opt, &
+  subroutine ens_allocate(ens, numMembers, numStep, hco_comp, vco_ens, &
+                          dateStampList, hco_core_opt, varNames_opt, dataKind_opt, &
                           hInterpolateDegree_opt)
     !
     !:Purpose: Allocate an ensembleStateVector object
@@ -111,14 +111,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens),           intent(inout) :: ens
-    integer,                    intent(in)    :: numMembers, numStep
-    type(struct_hco), pointer,  intent(in)    :: hco_core, hco_comp
-    type(struct_vco), pointer,  intent(in)    :: vco_ens
-    integer,                    intent(in)    :: dateStampList(:)
-    character(len=*), optional, intent(in)    :: varNames_opt(:)
-    integer, optional,          intent(in)    :: dataKind_opt
-    character(len=*), optional, intent(in)    :: hInterpolateDegree_opt
+    type(struct_ens),                    intent(inout) :: ens
+    integer,                             intent(in)    :: numMembers, numStep
+    type(struct_hco), pointer,           intent(in)    :: hco_comp
+    type(struct_hco), pointer, optional, intent(in)    :: hco_core_opt
+    type(struct_vco), pointer,           intent(in)    :: vco_ens
+    integer,                             intent(in)    :: dateStampList(:)
+    character(len=*), optional,          intent(in)    :: varNames_opt(:)
+    integer, optional,                   intent(in)    :: dataKind_opt
+    character(len=*), optional,          intent(in)    :: hInterpolateDegree_opt
 
     ! Locals:
     integer :: varLevIndex, lon1, lon2, lat1, lat2, k1, k2
@@ -175,7 +176,11 @@ CONTAINS
 
     ens%allocated = .true.
     ens%numMembers = numMembers
-    ens%hco_core => hco_core
+    if (present(hco_core_opt)) then
+      ens%hco_core => hco_core_opt
+    else
+      ens%hco_core => hco_comp
+    end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
