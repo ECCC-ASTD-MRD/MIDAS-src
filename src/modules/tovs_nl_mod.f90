@@ -24,6 +24,7 @@ module tovs_nl_mod
   use rttov_interfaces_mod
   use rttov_types, only :   &
        rttov_coefs         ,&
+       rttov_fast_coef     ,&
        rttov_options       ,&
        rttov_profile       ,&
        rttov_radiance      ,&
@@ -3715,7 +3716,7 @@ contains
     ! Second step: mpi task 0 will do the job
     if ( mpi_myid == 0 ) then
       call rttov_read_coefs ( &
-           ERR,             &! out
+           err,             &! out
            coefs,           &
            opts,            &
            instrument=instrument,      &! in
@@ -4007,163 +4008,9 @@ contains
 
     ! then coefficients. It is more complicated with RTTOV12
 
-    if (mpi_myid > 0) then
-      allocate (coefs%coef%thermal(countUniqueChannel) )
-      do ichan = 1, countUniqueChannel
-        allocate(coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
-        nullify (coefs%coef%thermal(ichan)%mixedgas)
-        nullify (coefs%coef%thermal(ichan)%watervapour)
-        nullify (coefs%coef%thermal(ichan)%ozone)
-        nullify (coefs%coef%thermal(ichan)%wvcont)
-        nullify (coefs%coef%thermal(ichan)%co2)
-        nullify (coefs%coef%thermal(ichan)%n2o)
-        nullify (coefs%coef%thermal(ichan)%co)
-        nullify (coefs%coef%thermal(ichan)%ch4)
-        nullify (coefs%coef%thermal(ichan)%so2)
-        do igas = 1, coefs%coef%fmv_gas
-          allocate (coefs%coef%thermal(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
-        end do
-      end do
-    end if
-    
-    do ichan = 1, countUniqueChannel
-      do igas = 1, coefs%coef%fmv_gas
-        call broadcastR82dArray( coefs%coef%thermal(ichan)%gasarray(igas)%coef )
-      end do
-    end do
+    call dispatch_fast_coef(err, coefs%coef%thermal, .false.)
 
-    if (coefs%coef%solarcoef) then
-      if (mpi_myid>0) then
-        allocate (coefs%coef%solar(countUniqueChannel) )
-        do ichan = 1, countUniqueChannel
-          allocate (coefs%coef%solar(ichan)%gasarray(coefs%coef%fmv_gas) )
-          nullify (coefs%coef%solar(ichan)%mixedgas)
-          nullify (coefs%coef%solar(ichan)%watervapour)
-          nullify (coefs%coef%solar(ichan)%ozone)
-          nullify (coefs%coef%solar(ichan)%wvcont)
-          nullify (coefs%coef%solar(ichan)%co2)
-          nullify (coefs%coef%solar(ichan)%n2o)
-          nullify (coefs%coef%solar(ichan)%co)
-          nullify (coefs%coef%solar(ichan)%ch4)
-          nullify (coefs%coef%solar(ichan)%so2)
-          do igas = 1, coefs%coef%fmv_gas
-            allocate (coefs%coef%solar(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
-          end do
-        end do
-      end if
-      
-      do ichan = 1, countUniqueChannel
-        do igas = 1, coefs%coef%fmv_gas
-          call broadcastR82dArray( coefs%coef%solar(ichan)%gasarray(igas)%coef )
-        end do
-      end do
-    end if
-  
-    allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers) )
-    bigArray(:,:,:,:) = 0.0d0
-
-    do ichan = 1, countUniqueChannel  
-      do igas = 1, coefs%coef%fmv_gas
-        associated0 = associated( coefs%coef%thermal(ichan)%gasarray(igas)%coef )
-        call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-        if (associated0) then
-          do l=1, coefs%coef%nlayers
-            do k=1, coefs%coef%fmv_coe(igas)
-              bigArray(ichan,k,igas,l) = coefs%coef%thermal(ichan)%gasarray(igas)%coef(k,l)
-            end do
-          end do
-        end if
-      end do
-    end do
-    
-    do ichan = 1, countUniqueChannel
-      do igas = 1, coefs%coef%fmv_gas
-        associated0 = associated(coefs%coef%thermal(ichan)%gasarray(igas)%coef)
-        if (associated0) deallocate(coefs%coef%thermal(ichan)%gasarray(igas)%coef)
-      end do
-      deallocate(coefs%coef%thermal(ichan)%gasarray)
-    end do
-    deallocate(coefs%coef%thermal)
-    
-    allocate (coefs%coef%thermal(coefs%coef%fmv_chn) )
-    do ichan = 1, coefs%coef%fmv_chn
-      allocate (coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
-      
-      nullify (coefs%coef%thermal(ichan)%mixedgas)
-      nullify (coefs%coef%thermal(ichan)%watervapour)
-      nullify (coefs%coef%thermal(ichan)%ozone)
-      nullify (coefs%coef%thermal(ichan)%wvcont)
-      nullify (coefs%coef%thermal(ichan)%co2)
-      nullify (coefs%coef%thermal(ichan)%n2o)
-      nullify (coefs%coef%thermal(ichan)%co)
-      nullify (coefs%coef%thermal(ichan)%ch4)
-      nullify (coefs%coef%thermal(ichan)%so2)
-
-      do igas = 1, coefs%coef%fmv_gas
-        if (any( bigArray(indexchan(ichan),:,igas,:) /= 0.) ) then
-          allocate (coefs%coef%thermal(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
-          do l=1, coefs%coef%nlayers
-            do k=1, coefs%coef%fmv_coe(igas)
-              coefs%coef%thermal(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
-            end do
-          end do
-        end if
-        call set_pointers(coefs%coef%thermal(ichan), igas, coefs%coef%fmv_gas_id(igas))
-      end do
-    end do
-
-    if (coefs % coef % solarcoef) then
-      bigArray(:,:,:,:) = 0.0d0
-      do ichan = 1, countUniqueChannel  
-        do igas = 1, coefs%coef%fmv_gas
-          associated0 = associated( coefs%coef%solar(ichan)%gasarray(igas)%coef )
-          call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-          if (associated0) then
-            do l=1,coefs % coef % nlayers
-              do k=1,coefs % coef % fmv_coe(igas)
-                bigArray(ichan,k,igas,l) = coefs % coef % solar(ichan) % gasarray(igas) % coef(k,l)
-              end do
-            end do
-          end if
-        end do
-      end do
-  
-      do ichan = 1, countUniqueChannel
-        do igas = 1, coefs%coef%fmv_gas
-          associated0 = associated(coefs%coef%solar(ichan)%gasarray(igas)%coef)
-          if (associated0) deallocate(coefs%coef%solar(ichan)%gasarray(igas)%coef)
-        end do
-        deallocate(coefs%coef%solar(ichan)%gasarray)   
-      end do
-      deallocate(coefs%coef%solar)
-     
-      allocate (coefs%coef%solar(coefs%coef%fmv_chn) )
-      do ichan = 1, coefs%coef%fmv_chn
-        allocate (coefs%coef%solar(ichan)%gasarray(coefs%coef%fmv_gas) )
-        nullify (coefs%coef%solar(ichan)%mixedgas)
-        nullify (coefs%coef%solar(ichan)%watervapour)
-        nullify (coefs%coef%solar(ichan)%ozone)
-        nullify (coefs%coef%solar(ichan)%wvcont)
-        nullify (coefs%coef%solar(ichan)%co2)
-        nullify (coefs%coef%solar(ichan)%n2o)
-        nullify (coefs%coef%solar(ichan)%co)
-        nullify (coefs%coef%solar(ichan)%ch4)
-        nullify (coefs%coef%solar(ichan)%so2)
-        do igas = 1, coefs%coef%fmv_gas
-          if (any( bigArray(indexchan(ichan),:,igas,:) /= 0.) ) then
-            allocate (coefs%coef%solar(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
-            do l=1, coefs%coef%nlayers
-              do k=1, coefs%coef%fmv_coe(igas)
-                coefs%coef%solar(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
-              end do
-            end do
-          end if
-          call set_pointers(coefs%coef%solar(ichan), igas, coefs%coef%fmv_gas_id(igas))
-        end do
-      end do
-    end if
-
-    deallocate(bigArray)
+    if (coefs%coef%solarcoef) call dispatch_fast_coef(err,coefs%coef%solar , .false.)
 
     if (coefs%coef%nltecoef) then
 
@@ -4262,73 +4109,95 @@ contains
       nullify(coefs%coef%pmc_pnominal, coefs%coef%pmc_coef, coefs%coef%pmc_ppmc)
     end if
 
+    contains
+
+    subroutine nullify_gas_coef_pointers(fast_coef)
+      type(rttov_fast_coef), intent(inout) :: fast_coef
+      nullify (fast_coef%mixedgas,&
+           fast_coef%watervapour, &
+           fast_coef%ozone,       &
+           fast_coef%wvcont,      &
+           fast_coef%co2,         &
+           fast_coef%n2o,         &
+           fast_coef%co,          &
+           fast_coef%ch4,         &
+           fast_coef%so2)
+    end subroutine nullify_gas_coef_pointers
+
+    subroutine dispatch_fast_coef(err, fast_coef, corr)
+      integer,                        intent(out)   :: err
+      type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
+      logical,                        intent(in)    :: corr
+
+      integer(jpim) :: ichan, igas, gas_id, gas_pos, ncoef
+      real(8), allocatable :: bigArray(:,:,:,:)
+      logical :: allocated0
+
+      allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers), stat=err )
+      bigArray(:,:,:,:) = 0.0d0
+
+      if (mpi_myid > 0) then
+        allocate (fast_coef(countUniqueChannel) )
+        do ichan = 1, countUniqueChannel
+          allocate(fast_coef(ichan)%gasarray(coefs%coef%fmv_gas) )
+          do igas = 1, coefs%coef%fmv_gas
+            allocate (fast_coef(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+          end do
+        end do
+      end if
+      
+      do ichan = 1, countUniqueChannel
+        do igas = 1, coefs%coef%fmv_gas
+          call broadcastR82dArray( fast_coef(ichan)%gasarray(igas)%coef )
+        end do
+      end do
+
+      do ichan = 1, countUniqueChannel  
+        do igas = 1, coefs%coef%fmv_gas
+          associated0 = associated( fast_coef(ichan)%gasarray(igas)%coef )
+          call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+          if (associated0) then
+            do l=1, coefs%coef%nlayers
+              do k=1, coefs%coef%fmv_coe(igas)
+                bigArray(ichan,k,igas,l) = fast_coef(ichan)%gasarray(igas)%coef(k,l)
+              end do
+            end do
+          end if
+        end do
+      end do
+    
+      do ichan = 1, countUniqueChannel
+        do igas = 1, coefs%coef%fmv_gas
+          associated0 = associated(fast_coef(ichan)%gasarray(igas)%coef)
+          if (associated0) deallocate(fast_coef(ichan)%gasarray(igas)%coef)
+        end do
+        deallocate(fast_coef(ichan)%gasarray)
+      end do
+      deallocate(fast_coef)
+    
+      allocate (fast_coef(coefs%coef%fmv_chn) )
+      do ichan = 1, coefs%coef%fmv_chn
+        allocate (fast_coef(ichan)%gasarray(coefs%coef%fmv_gas) )
+        call nullify_gas_coef_pointers( fast_coef(ichan) )
+        
+        do igas = 1, coefs%coef%fmv_gas
+          if (any( bigArray(indexchan(ichan),:,igas,:) /= 0.) ) then
+            allocate (fast_coef(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+            do l=1, coefs%coef%nlayers
+              do k=1, coefs%coef%fmv_coe(igas)
+                fast_coef(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
+              end do
+            end do
+          end if
+          call set_pointers(fast_coef(ichan), igas, coefs%coef%fmv_gas_id(igas))
+        end do
+      end do
+     
+    end subroutine dispatch_fast_coef
+
   end subroutine tvs_rttov_read_coefs
 
-!  subroutine nullify_gas_coef_pointers(fast_coef)
-!    type(rttov_fast_coef), intent(inout) :: fast_coef
-!    nullify (fast_coef%mixedgas,    &
-!             fast_coef%watervapour, &
-!             fast_coef%ozone,       &
-!             fast_coef%wvcont,      &
-!             fast_coef%co2,         &
-!             fast_coef%n2o,         &
-!             fast_coef%co,          &
-!             fast_coef%ch4,         &
-!             fast_coef%so2)
-!  end subroutine nullify_gas_coef_pointers
-
-!  subroutine dispatch_fast_coef(err, fast_coef, corr)
-!    integer(jpim),                  intent(out)   :: err
-!    type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-!    logical(jplm),                  intent(in)    :: corr
-!
-!    integer(jpim) :: ichan, igas, gas_id, gas_pos, ncoef
-!
-!
-!    associated0 = associated( fast_coef )
-!    call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-!    if (associated0) then
-!      
-!      if (mpi_myId .gt. 0) then 
-!        allocate(fast_coef(coef%fmv_chn), stat=err)
-        !throwm(err.ne.0, 'allocation of fast_coef')
-!        do ichan = 1, coef%fmv_chn
-!          allocate (fast_coef(ichan)%gasarray(coef%fmv_gas), stat=err)
-          !throwm(err.ne.0, 'allocation of fast_coef(:)%gasarray')
-!          call nullify_gas_coef_pointers(fast_coef(ichan))
-!        end do
-!      else
-
-!      end if
-!      do igas = 1, coef%fmv_gas
-!        gas_id = coef%fmv_gas_id(igas)
-!        gas_pos = coef%fmv_gas_pos(gas_id)
-!        if (corr) then
-!          ncoef = coef%fmv_ncorr(gas_pos)
-!        else
-!          ncoef = coef%fmv_coe(gas_pos)
-!        end if
-!        do ichan = 1, coef%fmv_chn
-!          associated0 = associated( fast_coef1(channels(ichan))%gasarray(gas_pos)%coef )
-!          call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-!          if (associated0) then
-!            if (mpi_myId .gt. 0) then 
-!              allocate(fast_coef(ichan)%gasarray(gas_pos)%coef(ncoef, coef%nlayers), stat=err)
-              !throwm(err.ne.0, 'allocation of fast_coef(:)%gasarray(:)%coef')
-!              fast_coef2(ichan)%gasarray(gas_pos)%coef = &
-!                 fast_coef1(channels(ichan))%gasarray(gas_pos)%coef
-
-!            call set_pointers(fast_coef2(ichan), gas_pos, gas_id)
-!          end if
-
-!      end do
-          
-            
-!        end do
-!      end do
-!    end if
-    
-!  end subroutine dispatch_fast_coef
+  
 
   subroutine extractI41dArray(array,oldSize,index)
     implicit none
