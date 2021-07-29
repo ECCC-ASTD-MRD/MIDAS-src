@@ -4007,10 +4007,20 @@ contains
     call extractR83dArray(coefs%coef%pmc_coef,coefs%coef%pmc_nlay,countUniqueChannel,coefs%coef%pmc_nvar,indexchan)
 
     ! then coefficients. It is more complicated with RTTOV12
-
-    call dispatch_fast_coef(err, coefs%coef%thermal, .false.)
-
-    if (coefs%coef%solarcoef) call dispatch_fast_coef(err,coefs%coef%solar , .false.)
+    call dispatch_fast_coef(err, coefs%coef%thermal, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
+         coefs%coef%nlayers, coefs%coef%fmv_gas)
+    if (coefs%coef%fmv_model_ver > 9) THEN
+      call dispatch_fast_coef(err, coefs%coef%thermal_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
+           coefs%coef%nlayers, coefs%coef%fmv_gas)
+    end if
+    if (coefs%coef%solarcoef) then
+      call dispatch_fast_coef(err, coefs%coef%solar, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
+           coefs%coef%nlayers, coefs%coef%fmv_gas)
+      if (coefs%coef%fmv_model_ver > 9) THEN
+        call dispatch_fast_coef(err, coefs%coef%solar_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
+             coefs%coef%nlayers, coefs%coef%fmv_gas)
+      end if
+    end if
 
     if (coefs%coef%nltecoef) then
 
@@ -4037,7 +4047,7 @@ contains
 
       nlte_file_nchan  = coefs%coef%nlte_coef%nchan
 
-      ! Reset NLTE channel variables according to input channel list
+      ! Reset NLTE channel variables according to input channel limit
       coefs%coef%nlte_coef%start_chan  = nlte_start
       coefs%coef%nlte_coef%nchan      = nlte_count
 
@@ -4088,6 +4098,7 @@ contains
       call set_fastcoef_level_bounds(coefs%coef, coefs%coef%solar, thermal = .false._jplm)
     else
       coefs%coef%solar => coefs%coef%thermal
+      coefs%coef%solar_corr => coefs%coef%thermal_corr
       coefs%coef%bounds(:,:,:,2) = coefs%coef%bounds(:,:,:,1)
     end if
 
@@ -4124,80 +4135,82 @@ contains
            fast_coef%so2)
     end subroutine nullify_gas_coef_pointers
 
-    subroutine dispatch_fast_coef(err, fast_coef, corr)
+    subroutine dispatch_fast_coef(err, fast_coef, gas_ids, ncoefs, version, nlayers, ngas)
       integer,                        intent(out)   :: err
       type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-      logical,                        intent(in)    :: corr
+      integer(jpim),         intent(in)           :: gas_ids(:)
+      integer(jpim),         intent(in)           :: ncoefs(:)
+      integer(jpim),         intent(in)           :: version
+      integer(jpim),         intent(in)           :: nlayers
+      integer(jpim),         intent(in)           :: ngas
 
-      integer(jpim) :: ichan, igas, gas_id, gas_pos, ncoef
+      integer(jpim) :: channelIndex, gasIndex, layerIndex, coefIndex
       real(8), allocatable :: bigArray(:,:,:,:)
       logical :: allocated0
 
-      allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers), stat=err )
+      allocate(bigArray(countUniqueChannel,maxval(ncoefs),ngas,nlayers), stat=err )
       bigArray(:,:,:,:) = 0.0d0
 
       if (mpi_myid > 0) then
         allocate (fast_coef(countUniqueChannel) )
-        do ichan = 1, countUniqueChannel
-          allocate(fast_coef(ichan)%gasarray(coefs%coef%fmv_gas) )
-          do igas = 1, coefs%coef%fmv_gas
-            allocate (fast_coef(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+        do channelIndex = 1, countUniqueChannel
+          allocate(fast_coef(channelIndex)%gasarray(ngas) )
+          do gasIndex = 1, ngas
+            allocate (fast_coef(channelIndex)%gasarray(gasIndex)%coef( ncoefs(gasIndex), nlayers) )
           end do
         end do
       end if
-      
-      do ichan = 1, countUniqueChannel
-        do igas = 1, coefs%coef%fmv_gas
-          call broadcastR82dArray( fast_coef(ichan)%gasarray(igas)%coef )
+
+      do channelIndex = 1, countUniqueChannel
+        do gasIndex = 1, ngas
+          call broadcastR82dArray( fast_coef(channelIndex)%gasarray(gasIndex)%coef )
         end do
       end do
 
-      do ichan = 1, countUniqueChannel  
-        do igas = 1, coefs%coef%fmv_gas
-          associated0 = associated( fast_coef(ichan)%gasarray(igas)%coef )
+      do channelIndex = 1, countUniqueChannel  
+        do gasIndex = 1, ngas
+          associated0 = associated( fast_coef(channelIndex)%gasarray(gasIndex)%coef )
           call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
           if (associated0) then
-            do l=1, coefs%coef%nlayers
-              do k=1, coefs%coef%fmv_coe(igas)
-                bigArray(ichan,k,igas,l) = fast_coef(ichan)%gasarray(igas)%coef(k,l)
+            do layerIndex=1, nlayers
+              do coefIndex=1, ncoefs(gasIndex)
+                bigArray(channelIndex,coefIndex,gasIndex,layerIndex) = fast_coef(channelIndex)%gasarray(gasIndex)%coef(coefIndex,layerIndex)
               end do
             end do
           end if
         end do
       end do
-    
-      do ichan = 1, countUniqueChannel
-        do igas = 1, coefs%coef%fmv_gas
-          associated0 = associated(fast_coef(ichan)%gasarray(igas)%coef)
-          if (associated0) deallocate(fast_coef(ichan)%gasarray(igas)%coef)
+
+      do channelIndex = 1, countUniqueChannel
+        do gasIndex = 1, ngas
+          associated0 = associated(fast_coef(channelIndex)%gasarray(gasIndex)%coef)
+          if (associated0) deallocate(fast_coef(channelIndex)%gasarray(gasIndex)%coef)
         end do
-        deallocate(fast_coef(ichan)%gasarray)
+        deallocate(fast_coef(channelIndex)%gasarray)
       end do
       deallocate(fast_coef)
-    
       allocate (fast_coef(coefs%coef%fmv_chn) )
-      do ichan = 1, coefs%coef%fmv_chn
-        allocate (fast_coef(ichan)%gasarray(coefs%coef%fmv_gas) )
-        call nullify_gas_coef_pointers( fast_coef(ichan) )
-        
-        do igas = 1, coefs%coef%fmv_gas
-          if (any( bigArray(indexchan(ichan),:,igas,:) /= 0.) ) then
-            allocate (fast_coef(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
-            do l=1, coefs%coef%nlayers
-              do k=1, coefs%coef%fmv_coe(igas)
-                fast_coef(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
+      do channelIndex = 1, coefs%coef%fmv_chn
+        allocate (fast_coef(channelIndex)%gasarray(ngas) )
+        call nullify_gas_coef_pointers( fast_coef(channelIndex) )
+        do gasIndex = 1, ngas
+          if (any( bigArray(indexchan(channelIndex),:,gasIndex,:) /= 0.) ) then
+            allocate (fast_coef(channelIndex)%gasarray(gasIndex)%coef( ncoefs(gasIndex), nlayers) )
+            do layerIndex=1, nlayers
+              do coefIndex=1, ncoefs(gasIndex)
+                fast_coef(channelIndex)%gasarray(gasIndex)%coef(coefIndex,layerIndex)  = bigArray(indexchan(channelIndex),coefIndex,gasIndex,layerIndex)
               end do
             end do
           end if
-          call set_pointers(fast_coef(ichan), igas, coefs%coef%fmv_gas_id(igas))
+          call set_pointers(fast_coef(channelIndex), gasIndex, gas_ids(gasIndex))
         end do
       end do
-     
+
+      deallocate(bigArray, stat=err )
+
     end subroutine dispatch_fast_coef
 
   end subroutine tvs_rttov_read_coefs
-
-  
 
   subroutine extractI41dArray(array,oldSize,index)
     implicit none
