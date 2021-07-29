@@ -74,12 +74,13 @@ contains
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
     type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv), pointer :: stateVectorAnalIncMask => null()
     type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
     type(struct_gsv)          :: stateVectorMeanIncSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSfcPres
     type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
-    type(struct_ens)          :: ensembleTrlSubSample
+    type(struct_ens), target  :: ensembleTrlSubSample
     type(struct_ens)          :: ensembleAnlSubSample
     type(struct_ens)          :: ensembleAnlSubSampleUnPert
     character(len=12)         :: etiket
@@ -110,6 +111,7 @@ contains
     character(len=12) :: etiket_anlmeanpert, etiket_anlrmspert ! etikets for mean and rms of perturbed analyses
     character(len=12) :: etiket_trlmean, etiket_trlrms      ! etikets for mean and rms of trials
     integer  :: numBits ! number of bits when writing ensemble mean and spread
+    logical  :: useAnalIncMask         ! mask out the increment on the pilot zone
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -117,7 +119,7 @@ contains
                                    weightRecenter, weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
                                    etiket_anlmeanpert, etiket_anlrmspert, etiket_trlmean, etiket_trlrms, &
-                                   numBits
+                                   etiket0, numBits, useAnalIncMask
 
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
@@ -169,6 +171,7 @@ contains
     etiket_trlmean = 'E27_0_0PAVG' ! for file '${trialdate}_006_trialmean'
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
     numBits = 16
+    useAnalIncMask        = .false.
 
     !- Read the namelist
     nulnam = 0
@@ -609,11 +612,22 @@ contains
       end if
       call tmg_stop(104)
 
+      !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
+      if (.not. hco_ens%global .and. useAnalIncMask) then
+        call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
+      end if
+
       if (ens_allocated(ensembleTrl)) then
         !- Output all ensemble member increments
         ! WARNING: Increment put in ensembleTrl for output
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
+
+        !- Mask the ensemble increment for LAM grid
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call ens_applyMaskLAM(ensembleTrl, stateVectorAnalIncMask)
+        end if
+
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
@@ -669,6 +683,12 @@ contains
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
         ! WARNING: Increment put in ensembleTrlSubSample for output
         call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
+
+        !- Mask the ensemble increment for LAM grid
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call ens_applyMaskLAM(ensembleTrlSubSample, stateVectorAnalIncMask)
+        end if
+
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
@@ -1131,8 +1151,8 @@ contains
   !-----------------------------------------------------------------
   ! epp_hybridRecentering
   !-----------------------------------------------------------------
-  subroutine epp_hybridRecentering( ensembleAnl, weightRecenter, weightRecenterLand, &
-                                    useOptionTableRecenter, numMembersToRecenter)
+  subroutine epp_hybridRecentering(ensembleAnl, weightRecenter, weightRecenterLand, &
+                                   useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
     !           in the file "recentering_analysis".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
