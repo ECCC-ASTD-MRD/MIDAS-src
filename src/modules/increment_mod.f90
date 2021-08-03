@@ -113,7 +113,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevectorPsfcLowRes
-    type(struct_gsv), pointer :: statevector_mask => null()
+    type(struct_gsv) :: statevector_mask
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
