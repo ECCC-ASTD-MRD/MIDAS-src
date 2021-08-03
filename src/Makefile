@@ -337,6 +337,9 @@ _D_options=$(filter -D%,$(COMPF))
 	-o $@
 
 %.Abs: 	#> compile and link a program 
+	@echo removing installed target if it exist
+	rm -rf $(addprefix $(ABS_INSTALL_PRFX),\
+		$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$@))
 	$(FC) $(COMPF) -O $(FOPTMIZ) \
 	$(addprefix -l, $(LIBAPPL) $(LIBSYS) $(LIBRMN)) $^ \
 	-o $@
