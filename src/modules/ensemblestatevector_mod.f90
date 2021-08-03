@@ -33,6 +33,7 @@ module ensembleStateVector_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -2903,17 +2904,19 @@ CONTAINS
   subroutine ens_applyMaskLAM(ensIncrement, stateVectorAnalIncMask)
     !:Purpose: To apply a mask to an ensemble state vector for LAM grid
     !
-    use codePrecision_mod
-
     implicit none
-    type(struct_ens), pointer, intent(in) :: ensIncrement
+
+    ! Arguments
+    type(struct_ens), intent(inout) :: ensIncrement
     type(struct_gsv), intent(in) :: stateVectorAnalIncMask
 
-    ! local
+    ! Locals
     real(4), pointer :: increment_ptr(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask_ptr(:,:,:)
     integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: varLevIndex, lonIndex, latIndex, stepIndex, memberIndex
+
+    write(*,*) 'ens_applyMaskLAM: starting'
 
     if (.not.(ens_allocated(ensIncrement).and.(stateVectorAnalIncMask%allocated))) then
       call utl_abort('epp_applyMasLAM: increment and mask must be avaliable.')
@@ -2940,6 +2943,7 @@ CONTAINS
       end do
       !$OMP END PARALLEL DO
     end do
+    write(*,*) 'ens_applyMaskLAM: finished to mask each member of increments'
 
   end subroutine ens_applyMaskLAM
 

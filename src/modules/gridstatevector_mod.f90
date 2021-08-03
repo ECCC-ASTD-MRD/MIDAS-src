@@ -32,6 +32,7 @@ module gridStateVector_mod
   use timeCoord_mod
   use utilities_mod
   use physicsFunctions_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -7900,57 +7901,52 @@ module gridStateVector_mod
   subroutine gsv_getMaskLAM(statevector_mask, hco_ptr, vco_ptr, hInterpolateDegree_opt)
     !:Purpose: To read a LAM mask from a file (.analinc_mask by default).
     !
-    use codePrecision_mod
-
     implicit none
-    type(struct_gsv), pointer :: statevector_mask
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector_mask
     type(struct_hco), pointer :: hco_ptr
     type(struct_vco), pointer :: vco_ptr
     character(len=*), intent(in), optional :: hInterpolateDegree_opt
 
-    ! local
-    type(struct_gsv), target, save :: localvector_mask
-    character(len=12) :: hInterpolationDegree = 'LINEAR'
+    ! Locals
+    character(len=12) :: hInterpolationDegree
 
-    if (present(hInterpolateDegree_opt)) hInterpolationDegree = hInterpolateDegree_opt
+    if (present(hInterpolateDegree_opt)) then
+      hInterpolationDegree = hInterpolateDegree_opt
+    else
+      hInterpolationDegree = 'LINEAR'
+    end if
 
-    call gsv_allocate(localvector_mask, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
+    call gsv_allocate(statevector_mask, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                       dataKind_opt=pre_incrReal, &
                       mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
                       hInterpolateDegree_opt=hInterpolationDegree)
-    call gsv_readFromFile(localvector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
+    call gsv_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
                           vcoFileIn_opt=vco_ptr)
-
-    statevector_mask => localvector_mask
 
   end subroutine gsv_getMaskLAM
 
   !--------------------------------------------------------------------------
   !gsv_applyMaskLAM
   !--------------------------------------------------------------------------
-  subroutine gsv_applyMaskLAM(statevector_inout, maskLAM, nomvar)
+  subroutine gsv_applyMaskLAM(statevector_inout, maskLAM)
     !:Purpose: To apply a mask to a state vector for LAM grid
     !
-    use codePrecision_mod
-
     implicit none
+
+    ! Arguments
     type(struct_gsv), intent(inout)  :: statevector_inout
     type(struct_gsv), intent(in)     :: maskLAM
-    character(len=4), optional       :: nomvar
 
-    ! local
+    ! Locals
     real(pre_incrReal), pointer :: increment(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
     integer :: latIndex, kIndex, lonIndex, stepIndex
 
-!    write(*,*) 'gsv_applyMaskLAM: STARTING'
+    write(*,*) 'gsv_applyMaskLAM: STARTING'
 
-    if (present(nomvar)) then
-      call gsv_getField(statevector_inout,increment,nomvar)
-    else
-      call gsv_getField(statevector_inout,increment)
-    end if
-
+    call gsv_getField(statevector_inout,increment)
     call gsv_getField(maskLAM,analIncMask)
     do stepIndex = 1, statevector_inout%numStep
       !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -7965,6 +7961,8 @@ module gridStateVector_mod
       end do
       !$OMP END PARALLEL DO
     end do
+
+    write(*,*) 'gsv_applyMaskLAM: finished to apply mask to the analysis increments.'
 
   end subroutine gsv_applyMaskLAM
 

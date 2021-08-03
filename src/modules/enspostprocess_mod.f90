@@ -74,13 +74,13 @@ contains
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
     type(struct_gsv)          :: stateVectorMeanInc
-    type(struct_gsv), pointer :: stateVectorAnalIncMask => null()
+    type(struct_gsv)          :: stateVectorAnalIncMask
     type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
     type(struct_gsv)          :: stateVectorMeanIncSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSfcPres
     type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
-    type(struct_ens), target  :: ensembleTrlSubSample
+    type(struct_ens)          :: ensembleTrlSubSample
     type(struct_ens)          :: ensembleAnlSubSample
     type(struct_ens)          :: ensembleAnlSubSampleUnPert
     character(len=12)         :: etiket
