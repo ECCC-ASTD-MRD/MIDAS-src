@@ -262,6 +262,11 @@ A complete install is then
 ```
 launched from all platforms (what is done by `./midas_build` without argument).
 
+Note that when `make` is called to compile and link an absolute (`*.Abs`),
+it will first **remove the corresponding installed program** in the `midas_abs`
+directory.  This is to address issue #513; always do `make install` after 
+calling `make` on a program **before** launching the test maestro suite.
+
 
 ### Calling make in parallel
 
