@@ -88,7 +88,7 @@ contains
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambgck, iostat=ierr)
-    if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
+    if (ierr /= 0) call utl_abort('ssbg_init: Error reading namelist')
     if (mpi_myid == 0) write(*, nml=nambgck)
     ierr = fclos(nulnam)
 
@@ -1204,8 +1204,8 @@ end subroutine bennartz
     logical                  :: debug 
     integer                  :: ier, irec, irec2
     integer                  :: ezqkdef, ezsetopt
-    integer                  :: FSTINF,FSTPRM,FCLOS
-    integer                  :: FSTLIR,FSTFRM, FNOM, FSTOUV
+    integer, external        :: FSTINF,FSTPRM,FCLOS
+    integer, external        :: FSTLIR,FSTFRM, FNOM, FSTOUV
     integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4, ip1
     integer                  :: IDUM1,IDUM2,IDUM3,IDUM4
     integer                  :: IDUM5,IDUM6,IDUM7,IDUM8
@@ -1253,7 +1253,7 @@ end subroutine bennartz
 
     ! STEP 2: READ MT from the FST FILE
     if(ifFirstCall) then
-      IER = FNOM(IUNGEO,'trlm_01','STD+RND',0)
+      IER = FNOM(IUNGEO,'trlm_01','STD+RND+R/O',0)
       IER = FSTOUV(IUNGEO,'RND')
 
       !_____TOPOGRAPHIE (MT = 'ME', 'MX', or 'GZ'(eta=1)).
@@ -1379,7 +1379,6 @@ end subroutine bennartz
     end do
 
   end subroutine ssbg_readGeophysicFieldsAndInterpolate
-
 
   !--------------------------------------------------------------------
   !  land_ice_mask_ssmis
@@ -1554,8 +1553,8 @@ end subroutine bennartz
     ! --------------------------------------------------------------------
 
     ! Define FORTRAN FST functions:
-    integer, external :: fstinf,fstprm,fstlir,fnom,fclos
-    integer, external :: fstouv,fstfrm,fstinl,fstvoi
+    integer, external :: fstinf,fstprm,fstlir
+    integer, external :: fstouv,fstfrm,fnom,fclos
 
     ! Allocate space for arrays holding values on mesh grid pts.
     call utl_reAllocate(latmesh, mxlat*mxlon)
@@ -1567,17 +1566,18 @@ end subroutine bennartz
     call utl_reAllocate(ztt, npts)
     call utl_reAllocate(waterobs, npts)
 
-    ! Open FST file.
-
-    ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
-    ier = fstouv( iungeo,'RND' )
-
     if (firstCall) then
+
       firstCall = .false.
+
+      ! Open FST file.
+      ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
+      ier = fstouv( iungeo,'RND' )
+
       ! Read MG field.
       key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
       if ( key <  0 ) then
-        call utl_abort('mwbg_landIceMaskAtms: The MG field is MISSING')
+        call utl_abort('ssbg_landIceMaskAtms: The MG field is MISSING')
       end if
 
       call utl_reAllocate(mg, ni*nj)
@@ -1605,6 +1605,9 @@ end subroutine bennartz
 
       gdid = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
       gdidlg = ezqkdef(nilg,njlg,grtyplg,ig1lg,ig2lg,ig3lg,ig4lg,iungeo)
+
+      ier = fstfrm(iungeo)
+      ier = fclos(iungeo)
 
     end if ! firstCall
 
@@ -1707,9 +1710,6 @@ end subroutine bennartz
 
     end do
 
-    ier = fstfrm(iungeo)
-    ier = fclos(iungeo)
-
   end subroutine land_ice_mask_ssmis
 
 
@@ -1789,13 +1789,12 @@ end subroutine bennartz
     ! Define FORTRAN FST functions:
     integer, external :: fnom,fclos
     integer, external :: fstinf,fstprm,fstlir
-    integer, external :: fstouv,fstfrm,fstinl,fstvoi
-
+    integer, external :: fstouv,fstfrm
 
 
     ! Open Wentz surface field if first call
 
-    ier = fnom( iunin,wentz_file,'STD+RND',0 )
+    ier = fnom( iunin,wentz_file,'STD+RND+R/O',0 )
     ier = fstouv( iunin,'RND' )
 
     key = fstinf(iunin,ni,nj,nk,-1,' ',0,0,0,' ','LM')
@@ -1952,155 +1951,6 @@ end subroutine bennartz
   end subroutine ssbg_grossValueCheck
 
   !--------------------------------------------------------------------------
-  !  mwbg_readObsFromObsSpace
-  !--------------------------------------------------------------------------
-  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, &
-                                      satIdentifier, satZenithAngle, landQualifierIndice, &
-                                      terrainTypeIndice, obsLatitude, obsLongitude, &
-                                      satScanPosition, obsQcFlag1, satOrbit, & 
-                                      obsGlobalMarker, burpFileSatId, obsTb, btClear, &
-                                      obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
-                                      obsFlags, sensorIndex, actualNumChannel, obsSpaceData)
-    
-    !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
-
-    implicit None
-
-    !Arguments
-    character(len=9),     intent(in)     :: InstName               ! Instrument Name
-    integer,              intent(in)     :: headerIndex            ! current header Index 
-    integer, allocatable, intent(out)    :: satIdentifier(:)       ! satellite identifier
-    real   , allocatable, intent(out)    :: satZenithAngle(:)      ! satellite zenith angle (btyp=3072,ele=7024) 
-    integer, allocatable, intent(out)    :: landQualifierIndice(:) ! land/sea qualifier     (btyp=3072,ele=8012)
-    integer, allocatable, intent(out)    :: terrainTypeIndice(:)   ! terrain-type (ice)     (btyp=3072,ele=13039)
-    real   , allocatable, intent(out)    :: obsLatitude(:)         ! latitude values (btyp=5120,ele=5002)
-    real   , allocatable, intent(out)    :: obsLongitude(:)        ! longitude values (btyp=5120,ele=6002)
-    integer, allocatable, intent(out)    :: satScanPosition(:)     ! scan position (fov)    (btyp=3072,ele=5043)
-    integer, allocatable, intent(out)    :: obsQcFlag1(:,:)        ! flag values for btyp=3072 block ele 033078, 033079, 033080
-    integer, allocatable, intent(out)    :: satOrbit(:)            ! orbit number
-    integer, allocatable, intent(out)    :: obsGlobalMarker(:)     ! global Marqueur Data
-    character(*),intent(out)             :: burpFileSatId          ! Platform Name
-    real   , allocatable, intent(out)    :: obsTb(:)               ! brightness temperature (btyp=9248/9264,ele=12163) 
-    real   , allocatable, intent(out)    :: btClear(:)             ! clear brightness temperature (btyp=9248/9264,ele=btClearElementId)
-    real   , allocatable, intent(out)    :: obsTbBiasCorr(:)       ! bias correction 
-    real   , allocatable, intent(out)    :: ompTb(:)               ! OMP values
-    integer, allocatable, intent(out)    :: obsQcFlag2(:)          ! flag values for btyp=9248 block ele 033081      
-    integer, allocatable, intent(out)    :: obsChannels(:)         ! channel numbers btyp=9248 block ele 5042 (= 1-22)
-    integer, allocatable, intent(out)    :: obsFlags(:)            ! data flags
-    integer,              intent(out)    :: sensorIndex            ! find tvs_sensor index corresponding to current obs
-    integer,              intent(out)    :: actualNumChannel       ! actual Num channel
-
-    type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
-
-    ! Locals
-    integer                              :: bodyIndex
-    integer                              :: obsNumCurrentLoc
-    integer                              :: bodyIndexbeg
-    integer                              :: headerCompt 
-    integer                              :: currentChannelNumber  
-    integer                              :: channelIndex
-    integer                              :: numObsToProcess       
-    integer                              :: iplatform
-    integer                              :: instrum
-    integer                              :: isat, iplatf
-    integer                              :: instr
-    logical                              :: sensorIndexFound
-
-   ! find tvs_sensor index corresponding to current obs
-
-    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
-    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
-
-    call tvs_mapSat( iplatf, iplatform, isat )
-    call tvs_mapInstrum( instr, instrum )
-    
-    sensorIndexFound = .false.
-    do sensorIndex =1, tvs_nsensors
-      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
-           isat      ==  tvs_satellites(sensorIndex) .and. &
-           instrum   == tvs_instruments(sensorIndex)       ) then
-          sensorIndexFound = .true. 
-         exit
-      end if
-    end do
-    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
-
-    ! find actual Number of channels
-    actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-
-    headerCompt = 1 
-    numObsToProcess = 1
-    ! Allocate Header elements
-    call utl_reAllocate(satIdentifier, numObsToProcess)
-    call utl_reAllocate(satZenithAngle, numObsToProcess)
-    call utl_reAllocate(landQualifierIndice, numObsToProcess)
-    call utl_reAllocate(terrainTypeIndice, numObsToProcess)
-    call utl_reAllocate(obsLatitude, numObsToProcess)
-    call utl_reAllocate(obsLongitude, numObsToProcess)
-    call utl_reAllocate(satScanPosition, numObsToProcess)
-    call utl_reAllocate(obsGlobalMarker, numObsToProcess)
-    call utl_reAllocate(satOrbit, numObsToProcess)
-    call utl_reAllocate(obsQcFlag1, numObsToProcess,3)
-    ! Allocate Body elements
-    call utl_reAllocate(obsTb, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(btClear, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(ompTb, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(obsTbBiasCorr, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(obsChannels, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(obsQcFlag2, numObsToProcess*actualNumChannel)
-    !initialization
-    obsTb(:) = ssbg_realMissing
-    btClear(:) = ssbg_realMissing
-    ompTb(:) = ssbg_realMissing
-    obsTbBiasCorr(:) = ssbg_realMissing
-
-        
-    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
-    satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
-    satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
-    landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
-    terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
-    ! If terrain type is missing, set it to -1 for the QC programs
-    if (terrainTypeIndice(headerCompt) ==  99) terrainTypeIndice(headerCompt) = -1
-    obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
-    obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
-    ! Convert lat/lon to degrees
-    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
-    if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
-    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
-    obsGlobalMarker(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex ) 
-    satOrbit(headerCompt)              = obs_headElem_i( obsSpaceData, OBS_ORBI, headerIndex) 
-    if (instName == 'ATMS') then  
-      obsQcFlag1(headerCompt,1)        = obs_headElem_i( obsSpaceData, OBS_AQF1, headerIndex) 
-      obsQcFlag1(headerCompt,2)        = obs_headElem_i( obsSpaceData, OBS_AQF2, headerIndex) 
-      obsQcFlag1(headerCompt,3)        = obs_headElem_i( obsSpaceData, OBS_AQF3, headerIndex) 
-    end if
-
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      if ( tvs_mwAllskyAssim ) then
-        btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_BTCL, bodyIndex )
-      end if
-      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-      obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
-      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-      obsQcFlag2(currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
-      
-    end do BODY
-    do channelIndex=1, actualNumChannel
-      obsChannels(channelIndex)    = channelIndex+tvs_channelOffset(sensorIndex)
-    end do
-      
-
-  end subroutine mwbg_readObsFromObsSpace 
-
-  !--------------------------------------------------------------------------
   ! ssbg_satqcSsmis
   !--------------------------------------------------------------------------
   subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
@@ -2224,7 +2074,7 @@ end subroutine bennartz
          exit
       end if
     end do
-    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found')
+    if ( .not. sensorIndexFound ) call utl_abort('ssbg_satqcSsmis: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -2646,7 +2496,7 @@ end subroutine bennartz
          exit
       end if
     end do
-    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found')
+    if ( .not. sensorIndexFound ) call utl_abort('ssbg_updateObsSpaceAfterSatQc: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -3463,7 +3313,6 @@ end subroutine bennartz
     integer                              :: headerIndex
     integer                              :: indexFlags
     integer                              :: inovQcSize
-    integer, external                    :: exdb, exfin, fnom, fclos
 
     integer, dimension(10)               :: statsInovQcFlags
 
