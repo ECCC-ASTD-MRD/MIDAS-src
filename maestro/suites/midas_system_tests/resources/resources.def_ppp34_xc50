@@ -13,6 +13,9 @@ FRONTEND_XFER_Q=xfer
 
 SEQ_JOBNAME_PREFIX=midas-
 
+SEQ_DEFAULT_MACHINE=eccc-ppp4
+SEQ_CONTAINER_METHOD=immediate
+
 # Define the number of openMP threads for various jobs
 NUMTHREAD_maxPerNode_ppp=40
 
