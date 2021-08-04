@@ -750,10 +750,10 @@ module ObsDataColumn_mod
    integer, public, parameter :: odc_ENKF_bdy_int_column_list(8) = &
       (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, &
         OBS_QCF2, OBS_CLA /)
-   integer, public, parameter :: odc_ENKF_bdy_real_column_list(16) = &
-      (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_ROLA,&
-        OBS_ROLO,OBS_LOCI /)
+   integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
+      (/OBS_PPP, OBS_SEM, OBS_VAR,  OBS_OMP,  OBS_OMA,  OBS_OER,  OBS_HPHT,&
+        OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_ROLA,&
+        OBS_ROLO /)
 
 contains
 
