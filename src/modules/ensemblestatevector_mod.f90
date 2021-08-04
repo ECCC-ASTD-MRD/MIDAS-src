@@ -2900,7 +2900,9 @@ CONTAINS
 
   end subroutine ens_writeEnsemble
 
-    !- Mask the ensemble increment for LAM grid
+  !--------------------------------------------------------------------------
+  ! ens_applyMaskLAM
+  !--------------------------------------------------------------------------
   subroutine ens_applyMaskLAM(ensIncrement, stateVectorAnalIncMask)
     !:Purpose: To apply a mask to an ensemble state vector for LAM grid
     !
