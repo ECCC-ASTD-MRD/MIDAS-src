@@ -27,10 +27,6 @@ ulimit -c unlimited
 echo starting ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 
-# Environment variables needed by sqlite functions
-export DSQLITE_MASK_TERREMER=${AFSISIO}/datafiles/constants/ade.land_sea_mask
-export DSQLITE_MASK_GLACE=${CMCADE}/constants/ade.maskice10
-
 #status=0
 #/usr/bin/time --format "Total Memory: %M Mb" ${RUN_PGM} || status=1
 ${RUN_PGM} ## || status=1
