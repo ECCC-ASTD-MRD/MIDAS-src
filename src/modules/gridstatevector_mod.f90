@@ -7905,8 +7905,8 @@ module gridStateVector_mod
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector_mask
-    type(struct_hco), pointer :: hco_ptr
-    type(struct_vco), pointer :: vco_ptr
+    type(struct_hco), intent(in), pointer :: hco_ptr
+    type(struct_vco), intent(in), pointer :: vco_ptr
     character(len=*), intent(in), optional :: hInterpolateDegree_opt
 
     ! Locals
