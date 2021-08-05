@@ -2608,17 +2608,14 @@ end subroutine bennartz
     integer              :: bodyIndexbeg
     integer              :: codtyp                   ! code type
     integer              :: channelIndex
-    integer              :: chanObsIndex
     integer              :: currentChannelNumber
     integer              :: headerCompt
-    integer              :: ier
     integer              :: instr
     integer              :: instrum
     integer              :: iPlatf
     integer              :: iPlatform
     integer              :: iSat
     integer              :: numObsToProcess          ! number of obs in current report
-    integer              :: obsIndex
     integer              :: obsNumCurrentLoc
     integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
 
@@ -2741,8 +2738,8 @@ end subroutine bennartz
     call check_stddev(obsChannels,ompTb,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex,  &
         &             burpFileSatId,ssbg_maxNumChan,oer_tovutil,oer_toverrst,rejcnt,totobs,obsFlags)
 
-    call check_topo(obsChannels,modelInterpTer,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex, &
-        &           burpFileSatId,ssbg_maxNumChan,rejcnt2,totobs2)
+    call check_topo(modelInterpTer,flagsInovQc,actualNumChannel,numObsToProcess,sensorIndex, &
+        &           burpFileSatId,rejcnt2,totobs2)
 
   end subroutine ssbg_inovqcSsmis
 
@@ -2848,7 +2845,7 @@ end subroutine bennartz
 
     real,    dimension(mxchn) :: roguefac
 
-    logical :: debug, assim
+    logical :: debug
 
     ! Define max Abs(O-P) for channel 8 for rejection of channels 8-11
     ! -- should be consistent with bgck.satqc_amsub.f (AMSU-B)
@@ -2985,8 +2982,8 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! check_topo
   !--------------------------------------------------------------------------
-  subroutine check_topo(kcanomp,mtintrp,icheck,knomp,knt,knosat,  &
-       &                stnid,mxchn,rejcnt,totobs)
+  subroutine check_topo(mtintrp,icheck,knomp,knt,knosat,  &
+       &                stnid,rejcnt,totobs)
     !--------------------------------------------------------------------
     !
     !  This subroutine has been adapted from the following original work:
@@ -3002,13 +2999,9 @@ end subroutine bennartz
     !          -- for a single satellite (stnid,knosat)
     !          -- for a single box (nt observations)
     !
-    !  Call:   call check_topo(icanomp,mtintrp,icheck,inomp,nt,inosat
-    !                            stnid,mxchn,rejcnt2,totobs2,iflags)
-    !
     !------------------------------------------------------------------
     ! Variable Definitions:
     ! ---------------------
-    !   kcanomp - input  -  channel numbers (1-mxchn) for each observation
     !   mtintrp - input  -  model surface height (m) at each observation point
     !   icheck  - in/out -  quality contol indicator for each channel of each
     !                       observation point
@@ -3037,7 +3030,6 @@ end subroutine bennartz
     !   knosat  - input  -  number of satellite (index # --> 1-nsat)
     !                       determined by stnid: DMSP13=1,DMSP14=2,DMSP15=3,DMSP16=4,etc...
     !   stnid   - input  -  identificateur du satellite
-    !   mxchn   - input  -  number of channels for SSM/I or SSMIS
     !   rejcnt  - in/out -  counter of the rejected obs for each channel
     !                       of each satellite (dimension: knomp*mxsat)
     !   totobs  - in/out -  counter of the total obs checked for each channel
@@ -3046,12 +3038,10 @@ end subroutine bennartz
     implicit none
 
     !  Arguments:
-    integer, intent(in) :: mxchn
     integer, intent(in) :: knomp,knt,knosat
 
-    integer, intent(in),    dimension(:)       :: kcanomp        ! dimension (knt*knomp)
     integer, intent(inout), dimension(:)       :: icheck         ! dimension (knt*knomp)
-    integer, intent(inout), dimension(:,:)     :: rejcnt,totobs  ! dimension (mxchn,mxsat)
+    integer, intent(inout), dimension(:,:)     :: rejcnt,totobs
 
     real, intent(in), dimension(:)  :: mtintrp  ! dimension (knt)
 
@@ -3061,7 +3051,7 @@ end subroutine bennartz
 
     integer, parameter :: nch2chk=4             ! number of channels to check
 
-    integer  ::  ji,jj,ichn,indx1,indx2,j,ii
+    integer  ::  ji,jj,indx1,indx2,ii
     integer  ::  itrejcnt
 
     real     :: zcheckval, zmt
@@ -3070,7 +3060,7 @@ end subroutine bennartz
 
     integer, dimension(nch2chk) :: mchan
 
-    logical :: debug, assim, debug2
+    logical :: debug, debug2
 
     !------------------------------------------------------------------
     ! Define channels to check and height limits (m) for rejection
@@ -3093,7 +3083,7 @@ end subroutine bennartz
     if (debug) write(6,*) ' CHECK_TOPO: First rejections in box. StnID = ', stnid(2:9)
     do jj = 1, knt
       debug2 = .false.
-      indx1 = jj*knomp            ! channel mxchn index
+      indx1 = jj*knomp
       indx2 = indx1 - (knomp-1)   ! channel     1 index
       zmt = mtintrp(jj)           ! model topography height [m]
       if (debug) then

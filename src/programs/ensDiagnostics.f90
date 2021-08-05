@@ -34,7 +34,7 @@ program midas_ensDiagnostics
   character(len=4) :: charmem
   integer, allocatable :: dateStampList(:)
   integer :: lonIndex,IndexP0,IndexPR, surfaceIndex, memberIndex, stepIndex, latIndex
-  integer :: ni,ierr, nulnam, numK, numStep
+  integer :: ierr, nulnam, numK, numStep
   integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, unitNum
   integer, external :: fnom, fclos, fstopc
   real(8), allocatable :: weight(:,:)

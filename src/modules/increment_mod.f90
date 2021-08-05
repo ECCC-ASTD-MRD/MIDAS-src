@@ -289,7 +289,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrementHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes(statevectorIncLowRes, statevectorTrial, &
+  subroutine inc_writeIncrementHighRes(statevectorTrial, &
                                        statevectorPsfc, stateVectorAnalHighRes)
     !
     ! :Purpose: Write the high-resolution analysis increments to the rehm file.
@@ -297,7 +297,6 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevectorIncLowRes
     type(struct_gsv), intent(in), target :: statevectorTrial
     type(struct_gsv), intent(in) :: statevectorPsfc
     type(struct_gsv), intent(in) :: stateVectorAnalHighRes

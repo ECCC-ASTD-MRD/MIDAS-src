@@ -47,7 +47,7 @@ program midas_extractBmatrixFor1Dvar
   real(4) :: latitude, longitude
   integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr
-  integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2, locationIndex
+  integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
   integer :: kIndex1, kIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
   integer :: idate, itime, nulnam, dateStamp
   integer :: stepBinExtractIndex
