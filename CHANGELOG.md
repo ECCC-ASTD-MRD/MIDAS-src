@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * Add inovQC treatment for SSMIS data to the background check in module `bgckssmis_mod` (#458 and !489)
+
 ### Added
 
  * Add option to mask the ensemble of analysis increments for LAM grid (#504 and !488)
