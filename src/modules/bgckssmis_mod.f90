@@ -885,8 +885,6 @@ contains
 
     REAL, DIMENSION(ssbg_maxNumChan) :: F16TDR, RemappedTa, Tb
 
-    logical :: debug
-
     !---------------------------------------------------
 
     ! Convert Tbs received from UKMO to Tas, by reversing Ta to Tb
@@ -1126,7 +1124,6 @@ contains
 
     !     Notes: In the case where an output parameter cannot be calculated, the
     !     value of this parameter is to to the missing value, i.e. -99.
-    logical         :: debug
     ! Locals: 
     real, parameter :: zmisg = -99.
     integer :: i 
@@ -1201,7 +1198,6 @@ end subroutine bennartz
     logical,           save  :: ifFirstCall = .True.   ! If .True. we read GL, MT and MG
     integer,           save  :: gdmt                   ! topo interpolation param
     integer                  :: gdllsval
-    logical                  :: debug 
     integer                  :: ier, irec, irec2
     integer                  :: ezqkdef, ezsetopt
     integer, external        :: FSTINF,FSTPRM,FCLOS
@@ -2845,8 +2841,6 @@ end subroutine bennartz
 
     real,    dimension(mxchn) :: roguefac
 
-    logical :: debug
-
     ! Define max Abs(O-P) for channel 8 for rejection of channels 8-11
     ! -- should be consistent with bgck.satqc_amsub.f (AMSU-B)
     real, parameter :: xompch8 = 5.0   ! units = K
@@ -3060,7 +3054,7 @@ end subroutine bennartz
 
     integer, dimension(nch2chk) :: mchan
 
-    logical :: debug, debug2
+    logical :: debug2
 
     !------------------------------------------------------------------
     ! Define channels to check and height limits (m) for rejection
@@ -3309,8 +3303,6 @@ end subroutine bennartz
     real,    dimension(9)                :: percentInovQcFlags
 
     logical                              :: ssmisDataPresent
-
-    logical                              :: debug
 
     call tmg_start(30,'BGCHECK_SSMIS')
     ssmisDataPresent = .false.
