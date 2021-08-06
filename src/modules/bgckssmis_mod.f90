@@ -34,6 +34,7 @@ module bgckssmis_mod
   public :: ssbg_computeSsmisSurfaceType
   public :: ssbg_bgCheckSSMIS
   real    :: ssbg_clwQcThreshold
+  logical :: ssbg_debug
 
   real,    parameter :: ssbg_realMissing=-99. 
   integer, parameter :: ssbg_intMissing=-1
@@ -91,6 +92,8 @@ contains
     if (ierr /= 0) call utl_abort('ssbg_init: Error reading namelist')
     if (mpi_myid == 0) write(*, nml=nambgck)
     ierr = fclos(nulnam)
+
+    ssbg_debug = debug
 
   end subroutine ssbg_init 
 
@@ -980,7 +983,7 @@ contains
         endif
 
         ! Store CLW and IWV
-        if (debug) then
+        if (ssbg_debug) then
           write(*,*)'CLOUD BY DETERM_CLW = ', clw
           write(*,*)'IWV BY DETERM_CLW = ', iwv
         endif
@@ -1081,7 +1084,6 @@ contains
     
     integer                              :: dataNum 
     integer                              :: dataIndex
-    logical                              :: debug
 
     dataNum = size(globMarq)
     do dataIndex = 1, dataNum
@@ -1092,7 +1094,7 @@ contains
         globMarq(dataIndex) = OR (globMarq(dataIndex),2**6)
       end if
     end do
-    if (debug) then
+    if (ssbg_debug) then
       write(*,*) ' KCHKPRF   = ', (KCHKPRF(dataIndex),dataIndex=1,dataNum)
       write(*,*) ' NEW FLAGS = ', (globMarq(dataIndex),dataIndex=1,dataNum)
     end if
@@ -1161,7 +1163,7 @@ contains
           scatl(i) = (tb89(i)-tb150(i)) -     &
                      (0.158+0.0163*pangl(i))
         endif
-      else if ( (ier(i) /= 0  ) .and. (i <= 100 ) .and. (debug)) then 
+      else if ( (ier(i) /= 0  ) .and. (i <= 100 ) .and. (ssbg_debug)) then
         print *, ' Input Parameters are not all valid: '
         print *, ' i,tb89(i),tb150(i),pangl(i),ktermer(i) = ',     &
                    i,tb89(i),tb150(i),pangl(i),ktermer(i)
@@ -1353,7 +1355,7 @@ end subroutine bennartz
 
     MTINTRP(:) = 0.0
     do dataIndex = 1, dataNum
-      if (debug) then
+      if (ssbg_debug) then
         print *, ' ------------------  '
         print *, ' dataIndex = ', dataIndex
         print *, '   '
@@ -1369,7 +1371,7 @@ end subroutine bennartz
       do boxPointIndex=1, boxPointNum
         MTINTRP(dataIndex) = MAX(MTINTRP(dataIndex),MTINTBOX(boxPointIndex,dataIndex))
       end do
-      if (debug) then
+      if (ssbg_debug) then
         print *, ' MTINTRP = ', MTINTRP(dataIndex)
       end if
     end do
@@ -2914,7 +2916,7 @@ end subroutine bennartz
 
       if ( icheck(ji) > 2 ) then
         rejcnt(ichn,knosat) = rejcnt(ichn,knosat) + 1
-        if ( debug ) then
+        if ( ssbg_debug ) then
           write(6,*) ' CHECK_STDDEV: '
           write(6,*) stnid(2:9),' Rogue check reject: ',   &
                &  ' Obs = ',ji,' Channel = ',ichn,         &
@@ -3062,8 +3064,11 @@ end subroutine bennartz
     mchan     = (/    4,     9,    10,    11 /)
     topolimit = (/  250., 1000., 2000., 2500. /)
 
-    if (debug) write(6,*) ' CHECK_TOPO: Maximum input MT = ', maxval(mtintrp)
-    if (debug) write(6,*) ' CHECK_TOPO: knt = ', knt
+    if (ssbg_debug) then
+       write(6,*) ' CHECK_TOPO: Maximum input MT = ', maxval(mtintrp)
+       write(6,*) ' CHECK_TOPO: knt = ', knt
+       write(6,*) ' CHECK_TOPO: First rejections in box. StnID = ', stnid(2:9)
+    end if
 
     !------------------------------------------------------------------
     ! Perform the check for the selected channels
@@ -3074,13 +3079,12 @@ end subroutine bennartz
     indx1 = 0
     indx2 = 0
     itrejcnt = 0
-    if (debug) write(6,*) ' CHECK_TOPO: First rejections in box. StnID = ', stnid(2:9)
     do jj = 1, knt
       debug2 = .false.
       indx1 = jj*knomp
       indx2 = indx1 - (knomp-1)   ! channel     1 index
       zmt = mtintrp(jj)           ! model topography height [m]
-      if (debug) then
+      if (ssbg_debug) then
         if (zmt == maxval(mtintrp) .and. zmt > minval(topolimit)) then
           write(6,*) ' CHECK_TOPO: ****** Max height point! zmt = ', zmt
           debug2 = .true.
@@ -3093,10 +3097,10 @@ end subroutine bennartz
           totobs(mchan(ji),knosat) = totobs(mchan(ji),knosat) + 1
           if ( zmt > zcheckval ) then
             icheck(ii) = max(1,icheck(ii)) + 4
-            if (debug .and. debug2) write(6,*) 'Incrementing itrejcnt for max zmt point for ch.= ', mchan(ji)
+            if (ssbg_debug .and. debug2) write(6,*) 'Incrementing itrejcnt for max zmt point for ch.= ', mchan(ji)
             itrejcnt = itrejcnt + 1
             rejcnt(mchan(ji),knosat) = rejcnt(mchan(ji),knosat) + 1
-            if (debug) then
+            if (ssbg_debug) then
               if ( itrejcnt <= nch2chk ) then
                 write(6,*) '   Channel = ', mchan(ji),            &
                      &     ' Height limit (m) = ', zcheckval,     &
@@ -3109,7 +3113,7 @@ end subroutine bennartz
 
     end do
 
-    if (debug .and. (itrejcnt > 0) ) then
+    if (ssbg_debug .and. (itrejcnt > 0) ) then
       write(6,*) '   Number of topography rejections and observations for this box = ', itrejcnt, knt*knomp
     endif
 
@@ -3344,25 +3348,25 @@ end subroutine bennartz
        !###############################################################################
        ! STEP 1) call satQC SSMIS program                                             !
        !###############################################################################
-       if (debug) write(*,*) 'STEP 1) call satQC SSMIS program'
+       if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
        call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
 
        !###############################################################################
        ! STEP 2) update Flags after satQC SSMIS program                               !
        !###############################################################################
-       if (debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
+       if (ssbg_debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
        call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
 
        !###############################################################################
        ! STEP 3) call inovQC SSMIS program                                            !
        !###############################################################################
-       if (debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
+       if (ssbg_debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
        call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
        !###############################################################################
        ! STEP 4) update Flags after inovQC SSMIS program                              !
        !###############################################################################
-       if (debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
+       if (ssbg_debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
        call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
 
        !###############################################################################
