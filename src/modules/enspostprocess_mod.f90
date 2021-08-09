@@ -571,7 +571,7 @@ contains
                                containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                    etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
                                     ensPath='.')
         call tmg_stop(104)
       end if
