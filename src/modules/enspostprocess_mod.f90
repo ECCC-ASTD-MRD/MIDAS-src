@@ -101,14 +101,14 @@ contains
     real(8)  :: weightRecenter         ! weight applied to recentering increment
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
-    character(len=12) :: etiket0
+    character(len=12) :: etiket0, etiket_anl, etiket_inc ! etikets for output files
     integer  :: numBits                ! number of bits when writing ensemble mean and spread
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
                                    weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
-                                   etiket0, numBits
+                                   etiket0, etiket_anl, etiket_inc, numBits
 
     if (ens_allocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
@@ -136,6 +136,8 @@ contains
     numMembersToRecenter  = -1    ! means all members recentered by default
     useOptionTableRecenter = .false.
     etiket0               = 'E26_0_0P'
+    etiket_anl            = 'ENS_ANL'
+    etiket_inc            = 'ENS_INC'
     numBits               = 16
 
     !- Read the namelist
@@ -553,7 +555,7 @@ contains
       ! convert transformed to model variables for analysis and trial ensembles
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call tmg_start(104,'LETKF-writeEns')
-      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+      call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                              containsFullField_opt=.true.)
       call tmg_stop(104)
@@ -564,7 +566,7 @@ contains
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
@@ -598,7 +600,7 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
@@ -607,13 +609,13 @@ contains
         ! WARNING: Increment put in ensembleTrlSubSample for output
         call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                     ens_getNumMembers(ensembleAnlSubSample),  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                    etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
                                     ensPath='subspace')
         call tmg_stop(104)
 
@@ -624,7 +626,7 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
