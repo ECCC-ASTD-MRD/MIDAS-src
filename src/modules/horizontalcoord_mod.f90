@@ -942,7 +942,7 @@ contains
     
     ! locals:
     integer :: sindx
-    integer :: ni,nj,err
+    integer :: ni,nj
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
 
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
