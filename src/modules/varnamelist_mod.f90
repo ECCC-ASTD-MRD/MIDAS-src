@@ -89,13 +89,13 @@ module varNameList_mod
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SFDP'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
-                                 'MT',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
+                                 'OC',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
-                                 'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'MT',  'MT'/)
+                                 'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'OC',  'OC'/)
 
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
                                  'I0  ','I1  ','I7  ','I9  ','SD  ','AL  '/)
