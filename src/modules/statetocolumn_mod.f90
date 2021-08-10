@@ -3712,6 +3712,12 @@ contains
 
     gridptCount = 0
 
+    if ( interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) /= headerIndex ) then
+      call utl_abort('s2c_getWeightsAndGridPointIndexes: headerUsedIndex and headerIndex differ.'//    &
+                     ' If using multiple time steps in the assimilation window,'//                     &
+                     ' the code needs to be modified to convert values of headerIndex into headerUsedIndex.')
+    end if
+
     subGrid_loop: do subGridIndex = 1, interpInfo_tlad%hco%numSubGrid
 
       indexBeg = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
