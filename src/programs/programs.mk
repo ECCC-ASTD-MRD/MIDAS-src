@@ -3,7 +3,6 @@ var1D.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_main rttov_emis_atlas rttov_other\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
-
 #--------------------------------------
 adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
@@ -11,6 +10,11 @@ adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 
 #--------------------------------------
 advector.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB)
+
+#--------------------------------------
+analysisError.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 calcStats.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB)
