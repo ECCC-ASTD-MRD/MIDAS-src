@@ -215,9 +215,8 @@ contains
     type(fSQL_DATABASE)      :: db   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat ! type for error status
-    integer                  :: avhrrSqlite
     integer                  :: obsIdo
-    character(len=128)       :: querySqlite,avhrrSqliteCharacter
+    character(len=128)       :: querySqlite
     integer                  :: rowIndex, headerIndex, columnIndex
     integer                  :: numberRows ,  numberColumns
     real, allocatable        :: matdata(:,:)
