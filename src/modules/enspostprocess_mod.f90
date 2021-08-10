@@ -547,6 +547,7 @@ contains
 
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
@@ -561,6 +562,7 @@ contains
 
       ! output ensemble mean analysis state
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
+      ! here we assume 4 digits for the ensemble member!!!!
       etiket = trim(etiket_anl) // '0000'
       do stepIndex = 1, tim_nstepobsinc
         call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
@@ -598,6 +600,7 @@ contains
 
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
@@ -610,6 +613,7 @@ contains
 
         ! Output the ensemble mean analysis state
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
+        ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_anl) // '0000'
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket,  &
