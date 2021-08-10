@@ -101,14 +101,17 @@ contains
     real(8)  :: weightRecenter         ! weight applied to recentering increment
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
-    character(len=12) :: etiket0, etiket_anl, etiket_inc ! etikets for output files
+    character(len=12) :: etiket0,      ! etikets for mean/std fields
+    character(len=12) :: etiket_anl, etiket_inc ! etikets for output files
+    character(len=12) :: etiket_anlmean, etiket_incmean ! etikets for mean analysis and increments files
     integer  :: numBits                ! number of bits when writing ensemble mean and spread
 
-    NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
-                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
+    NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert, &
+                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,     &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
-                                   weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
-                                   etiket0, etiket_anl, etiket_inc, numBits
+                                   weightRecenter, numMembersToRecenter, useOptionTableRecenter,        &
+                                   etiket0, etiket_anl, etiket_inc, etiket_anlmean, etiket_incmean,     &
+                                   numBits
 
     if (ens_allocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
@@ -138,6 +141,8 @@ contains
     etiket0               = 'E26_0_0P'
     etiket_anl            = 'ENS_ANL'
     etiket_inc            = 'ENS_INC'
+    etiket_anlmean        = 'ENSMEAN_ANL'
+    etiket_incmean        = 'ENSMEAN_INC'
     numBits               = 16
 
     !- Read the namelist
@@ -533,10 +538,10 @@ contains
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket_incmean,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket_incmean,  &
                                typvar_opt='A', writeHeightSfc_opt=.true., &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -546,7 +551,7 @@ contains
       ! output ensemble mean analysis state
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
+        call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -582,10 +587,10 @@ contains
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket_incmean,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket_incmean,  &
                                typvar_opt='A', writeHeightSfc_opt=.true., &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -593,7 +598,7 @@ contains
         ! Output the ensemble mean analysis state
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, 'ENSMEAN_ANL',  &
+          call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket_anlmean,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
