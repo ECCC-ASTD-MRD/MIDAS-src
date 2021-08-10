@@ -14,10 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-program midas_analysisError
+program midas_analysisErrorOI
   !
   ! :Purpose: Calculate analysis-error standard deviation given
-  !           new assimilated observations.
+  !           new assimilated observations. It only works for sea ice variables and
+  !           uses a simple OI approach.
   !
   use version_mod
   use codePrecision_mod
@@ -46,6 +47,7 @@ program midas_analysisError
   integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   character(len=20) :: trlmFileName
+  character(len=15), parameter :: myName = 'analysisErrorOI'
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: trlColumnOnAnlLev
@@ -53,14 +55,19 @@ program midas_analysisError
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
-  istamp = exdb('ANALYSISERROR','DEBUT','NON')
+  istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
-  call ver_printNameAndVersion('analysisError','Program for analysis-error standard deviation calculation')
+  call ver_printNameAndVersion(myName,'Program to calculate the analysis-error standard deviation for sea ice using OI.')
 
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_ANALYSISERROR' )
+  if( mpi_nprocs > 1 ) then
+    write(*,*) 'mpi_nprocs = ',mpi_nprocs
+    call utl_abort(myName//': this version of the code should only be used with one mpi task.')
+  end if
+
+  call tmg_init(mpi_myid, 'TMG_ANALYSISERROROI' )
 
   call tmg_start(1,'MAIN')
 
@@ -83,7 +90,7 @@ program midas_analysisError
   if ( dateStamp > 0 ) then
     call tim_setDatestamp(datestamp)     ! IN
   else
-    call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    call utl_abort(myName//': Problem getting dateStamp from observation file')
   end if
 
   !
@@ -91,7 +98,7 @@ program midas_analysisError
   !
   if (mpi_myid == 0) call mpc_printConstants(6)
 
-  trlmFileName = './trlm_02'
+  trlmFileName = './trlm_01'
 
   !
   !- Initialize the Analysis grid
@@ -149,7 +156,7 @@ program midas_analysisError
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute the analysis-error
-  call aer_analysisError(obsSpaceData, hco_anl, vco_anl)
+  call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)
 
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then 
@@ -168,12 +175,12 @@ program midas_analysisError
   !
   ! 3. Job termination
   !
-  istamp = exfin('ANALYSISERROR','FIN','NON')
+  istamp = exfin('ANALYSISERROROI','FIN','NON')
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_ANALYSISERROR' )
+  call tmg_terminate(mpi_myid, 'TMG_ANALYSISERROROI' )
 
   call rpn_comm_finalize(ierr) 
 
-end program midas_analysisError
+end program midas_analysisErrorOI
