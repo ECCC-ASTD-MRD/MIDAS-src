@@ -540,10 +540,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam  
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam
    integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam 
-   integer, parameter, public :: OBS_RDEL  = OBS_RANE +1 ! Delta range of the Radar beam
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_RDEL 
+   integer, parameter :: NHDR_REAL_END = OBS_RANE 
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -570,7 +569,7 @@ module ObsColumnNames_mod
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
         'CLW1','CLW2','MWS ','SCAT','IWV','RZAM',   &
-        'RELE','RANS','RANE','RDEL'/)
+        'RELE','RANS','RANE'/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1007,7 +1006,7 @@ contains
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
               OBS_GEOI,OBS_CLF,OBS_SUN,OBS_SZA,OBS_AZA,OBS_SAZ, &
-              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_RDEL, (0,ii=19,100)/)
+              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
 
          bdy_int_column_list(:)    = 0
          bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
@@ -1053,7 +1052,7 @@ contains
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
               OBS_GEOI,OBS_CLF, OBS_SUN, OBS_SZA, OBS_AZA, OBS_SAZ, &
-              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_RDEL, (0,ii=19,100)/)
+              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
 
          bdy_int_column_list= &
             (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, &
@@ -1504,7 +1503,7 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
-   public :: OBS_SCAT, OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_RDEL
+   public :: OBS_SCAT, OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA

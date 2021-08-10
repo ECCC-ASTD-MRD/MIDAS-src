@@ -76,7 +76,7 @@ contains
                               solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
                               headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
-                              obsrzam,  obsrele, obsrans, obsrane, obsrdel)
+                              obsrzam,  obsrele, obsrans, obsrane)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
     !
@@ -117,7 +117,6 @@ contains
     real(pre_obsReal), intent(in)    :: obsrele
     real(pre_obsReal), intent(in)    :: obsrans
     real(pre_obsReal), intent(in)    :: obsrane
-    real(pre_obsReal), intent(in)    :: obsrdel
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
     call obs_setHeadPrimaryKey( obsdat,  headerIndex, headPrimaryKey)
@@ -172,7 +171,6 @@ contains
           call obs_headSet_r( obsdat, OBS_RELE, headerIndex, obsrele      )
           call obs_headSet_r( obsdat, OBS_RANS, headerIndex, obsrans      )
           call obs_headSet_r( obsdat, OBS_RANE, headerIndex, obsrane      )
-          call obs_headSet_r( obsdat, OBS_RDEL, headerIndex, obsrdel      )
       end if   
     end if
 
@@ -307,7 +305,7 @@ contains
     integer(8)               :: headPrimaryKey, bodyPrimaryKey
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
-    real                     :: obsrzam , obsrans, obsrane, obsrele, obsrdel          
+    real                     :: obsrzam , obsrans, obsrane, obsrele          
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
@@ -397,7 +395,7 @@ contains
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
       vertCoordType = 1
     else if ( trim(rdbSchema) == 'radvel') then
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn,id_sat, status,  elev, fov , START_TIME, END_TIME, rzam, rzae, rele, rans, rane, rdel, N_RANGES "
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, ANTENNA_ALTITUDE,  CENTER_AZIMUTH, CENTER_ELEVATION, RANGE_START, RANGE_END "
       vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -619,7 +617,7 @@ contains
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
                                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,  &
                                 obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),        &
-                                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),  real(obsrdel,kind=pre_obsReal) )
+                                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
         end if
         exit HEADER
       end if
@@ -637,7 +635,6 @@ contains
       azimuthReal_R8 = MPC_missingValue_R8
       obsrzam = MPC_missingValue_R4
       obsrele = MPC_missingValue_R4
-      obsrdel = MPC_missingValue_R4
       obsrans = MPC_missingValue_R4
       obsrane = MPC_missingValue_R4
 
@@ -704,13 +701,12 @@ contains
 
       else if ( trim(familyType) == 'RA' ) then
         if ( trim(rdbSchema) == 'radvel') then
-          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-          elevReal=elev
-          call fSQL_get_column( stmt, COL_INDEX = 14, REAL_VAR  = obsrzam)
-          call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR  = obsrele)
-          call fSQL_get_column( stmt, COL_INDEX = 19, REAL_VAR  = obsrans)
-          call fSQL_get_column( stmt, COL_INDEX = 18, REAL_VAR  = obsrane)
-          call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR  = obsrdel)
+         call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+         elevReal=elev
+         call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
+         call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
+         call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = obsrans)
+         call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
         end if
       else  ! familyType = CONV
 
@@ -753,7 +749,7 @@ contains
                xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
                trackCellNum, modelWindSpeed,                                                  &
                real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-               real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) , real(obsrdel,kind=pre_obsReal) )
+               real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == headPrimaryKey ) then
@@ -768,7 +764,7 @@ contains
                  xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
                  trackCellNum, modelWindSpeed,                                                  &
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal) )
+                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
           end if
 
           lastId = rowIndex + 1
@@ -878,7 +874,7 @@ contains
                                 real(solarZenithReal,kind=pre_obsReal), real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                &
                                 iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100,         &
                                 obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal),                           &
-                                real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal))
+                                real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal))
       else
 
         headerIndex = headerIndex - 1
