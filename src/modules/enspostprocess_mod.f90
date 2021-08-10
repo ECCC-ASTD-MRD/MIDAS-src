@@ -659,64 +659,6 @@ contains
   end subroutine epp_postProcess
 
   !----------------------------------------------------------------------
-  ! epp_getRMSEtiket (private subroutine)
-  !----------------------------------------------------------------------
-  subroutine epp_getRmsEtiket(etiketMean, etiketStd, etiketType, etiket0, nEns)
-    !
-    !:Purpose:   Return the appropriate string to use for the etiket
-    !            in standard files containing the ensemble mean and
-    !            spread.
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*) :: etiketMean
-    character(len=*) :: etiketStd
-    character(len=*) :: etiketType
-    character(len=*) :: etiket0
-    integer          :: nEns
-
-    if (trim(etiketType) == 'F') then
-
-      ! create trialrms etiket, e.g. E2AVGTRPALL E24_3GMP0256
-      etiketStd(1:5) = etiket0(1:5)
-      etiketStd(6:7) = 'GM'
-      etiketStd(8:8) = etiket0(8:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7) = 'AVGTR'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else if (trim(etiketType) == 'A') then
-
-      ! create analrms etiket, e.g. E2AVGANPALL, E24_3_0P0256
-      etiketStd(1:8) = etiket0(1:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7)='AVGAN'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else if (trim(etiketType) == 'P') then
-
-      ! create analpertrms etiket, e.g. E2AVGPTPALL, E24_3PTP0256
-      etiketStd(1:5) = etiket0(1:5)
-      etiketStd(6:7) = 'PT'
-      etiketStd(8:8) = etiket0(8:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7) = 'AVGPT'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else
-      call utl_abort('epp_getRmsEtiket: unknown value of etiketType')
-    end if
-
-  end subroutine epp_getRmsEtiket
-
-  !----------------------------------------------------------------------
   ! epp_writeToAllMembers (private subroutine)
   !----------------------------------------------------------------------
   subroutine epp_writeToAllMembers(stateVector, nEns, etiket, typvar,  &
