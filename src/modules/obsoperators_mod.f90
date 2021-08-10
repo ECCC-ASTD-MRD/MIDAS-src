@@ -48,7 +48,7 @@ module obsOperators_mod
   ! public procedures
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
-  public :: oop_Htl, oop_Had, oop_vobslyrs
+  public :: oop_Htl, oop_Had, oop_vobslyrs, oop_iceScaling
 
   integer, external :: get_max_rss
 
@@ -937,7 +937,7 @@ contains
 
     ! locals
     integer          :: bufrCode, headerIndex, bodyIndex
-    integer          :: idate, imonth
+    integer          :: obsDate, monthIndex
     integer          :: trackCellNum
     real(8)          :: obsValue, backValue
     real(8)          :: conc
@@ -970,13 +970,13 @@ contains
       case(BUFR_ICEV)
         backValue = 1.0d0*col_getElem( columnhr, 1, headerIndex, varName )
       case(BUFR_ICES)
-        idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
-        write(ccyymmdd, FMT='(i8.8)') idate
-        read(ccyymmdd(5:6), FMT='(i2)') imonth
+        obsDate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+        write(ccyymmdd, FMT='(i8.8)') obsDate
+        read(ccyymmdd(5:6), FMT='(i2)') monthIndex
         conc = col_getElem( columnhr, 1, headerIndex, varName)
         trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
-        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(trackCellNum,imonth) + &
-                         conc*oer_ascatAnisIce(trackCellNum,imonth)
+        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(trackCellNum,monthIndex) + &
+                         conc*oer_ascatAnisIce(trackCellNum,monthIndex)
       case default
         cycle BODY
       end select
@@ -2292,11 +2292,8 @@ contains
       implicit none
 
       integer          :: headerIndex, bodyIndex, bufrCode
-      integer          :: idate, imonth
-      integer          :: trackCellNum
       real(8)          :: columnVarB, scaling
       character(len=4) :: varName
-      character(len=8) :: ccyymmdd
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -2305,28 +2302,16 @@ contains
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if (bodyIndex < 0) exit BODY
 
-        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-
         ! Process all data within the domain of the model
-        bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-        select case (bufrCode)
-        case(BUFR_ICEC, BUFR_ICEP)
-          scaling = 100.0d0
-        case(BUFR_ICEV)
-          scaling = 1.0d0
-        case(BUFR_ICES)
-          idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
-          write(ccyymmdd, FMT='(i8.8)') idate
-          read(ccyymmdd(5:6), FMT='(i2)') imonth
-          trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
-          scaling = oer_ascatAnisIce(trackCellNum,imonth) - oer_ascatAnisOpenWater(trackCellNum,imonth)
-        case default
-          cycle BODY
-        end select
+        scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+
+        if (scaling == 0.0d0) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+          bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
           varName = vnl_varNameFromVarNum(bufrCode)
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           columnVarB = scaling*col_getElem( column, 1, headerIndex, varName_opt = varName )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
@@ -3071,11 +3056,8 @@ contains
 
       real(8)          :: residual, scaling
       integer          :: headerIndex, bodyIndex, bufrCode
-      integer          :: idate, imonth
-      integer          :: trackCellNum
       real(8), pointer :: columnGL(:)
       character(len=4) :: varName
-      character(len=8) :: ccyymmdd
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -3084,29 +3066,17 @@ contains
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if (bodyIndex < 0) exit BODY
 
-        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-
         ! Process all data within the domain of the model
-        bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-        select case (bufrCode)
-        case(BUFR_ICEC, BUFR_ICEP)
-          scaling = 100.0d0
-        case(BUFR_ICEV)
-          scaling = 1.0d0
-        case(BUFR_ICES)
-          idate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
-          write(ccyymmdd, FMT='(i8.8)') idate
-          read(ccyymmdd(5:6), FMT='(i2)') imonth
-          trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
-          scaling = oer_ascatAnisIce(trackCellNum,imonth) - oer_ascatAnisOpenWater(trackCellNum,imonth)
-        case default
-          cycle BODY
-        end select
+        scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+
+        if (scaling == 0.0d0) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
+          bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
           varName = vnl_varNameFromVarNum(bufrCode)
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           columnGL => col_getColumn( column, headerIndex, varName_opt = varName )
           
           columnGL(1) = columnGL(1) + residual
@@ -3976,5 +3946,46 @@ contains
     return
 
   end subroutine oop_calcGPSGBJacobian
+
+  function oop_iceScaling(obsSpaceData, bodyIndex) result(scaling)
+    !
+    ! :Purpose: Calculate the scaling factor for
+    !           ice related observations to convert from
+    !           model space to observation space, i.e.
+    !           H(iceConc) = scaling*iceConc + constant
+    !
+    implicit none
+    real(8) :: scaling
+
+    ! Arguments:
+    type(struct_obs), intent(in) :: obsSpaceData
+    integer,          intent(in) :: bodyIndex
+
+    ! Locals:
+    integer          :: bufrCode
+    integer          :: headerIndex, obsDate, monthIndex
+    integer          :: trackCellNum
+    character(len=8) :: ccyymmdd
+
+    bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+    select case (bufrCode)
+    case(BUFR_ICEC, BUFR_ICEP)
+       scaling = 100.0d0
+    case(BUFR_ICEV)
+       scaling = 1.0d0
+    case(BUFR_ICES)
+       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+       obsDate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+       write(ccyymmdd, FMT='(i8.8)') obsDate
+       read(ccyymmdd(5:6), FMT='(i2)') monthIndex
+       trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
+       scaling = oer_ascatAnisIce(trackCellNum,monthIndex) - &
+            oer_ascatAnisOpenWater(trackCellNum,monthIndex)
+    case default
+       scaling = 0.0d0
+    end select
+
+  end function oop_iceScaling
 
 end module obsOperators_mod
