@@ -90,3 +90,6 @@
 /
  &NAMCODTYP
 /
+ &NAMAER
+   maxAnalysisErrorStdDev = 1.0
+/
