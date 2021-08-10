@@ -129,7 +129,7 @@ program midas_analysisErrorOI
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, 'VAR', obsMpiStrategy, varMode) ! IN
+  call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
