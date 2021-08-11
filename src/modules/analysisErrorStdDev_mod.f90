@@ -137,7 +137,7 @@ contains
     real(8) :: leadTimeInHours
 
     ! namelist variables:
-    real(8) :: maxAnalysisErrorStdDev = 1.0
+    real(8) :: maxAnalysisErrorStdDev
     namelist /namaer/ maxAnalysisErrorStdDev
 
     if( mpi_nprocs > 1 ) then
@@ -152,6 +152,9 @@ contains
     write(*,*) '**********************************************************'
 
     ! reading namelist variables
+    ! default values
+    maxAnalysisErrorStdDev = 1.0
+
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam, nml = namaer, iostat = ierr)
