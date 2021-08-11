@@ -2416,7 +2416,7 @@ CONTAINS
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
-                               etiket, typvar, &
+                               etiket_opt, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
                                resetTimeParams_opt)
@@ -2430,7 +2430,7 @@ CONTAINS
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
     character(len=*)  :: ensFileNamePrefix
-    character(len=*)  :: etiket
+    character(len=*), optional :: etiket_opt
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
@@ -2541,7 +2541,6 @@ CONTAINS
       statevector_member_r4%dateOriginList(1) = ens%statevector_work%dateOriginList(stepIndex)
       statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
-      statevector_member_r4%etiket            = ens%statevector_work%etiket
 
       do memberIndex = 1, ens%numMembers
 
@@ -2603,6 +2602,7 @@ CONTAINS
         end if ! MPI communication
 
 
+        ! Write statevector to file
         if (mpi_myid == writeFilePE(memberIndex)) then
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2622,28 +2622,39 @@ CONTAINS
                                   shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength )
           end if
 
-          etiketStr = etiket
-          !  Write the file
-          if (present(etiketAppendMemberNumber_opt)) then
-            if (etiketAppendMemberNumber_opt) then
-              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
-              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
-              !! 12 is the maximum length of an etiket for RPN fstd files
-              maximumBaseEtiketLength = 12 - ensFileExtLength
-              if ( len(trim(etiket)) >= maximumBaseEtiketLength ) then
-                etiketStr = etiket(1:maximumBaseEtiketLength) // trim(memberIndexStr)
-              else
-                etiketStr = trim(etiket) // trim(memberIndexStr)
-              end if
-            end if
-          end if
-
           ! Determine if ensemble is full fields (if yes, will be converted from K to C)
           if (present(containsFullField_opt)) then
             containsFullField = containsFullField_opt
           else
             containsFullField = (.not. ens%meanIsRemoved)
           end if
+
+          if ( present(etiket_opt) ) then
+            etiketStr = etiket_opt
+          else
+            etiketStr = ens%statevector_work%etiket
+          end if
+
+          if (present(etiketAppendMemberNumber_opt)) then
+            if (etiketAppendMemberNumber_opt) then
+              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
+              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
+              !! 12 is the maximum length of an etiket for RPN fstd files
+              maximumBaseEtiketLength = 12 - ensFileExtLength
+              if ( len(trim(etiketStr)) >= maximumBaseEtiketLength ) then
+                etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
+              else
+                etiketStr = trim(etiketStr) // trim(memberIndexStr)
+              end if
+            end if
+          end if
+
+          !! The routine 'gsv_writeToFile' ignores the supplied
+          !! argument for the etiket, here 'etiketStr', if
+          !! 'statevector_member_r4%etiket' is different from
+          !! 'UNDEFINED'.  So we must define it explicitely in the
+          !! 'statevector_member_r4'.
+          statevector_member_r4%etiket = etiketStr
 
           call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
                                 typvar_opt = typvar, numBits_opt = numBits_opt,  &
