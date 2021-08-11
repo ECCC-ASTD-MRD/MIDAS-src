@@ -16,7 +16,7 @@
   <SUBMITS sub_name="diagBmatrix"/>
   <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
   <SUBMITS sub_name="var1D"/>
-  <SUBMITS sub_name="analysisError"/>
+  <SUBMITS sub_name="analysisErrorOI"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -448,7 +448,7 @@
     </FAMILY>
   </FAMILY>
 
-  <FAMILY  name="analysisError">
+  <FAMILY  name="analysisErrorOI">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
