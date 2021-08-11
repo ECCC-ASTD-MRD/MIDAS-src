@@ -36,7 +36,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_setup, odbf_isActive, odbf_readFile, odbf_updateFile
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile
 
  
   ! Arrays used to match obsDB column names with obsSpaceData column names
@@ -211,6 +211,7 @@ contains
     write(*,*) 'odbf_readFile: FamilyType : ', FamilyType
 
     !- 0.0 Some initialization
+    call odbf_setup()
     call ovt_setup(elemIdList(1:numElemIdList))
 
     !- 1.0 Determine names of columns present in obsDB file

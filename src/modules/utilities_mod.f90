@@ -2564,6 +2564,8 @@ contains
   function utl_findloc_char(charArray, value) result(location)
     !
     ! :Purpose: A modified version of the fortran function `findloc`.
+    !           If multiple matches are found in the array, a warning
+    !           message is printed to the listing.
     !
     implicit none
 
@@ -2603,6 +2605,8 @@ contains
   function utl_findloc_int(intArray, value) result(location)
     !
     ! :Purpose: A modified version of the fortran function `findloc`.
+    !           If multiple matches are found in the array, a warning
+    !           message is printed to the listing.
     !
     implicit none
 
@@ -2642,6 +2646,7 @@ contains
   function utl_findlocs_char(charArray, value) result(locations)
     !
     ! :Purpose: A modified version of the fortran function `findloc`.
+    !           Returns an array of all matches found in the array.
     !
     implicit none
 

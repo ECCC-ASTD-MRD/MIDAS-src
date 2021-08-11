@@ -167,7 +167,6 @@ contains
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) then
-          call odbf_setup()
           if (odbf_isActive()) then
             call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
           else
@@ -245,7 +244,6 @@ contains
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
       else if ( obsFileType == 'SQLITE' ) then
-        call odbf_setup()
         if (odbf_isActive()) then
           call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
                                 obsf_cfamtyp(fileIndex), fileIndex )
