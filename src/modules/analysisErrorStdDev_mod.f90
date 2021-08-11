@@ -137,7 +137,7 @@ contains
     real(8) :: leadTimeInHours
 
     ! namelist variables:
-    real(8) :: maxAnalysisErrorStdDev
+    real(8) :: maxAnalysisErrorStdDev = 1.0
     namelist /namaer/ maxAnalysisErrorStdDev
 
     if( mpi_nprocs > 1 ) then
