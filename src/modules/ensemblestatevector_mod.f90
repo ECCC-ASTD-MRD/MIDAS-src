@@ -2635,7 +2635,7 @@ CONTAINS
           end if
 
           if (present(etiketAppendMemberNumber_opt)) then
-            if (etiketAppendMemberNumber_opt) then
+            if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
               write(ensFileExtLengthStr,"(I1)") ensFileExtLength
               write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
               !! 12 is the maximum length of an etiket for RPN fstd files
