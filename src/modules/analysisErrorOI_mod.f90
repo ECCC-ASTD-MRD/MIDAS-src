@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module analysisError_mod
-  ! MODULE analysisError (prefix='aer' category='3. High-level transformations')
+module analysisErrorOI_mod
+  ! MODULE analysisErrorOI (prefix='aer' category='3. High-level transformations')
   !
   ! :Purpose: Calculate the analysis-error standard deviation.
   !           The method used is Optimal Interpolation,
@@ -766,4 +766,4 @@ contains
 
   end subroutine findObs
 
-end module analysisError_mod
+end module analysisErrorOI_mod
