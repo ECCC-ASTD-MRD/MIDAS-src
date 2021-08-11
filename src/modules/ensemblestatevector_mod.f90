@@ -2415,9 +2415,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
-                               etiket_opt, typvar, &
-                               etiketAppendMemberNumber_opt, varNames_opt, &
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, typvar, &
+                               etiket_opt, etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
                                resetTimeParams_opt)
     !
@@ -2430,8 +2429,8 @@ CONTAINS
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
     character(len=*)  :: ensFileNamePrefix
-    character(len=*), optional :: etiket_opt
     character(len=*)  :: typvar
+    character(len=*), optional :: etiket_opt
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
     logical, optional :: etiketAppendMemberNumber_opt
@@ -2649,11 +2648,11 @@ CONTAINS
             end if
           end if
 
-          !! The routine 'gsv_writeToFile' ignores the supplied
-          !! argument for the etiket, here 'etiketStr', if
-          !! 'statevector_member_r4%etiket' is different from
-          !! 'UNDEFINED'.  So we must define it explicitely in the
-          !! 'statevector_member_r4'.
+          ! The routine 'gsv_writeToFile' ignores the supplied
+          ! argument for the etiket, here 'etiketStr', if
+          ! 'statevector_member_r4%etiket' is different from
+          ! 'UNDEFINED'.  So we must define it explicitely in the
+          ! 'statevector_member_r4'.
           statevector_member_r4%etiket = etiketStr
 
           call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
