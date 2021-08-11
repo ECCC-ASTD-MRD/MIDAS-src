@@ -30,7 +30,7 @@ program midas_analysisErrorOI
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use obsSpaceDiag_mod
   use controlVector_mod
@@ -82,6 +82,10 @@ program midas_analysisErrorOI
   !- Initialize the Temporal grid
   !
   call tim_setup
+
+  if (tim_nstepobs > 1 .or. tim_nstepobsinc > 1) then
+    call utl_abort(myName//': The program assumes only one time step.')
+  end if
 
   !
   !- Initialize observation file names and set datestamp
