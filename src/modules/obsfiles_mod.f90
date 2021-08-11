@@ -994,7 +994,6 @@ contains
       if ( trim(obsFileType) /= 'BURP' ) then
         write(*,*) 'obsFileType = ',obsFileType
         write(*,*) 'obsf_updateMissingObsFlags: WARNING this s/r is currently only compatible with BURP files'
-        !call utl_abort('obsf_updateMissingObsFlags: this s/r is currently only compatible with BURP files')
       else
         call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
       end if

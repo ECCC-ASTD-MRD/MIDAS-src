@@ -1689,9 +1689,8 @@ contains
     integer                                :: snow(KNT)
     integer                                :: channelForTopoFilter(2)
     real                                   :: altitudeForTopoFilter(2)
-    logical, save                          :: LLFIRST
+    logical, save                          :: LLFIRST = .true.
 
-    LLFIRST = .TRUE.
     EPSILON = 0.01
     MISGRODY = -99.
 
@@ -1992,9 +1991,8 @@ contains
     integer                                :: err (KNT)
     integer                                :: channelForTopoFilter(3)
     real                                   :: altitudeForTopoFilter(3)
-    logical, save                          :: LLFIRST
+    logical, save                          :: LLFIRST = .true.
 
-    LLFIRST = .TRUE.
     EPSILON = 0.01
     MISGRODY = -99.
 
@@ -2222,7 +2220,7 @@ contains
     integer, allocatable, save             :: INTOTRJP(:)!INTOTRJP(mwbg_maxNumSat)
     integer                                :: KCANO(KNO,KNT)                      ! canaux des observations
 
-    logical, save                          :: LLFIRST = .True.
+    logical, save                          :: LLFIRST = .true.
     logical                                :: FULLREJCT
     logical                                :: FULLACCPT
 
@@ -3349,7 +3347,6 @@ end subroutine bennartz
     integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing 
     !                                                                     over water due bad data 
 
-    !LLFIRST = .true.
     call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
                     4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
@@ -4362,7 +4359,6 @@ end subroutine bennartz
         icount =  icount + 1
       end if
     end do
-    !if ( icount > 0 ) write(*,*) 'INFO: Num. pts with land/sea qualifier or terrain type changed (MG,LG) = ', icount
 
     ! 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 

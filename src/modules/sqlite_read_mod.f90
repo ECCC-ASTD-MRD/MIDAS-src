@@ -768,7 +768,7 @@ contains
                  xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
                  trackCellNum, modelWindSpeed,                                                  &
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )                     
+                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal) )
           end if
 
           lastId = rowIndex + 1
