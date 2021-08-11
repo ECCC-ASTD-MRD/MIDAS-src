@@ -36,9 +36,8 @@ program midas_analysisErrorOI
   use controlVector_mod
   use obsFiles_mod
   use innovation_mod
-  use analysisGrid_mod
   use obsErrors_mod
-  use analysisError_mod
+  use analysisErrorOI_mod
 
   implicit none
 
@@ -112,13 +111,11 @@ program midas_analysisErrorOI
   call hco_SetupFromFile(hco_anl, trlmFileName, ' ') ! IN
 
   if ( hco_anl % global ) then
-    call agd_SetupFromHCO( hco_anl ) ! IN
+    hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
     if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   !
