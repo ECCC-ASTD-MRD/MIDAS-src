@@ -4065,10 +4065,10 @@ module gridStateVector_mod
     call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
     ! Copy metadata
-    if ( associated(statevector_in%dateStampList) ) statevector_out%dateStampList = statevector_in%dateStampList
-    if ( associated(statevector_in%dateOriginList) ) statevector_out%dateOriginList = statevector_in%dateOriginList
-    if ( associated(statevector_in%npasList) )      statevector_out%npasList = statevector_in%npasList
-    if ( associated(statevector_in%ip2List) )       statevector_out%ip2List = statevector_in%ip2List
+    if ( associated(statevector_in%dateStampList) ) statevector_out%dateStampList(:) = statevector_in%dateStampList(:)
+    if ( associated(statevector_in%dateOriginList) ) statevector_out%dateOriginList(:) = statevector_in%dateOriginList(:)
+    if ( associated(statevector_in%npasList) )      statevector_out%npasList(:) = statevector_in%npasList(:)
+    if ( associated(statevector_in%ip2List) )       statevector_out%ip2List(:) = statevector_in%ip2List(:)
     statevector_out%deet = statevector_in%deet
     statevector_out%etiket = statevector_in%etiket
 
