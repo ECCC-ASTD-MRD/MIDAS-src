@@ -170,6 +170,8 @@ versioning](http://semver.org/spec/v2.0.0.html).  The tag name
 will be prepend by `v_`.  So if the version is `3.6.6`, the tag name
 will be `v_3.6.6`.
 
+### Update CHANGELOG
+
 When the version name is set, modify the [`CHANGELOG`](CHANGELOG.md)
 by replacing `[Unreleased]` by the version name and reintroduce the
 `[Unreleased]` section with empty subsections.  You can take example
@@ -182,6 +184,8 @@ tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipeline
 to be finished.  This is **very** **very** important since if you push
 the tag immediatly the process will be not.
 
+### Create the tag
+
 When the CI pipeline for the CHANGELOG commit is done, you can create
 the tag by prepending `v_` in front of the version name.  You can use
 this command to create the tag:
@@ -193,6 +197,9 @@ This version is available in the SSM domain:
 See CHANGELOG for more details.
 EOF
 ```
+
+### Create the SSM domain
+
 Then you push the tag:
 ```bash
 git push central v_${VERSION}
