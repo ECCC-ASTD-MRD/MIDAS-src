@@ -184,11 +184,15 @@ tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipeline
 to be finished.  This is **very** **very** important since if you push
 the tag immediatly the process will be not.
 
+Do not ask to avoid running the CI by including some string like
+`[skip CI]` because then, when the tag will be pushed, the CI pipeline
+will be triggered.
+
 ### Create the tag
 
 When the CI pipeline for the CHANGELOG commit is done, you can create
-the tag by prepending `v_` in front of the version name.  You can use
-this command to create the tag:
+an annotated tag by prepending `v_` in front of the version name.  You
+can use this command to create the tag:
 ```bash
 git tag -a v_${VERSION} -F - <<EOF
 This version is available in the SSM domain:
