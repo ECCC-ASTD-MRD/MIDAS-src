@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Namelist variables have been added for blocks `NAMLETKF` and
+   `namEnsPostProcModule` to control the etikets in each of the output
+   files of the programs `midas-letkf` and `midas-ensPostProcess` (#516 and !490)
 
 ### Changed
 

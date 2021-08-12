@@ -94,11 +94,12 @@ program midas_letkf
   real(8)  :: vLocalize            ! vertical localization radius (in units of ln(Pressure in Pa))
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
+  character(len=12) :: etiket_anl        ! etiket for output files
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, nEns, numSubEns, ensPathName,  &
                      hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     obsTimeInterpType, mpiDistribution
+                     obsTimeInterpType, mpiDistribution, etiket_anl
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -145,6 +146,7 @@ program midas_letkf
   vLocalize             = -1.0D0
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
+  etiket_anl            = 'ENS_ANL'
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -454,7 +456,7 @@ program midas_letkf
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+    call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)
     call tmg_stop(104)

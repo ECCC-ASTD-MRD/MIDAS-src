@@ -80,7 +80,7 @@ contains
     type(struct_ens)          :: ensembleTrlSubSample
     type(struct_ens)          :: ensembleAnlSubSample
     type(struct_ens)          :: ensembleAnlSubSampleUnPert
-    character(len=12)         :: etiketMean='', etiketStd=''
+    character(len=12)         :: etiket
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
@@ -101,14 +101,19 @@ contains
     real(8)  :: weightRecenter         ! weight applied to recentering increment
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
-    character(len=12) :: etiket0
-    integer  :: numBits                ! number of bits when writing ensemble mean and spread
+    character(len=8)  :: etiket_anl, etiket_inc, etiket_trl ! etikets for ensemble output files (must limit to 8 characters because the member number will be appended
+    character(len=12) :: etiket_anlmean, etiket_anlrms      ! etikets for mean and rms of analyses and mean of increments files
+    character(len=12) :: etiket_anlmeanpert, etiket_anlrmspert ! etikets for mean and rms of perturbed analyses
+    character(len=12) :: etiket_trlmean, etiket_trlrms      ! etikets for mean and rms of trials
+    integer  :: numBits ! number of bits when writing ensemble mean and spread
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
-                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,  &
-                                   huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,  &
-                                   weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
-                                   etiket0, numBits
+                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
+                                   huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,   &
+                                   weightRecenter, numMembersToRecenter, useOptionTableRecenter,         &
+                                   etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
+                                   etiket_anlmeanpert, etiket_anlrmspert, etiket_trlmean, etiket_trlrms, &
+                                   numBits
 
     if (ens_allocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
@@ -135,8 +140,23 @@ contains
     weightRecenter        = 0.0D0 ! means no recentering applied
     numMembersToRecenter  = -1    ! means all members recentered by default
     useOptionTableRecenter = .false.
-    etiket0               = 'E26_0_0P'
-    numBits               = 16
+    ! For the next 3 variables, the member number will be appended to this string
+    ! for files '${trialdate}_006_${member}'
+    etiket_trl = 'E27_0_0P'
+    ! for files '${analdate}_000_${member}', 'subspace/${analdate}_000_${member}' and 'subspace_unpert/${analdate}_000_${member}'
+    ! the member=0000 will contain the mean analysis
+    etiket_anl = 'E27_0_0P'
+    ! for files '${analdate}_000_inc_${member}' and 'subspace/${analdate}_000_inc_${member}'
+    ! the member=0000 will contain the mean increment
+    etiket_inc = 'E27_0_0P'
+    !
+    etiket_anlmean = 'E27_0_0PAVG' ! for file '${analdate}_000_analmean'
+    etiket_anlrms = 'E27_0_0PRMS'  ! for file '${analdate}_000_analrms'
+    etiket_anlmeanpert = 'E27_0_0PAVGP'  ! for file '${analdate}_000_analpertmean'
+    etiket_anlrmspert = 'E27_0_0PRMSP'  ! for file '${analdate}_000_analpertrms'
+    etiket_trlmean = 'E27_0_0PAVG' ! for file '${trialdate}_006_trialmean'
+    etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
+    numBits = 16
 
     !- Read the namelist
     nulnam = 0
@@ -425,17 +445,16 @@ contains
 
     if (ens_allocated(ensembleTrl)) then
       ! output trialmean, trialrms
-      call epp_getRmsEtiket(etiketMean, etiketStd, 'F', etiket0, nEns)
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
+        call gsv_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
                              typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
-      call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
+      call gsv_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
                            typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
@@ -445,7 +464,7 @@ contains
       if (writeTrlEnsemble) then
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_TRL', 'P',  &
+        call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
@@ -475,17 +494,16 @@ contains
       call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       
       ! output analmean, analrms
-      call epp_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+        call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
-      call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
+      call gsv_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
@@ -493,17 +511,16 @@ contains
 
       if (alphaRandomPert > 0.0D0) then
         ! output analpertmean, analpertrms
-        call epp_getRmsEtiket(etiketMean, etiketStd, 'P', etiket0, nEns)
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertmean'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+          call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
-        call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
+        call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
@@ -530,11 +547,13 @@ contains
 
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        ! here we assume 4 digits for the ensemble member!!!!
+        etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                typvar_opt='A', writeHeightSfc_opt=.true., &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -543,8 +562,10 @@ contains
 
       ! output ensemble mean analysis state
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
+      ! here we assume 4 digits for the ensemble member!!!!
+      etiket = trim(etiket_anl) // '0000'
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
+        call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -553,7 +574,7 @@ contains
       ! convert transformed to model variables for analysis and trial ensembles
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call tmg_start(104,'LETKF-writeEns')
-      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+      call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                              containsFullField_opt=.true.)
       call tmg_stop(104)
@@ -564,12 +585,12 @@ contains
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrl, '.', '', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                    etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
                                     ensPath='.')
         call tmg_stop(104)
       end if
@@ -579,26 +600,30 @@ contains
 
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        ! here we assume 4 digits for the ensemble member!!!!
+        etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+          call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                typvar_opt='A', writeHeightSfc_opt=.true., &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
 
         ! Output the ensemble mean analysis state
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
+        ! here we assume 4 digits for the ensemble member!!!!
+        etiket = trim(etiket_anl) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, 'ENSMEAN_ANL',  &
+          call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
@@ -607,13 +632,13 @@ contains
         ! WARNING: Increment put in ensembleTrlSubSample for output
         call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
+        call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.false., resetTimeParams_opt=.true.)
         ! Also write the reference (analysis) surface pressure to increment files
         call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                     ens_getNumMembers(ensembleAnlSubSample),  &
-                                    etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                    etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
                                     ensPath='subspace')
         call tmg_stop(104)
 
@@ -624,7 +649,7 @@ contains
 
         ! Output the sub-sampled analysis ensemble members
         call tmg_start(104,'LETKF-writeEns')
-        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', 'ENS_ANL', 'A',  &
+        call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
         call tmg_stop(104)
@@ -636,64 +661,6 @@ contains
     call tmg_stop(4)
 
   end subroutine epp_postProcess
-
-  !----------------------------------------------------------------------
-  ! epp_getRMSEtiket (private subroutine)
-  !----------------------------------------------------------------------
-  subroutine epp_getRmsEtiket(etiketMean, etiketStd, etiketType, etiket0, nEns)
-    !
-    !:Purpose:   Return the appropriate string to use for the etiket
-    !            in standard files containing the ensemble mean and
-    !            spread.
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*) :: etiketMean
-    character(len=*) :: etiketStd
-    character(len=*) :: etiketType
-    character(len=*) :: etiket0
-    integer          :: nEns
-
-    if (trim(etiketType) == 'F') then
-
-      ! create trialrms etiket, e.g. E2AVGTRPALL E24_3GMP0256
-      etiketStd(1:5) = etiket0(1:5)
-      etiketStd(6:7) = 'GM'
-      etiketStd(8:8) = etiket0(8:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7) = 'AVGTR'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else if (trim(etiketType) == 'A') then
-
-      ! create analrms etiket, e.g. E2AVGANPALL, E24_3_0P0256
-      etiketStd(1:8) = etiket0(1:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7)='AVGAN'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else if (trim(etiketType) == 'P') then
-
-      ! create analpertrms etiket, e.g. E2AVGPTPALL, E24_3PTP0256
-      etiketStd(1:5) = etiket0(1:5)
-      etiketStd(6:7) = 'PT'
-      etiketStd(8:8) = etiket0(8:8)
-      write(etiketStd(9:12),'(I4.4)') nEns
-      etiketMean(1:2) = etiket0(1:2)
-      etiketMean(3:7) = 'AVGPT'
-      etiketMean(8:8) = etiket0(8:8)
-      etiketMean(9:11) = 'ALL'
-
-    else
-      call utl_abort('epp_getRmsEtiket: unknown value of etiketType')
-    end if
-
-  end subroutine epp_getRmsEtiket
 
   !----------------------------------------------------------------------
   ! epp_writeToAllMembers (private subroutine)
