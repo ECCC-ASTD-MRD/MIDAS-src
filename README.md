@@ -162,14 +162,50 @@ The [CI](CI.md) has been configured to produce a SSM domain under
 ```
 automatically when a tag is pushed.
 
-## Create your own SSM domain
+## Procedure to follow when creating a new version
 
-You can create your own SSM domain using the script `ssm/domaingen`
-which takes two optional arguments:
- 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
-   * default: `${HOME}/data_maestro/ords/SSM/midas`
- 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
-   * default: `${DOMAIN_BASE}/packages`
+Once a release is decided to be published, identify the version name
+by following the [semantic
+versioning](http://semver.org/spec/v2.0.0.html).  The tag name
+will be prepend by `v_`.  So if the version is `3.6.6`, the tag name
+will be `v_3.6.6`.
+
+When the version name is set, modify the [`CHANGELOG`](CHANGELOG.md)
+by replacing `[Unreleased]` by the version name and reintroduce the
+`[Unreleased]` section with empty subsections.  You can take example
+on the commit 6136c4241b5016f5241bf868f73a10d2b84d3504 which did this
+change for version `v_3.6.6`.
+
+Once this changelog is done, push this change and wait for the [CI
+automatic
+tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
+to be finished.  This is **very** **very** important since if you push
+the tag immediatly the process will be not.
+
+When the CI pipeline for the CHANGELOG commit is done, you can create
+the tag by prepending `v_` in front of the version name.  You can use
+this command to create the tag:
+```bash
+git tag -a v_${VERSION} -F - <<EOF
+This version is available in the SSM domain:
+    /fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}
+
+See CHANGELOG for more details.
+EOF
+```
+Then you push the tag:
+```bash
+git push central v_${VERSION}
+```
+and you can monitor the [CI
+pipeline](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
+to check if
+ * all the programs are compiled,
+ * all tests are running correctly,
+ * the documentation is generated and
+ * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}`.
+
+Here are the steps
 
 ## Updating the scripts under `sanl000`
 
@@ -209,6 +245,15 @@ echo "Removing ${PWD}/ssm_publish which is now pointing to $(true_path ssm_publi
 rm -v ssm_publish
 ln -svi midas/${VERSION}/ssm_publish .
 ```
+
+## Create your own SSM domain
+
+You can create your own SSM domain using the script `ssm/domaingen`
+which takes two optional arguments:
+ 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
+   * default: `${HOME}/data_maestro/ords/SSM/midas`
+ 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
+   * default: `${DOMAIN_BASE}/packages`
 
 # Tools
 
