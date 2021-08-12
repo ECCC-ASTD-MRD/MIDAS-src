@@ -182,11 +182,14 @@ Once this changelog is done, push this change and wait for the [CI
 automatic
 tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
 to be finished.  This is **very** **very** important since if you push
-the tag immediatly the process will be not.
+the tag immediately, the current CI pipeline actived by this commit
+will use the new tag in the program names and the next CI pipeline,
+when you will push the tag, won't work because it cannot overwrite any
+programs already generated.
 
 Do not ask to avoid running the CI by including some string like
 `[skip CI]` because then, when the tag will be pushed, the CI pipeline
-will be triggered.
+will not be triggered.
 
 ### Create the tag
 
