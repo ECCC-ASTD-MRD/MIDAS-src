@@ -456,8 +456,8 @@ program midas_letkf
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', 'A', etiket_opt=etiket_anl,    &
-                           numBits_opt=16, etiketAppendMemberNumber_opt=.true., &
+    call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
+                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)
     call tmg_stop(104)
 

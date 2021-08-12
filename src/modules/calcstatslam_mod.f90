@@ -317,8 +317,8 @@ contains
     !- 6.  Transform u-wind and v-wind to control variables 
     !
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', 'E', &
-                             etiket_opt = 'MODELVAR', containsFullField_opt = ensContainsFullField)
+      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', 'MODELVAR', 'E', &
+                             containsFullField_opt = ensContainsFullField)
     end if
 
     if      ( bhi%momentumControlVar(1) == 'PP' .and. bhi%momentumControlVar(2) == 'CC' ) then
@@ -332,8 +332,8 @@ contains
     end if
 
     if (writeEnsPert) then
-      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', 'E', &
-                             etiket_opt = 'CTRLVAR', containsFullField_opt = ensContainsFullField)
+      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', 'CTRLVAR', 'E', &
+                             containsFullField_opt = ensContainsFullField)
     end if
 
     !

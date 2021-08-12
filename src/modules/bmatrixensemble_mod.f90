@@ -2629,8 +2629,8 @@ CONTAINS
     if (bEns(instanceIndex)%initialized .and. bEns(instanceIndex)%keepAmplitude) then
       if ( mpi_myid == 0 ) write(*,*)
       if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
-      call ens_writeEnsemble(bEns(instanceIndex)%ensAmplitudeStorage, ensPathName, ensFileNamePrefix, 'R', &
-                             etiket_opt='FROM_BENS', varNames_opt=bEns(instanceIndex)%varNameALFA, ip3_opt=ip3)
+      call ens_writeEnsemble(bEns(instanceIndex)%ensAmplitudeStorage, ensPathName, ensFileNamePrefix, &
+                             'FROM_BENS', 'R',varNames_opt=bEns(instanceIndex)%varNameALFA, ip3_opt=ip3)
     end if
 
   end subroutine ben_writeAmplitude

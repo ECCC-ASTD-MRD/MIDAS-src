@@ -2415,8 +2415,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, typvar, &
-                               etiket_opt, etiketAppendMemberNumber_opt, varNames_opt, &
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
+                               etiket, typvar, &
+                               etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
                                resetTimeParams_opt)
     !
@@ -2429,8 +2430,8 @@ CONTAINS
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
     character(len=*)  :: ensFileNamePrefix
+    character(len=*)  :: etiket
     character(len=*)  :: typvar
-    character(len=*), optional :: etiket_opt
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
     logical, optional :: etiketAppendMemberNumber_opt
@@ -2628,11 +2629,7 @@ CONTAINS
             containsFullField = (.not. ens%meanIsRemoved)
           end if
 
-          if ( present(etiket_opt) ) then
-            etiketStr = etiket_opt
-          else
-            etiketStr = ens%statevector_work%etiket
-          end if
+          etiketStr = etiket
 
           if (present(etiketAppendMemberNumber_opt)) then
             if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
