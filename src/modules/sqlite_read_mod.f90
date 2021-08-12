@@ -395,7 +395,7 @@ contains
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
       vertCoordType = 1
     else if ( trim(rdbSchema) == 'radvel') then
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, ANTENNA_ALTITUDE,  CENTER_AZIMUTH, CENTER_ELEVATION, RANGE_START, RANGE_END "
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, antenna_altitude, center_azimuth, center_elevation, range_start, range_end "
       vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -705,7 +705,7 @@ contains
          elevReal=elev
          call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
-         call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = obsrans)
+         call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
         end if
       else  ! familyType = CONV
