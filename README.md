@@ -212,7 +212,15 @@ to check if
  * the documentation is generated and
  * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}`.
 
-Here are the steps
+### Merge changes from release branch to `master`
+
+Once a version is published, there are probably some changes (like
+bugfixes) that needs to be also made in the `master` branch which is
+our main development branch.
+
+We suggest to open a merge request using the title "Merge tag
+'v_${VERSION}'" which describes the changes that will be introduced.
+See for example, what has been done in the merge request !476.
 
 ## Updating the scripts under `sanl000`
 
