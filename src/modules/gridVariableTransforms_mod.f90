@@ -2106,7 +2106,7 @@ CONTAINS
         end do
         !$OMP END PARALLEL DO
       end do
-       
+
     end do
 
   end subroutine CH_bounds

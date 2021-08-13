@@ -45,7 +45,7 @@ module varNameList_mod
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
   integer, parameter          :: VNLnumvarmax3D    = 48
-  integer, parameter          :: VNLnumvarmax2D    = 34
+  integer, parameter          :: VNLnumvarmax2D    = 35
   integer, parameter          :: VNLnumvarmaxOther =  6
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
@@ -83,19 +83,19 @@ module varNameList_mod
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
                                  'GL  ','WGE ','BIN ','MG  ','SSH ','QI1 ','QO1 ','STOR','ALFS', &
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
-                                 'DN  ','FB  ','FI  ','MSKC','LZS ','WT  ','LG  '/)
+                                 'DN  ','FB  ','FI  ','MSKC','LZS ','WT  ','LG  ','GLE '/)
 
   character(len=4), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
-                                 'MT',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
+                                 'OC',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
-                                 'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'MT'/)
+                                 'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'OC',  'OC'/)
 
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
                                  'I0  ','I1  ','I7  ','I9  ','SD  ','AL  '/)
