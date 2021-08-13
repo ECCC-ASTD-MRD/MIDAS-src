@@ -701,12 +701,12 @@ contains
 
       else if ( trim(familyType) == 'RA' ) then
         if ( trim(rdbSchema) == 'radvel') then
-         call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-         elevReal=elev
-         call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
-         call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
-         call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
-         call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
+          call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+          elevReal=elev
+          call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
+          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
+          call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
+          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
         end if
       else  ! familyType = CONV
 
