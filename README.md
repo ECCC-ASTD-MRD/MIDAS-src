@@ -178,8 +178,12 @@ by replacing `[Unreleased]` by the version name and reintroduce the
 on the commit 6136c4241b5016f5241bf868f73a10d2b84d3504 which did this
 change for version `v_3.6.6`.
 
-Once this changelog is done, push this change and wait for the [CI
-automatic
+Once this changelog is done, commit with the command
+```bash
+git add -v CHANGELOG.md
+git commit -m "Prepare CHANGELOG for version 'v_${VERSION}'"
+```
+and push this change and wait for the [CI automatic
 tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
 to be finished.  This is **very** **very** important since if you push
 the tag immediately, the current CI pipeline actived by this commit
