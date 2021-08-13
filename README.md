@@ -323,3 +323,23 @@ An automatic system of tests has been developed.  For each push in the
 all the tests pass for the `master` branch.  The [instructions for
 automatic testing using GitLab-CI are available in a separate
 file](CI.md).
+
+## Cleaning of the programs directory
+
+The programs compiled in the CI pipeline are moved into the directory:
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+```
+
+Once in a while, we must clean this directory to save them elsewhere
+to avoid filing the `ords` directory of user `sanl888`.
+
+The script
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs/move_abs.sh
+```
+moves the MIDAS programs to
+```
+/home/sanl888/data_maestro/eccc-ppp4/midas/gitlab-ci/abs
+```
+and links them to keep a reference.
