@@ -102,12 +102,13 @@ program midas_letkf
   real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
+  character(len=12) :: etiket_anl        ! etiket for output files
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, outputOnlyEnsMean, obsTimeInterpType, mpiDistribution
+                     ignoreEnsDate, outputOnlyEnsMean, obsTimeInterpType, mpiDistribution, etiket_anl
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -158,6 +159,7 @@ program midas_letkf
   minDistanceToLand     = -1.0D0
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
+  etiket_anl            = 'ENS_ANL'
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -524,7 +526,7 @@ program midas_letkf
     end if
     call tmg_start(104,'LETKF-writeEns')
     if (.not. outputOnlyEnsMean) then
-      call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_ANL', 'A',  &
+      call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                              containsFullField_opt=.true.)
     end if
