@@ -218,10 +218,10 @@ git push central v_${VERSION}
 and you can monitor the [CI
 pipeline](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
 to check if
- * all the programs are compiled,
- * all tests are running correctly,
- * the documentation is generated and
- * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}`.
+ * all the programs are compiled (`build` stage),
+ * all tests are running correctly (`test` stage),
+ * the documentation is generated (`doc` stage) and
+ * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}` (`deploy` stage).
 
 ### Merge changes from release branch to `master`
 
