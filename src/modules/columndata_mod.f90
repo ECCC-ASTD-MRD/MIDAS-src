@@ -49,7 +49,7 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
-    real(8), pointer  :: HeightSfc(:,:)
+    real(8), pointer  :: heightSfc(:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer, pointer  :: varOffset(:),varNumLev(:)
     logical           :: varExistList(vnl_numVarMax)
@@ -211,9 +211,9 @@ contains
     implicit none
     type(struct_columnData) :: column
 
-    if(column%numCol.gt.0) then
+    if (column%numCol > 0) then
       column%all(:,:) = 0.0d0
-      column%HeightSfc(:,:) = 0.0d0
+      column%heightSfc(:) = 0.0d0
     end if
 
   end subroutine col_zero
@@ -326,8 +326,8 @@ contains
       allocate(column%all(column%nk,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
-      allocate(column%HeightSfc(1,column%numCol))
-      column%HeightSfc(:,:)=0.0d0
+      allocate(column%heightSfc(column%numCol))
+      column%heightSfc(:)=0.0d0
 
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
@@ -359,7 +359,7 @@ contains
 
     if(column%numCol.gt.0) then
       deallocate(column%all)
-      deallocate(column%HeightSfc)
+      deallocate(column%heightSfc)
       deallocate(column%oltv)
     end if
 
@@ -781,7 +781,7 @@ contains
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
     else if (varLevel == 'SF' ) then
-      height = column%HeightSfc(1,headerIndex)
+      height = column%heightSfc(headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
     end if
@@ -797,7 +797,7 @@ contains
     integer, intent(in)                 :: headerIndex
     real(8), intent(in)                 :: height
 
-    column%HeightSfc(1,headerIndex) = height
+    column%heightSfc(headerIndex) = height
 
   end subroutine col_setHeightSfc
 

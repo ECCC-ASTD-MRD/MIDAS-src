@@ -465,20 +465,20 @@ contains
 
     ! Set surface height
     do columnIndex = 1, col_getNumCol(columng)
-      columng%HeightSfc(1,columnIndex) = columnhr%HeightSfc(1,columnIndex)
+      columng%heightSfc(columnIndex) = columnhr%heightSfc(columnIndex)
     end do
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
     if ( col_varExist(columng,'Z_T') .and. .not.columng%addHeightSfcOffset ) then 
       do columnIndex = 1, col_getNumCol(columng)
         columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
-        columng_ptr(col_getNumLev(columng,'TH')) = columng%HeightSfc(1,columnIndex)
+        columng_ptr(col_getNumLev(columng,'TH')) = columng%heightSfc(columnIndex)
       end do
     end if
     if ( col_varExist(columng,'Z_M') .and. .not.columng%addHeightSfcOffset ) then
       do columnIndex = 1, col_getNumCol(columng)
         columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
-        columng_ptr(col_getNumLev(columng,'MM')) = columng%HeightSfc(1,columnIndex)
+        columng_ptr(col_getNumLev(columng,'MM')) = columng%heightSfc(columnIndex)
       end do
     end if
 
@@ -505,7 +505,7 @@ contains
         write(*,*) columng_ptr(:)
       end if
  
-      write(*,*) 'HeightSfc:', columng%HeightSfc(1,1)
+      write(*,*) 'HeightSfc:', columng%heightSfc(1)
     end if
 
     call tmg_stop(10)
