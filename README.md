@@ -164,6 +164,12 @@ automatically when a tag is pushed.
 
 ## Procedure to follow when creating a new version
 
+** First, avoid to create a SSM domain on the last business day of a
+week (for example, a Friday).  Although we took many precautions, we
+are creating files under `/fs/ssm/eccc/mrd/rpn/anl/midas` a directory
+directly used by the CMC Operations.  We do not want to interrupt the
+operational system by doing a mistake in R&D! **
+
 Once a release is decided to be published, identify the version name
 by following the [semantic
 versioning](http://semver.org/spec/v2.0.0.html).  The tag name
