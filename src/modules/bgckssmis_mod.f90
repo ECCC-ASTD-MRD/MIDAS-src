@@ -162,13 +162,13 @@ contains
     !  Arguments
     integer, intent(in) :: npts
 
-    real,    intent(in),  dimension(:) :: ztb
-    logical, intent(in),  dimension(:) :: grossrej
-    real,    intent(out), dimension(:) :: zta
+    real,    intent(in) ::  ztb(:)
+    logical, intent(in) ::  grossrej(:)
+    real,    intent(out) :: zta(:)
 
     !  Locals
     integer :: ii, indx1, indx2
-    real, dimension(ssbg_maxNumChan) :: spill_coeffs
+    real    :: spill_coeffs(ssbg_maxNumChan)
 
 
     !  Define spillover correction coefficients
@@ -246,29 +246,29 @@ contains
       IMPLICIT NONE
 
       INTEGER,PARAMETER :: f16_id = 1, f17_id = 2, f18_id = 3
-      REAL, DIMENSION(ssbg_maxNumChan), INTENT(IN)  :: SSMIS_Ta
-      REAL, DIMENSION(ssbg_maxNumChan), INTENT(OUT) :: Remapped_SSMI_Ta
+      REAL, INTENT(IN) :: SSMIS_Ta(ssbg_maxNumChan)
+      REAL, INTENT(OUT) :: Remapped_SSMI_Ta(ssbg_maxNumChan)
       INTEGER, INTENT(IN) :: sat_id
-      REAL,DIMENSION(ssbg_maxNumChan) :: tbx
+      REAL :: tbx(ssbg_maxNumChan)
       INTEGER(2) :: iChan
-      REAL(8), DIMENSION(ssbg_maxNumChan) :: CP
+      REAL(8) :: CP(ssbg_maxNumChan)
 
       ! NESDIS Intercept/Slope for F16 SSMIS 7 IMG channels to SSMI linear remapping 
                                  ! ch1  ch2  ch3  ch4  ch5  ch6  ch7  ch8  ch9  ch10 ch11 (LAS/ENV)
-      REAL(8), DIMENSION(ssbg_maxNumChan) :: AP=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
+      REAL(8), PARAMETER :: AP(ssbg_maxNumChan)=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
                                      7.44254,7.80472,6.76383,8.55426,7.34409,6.57813,6.45397, &
                                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
 
-      REAL(8), DIMENSION(ssbg_maxNumChan) :: BP=(/1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,&
+      REAL(8), PARAMETER :: BP(ssbg_maxNumChan)=(/1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,&
                                      0.969424,0.967519,0.959808,0.954316,0.958955,0.980339,0.978795, &
                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0/)
 
       ! NESDIS F17 and F18 Tb biases with respect to F16
-      REAL(8), DIMENSION(ssbg_maxNumChan) :: CP_F17=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
+      REAL(8), PARAMETER :: CP_F17(ssbg_maxNumChan)=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
                                         -0.779,  -1.446,  -1.013,  -0.522,  -0.240,   0.735,   0.521,   &
                                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
   
-      REAL(8), DIMENSION(ssbg_maxNumChan) :: CP_F18=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
+      REAL(8), PARAMETER :: CP_F18(ssbg_maxNumChan)=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
                                         -0.773,  -0.688,  -1.031,  -0.632,  -0.411,   0.171,   0.928,   &
                                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
 
@@ -313,18 +313,18 @@ contains
     !==============================================================================
     IMPLICIT NONE
 
-    REAL, DIMENSION(24), INTENT(IN) :: Ta
-    REAL, DIMENSION(24), INTENT(OUT) :: Tb
+    REAL, INTENT(IN) :: Ta(24)
+    REAL, INTENT(OUT) :: Tb(24)
 
     INTEGER(4) :: iChan
-    REAL(4), DIMENSION(24) :: CP, DP
+    REAL(4) :: CP(24), DP(24)
 
-    REAL(8), DIMENSION(24) :: AP=(/0.9850,0.9850,0.9850,0.9850,0.9850,0.9790,0.9815,&
+    REAL(8), PARAMETER :: AP(24)=(/0.9850,0.9850,0.9850,0.9850,0.9850,0.9790,0.9815,&
                                    0.9949,0.9934,0.9934,0.9934, &
                                    0.9690,0.9690,0.9740,0.9860,0.9860,0.9880,0.9880,&
                                    0.9815,0.9815,0.9815,0.9815,0.9815,0.9815/)
 
-    REAL(8), DIMENSION(24) :: BP=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
+    REAL(8), PARAMETER :: BP(24)=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
                                    0.0, 0.0, 0.0, 0.0, &
                                    0.00415,0.00473,0.0107,0.02612,0.0217,0.01383,0.01947,&
                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
@@ -371,8 +371,8 @@ contains
     implicit none
 
     !  Arguments
-    real, intent(in),  dimension(:) :: Ta
-    real, intent(out), dimension(:) :: Tb
+    real, intent(in)  :: Ta(:)
+    real, intent(out) :: Tb(:)
 
     !  Locals
     real :: TB19V,TB19H,TB22V,TB37V,TB37H,TB85V,TB85H
@@ -490,7 +490,7 @@ contains
     implicit none
 
     !  Arguments:
-    REAL, DIMENSION(24), INTENT(IN) :: Tb
+    REAL, intent(in) :: Tb(24)
     real, intent(out) :: iwv
 
     !  Locals:
@@ -578,7 +578,7 @@ contains
     implicit none
 
     ! Declare subroutine argurments
-    REAL, DIMENSION(24), INTENT(IN) :: Tb
+    REAL,  INTENT(IN) :: Tb(24)
     REAL, INTENT(IN) :: Sea_Ice
     INTEGER, INTENT(IN) :: Stype
     REAL, INTENT(OUT) :: TPW
@@ -645,7 +645,7 @@ contains
     !==============================================================================
     IMPLICIT NONE
 
-    REAL, DIMENSION(24), INTENT(IN) :: Ta
+    REAL, INTENT(IN) :: Ta(24)
     INTEGER, INTENT(IN) :: OCEAN,Stype
     REAL, INTENT(OUT) :: Sea_Ice
     REAL, INTENT(IN)  :: Latitude
@@ -712,7 +712,7 @@ contains
     IMPLICIT NONE
 
     character(len=6), intent(in) :: alg_option
-    REAL, DIMENSION(24), INTENT(IN) :: Ta, Tb
+    REAL, INTENT(IN) :: Ta(24), Tb(24)
     INTEGER, INTENT(INOUT) :: Stype
     REAL, INTENT(OUT)   :: CLW
     REAL, INTENT(INOUT) :: WVP
@@ -863,17 +863,17 @@ contains
     IMPLICIT NONE
 
     !  Define Arguments
-    integer, intent(in)                  :: npts, isatid
-    real,    intent(in), dimension(:)    :: ztb
-    real,    intent(inout), dimension(:) :: rclw,riwv
-    real,    intent(in),  dimension(:)   :: zlat
-    integer, intent(inout)               :: iNewIce
+    integer, intent(in)    :: npts, isatid
+    real,    intent(in)    :: ztb(:)
+    real,    intent(inout) :: rclw(:),riwv(:)
+    real,    intent(in)    :: zlat(:)
+    integer, intent(inout) :: iNewIce
 
     character(len=6), intent(in) :: alg_option
 
-    logical, intent(in),    dimension(:) :: grossrej
-    logical, intent(inout), dimension(:) :: cloudobs, precipobs
-    logical, intent(inout), dimension(:) :: iwvreject,waterobs
+    logical, intent(in)    :: grossrej(:)
+    logical, intent(inout) :: cloudobs(:), precipobs(:)
+    logical, intent(inout) :: iwvreject(:), waterobs(:)
 
     !  Define Parameters
     real, parameter :: iwv_thresh = 80.0    ! Upper bound for IWV in kg/m**2
@@ -884,9 +884,11 @@ contains
     integer :: ii,indx1,indx2,Stype
     real :: clw,iwv, Lat
 
-    real, dimension(ssbg_mxval*ssbg_maxObsNum) :: zta
+    real :: zta(ssbg_mxval*ssbg_maxObsNum)
 
-    REAL, DIMENSION(ssbg_maxNumChan) :: F16TDR, RemappedTa, Tb
+    REAL :: F16TDR(ssbg_maxNumChan)
+    REAL :: RemappedTa(ssbg_maxNumChan)
+    REAL :: Tb(ssbg_maxNumChan)
 
     !---------------------------------------------------
 
@@ -1188,7 +1190,6 @@ end subroutine bennartz
     !             GZ is geopotential height; GZ at surface = surface height (dam)
     !               -- looks for surface GZ (hybrid or eta level = 1.0)
     !               -- uses new librmn_008 function ip1_all(level,kind)
-    !                  so ip1 can be old or new style encoding
     !         Then Interpolate Those variables to observation location
     !Arguments: 
     real,               intent(in)   :: zlat(:)        ! Observation Lats
@@ -1200,11 +1201,11 @@ end subroutine bennartz
     logical,           save  :: ifFirstCall = .True.   ! If .True. we read GL, MT and MG
     integer,           save  :: gdmt                   ! topo interpolation param
     integer                  :: gdllsval
-    integer                  :: ier, irec, irec2
+    integer                  :: ier, irec
     integer                  :: ezqkdef, ezsetopt
     integer, external        :: FSTINF,FSTPRM,FCLOS
     integer, external        :: FSTLIR,FSTFRM, FNOM, FSTOUV
-    integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4, ip1
+    integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4
     integer                  :: IDUM1,IDUM2,IDUM3,IDUM4
     integer                  :: IDUM5,IDUM6,IDUM7,IDUM8
     integer                  :: IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -1216,7 +1217,7 @@ end subroutine bennartz
     character(len=1)         :: GRTYP
     integer                  :: NLAT
     integer                  :: NLON
-    integer, PARAMETER       :: IUNGEO = 50
+    integer                  :: IUNGEO
     integer, PARAMETER       :: MXLON = 5
     integer, PARAMETER       :: MXLAT = 5
     integer, PARAMETER       :: MXELM = 20
@@ -1251,53 +1252,24 @@ end subroutine bennartz
 
     ! STEP 2: READ MT from the FST FILE
     if(ifFirstCall) then
+      IUNGEO = 0
       IER = FNOM(IUNGEO,'trlm_01','STD+RND+R/O',0)
       IER = FSTOUV(IUNGEO,'RND')
 
-      !_____TOPOGRAPHIE (MT = 'ME', 'MX', or 'GZ'(eta=1)).
-      !     ME est la topographie avec unites en metres.
-      !     MX est la topographie avec unites en m2/s2 (geopotential).
-      !     GZ is geopotential height; GZ at surface = surface height (dam)
-      !       -- looks for surface GZ (hybrid or eta level = 1.0)
-      !       -- uses new librmn_008 function ip1_all(level,kind)
-      !          so ip1 can be old or new style encoding
-
-      !topofact = 1.0
-      !irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','ME')
-      !clnomvar = 'ME'
-      !ip1 = -1
-      !if (irec < 0) then
-      !  topofact = 1.0/9.80616   !  m2/s2 --> m
-      !  irec = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MX')
-      !  clnomvar = 'MX'
-      !  ip1 = -1
-      !  if (irec < 0 ) then  ! look for GZ at eta(sigma) or hybrid level = 1.0
-          irec  = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,1),-1,-1,' ','GZ')
-          irec2 = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
-          clnomvar = 'GZ'
-          topofact = 10.0  ! dam --> m
-          if (irec < 0 .and. irec2 < 0) then
-            call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: LA TOPOGRAPHIE EST INEXISTANTE')
-          endif
-          if (irec < 0) then
-            ip1 = 5  !  HYBRID COORDINATES      kind=5
-            irec = irec2
-          else
-            ip1 = 1  !  ETA(SIGMA) COORDINATES  kind=1
-          endif
-      !  endif
-      !endif
+      ! Using hybrid coordinates
+      irec = fstinf(iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
+      if (irec < 0) then
+        call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: LA TOPOGRAPHIE EST INEXISTANTE')
+      endif
+      clnomvar = 'GZ'
+      topofact = 10.0  ! dam --> m
 
       if (allocated(MT)) deallocate(MT)
       allocate ( MT(ni*nj), STAT=ier)
       if ( ier /= 0 ) then
         call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Allocation of array mt failed')
       end if
-      if (ip1 > 0) then
-        ier = fstlir(MT,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,ip1),-1,-1,' ','GZ')
-      else
-        ier = fstlir(MT,iungeo,ni,nj,nk,-1,' ',ip1,-1,-1,' ',clnomvar)
-      endif
+      ier = fstlir(MT,iungeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
 
       MT(:) = MT(:)*TOPOFACT
 
@@ -1499,16 +1471,16 @@ end subroutine bennartz
 
   !  Arguments:
   
-    integer, intent(in)  :: npts
-    real,    intent(in),  dimension(:) :: zlat,zlon
-    integer, intent(inout),  dimension(:) :: zlq
-    integer,allocatable,  intent(out) :: ztt(:)
+    integer, intent(in)    :: npts
+    real,    intent(in)    :: zlat(:), zlon(:)
+    integer, intent(inout) :: zlq(:)
+    integer, allocatable, intent(out) :: ztt(:)
   
     logical, allocatable, intent(out) :: waterobs(:)
 
   !  Locals:
     integer, parameter :: mxlat=5,mxlon=5
-    integer, parameter :: iungeo=50
+    integer            :: iungeo
     logical, save      :: firstCall=.true.
 
     integer :: ier,key
@@ -1569,6 +1541,7 @@ end subroutine bennartz
       firstCall = .false.
 
       ! Open FST file.
+      iungeo = 0
       ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
       ier = fstouv( iungeo,'RND' )
 
@@ -1885,7 +1858,7 @@ end subroutine bennartz
       if (headerIndex < 0) exit HEADER0
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
-        ssmisDataPresent = .true.
+        ssmisDataPresent = tvs_isIdBurpInst(codtyp,'ssmis')
       end if
     end do HEADER0
 
@@ -2026,8 +1999,8 @@ end subroutine bennartz
     logical, save                       :: ifFirstCall = .true.
     ! variables related to obspacedata
     integer                              :: bodyIndex
-    integer                              :: obsNumCurrentLoc
-    integer                              :: bodyIndexbeg
+    integer                              :: bodyIndexBeg
+    integer                              :: bodyIndexEnd
     integer                              :: headerCompt
     integer                              :: currentChannelNumber
     integer                              :: numObsToProcess
@@ -2043,11 +2016,8 @@ end subroutine bennartz
     logical                              :: ssmisDataPresent
 
     ! Check if its ssmis data:
-    ssmisDataPresent = .false.
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-    if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
-      ssmisDataPresent = .true.
-    end if
+    ssmisDataPresent = tvs_isIdBurpInst(codtyp,'ssmis')
 
     if ( .not. ssmisDataPresent ) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_computeSsmisSurfaceType since no SSMIS DATA is found'
@@ -2137,10 +2107,10 @@ end subroutine bennartz
     obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
 
     ! To read body elements
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
     end do BODY
@@ -2461,8 +2431,8 @@ end subroutine bennartz
     integer, allocatable                    :: obsGlobalFlag(:)
     integer, allocatable                    :: satScanPosition(:)
     integer                              :: bodyIndex
-    integer                              :: obsNumCurrentLoc
-    integer                              :: bodyIndexbeg
+    integer                              :: bodyIndexBeg
+    integer                              :: bodyIndexEnd
     integer                              :: headerCompt
     integer                              :: actualNumChannel
     integer                              :: currentChannelNumber
@@ -2512,10 +2482,10 @@ end subroutine bennartz
 
     obsGlobalFlag(headerCompt) = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex )
     satScanPosition(headerCompt)  = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex)
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
-    BODY2: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY2: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
     end do BODY2
@@ -2525,9 +2495,7 @@ end subroutine bennartz
     ! 1 - Mark global flags if any obsToReject
     !------------------------------------------------------------------ 
     do ntIndex = 1 , numObsToProcess
-      !write(*,*) 'OLD GLOBAL FLAG VALUE = ', obsGlobalFlag(ntIndex)
       if ( any(obsToReject) ) obsGlobalFlag(ntIndex) = ibset(obsGlobalFlag(ntIndex), 6)
-      !write(*,*) 'NEW GLOBAL FLAG VALUE = ', obsGlobalFlag(ntIndex)
     end do 
 
     !------------------------------------------------------------------ 
@@ -2538,31 +2506,24 @@ end subroutine bennartz
       do channelIndex = 1, actualNumChannel
         dataIndex = dataIndex+1 
         if (resetQc) obsFlags(dataIndex) = 0
-        !write(*,*) 'OLD FLAG VALUE = ', obsFlags(dataIndex)
         if (obsToReject(dataIndex)) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),7)
-        !write(*,*) 'NEW FLAG VALUE = ', obsFlags(dataIndex)
       end do 
     end do
 
     !-----------------------------------------------------------------
-    !TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
     !    Subtract 270 from FOV values (element 005043).
-    ! TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
     !-----------------------------------------------------------------
+    
     do ntIndex = 1 , numObsToProcess
-      !write(*,*) 'OLD FOV = ', satScanPosition(ntIndex)
       if (satScanPosition(ntIndex) > 270) satScanPosition(ntIndex) = satScanPosition(ntIndex) - 270
-      !write(*,*) 'NEW FOV VALUE = ', satScanPosition(ntIndex)
     end do
  
     ! write elements in obsspace
-
-
     call obs_headSet_i(obsSpaceData, OBS_FOV, headerIndex, satScanPosition(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalFlag(1))
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY
@@ -2574,20 +2535,20 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
-!  Object: Identify those observations in SSMIS data that have O-P
-!          values greater than a threshold proportional to known
-!          standard deviations (computed when the bias correction
-!          coefficients were derived). The flags of these observations
-!          are adjusted accordingly (ie bit 9 switched ON).
-!          Also,
-!            -- flag channels for systematic rejection based on UTIL
-!               value in stats_*_errtot file or because flag bit 6 OFF
-!               (uncorrected data)
-!            -- reject sets of AMSU-like channels based on O-P for
-!               a single channel
-!            -- reject selected AMSU-like channels over land when
-!               model surface height exceeds a specified limit
-!               (topography check)
+!  :Purpose: Identify those observations in SSMIS data that have O-P
+!            values greater than a threshold proportional to known
+!            standard deviations (computed when the bias correction
+!            coefficients were derived). The flags of these observations
+!            are adjusted accordingly (ie bit 9 switched ON).
+!            Also,
+!              -- flag channels for systematic rejection based on UTIL
+!                 value in stats_*_errtot file or because flag bit 6 OFF
+!                 (uncorrected data)
+!              -- reject sets of AMSU-like channels based on O-P for
+!                 a single channel
+!              -- reject selected AMSU-like channels over land when
+!                 model surface height exceeds a specified limit
+!                 (topography check)
 !
 !------------------------------------------------------------------
 
@@ -2603,7 +2564,8 @@ end subroutine bennartz
 
     integer              :: actualNumChannel         ! actual Num channel
     integer              :: bodyIndex
-    integer              :: bodyIndexbeg
+    integer              :: bodyIndexBeg
+    integer              :: bodyIndexEnd 
     integer              :: codtyp                   ! code type
     integer              :: channelIndex
     integer              :: currentChannelNumber
@@ -2614,7 +2576,6 @@ end subroutine bennartz
     integer              :: iPlatform
     integer              :: iSat
     integer              :: numObsToProcess          ! number of obs in current report
-    integer              :: obsNumCurrentLoc
     integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
 
     integer, allocatable :: obsChannels(:)           ! channel numbers
@@ -2629,10 +2590,10 @@ end subroutine bennartz
     real   , allocatable :: ompTb(:)                 ! OMP values
 
     ! Temporary arrays
-    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: rejcnt
-    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: rejcnt2
-    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: totobs
-    integer, dimension(ssbg_maxNumChan,ssbg_maxNumSat) :: totobs2
+    integer :: rejcnt(ssbg_maxNumChan,ssbg_maxNumSat)
+    integer :: rejcnt2(ssbg_maxNumChan,ssbg_maxNumSat)
+    integer :: totobs(ssbg_maxNumChan,ssbg_maxNumSat)
+    integer :: totobs2(ssbg_maxNumChan,ssbg_maxNumSat)
 
     !-------------------------------------------------------------------------
     ! 1) INOVQC begins
@@ -2692,15 +2653,15 @@ end subroutine bennartz
 
     ! Lecture dans obsspacedata (entiers)
 
-    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
-    bodyIndexbeg                       = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc                   = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    burpFileSatId = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
+    bodyIndexBeg  = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd  = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
     ! Lecture dans obsspacedata (reels)
 
     obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
     obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
@@ -2824,14 +2785,15 @@ end subroutine bennartz
     integer, intent(in) :: mxchn
     integer, intent(in) :: knomp,knt,knosat
 
-    integer, intent(in),    dimension(:,:)     :: iutilst
-    integer, intent(in),    dimension(:)       :: kcanomp
-    integer, intent(in),    dimension(:)       :: kflags
-    integer, intent(out),   dimension(:)       :: icheck
-    integer, intent(inout), dimension(:,:)     :: rejcnt,totobs
+    integer, intent(in)    :: iutilst(:,:)
+    integer, intent(in)    :: kcanomp(:)
+    integer, intent(in)    :: kflags(:)
+    integer, intent(out)   :: icheck(:)
+    integer, intent(inout) :: rejcnt(:,:)
+    integer, intent(inout) :: totobs(:,:)
 
-    real(8), intent(in), dimension(:,:)     :: sdstats
-    real   , intent(in), dimension(:)       :: ptbomp
+    real(8), intent(in) :: sdstats(:,:)
+    real   , intent(in) :: ptbomp(:)
 
     character(len=9), intent(in) :: stnid
 
@@ -2839,9 +2801,8 @@ end subroutine bennartz
     integer :: ji,jj,ichn,indx1,indx2,iich1,iich8,iich4,iich11
     integer :: j
 
+    real :: roguefac(mxchn)
     real :: xcheckval
-
-    real,    dimension(mxchn) :: roguefac
 
     ! Define max Abs(O-P) for channel 8 for rejection of channels 8-11
     ! -- should be consistent with bgck.satqc_amsub.f (AMSU-B)
@@ -3036,10 +2997,11 @@ end subroutine bennartz
     !  Arguments:
     integer, intent(in) :: knomp,knt,knosat
 
-    integer, intent(inout), dimension(:)       :: icheck         ! dimension (knt*knomp)
-    integer, intent(inout), dimension(:,:)     :: rejcnt,totobs
+    integer, intent(inout) :: icheck(:)         ! dimension (knt*knomp)
+    integer, intent(inout) :: rejcnt(:,:)
+    integer, intent(inout) :: totobs(:,:)
 
-    real, intent(in), dimension(:)  :: mtintrp  ! dimension (knt)
+    real, intent(in) :: mtintrp(:)  ! dimension (knt)
 
     character(len=9), intent(in)    :: stnid
 
@@ -3052,9 +3014,8 @@ end subroutine bennartz
 
     real     :: zcheckval, zmt
 
-    real,    dimension(nch2chk) :: topolimit
-
-    integer, dimension(nch2chk) :: mchan
+    real     :: topolimit(nch2chk)
+    integer  :: mchan(nch2chk)
 
     logical :: debug2
 
@@ -3142,7 +3103,8 @@ end subroutine bennartz
 
     integer                              :: actualNumChannel
     integer                              :: bodyIndex
-    integer                              :: bodyIndexbeg
+    integer                              :: bodyIndexBeg
+    integer                              :: bodyIndexEnd
     integer                              :: channelIndex
     integer                              :: currentChannelNumber
     integer                              :: dataIndex
@@ -3154,7 +3116,6 @@ end subroutine bennartz
     integer                              :: isat
     integer                              :: ntIndex
     integer                              :: numObsToProcess
-    integer                              :: obsNumCurrentLoc
     integer                              :: sensorIndex
 
 
@@ -3193,10 +3154,10 @@ end subroutine bennartz
 
     obsGlobalFlag(headerCompt) = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex )
     satScanPosition(headerCompt)  = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex)
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    bodyIndexBeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
-    BODY2: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    BODY2: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
     end do BODY2
@@ -3253,14 +3214,10 @@ end subroutine bennartz
     end do
 
     !-----------------------------------------------------------------
-    !TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
     !    Subtract 270 from FOV values (element 005043).
-    ! TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
     !-----------------------------------------------------------------
     do ntIndex = 1 , numObsToProcess
-      !write(*,*) 'OLD FOV = ', satScanPosition(ntIndex)
       if (satScanPosition(ntIndex) > 270) satScanPosition(ntIndex) = satScanPosition(ntIndex) - 270
-      !write(*,*) 'NEW FOV VALUE = ', satScanPosition(ntIndex)
     end do
 
     ! write elements in obsspace
@@ -3268,9 +3225,9 @@ end subroutine bennartz
 
     call obs_headSet_i(obsSpaceData, OBS_FOV, headerIndex, satScanPosition(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalFlag(1))
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
+    bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
+    bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
+    BODY: do bodyIndex =  bodyIndexBeg, bodyIndexEnd
       currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY
@@ -3302,9 +3259,8 @@ end subroutine bennartz
     integer                              :: indexFlags
     integer                              :: inovQcSize
 
-    integer, dimension(10)               :: statsInovQcFlags
-
-    real,    dimension(9)                :: percentInovQcFlags
+    integer                              :: statsInovQcFlags(10)
+    real                                 :: percentInovQcFlags(9)
 
     logical                              :: ssmisDataPresent
 
@@ -3312,17 +3268,17 @@ end subroutine bennartz
     ssmisDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
-       headerIndex = obs_getHeaderIndex(obsSpaceData)
-       if (headerIndex < 0) exit HEADER0
-       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-       if ( tvs_isIdBurpInst(codtyp,'ssmis' ) ) then
-          ssmisDataPresent = .true.
-       end if
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER0
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( tvs_isIdBurpInst(codtyp,'ssmis' ) ) then
+        ssmisDataPresent = .true.
+      end if
     end do HEADER0
 
     if ( .not. ssmisDataPresent ) then
-       write(*,*) 'WARNING: WILL NOT RUN ssbg_bgCheckSSMIS since no SSMIS'
-       return
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_bgCheckSSMIS since no SSMIS'
+      return
     end if
 
     statsInovQcFlags(:) = 0
@@ -3337,50 +3293,50 @@ end subroutine bennartz
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-       headerIndex = obs_getHeaderIndex(obsSpaceData)
-       if (headerIndex < 0) exit HEADER
-       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-       if ( .not. (tvs_isIdBurpInst(codtyp,'ssmis')) ) then
-          write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not SSMIS'
-          cycle HEADER
-       end if
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( .not. (tvs_isIdBurpInst(codtyp,'ssmis')) ) then
+        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not SSMIS'
+        cycle HEADER
+      end if
 
-       !###############################################################################
-       ! STEP 1) call satQC SSMIS program                                             !
-       !###############################################################################
-       if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
-       call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
+      !###############################################################################
+      ! STEP 1) call satQC SSMIS program                                             !
+      !###############################################################################
+      if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
+      call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
 
-       !###############################################################################
-       ! STEP 2) update Flags after satQC SSMIS program                               !
-       !###############################################################################
-       if (ssbg_debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
-       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
+      !###############################################################################
+      ! STEP 2) update Flags after satQC SSMIS program                               !
+      !###############################################################################
+      if (ssbg_debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
+      call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
 
-       !###############################################################################
-       ! STEP 3) call inovQC SSMIS program                                            !
-       !###############################################################################
-       if (ssbg_debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
-       call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
+      !###############################################################################
+      ! STEP 3) call inovQC SSMIS program                                            !
+      !###############################################################################
+      if (ssbg_debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
+      call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
-       !###############################################################################
-       ! STEP 4) update Flags after inovQC SSMIS program                              !
-       !###############################################################################
-       if (ssbg_debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
-       call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
+      !###############################################################################
+      ! STEP 4) update Flags after inovQC SSMIS program                              !
+      !###############################################################################
+      if (ssbg_debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
+      call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
 
-       !###############################################################################
-       ! STEP 5) compute statistics of different inovQc flags types                   !
-       !###############################################################################
-       inovQcSize = size(flagsInovQc)
-       if (maxval(flagsInovQc) > 8) call utl_abort('ssbg_bgCheckSSMIS: Problem with flagsInovQc, value greater than 8.')
-       do dataIndex = 1,inovQcSize
-         dataIndex1 = flagsInovQc(dataIndex)+1
-         ! Counting number of flags with value flagsInovQc(dataIndex)
-         statsInovQcFlags(dataIndex1) = statsInovQcFlags(dataIndex1) + 1
-         ! Counting total number of flags (observations)
-         statsInovQcFlags(10) = statsInovQcFlags(10) + 1
-       end do
+      !###############################################################################
+      ! STEP 5) compute statistics of different inovQc flags types                   !
+      !###############################################################################
+      inovQcSize = size(flagsInovQc)
+      if (maxval(flagsInovQc) > 8) call utl_abort('ssbg_bgCheckSSMIS: Problem with flagsInovQc, value greater than 8.')
+      do dataIndex = 1,inovQcSize
+        dataIndex1 = flagsInovQc(dataIndex)+1
+        ! Counting number of flags with value flagsInovQc(dataIndex)
+        statsInovQcFlags(dataIndex1) = statsInovQcFlags(dataIndex1) + 1
+        ! Counting total number of flags (observations)
+        statsInovQcFlags(10) = statsInovQcFlags(10) + 1
+      end do
 
     end do HEADER
 
