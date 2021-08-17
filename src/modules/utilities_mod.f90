@@ -36,7 +36,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_allReduce
+  public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
 
   ! module interfaces
   ! -----------------
@@ -91,6 +91,15 @@ module utilities_mod
     module procedure utl_reAllocate_r4_5d
     module procedure utl_reAllocate_r8_5d
   end interface utl_reAllocate
+
+  interface utl_findloc
+    module procedure utl_findloc_char
+    module procedure utl_findloc_int
+  end interface utl_findloc
+
+  interface utl_findlocs
+    module procedure utl_findlocs_char
+  end interface utl_findlocs
 
 contains
 
@@ -2548,5 +2557,135 @@ contains
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce
+
+  !--------------------------------------------------------------------------
+  ! utl_findloc_char
+  !--------------------------------------------------------------------------
+  function utl_findloc_char(charArray, value) result(location)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !           If multiple matches are found in the array, a warning
+    !           message is printed to the listing.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: charArray(:)
+    character(len=*), intent(in) :: value
+    integer                      :: location
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    numFound = 0
+    LOOP: do arrayIndex = 1, size(charArray)
+      if (trim(charArray(arrayIndex)) == trim(value)) then
+        numFound = numFound + 1
+        ! return the first location found
+        if (numFound == 1) location = arrayIndex
+      end if
+    end do LOOP
+
+    ! give warning if more than 1 found
+    if (numFound > 1) then
+      write(*,*) 'utl_findloc_char: found multiple locations of ', trim(value)
+      write(*,*) 'utl_findloc_char: number locations found =  ', numFound    
+    end if
+
+    ! return zero if not found
+    if (numFound == 0) then
+      location = 0
+    end if
+
+  end function utl_findloc_char
+
+  !--------------------------------------------------------------------------
+  ! utl_findloc_int
+  !--------------------------------------------------------------------------
+  function utl_findloc_int(intArray, value) result(location)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !           If multiple matches are found in the array, a warning
+    !           message is printed to the listing.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: intArray(:)
+    integer, intent(in) :: value
+    integer             :: location
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    numFound = 0
+    LOOP: do arrayIndex = 1, size(intArray)
+      if (intArray(arrayIndex) == value) then
+        numFound = numFound + 1
+        ! return the first location found
+        if (numFound == 1) location = arrayIndex
+      end if
+    end do LOOP
+
+    ! give warning if more than 1 found
+    if (numFound > 1) then
+      write(*,*) 'utl_findloc_int: found multiple locations of ', value
+      write(*,*) 'utl_findloc_int: number locations found =  ', numFound    
+    end if
+
+    ! return zero if not found
+    if (numFound == 0) then
+      location = 0
+    end if
+
+  end function utl_findloc_int
+
+  !--------------------------------------------------------------------------
+  ! utl_findlocs_char
+  !--------------------------------------------------------------------------
+  function utl_findlocs_char(charArray, value) result(locations)
+    !
+    ! :Purpose: A modified version of the fortran function `findloc`.
+    !           Returns an array of all matches found in the array.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: charArray(:)
+    character(len=*), intent(in) :: value
+    integer, allocatable         :: locations(:)
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    if (allocated(locations)) deallocate(locations)
+
+    ! count number of matches found
+    numFound = 0
+    do arrayIndex = 1, size(charArray)
+      if (trim(charArray(arrayIndex)) == trim(value)) numFound = numFound + 1
+    end do
+
+    if (numFound > 0) then
+
+      ! return all found locations
+      allocate(locations(numFound))
+      numFound = 0
+      do arrayIndex = 1, size(charArray)
+        if (trim(charArray(arrayIndex)) == trim(value)) then
+          numFound = numFound + 1
+          locations(numFound) = arrayIndex
+        end if
+      end do
+
+    else
+
+      ! return zero if not found
+      allocate(locations(1))
+      locations(1) = 0
+
+    end if
+
+  end function utl_findlocs_char
 
 end module utilities_mod

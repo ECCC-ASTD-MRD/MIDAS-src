@@ -2301,7 +2301,7 @@ CONTAINS
 
 
   !-----------------------------------------
-  ! bcs_applyBiasCorrection
+  ! bcs_getRadiosondeWeight
   !-----------------------------------------
   subroutine bcs_getRadiosondeWeight(obsSpaceData,lmodify_obserror_opt)
     !

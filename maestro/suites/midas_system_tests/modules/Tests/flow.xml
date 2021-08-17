@@ -143,6 +143,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckAtms_obsDB"/>
+    <FAMILY  name="BgckAtms_obsDB">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY> 
     <SUBMITS sub_name="BgckAmsua"/>
     <FAMILY  name="BgckAmsua">
       <SUBMITS sub_name="UnitTest"/>

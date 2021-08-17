@@ -381,6 +381,7 @@ contains
 
     if ( trim(familyType) == 'TO' ) then
       write(listElem,*) bufr_nbt3
+      numberElem = 1
     else
       write(listElem,'(i5.5,",",i5.5)') bufr_nedd, bufr_neff
     end if
@@ -613,12 +614,13 @@ contains
 
       call fSQL_get_row( stmt, finished )   ! Fetch the next row
       if (finished) then                    ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
-        if ( headerIndex > 1 .and. obsNlv > 0 ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation,                                    &
+        if ( headerIndex > 1 .and. obsNlv > 0 ) then
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
                                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,  &
                                 obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),        &
                                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),  real(obsrdel,kind=pre_obsReal) )
+        end if
         exit HEADER
       end if
 
@@ -766,8 +768,8 @@ contains
                  xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
                  trackCellNum, modelWindSpeed,                                                  &
                  real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal)  )
-           end if
+                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal), real(obsrdel,kind=pre_obsReal) )
+          end if
 
           lastId = rowIndex + 1
           bodyPrimaryKey = int(matdata(rowIndex,1))
@@ -831,35 +833,35 @@ contains
 
           else ! CONV
  
-           call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                               obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+            call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
-           if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
-               .not. ovt_bufrCodeSkipped(obsVarno)) then
-             call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
-             call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                 obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
-                                 0, vertCoordType, bodyIndex + 1 )
-             bodyIndex = bodyIndex + 1
-             obsNlv = obsNlv + 1
-             if (ovt_isWindObs(obsVarno)) then
-               ! Add an extra row for the other wind component
-               call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
-               call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                   obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
-                                   0, vertCoordType, bodyIndex + 1 )
-               bodyIndex = bodyIndex + 1
-               obsNlv = obsNlv + 1
-             end if
-           end if
+            if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
+                .not. ovt_bufrCodeSkipped(obsVarno)) then
+              call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
+              call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                  obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
+                                  0, vertCoordType, bodyIndex + 1 )
+              bodyIndex = bodyIndex + 1
+              obsNlv = obsNlv + 1
+              if (ovt_isWindObs(obsVarno)) then
+                ! Add an extra row for the other wind component
+                call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
+                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
+                                    0, vertCoordType, bodyIndex + 1 )
+                bodyIndex = bodyIndex + 1
+                obsNlv = obsNlv + 1
+              end if
+            end if
            
-         end if       ! TOVS or CONV
+          end if       ! TOVS or CONV
 
-       end if          !  headPrimaryKey   
+        end if          !  headPrimaryKey   
 
-     end do DATA  ! END OF DATA LOOP
+      end do DATA  ! END OF DATA LOOP
 
-     if ( obsNlv > 0 ) then
+      if ( obsNlv > 0 ) then
 
         if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
 
@@ -868,7 +870,7 @@ contains
         if ( headerIndex > 1 ) then
           reportLocation = obs_headElem_i(obsdat, OBS_RLN, headerIndex - 1 ) +  obs_headElem_i(obsdat, OBS_NLV, headerIndex - 1 )
           call obs_headSet_i(obsdat, OBS_RLN, headerIndex, reportLocation )
-        end if   
+        end if
 
         if ( lastId > numberRows ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &

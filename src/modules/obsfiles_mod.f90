@@ -23,7 +23,8 @@ module obsFiles_mod
   !
   !              1. BURP
   !              2. CMA (binary format of obsSpaceData contents)
-  !              3. SQLITE
+  !              3. SQLITE (burp2rdb format)
+  !              4. SQLITE (obsDB format)
   !
   use mpi_mod
   use ramdisk_mod
@@ -33,6 +34,7 @@ module obsFiles_mod
   use obsSpaceData_mod
   use burpFiles_mod
   use sqliteFiles_mod
+  use obsdbFiles_mod
   use cmaFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
@@ -164,7 +166,13 @@ contains
                call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
-        if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( obsFileType == 'SQLITE' ) then
+          if (odbf_isActive()) then
+            call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+          else
+            call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+          end if
+        end if
 
       end do
 
@@ -236,8 +244,13 @@ contains
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
-                              fileIndex )
+        if (odbf_isActive()) then
+          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
+        else
+          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
+        end if
       end if
     end do
 
@@ -980,7 +993,7 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( trim(obsFileType) /= 'BURP' ) then
         write(*,*) 'obsFileType = ',obsFileType
-        call utl_abort('obsf_updateMissingObsFlags: this s/r is currently only compatible with BURP files')
+        write(*,*) 'obsf_updateMissingObsFlags: WARNING this s/r is currently only compatible with BURP files'
       else
         call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
       end if

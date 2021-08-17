@@ -230,7 +230,7 @@ contains
       if ( .not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
-          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex, stepObsIndex
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if

@@ -329,7 +329,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ITY = OBS_OTP+1  ! code: instrument & retrieval type
    integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code 
    integer, parameter, public :: OBS_TEC = OBS_SAT+1  ! satellite processing technique
-   integer, parameter, public :: OBS_DAT = OBS_TEC+1  ! observation date YYYYMMD
+   integer, parameter, public :: OBS_SEN = OBS_TEC+1  ! satellite sensor code
+   integer, parameter, public :: OBS_DAT = OBS_SEN+1  ! observation date YYYYMMD
    integer, parameter, public :: OBS_ETM = OBS_DAT+1  ! observation time HHMM
    integer, parameter, public :: OBS_NLV = OBS_ETM+1  ! number of data at this location
    integer, parameter, public :: OBS_PAS = OBS_NLV+1  ! batch no. in sequential analysis
@@ -387,7 +388,7 @@ module ObsColumnNames_mod
    ! INTEGER-HEADER COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
-      (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
+      (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &  
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
@@ -1000,8 +1001,8 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=20,100) /)
+              OBS_ST1, OBS_IDF, OBS_SEN, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1045,9 +1046,9 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, &
+              OBS_ST1, OBS_IDF, OBS_SEN, &
               OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=27,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=28,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
@@ -1368,10 +1369,12 @@ module ObsSpaceData_mod
    public obs_columnActive_IH !                 "
    public obs_columnActive_RB !                 "
    public obs_columnActive_RH !                 "
+   public obs_columnIndexFromName    ! get the index from the name (any flavour)
    public obs_columnIndexFromName_IB ! get the index from the name
    public obs_columnIndexFromName_IH !         "
    public obs_columnIndexFromName_RB !         "
    public obs_columnIndexFromName_RH !         "
+   public obs_columnDataType ! tell user if column index has real or integer data
    public obs_copy       ! copy an obsdat object
    public obs_count_headers ! count the stations and observations in the object
    public obs_elem_c     ! obtain character element from the observation object
@@ -1458,7 +1461,7 @@ module ObsSpaceData_mod
    ! PRIVATE METHODS:
    private obs_abort     ! abort a job on error
    private obs_allocate  ! array allocation
-   private obs_columnIndexFromName ! get the index from the name
+   private obs_columnIndexFromNameForFlavour ! get the index from the name
    private obs_deallocate! array de-allocation
    private obs_mpiDistributeIndices ! distribute header & body indices for mpi parallelization
    private obs_tosqlbdy  ! write the observation data in comma-separated format
@@ -1470,7 +1473,7 @@ module ObsSpaceData_mod
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
    !    integer-header column numbers
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
-   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP
+   public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP , OBS_SEN
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_ST1, OBS_IDF
    public :: OBS_GQF, OBS_GQL
@@ -2283,7 +2286,74 @@ contains
    end function obs_columnActive_RH
 
 
-   function obs_columnIndexFromName(odc_flavour, column_name) &
+   function obs_columnIndexFromName(column_name) result(column_index_out)
+      !
+      ! :Purpose:
+      !      Situations do occur where the client knows only the name of a
+      !      column, but needs to know its index. This method supplies the index.
+      !
+      implicit none
+      character(len=*)        , intent(in) :: column_name
+      integer                              :: column_index_out
+
+      integer            :: column_index
+      logical            :: lfound
+      character(len=100) :: message
+
+      lfound=.false.
+
+      ! check integer-header
+      do column_index=odc_flavour_IH%ncol_beg, odc_flavour_IH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IH%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check real-header
+      do column_index=odc_flavour_RH%ncol_beg, odc_flavour_RH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RH%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check integer-body
+      do column_index=odc_flavour_IB%ncol_beg, odc_flavour_IB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IB%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      ! check real-body
+      do column_index=odc_flavour_RB%ncol_beg, odc_flavour_RB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RB%columnNameList(column_index)))then
+            lfound=.true.
+            column_index_out = column_index
+            exit
+         endif
+      enddo
+      if (lfound) return
+
+      write(message,*)'abort in obs_columnIndexFromName: ' // &
+                      'name not found='// trim(column_name)
+      call obs_abort(message); return
+
+   end function obs_columnIndexFromName
+
+
+   function obs_columnIndexFromNameForFlavour(odc_flavour, column_name) &
                                                          result(column_index_out)
       !
       ! :Purpose:
@@ -2301,8 +2371,8 @@ contains
 
       lfound=.false.
       do column_index=odc_flavour%ncol_beg, odc_flavour%ncol_end
-         if(  trim(column_name) &
-            ==trim(odc_flavour%columnNameList(column_index)))then
+         if(trim(column_name) == &
+            trim(odc_flavour%columnNameList(column_index)))then
             lfound=.true.
             column_index_out = column_index
             exit
@@ -2310,12 +2380,12 @@ contains
       enddo
 
       if(.not.lfound) then
-         write(message,*)'abort in obs_columnIndexFromName [' &
+         write(message,*)'abort in obs_columnIndexFromNameForFlavour [' &
                        // odc_flavour%dataType //','// odc_flavour%headOrBody //&
                        ']: name not found='// column_name
          call obs_abort(message); return
       end if
-   end function obs_columnIndexFromName
+   end function obs_columnIndexFromNameForFlavour
 
 
    function obs_columnIndexFromName_IB(column_name) result(column_index)
@@ -2328,7 +2398,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_IB, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IB, column_name)
    end function obs_columnIndexFromName_IB
 
 
@@ -2342,7 +2412,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_IH, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IH, column_name)
    end function obs_columnIndexFromName_IH
 
 
@@ -2356,7 +2426,7 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_RB, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RB, column_name)
    end function obs_columnIndexFromName_RB
 
 
@@ -2370,8 +2440,32 @@ contains
       character(len=*), intent(in) :: column_name
       integer                      :: column_index
 
-      column_index = obs_columnIndexFromName(odc_flavour_RH, column_name)
+      column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RH, column_name)
    end function obs_columnIndexFromName_RH
+
+
+   function obs_columnDataType(columnIndex) result(dataType)
+     !
+     ! :Purpose: return the data type of column, either 'real' or 'integer'
+     !
+     implicit none
+
+     integer, intent(in) :: columnIndex
+     character(len=7)    :: dataType
+
+     if (columnIndex >= NHDR_INT_BEG .and. columnIndex <= NHDR_INT_END) then
+       dataType = 'integer'
+     else if (columnIndex >= NHDR_REAL_BEG .and. columnIndex <= NHDR_REAL_END) then
+       dataType = 'real'
+     else if (columnIndex >= NBDY_INT_BEG .and. columnIndex <= NBDY_INT_END) then
+       dataType = 'integer'
+     else if (columnIndex >= NBDY_REAL_BEG .and. columnIndex <= NBDY_REAL_END) then
+       dataType = 'real'
+     else
+       call obs_abort('obs_columnDataType: invalid value of column index')
+     end if
+
+   end function obs_columnDataType
 
 
    subroutine obs_copy( obs_a, obs_b )
@@ -4243,7 +4337,7 @@ contains
 
       integer :: unitout_
       integer :: obsRLN, obsONM, obsINS, obsOTP, obsITY
-      integer :: obsDAT, obsETM, obsNLV, obsST1
+      integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
       real(pre_obsReal) :: obsLON, obsLAT, obsALT
       character(len=12) :: stnid
 
@@ -4273,10 +4367,13 @@ contains
       obsETM = obs_headElem_i(obsdata,OBS_ETM,index_hd)
       obsALT = obs_headElem_r(obsdata,OBS_ALT,index_hd)
       obsNLV = obs_headElem_i(obsdata,OBS_NLV,index_hd)
+      obsSTYP= obs_headElem_i(obsdata,OBS_STYP,index_hd)
+      obsTTYP= obs_headElem_i(obsdata,OBS_TTYP,index_hd)
       obsST1 = obs_headElem_i(obsdata,OBS_ST1,index_hd)
       stnid  = obs_elem_c(obsdata,'STID',index_hd)
       write(unitout_,fmt=9200) obsRLN, obsONM, obsINS, obsOTP, obsITY, &
-           obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, obsST1
+           obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, &
+           obsSTYP, obsTTYP, obsST1
 
 9200  format(6x,'Position within realBodies:',i6,1x,'OBS. NUMBER:',i6,1x &
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
@@ -4289,6 +4386,8 @@ contains
          ,'STATION''S ALTITUDE:',g13.6,1x &
          ,'NUMBER OF DATA:',i6,1x &
          ,/,6x &
+         ,'SURFACE TYPE:',i4,1x &
+         ,'TERRAIN TYPE:',i4,1x &
          ,'REPORT STATUS 2:',i10,1x &
          ,/,6x &
          )
