@@ -90,9 +90,9 @@ module obsdbFiles_mod
   integer, parameter :: numColMidasTable = 11
   integer, parameter :: numColMidasTableRequired = 3
   character(len=lenSqlName) :: midasOutputNamesList(2,numColMidasTable) = (/ &
-       'vcoord',             'PPP',  &  ! required
-       'varNo',              'VNM',  &  ! required
-       'obsValue',           'VAR',  &  ! required
+       'vcoord',             'PPP',  &
+       'varNo',              'VNM',  &
+       'obsValue',           'VAR',  &
        'flag',               'FLG',  &
        'obsMinusBackground', 'OMP',  &
        'obsMinusAnalysis',   'OMA',  &
