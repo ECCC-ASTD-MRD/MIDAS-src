@@ -2640,7 +2640,7 @@ contains
 
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
-      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=2,columnInc_opt=columnAnlInc) ! kmode=2 for tangent linear operator
+      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=2,columnAnlInc_opt=columnAnlInc) ! kmode=2 for tangent linear operator
 
     end subroutine oop_Hchm
 
@@ -3403,7 +3403,7 @@ contains
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
       call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=3, &
-                               columnInc_opt=columnAnlInc) ! kmode=3 for adjoint of the tangent linear operator
+                               columnAnlInc_opt=columnAnlInc) ! kmode=3 for adjoint of the tangent linear operator
 
     end subroutine oop_HTchm
 

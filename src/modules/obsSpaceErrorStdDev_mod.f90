@@ -99,7 +99,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_computeStddev
   !--------------------------------------------------------------------------
-  subroutine ose_computeStddev(columng,hco_anl_in,obsSpaceData)
+  subroutine ose_computeStddev(columnTrlOnAnlIncLev,hco_anl_in,obsSpaceData)
     !
     !:Purpose: To set OmP-error std dev when possible. Otherwise 
     !          compute background-error stddev in observation space to 
@@ -108,7 +108,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columng       ! Columns of the background interpolated to analysis levels and to obs horizontal locations
+    type(struct_columnData) :: columnTrlOnAnlIncLev ! Columns of the background interpolated to analysis levels and to obs horizontal locations
     type(struct_hco), pointer :: hco_anl_in
     type(struct_obs) :: obsSpaceData         ! Observation-related data
     
@@ -143,12 +143,12 @@ module obsSpaceErrorStdDev_mod
     !      obsSpaceData - INOUT ( OmP error std dev outputted in OBS_OMPE or/and
     !                            sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
   
-    call ose_setStaticErrorStddev( columng, obsSpaceData, staticHBHT, staticHBHT_ch, staticOMPE_ch )
+    call ose_setStaticErrorStddev( columnTrlOnAnlIncLev, obsSpaceData, staticHBHT, staticHBHT_ch, staticOMPE_ch )
 
     !- 1.2 HBHT from the Bens
     !      obsSpaceData - INOUT (HBensHT std. dev. outputted in OBS_WORK)
     
-    call ose_compute_hbht_ensemble( columng,      & 
+    call ose_compute_hbht_ensemble( columnTrlOnAnlIncLev,      & 
                                     obsSpaceData, &
                                     ensemble )                               
     
@@ -211,7 +211,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_setStaticErrorStddev
   !--------------------------------------------------------------------------
-  subroutine ose_setStaticErrorStddev( columng, obsSpaceData, statusHBHT, statusHBHT_ch, statusOMPE_ch )
+  subroutine ose_setStaticErrorStddev( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT, statusHBHT_ch, statusOMPE_ch )
     !
     !:Purpose: To assign or compute the OmP error standard deviations in
     !          observation space where requested. If not possible or available,
@@ -223,7 +223,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
   
     ! Arguments:
-    type(struct_columnData) :: columng
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
     logical, intent(inout)  :: statusHBHT, statusHBHT_ch, statusOMPE_ch
     
@@ -271,12 +271,12 @@ module obsSpaceErrorStdDev_mod
      
     if ( any(ofl_familyList /= 'CH' .and. ofl_familyList /= 'TO' .and. &
        ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
-       call ose_compute_hbht_static( columng, obsSpaceData, statusHBHT )
+       call ose_compute_hbht_static( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT )
 
     ! HBHT from the B matrix for constituents
      
     if ( any(ofl_familyList == 'CH' .and. ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
-       call ose_compute_hbht_static_chem( columng, obsSpaceData, statusHBHT_ch )
+       call ose_compute_hbht_static_chem( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT_ch )
     
     deallocate(availableOMPE)
     
@@ -285,7 +285,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_static
   !--------------------------------------------------------------------------
-  subroutine ose_compute_hbht_static(lcolumng,lobsSpaceData,active)
+  subroutine ose_compute_hbht_static(columnTrlOnAnlIncLev,lobsSpaceData,active)
     !
     !:Purpose: To compute background-error stddev in observation space using
     !          fixed statistics specific in stats file.
@@ -294,12 +294,12 @@ module obsSpaceErrorStdDev_mod
 
       ! Arguments:
       type(struct_obs)        :: lobsSpaceData
-      type(struct_columnData) :: lcolumng
+      type(struct_columnData) :: columnTrlOnAnlIncLev
       logical                 :: active
       
       ! Locals:
       type(struct_vco), pointer        :: vco_anl
-      type(struct_columnData) :: lcolumn
+      type(struct_columnData) :: column
       type(struct_gsv)        :: statevector
 
       INTEGER JLAT, JLON, JLEV, JOBS
@@ -327,7 +327,7 @@ module obsSpaceErrorStdDev_mod
       real(8), allocatable  :: scaleFactor(:)
 
       !- Get the appropriate Vertical Coordinate
-      vco_anl => col_getVco(lcolumng)
+      vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
       ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
       !        in BackgroundCheck mode, the only purpose of bhi_setup is to read 
@@ -347,8 +347,8 @@ module obsSpaceErrorStdDev_mod
          return
       end if
 
-      nlev_T = col_getNumLev(LCOLUMNG,'TH')
-      nlev_M = col_getNumLev(LCOLUMNG,'MM')
+      nlev_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+      nlev_M = col_getNumLev(columnTrlOnAnlIncLev,'MM')
 
       allocate(scaleFactor(max(nLev_M,nLev_T)))
       call bhi_getScaleFactor(scaleFactor)
@@ -371,12 +371,12 @@ module obsSpaceErrorStdDev_mod
                         allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_zero(statevector)
 
-      call col_setVco(lcolumn,col_getVco(lcolumng))
-      call col_allocate(lcolumn,col_getNumCol(lcolumng))
+      call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
+      call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
       ! Set the value of OBS_LYR required by setfge routines
 
-      call oop_vobslyrs(lcolumng,lobsSpaceData,beSilent=.false.)
+      call oop_vobslyrs(columnTrlOnAnlIncLev,lobsSpaceData,beSilent=.false.)
 
       ! 1. Opening the statistics file
 
@@ -496,13 +496,13 @@ module obsSpaceErrorStdDev_mod
          end do
       end do
 
-      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
 
       ! copy height data from TT to height slot in columnData
-      do jobs= 1, col_getNumCol(lcolumn)
-         height_column => col_getColumn(lcolumn,jobs,'Z_T')
-         tt_column => col_getColumn(lcolumn,jobs,'TT')
-         do jlev = 1,col_getNumLev(lcolumn,'TH')
+      do jobs= 1, col_getNumCol(column)
+         height_column => col_getColumn(column,jobs,'Z_T')
+         tt_column => col_getColumn(column,jobs,'TT')
+         do jlev = 1,col_getNumLev(column,'TH')
             height_column(jlev)=tt_column(jlev)
          enddo
       enddo
@@ -510,18 +510,18 @@ module obsSpaceErrorStdDev_mod
       ! SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
       ! --------------------------------------------------------------------
 
-      call setfgefam('AI',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefam('SW',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefam('UA',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefam('SF',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefam('HU',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefamz('PR',lcolumn,lcolumng,lobsSpaceData)
-      call setfgefamz('AL',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefam('AI',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefam('SW',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefam('UA',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefam('SF',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefam('HU',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefamz('PR',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefamz('AL',column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       ! SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
       ! -----------------------------------------------------
 
-      call setfgedif('RO',lcolumng,lobsSpaceData)
+      call setfgedif('RO',columnTrlOnAnlIncLev,lobsSpaceData)
 
       ! DO TEMPERATURE FIRST-GUESS ERROR
       ! ---------------------------------
@@ -548,8 +548,8 @@ module obsSpaceErrorStdDev_mod
          end do
       end do
 
-      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
-      call setfgett(lcolumn,lcolumng,lobsSpaceData)
+      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
+      call setfgett(column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       ! RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
       ! ---------------------------------------------
@@ -712,12 +712,12 @@ module obsSpaceErrorStdDev_mod
         end do
       end if
 
-      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
 
       ! SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
       ! ------------------------------------------------
 
-      call setfgesurf(lcolumn,lcolumng,lobsSpaceData)
+      call setfgesurf(column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       ! READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
       ! ---------------------------------------------
@@ -744,15 +744,15 @@ module obsSpaceErrorStdDev_mod
          end do
       end do
 
-      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
 
       ! OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
       ! -------------------------------------------------
 
-      if (ltestop) call setfgegps(lcolumn,lcolumng,lobsSpaceData)
+      if (ltestop) call setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       deallocate(scaleFactor)
-      call col_deallocate(lcolumn)
+      call col_deallocate(column)
       deallocate(zbuffer)
 
       write(*,*)
@@ -763,7 +763,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_static_chem
   !--------------------------------------------------------------------------
-  subroutine ose_compute_hbht_static_chem(columng,obsSpaceData,active)
+  subroutine ose_compute_hbht_static_chem(columnTrlOnAnlIncLev,obsSpaceData,active)
     !
     !:Purpose: To compute the background error standard deviations in
     !          observation space, sqrt(diag(H*B_static*H^T)).
@@ -771,7 +771,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
   
     ! Arguments:
-    type(struct_columnData) :: columng      ! column at observation location
+    type(struct_columnData) :: columnTrlOnAnlIncLev      ! column at observation location
     type(struct_obs)        :: obsSpaceData ! observation-space data, output saved in OBS_HPHT column
     logical                 :: active        ! flag to indicate if chemical constituents are to be used
 
@@ -781,7 +781,7 @@ module obsSpaceErrorStdDev_mod
     integer :: cvdim
  
     !- Get the appropriate Vertical Coordinate
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
   
     call bchm_setup( hco_anl,vco_anl, &  ! IN
                      cvdim, &            ! OUT
@@ -797,7 +797,7 @@ module obsSpaceErrorStdDev_mod
       return
     end if
           
-    call oopc_CHobsoperators(columng,obsSpaceData,kmode=1) ! kmode=1 for background check to compute HBH^T
+    call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=1) ! kmode=1 for background check to compute HBH^T
   
     write(*,*)
     write(*,*) 'Computing H*B*H^T using B_static_chm - End'
@@ -808,7 +808,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_ensemble
   !--------------------------------------------------------------------------
-  subroutine ose_compute_hbht_ensemble(columng,obsSpaceData,active)
+  subroutine ose_compute_hbht_ensemble(columnTrlOnAnlIncLev,obsSpaceData,active)
     !
     !:Purpose: To compute background-error stddev in observation space using
     !          ensemble-based statistics.
@@ -816,7 +816,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columng      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
+    type(struct_columnData) :: columnTrlOnAnlIncLev      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
     type(struct_obs)        :: obsSpaceData ! Observation-related data
     logical                 :: active
 
@@ -836,7 +836,7 @@ module obsSpaceErrorStdDev_mod
     !
 
     !- 1.1 Get vertical analysis grid attributes
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
     !- 1.2 Initialize/Read the flow-dependent ensemble perturbations
     call ben_Setup( hco_anl, hco_anl,    & ! IN
@@ -860,7 +860,7 @@ module obsSpaceErrorStdDev_mod
 
     !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     !- 1.5 Create a working a array to sum H ensPert HT
     allocate(HBHT_ens(obs_numBody(obsSpaceData)))
@@ -885,11 +885,11 @@ module obsSpaceErrorStdDev_mod
       !       column - OUT (H_horiz EnsPert)
       call s2c_tl( statevector,           &
                    column,                &
-                   columng, obsSpaceData )
+                   columnTrlOnAnlIncLev, obsSpaceData )
                    
       !- 2.3 Interpolation to observation space
       !         obsSpaceData - OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
-      call oop_Htl( column, columng, &
+      call oop_Htl( column, columnTrlOnAnlIncLev, &
                     obsSpaceData,    &
                     1 )
 
@@ -923,7 +923,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgefam
   !--------------------------------------------------------------------------
-  subroutine setfgefam(cdfam,lcolumn,lcolumng,lobsSpaceData)
+  subroutine setfgefam(cdfam,column,columnTrlOnAnlIncLev,lobsSpaceData)
     !
     !:Purpose: To interpolate vertically the contents of "column" to
     !          the pressure levels of the observations. Then to compute
@@ -934,8 +934,8 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     character*2 cdfam
-    type(struct_columnData) :: lcolumn
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
@@ -966,22 +966,22 @@ module obsSpaceErrorStdDev_mod
             IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                varLevel = vnl_varLevelFromVarnum(ityp)
-               IK   = col_getNumLev(LCOLUMNG,varLevel)
-               IPB  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+               IK   = col_getNumLev(columnTrlOnAnlIncLev,varLevel)
+               IPB  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
                if(ITYP .ne. BUFR_NEGZ) then
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
                else
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH'))
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(column,IK,INDEX_HEADER,'TH'))
                endif
             ELSE
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                varLevel = vnl_varLevelFromVarnum(ityp)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
                IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+               IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
                IPB  = IPT+1
-               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,varLevel)
-               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,varLevel)
+               ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
+               ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 
@@ -989,21 +989,21 @@ module obsSpaceErrorStdDev_mod
 
                if(ITYP .ne. BUFR_NEGZ) then
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
+                      (ZWB*col_getElem(column,IPB,INDEX_HEADER) + ZWT*col_getElem(column,IPT,INDEX_HEADER)))
                else
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')))
+                      (ZWB*col_getHeight(column,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(column,IK,INDEX_HEADER,'TH')))
                endif
                if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
-                 columnElem = col_getElem(lcolumn,IPB,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',columnElem
-                 columnElem = col_getElem(lcolumn,IPT,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')
+                 columnElem = col_getElem(column,IPB,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: column_all(IPB,INDEX_HEADER)=',columnElem
+                 columnElem = col_getElem(column,IPT,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: column_all(IPT,INDEX_HEADER)=',columnElem
+                 columnElem = col_getHeight(column,IK+1,INDEX_HEADER,'TH')
                  write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')
+                 columnElem = col_getHeight(column,IK  ,INDEX_HEADER,'TH')
                  write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
                  CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
                endif
@@ -1020,7 +1020,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgefamz
   !--------------------------------------------------------------------------
-  subroutine setfgefamz(cdfam,lcolumn,lcolumng,lobsSpaceData)
+  subroutine setfgefamz(cdfam,column,columnTrlOnAnlIncLev,lobsSpaceData)
     !
     !:Purpose: To interpolate vertically the contents of "column" to the levels
     !          of the observations (in meters). Then to compute THE FIRST GUESS
@@ -1030,8 +1030,8 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     character*2 cdfam
-    type(struct_columnData) :: lcolumn
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
@@ -1066,25 +1066,25 @@ module obsSpaceErrorStdDev_mod
 
                   ! Interpolate the background-covariance statistics
                   IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) /= 0)THEN
-                     IK=col_getNumLev(LCOLUMNG,varLevel)-1
-                     IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+                     IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
+                     IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
                      IPB  = IPT +1
-                     fge_uu = col_getElem(lcolumn,IPB,INDEX_HEADER,'UU')
-                     fge_vv = col_getElem(lcolumn,IPB,INDEX_HEADER,'VV')
+                     fge_uu = col_getElem(column,IPB,INDEX_HEADER,'UU')
+                     fge_vv = col_getElem(column,IPB,INDEX_HEADER,'VV')
 
                   ELSE
                      ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
                      IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-                     IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+                     IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
                      IPB  = IPT+1
-                     ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varLevel)
-                     ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varLevel)
+                     ZPT  = col_getHeight(columnTrlOnAnlIncLev,IK  ,INDEX_HEADER,varLevel)
+                     ZPB  = col_getHeight(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                      ZWT  = 1.d0 - ZWB
-                     fge_uu =   ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'UU') &
-                              + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER,'UU')
-                     fge_vv =   ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'VV') &
-                              + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER,'VV')
+                     fge_uu =   ZWB*col_getElem(column,IPB,INDEX_HEADER,'UU') &
+                              + ZWT*col_getElem(column,IPT,INDEX_HEADER,'UU')
+                     fge_vv =   ZWB*col_getElem(column,IPB,INDEX_HEADER,'VV') &
+                              + ZWT*col_getElem(column,IPT,INDEX_HEADER,'VV')
                   ENDIF
 
                   ! First-Guess Error Variance
@@ -1108,8 +1108,8 @@ module obsSpaceErrorStdDev_mod
                                   (fge_uu*sin(azimuth))**2)
 
                   else if(cdfam == 'PR')then
-                     fge_fam =   ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) &
-                               + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)
+                     fge_fam =   ZWB*col_getElem(column,IPB,INDEX_HEADER) &
+                               + ZWT*col_getElem(column,IPT,INDEX_HEADER)
                   else
                      write(*,*)"ERROR:  The family, ", cdfam, &
                                ", is not supported by setfgefamz"
@@ -1128,7 +1128,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgett
   !--------------------------------------------------------------------------
-  subroutine setfgett(lcolumn,lcolumng,lobsSpaceData)
+  subroutine setfgett(column,columnTrlOnAnlIncLev,lobsSpaceData)
     !
     !:Purpose: To interpolate vertically the contents of "column" to the
     !          pressure levels of the observations. Then to compute THE FIRST
@@ -1138,8 +1138,8 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: lcolumn
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
@@ -1163,11 +1163,11 @@ module obsSpaceErrorStdDev_mod
                  (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                varLevel = vnl_varLevelFromVarnum(ityp)
-               IK=col_getNumLev(lcolumng,varLevel)-1
+               IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
                INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
-               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+               IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
                IPB  = IPT +1
-               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
             ELSE
                INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
@@ -1176,15 +1176,15 @@ module obsSpaceErrorStdDev_mod
                IPB  = IPT+1
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                varLevel = vnl_varLevelFromVarnum(ityp)
-               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,varLevel)
-               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,varLevel)
+               ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
+               ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 
                ! FIRST GUESS ERROR VARIANCE
 
                call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                  (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER,'TT')))
+                  (ZWB*col_getElem(column,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(column,IPT,INDEX_HEADER,'TT')))
             ENDIF
 
          ENDIF
@@ -1197,7 +1197,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgeSurf
   !--------------------------------------------------------------------------
-  subroutine setfgeSurf(lcolumn, lcolumng, lobsSpaceData)
+  subroutine setfgeSurf(column, columnTrlOnAnlIncLev, lobsSpaceData)
     !
     !:Purpose: To interpolate vertically the contents of "column" to the
     !          pressure levels of the observations. A linear interpolation in
@@ -1206,8 +1206,8 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments
-    type(struct_columnData) :: lcolumn
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: lobsSpaceData
 
     ! Locals
@@ -1266,28 +1266,28 @@ module obsSpaceErrorStdDev_mod
               ityp == BUFR_NESS .or. ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
               ityp == bufr_logVis  .or. ityp == bufr_gust) then
 
-              ipt  = ik + col_getOffsetFromVarno(lcolumng,ityp)
+              ipt  = ik + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
               ipb  = ipt+1
-              call obs_bodySet_r( lobsSpaceData, OBS_HPHT, bodyIndex, col_getElem( lcolumn, ipb, headerIndex ) )
+              call obs_bodySet_r( lobsSpaceData, OBS_HPHT, bodyIndex, col_getElem( column, ipb, headerIndex ) )
 
             else
 
-              ipt  = ik + col_getOffsetFromVarno(lcolumng,ityp)
+              ipt  = ik + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
               ipb  = ipt+1
-              zpt  = col_getHeight(lcolumng,ik,headerIndex,varLevel)
-              zpb  = col_getHeight(lcolumng,ik+1,headerIndex,varLevel)
+              zpt  = col_getHeight(columnTrlOnAnlIncLev,ik,headerIndex,varLevel)
+              zpb  = col_getHeight(columnTrlOnAnlIncLev,ik+1,headerIndex,varLevel)
               zwb  = idim*(zpt-zhhh)/(zpt-zpb)
               zwt  = 1.d0 - zwb
 
               if ( obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 0 ) then
 
                 call obs_bodySet_r( lobsSpaceData, OBS_HPHT, bodyIndex,   &
-                zwb * col_getElem( lcolumn, ipb, headerIndex ) + zwt * col_getElem( lcolumn, ipt, headerIndex ))
+                zwb * col_getElem( column, ipb, headerIndex ) + zwt * col_getElem( column, ipt, headerIndex ))
 
               else
 
                 call obs_bodySet_r( lobsSpaceData, OBS_HPHT, bodyIndex,   &
-                  col_getElem( lcolumn, ik + col_getOffsetFromVarno( lcolumng, ityp ), headerIndex ))
+                  col_getElem( column, ik + col_getOffsetFromVarno( columnTrlOnAnlIncLev, ityp ), headerIndex ))
 
               end if
 
@@ -1299,8 +1299,8 @@ module obsSpaceErrorStdDev_mod
                    stnid, ityp, &
                    bodyElem_i, ipt, ipb, zwt, zwb
                 bodyElem_r = obs_bodyElem_i( lobsSpaceData, OBS_HPHT, bodyIndex )
-                colElem1 = col_getElem( lcolumn, ipb, headerIndex )
-                colElem2 = col_getElem( lcolumn, ipt, headerIndex )
+                colElem1 = col_getElem( column, ipb, headerIndex )
+                colElem2 = col_getElem( column, ipt, headerIndex )
                 write(*,*) 'setfgesurf: gobs(ipb), gobs(ipt), fge',   &
                     colElem1, colElem2, bodyElem_r
 
@@ -1319,7 +1319,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgedif
   !--------------------------------------------------------------------------
-  subroutine setfgedif(cdfam,lcolumng,lobsSpaceData)
+  subroutine setfgedif(cdfam,columnTrlOnAnlIncLev,lobsSpaceData)
     !
     !:Purpose: To construct the FIRST GUESS ERROR VARIANCES from the
     !          diff-calculated dependencies and the primary errors.
@@ -1328,7 +1328,7 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     character*2 cdfam
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: lobsSpaceData
 
     ! Locals:
@@ -1367,8 +1367,8 @@ module obsSpaceErrorStdDev_mod
 
       nullify(dPdPs)
 
-      NGPSLEV=col_getNumLev(lcolumng,'TH')
-      NWNDLEV=col_getNumLev(lcolumng,'MM')
+      NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
+      NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
       LFIRST=.FALSE.
       if ( .NOT.allocated(gps_vRO_Jacobian) ) then
          LFIRST = .TRUE.
@@ -1388,7 +1388,7 @@ module obsSpaceErrorStdDev_mod
          allocate( RSTV (GPSRO_MAXPRFSIZE) )
       endif
 
-      vco_anl => col_getVco(lcolumng)
+      vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
 
       ! Loop over all header indices of the 'RO' family:
@@ -1435,13 +1435,13 @@ module obsSpaceErrorStdDev_mod
                   Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
                   zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')
+                  zMT  = col_getHeight(columnTrlOnAnlIncLev,NGPSLEV,INDEX_HEADER,'TH')
                   Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
-                  zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+                  zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
                   ! approximation for dPdPs               
                   if (associated(dPdPs)) then
@@ -1455,15 +1455,15 @@ module obsSpaceErrorStdDev_mod
 
                      ! Profile x
 
-                     zPP(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-                     zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
-                     zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
+                     zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+                     zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - p_TC
+                     zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
                      zUU(JL) = 0.d0
                      zVV(JL) = 0.d0
                   ENDDO
                   DO JL = 1, NWNDLEV
-                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU')
-                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV')
+                     zUU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'UU')
+                     zVV(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'VV')
                   ENDDO
                   zUU(NGPSLEV) = zUU(NWNDLEV)
                   zVV(NGPSLEV) = zUU(NWNDLEV)
@@ -1565,7 +1565,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgegps
   !--------------------------------------------------------------------------
-  subroutine setfgegps(lcolumn,lcolumng,lobsSpaceData)
+  subroutine setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
     !
     !:Purpose: To set FGE for all GPS ZTD observations using Jacobians from ZTD
     !          observation operator
@@ -1587,13 +1587,13 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: lcolumn
-    type(struct_columnData) :: lcolumng
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
-    ! lcolumn  contains background errors for control variables on model levels
-    ! lcolumng contains lo-res first guess profiles at obs locations
+    ! column  contains background errors for control variables on model levels
+    ! columnTrlOnAnlIncLev contains lo-res first guess profiles at obs locations
       type(struct_vco), pointer :: vco_anl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -1648,7 +1648,7 @@ module obsSpaceErrorStdDev_mod
 
       nullify(dPdPs)
 
-      NFLEV_T = col_getNumLev(lcolumng,'TH')
+      NFLEV_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
       allocate(ZPP(NFLEV_T))
       allocate(ZDP(NFLEV_T))
       allocate(ZTT(NFLEV_T))
@@ -1670,7 +1670,7 @@ module obsSpaceErrorStdDev_mod
       
       ZDZMIN = DZMIN
 
-      vco_anl => col_getVco(lcolumng)
+      vco_anl => col_getVco(columnTrlOnAnlIncLev)
       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
       if (iversion .eq. 5002) then
          LSTAG = .TRUE. 
@@ -1727,20 +1727,20 @@ module obsSpaceErrorStdDev_mod
                      Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-                     ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+                     ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
                      DO JL = 1, NFLEV_T
-                       ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-                       ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
-                       ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
+                       ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+                       ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
+                       ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
-                       ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
+                       ZHUB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
                        ZQQB(JL) = ZHUB(JL)
-                       ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
+                       ZHU(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU')
                        DX(NFLEV_T+JL) = ZHU(JL)
-                       zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
-                       DX(2*NFLEV_T+JL) = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH')
+                       zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+                       DX(2*NFLEV_T+JL) = col_getHeight(column,JL,INDEX_HEADER,'TH')
                      ENDDO
-                     ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
+                     ZP0  = col_getElem(column,1,INDEX_HEADER,'P0')
                      DX(3*NFLEV_T+1) = ZP0
                      ZMT  = zHeight(NFLEV_T)
                      CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,LBEVIS,IREFOPT,PRF)
@@ -1819,7 +1819,7 @@ module obsSpaceErrorStdDev_mod
          Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
          ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
          ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-         ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+         ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
          ! approximation for dPdPs               
          if (associated(dPdPs)) then
@@ -1830,15 +1830,15 @@ module obsSpaceErrorStdDev_mod
          zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
 
          DO JL = 1, NFLEV_T
-            ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-            ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
-            ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
-            ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-            ZQQ(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU') * PERTFAC
-            zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
-            zHeight2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
+            ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+            ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
+            ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT') * PERTFAC
+            ZQQB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
+            ZQQ(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU') * PERTFAC
+            zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+            zHeight2(JL)  = col_getHeight(column,JL,INDEX_HEADER,'TH') * PERTFAC
          ENDDO
-         ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
+         ZP0  = col_getElem(column,1,INDEX_HEADER,'P0') * PERTFAC
          ZMT  = zHeight(NFLEV_T)
 
          DO JL = 1, NFLEV_T
@@ -1857,9 +1857,9 @@ module obsSpaceErrorStdDev_mod
              ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
              ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
              ILYR    = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
-             ZTOP    = col_getHeight(lcolumng,ILYR,IOBS,varLevel)
+             ZTOP    = col_getHeight(columnTrlOnAnlIncLev,ILYR,IOBS,varLevel)
              if ( ILYR .LT. NFLEV_T ) then
-               ZBOT    = col_getHeight(lcolumng,ILYR+1,IOBS,varLevel)
+               ZBOT    = col_getHeight(columnTrlOnAnlIncLev,ILYR+1,IOBS,varLevel)
              else
                ZBOT    = ZTOP
              endif

@@ -48,7 +48,7 @@ program midas_gencoeff
   integer :: ierr,istamp
 
   type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: trlColumnOnAnlLev
+  type(struct_columnData), target  :: columnTrlOnAnlIncLev
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_hco), pointer        :: hco_core => null()
   type(struct_vco), pointer        :: vco_anl => null()
@@ -82,7 +82,7 @@ program midas_gencoeff
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(3,'TRIALS')
-  call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData, hco_core )
+  call inn_setupBackgroundColumns( columnTrlOnAnlIncLev, obsSpaceData, hco_core )
   call tmg_stop(3)
 
   !
@@ -100,18 +100,18 @@ program midas_gencoeff
 
   ! Compute observation innovations
   call tmg_start(6,'COMP_INOV')
-  call inn_computeInnovation(trlColumnOnAnlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
   call tmg_stop(6)
   
   !
   ! Refresh bias correction if requested
   !
   call tmg_start(8,'REFRESH_BCOR')
-  call bcs_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
+  call bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnAnlIncLev)
   call tmg_stop(8)
 
   call tmg_start(9,'REGRESSION')
-  call bcs_do_regression(trlColumnOnAnlLev,obsSpaceData)
+  call bcs_do_regression(columnTrlOnAnlIncLev,obsSpaceData)
   call tmg_stop(9)
 
   ! Write coefficients to file
@@ -129,7 +129,7 @@ program midas_gencoeff
   ! fill OBS_BCOR with computed bias correction
   !
   call tmg_start(15,'COMPBIAS')
-  call bcs_calcBias(obsSpaceData,trlColumnOnAnlLev)
+  call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
   call tmg_stop(15)
 
   !
@@ -223,7 +223,7 @@ contains
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
-    call col_setVco(trlColumnOnAnlLev,vco_anl)
+    call col_setVco(columnTrlOnAnlIncLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !

@@ -51,7 +51,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvslin_rttov_tl
   !--------------------------------------------------------------------------
-  subroutine tvslin_rttov_tl(column, columng, obsSpaceData)
+  subroutine tvslin_rttov_tl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
     !
     ! :Purpose: Tangent linear of computation of radiance with rttov_tl
     !   
@@ -59,8 +59,8 @@ contains
 
     ! Arguments:
     type(struct_obs)        :: obsSpaceData  ! obsSpaceData structure
-    type(struct_columnData) :: column        ! column structure for pertubation profile
-    type(struct_columnData) :: columng       ! column structure for background profile
+    type(struct_columnData) :: columnAnlInc        ! column structure for pertubation profile
+    type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
@@ -105,10 +105,10 @@ contains
 
     call tvs_getProfile(profiles, 'tlad')
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
       call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (.not.tvs_useO3Climatology) then 
-      if (col_varExist(columng,'TO3')) then
+      if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
       else
         ozoneVarName = 'O3L'
@@ -117,10 +117,10 @@ contains
 
     !  1.  Set index for model's lowest level and model top
 
-    nlv_M = col_getNumLev(columng,'MM')
-    nlv_T = col_getNumLev(columng,'TH')
+    nlv_M = col_getNumLev(columnTrlOnAnlIncLev,'MM')
+    nlv_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
-    if ( col_getPressure(columng,1,1,'TH') < col_getPressure(columng,nlv_T,1,'TH') ) then
+    if ( col_getPressure(columnTrlOnAnlIncLev,1,1,'TH') < col_getPressure(columnTrlOnAnlIncLev,nlv_T,1,'TH') ) then
       ilowlvl_M = nlv_M
       ilowlvl_T = nlv_T
     else
@@ -128,7 +128,7 @@ contains
       ilowlvl_T = 1
     end if
 
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
     
@@ -151,7 +151,7 @@ contains
 
     sensor_loop:  do sensorIndex = 1, tvs_nsensors
 
-      runObsOperatorWithClw_tl = col_varExist(columng,'LWCR') .and. &
+      runObsOperatorWithClw_tl = col_varExist(columnTrlOnAnlIncLev,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl
        
@@ -227,16 +227,16 @@ contains
           if (tvs_useO3Climatology) then
             profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           else
-            delO3 => col_getColumn(column,sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
+            delO3 => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
             profilesdata_tl(profileIndex) % o3(1:nlv_T) =  delO3(1:nlv_T) * 1.0d-9 ! Assumes model ozone in ug/kg
-            profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
+            profilesdata_tl(profileIndex) % s2m % o  = col_getElem(columnAnlInc,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
 
         ! using the zero CLW value for land FOV
         if ( runObsOperatorWithClw_tl ) then 
           if ( surfTypeIsWater(profileIndex) ) then
-            delCLW => col_getColumn(column,sensorHeaderIndexes(profileIndex),'LWCR')
+            delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = delCLW(:)
           else
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = 0.d0
@@ -248,21 +248,21 @@ contains
         profilesdata_tl(profileIndex) % zenangle        = 0.0d0
         profilesdata_tl(profileIndex) % azangle         = 0.0d0
         profilesdata_tl(profileIndex) % skin % surftype = 0
-        profilesdata_tl(profileIndex) % skin % t        = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'TG')
+        profilesdata_tl(profileIndex) % skin % t        = col_getElem(columnAnlInc,1,sensorHeaderIndexes(profileIndex),'TG')
         profilesdata_tl(profileIndex) % skin % fastem(:)= 0.0d0
         profilesdata_tl(profileIndex) % skin % salinity = 0.0d0
-        profilesdata_tl(profileIndex) % s2m % t         = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TT')        
+        profilesdata_tl(profileIndex) % s2m % t         = col_getElem(columnAnlInc,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TT')        
         profilesdata_tl(profileIndex) % s2m % q         = 0.d0
 
-        profilesdata_tl(profileIndex) % s2m % p         = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'P0')*MPC_MBAR_PER_PA_R8
-        profilesdata_tl(profileIndex) % s2m % u         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'UU')
-        profilesdata_tl(profileIndex) % s2m % v         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'VV')
+        profilesdata_tl(profileIndex) % s2m % p         = col_getElem(columnAnlInc,1,sensorHeaderIndexes(profileIndex),'P0')*MPC_MBAR_PER_PA_R8
+        profilesdata_tl(profileIndex) % s2m % u         = col_getElem(columnAnlInc,ilowlvl_M,sensorHeaderIndexes(profileIndex),'UU')
+        profilesdata_tl(profileIndex) % s2m % v         = col_getElem(columnAnlInc,ilowlvl_M,sensorHeaderIndexes(profileIndex),'VV')
 
-        delP => col_getColumn(column,sensorHeaderIndexes(profileIndex),'P_T')
+        delP => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'P_T')
         profilesdata_tl(profileIndex) % p(1:nlv_T)    = delP(:) * MPC_MBAR_PER_PA_R8
-        delTT => col_getColumn(column,sensorHeaderIndexes(profileIndex),'TT')
+        delTT => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'TT')
         profilesdata_tl(profileIndex) % t(1:nlv_T)    = delTT(:)
-        delHU => col_getColumn(column,sensorHeaderIndexes(profileIndex),'HU')
+        delHU => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'HU')
         profilesdata_tl(profileIndex) % q(1:nlv_T)    = delHU(:)
       end do
 
@@ -376,7 +376,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvslin_rttov_ad
   !--------------------------------------------------------------------------
-  subroutine tvslin_rttov_ad( column, columng, obsSpaceData )
+  subroutine tvslin_rttov_ad( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
     !
     ! :Purpose: Adjoint of computation of radiance with rttov_ad
     !
@@ -384,8 +384,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columng
+    type(struct_columnData) :: columnAnlInc
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
 
     ! locals
@@ -437,10 +437,10 @@ contains
 
     call tvs_getProfile(profiles, 'tlad')
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
       call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (.not.tvs_useO3Climatology) then 
-      if (col_varExist(columng,'TO3')) then
+      if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
       else
         ozoneVarName = 'O3L'
@@ -449,10 +449,10 @@ contains
 
     !     1.    Set index for model's lowest level and model top
 
-    nlv_M = col_getNumLev(columng,'MM')
-    nlv_T = col_getNumLev(columng,'TH')
+    nlv_M = col_getNumLev(columnTrlOnAnlIncLev,'MM')
+    nlv_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
-    if (  col_getPressure(columng,1,1,'TH') < col_getPressure(columng,nlv_T,1,'TH') ) then
+    if (  col_getPressure(columnTrlOnAnlIncLev,1,1,'TH') < col_getPressure(columnTrlOnAnlIncLev,nlv_T,1,'TH') ) then
       ilowlvl_M = nlv_M
       ilowlvl_T = nlv_T
     else
@@ -460,7 +460,7 @@ contains
       ilowlvl_T = 1
     end if
 
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
 
 
@@ -479,7 +479,7 @@ contains
 
     sensor_loop:do  sensorIndex = 1, tvs_nsensors
 
-      runObsOperatorWithClw_ad = col_varExist(columng,'LWCR') .and. &
+      runObsOperatorWithClw_ad = col_varExist(columnTrlOnAnlIncLev,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl
      
@@ -628,13 +628,13 @@ contains
         profileIndex = chanprof(btIndex)%prof
         headerIndex = sensorHeaderIndexes(profileIndex)
 
-        ps_column => col_getColumn(column,headerIndex,'P0')
-        p_column  => col_getColumn(column,headerIndex,'P_T')
-        tg_column => col_getColumn(column,headerIndex,'TG')
-        tt_column => col_getColumn(column,headerIndex,'TT')
-        hu_column => col_getColumn(column,headerIndex,'HU')
-        uu_column => col_getColumn(column,headerIndex,'UU')
-        vv_column => col_getColumn(column,headerIndex,'VV')
+        ps_column => col_getColumn(columnAnlInc,headerIndex,'P0')
+        p_column  => col_getColumn(columnAnlInc,headerIndex,'P_T')
+        tg_column => col_getColumn(columnAnlInc,headerIndex,'TG')
+        tt_column => col_getColumn(columnAnlInc,headerIndex,'TT')
+        hu_column => col_getColumn(columnAnlInc,headerIndex,'HU')
+        uu_column => col_getColumn(columnAnlInc,headerIndex,'UU')
+        vv_column => col_getColumn(columnAnlInc,headerIndex,'VV')
 
         tt_ad(:,profileIndex) =  profilesdata_ad(profileIndex) % t(:)
         hu_ad(:,profileIndex) = profilesdata_ad(profileIndex) % q(:)
@@ -649,7 +649,7 @@ contains
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
             ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
-            o3_column => col_getColumn(column,headerIndex,trim(ozoneVarName))
+            o3_column => col_getColumn(columnAnlInc,headerIndex,trim(ozoneVarName))
             o3_column(ilowlvl_T) =  profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
             ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
           end if
@@ -664,10 +664,10 @@ contains
       !     .       -----------------------------------
 
       do  profileIndex = 1 , profileCount 
-        ps_column => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'P0')
-        p_column  => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'P_T')
-        tt_column => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'TT')
-        hu_column => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'HU')
+        ps_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'P0')
+        p_column  => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'P_T')
+        tt_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'TT')
+        hu_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'HU')
         
         do levelIndex = 1, nlv_T
           p_column(levelIndex) = p_column(levelIndex)  + pressure_ad  (levelIndex,profileIndex) * MPC_MBAR_PER_PA_R8
@@ -679,8 +679,8 @@ contains
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           do  profileIndex = 1 , profileCount 
-            o3_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
-            do levelIndex = 1, col_getNumLev(column,'TH')
+            o3_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
+            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
               o3_column(levelIndex) = o3_column(levelIndex) +  ozone_ad(levelIndex,profileIndex) * 1.0d-9
             end do
           end do
@@ -691,8 +691,8 @@ contains
         do  profileIndex = 1 , profileCount 
           surfTypeIsWater(profileIndex) = ( tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea )
           if ( surfTypeIsWater(profileIndex) ) then
-            clw_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'LWCR')
-            do levelIndex = 1, col_getNumLev(column,'TH')
+            clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
+            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
               clw_column(levelIndex) = clw_column(levelIndex) + &
                                        clw_ad(levelIndex,profileIndex)
             end do

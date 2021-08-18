@@ -45,8 +45,8 @@ program midas_obsSelection
   implicit none
 
   integer :: datestamp, headerIndex, ierr, nulnam
-  type(struct_columnData),target :: trlColumnOnAnlLev
-  type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
+  type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
   type(struct_hco), pointer      :: hco_anl => null()
   type(struct_vco), pointer      :: vco_anl => null()
@@ -125,7 +125,7 @@ program midas_obsSelection
   !
   call vco_SetupFromFile(vco_anl,'./analysisgrid')
 
-  call col_setVco(trlColumnOnAnlLev,vco_anl)
+  call col_setVco(columnTrlOnAnlIncLev,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -147,7 +147,7 @@ program midas_obsSelection
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   !
   !- Initialize the observation error covariances
@@ -166,29 +166,29 @@ program midas_obsSelection
   call bcc_applyGPBcor(obsSpaceData)
     
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
+  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
 
   ! 2.2 Perform the background check
   !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
 
   ! Do the conventional data background check
-  call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, hco_anl, obsSpaceData)
+  call bgck_bgcheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
 
   if (obs_famExist(obsSpaceData,'TO')) then
 
     ! Satellite radiance bias correction
-    call bcs_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+    call bcs_calcBias(obsSpaceData,columnTrlOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
     call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,'TO') ! Apply bias correction to OBS
     call bcs_applyBiasCorrection(obsSpaceData,OBS_OMP,'TO') ! Apply bias correction to O-F
 
     ! Do the TO background check
-    call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
+    call irbg_bgCheckIR(columnTrlOnTrlLev,obsSpaceData)
     call mwbg_bgCheckMW(obsSpaceData)
     call csrbg_bgCheckCSR(obsSpaceData)
     call ssbg_bgCheckSsmis(obsSpaceData)

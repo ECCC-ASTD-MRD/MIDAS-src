@@ -167,13 +167,13 @@ contains
   !--------------------------------------------------------------------------
   ! osd_ObsSpaceDiag
   !--------------------------------------------------------------------------
-  subroutine osd_ObsSpaceDiag( obsSpaceData, columng, hco_anl, analysisMode_opt )
+  subroutine osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt )
     !           
     ! :Purpose: Calls routines to perform observation-space diagnostic tasks
     !
     ! :Arguments:
     !           :obsSpaceData: Obs space data structure
-    !           :columng:      Structure of vertical columns at obs locations.
+    !           :columnTrlOnAnlIncLev: Structure of vertical columns at obs locations.
     !                          Expected to be for analysis vertical levels if to be used.
     !           :analysisMode: logical indicating if following analysis mode or not (optional)
     !                          Assumed .true. if not present.
@@ -183,7 +183,7 @@ contains
     
     !Arguments:
     type(struct_obs)              :: obsSpaceData
-    type(struct_columnData)       :: columng
+    type(struct_columnData)       :: columnTrlOnAnlIncLev
     type(struct_hco), pointer     :: hco_anl
     logical, intent(in), optional :: analysisMode_opt
     
@@ -206,13 +206,13 @@ contains
     
     ! Perform diagnostics based on OmP (and OmA if available)
  
-    call osd_obsPostProc(obsSpaceData,columng,deltaLat,deltaLon,deltaPressure,anlm_mod)
+    call osd_obsPostProc(obsSpaceData,columnTrlOnAnlIncLev,deltaLat,deltaLon,deltaPressure,anlm_mod)
     
     if ((.not. anlm_mod) .or. (.not.lrandom) .or. (.not.nmlExists)) return
 
     ! Perform diagnostics from random perturbations
     
-    call osd_calcInflation(obsSpaceData,columng,hco_anl,dateprnt)
+    call osd_calcInflation(obsSpaceData,columnTrlOnAnlIncLev,hco_anl,dateprnt)
 
    ! write(*,*) 'osd_obsspace_diag: Completed'
 
@@ -221,7 +221,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_calcInflation
   !--------------------------------------------------------------------------
-  subroutine osd_calcInflation( obsSpaceData, columng, hco_anl, dateprnt )
+  subroutine osd_calcInflation( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, dateprnt )
     !      
     ! :Purpose: Calculates observation-space diagnostics from random perturbations
     !
@@ -230,7 +230,7 @@ contains
  
     ! Arguments:
     type(struct_obs)            :: obsSpaceData
-    type(struct_columnData)     :: columng
+    type(struct_columnData)     :: columnTrlOnAnlIncLev
     type(struct_hco), pointer   :: hco_anl
     integer                     :: dateprnt
 
@@ -275,15 +275,15 @@ contains
     allocate(HxBen(obs_numbody(obsSpaceData)))
 
     ! initialize columnData object for increment
-    call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     ! initialize gridStateVector object for increment
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
     call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                       dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
-    nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
+    nlev_max=max(col_getNumLev(columnTrlOnAnlIncLev,'MM'),col_getNumLev(columnTrlOnAnlIncLev,'TH'))
 
     allocate(controlVector(cvm_nvadim))
     allocate(scaleFactor(nlev_max))
@@ -359,8 +359,8 @@ contains
        enddo
 
        ! multiply by H
-       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call s2c_tl(statevector,column,columnTrlOnAnlIncLev,obsSpaceData)  ! put in column H_horiz dx
+       call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBhi(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo
@@ -413,8 +413,8 @@ contains
        enddo
               
        ! multiply vector by H
-       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call s2c_tl(statevector,column,columnTrlOnAnlIncLev,obsSpaceData)  ! put in column H_horiz dx
+       call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo
@@ -779,7 +779,7 @@ contains
   !--------------------------------------------------------------------------
   ! osd_obsPostProc
   !--------------------------------------------------------------------------
-  subroutine osd_obsPostProc( obsSpaceData, columng, deltaLat, deltaLon, deltaPressure, anlm_mode )
+  subroutine osd_obsPostProc( obsSpaceData, columnTrlOnAnlIncLev, deltaLat, deltaLon, deltaPressure, anlm_mode )
     !
     ! :Purpose: Interface for observation-space post-processing procedures.
     !
@@ -787,7 +787,7 @@ contains
     !       :obsSpaceData:    Obs space data structure
     !       :obsfam:          Target obs family (e.g. CH)
     !       :codtyplist:      Code type list asscoiated to obsfam.
-    !       :columng:         Columns from analysis vertical coordinate in obs space (at obs location)
+    !       :columnTrlOnAnlIncLev: Columns from analysis vertical coordinate in obs space (at obs location)
     !       :date:            YYYYMMDDHH
     !       :deltaLat:        Size of latitude bins for diagnostics (degrees)
     !       :deltaLon:        Size of longitude bins for diagnostics (degrees)
@@ -799,7 +799,7 @@ contains
 
     !Arguments:
     type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columng
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     real(8), intent(in)     :: deltaLat
     real(8), intent(in)     :: deltaLon
     real(8), intent(in)     :: deltaPressure
@@ -847,7 +847,7 @@ contains
           codtyplist(1)=codtyp_get_codtyp('CHEMREMOTE')
           codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
                        
-          call osd_obsDiagnostics(obsSpaceData,columng,'CH',codtyplist,trim(obsspace_diagn_filename(ifam)), &
+          call osd_obsDiagnostics(obsSpaceData,columnTrlOnAnlIncLev,'CH',codtyplist,trim(obsspace_diagn_filename(ifam)), &
                       diagn_save(ifam),deltaLat,deltaLon,deltaPressure,diagn_pressmin(ifam),anlm_mode)
        
           deallocate(codtyplist)
@@ -860,7 +860,7 @@ contains
     ! channels/instruments of the TO family (when processed with accompanying
     ! CH obs). 
     
-    ! call osd_TO_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
+    ! call osd_TO_obsDiagnostics(obsSpaceData,columnTrlOnAnlIncLev,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
     
     ! Apply any required obs file update
     
@@ -877,14 +877,14 @@ contains
   !--------------------------------------------------------------------------
   ! osd_obsDiagnostics
   !--------------------------------------------------------------------------
-  subroutine osd_obsDiagnostics( obsSpaceData, columng, obsfam, codtyplist, filename, save_diagn, &
+  subroutine osd_obsDiagnostics( obsSpaceData, columnTrlOnAnlIncLev, obsfam, codtyplist, filename, save_diagn, &
                                  deltaLat, deltaLon, deltaPressure, pressmin, anlm_mode )
     !       
     ! :Purpose: Calculates and prints observation-space diagnostics for chemical constituents
     !
     ! :Arguments:
     !       :obsSpaceData:    Obs space data structure
-    !       :columng:         Columns from analysis vertical coordinate in obs space (at obs location)
+    !       :columnTrlOnAnlIncLev: Columns from analysis vertical coordinate in obs space (at obs location)
     !       :obsfam:          Obs family (e.g. 'CH'
     !       :codtypelist:     Code type list 
     !       :filename:        Output file name
@@ -909,7 +909,7 @@ contains
 
     !Arguments:
     type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columng
+    type(struct_columnData) :: columnTrlOnAnlIncLev
     character(len=*)        :: obsfam
     character(len=*)        :: filename
     integer, intent(in)     :: codtyplist(:)
@@ -1073,13 +1073,13 @@ contains
           case(1)
              ! Height coordinate
              
-             nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
-             height_mod => col_getColumn(columng,headerIndex,'Z_T') ! geopotential
+             nlev_mod = col_getNumLev(columnTrlOnAnlIncLev,'TH')  ! number of model levels     
+             height_mod => col_getColumn(columnTrlOnAnlIncLev,headerIndex,'Z_T') ! geopotential
                 
              allocate(pres_mod(nlev_mod))
                
              do ilev_mod=1,nlev_mod
-                pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
+                pres_mod(ilev_mod) = col_getPressure(columnTrlOnAnlIncLev,ilev_mod,headerIndex,'TH') ! model pressure
              end do
 
              ! Convert altidudes to pressure
@@ -2020,7 +2020,6 @@ contains
       ! :Purpose: Prints elements contributing to the calc of scaling factors for observation and background
       !           error std. dev. based on the Desroziers approach.
       !
- 
       implicit none
 
       !Arguments:

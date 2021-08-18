@@ -1537,8 +1537,8 @@ contains
   !--------------------------------------------------------------------------
   ! oopc_CHobsoperators
   !--------------------------------------------------------------------------
-  subroutine oopc_CHobsoperators(column_bkgrnd,obsSpaceData,kmode, &
-                                       columnInc_opt,jobs_opt)
+  subroutine oopc_CHobsoperators(columnTrl,obsSpaceData,kmode, &
+                                       columnAnlInc_opt,jobs_opt)
     !
     !:Purpose: To apply the observation operators for chemical constituents.
     !          Mode of operator set by kmode.
@@ -1548,10 +1548,10 @@ contains
     !      - Currently can only handle the case when nlev_bkgrnd == nlev_inc
     !
     !:Arguments:
-    !   :column_bkgrnd:  Column of x_background interpolated to observation
+    !   :columnTrl:  Column of x_background interpolated to observation
     !                    location. Can have the same vertical levels as the
-    !                    trial field (columnhr) or as the increment field
-    !                    (columng)
+    !                    trial field (columnTrlOnTrlLev) or as the increment field
+    !                    (columnTrlOnAnlIncLev)
     !   :kmode:
     !        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
     !        |kmode|       Mode of         |             Results               |
@@ -1571,10 +1571,10 @@ contains
     !        |     |operator               |obsSpaceData                       |
     !        +-----+-----------------------+-----------------------------------+
     !        |  3  |for adjoint of tangent |H^T * R^-1 (OmP-Hdx) in            |
-    !        |     |linear operator        |columnInc_opt                      |
+    !        |     |linear operator        |columnAnlInc_opt                   |
     !        +-----+-----------------------+-----------------------------------+    
     !
-    !   :columnInc_opt:  Optional argument for input/output of column of
+    !   :columnAnlInc_opt: Optional argument for input/output of column of
     !                    increment (column). For kmode=2, used as input for
     !                    increment H_horiz dx interpolated to observation
     !                    location. For kmode=3, used as output for H^T * R^-1
@@ -1614,10 +1614,10 @@ contains
     implicit none
     
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column_bkgrnd
+    type(struct_columnData), intent(inout) :: columnTrl
     type(struct_obs),intent(inout)::obsSpaceData ! Observation-space data object
     integer, intent(in) :: kmode
-    type(struct_columnData), intent(inout), optional :: columnInc_opt
+    type(struct_columnData), intent(inout), optional :: columnAnlInc_opt
     real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
@@ -1648,19 +1648,19 @@ contains
        initializedChem = .true.
     end if
     
-    if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnInc_opt))) &
-       call utl_abort("oopc_CHobsoperators: columnInc_opt must be specified for kmode = " // utl_str(kmode))
+    if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnAnlInc_opt))) &
+       call utl_abort("oopc_CHobsoperators: columnAnlInc_opt must be specified for kmode = " // utl_str(kmode))
     
     ! Initializations
         
     if (present(jobs_opt)) jobs_opt = 0.d0
 
-    nlev_bkgrnd = col_getNumLev(column_bkgrnd,varLevel)
+    nlev_bkgrnd = col_getNumLev(columnTrl,varLevel)
     
     ! Allocate memory for model_col. Not necessary for kmode=0 since model_col points to obsoper%trial.
     select case(kmode)
     case(2)
-       nlev_inc = col_getNumLev(columnInc_opt,varLevel)
+       nlev_inc = col_getNumLev(columnAnlInc_opt,varLevel)
        allocate(model_col(nlev_inc))
     case(1,3)
        allocate(model_col(nlev_bkgrnd))
@@ -1784,7 +1784,7 @@ contains
          end if
 
          ! Initialize obsoper variables and allocate arrays
-         call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,nobslev,kmode,varno,stnid)
+         call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,columnTrl,nlev_bkgrnd,nobslev,kmode,varno,stnid)
  
          ! Initialize model_col, dependent on kmode. Used for input for kmode=0,2, output for kmode=3.
          ! model_col represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
@@ -1797,7 +1797,7 @@ contains
             model_col => obsoper%trial
          case(2)
             do imodlev=1,nlev_inc
-               model_col(imodlev) = col_getElem(columnInc_opt,imodlev,headerIndex,obsoper%varName)
+               model_col(imodlev) = col_getElem(columnAnlInc_opt,imodlev,headerIndex,obsoper%varName)
             end do
          case(1,3)
             model_col(:) = 0.0D0
@@ -1853,9 +1853,9 @@ contains
       ! Output results
       
       if (kmode.eq.3) then
-         ! Store H^T * R^-1 (OmP-Hdx) in columnInc
+         ! Store H^T * R^-1 (OmP-Hdx) in columnAnlInc
                      
-         col => col_getColumn(columnInc_opt,headerIndex,obsoper%varName)
+         col => col_getColumn(columnAnlInc_opt,headerIndex,obsoper%varName)
          col(1:nlev_bkgrnd) = model_col(1:nlev_bkgrnd)
 
       else
@@ -1955,7 +1955,7 @@ contains
   !--------------------------------------------------------------------------
   ! chm_obsoper_init
   !--------------------------------------------------------------------------
-  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd, &
+  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,columnTrl, &
                               nmodlev,nobslev,kmode,varno,stnid)
     !
     !:Purpose: To initialize struct_chm_obsoperators variables and to allocate
@@ -1968,10 +1968,10 @@ contains
     !
     !:Arguments:
     !
-    !     :column_bkgrnd:  Column of x_background interpolated to observation
+    !     :columnTrl:  Column of x_background interpolated to observation
     !                      location. Can have the same vertical levels as the
-    !                      trial field (columnhr) or as the increment field
-    !                      (columng)
+    !                      trial field (columnTrlOnTrlLev) or as the increment field
+    !                      (columnTrlOnAnlIncLev)
     !     :kmode:       
     !   
     !                - 0 for non-linear/linear model in assimilation (all models
@@ -1985,7 +1985,7 @@ contains
     type(struct_chm_obsoperators), intent(inout) :: obsoper ! Object for constituents associated to obs
     type(struct_obs), intent(inout) :: obsSpaceData ! Obs-Space Data object
     integer, intent(in) :: headerIndex ! Measurement index in obsSpaceData
-    type(struct_columnData), intent(inout) :: column_bkgrnd
+    type(struct_columnData), intent(inout) :: columnTrl
     integer, intent(in) :: nmodlev ! Number of background field (model) levels
     integer, intent(in) :: nobslev ! Number of obs elements (see chm_obsoper_proceed)
     integer, intent(in) :: kmode
@@ -2043,7 +2043,7 @@ contains
     obsoper%imodlev_bot(:)=nmodlev
     obsoper%dtransform(:)=1.0D0
 
-    if (.not.col_varExist(column_bkgrnd,'TT')) then
+    if (.not.col_varExist(columnTrl,'TT')) then
        if (chm_required_field('TT',obsoper%varno)) then
           call utl_abort("chem_opsoper_init: TT required for BUFR code " // trim(utl_str(obsoper%varno)))
        end if
@@ -2051,24 +2051,24 @@ contains
 
     ! Get background profiles at observation location
     do jl=1,nmodlev
-       obsoper%pp(jl) = col_getPressure(column_bkgrnd,jl,headerIndex,varLevel)
-       obsoper%trial(jl) = col_getElem(column_bkgrnd,jl,headerIndex,obsoper%varName)
-       obsoper%tt(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
+       obsoper%pp(jl) = col_getPressure(columnTrl,jl,headerIndex,varLevel)
+       obsoper%trial(jl) = col_getElem(columnTrl,jl,headerIndex,obsoper%varName)
+       obsoper%tt(jl) = col_getElem(columnTrl,jl,headerIndex,'TT')
     enddo
 
-    if (col_varExist(column_bkgrnd,'TT').and.col_varExist(column_bkgrnd,'HU').and.col_varExist(column_bkgrnd,'P0')) then     
+    if (col_varExist(columnTrl,'TT').and.col_varExist(columnTrl,'HU').and.col_varExist(columnTrl,'P0')) then     
        ! Height would have been generated in the call to sugomobs. 
        ! Convert from geopotential to geopotential height.
-       col_height_ptr => col_getColumn(column_bkgrnd,headerIndex,'Z_T')
+       col_height_ptr => col_getColumn(columnTrl,headerIndex,'Z_T')
        obsoper%height(1:nmodlev) = col_height_ptr(1:nmodlev)
     else
        obsoper%height(:) = -1.
     end if
 
     ! Get specific humidity if available
-    if (col_varExist(column_bkgrnd,'HU')) then
+    if (col_varExist(columnTrl,'HU')) then
        do jl=1,nmodlev
-         obsoper%hu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'HU')       ! lnq was replaced by q
+         obsoper%hu(jl) = col_getElem(columnTrl,jl,headerIndex,'HU')       ! lnq was replaced by q
        enddo
     else
        obsoper%hu(:)=-1
@@ -2080,13 +2080,13 @@ contains
     if (obsoper%vco.eq.4.and.nobslev.eq.1.and.kmode.ne.1) then
        if (kmode.eq.0) then
           
-          if (col_varExist(column_bkgrnd,'HU')) then
-             if (col_varExist(column_bkgrnd,'UU').and.col_varExist(column_bkgrnd,'VV')) then
-                nmodlev_uv=col_getNumLev(column_bkgrnd,'MM')
+          if (col_varExist(columnTrl,'HU')) then
+             if (col_varExist(columnTrl,'UU').and.col_varExist(columnTrl,'VV')) then
+                nmodlev_uv=col_getNumLev(columnTrl,'MM')
                 allocate(uu(nmodlev_uv),vv(nmodlev_uv))
                 do jl=1,nmodlev_uv
-                   uu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'UU')
-                   vv(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'VV')
+                   uu(jl) = col_getElem(columnTrl,jl,headerIndex,'UU')
+                   vv(jl) = col_getElem(columnTrl,jl,headerIndex,'VV')
                 enddo
                 obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%height,hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
                 deallocate(uu,vv)

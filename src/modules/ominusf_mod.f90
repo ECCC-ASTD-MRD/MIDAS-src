@@ -48,7 +48,7 @@ module oMinusF_mod
   contains
 
 
-    subroutine omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
+    subroutine omf_oMinusF(columnTrlOnAnlIncLev, columnTrlOnTrlLev, obsSpaceData, &
                            varMode, addHBHT, addSigmaO)
       !
       ! :Purpose: compute Observation-minus-Forecast (OmF)
@@ -56,8 +56,8 @@ module oMinusF_mod
 
       implicit none
       ! Arguments:
-      type(struct_columnData),target, intent(inout)  :: trlColumnOnAnlLev
-      type(struct_columnData),target, intent(inout)  :: trlColumnOnTrlLev
+      type(struct_columnData),target, intent(inout)  :: columnTrlOnAnlIncLev
+      type(struct_columnData),target, intent(inout)  :: columnTrlOnTrlLev
       type(struct_obs),       target, intent(inout)  :: obsSpaceData
       character(len=*), intent(in) :: varMode
       logical, intent(in) :: addHBHT
@@ -122,7 +122,7 @@ module oMinusF_mod
       if ( addHBHT ) then
         call vco_SetupFromFile(vco_anl,        & ! OUT
                                './analysisgrid') ! IN
-        call col_setVco(trlColumnOnAnlLev,vco_anl)
+        call col_setVco(columnTrlOnAnlIncLev,vco_anl)
       end if
 
       !- 1.10 Setup and read observations
@@ -138,7 +138,7 @@ module oMinusF_mod
 
       !- 1.12 Memory allocation for background column data
       if ( addHBHT ) then
-        call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+        call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
       end if
 
       if ( addSigmaO ) then
@@ -149,7 +149,7 @@ module oMinusF_mod
       end if
 
       !- 1.14 Reading, horizontal interpolation and unit conversions of the 3D background fields
-      call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData,hco_core)
+      call inn_setupBackgroundColumns(columnTrlOnTrlLev,obsSpaceData,hco_core)
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
@@ -162,15 +162,15 @@ module oMinusF_mod
       !- 2.1 Compute observation innovations
       write(*,*)
       write(*,*) '> omf_oMinusF: compute innovation'
-      call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+      call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
 
       if ( addHBHT ) then
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+        call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
         !- 2.3 Compute the background errors in observation space
-        call ose_computeStddev(trlColumnOnAnlLev,hco_anl,obsSpaceData)
+        call ose_computeStddev(columnTrlOnAnlIncLev,hco_anl,obsSpaceData)
       end if
 
     end subroutine omf_oMinusF

@@ -51,8 +51,8 @@ program midas_diagHBHt
   integer :: ierr
 
   type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: trlColumnOnAnlLev
-  type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
+  type(struct_columnData),target :: columnTrlOnTrlLev
 
   character(len=48) :: obsMpiStrategy, varMode
 
@@ -84,17 +84,17 @@ program midas_diagHBHt
 
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
+  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
   call tmg_stop(2)
 
   ! Compute perturbed
-  call diagHBHt(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+  call diagHBHt(columnTrlOnAnlIncLev,obsSpaceData)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
@@ -194,7 +194,7 @@ contains
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
-    call col_setVco(trlColumnOnAnlLev,vco_anl)
+    call col_setVco(columnTrlOnAnlIncLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -212,7 +212,7 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances
@@ -236,20 +236,20 @@ contains
 
   end subroutine var_setup
 
-  subroutine diagHBHt(columng,column,obsSpaceData)
+  subroutine diagHBHt(columnTrlOnAnlIncLev, obsSpaceData)
     implicit none
+
+    type(struct_obs),        intent(inout) :: obsSpaceData         ! Observation-related data
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev ! Columns of the background interpolated 
+                                                                   ! to analysis levels and to obs
+                                                                   ! horizontal locations
+    type(struct_columnData) :: columnAnlInc
     type(struct_gsv)        :: statevector
-
-    type(struct_obs)        :: obsSpaceData ! Observation-related data
-    type(struct_columnData) :: columng      ! Columns of the background interpolated 
-                                          ! to analysis levels and to obs horizontal locations
-    type(struct_columnData) :: column
-
     type(struct_vco), pointer :: vco_anl
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
-    integer :: index_body, local_dimension, jj, ierr, dateprnt,timeprnt,nrandseed, istat
-    integer ,external :: newdate,get_max_rss
+    integer :: index_body, local_dimension, jj, ierr, dateprnt, timeprnt, nrandseed, istat
+    integer ,external :: newdate, get_max_rss
     real(8) ,external :: gasdev
     !
     !- 1.  Initialization
@@ -257,14 +257,14 @@ contains
     write(*,*)
     write(*,*) 'Computing perturbations for randomized HBHT evaluation START'
 
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstatevector to store the perturbations
     call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl, &
                       dataKind_opt=pre_incrReal,mpi_local_opt=.true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
-    call col_setVco(column,vco_anl)
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_setVco(columnAnlInc,vco_anl)
+    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
@@ -300,10 +300,10 @@ contains
     !- 2.2 Interpolation to the observation horizontal locations
 
     call s2c_tl( statevector,           & ! IN
-                 column,                & ! OUT (H_horiz EnsPert)
-                 columng, obsSpaceData )  ! IN
+                 columnAnlInc,                & ! OUT (H_horiz EnsPert)
+                 columnTrlOnAnlIncLev, obsSpaceData )  ! IN
     !- 2.3 Interpolation to observation space
-    call oop_Htl(column,columng,obsSpaceData,min_nsim=1)
+    call oop_Htl(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,min_nsim=1)
 
   !- Copy from OBS_WORK to OBS_HPHT
 
@@ -315,14 +315,11 @@ contains
   !
     deallocate(random_vector, stat=istat)
     deallocate(local_random_vector, stat=istat)
-    call col_deallocate(column)
+    call col_deallocate(columnAnlInc)
     call gsv_deallocate(statevector)
     write(*,*)
     write(*,*) 'Computing perturbations for randomized HBHT evaluation END' ; call flush(6)
 
 end subroutine diagHBHt
-
-
-
 
 end program midas_diagHBHt

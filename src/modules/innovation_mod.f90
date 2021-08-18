@@ -108,9 +108,10 @@ contains
       read(unitDimFile,*) mxstn
       read(unitDimFile,*) mxobs
       ierr=fclos(unitDimFile)  
-      call obs_initialize( obsSpaceData, numHeader_max=mxstn, numBody_max=mxobs, mpi_local=obsf_filesSplit() )
+      call obs_initialize(obsSpaceData, numHeader_max=mxstn, numBody_max=mxobs, &
+                          mpi_local=obsf_filesSplit())
     else
-      call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
+      call obs_initialize(obsSpaceData, mpi_local=obsf_filesSplit())
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -193,13 +194,14 @@ contains
   !--------------------------------------------------------------------------
   ! inn_setupBackgroundColumns
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumns(columnhr, obsSpaceData, hco_core, stateVectorTrialOut_opt)
+  subroutine inn_setupBackgroundColumns(columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                        stateVectorTrialOut_opt)
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     implicit none
     
     ! arguments
-    type(struct_columnData)    :: columnhr
+    type(struct_columnData)    :: columnTrlOnTrlLev
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
     type(struct_gsv), optional :: stateVectorTrialOut_opt
@@ -255,12 +257,12 @@ contains
 
     call vco_SetupFromFile(vco_trl, './trlm_01')
 
-    call col_setVco(columnhr,vco_trl)
-    call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_setVco(columnTrlOnTrlLev,vco_trl)
+    call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
     ! copy latitude from obsSpaceData
     if ( obs_numHeader(obsSpaceData) > 0 ) then
-      call obs_extractObsRealHeaderColumn(columnhr%lat(:), obsSpaceData, OBS_LAT)
+      call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
     end if
 
     if (vco_trl%Vcode == 0) then
@@ -309,30 +311,30 @@ contains
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
     end if
 
-    call s2c_nl( stateVectorTrial, obsSpaceData, columnhr, hco_core, &
+    call s2c_nl( stateVectorTrial, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
                  dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVectorTrial)
 
-    if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'Z_T ') ) then
+    if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
       write(*,*) 'Z_T:'
-      onecolumn => col_getColumn(columnhr,1,'Z_T ')
+      onecolumn => col_getColumn(columnTrlOnTrlLev,1,'Z_T ')
       write(*,*) onecolumn(:)
       write(*,*) 'Z_M:'
-      onecolumn => col_getColumn(columnhr,1,'Z_M ')
+      onecolumn => col_getColumn(columnTrlOnTrlLev,1,'Z_M ')
       write(*,*) onecolumn(:)
 
       nullify(onecolumn)
     end if
-    if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'P_T ') ) then
+    if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'P_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
       write(*,*) 'P_T:'
-      onecolumn => col_getColumn(columnhr,1,'P_T ')
+      onecolumn => col_getColumn(columnTrlOnTrlLev,1,'P_T ')
       write(*,*) onecolumn(:)
       write(*,*) 'P_M:'
-      onecolumn => col_getColumn(columnhr,1,'P_M ')
+      onecolumn => col_getColumn(columnTrlOnTrlLev,1,'P_M ')
       write(*,*) onecolumn(:)
 
       nullify(onecolumn)
@@ -347,17 +349,17 @@ contains
   !--------------------------------------------------------------------------
   ! inn_setupBackgroundColumnsAnl
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng)
+  subroutine inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
     implicit none
 
     ! arguments
-    type(struct_columnData) :: columng, columnhr
+    type(struct_columnData) :: columnTrlOnAnlIncLev, columnTrlOnTrlLev
 
     ! locals
     integer :: jvar, jlev, columnIndex
-    real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
+    real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
     write(*,*)
     write(*,*) 'inn_setupBackgroundColumnsAnl: START'
@@ -365,22 +367,22 @@ contains
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
     !
-    !- Data copying from columnh to columng
+    !- Data copying from columnh to columnTrlOnAnlIncLev
     !
     
     ! copy latitude
-    if ( col_getNumCol(columng) > 0 ) then
-      columng%lat(:) = columnhr%lat(:)
+    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 ) then
+      columnTrlOnAnlIncLev%lat(:) = columnTrlOnTrlLev%lat(:)
     end if
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
-      if ( .not. col_varExist(columng,vnl_varNameList2D(jvar)) ) cycle
-      if ( col_getNumCol(columng) > 0 ) then       
-        do columnIndex = 1, col_getNumCol(columng)
-          columng_ptr  => col_getColumn( columng , columnIndex, vnl_varNameList2D(jvar) )
-          columnhr_ptr => col_getColumn( columnhr, columnIndex, vnl_varNameList2D(jvar) )
-          columng_ptr(:) = columnhr_ptr(:)
+      if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) ) cycle
+      if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 ) then       
+        do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+          columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameList2D(jvar))
+          columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
+          columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
         end do
       end if
     end do
@@ -388,20 +390,20 @@ contains
     !
     !- Calculate pressure profiles on analysis increment levels
     !
-    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
-      call col_calcPressure(columng)
+    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
+      call col_calcPressure(columnTrlOnAnlIncLev)
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNHR(1):'
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnTrlLev(1):'
         write(*,*) 'P_T:'
-        columnhr_ptr => col_getColumn(columnhr,1,'P_T')
-        write(*,*) columnhr_ptr (:)
+        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
+        write(*,*) columnTrlOnTrlLev_ptr (:)
 
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNG(1):'
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
-        columng_ptr => col_getColumn(columng,1,'P_T')
-        write(*,*) columng_ptr (:)
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
+        write(*,*) columnTrlOnAnlIncLev_ptr (:)
         write(*,*)
       end if
       
@@ -412,35 +414,36 @@ contains
     !
     do jvar = 1, vnl_numvarmax3D
 
-      if ( .not. col_varExist(columng,vnl_varNameList3D(jvar)) ) cycle
+      if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
-      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
+      call col_vintprof(columnTrlOnTrlLev, columnTrlOnAnlIncLev, vnl_varNameList3D(jvar), &
+                        useColumnPressure_opt=.false.)
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU
-        do columnIndex = 1, col_getNumCol(columng)
-          columng_ptr => col_getColumn(columng,columnIndex,'HU')
-          do jlev=1,col_getNumLev(columng,'TH')
-            columng_ptr(jlev) = max(columng_ptr(jlev),col_rhumin)
+        do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+          columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'HU')
+          do jlev=1,col_getNumLev(columnTrlOnAnlIncLev,'TH')
+            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),col_rhumin)
           end do
         end do
 
       ! Imposing minimum value for LWCR at surface
       else if ( vnl_varNameList3D(jvar) == 'LWCR') then
-        do columnIndex = 1, col_getNumCol(columng)
-          columng_ptr => col_getColumn(columng,columnIndex,'LWCR')
-          jlev = col_getNumLev(columng,'TH')
-          columng_ptr(jlev) = max(columng_ptr(jlev),col_minClwAtSfc)
+        do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+          columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'LWCR')
+          jlev = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+          columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),col_minClwAtSfc)
         end do
 
       else if (trim(vnl_varKindFromVarname(vnl_varNameList3D(jvar))) == 'CH') then
         ! Imposing boundary values for CH kind variables. This is to prevent
         ! undesired values usually from vertical extrapolation.
-        do columnIndex = 1, col_getNumCol(columng)
-          columng_ptr => col_getColumn(columng,columnIndex,trim(vnl_varNameList3D(jvar)))
+        do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+          columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,trim(vnl_varNameList3D(jvar)))
           if ( col_minValVarKindCH(vnl_varListIndex(vnl_varNameList3D(jvar))) > 1.01*MPC_missingValue_R8 ) then
-            do jlev=1,col_getNumLev(columng,'TH')
-              columng_ptr(jlev) = max(columng_ptr(jlev),col_minValVarKindCH(vnl_varListIndex(vnl_varNameList3D(jvar))))
+            do jlev=1,col_getNumLev(columnTrlOnAnlIncLev,'TH')
+              columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),col_minValVarKindCH(vnl_varListIndex(vnl_varNameList3D(jvar))))
             end do
           end if
         end do
@@ -449,12 +452,12 @@ contains
     end do
 
     ! Print pressure on thermo levels for the first column
-    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
+    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, COLUMNG(1):'
+        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
-        columng_ptr => col_getColumn(columng,1,'P_T')
-        write(*,*) columng_ptr (:)
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
+        write(*,*) columnTrlOnAnlIncLev_ptr (:)
         write(*,*)
       end if
     end if
@@ -464,48 +467,48 @@ contains
     !
 
     ! Set surface height
-    do columnIndex = 1, col_getNumCol(columng)
-      columng%heightSfc(columnIndex) = columnhr%heightSfc(columnIndex)
+    do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+      columnTrlOnAnlIncLev%heightSfc(columnIndex) = columnTrlOnTrlLev%heightSfc(columnIndex)
     end do
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
-    if ( col_varExist(columng,'Z_T') .and. .not.columng%addHeightSfcOffset ) then 
-      do columnIndex = 1, col_getNumCol(columng)
-        columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
-        columng_ptr(col_getNumLev(columng,'TH')) = columng%heightSfc(columnIndex)
+    if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then 
+      do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_T')
+        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'TH')) = columnTrlOnAnlIncLev%heightSfc(columnIndex)
       end do
     end if
-    if ( col_varExist(columng,'Z_M') .and. .not.columng%addHeightSfcOffset ) then
-      do columnIndex = 1, col_getNumCol(columng)
-        columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
-        columng_ptr(col_getNumLev(columng,'MM')) = columng%heightSfc(columnIndex)
+    if ( col_varExist(columnTrlOnAnlIncLev,'Z_M') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then
+      do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_M')
+        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'MM')) = columnTrlOnAnlIncLev%heightSfc(columnIndex)
       end do
     end if
 
     ! Print height info of the first original and interpolated columns
-    if (col_getNumCol(columng) > 0) then
+    if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
       write(*,*)
       write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
 
-      if ( col_getNumLev(columng,'TH') > 0 .and. col_varExist(columng,'Z_T') ) then
-        write(*,*) 'Z_T (columnhr):'
-        columng_ptr => col_getColumn(columnhr,1,'Z_T')
-        write(*,*) columng_ptr(:)
-        write(*,*) 'Z_T (columng):'
-        columng_ptr => col_getColumn(columng,1,'Z_T')
-        write(*,*) columng_ptr(:)
+      if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
+        write(*,*) 'Z_T (columnTrlOnTrlLev):'
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_T')
+        write(*,*) columnTrlOnAnlIncLev_ptr(:)
+        write(*,*) 'Z_T (columnTrlOnAnlIncLev):'
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_T')
+        write(*,*) columnTrlOnAnlIncLev_ptr(:)
       end if
       
-      if ( col_getNumLev(columng,'MM') > 0 .and. col_varExist(columng,'Z_M') ) then
-        write(*,*) 'Z_M(columnhr):'
-        columng_ptr => col_getColumn(columnhr,1,'Z_M')
-        write(*,*) columng_ptr(:)
-        write(*,*) 'Z_M(columng):'
-        columng_ptr => col_getColumn(columng,1,'Z_M')
-        write(*,*) columng_ptr(:)
+      if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_M') ) then
+        write(*,*) 'Z_M(columnTrlOnTrlLev):'
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
+        write(*,*) columnTrlOnAnlIncLev_ptr(:)
+        write(*,*) 'Z_M(columnTrlOnAnlIncLev):'
+        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_M')
+        write(*,*) columnTrlOnAnlIncLev_ptr(:)
       end if
  
-      write(*,*) 'HeightSfc:', columng%heightSfc(1)
+      write(*,*) 'HeightSfc:', columnTrlOnAnlIncLev%heightSfc(1)
     end if
 
     call tmg_stop(10)
@@ -517,13 +520,14 @@ contains
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation(columnhr,obsSpaceData,destObsColumn_opt,beSilent_opt)
+  subroutine inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, destObsColumn_opt, &
+                                   beSilent_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
@@ -562,91 +566,94 @@ contains
     !
 
     ! Reject observed elements too far below the surface
-    call filt_topo(columnhr,obsSpaceData,beSilent)
+    call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     ! ( Note: Pressure values for elements slightly below the surface are replaced by the surface
     !   pressure values of the trial field. GB-GPS (met and ZTD) observations are processed in
     !   s/r filt_topoSFC in obsFilter_mod.ftn90 )
 
     ! Remove surface station wind observations
-    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call filt_surfaceWind(obsSpaceData,beSilent)
-
+    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
+      call filt_surfaceWind(obsSpaceData,beSilent)
+    end if
+    
     ! Find interpolation layer in model profiles
-
-    if ( col_getNumLev(columnhr,'MM') > 1 ) call oop_vobslyrs(columnhr, obsSpaceData, beSilent)
-
+    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) then
+      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    end if
+    
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in OBS_OMP column
     !
     call tmg_start(48,'NL_OBS_OPER')
     
     ! Radiosondes
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, JoRaob, 'UA', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoRaob, 'UA', destObsColumn)
 
     ! Aircrafts
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
 
     ! SatWinds
-    call oer_sw(columnhr,obsSpaceData)
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
+    call oer_sw(columnTrlOnTrlLev,obsSpaceData)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
-    call oop_sfc_nl(columnhr, obsSpaceData, beSilent, JoSfcSF, 'SF', destObsColumn)
-    call oop_sfc_nl(columnhr, obsSpaceData, beSilent, JoSfcUA, 'UA', destObsColumn)
-    call oop_sfc_nl(columnhr, obsSpaceData, beSilent, JoSfcSC, 'SC', destObsColumn)
-    call oop_sfc_nl(columnhr, obsSpaceData, beSilent, JoSfcGP, 'GP', destObsColumn)
-    call oop_sfc_nl(columnhr, obsSpaceData, beSilent, JoSfcRA, 'RA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSF, 'SF', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcUA, 'UA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSC, 'SC', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGP, 'GP', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcRA, 'RA', destObsColumn)
 
     ! RADAR Doppler velocity
-    call oop_raDvel_nl(columnhr,obsSpaceData, beSilent,JoRadVel,'RA', destObsColumn)  
+    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent,JoRadVel,'RA', destObsColumn)  
 
     ! Sea surface temperature
-    call oop_sst_nl(columnhr, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
+    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
 
     ! Sea ice concentration
     call filt_iceConcentration(obsSpaceData, beSilent)
     call filt_backScatAnisIce(obsSpaceData, beSilent)
-    call oer_setErrBackScatAnisIce(columnhr, obsSpaceData, beSilent)
-    call oop_ice_nl(columnhr, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
+    call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
 
     ! Hydrology
-    call oop_hydro_nl(columnhr, obsSpaceData, beSilent, JoSFCHY, 'HY', destObsColumn)
+    call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSFCHY, 'HY', destObsColumn)
 
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
+      call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, JoTov, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
-      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(),  &
+      call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, JoTov, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
 
     ! Profilers
-    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, JoProf, 'PR', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoProf, 'PR', destObsColumn)
 
     ! Aladin winds
-    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, JoAladin, 'AL', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAladin, 'AL', destObsColumn)
 
     ! GPS radio occultation
     JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-       call filt_gpsro(columnhr, obsSpaceData, beSilent)
-       call oer_SETERRGPSRO(columnhr, obsSpaceData, beSilent)
-       call oop_gpsro_nl(columnhr, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
+       call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
+       call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
+       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
     end if
 
     ! Chemical constituents
-    call oop_chm_nl(columnhr, obsSpaceData, JoChm, destObsColumn)
+    call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, JoChm, destObsColumn)
 
     ! GPS ground-based zenith delay
     JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .true.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, JoGpsGB,  &
+        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.true.)
       else
-        call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .false.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, JoGpsGB,  &
+        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.false.)
       end if
     end if

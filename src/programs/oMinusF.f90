@@ -34,8 +34,8 @@ program midas_ominusf
   NAMELIST /NAMOMF/addHBHT, addSigmaO
   
   integer :: fnom, fclos, nulnam, ierr, headerIndex
-  type(struct_columnData),target  :: trlColumnOnAnlLev
-  type(struct_columnData),target  :: trlColumnOnTrlLev
+  type(struct_columnData),target  :: columnTrlOnAnlIncLev
+  type(struct_columnData),target  :: columnTrlOnTrlLev
   type(struct_obs),       target  :: obsSpaceData
 
   call ver_printNameAndVersion('oMinusF','Computation of the innovation')
@@ -63,10 +63,10 @@ program midas_ominusf
   ierr = fclos(nulnam)
 
   ! 2.1 Calculate the Observation - Forecast difference
-  call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
+  call omf_oMinusF(columnTrlOnAnlIncLev, columnTrlOnTrlLev, obsSpaceData, &
                    'OminusF', addHBHT, addSigmaO)
 
-  call bcs_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+  call bcs_calcBias(obsSpaceData,columnTrlOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
 
   call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
 

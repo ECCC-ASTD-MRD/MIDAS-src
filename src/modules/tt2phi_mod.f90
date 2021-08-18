@@ -585,14 +585,14 @@ subroutine tt2phi_gsv_tl(statevector,statevector_trial)
 end subroutine tt2phi_gsv_tl
 
 
-subroutine tt2phi_col_tl(column,column_trial)
+subroutine tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
   !
   ! :Purpose: Temperature to geopotential transformation on gridstatevector
   !
   !
   implicit none
 
-  type(struct_columnData) :: column,column_trial
+  type(struct_columnData) :: columnAnlInc,columnTrlOnAnlInc
 
   integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,colIndex,numColumns
   real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -608,34 +608,34 @@ subroutine tt2phi_col_tl(column,column_trial)
 
   write(*,*) 'tt2phi_col_tl: START'
 
-  vco_anl => col_getVco(column_trial)
+  vco_anl => col_getVco(columnTrlOnAnlInc)
   Vcode_anl = vco_anl%vcode
 
-  nlev_T = col_getNumLev(column_trial,'TH')
-  nlev_M = col_getNumLev(column_trial,'MM')
+  nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
+  nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
 
-  numColumns = col_getNumCol(column)
+  numColumns = col_getNumCol(columnAnlInc)
   
   allocate(delThick(nlev_T,numColumns))
   delThick(:,:) = 0.0d0
 
   ! generate the height coefficients on the grid
-  call calcHeightCoeff_col(column_trial)
+  call calcHeightCoeff_col(columnTrlOnAnlInc)
 
   ! loop over all lat/lon/step
 
-  height_M_ptr => col_getAllColumns(column_trial,'Z_M')
-  height_T_ptr => col_getAllColumns(column_trial,'Z_T')
-  P_M          => col_getAllColumns(column_trial,'P_M')
-  P_T          => col_getAllColumns(column_trial,'P_T')
+  height_M_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_M')
+  height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
+  P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
+  P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
 
-  delHeight_M_ptr => col_getAllColumns(column,'Z_M')
-  delHeight_T_ptr => col_getAllColumns(column,'Z_T')
-  delTT           => col_getAllColumns(column,'TT')
-  delHU           => col_getAllColumns(column,'HU')
-  delP0           => col_getAllColumns(column,'P0')
-  delP_M          => col_getAllColumns(column,'P_M')
-  delP_T          => col_getAllColumns(column,'P_T')
+  delHeight_M_ptr => col_getAllColumns(columnAnlInc,'Z_M')
+  delHeight_T_ptr => col_getAllColumns(columnAnlInc,'Z_T')
+  delTT           => col_getAllColumns(columnAnlInc,'TT')
+  delHU           => col_getAllColumns(columnAnlInc,'HU')
+  delP0           => col_getAllColumns(columnAnlInc,'P0')
+  delP_M          => col_getAllColumns(columnAnlInc,'P_M')
+  delP_T          => col_getAllColumns(columnAnlInc,'P_T')
 
   ! ensure increment at sfc is zero (fixed height level)
   delHeight_M_ptr(nlev_M,:) = 0.0d0
@@ -994,7 +994,7 @@ subroutine tt2phi_gsv_ad(statevector,statevector_trial)
 end subroutine tt2phi_gsv_ad
 
 
-subroutine tt2phi_col_ad(column,column_trial)
+subroutine tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
   !
   !:Purpose: Adjoint of temperature to geopotential transformation on
   !          columnData
@@ -1002,7 +1002,7 @@ subroutine tt2phi_col_ad(column,column_trial)
   !
   implicit none
 
-  type(struct_columnData) :: column,column_trial
+  type(struct_columnData) :: columnAnlInc,columnTrlOnAnlInc
 
   integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numColumns,colIndex
   real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -1019,32 +1019,32 @@ subroutine tt2phi_col_ad(column,column_trial)
 
   write(*,*) 'tt2phi_col_ad: START'
 
-  vco_anl => col_getVco(column_trial)
+  vco_anl => col_getVco(columnTrlOnAnlInc)
   Vcode_anl = vco_anl%vcode
 
-  nlev_T = col_getNumLev(column_trial,'TH')
-  nlev_M = col_getNumLev(column_trial,'MM')
-  numColumns = col_getNumCol(column_trial)
+  nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
+  nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
+  numColumns = col_getNumCol(columnTrlOnAnlInc)
 
   allocate(delHeight_M(nlev_M,numColumns))
   allocate(delHeight_T(nlev_T,numColumns))
   allocate(delThick(0:nlev_T,numColumns))
 
   ! generate the height coefficients on the grid
-  call calcHeightCoeff_col(column_trial)
+  call calcHeightCoeff_col(columnTrlOnAnlInc)
 
-  height_M_ptr => col_getAllColumns(column_trial,'Z_M')
-  height_T_ptr => col_getAllColumns(column_trial,'Z_T')
-  P_M          => col_getAllColumns(column_trial,'P_M')
-  P_T          => col_getAllColumns(column_trial,'P_T')
+  height_M_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_M')
+  height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
+  P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
+  P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
 
-  delHeight_M_ptr => col_getAllColumns(column,'Z_M')
-  delHeight_T_ptr => col_getAllColumns(column,'Z_T')
-  delTT           => col_getAllColumns(column,'TT')
-  delHU           => col_getAllColumns(column,'HU')
-  delP0           => col_getAllColumns(column,'P0')
-  delP_M          => col_getAllColumns(column,'P_M')
-  delP_T          => col_getAllColumns(column,'P_T')
+  delHeight_M_ptr => col_getAllColumns(columnAnlInc,'Z_M')
+  delHeight_T_ptr => col_getAllColumns(columnAnlInc,'Z_T')
+  delTT           => col_getAllColumns(columnAnlInc,'TT')
+  delHU           => col_getAllColumns(columnAnlInc,'HU')
+  delP0           => col_getAllColumns(columnAnlInc,'P0')
+  delP_M          => col_getAllColumns(columnAnlInc,'P_M')
+  delP_T          => col_getAllColumns(columnAnlInc,'P_T')
 
   delHeight_M(:,:) = delHeight_M_ptr(:,:)
   delHeight_T(:,:) = delHeight_T_ptr(:,:)
@@ -1437,13 +1437,13 @@ subroutine calcHeightCoeff_gsv(statevector_trial)
 end subroutine calcHeightCoeff_gsv
 
 
-subroutine calcHeightCoeff_col(column_trial)
+subroutine calcHeightCoeff_col(columnTrlOnAnlInc)
   !
   ! :Purpose: Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
   !
   implicit none
 
-  type(struct_columnData) :: column_trial
+  type(struct_columnData) :: columnTrlOnAnlInc
 
   integer :: lev_T,nlev_M,nlev_T,numColumns,colIndex,Vcode_anl
   real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
@@ -1462,12 +1462,12 @@ subroutine calcHeightCoeff_col(column_trial)
   ! initialize and save coefficients for increased efficiency (assumes no relinearization)
   firstTimeHeightCoeff_col = .false.
 
-  vco_anl => col_getVco(column_trial)
+  vco_anl => col_getVco(columnTrlOnAnlInc)
   Vcode_anl = vco_anl%vcode 
 
-  nlev_T = col_getNumLev(column_trial,'TH')
-  nlev_M = col_getNumLev(column_trial,'MM')
-  numColumns = col_getNumCol(column_trial)
+  nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
+  nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
+  numColumns = col_getNumCol(columnTrlOnAnlInc)
 
   ! saved arrays
   allocate(coeff_M_TT_col         (nlev_T,numColumns))
@@ -1498,11 +1498,11 @@ subroutine calcHeightCoeff_col(column_trial)
   coeff_T_P0_dP_delPT_col(:) = 0.0D0  
   coeff_T_P0_dP_delP0_col(:) = 0.0D0  
 
-  hu_ptr       => col_getAllColumns(column_trial,'HU')
-  tt_ptr       => col_getAllColumns(column_trial,'TT')
-  P_T_ptr      => col_getAllColumns(column_trial,'P_T')
-  P_M_ptr      => col_getAllColumns(column_trial,'P_M')
-  height_T_ptr => col_getAllColumns(column_trial,'Z_T')
+  hu_ptr       => col_getAllColumns(columnTrlOnAnlInc,'HU')
+  tt_ptr       => col_getAllColumns(columnTrlOnAnlInc,'TT')
+  P_T_ptr      => col_getAllColumns(columnTrlOnAnlInc,'P_T')
+  P_M_ptr      => col_getAllColumns(columnTrlOnAnlInc,'P_M')
+  height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
 
   if (Vcode_anl == 5002) then
 
@@ -1524,7 +1524,7 @@ subroutine calcHeightCoeff_col(column_trial)
           cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
           ! Gravity acceleration 
-          lat_8 = column_trial%lat(colIndex)
+          lat_8 = columnTrlOnAnlInc%lat(colIndex)
           sLat = sin(lat_8)
           Rgh = phf_gravityalt(sLat, height_T)
 
@@ -1558,7 +1558,7 @@ subroutine calcHeightCoeff_col(column_trial)
           cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
           ! Gravity acceleration 
-          lat_8 = column_trial%lat(colIndex)
+          lat_8 = columnTrlOnAnlInc%lat(colIndex)
           sLat = sin(lat_8)
           Rgh = phf_gravityalt(sLat, height_T)
 
@@ -1599,7 +1599,7 @@ subroutine calcHeightCoeff_col(column_trial)
         cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
         ! Gravity acceleration 
-        lat_8 = column_trial%lat(colIndex)
+        lat_8 = columnTrlOnAnlInc%lat(colIndex)
         sLat = sin(lat_8)
         Rgh = phf_gravityalt(sLat, height_T)
 

@@ -1096,7 +1096,7 @@ contains
   !---------------------------------------------------------
   ! s2c_tl
   !---------------------------------------------------------
-  subroutine s2c_tl( statevector_in, column, columng, obsSpaceData )
+  subroutine s2c_tl( statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
     !
     ! :Purpose: Tangent linear version of the horizontal
     !           interpolation, used for the increment (or perturbations).
@@ -1106,8 +1106,8 @@ contains
     ! arguments
     type(struct_gsv), target   :: stateVector_in
     type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: column
-    type(struct_columnData)    :: columng
+    type(struct_columnData)    :: columnAnlInc
+    type(struct_columnData)    :: columnTrlOnAnlIncLev
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -1139,7 +1139,7 @@ contains
     end if
 
     ! check the column and statevector have same nk/varNameList
-    call checkColumnStatevectorMatch(column,statevector_in)
+    call checkColumnStatevectorMatch(columnAnlInc,statevector_in)
 
     ! if we only compute Height and Pressure on column, make copy without them
     if (calcHeightPressIncrOnColumn) then
@@ -1204,7 +1204,7 @@ contains
     allocate(cols_send_1proc(numHeaderMax))
 
     ! set contents of column to zero
-    allCols_ptr => col_getAllColumns(column)
+    allCols_ptr => col_getAllColumns(columnAnlInc)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
     call gsv_getField(stateVector_VarsLevs, ptr4d)
@@ -1302,7 +1302,7 @@ contains
         ! Figure out which variable/level of destination
         varName = gsv_getVarNameFromK(statevector,kIndex2)
         levIndex = gsv_getLevFromK(statevector,kIndex2)
-        allCols_ptr => col_getAllColumns(column,varName)
+        allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
           allCols_ptr(levIndex,headerIndex) = cols_recv(headerIndex,procIndex)
@@ -1316,14 +1316,14 @@ contains
       ! calculate delP_T/delP_M on the columns
       if ( statevector_in%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector_in%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( column, columng, & ! INOUT
+        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
                             'PsfcToP_tl')      ! IN
       end if
 
       ! calculate del Z_T/Z_M on the columns
       if ( statevector_in%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector_in%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( column, columng, & ! INOUT
+        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
                             'TTHUtoHeight_tl') ! IN
       end if
     end if
@@ -1344,7 +1344,7 @@ contains
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
-  subroutine s2c_ad( statevector_out, column, columng, obsSpaceData )
+  subroutine s2c_ad( statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
     !
     ! :Purpose: Adjoint version of the horizontal interpolation,
     !           used for the cost function gradient with respect to the increment.
@@ -1354,8 +1354,8 @@ contains
     ! arguments
     type(struct_gsv), target   :: stateVector_out
     type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: column
-    type(struct_columnData)    :: columng
+    type(struct_columnData)    :: columnAnlInc
+    type(struct_columnData)    :: columnTrlOnAnlIncLev
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -1395,14 +1395,14 @@ contains
       ! Adjoint of calculate del Z_T/Z_M on the columns
       if ( statevector_out%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector_out%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( column, columng, & ! INOUT
+        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
                             'TTHUtoHeight_ad') ! IN
       end if
 
       ! Adjoint of calculate delP_T/delP_M on the columns
       if ( statevector_out%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector_out%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( column, columng, & ! INOUT
+        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
                             'PsfcToP_ad')      ! IN
       end if
 
@@ -1444,7 +1444,7 @@ contains
     cols_recv(:,:) = 0.0d0
 
     ! set contents of column to zero
-    allCols_ptr => col_getAllColumns(column)
+    allCols_ptr => col_getAllColumns(columnAnlInc)
 
     call gsv_getField(stateVector_VarsLevs,ptr4d)
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
@@ -1464,7 +1464,7 @@ contains
         ! Figure out which variable/level of source
         varName = gsv_getVarNameFromK(statevector,kIndex2)
         levIndex = gsv_getLevFromK(statevector,kIndex2)
-        allCols_ptr => col_getAllColumns(column,varName)
+        allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
           cols_send(headerIndex,procIndex) = allCols_ptr(levIndex,headerIndex)

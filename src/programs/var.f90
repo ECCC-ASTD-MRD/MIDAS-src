@@ -52,8 +52,8 @@ program midas_var
   real(8), allocatable :: controlVectorIncr(:)
 
   type(struct_obs)       , target :: obsSpaceData
-  type(struct_columnData), target :: trlColumnOnAnlLev
-  type(struct_columnData), target :: trlColumnOnTrlLev
+  type(struct_columnData), target :: columnTrlOnAnlIncLev
+  type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: statevector_Psfc
@@ -137,7 +137,7 @@ program midas_var
   call vco_SetupFromFile( vco_anl,        & ! OUT
                           './analysisgrid') ! IN
 
-  call col_setVco(trlColumnOnAnlLev,vco_anl)
+  call col_setVco(columnTrlOnAnlIncLev,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -155,7 +155,7 @@ program midas_var
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   !
   !- Initialize the observation error covariances
@@ -189,16 +189,16 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Read trials and horizontally interpolate to columns
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core,  &
+  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
                                    stateVectorTrialOut_opt=stateVectorTrial )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize stateVectorRefHU for doing variable transformation of the increments.
@@ -234,7 +234,7 @@ program midas_var
   end if
 
   ! Do minimization of cost function
-  call min_minimize(trlColumnOnAnlLev, obsSpaceData, controlVectorIncr, &
+  call min_minimize(columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncr, &
                     stateVectorRef_opt=stateVectorRefHU)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -264,7 +264,7 @@ program midas_var
 
   ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
   ! computations controlled by NAMOSD namelist in flnml)
-  call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev,hco_anl)
+  call osd_ObsSpaceDiag(obsSpaceData,columnTrlOnAnlIncLev,hco_anl)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
