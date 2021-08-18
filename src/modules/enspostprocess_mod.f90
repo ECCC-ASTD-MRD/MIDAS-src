@@ -199,8 +199,13 @@ contains
       end if
     end if
 
-    !- Allocate and compute ensemble mean Trl
+    !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
+    if (.not. hco_ens%global .and. useAnalIncMask) then
+      call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
+    end if
+
     if (ens_allocated(ensembleTrl)) then
+      !- Allocate and compute ensemble mean Trl
       call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -209,10 +214,19 @@ contains
       call gsv_zero(stateVectorMeanTrl)
       call ens_computeMean(ensembleTrl)
       call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
+      
+      !- Allocate and compute ensemble spread stddev Trl
+      call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         hInterpolateDegree_opt = hInterpolationDegree, &
+                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorStdDevTrl)
+      call ens_computeStdDev(ensembleTrl)
+      call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
     end if
 
-    !- Allocate and compute ensemble mean Anl
     if (ens_allocated(ensembleAnl)) then
+      !- Allocate and compute ensemble mean Anl
       call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -221,24 +235,13 @@ contains
       call gsv_zero(stateVectorMeanAnl)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-    end if
 
-    !- Allocate and compute ensemble spread stddev Trl
-    if (ens_allocated(ensembleTrl)) then
-      call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
-      call ens_computeStdDev(ensembleTrl)
-      call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
-    end if
-
-    if (ens_allocated(ensembleAnl)) then
       !- Allocate and compute ensemble spread stddev Anl
       call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          hInterpolateDegree_opt = hInterpolationDegree, &
                          dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorStdDevAnl)
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
@@ -433,6 +436,11 @@ contains
         call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
         call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
 
+        !- Mask the mean increment for LAM grid
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call gsv_applyMaskLAM(stateVectorMeanIncSubSample, stateVectorAnalIncMask)
+        end if
+
       end if ! writeSubsample
 
       !- If SubSample requested, do remaining processing and output of sub-sampled members
@@ -572,6 +580,11 @@ contains
         call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
         deallocate(varNames)
 
+        !- Mask the mean increment for LAM grid
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call gsv_applyMaskLAM(stateVectorMeanInc, stateVectorAnalIncMask)
+        end if
+
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -612,25 +625,24 @@ contains
       end if
       call tmg_stop(104)
 
-      !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
-      if (.not. hco_ens%global .and. useAnalIncMask) then
-        call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
-      end if
-
       if (ens_allocated(ensembleTrl)) then
         !- Output all ensemble member increments
-        ! WARNING: Increment put in ensembleTrl for output
+        ! WARNING: Increment put in ensembleAnl for output
         call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
 
         !- Mask the ensemble increment for LAM grid
         if (.not. hco_ens%global .and. useAnalIncMask) then
-          call ens_applyMaskLAM(ensembleTrl, stateVectorAnalIncMask)
+          call ens_applyMaskLAM(ensembleAnl, stateVectorAnalIncMask)
         end if
 
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
+<<<<<<< HEAD
           call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
+=======
+          call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_INC', 'R',  &
+>>>>>>> Save the result at the first argument in ens_add. Rearrange computation ensembe mean and std. Mask mean increment.
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
@@ -686,12 +698,16 @@ contains
 
         !- Mask the ensemble increment for LAM grid
         if (.not. hco_ens%global .and. useAnalIncMask) then
-          call ens_applyMaskLAM(ensembleTrlSubSample, stateVectorAnalIncMask)
+          call ens_applyMaskLAM(ensembleAnlSubSample, stateVectorAnalIncMask)
         end if
 
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
+<<<<<<< HEAD
           call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
+=======
+          call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
+>>>>>>> Save the result at the first argument in ens_add. Rearrange computation ensembe mean and std. Mask mean increment.
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           ! Also write the reference (analysis) surface pressure to increment files
