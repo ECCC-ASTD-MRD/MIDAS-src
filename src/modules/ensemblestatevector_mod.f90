@@ -480,15 +480,15 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_add
   !--------------------------------------------------------------------------
-  subroutine ens_add(ens_in, ens_inOut, scaleFactorIn_opt, scaleFactorInOut_opt)
+  subroutine ens_add(ens_inOut, ens_in, scaleFactorIn_opt, scaleFactorInOut_opt)
     !
     !:Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
     !
     implicit none
 
     ! arguments
-    type(struct_ens),  intent(in)    :: ens_in
     type(struct_ens),  intent(inout) :: ens_inOut
+    type(struct_ens),  intent(in)    :: ens_in
     real(8), optional, intent(in)    :: scaleFactorIn_opt
     real(8), optional, intent(in)    :: scaleFactorInOut_opt
 
@@ -533,9 +533,9 @@ CONTAINS
               do memberIndex = 1, ens_inOut%numMembers
                 ens_inOut%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
                      scaleFactorInOut *  &
-                     ens_inOut%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     ens_in%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
                      scaleFactorIn    *  &
-                     ens_in%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                     ens_inOut%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -564,9 +564,9 @@ CONTAINS
               do memberIndex = 1, ens_inOut%numMembers
                 ens_inOut%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
                      scaleFactorInOut_r4 *  &
-                     ens_inOut%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     ens_in%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
                      scaleFactorIn_r4    *  &
-                     ens_in%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+                     ens_inOut%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
