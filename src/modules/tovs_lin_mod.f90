@@ -567,7 +567,7 @@ contains
 
       ! Build the list of channels/profiles indices
 
-      call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, sensorBodyIndexes)
+      call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, iptobs_cma_opt = sensorBodyIndexes)
       !     get non Hyperspectral IR emissivities
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
 
