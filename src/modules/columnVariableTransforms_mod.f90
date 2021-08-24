@@ -43,75 +43,75 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! cvt_transform
   !--------------------------------------------------------------------------
-  subroutine cvt_transform(column, columnRef, transform)
+  subroutine cvt_transform(columnInc, columnRefOnIncLev, transform)
     implicit none
    
     ! Arguments
-    type(struct_columnData)      :: column
-    type(struct_columnData)      :: columnRef
+    type(struct_columnData)      :: columnInc
+    type(struct_columnData)      :: columnRefOnIncLev
     character(len=*), intent(in) :: transform
 
     select case(trim(transform))
 
     case ('TTHUtoHeight_tl')
-      if ( .not. col_varExist(column,'TT')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in column')
+      if ( .not. col_varExist(columnInc,'TT')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'HU')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable HU must be allocated in column')
+      if ( .not. col_varExist(columnInc,'HU')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable HU must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable P0 must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable P0 must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'Z_T')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_T')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'Z_M')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_M')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in columnInc')
       end if
-      call TTHUtoHeight_tl(column,columnRef)
+      call TTHUtoHeight_tl(columnInc,columnRefOnIncLev)
 
     case ('TTHUtoHeight_ad')
-      if ( .not. col_varExist(column,'TT')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in column')
+      if ( .not. col_varExist(columnInc,'TT')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'HU')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable HU must be allocated in column')
+      if ( .not. col_varExist(columnInc,'HU')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable HU must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable P0 must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable P0 must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'Z_T')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_T')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'Z_M')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_M')  ) then
+        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in columnInc')
       end if
-      call TTHUtoHeight_ad(column,columnRef)
+      call TTHUtoHeight_ad(columnInc,columnRefOnIncLev)
 
     case ('PsfcToP_tl')
-      if ( .not. col_varExist(column,'P_T')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_T must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P_M')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_M must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P0 must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_tl, variable P0 must be allocated in columnInc')
       end if
-      call PsfcToP_tl(column,columnRef)
+      call PsfcToP_tl(columnInc,columnRefOnIncLev)
 
     case ('PsfcToP_ad')
-      if ( .not. col_varExist(column,'P_T')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_T must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P_M')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_M must be allocated in columnInc')
       end if
-      if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P0 must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('cvt_transform: for PsfcToP_ad, variable P0 must be allocated in columnInc')
       end if
-      call PsfcToP_ad(column,columnRef)
+      call PsfcToP_ad(columnInc,columnRefOnIncLev)
 
     case default
       write(*,*)
@@ -124,63 +124,63 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_tl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(column,columnRef)
+  subroutine TTHUtoHeight_tl(columnInc,columnRefOnIncLev)
     implicit none
 
-    type(struct_columnData)    :: column, columnRef
+    type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call tt2phi_tl(column, columnRef)
+    call tt2phi_tl(columnInc, columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_tl
 
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_ad
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(column,columnRef)
+  subroutine TTHUtoHeight_ad(columnInc,columnRefOnIncLev)
     implicit none
 
-    type(struct_columnData)    :: column, columnRef
+    type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call tt2phi_ad(column,columnRef)
+    call tt2phi_ad(columnInc,columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_ad
 
   !--------------------------------------------------------------------------
   ! PsfcToP_tl
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(column,columnRef)
+  subroutine PsfcToP_tl(columnInc,columnRefOnIncLev)
     implicit none
 
-    type(struct_columnData)    :: column, columnRef
+    type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call cvt_calcPressure_tl(column,columnRef)
+    call cvt_calcPressure_tl(columnInc,columnRefOnIncLev)
 
   end subroutine PsfcToP_tl
 
   !--------------------------------------------------------------------------
   ! PsfcToP_ad
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(column,columnRef)
+  subroutine PsfcToP_ad(columnInc,columnRefOnIncLev)
     implicit none
 
-    type(struct_columnData)    :: column, columnRef
+    type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call cvt_calcPressure_ad(column,columnRef)
+    call cvt_calcPressure_ad(columnInc,columnRefOnIncLev)
 
   end subroutine PsfcToP_ad
 
   !--------------------------------------------------------------------------
   ! cvt_calcPressure_tl
   !--------------------------------------------------------------------------
-  subroutine cvt_calcPressure_tl(column, columnRef, beSilent_opt)
+  subroutine cvt_calcPressure_tl(columnInc, columnRefOnIncLev, beSilent_opt)
     !
     !:Purpose: calculation of the pressure increment on the grid.
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnRef ! column that has the Psfc
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
+    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
     logical, optional                      :: beSilent_opt
 
     ! Locals:
@@ -206,14 +206,14 @@ CONTAINS
     nullify(delP_T)
     nullify(delP_M)
 
-    delP_M  => col_getAllColumns(column,'P_M')
-    delP_T  => col_getAllColumns(column,'P_T')
-    delPsfc => col_getAllColumns(column,'P0')
-    PsfcRef => col_getAllColumns(columnRef,'P0')
+    delP_M  => col_getAllColumns(columnInc,'P_M')
+    delP_T  => col_getAllColumns(columnInc,'P_T')
+    delPsfc => col_getAllColumns(columnInc,'P0')
+    PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
 
-    nlev_T = col_getNumLev(column,'TH')
-    nlev_M = col_getNumLev(column,'MM')
-    numColumns = col_getNumCol(column)
+    nlev_T = col_getNumLev(columnInc,'TH')
+    nlev_M = col_getNumLev(columnInc,'MM')
+    numColumns = col_getNumCol(columnInc)
 
     do colIndex = 1, numColumns
 
@@ -221,8 +221,8 @@ CONTAINS
 
       ! dP_dPsfc_M
       nullify(dP_dPsfc_M)
-      status = vgd_dpidpis(column%vco%vgrid, &
-                           column%vco%ip1_M, &
+      status = vgd_dpidpis(columnInc%vco%vgrid, &
+                           columnInc%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('cvt_calcPressure_tl: ERROR with vgd_dpidpis')
@@ -234,8 +234,8 @@ CONTAINS
 
       ! dP_dPsfc_T
       nullify(dP_dPsfc_T)
-      status = vgd_dpidpis(column%vco%vgrid, &
-                           column%vco%ip1_T, &
+      status = vgd_dpidpis(columnInc%vco%vgrid, &
+                           columnInc%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('cvt_calcPressure_tl: ERROR with vgd_dpidpis')
@@ -252,15 +252,15 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! cvt_calcPressure_ad
   !--------------------------------------------------------------------------
-  subroutine cvt_calcPressure_ad(column, columnRef, beSilent_opt)
+  subroutine cvt_calcPressure_ad(columnInc, columnRefOnIncLev, beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the pressure on the grid.
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column    ! column that will contain ncrement of Psfc.
-    type(struct_columnData), intent(in)    :: columnRef ! column that has the Psfc
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of Psfc.
+    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
     logical, optional                      :: beSilent_opt
 
     ! Locals:
@@ -287,14 +287,14 @@ CONTAINS
     nullify(dP_dPsfc_T)
     nullify(dP_dPsfc_M)
 
-    delP_M  => col_getAllColumns(column,'P_M')
-    delP_T  => col_getAllColumns(column,'P_T')
-    delPsfc => col_getAllColumns(column,'P0')
-    PsfcRef => col_getAllColumns(columnRef,'P0')
+    delP_M  => col_getAllColumns(columnInc,'P_M')
+    delP_T  => col_getAllColumns(columnInc,'P_T')
+    delPsfc => col_getAllColumns(columnInc,'P0')
+    PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
 
-    nlev_T = col_getNumLev(column,'TH')
-    nlev_M = col_getNumLev(column,'MM')
-    numColumns = col_getNumCol(column)
+    nlev_T = col_getNumLev(columnInc,'TH')
+    nlev_M = col_getNumLev(columnInc,'MM')
+    numColumns = col_getNumCol(columnInc)
 
     do colIndex = 1, numColumns
 
@@ -302,8 +302,8 @@ CONTAINS
 
       ! dP_dPsfc_M
       nullify(dP_dPsfc_M)
-      status = vgd_dpidpis(column%vco%vgrid, &
-                           column%vco%ip1_M, &
+      status = vgd_dpidpis(columnInc%vco%vgrid, &
+                           columnInc%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('cvt_calcPressure_ad: ERROR with vgd_dpidpis')
@@ -316,8 +316,8 @@ CONTAINS
 
       ! dP_dPsfc_T
       nullify(dP_dPsfc_T)
-      status = vgd_dpidpis(column%vco%vgrid, &
-                           column%vco%ip1_T, &
+      status = vgd_dpidpis(columnInc%vco%vgrid, &
+                           columnInc%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
       if( status .ne. VGD_OK ) call utl_abort('cvt_calcPressure_ad: ERROR with vgd_dpidpis')

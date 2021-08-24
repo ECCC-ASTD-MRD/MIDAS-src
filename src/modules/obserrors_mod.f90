@@ -1886,14 +1886,14 @@ contains
   !--------------------------------------------------------------------------
   ! oer_sw
   !--------------------------------------------------------------------------
-  subroutine oer_sw(columnhr,obsSpaceData)
+  subroutine oer_sw(columnTrlOnTrlLev,obsSpaceData)
     !
     ! :Purpose: Calculate observation errors for AMVs according to the Met-Office 
     !           situation dependant approach.
     !
     implicit none
 
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
 
     integer :: headerIndex,bodyIndex,ilyr,jlev
@@ -1973,10 +1973,10 @@ contains
       varLevel = vnl_varLevelFromVarnum(ivnm)
       varName  = vnl_varnameFromVarnum(ivnm)
 
-      col_ptr_uv=>col_getColumn(columnhr,headerIndex,varName)
+      col_ptr_uv=>col_getColumn(columnTrlOnTrlLev,headerIndex,varName)
       ilyr = obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
-      ZPT  = col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
-      ZPB  = col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
+      ZPT  = col_getPressure(columnTrlOnTrlLev,ilyr  ,headerIndex,varLevel)
+      ZPB  = col_getPressure(columnTrlOnTrlLev,ilyr+1,headerIndex,varLevel)
       ZWB  = LOG(zlev/ZPT)/LOG(ZPB/ZPT)
       ZWT  = 1. - ZWB
 
@@ -1987,10 +1987,10 @@ contains
       if(zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug ) then
         write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,zlev,ZMOD,ZVAR,E_DRIFT
       end if
-      do jlev = 2, col_getNumLev(columnhr,'MM') - 1
-        ZPT= col_getPressure(columnhr,jlev-1,headerIndex,varLevel)
-        ZPC= col_getPressure(columnhr,jlev  ,headerIndex,varLevel)
-        ZPB= col_getPressure(columnhr,jlev+1,headerIndex,varLevel)
+      do jlev = 2, col_getNumLev(columnTrlOnTrlLev,'MM') - 1
+        ZPT= col_getPressure(columnTrlOnTrlLev,jlev-1,headerIndex,varLevel)
+        ZPC= col_getPressure(columnTrlOnTrlLev,jlev  ,headerIndex,varLevel)
+        ZPB= col_getPressure(columnTrlOnTrlLev,jlev+1,headerIndex,varLevel)
         ZOTR = col_ptr_uv(jlev)
         SP_WGH = exp( -0.5*((ZPC - zlev)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
@@ -2101,13 +2101,13 @@ contains
   !--------------------------------------------------------------------------
   ! oer_SETERRGPSRO
   !--------------------------------------------------------------------------
-  SUBROUTINE oer_SETERRGPSRO( lcolumnhr, obsSpaceData, beSilent )
+  SUBROUTINE oer_SETERRGPSRO( columnTrlOnTrlLev, obsSpaceData, beSilent )
     !
     ! :Purpose: Compute estimated errors for GPSRO observations
     !
     IMPLICIT NONE
     !
-    type(struct_columnData) :: lcolumnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     !
@@ -2140,8 +2140,8 @@ contains
     !     * 1.  Initializations
     !     *     ---------------
     !
-    NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
-    NWNDLEV=col_getNumLev(LCOLUMNHR,'MM')
+    NGPSLEV=col_getNumLev(columnTrlOnTrlLev,'TH')
+    NWNDLEV=col_getNumLev(columnTrlOnTrlLev,'MM')
     allocate(ZPP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
@@ -2195,7 +2195,7 @@ contains
           Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
           Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
           zAzm = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex) / MPC_DEGREES_PER_RADIAN_R8
-          zMT  = col_getHeight(lcolumnhr,0,headerIndex,'SF')
+          zMT  = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
              !     
              !     *        Profile at the observation location:
              !
@@ -2205,31 +2205,31 @@ contains
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
           zMT  = zMT * RG / gpsgravitysrf(sLat)
-          zP0  = col_getElem(lcolumnhr,1,headerIndex,'P0')
+          zP0  = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
                 !     *           Profile x
                 !
-            ZPP(JL) = col_getPressure(LCOLUMNHR,JL,headerIndex,'TH')
-            ZTT(JL) = col_getElem(lcolumnhr,JL,headerIndex,'TT') - p_TC
-            ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
+            ZPP(JL) = col_getPressure(columnTrlOnTrlLev,JL,headerIndex,'TH')
+            ZTT(JL) = col_getElem(columnTrlOnTrlLev,JL,headerIndex,'TT') - p_TC
+            ZHU(JL) = col_getElem(columnTrlOnTrlLev,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
-            zHeight(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
+            zHeight(jl) = col_getHeight(columnTrlOnTrlLev,jl,headerIndex,'TH')
           end do
 
-          if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
-               col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
+          if((col_getPressure(columnTrlOnTrlLev,1,headerIndex,'TH') + 1.0d-4)  <  &
+               col_getPressure(columnTrlOnTrlLev,1,headerIndex,'MM')) then
                 ! case with top thermo level above top momentum level (Vcode=5002)
             do jl = 1, nwndlev
-              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU')
-              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV')
+              zuu(jl) = col_getElem(columnTrlOnTrlLev,jl, headerIndex, 'UU')
+              zvv(jl) = col_getElem(columnTrlOnTrlLev,jl, headerIndex, 'VV')
             end do
           else
                 ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
             do jl = 1, nwndlev - 1
-              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' )
-              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' )
+              zuu(jl) = col_getElem( columnTrlOnTrlLev, jl + 1, headerIndex, 'UU' )
+              zvv(jl) = col_getElem( columnTrlOnTrlLev, jl + 1, headerIndex, 'VV' )
             end do
             zuu(nwndlev) = zuu( nwndlev - 1 )
             zvv(nwndlev) = zuu( nwndlev - 1 )
@@ -2439,7 +2439,7 @@ contains
   !--------------------------------------------------------------------------
   ! oer_SETERRGPSGB
   !--------------------------------------------------------------------------
-  SUBROUTINE oer_SETERRGPSGB( columnhr, obsSpaceData, beSilent, ldata, analysisMode )
+  SUBROUTINE oer_SETERRGPSGB( columnTrlOnTrlLev, obsSpaceData, beSilent, ldata, analysisMode )
     !
     ! :Purpose:
     !
@@ -2455,7 +2455,7 @@ contains
     !!       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
     !!       CORRELATIONS.
     !!
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     logical                 :: ldata
@@ -2525,7 +2525,7 @@ contains
       LLRZTDE = .TRUE.
     end if
 
-    nlev_T = col_getNumLev(columnhr,'TH')
+    nlev_T = col_getNumLev(columnTrlOnTrlLev,'TH')
 
     ldata = .false.
     ICOUNT  = 0
@@ -2551,9 +2551,9 @@ contains
 
        !   Get Psfc (Pa), Tsfc (K) and model surface height (m) from background profile
 
-      ZBPSFC = col_getElem( columnhr, 1, headerIndex, 'P0' )
-      ZBTSFC = col_getElem( columnhr, nlev_T, headerIndex, 'TT' )
-      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' )
+      ZBPSFC = col_getElem( columnTrlOnTrlLev, 1, headerIndex, 'P0' )
+      ZBTSFC = col_getElem( columnTrlOnTrlLev, nlev_T, headerIndex, 'TT' )
+      ZBZSFC = col_getHeight( columnTrlOnTrlLev, nlev_T, headerIndex, 'TH' )
        !
        !    Loop over all body indices of current report; Set the ZTD error if
        !    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).
@@ -2685,13 +2685,13 @@ contains
   !--------------------------------------------------------------------------
   ! oer_setErrBackScatAnisIce
   !--------------------------------------------------------------------------
-  subroutine oer_setErrBackScatAnisIce( columnhr, obsSpaceData, beSilent )
+  subroutine oer_setErrBackScatAnisIce( columnTrlOnTrlLev, obsSpaceData, beSilent )
     !
     ! :Purpose: Compute estimated errors for ASCAT backscatter anisotropy observations
     !
     implicit none
 
-    type(struct_columnData), intent(in) :: columnhr
+    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
     type(struct_obs)                    :: obsSpaceData
     logical,                 intent(in) :: beSilent
 
@@ -2727,7 +2727,7 @@ contains
         if ( varno == BUFR_ICES ) then
            write(ccyymmdd, FMT='(i8.8)') idate
            read(ccyymmdd(5:6), FMT='(i2)') imonth
-           conc = col_getElem(columnhr,1,headerIndex,'GL')
+           conc = col_getElem(columnTrlOnTrlLev,1,headerIndex,'GL')
            obsErrStdDev = SQRT( ((1.0-conc)*ascatAnisSigmaOpenWater(trackCellNum,imonth))**2 + &
                                        (conc*ascatAnisSigmaIce(trackCellNum,imonth))**2 )
 

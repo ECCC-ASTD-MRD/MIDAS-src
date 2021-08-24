@@ -50,7 +50,7 @@ module backgroundCheck_mod
   !--------------------------------------------------------------------------
   ! bgck_bgcheck_conv
   !--------------------------------------------------------------------------
-  subroutine bgck_bgcheck_conv( columng, columnhr, hco_anl, obsSpaceData )
+  subroutine bgck_bgcheck_conv( columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData )
      !
      !:Purpose: Do background check on all conventional observations
      !
@@ -58,8 +58,8 @@ module backgroundCheck_mod
 
      ! Arguments:
      type(struct_obs)          :: obsSpaceData  ! Observation-related data
-     type(struct_columnData)   :: columng       !
-     type(struct_columnData)   :: columnhr      ! 
+     type(struct_columnData)   :: columnTrlOnAnlIncLev       !
+     type(struct_columnData)   :: columnTrlOnTrlLev      ! 
      type(struct_hco), pointer :: hco_anl
 
      ! Locals:
@@ -102,7 +102,7 @@ module backgroundCheck_mod
      ! Otherwise calc HBHT contribution (sigma_B in observation space)  
      ! -------------------------------------------------------------------- 
 
-     call ose_computeStddev( columng, hco_anl, & ! IN
+     call ose_computeStddev( columnTrlOnAnlIncLev, hco_anl, & ! IN
                              obsSpaceData )      ! INOUT
 
      ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
@@ -115,12 +115,12 @@ module backgroundCheck_mod
        end if
      end do
 
-     if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )
+     if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnTrlOnTrlLev , obsSpaceData )
 
      ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
      ! computations controlled by NAMOSD namelist in flnml)
 
-     call osd_ObsSpaceDiag( obsSpaceData, columng, hco_anl, analysisMode_opt = .false. )
+     call osd_ObsSpaceDiag(obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt = .false.)
 
      call tmg_stop(3)
 
@@ -502,14 +502,14 @@ module backgroundCheck_mod
   !--------------------------------------------------------------------------
   ! bgck_gpsro
   !--------------------------------------------------------------------------
-  subroutine bgck_gpsro(lcolumnhr,lobsSpaceData)
+  subroutine bgck_gpsro(columnTrlOnTrlLev,lobsSpaceData)
       !
       !:Purpose: Set background-check flag on GPSRO data if ABS(O-P)/P is too
       !          large
       !
       IMPLICIT NONE
 
-      type(struct_columnData) :: lcolumnhr
+      type(struct_columnData) :: columnTrlOnTrlLev
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_trl
       real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
@@ -523,7 +523,7 @@ module backgroundCheck_mod
       LOGICAL :: LSTAG
 
       LSTAG = .FALSE.
-      vco_trl => col_getVco(lcolumnhr)
+      vco_trl => col_getVco(columnTrlOnTrlLev)
       stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
       if (iversion .eq. 5002) LSTAG = .TRUE. 
       
@@ -532,7 +532,7 @@ module backgroundCheck_mod
       ! 1.  Initializations
       !     ---------------
 
-      NGPSLEV=col_getNumLev(lcolumnhr,'TH')
+      NGPSLEV=col_getNumLev(columnTrlOnTrlLev,'TH')
 
       ! Loop over all files
 

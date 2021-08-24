@@ -60,12 +60,11 @@ module minimization_mod
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
-  type(struct_obs)       , pointer :: obsSpaceData_ptr => null()
-  type(struct_columnData), pointer :: column_ptr       => null()
-  type(struct_columnData), pointer :: columng_ptr      => null()
-
-  type(struct_gsv), pointer :: stateVectorRefHU_ptr => null()
-  type(struct_hco), pointer :: hco_anl => null()
+  type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()
+  type(struct_columnData), pointer :: columnAnlInc_ptr         => null()
+  type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr => null()
+  type(struct_gsv)       , pointer :: stateVectorRefHU_ptr     => null()
+  type(struct_hco)       , pointer :: hco_anl                  => null()
 
   logical             :: initialized = .false.
 
@@ -198,15 +197,15 @@ CONTAINS
 
   end subroutine min_setup
 
-  subroutine min_minimize(columng,obsSpaceData,vazx,stateVectorRef_opt)
+  subroutine min_minimize(columnTrlOnAnlIncLev,obsSpaceData,vazx,stateVectorRef_opt)
     implicit none
 
     real*8 :: vazx(:)
     type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: columng
+    type(struct_columnData)    :: columnTrlOnAnlIncLev
     type(struct_gsv), target, optional :: stateVectorRef_opt
 
-    type(struct_columnData)   :: column
+    type(struct_columnData)   :: columnAnlInc
     integer :: get_max_rss
 
     write(*,*) '--------------------------------'
@@ -219,15 +218,15 @@ CONTAINS
       if ( statevectorRef_opt%allocated ) stateVectorRefHU_ptr => stateVectorRef_opt
     end if
 
-    call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
+    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
 
-    call quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
+    call quasiNewtonMinimization(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,vazx)
 
-    call col_deallocate(column)
+    call col_deallocate(columnAnlInc)
     call tmg_stop(3)
 
     ! Memory deallocations for non diagonal R matrices for radiances
@@ -239,13 +238,13 @@ CONTAINS
 
 
 
-  subroutine quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
+  subroutine quasiNewtonMinimization(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,vazx)
       !
       !:Purpose: 3D/En-VAR minimization
       implicit none
 
       ! Arguments:
-      type(struct_columnData),target :: column,columng
+      type(struct_columnData),target :: columnAnlInc,columnTrlOnAnlIncLev
       type(struct_obs),target :: obsSpaceData
       real*8 :: vazx(:)
 
@@ -310,9 +309,9 @@ CONTAINS
       endif
 
       ! set module variable pointers for obsspacedata and the two column objects
-      obsSpaceData_ptr => obsSpaceData
-      column_ptr       => column
-      columng_ptr      => columng
+      obsSpaceData_ptr         => obsSpaceData
+      columnAnlInc_ptr         => columnAnlInc
+      columnTrlOnAnlIncLev_ptr => columnTrlOnAnlIncLev
 
       ! Set-up the minimization
 
@@ -504,7 +503,7 @@ CONTAINS
       if(numIterMax_pert.gt.0) then
         dg_vbar(:) = 0.0d0
         call tmg_start(4,'MINPERT')
-        call min_analysisPert(vatra,iztrl,zdf1,column,columng,obsSpaceData)
+        call min_analysisPert(vatra,iztrl,zdf1,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)
         call tmg_stop(4)
       endif
 
@@ -543,7 +542,7 @@ CONTAINS
   end subroutine min_writeHessian
 
 
-  subroutine min_analysisPert(vatra,iztrl,zdf1,column,columng, &
+  subroutine min_analysisPert(vatra,iztrl,zdf1,columnAnlInc,columnTrlOnAnlIncLev, &
                               obsSpaceData)
     !
     !:Purpose: To use QNA_N1QN3 minimization to perform analysis step on
@@ -554,7 +553,7 @@ CONTAINS
     real(8)                        :: vatra(:)
     integer                        :: iztrl(:)
     real(8)                        :: zdf1
-    type(struct_columnData),target :: column,columng
+    type(struct_columnData),target :: columnAnlInc,columnTrlOnAnlIncLev
     type(struct_obs),target        :: obsSpaceData
 
     ! Locals
@@ -585,7 +584,7 @@ CONTAINS
     endif
 
     ! initialization
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
                       dataKind_opt=pre_incrReal, &
@@ -665,8 +664,8 @@ CONTAINS
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
 
       ! compute -H*xb', put in OBS_WORK
-      call s2c_tl(statevector_ens(indexAnalysis),column,columng,obsSpaceData)  ! put in column H_horiz
-      call oop_Htl(column,columng,obsSpaceData,min_nsim)
+      call s2c_tl(statevector_ens(indexAnalysis),columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)  ! put in columnAnlInc H_horiz
+      call oop_Htl(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,min_nsim)
 
       ! undo the multiply by -1 (-xb')
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
@@ -1020,12 +1019,12 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
        if (oneDVarMode) then
-         call var1D_sqrtB(da_v, nvadim_mpilocal, column_ptr, obsSpaceData_ptr)
-         call cvt_transform(column_ptr, columng_ptr, 'PsfcToP_tl')
+         call var1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
+         call cvt_transform(columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr, 'PsfcToP_tl')
        else
          if (.not.statevector%allocated) then
            write(*,*) 'min-simvar: allocating increment stateVector'
-           vco_anl => col_getVco(columng_ptr)
+           vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
            call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                 dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
            call gsv_readMaskFromFile(statevector,'./analysisgrid')
@@ -1039,17 +1038,17 @@ CONTAINS
          end if
 
          call tmg_start(30,'OBS_INTERP')
-         call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+         call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in columnAnlInc H_horiz dx
          call tmg_stop(30)
        end if
       
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
        call res_compute(obsSpaceData_ptr)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
 
-       call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columng_ptr)
+       call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
 
@@ -1078,17 +1077,17 @@ CONTAINS
 
        call res_computeAd(obsSpaceData_ptr)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
 
-       call col_zero(column_ptr)
+       call col_zero(columnAnlInc_ptr)
 
        call tmg_start(41,'OBS_AD')
-       call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in columnAnlInc : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        if (oneDVarMode) then
          ! no interpolation needed for 1Dvar case
        else
          call tmg_start(31,'OBS_INTERPAD')
-         call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
+         call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
          call tmg_stop(31)
        end if
 
@@ -1096,8 +1095,8 @@ CONTAINS
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
 
        if (oneDVarMOde) then
-         call cvt_transform( column_ptr, columng_ptr, 'PsfcToP_ad')      ! IN
-         call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, column_ptr, obsSpaceData_ptr)
+         call cvt_transform( columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr, 'PsfcToP_ad')      ! IN
+         call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
        else
          if ( associated(stateVectorRefHU_ptr) ) then
            call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &

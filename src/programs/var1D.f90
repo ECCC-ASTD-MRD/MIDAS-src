@@ -49,9 +49,9 @@ program midas_var1D
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
   type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: trlColumnOnAnlLev
-  type(struct_columnData), target  :: trlColumnOnTrlLev
-  type(struct_columnData), target  :: columnIncr
+  type(struct_columnData), target  :: columnTrlOnAnlIncLev
+  type(struct_columnData), target  :: columnTrlOnTrlLev
+  type(struct_columnData), target  :: columnAnlInc
   type(struct_gsv)                 :: stateVectorIncr
   type(struct_gsv)                 :: stateVectorTrial
   type(struct_gsv)                 :: stateVectorAnalysis
@@ -125,7 +125,7 @@ program midas_var1D
   call vco_SetupFromFile( vco_anl,        & ! OUT
                           './analysisgrid') ! IN
 
-  call col_setVco(trlColumnOnAnlLev, vco_anl)
+  call col_setVco(columnTrlOnAnlIncLev, vco_anl)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
@@ -143,7 +143,7 @@ program midas_var1D
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
 
   !
   !- Initialize the observation error covariances
@@ -160,7 +160,7 @@ program midas_var1D
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(2, 'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core,  &
+  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
                                    stateVectorTrialOut_opt=stateVectorTrial )
 
   !
@@ -183,10 +183,10 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(trlColumnOnTrlLev, obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
   call tmg_stop(2)
 
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
@@ -196,18 +196,18 @@ program midas_var1D
   end if
 
   ! Do minimization of cost function
-  call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVectorIncr)
+  call min_minimize(columnTrlOnAnlIncLev,obsSpaceData,controlVectorIncr)
 
   ! Compute satellite bias correction increment and write to file
   ! Is is still necessary ? (will do nothing, but does it make sense in 1DVar mode ?)
   call bcs_writebias(controlVectorIncr)
 
-  call col_setVco(columnIncr, col_getVco(trlColumnOnAnlLev))
-  call col_allocate(columnIncr,col_getNumCol(trlColumnOnAnlLev),mpiLocal_opt=.true.)
-  call col_zero(columnIncr)
+  call col_setVco(columnAnlInc, col_getVco(columnTrlOnAnlIncLev))
+  call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+  call col_zero(columnAnlInc)
   ! get final increment
-  call var1D_get1DvarIncrement(controlVectorIncr,columnIncr,trlColumnOnAnlLev,obsSpaceData,cvm_nvadim)
-  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnIncr)
+  call var1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
+  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc)
   ! output the analysis increment
   call tmg_start(6, 'WRITEINCR')
   call inc_writeIncrement(stateVectorIncr)
@@ -215,7 +215,7 @@ program midas_var1D
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18, 'ADDINCREMENT')
-  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, trlColumnOnAnlLev)
+  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev)
 
   if (mpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 

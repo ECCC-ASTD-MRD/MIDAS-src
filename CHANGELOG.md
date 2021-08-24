@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Clarified code regarding obs and column surface height; new naming convention for columnData variables (#519 and !494)
  * Modifs to accept Doppler Sqlite v1.0.0 for Doppler velocity (#515 and !492)
  * Move `analysisGrid_mod` setup from main programs to lower level and remove `agd_getHco` (#496 and !482)
  * Module `bmatrixchem_mod` is now independent from the meteorological Bnmc (bgcov) file (#505 and !477)

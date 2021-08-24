@@ -504,20 +504,21 @@ contains
   !--------------------------------------------------------------------------
   ! var1D_get1DVarIncrement
   !--------------------------------------------------------------------------
-  subroutine var1D_get1DVarIncrement(incr_cv, column, columng, obsSpaceData, nvadim_mpilocal)
+  subroutine var1D_get1DVarIncrement(incr_cv, column, columnTrlOnAnlIncLev, &
+                                     obsSpaceData, nvadim_mpilocal)
     !
-    ! :Purpose: to compue 1Dvar increment from control vector
+    ! :Purpose: to compute 1Dvar increment from control vector
     !
     implicit none
     ! arguments:
     real(8), intent(in)                    :: incr_cv(:)
     type(struct_columnData), intent(inout) :: column
-    type(struct_columnData), intent(in)    :: columng
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
     type(struct_obs),        intent(in)    :: obsSpaceData
     integer,                 intent(in)    :: nvadim_mpilocal
     ! compute increment from control vector (multiply by B^1/2)
     call var1D_sqrtB(incr_cv, nvadim_mpilocal, column, obsSpaceData)
-    call cvt_transform(column, columng, 'PsfcToP_tl')
+    call cvt_transform(column, columnTrlOnAnlIncLev, 'PsfcToP_tl')
 
   end subroutine var1D_get1DVarIncrement
 

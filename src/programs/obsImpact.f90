@@ -52,14 +52,14 @@ program midas_obsimpact
   integer :: istamp,exdb,exfin,ierr
 
   type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: trlColumnOnAnlLev
-  type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
+  type(struct_columnData),target :: columnTrlOnTrlLev
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
 
   type(struct_obs),pointer        :: obsSpaceData_ptr
-  type(struct_columnData),pointer :: columng_ptr
+  type(struct_columnData),pointer :: columnTrlOnAnlIncLev_ptr
   type(struct_columnData),pointer :: column_ptr
   type(struct_vco),pointer        :: vco_anl => null()
   type(struct_hco),pointer        :: hco_anl => null()
@@ -154,7 +154,7 @@ program midas_obsimpact
   call vco_SetupFromFile( vco_anl,        & ! OUT
                           './analysisgrid') ! IN
 
-  call col_setVco(trlColumnOnAnlLev,vco_anl)
+  call col_setVco(columnTrlOnAnlIncLev,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -172,7 +172,7 @@ program midas_obsimpact
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   !
   !- Initialize the observation error covariances
@@ -183,7 +183,7 @@ program midas_obsimpact
   !
   !- Reading and horizontal interpolation of the 3D trial fields
   !
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData, hco_core )
+  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -201,14 +201,14 @@ program midas_obsimpact
   !
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
   call tmg_stop(2)
 
   ! Perform forecast sensitivity to observation calculation using ensemble approach 
-  call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
+  call fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
@@ -288,10 +288,10 @@ contains
   end subroutine fso_setup
  
 
-  subroutine fso_ensemble(columng,obsSpaceData)
+  subroutine fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
     implicit none
 
-    type(struct_columnData),target  :: columng
+    type(struct_columnData),target  :: columnTrlOnAnlIncLev
     type(struct_obs),target         :: obsSpaceData
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_FcstErr, statevector_fso
@@ -305,13 +305,13 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
     nvadim_mpilocal = cvm_nvadim
 
     ! initialize column object for storing "increment"
-    call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
@@ -339,7 +339,7 @@ contains
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
-    call fso_calcFcstError(columng,statevector_FcstErr)
+    call fso_calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr)
    
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
@@ -348,7 +348,7 @@ contains
     if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
-      call fso_minimize(nvadim_mpilocal, zhat, column, columng, obsSpaceData)
+      call fso_minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     elseif( trim(fsoMode) == 'EFSO' ) then
@@ -356,8 +356,8 @@ contains
     end if
 
     ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
-    call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
-    call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
+    call s2c_tl(statevector_fso,column,columnTrlOnAnlIncLev,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
+    call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
 
@@ -389,14 +389,14 @@ contains
 
   end subroutine fso_ensemble
 
-  subroutine fso_calcFcstError(columng,statevector_out)
+  subroutine fso_calcFcstError(columnTrlOnAnlIncLev,statevector_out)
     !
     ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
     ! Based on these inputs, it calculates the Forecast error
     !
     implicit none
     
-    type(struct_columnData),target  :: columng
+    type(struct_columnData),target  :: columnTrlOnAnlIncLev
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
     type(struct_gsv)                :: statevector_out
     character(len=256)              :: fileName_fa, fileName_fb, fileName_a
@@ -406,7 +406,7 @@ contains
     type(struct_vco), pointer       :: vco_anl
     integer                         :: dateStamp_fcst, dateStamp
     
-    vco_anl => col_getVco(columng)
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
@@ -475,10 +475,10 @@ contains
 
   end subroutine fso_calcFcstError
 
-  subroutine fso_minimize(nvadim,zhat,column,columng,obsSpaceData)
+  subroutine fso_minimize(nvadim,zhat,column,columnTrlOnAnlIncLev,obsSpaceData)
     implicit none
 
-    type(struct_columnData),target  :: columng, column
+    type(struct_columnData),target  :: columnTrlOnAnlIncLev, column
     type(struct_obs),target         :: obsSpaceData
     real(8),dimension(nvadim)       :: zhat
     real(8),allocatable             :: gradJ(:), vatra(:)
@@ -495,7 +495,7 @@ contains
     nmtra = (4 + 2*nvamaj)*nvadim
     write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
 
-    columng_ptr => columng
+    columnTrlOnAnlIncLev_ptr => columnTrlOnAnlIncLev
     column_ptr  => column
     obsSpaceData_ptr => obsSpaceData
   
@@ -700,17 +700,17 @@ contains
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
 
-      vco_anl => col_getVco(columng_ptr)
+      vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
                         dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
       call tmg_start(30,'OBS_INTERP')
-      call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+      call s2c_tl(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
       call tmg_stop(30)
       call tmg_start(40,'OBS_TL')
-      call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+      call oop_Htl(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
       call tmg_stop(40)
 
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
@@ -733,11 +733,11 @@ contains
       call col_zero(column_ptr)
 
       call tmg_start(41,'OBS_AD')
-      call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
+      call oop_Had(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
       call tmg_stop(41)
 
       call tmg_start(31,'OBS_INTERPAD')
-      call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
+      call s2c_ad(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
       call tmg_stop(31)
 
       gradJ(:) = 0.d0

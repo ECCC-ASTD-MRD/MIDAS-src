@@ -216,14 +216,14 @@ contains
   !--------------------------------------------------------------------------
   ! irbg_bgCheckIR
   !--------------------------------------------------------------------------
-  subroutine irbg_bgCheckIR(columnhr, obsSpaceData)
+  subroutine irbg_bgCheckIR(columnTrlOnTrlLev, obsSpaceData)
     !
     ! :Purpose: Do background check on all hyperspectral infrared observations
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
    
     ! Locals:
@@ -285,7 +285,7 @@ contains
       if (nobir(instrumentIndex) > 0) then
         do sensorIndex=1,tvs_nsensors
           if (tvs_instruments(sensorIndex) ==  tvs_getInstrumentId(inst(instrumentIndex)) ) then
-            call irbg_doQualityControl (columnhr, obsSpaceData, inst(instrumentIndex), sensorIndex)
+            call irbg_doQualityControl (columnTrlOnTrlLev, obsSpaceData, inst(instrumentIndex), sensorIndex)
           end if
         end do
       end if
@@ -330,7 +330,7 @@ contains
   !--------------------------------------------------------------------------
   ! irbg_doQualityControl
   !--------------------------------------------------------------------------
-  subroutine irbg_doQualityControl (columnHr, obsSpaceData, instrumentName, id_opt )
+  subroutine irbg_doQualityControl (columnTrlOnTrlLev, obsSpaceData, instrumentName, id_opt )
     !
     ! :Purpose: Quality control of hyperspectral infrared observations.
     !           assign assimilation flags to observations 
@@ -338,7 +338,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: columnHr
+    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
     type(struct_obs), intent(inout)     :: obsSpaceData
     character(len=*), intent(in)        :: instrumentName
     integer, intent(in), optional       :: id_opt
@@ -449,7 +449,7 @@ contains
 
     nchn = tvs_coefs(id) % coef % fmv_chn
 
-    nlv_T = col_getNumLev(columnHr,'TH')
+    nlv_T = col_getNumLev(columnTrlOnTrlLev,'TH')
 
     write(*,*) ' irbg_doQualityControl - nchn ', nchn
    
@@ -512,7 +512,7 @@ contains
     difftop_min = 100000.d0
     modelTopIndex = 1
 
-    ptop_T = col_getPressure(columnHr,1,1,'TH')
+    ptop_T = col_getPressure(columnTrlOnTrlLev,1,1,'TH')
 
     write(*,*) 'TOIT DU MODELE (MB)'
     write(*,*) 0.01d0 * ptop_T
@@ -573,15 +573,15 @@ contains
           sunAzimuthAnglePresent = ( abs(sunAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
 
-        tg = col_getElem(columnHr, 1, headerIndex, 'TG')
-        p0 = col_getElem(columnHr, 1, headerIndex, 'P0') * MPC_MBAR_PER_PA_R8
+        tg = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
+        p0 = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'P0') * MPC_MBAR_PER_PA_R8
 
         do levelIndex = 1, nlv_T - 1
-          tt(levelIndex) = col_getElem(columnHr, levelIndex+1, headerIndex, 'TT')
-          height(levelIndex,1) = col_getHeight(columnHr, levelIndex+1, headerIndex, 'TH')
-          pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex+1, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
+          tt(levelIndex) = col_getElem(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'TT')
+          height(levelIndex,1) = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'TH')
+          pressure(levelIndex,1)= col_getPressure(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
         end do
-        qs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
+        qs = col_getElem(columnTrlOnTrlLev, nlv_T, headerIndex, 'HU')
 
         bodyStart   = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyStart - 1

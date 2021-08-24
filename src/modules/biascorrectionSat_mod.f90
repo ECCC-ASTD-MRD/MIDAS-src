@@ -635,14 +635,14 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcs_calcBias
   !-----------------------------------------------------------------------
-  subroutine bcs_calcBias(obsSpaceData,columnhr)
+  subroutine bcs_calcBias(obsSpaceData,columnTrlOnTrlLev)
     !
     ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
     !
     implicit none
     !Arguments:
     type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,chanIndx
@@ -655,7 +655,7 @@ CONTAINS
     write(*,*) "bcs_calcBias: start"
 
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bcs_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_getTrialPredictors(obsSpaceData,columnTrlOnTrlLev)
     end if
 
     iobs = 0
@@ -1051,7 +1051,7 @@ CONTAINS
   !---------------------------------------
   ! bcs_calcBias_tl
   !---------------------------------------- 
-  subroutine bcs_calcBias_tl(cv_in,obsColumnIndex,obsSpaceData,columnhr)
+  subroutine bcs_calcBias_tl(cv_in,obsColumnIndex,obsSpaceData,columnTrlOnTrlLev)
     !
     ! :Purpose: tl of bias computation (for varBC)
     !
@@ -1060,7 +1060,7 @@ CONTAINS
     real(8)  :: cv_in(:)
     integer  :: obsColumnIndex
     type(struct_obs)  :: obsSpaceData
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,chanIndx
@@ -1073,7 +1073,7 @@ CONTAINS
     if ( .not. biasActive ) return
 
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bcs_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_getTrialPredictors(obsSpaceData,columnTrlOnTrlLev)
       call bcs_computePredictorBiases(obsSpaceData)
       call bcs_getRadiosondeWeight(obsSpaceData, lmodify_obserror_opt=.true.)
     end if
@@ -1154,13 +1154,13 @@ CONTAINS
   !----------------------
   ! bcs_getTrialPredictors
   !----------------------
-  subroutine bcs_getTrialPredictors(obsSpaceData,columnhr)
+  subroutine bcs_getTrialPredictors(obsSpaceData,columnTrlOnTrlLev)
     !
     ! :Purpose: get predictors from trial fields
     !
     implicit none
     !Arguments:
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     !Locals:
     integer  :: headerIndex, idatyp, nobs
@@ -1200,27 +1200,27 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER2 
       nobs = nobs + 1
 
-      height1 = logInterpHeight(columnhr,headerIndex,1000.d0)
-      height2 = logInterpHeight(columnhr,headerIndex,300.d0)
+      height1 = logInterpHeight(columnTrlOnTrlLev,headerIndex,1000.d0)
+      height2 = logInterpHeight(columnTrlOnTrlLev,headerIndex,300.d0)
       
       trialHeight300m1000(nobs) = height2 - height1
 
-      height1 = logInterpHeight(columnhr,headerIndex,200.d0)
-      height2 = logInterpHeight(columnhr,headerIndex,50.d0)
+      height1 = logInterpHeight(columnTrlOnTrlLev,headerIndex,200.d0)
+      height2 = logInterpHeight(columnTrlOnTrlLev,headerIndex,50.d0)
 
       trialHeight50m200(nobs) = height2 - height1
 
       height1 = height2
-      height2 = logInterpHeight(columnhr,headerIndex,5.d0)
+      height2 = logInterpHeight(columnTrlOnTrlLev,headerIndex,5.d0)
 
       trialHeight5m50(nobs) = height2 - height1
 
-      height1 = logInterpHeight(columnhr,headerIndex,10.d0)
-      height2 = logInterpHeight(columnhr,headerIndex,1.d0)
+      height1 = logInterpHeight(columnTrlOnTrlLev,headerIndex,10.d0)
+      height2 = logInterpHeight(columnTrlOnTrlLev,headerIndex,1.d0)
 
       trialHeight1m10(nobs) = height2 - height1
 
-      trialTG(nobs) = col_getElem(columnhr,1,headerIndex,'TG')
+      trialTG(nobs) = col_getElem(columnTrlOnTrlLev,1,headerIndex,'TG')
 
     end do HEADER2
 
@@ -1238,9 +1238,9 @@ CONTAINS
 
   contains
 
-    function logInterpHeight(columnhr,headerIndex,P) result(height)
+    function logInterpHeight(columnTrlOnTrlLev,headerIndex,P) result(height)
       !Arguments:
-      type(struct_columnData), intent(inout) :: columnhr
+      type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
       integer, intent(in) :: headerIndex
       real(8), intent(in) :: P
       real(8) :: height
@@ -1250,17 +1250,17 @@ CONTAINS
       real(8), pointer :: col_ptr(:)
 
       ik = 1
-      nlev = col_getNumLev(COLUMNHR,'TH')
+      nlev = col_getNumLev(columnTrlOnTrlLev,'TH')
       do jk = 2,NLEV - 1
-        ZPT = col_getPressure(COLUMNHR,jk,headerIndex,'TH')* MPC_MBAR_PER_PA_R8
+        ZPT = col_getPressure(columnTrlOnTrlLev,jk,headerIndex,'TH')* MPC_MBAR_PER_PA_R8
         if( P > ZPT ) ik = jk
       end do
-      ZPT = col_getPressure(COLUMNHR,ik,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
-      ZPB = col_getPressure(COLUMNHR,ik+1,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+      ZPT = col_getPressure(columnTrlOnTrlLev,ik,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+      ZPB = col_getPressure(columnTrlOnTrlLev,ik+1,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
 
       zwb  = log(p/zpt) / log(zpb/zpt)
       zwt  = 1.d0 - zwb
-      col_ptr=>col_getColumn(columnhr,headerIndex,'Z_T')
+      col_ptr=>col_getColumn(columnTrlOnTrlLev,headerIndex,'Z_T')
 
       height = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    
@@ -2278,7 +2278,7 @@ CONTAINS
   !-----------------------------------------
   ! bcs_refreshBiasCorrection
   !-----------------------------------------
-  subroutine bcs_refreshBiasCorrection(obsSpaceData,columnhr)
+  subroutine bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnTrlLev)
     !
     ! :Purpose: to apply bias correction from read coefficient file to OBS_VAR
     !           After the call OBS_VAR contains the corrected observation
@@ -2287,13 +2287,13 @@ CONTAINS
     implicit none
     !Arguments:
     type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
 
     if ( .not.biasActive ) return
     if ( .not. refreshBiasCorrection) return
 
     if ( mpi_myid == 0 ) write(*,*) 'bcs_refreshBiasCorrection: start'
-    call bcs_calcBias(obsSpaceData,columnhr)
+    call bcs_calcBias(obsSpaceData,columnTrlOnTrlLev)
     call bcs_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
     if ( mpi_myid == 0 ) write(*,*) 'bcs_refreshBiasCorrection: exit'
 
@@ -2388,14 +2388,14 @@ CONTAINS
   !-----------------------------------------
   ! bcs_do_regression
   !-----------------------------------------
-  subroutine bcs_do_regression(columnhr,obsSpaceData)
+  subroutine bcs_do_regression(columnTrlOnTrlLev,obsSpaceData)
     !
     ! :Purpose: compute the bias correction coefficients by linear regresion
     !
     implicit none
     !Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
-    type(struct_columnData), intent(inout) :: columnhr
+    type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
     !Locals:
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex,iPred1,jPred1,iobs
@@ -2412,7 +2412,7 @@ CONTAINS
 
     Write(*,*) "bcs_do_regression: start"
     if ( .not. allocated(trialHeight300m1000) ) then
-      call bcs_getTrialPredictors(obsSpaceData,columnhr)
+      call bcs_getTrialPredictors(obsSpaceData,columnTrlOnTrlLev)
       call bcs_computePredictorBiases(obsSpaceData)
     end if
 

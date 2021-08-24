@@ -1890,7 +1890,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_fillProfiles
   !--------------------------------------------------------------------------
-  subroutine tvs_fillProfiles(columnghr, obsSpaceData, datestamp, profileType, beSilent)
+  subroutine tvs_fillProfiles(columnTrl, obsSpaceData, datestamp, profileType, beSilent)
     !
     ! :Purpose:  to fill in tvs_profiles_nl structure before call to non-linear, 
     !            tangent-linear or adjoint of RTTOV
@@ -1898,7 +1898,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: columnghr    ! Column structure
+    type(struct_columnData), intent(in) :: columnTrl    ! Column structure
     type(struct_obs),        intent(in) :: obsSpaceData ! obsSpaceData structure
     integer,                 intent(in) :: datestamp    ! CMC date stamp
     character (len=*), intent(in) :: profileType
@@ -1937,7 +1937,7 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
-    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) then
+    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnTrl,'LWCR') ) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
     end if
 
@@ -1946,10 +1946,10 @@ contains
       call utl_abort('tvs_fillProfiles: number of instrument to use CLW do not match all-sky namelist variable. ')
     end if
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'O3L') ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrl,'TO3') .and. .not. col_varExist(columnTrl,'O3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable must be included as an analysis variable in NAMSTATE. ')
     else if (.not.tvs_useO3Climatology) then 
-      if (col_varExist(columnghr,'TO3') ) then
+      if (col_varExist(columnTrl,'TO3') ) then
         ozoneVarName = 'TO3'
       else
         ozoneVarName = 'O3L'
@@ -1978,10 +1978,10 @@ contains
 !     1.    Set index for model's lowest level and model top
 !     .     ------------------------------------------------
     
-    nlv_M = col_getNumLev(columnghr,'MM')
-    nlv_T = col_getNumLev(columnghr,'TH')
+    nlv_M = col_getNumLev(columnTrl,'MM')
+    nlv_T = col_getNumLev(columnTrl,'TH')
 
-    if (  col_getPressure(columnghr,1,1,'TH') < col_getPressure(columnghr,nlv_T,1,'TH') ) then
+    if (  col_getPressure(columnTrl,1,1,'TH') < col_getPressure(columnTrl,nlv_T,1,'TH') ) then
       ilowlvl_M = nlv_M
       ilowlvl_T = nlv_T
     else
@@ -1989,7 +1989,7 @@ contains
       ilowlvl_T = 1
     end if
 
-    vco => col_getVco(columnghr)
+    vco => col_getVco(columnTrl)
     status = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
 
     ierr = newdate(datestamp,ijour,itime,-3)
@@ -2010,7 +2010,7 @@ contains
     ! loop over all instruments
     sensor_loop: do sensorIndex=1,tvs_nsensors
 
-      runObsOperatorWithClw = ( col_varExist(columnghr,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
+      runObsOperatorWithClw = ( col_varExist(columnTrl,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
            tvs_opts(sensorIndex) % rt_mw % clw_data )
 
       ! first loop over all obs.
@@ -2082,15 +2082,15 @@ contains
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
         do levelIndex = 1, nlv_T
-          pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+          pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
-            clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
+            clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
         end do
         
         if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
-          column_ptr => col_getColumn(columnghr, headerIndex, trim(ozoneVarName) )
+          column_ptr => col_getColumn(columnTrl, headerIndex, trim(ozoneVarName) )
           ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.
           ! Conversion to kg/kg for use by RTTOV in done later
           ozone(:,profileCount) = column_ptr(:) * 1.0D-9 * o3Mixratio2ppmv
@@ -2116,35 +2116,35 @@ contains
         profiles(tovsIndex) % date(2)         = month
         profiles(tovsIndex) % date(3)         = day
         profiles(tovsIndex) % latitude        = latitudes(profileIndex)
-        profiles(tovsIndex) % elevation       = 0.001d0 * col_getHeight(columnghr,ilowlvl_T,headerIndex,'TH') ! unite km
+        profiles(tovsIndex) % elevation       = 0.001d0 * col_getHeight(columnTrl,ilowlvl_T,headerIndex,'TH') ! unite km
         profiles(tovsIndex) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
-        profiles(tovsIndex) % skin % t        = col_getElem(columnghr,1,headerIndex,'TG')
+        profiles(tovsIndex) % skin % t        = col_getElem(columnTrl,1,headerIndex,'TG')
         profiles(tovsIndex) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
         profiles(tovsIndex) % skin % fastem(:)= 0.0d0
         profiles(tovsIndex) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
         profiles(tovsIndex) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
-        profiles(tovsIndex) % s2m % t         = col_getElem(columnghr,ilowlvl_T,headerIndex,'TT')
+        profiles(tovsIndex) % s2m % t         = col_getElem(columnTrl,ilowlvl_T,headerIndex,'TT')
         profiles(tovsIndex) % s2m % q         = 0.3D6  * qppmv2Mixratio ! a value between 0 and 0.6d6 so that RTTOV will not complain; not used
-        profiles(tovsIndex) % s2m % p         = col_getElem(columnghr,1      ,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
-        profiles(tovsIndex) % s2m % u         = col_getElem(columnghr,ilowlvl_M,headerIndex,'UU')
-        profiles(tovsIndex) % s2m % v         = col_getElem(columnghr,ilowlvl_M,headerIndex,'VV')
+        profiles(tovsIndex) % s2m % p         = col_getElem(columnTrl,1      ,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
+        profiles(tovsIndex) % s2m % u         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'UU')
+        profiles(tovsIndex) % s2m % v         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'VV')
         profiles(tovsIndex) % s2m % o         = 0.0d0 !surface ozone never used
         profiles(tovsIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
         profiles(tovsIndex) % idg             = 0
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
-        column_ptr => col_getColumn(columnghr, headerIndex,'TT' )
+        column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
         
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv over dry air                                                                                                            ! because atmosphere is very dry where there is significant absorption by ozone)
           if (.not. tvs_useO3Climatology)  then
-            profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
+            profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
 
-        column_ptr => col_getColumn(columnghr, headerIndex,'HU' )
+        column_ptr => col_getColumn(columnTrl, headerIndex,'HU' )
         profiles(tovsIndex) % q(:)            =  column_ptr(:)
 
         profiles(tovsIndex) % ctp = 1013.25d0

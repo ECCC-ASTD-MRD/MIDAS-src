@@ -364,10 +364,10 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topo
   !--------------------------------------------------------------------------
-  subroutine filt_topo( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topo(columnTrlOnTrlLev, obsSpaceData, beSilent)
     implicit none
 
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical, intent(in)     :: beSilent
 
@@ -389,14 +389,14 @@ contains
         write(*,*)' --------------------------------------------------------------'
       end if
 
-      if (any(filtTopoList(:) == 'SF')) call filt_topoSurface   (columnhr,obsSpaceData,beSilent)
-      if (any(filtTopoList(:) == 'UA')) call filt_topoRadiosonde(columnhr,obsSpaceData,beSilent)
-      if (any(filtTopoList(:) == 'AI')) call filt_topoAISW      (columnhr,obsSpaceData,'AI',beSilent)
-      if (any(filtTopoList(:) == 'SW')) call filt_topoAISW      (columnhr,obsSpaceData,'SW',beSilent)
-      if (any(filtTopoList(:) == 'PR')) call filt_topoProfiler  (columnhr,obsSpaceData,beSilent)
-      if (any(filtTopoList(:) == 'AL')) call filt_topoAladin    (columnhr,obsSpaceData,beSilent)
-      if (any(filtTopoList(:) == 'TO')) call filt_topoTovs      (columnhr,obsSpaceData,beSilent)
-      if (any(filtTopoList(:) == 'CH')) call filt_topoChemistry (columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'SF')) call filt_topoSurface   (columnTrlOnTrlLev,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'UA')) call filt_topoRadiosonde(columnTrlOnTrlLev,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'AI')) call filt_topoAISW      (columnTrlOnTrlLev,obsSpaceData,'AI',beSilent)
+      if (any(filtTopoList(:) == 'SW')) call filt_topoAISW      (columnTrlOnTrlLev,obsSpaceData,'SW',beSilent)
+      if (any(filtTopoList(:) == 'PR')) call filt_topoProfiler  (columnTrlOnTrlLev,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'AL')) call filt_topoAladin    (columnTrlOnTrlLev,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'TO')) call filt_topoTovs      (columnTrlOnTrlLev,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'CH')) call filt_topoChemistry (columnTrlOnTrlLev,obsSpaceData,beSilent)
 
     end if
 
@@ -405,7 +405,7 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoSurface
   !--------------------------------------------------------------------------
-  subroutine filt_topoSurface( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topoSurface(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Refuse elements which are too far away from the surface.
     !           Replace the pressure of elements which are slightly below
@@ -413,7 +413,7 @@ contains
     !
     implicit none
 
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
 
@@ -473,7 +473,7 @@ contains
              ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              varLevel = vnl_varLevelFromVarnum(ivnm)
              altitudeDiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
-                  col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel) )
+                  col_getHeight(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,varLevel),headerIndex,varLevel) )
              !
              ! apply filter to selected elements
              !
@@ -520,7 +520,7 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoRadiosonde
   !--------------------------------------------------------------------------
-  subroutine filt_topoRadiosonde( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topoRadiosonde(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Refuse elements which are too far away from the surface of the model
     !           Refuse elements which are considered in the free atmosphere of
@@ -529,7 +529,7 @@ contains
     implicit none
    
     ! arguments:
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
@@ -565,7 +565,7 @@ contains
     igzrej(:)=0
     ibndrej(:)=0
 
-    nlev_M = col_getNumLev(columnhr,'MM')
+    nlev_M = col_getNumLev(columnTrlOnTrlLev,'MM')
 
     ! loop over all header indices of the 'UA' family
     call obs_set_current_header_list(obsSpaceData, 'UA')
@@ -594,7 +594,7 @@ contains
         if (.not. llok ) cycle BODY
 
         ! convert altitude read from column to geopotential
-        height(1) = col_getHeight(columnhr,0,headerIndex,'SF')
+        height(1) = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
         lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
         call phf_height2geopotential(height,lat,geopotential)
 
@@ -634,7 +634,7 @@ contains
       !   from the model topography in the verification.
 
       obsSfcAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-      colSfcAltitude = col_getHeight(columnhr,0,headerIndex,'SF')
+      colSfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
       altitudeDiff = obsSfcAltitude - colSfcAltitude
 
       ! Set the body list & start at the beginning of the list
@@ -654,7 +654,7 @@ contains
         if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
 
         obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-        colPressureBelow = col_getElem(columnhr,1,headerIndex,'P0')
+        colPressureBelow = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
         colPressureAbove = colPressureBelow - surfaceBufferZone_Pres
 
         if (useEnkfTopoFilt) then
@@ -679,7 +679,7 @@ contains
             !--Model surface and station altitude are very close
             !  Accept observation if obsPressure is within the domain
             !  of the trial field
-            colPressureAbove = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+            colPressureAbove = col_getPressure(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM')-1,headerIndex,'MM')
           end if
           if(obsPressure > colPressureBelow ) then
             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
@@ -729,12 +729,12 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoAISW
   !--------------------------------------------------------------------------
-  subroutine filt_topoAISW( columnhr, obsSpaceData, obsFamily, beSilent )
+  subroutine filt_topoAISW(columnTrlOnTrlLev, obsSpaceData, obsFamily, beSilent)
     !
     ! :Purpose:  Refuse elements which are too close to the surface.
     !
     implicit none
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical,          intent(in) :: beSilent
     character(len=2), intent(in) :: obsFamily
@@ -776,7 +776,7 @@ contains
       !
       obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-      pressureDiff = col_getElem(columnhr,1,headerIndex,'P0') - obsPressure
+      pressureDiff = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0') - obsPressure
       if ( pressureDiff < surfaceBufferZone_Pres ) then
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
@@ -813,14 +813,14 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoProfiler
   !--------------------------------------------------------------------------
-  subroutine filt_topoProfiler(columnhr,obsSpaceData,beSilent)
+  subroutine filt_topoProfiler(columnTrlOnTrlLev,obsSpaceData,beSilent)
     !
     ! :Purpose: Refuse elements which are too far away from the surface of the model
     !           Refuse elements which are considered in the free atmosphere of
     !           the RAOB but fall in the surface boundary layer of the model atmosphere.
     !
     implicit none
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
@@ -865,7 +865,7 @@ end subroutine filt_topoAISW
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
        ! ATMOSPHERE
        !
-       colSfcAltitude = col_getHeight(columnhr,0,headerIndex,'SF')
+       colSfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
        obsSfcAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
@@ -894,7 +894,7 @@ end subroutine filt_topoAISW
              !    Accept observation if obsAltitude is within the domain
              !    of the trial field
              colAltitudeBelow = colSfcAltitude
-             colAltitudeAbove = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+             colAltitudeAbove = col_getHeight(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM')-1,headerIndex,'MM')
           end if
           if(obsAltitude < colAltitudeBelow ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
@@ -939,14 +939,14 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoAladin
   !--------------------------------------------------------------------------
-  subroutine filt_topoAladin( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topoAladin(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Refuse elements which are considered to be in the free atmosphere
     !           of the Aladin instrument but which fall in the surface boundary
     !           layer of the model atmosphere.
     !
     implicit none
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
 
     integer :: headerIndex, bodyIndex, elemIndex
@@ -987,7 +987,7 @@ end subroutine filt_topoAISW
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS THAT ARE IN THE FREE
        ! ATMOSPHERE
        !
-       colSfcAltitude = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
+       colSfcAltitude = col_getHeight(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM'), &
                                headerIndex,'MM') 
        colAltitudeAbove = colSfcAltitude + surfaceBufferZone_Height
 
@@ -1058,12 +1058,12 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoTovs
   !--------------------------------------------------------------------------
-  subroutine filt_topoTovs( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topoTovs(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose:  Refuse data which are too close to the surface.
     !
     implicit none
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
@@ -1103,7 +1103,7 @@ end subroutine filt_topoAISW
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_NBT3) cycle BODY
 
           ! reject obs if the model surface pressure is below the minimum specified value
-          if (col_getElem(columnhr,1,headerIndex,'P0') < minSfcPressure) then
+          if (col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0') < minSfcPressure) then
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej=countRej+1
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
@@ -1139,7 +1139,7 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_surfaceWind
   !--------------------------------------------------------------------------
-  SUBROUTINE filt_surfaceWind( obsSpaceData, beSilent )
+  subroutine filt_surfaceWind(obsSpaceData, beSilent)
     !
     ! :Purpose: zap sfc wind components at land stations
     !
@@ -1265,12 +1265,12 @@ end subroutine filt_topoAISW
          IKOUNTT
     if ( .not.beSilent ) WRITE(*,* ) ' '
 
-  END SUBROUTINE filt_surfaceWind
+  end subroutine filt_surfaceWind
 
   !--------------------------------------------------------------------------
   ! filt_gpsro
   !--------------------------------------------------------------------------
-  SUBROUTINE FILT_GPSRO( columnhr, obsSpaceData, beSilent )
+  subroutine FILT_GPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Filter GPSRO observations
     !           Guarantee that altitude and observation values are
@@ -1284,7 +1284,7 @@ end subroutine filt_topoAISW
     use gps_mod
     IMPLICIT NONE
     !
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     !
@@ -1329,12 +1329,12 @@ end subroutine filt_topoAISW
         ZSAT = ABS(WGPS(ISAT,1))+ABS(WGPS(ISAT,2))+ABS(WGPS(ISAT,3))+ABS(WGPS(ISAT,4))
         LSAT = ( ZSAT > 0.d0 )
         !
-        ZMT = col_getHeight(columnhr,0,index_header,'SF')
+        ZMT = col_getHeight(columnTrlOnTrlLev,0,index_header,'SF')
         !
         ! Acceptable height limits:
         !
         JL = 1
-        HTP = col_getHeight(columnhr,JL,INDEX_HEADER,'TH')
+        HTP = col_getHeight(columnTrlOnTrlLev,JL,INDEX_HEADER,'TH')
         HSF = ZMT+SURFMIN
         IF (HSF < HSFMIN) HSF=HSFMIN
         IF (HTP > HTPMAX) HTP=HTPMAX
@@ -1407,12 +1407,12 @@ end subroutine filt_topoAISW
     end if
 
     if (.not.beSilent) write(*,*) 'filt_gpsro: end'
-  END SUBROUTINE FILT_GPSRO
+  end subroutine FILT_GPSRO
 
   !--------------------------------------------------------------------------
   !  filt_backScatAnisIce
   !--------------------------------------------------------------------------
-  subroutine  filt_backScatAnisIce( obsSpaceData, beSilent )
+  subroutine filt_backScatAnisIce(obsSpaceData, beSilent)
     !
     ! :Purpose: Filter scatterometer backscatter anisotropy observations
     !           where wind speed is too small
@@ -1474,7 +1474,7 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_iceConcentration
   !--------------------------------------------------------------------------
-  subroutine filt_iceConcentration( obsSpaceData, beSilent )
+  subroutine filt_iceConcentration(obsSpaceData, beSilent)
     !
     ! :Purpose: Filter out observations from satellites
     !           not specified in the name list
@@ -1579,7 +1579,7 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoChemistry
   !--------------------------------------------------------------------------
-  SUBROUTINE filt_topoChemistry( columnhr, obsSpaceData, beSilent )
+  subroutine filt_topoChemistry(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Rejects elements which are too far below the model surface
     !           or above the model top.
@@ -1589,7 +1589,7 @@ end subroutine filt_topoAISW
     !    since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
     !
     implicit none
-    type(struct_columnData) :: columnhr
+    type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
@@ -1632,10 +1632,10 @@ end subroutine filt_topoAISW
 
       ! Set geopotential height and pressure boundaries.
 
-      colAltitudeBelow = col_getHeight(columnhr,0,headerIndex,'SF')
-      colAltitudeAbove = col_getHeight(columnhr,1,headerIndex,'MM')
-      colSfcPressure = col_getElem(columnhr,1,headerIndex,'P0')
-      colTopPressure = col_getPressure(columnhr,1,headerIndex,'MM')
+      colAltitudeBelow = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
+      colAltitudeAbove = col_getHeight(columnTrlOnTrlLev,1,headerIndex,'MM')
+      colSfcPressure = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
+      colTopPressure = col_getPressure(columnTrlOnTrlLev,1,headerIndex,'MM')
 
       ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
 
@@ -1748,7 +1748,7 @@ end subroutine filt_topoAISW
 223 format(2x,a29,100(2x,i8,2x))
 224 format(2x,a29,100(2x,i6))
 
-  END SUBROUTINE filt_topoChemistry
+  end subroutine filt_topoChemistry
 
   !--------------------------------------------------------------------------
   ! filt_bufrCodeAssimilated
