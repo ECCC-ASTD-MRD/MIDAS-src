@@ -60,12 +60,11 @@ module minimization_mod
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
-  type(struct_obs)       , pointer :: obsSpaceData_ptr => null()
-  type(struct_columnData), pointer :: columnAnlInc_ptr       => null()
-  type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr      => null()
-
-  type(struct_gsv), pointer :: stateVectorRefHU_ptr => null()
-  type(struct_hco), pointer :: hco_anl => null()
+  type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()
+  type(struct_columnData), pointer :: columnAnlInc_ptr         => null()
+  type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr => null()
+  type(struct_gsv)       , pointer :: stateVectorRefHU_ptr     => null()
+  type(struct_hco)       , pointer :: hco_anl                  => null()
 
   logical             :: initialized = .false.
 
@@ -310,9 +309,9 @@ CONTAINS
       endif
 
       ! set module variable pointers for obsspacedata and the two column objects
-      obsSpaceData_ptr => obsSpaceData
-      columnAnlInc_ptr       => columnAnlInc
-      columnTrlOnAnlIncLev_ptr      => columnTrlOnAnlIncLev
+      obsSpaceData_ptr         => obsSpaceData
+      columnAnlInc_ptr         => columnAnlInc
+      columnTrlOnAnlIncLev_ptr => columnTrlOnAnlIncLev
 
       ! Set-up the minimization
 

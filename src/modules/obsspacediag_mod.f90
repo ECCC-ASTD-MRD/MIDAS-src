@@ -174,7 +174,7 @@ contains
     ! :Arguments:
     !           :obsSpaceData: Obs space data structure
     !           :columnTrlOnAnlIncLev: Structure of vertical columns at obs locations.
-    !                          Expected to be for analysis vertical levels if to be used.
+    !                                  Expected to be for analysis vertical levels if to be used.
     !           :analysisMode: logical indicating if following analysis mode or not (optional)
     !                          Assumed .true. if not present.
     !

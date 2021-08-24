@@ -435,7 +435,7 @@ contains
 
     namelist /NAMALADIN_OBS/do_adjust_aladin
 
-   if (.not.beSilent) write(*,*) "Entering subroutine oop_zzz_nl"
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_zzz_nl"
 
     if (present(cdfam)) then
       call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
@@ -996,10 +996,10 @@ contains
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer :: bodyIndex, headerIndex, levelIndex, numLevels, bufrCode !, obsFlag
+    integer :: bodyIndex, headerIndex, levelIndex, numLevels, bufrCode
     integer :: fnom, fclos, nulnam, ierr
     real(8) :: observedDoppler, simulatedDoppler
-    real(8) :: levelAltLow, levelAltHigh !, levelRangeNear, levelRangeFar
+    real(8) :: levelAltLow, levelAltHigh
     real(8) :: radarAltitude, beamAzimuth, beamElevation, obsRange, obsAltitude
     real(8) :: uuLow, uuHigh, vvLow, vvHigh, uuInterpolated, vvInterpolated
     real(8) :: interpWeight, zinc, zoer, maxRangeInterp

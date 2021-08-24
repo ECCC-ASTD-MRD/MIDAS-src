@@ -1549,9 +1549,9 @@ contains
     !
     !:Arguments:
     !   :columnTrl:  Column of x_background interpolated to observation
-    !                    location. Can have the same vertical levels as the
-    !                    trial field (columnTrlOnTrlLev) or as the increment field
-    !                    (columnTrlOnAnlIncLev)
+    !                location. Can have the same vertical levels as the
+    !                trial field (columnTrlOnTrlLev) or as the increment field
+    !                (columnTrlOnAnlIncLev)
     !   :kmode:
     !        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
     !        |kmode|       Mode of         |             Results               |
@@ -1575,10 +1575,10 @@ contains
     !        +-----+-----------------------+-----------------------------------+    
     !
     !   :columnAnlInc_opt: Optional argument for input/output of column of
-    !                    increment (column). For kmode=2, used as input for
-    !                    increment H_horiz dx interpolated to observation
-    !                    location. For kmode=3, used as output for H^T * R^-1
-    !                    (OmP-Hdx). Required for kmode=2,3.
+    !                      increment (column). For kmode=2, used as input for
+    !                      increment H_horiz dx interpolated to observation
+    !                      location. For kmode=3, used as output for H^T * R^-1
+    !                      (OmP-Hdx). Required for kmode=2,3.
     !
     !
     !   :jobs_opt:       Optional output of total Jo(x_background) for chemical
@@ -1969,9 +1969,9 @@ contains
     !:Arguments:
     !
     !     :columnTrl:  Column of x_background interpolated to observation
-    !                      location. Can have the same vertical levels as the
-    !                      trial field (columnTrlOnTrlLev) or as the increment field
-    !                      (columnTrlOnAnlIncLev)
+    !                  location. Can have the same vertical levels as the
+    !                  trial field (columnTrlOnTrlLev) or as the increment field
+    !                  (columnTrlOnAnlIncLev)
     !     :kmode:       
     !   
     !                - 0 for non-linear/linear model in assimilation (all models

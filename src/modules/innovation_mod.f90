@@ -582,7 +582,7 @@ contains
     end if
     
     !
-    !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in OBS_OMP column
+    !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
     call tmg_start(48,'NL_OBS_OPER')
     
