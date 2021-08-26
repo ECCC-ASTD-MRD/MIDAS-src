@@ -2968,8 +2968,8 @@ contains
           if (prf%bst(jlocm)%Var > 1.e-6_dp .and. prf%bst(jlocp)%Var > 1.e-6_dp) then
              bstv(i)=exp(dam*log(prf%bst(jlocm))+dap*log(prf%bst(jlocp)))*(rad/rad0)
           else
-          ! Use linear interpolation for near-zero or negative bending (most reflected rays)
-             bstv(i)=(dam*prf%bst(jlocm)+dap*prf%bst(jlocp))*(rad/rad0)
+          ! Use interpolation/extrapolation for near-zero or negative bending (most reflected rays)
+             bstv(i)=prf%bst(j2+1) * exp((-1._dp/6500._dp)*(h(ngpslev)- prf%gst(j2+1)))
           endif
        endif
     enddo
