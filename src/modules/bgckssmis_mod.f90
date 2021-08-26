@@ -1610,7 +1610,6 @@ contains
     integer              :: codtyp
     integer              :: headerIndex
 
-    logical              :: otherDataPresent
     logical              :: ssmisDataPresent
 
     real                 :: obsLatitude(1)
@@ -1625,14 +1624,9 @@ contains
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
         ssmisDataPresent = .true.
-      else
-        otherDataPresent = .true.
+        exit HEADER0
       end if
     end do HEADER0
-
-    if ( ssmisDataPresent .and. otherDataPresent ) then
-      call utl_abort ('ssbg_computeSsmisSurfaceType: Not only SSMIS DATA included in obsSpaceData')
-    endif
     
     if ( .not. ssmisDataPresent ) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_computeSsmisSurfaceType since no SSMIS DATA is found'
@@ -2947,11 +2941,13 @@ contains
     integer                             :: inovQcSize
     integer                             :: statsInovQcFlags(10)
 
+    logical                             :: otherDataPresent
     logical                             :: ssmisDataPresent
 
     real                                :: percentInovQcFlags(9)
 
     call tmg_start(30,'BGCHECK_SSMIS')
+    otherDataPresent = .false.
     ssmisDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
@@ -2960,8 +2956,14 @@ contains
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( tvs_isIdBurpInst(codtyp,'ssmis' ) ) then
         ssmisDataPresent = .true.
+      else
+        otherDataPresent = .true.
       end if
     end do HEADER0
+
+    if ( ssmisDataPresent .and. otherDataPresent ) then
+      call utl_abort ('ssbg_computeSsmisSurfaceType: Other data than SSMIS also included in obsSpaceData')
+    endif
 
     if ( .not. ssmisDataPresent ) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_bgCheckSSMIS since no SSMIS'
