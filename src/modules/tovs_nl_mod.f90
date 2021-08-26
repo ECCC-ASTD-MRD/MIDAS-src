@@ -423,8 +423,9 @@ contains
       allocate (tvs_opts (tvs_nsensors)          ,stat= allocStatus(3))
       if (any(tvs_useRttovScatt)) then
         allocate (tvs_opts_scatt (tvs_nsensors) ,stat= allocStatus(4))
+        allocate (tvs_coef_scatt (tvs_nsensors) ,stat= allocStatus(5))
       end if
-      call utl_checkAllocationStatus(allocStatus(1:4), " tvs_setupAlloc before rttov initialization")
+      call utl_checkAllocationStatus(allocStatus(1:5), " tvs_setupAlloc before rttov initialization")
 
       do sensorIndex=1, tvs_nsensors
         tvs_listSensors(1,sensorIndex) = tvs_platforms  (sensorIndex)
@@ -465,6 +466,19 @@ contains
         tvs_opts(sensorIndex) % rt_all % n2o_data = .false.
         tvs_opts(sensorIndex) % rt_all % co_data  = .false.
         tvs_opts(sensorIndex) % rt_all % ch4_data = .false.
+
+        if ( tvs_useRttovScatt(sensorIndex) ) then
+          tvs_opts_scatt(sensorIndex) % interp_mode = interp_rochon_loglinear_wfn ! Set interpolation method
+          tvs_opts_scatt(sensorIndex) % reg_limit_extrap = tvs_regLimitExtrap 
+          tvs_opts_scatt(sensorIndex) % fastem_version = tvs_opts(sensorIndex) % rt_mw % fastem_version  
+          tvs_opts_scatt(sensorIndex) % supply_foam_fraction = .false.
+          tvs_opts_scatt(sensorIndex) % use_q2m = .false.
+          tvs_opts_scatt(sensorIndex) % lusercfrac = .false. ! to evaluate
+          tvs_opts_scatt(sensorIndex) % config % do_checkinput = .true.
+          tvs_opts_scatt(sensorIndex) % config % apply_reg_limits = .true.
+          tvs_opts_scatt(sensorIndex) % config % verbose = .true.  
+        end if
+        ! Enable printing of warnings
 
         errorStatus = errorStatus_success
 
@@ -2473,13 +2487,13 @@ contains
         call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset)
         if (tvs_useRttovScatt(sensorId)) then
           call rttov_scatt_setupindex ( &
-               profileCount,  &  ! number of profiles
+               profileCount,            &  ! number of profiles
                tvs_nchan(sensorId),     &  ! number of channels 
-               tvs_coefs(sensorId), &  ! coef structure read in from rttov coef file
-               btcount,  &  ! number of calculated channels
-               chanprof,   &  ! channels and profile numbers
-               frequencies, & ! array, frequency number for each channel
-               lchannel_subset ) ! OPTIONAL array of logical flags to indicate a subset of channels
+               tvs_coefs(sensorId),     &  ! coef structure read in from rttov coef file
+               btcount,                 &  ! number of calculated channels
+               chanprof,                &  ! channels and profile numbers
+               frequencies,             &  ! array, frequency number for each channel
+               lchannel_subset )           ! OPTIONAL array of logical flags to indicate a subset of channels
         end if
         deallocate( lchannel_subset )
       end if
@@ -2695,9 +2709,9 @@ contains
                 beSilent=.true.)
 
         end if
-
-        if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
+       
         if (tvs_useRttovScatt(sensorId)) then
+          if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorID, profileCount
           call rttov_scatt(                                         &
                rttov_err_stat,                                      &! out
                tvs_opts_scatt(sensorId),                            &! in
@@ -2711,7 +2725,10 @@ contains
                calcemis,                                            &! in
                emissivity_local,                                    &! inout
                radiancedata_d) 
+          if ( .not. beSilent ) write(*,*) 'after rttov_scatt...'
         else
+          if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount
+          
           call rttov_parallel_direct(                               &
                rttov_err_stat,                                      & ! out
                chanprof,                                            & ! in
@@ -2723,11 +2740,12 @@ contains
                calcemis=calcemis,                                   & ! in
                emissivity=emissivity_local,                         & ! inout
                nthreads=nthreads      )
+          if ( .not. beSilent ) write(*,*) 'after rttov_parallel_direct...'
+          
         end if
 
       end if
 
-      if ( .not. beSilent ) write(*,*) 'after rttov_parallel_direct...'
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
       if (rttov_err_stat /= 0) then
@@ -2798,6 +2816,7 @@ contains
         deallocate ( uOfWLandWSurfaceEmissivity  ,stat=allocStatus(2) )
       end if
       deallocate ( surfem1    ,stat=allocStatus(3) )
+      if (allocated(frequencies)) deallocate (frequencies, stat=allocStatus(4))
       call utl_checkAllocationStatus(allocStatus, " tvs_rttov", .false.)
       
     end do sensor_loop

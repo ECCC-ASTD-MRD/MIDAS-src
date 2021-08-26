@@ -234,6 +234,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="o-p_scatt"/>
+    <FAMILY  name="o-p_scatt">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="o-a"/>
     <FAMILY  name="o-a">
       <SUBMITS sub_name="UnitTest"/>
