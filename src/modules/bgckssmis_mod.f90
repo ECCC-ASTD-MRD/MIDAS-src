@@ -1610,6 +1610,7 @@ contains
     integer              :: codtyp
     integer              :: headerIndex
 
+    logical              :: otherDataPresent
     logical              :: ssmisDataPresent
 
     real                 :: obsLatitude(1)
@@ -1625,10 +1626,14 @@ contains
       if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
         ssmisDataPresent = .true.
       else
-        call utl_abort ('ssbg_computeSsmisSurfaceType: Not only SSMIS DATA included in obsSpaceData')
+        otherDataPresent = .true.
       end if
     end do HEADER0
 
+    if ( ssmisDataPresent .and. otherDataPresent ) then
+      call utl_abort ('ssbg_computeSsmisSurfaceType: Not only SSMIS DATA included in obsSpaceData')
+    endif
+    
     if ( .not. ssmisDataPresent ) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_computeSsmisSurfaceType since no SSMIS DATA is found'
       return
