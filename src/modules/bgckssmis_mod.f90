@@ -1623,7 +1623,9 @@ contains
       if (headerIndex < 0) exit HEADER0
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( tvs_isIdBurpInst(codtyp,'ssmis') ) then
-        ssmisDataPresent = tvs_isIdBurpInst(codtyp,'ssmis')
+        ssmisDataPresent = .true.
+      else
+        call utl_abort ('ssbg_computeSsmisSurfaceType: Not only SSMIS DATA included in obsSpaceData')
       end if
     end do HEADER0
 
