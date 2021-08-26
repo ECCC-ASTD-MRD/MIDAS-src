@@ -7940,7 +7940,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)     :: maskLAM
 
     ! Locals
-    real(pre_incrReal), pointer :: increment(:,:,:,:)
+    real(4), pointer :: increment(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
     integer :: latIndex, kIndex, lonIndex, stepIndex
 
