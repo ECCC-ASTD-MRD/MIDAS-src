@@ -134,11 +134,11 @@ echo ${__job_test_target}
 ${__job_test_target} > /dev/null 2>&1 || {
     echo
     echo "> ${__target}"
-    echo "╔═══════════════════╗"
-    echo "║                   ║"
-    echo "║ INVALID TARGET(S) ║"
-    echo "║                   ║"
-    echo "╚═══════════════════╝"
+    echo "+-------------------+"
+    echo "|                   |"
+    echo "| INVALID TARGET(S) |"
+    echo "|                   |"
+    echo "+-------------------+"
     exit 1
     }
 
@@ -302,19 +302,19 @@ then
     if [ "${__status}" -eq 0 ]; then
         if [ "${__abs_exist_list}" = "${__abs_all}" ]; then
             echo
-            echo "╔══════════════════════════════╗"
-            echo "║                              ║"
-            echo "║ MIDAS INSTALLATION COMPLETED ║"
-            echo "║   ALL PROGRAMS INSTALLED     ║"
-            echo "║                              ║"
-            echo "╚══════════════════════════════╝"
+            echo "+------------------------------+"
+            echo "|                              |"
+            echo "| MIDAS INSTALLATION COMPLETED |"
+            echo "|   ALL PROGRAMS INSTALLED     |"
+            echo "|                              |"
+            echo "+------------------------------+"
         else
             echo
-            echo "╔══════════════════════════════╗"
-            echo "║                              ║"
-            echo "║ MIDAS INSTALLATION COMPLETED ║"
-            echo "║                              ║"
-            echo "╚══════════════════════════════╝"
+            echo "+------------------------------+"
+            echo "|                              |"
+            echo "| MIDAS INSTALLATION COMPLETED |"
+            echo "|                              |"
+            echo "+------------------------------+"
             echo "    All target programs have been installed correctly!"
             for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
         fi
@@ -331,11 +331,11 @@ then
         fi
     else
         echo
-        echo "╔══════════════════════════════════════╗"
-        echo "║                                      ║"
-        echo "║ SOME PROGRAMS COULD NOT BE INSTALLED ║"
-        echo "║                                      ║"
-        echo "╚══════════════════════════════════════╝"
+        echo "+--------------------------------------+"
+        echo "|                                      |"
+        echo "| SOME PROGRAMS COULD NOT BE INSTALLED |"
+        echo "|                                      |"
+        echo "+--------------------------------------+"
         echo
         exit 1
     fi

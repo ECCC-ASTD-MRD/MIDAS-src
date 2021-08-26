@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Removed non ascii-127 characters from compilation message boxes (#507 and !495)
  * Using new env. variable for `install_suite.sh` + retrocompatibility (#484 and !456)
  * Fix the recursive dependency computation (#483 and !455)
  * Fix the `make --touch` bug (no more spurious empty file created in `src`)

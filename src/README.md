@@ -58,12 +58,12 @@ Simply execute **`./midas_build`** from a frontend machine.
 Successful compilation, linking and installing will be confirmed with the 
 display
 ```
-╔══════════════════════════════╗
-║                              ║
-║ MIDAS INSTALLATION COMPLETED ║
-║   ALL PROGRAMS INSTALLED     ║
-║                              ║
-╚══════════════════════════════╝
++------------------------------+
+|                              |
+| MIDAS INSTALLATION COMPLETED |
+|   ALL PROGRAMS INSTALLED     |
+|                              |
++------------------------------+
 ```
 
 It will 
@@ -96,11 +96,11 @@ See [this section](#using-make-advanced-use-cases) for more on targets.
 
 If the targets contains absolutes (`*.Abs`), `midas_build` will also install these and a sucessful installation of a subsets of programs will be confirmed with the display
 ```
-╔══════════════════════════════╗
-║                              ║
-║ MIDAS INSTALLATION COMPLETED ║
-║                              ║
-╚══════════════════════════════╝
++------------------------------+
+|                              |
+| MIDAS INSTALLATION COMPLETED |
+|                              |
++------------------------------+
     All target programs have been installed correctly!
     * <target_program_1>
     * <target_program_2>
