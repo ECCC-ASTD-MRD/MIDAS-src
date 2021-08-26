@@ -854,42 +854,6 @@ contains
 
   end subroutine copy1Dimto2DimIntegerArray
 
-  !--------------------------------------------------------------------------
-  ! resetQcC
-  !--------------------------------------------------------------------------
-  subroutine resetQcCases(resetQc, kChkPrf, globMarq)
-    ! :Purpose: Activate bit (6), showing the obs contains a rejected element by QC check.
-
-    !           N.B.: si on est en mode resetQc, on remet le marqueur global a
-    !           sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
-
-    implicit none
-
-    ! Arguments
-    logical, intent(in)    :: resetQc       ! reset the quality control flags before adding the new ones
-    integer, intent(in)    :: kChkPrf(:)    ! indicateur global controle de qualite tovs.
-    integer, intent(inout) :: globMarq(:)   ! Marqueurs globaux
-
-    ! Locals
-    integer :: dataIndex
-    integer :: dataNum
-
-    dataNum = size(globMarq)
-    do dataIndex = 1, dataNum
-      if (resetQc) then
-        globMarq(dataIndex) = 1024  
-      end if
-      if ( kChkPrf(dataIndex) /= 0  ) then
-        globMarq(dataIndex) = OR (globMarq(dataIndex),2**6)
-      end if
-    end do
-    if (ssbg_debug) then
-      write(*,*) ' kChkPrf   = ', (kChkPrf(dataIndex),dataIndex=1,dataNum)
-      write(*,*) ' NEW FLAGS = ', (globMarq(dataIndex),dataIndex=1,dataNum)
-    end if
-
-  end  subroutine resetQcCases
-
   !------------------------------------------------------------------------------------
   ! bennartz
   !------------------------------------------------------------------------------------
