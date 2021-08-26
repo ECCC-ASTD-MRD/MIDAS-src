@@ -2369,12 +2369,6 @@ contains
     real   , allocatable :: obsLongitude(:)          ! obs. point longitude
     real   , allocatable :: ompTb(:)                 ! OMP values
 
-    ! Temporary arrays
-    integer :: rejCnt(ssbg_maxNumChan,ssbg_maxNumSat)
-    integer :: rejCnt2(ssbg_maxNumChan,ssbg_maxNumSat)
-    integer :: totObs(ssbg_maxNumChan,ssbg_maxNumSat)
-    integer :: totObs2(ssbg_maxNumChan,ssbg_maxNumSat)
-
     !-------------------------------------------------------------------------
     ! 1) INOVQC begins
     !-------------------------------------------------------------------------
@@ -2454,13 +2448,6 @@ contains
     obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
     if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
 
-    !  Initialize the counters which tabulate the rejected observation
-    !  statistics for each channel and each satellite.
-    rejCnt(:,:)  = 0
-    rejCnt2(:,:) = 0
-    totObs(:,:)  = 0
-    totObs2(:,:) = 0
-
     !--------------------------------------------------------------------
     ! 3) Extract model topography from the input GEO file and interpolate
     !    to all observation points in the box
@@ -2473,10 +2460,10 @@ contains
     !--------------------------------------------------------------------
 
     call check_stddev(obsChannels, ompTb, flagsInovQc, actualNumChannel, numObsToProcess, &
-        &             sensorIndex, burpFileSatId, rejCnt, totObs, obsFlags)
+        &             sensorIndex, burpFileSatId, obsFlags)
 
     call check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess,       &
-        &           sensorIndex, rejCnt2, totObs2)
+        &           sensorIndex)
 
   end subroutine ssbg_inovqcSsmis
 
@@ -2484,7 +2471,7 @@ contains
   ! check_stddev
   !--------------------------------------------------------------------------
   subroutine check_stddev(obsChannels, ompTb, flagsInovQc, actualNumChannel, numObsToProcess, &
-       &                  sensorIndex, burpFileSatId, rejcnt, totobs, obsFlags)
+       &                  sensorIndex, burpFileSatId, obsFlags)
     ! :Purpose: Perform quality control on the radiances by analysing the
     !           magnitude of the residuals.
 
@@ -2507,10 +2494,6 @@ contains
     !   numObsToProcess  - input  -  number of groups of NVAL*NELE
     !   sensorIndex      - input  -  number of satellite (index # --> 1-nsat)
     !   burpFileSatId    - input  -  identificateur du satellite
-    !   rejcnt           - in/out -  counter of the rejected obs for each channel
-    !                                of each satellite (dimension: actualNumChannel*mxsat)
-    !   totobs           - in/out -  counter of the total obs checked for each channel
-    !                                of each satellite (dimension: actualNumChannel*mxsat)
     !   rogueFac         -internal-  constant which determines the severity of the
     !                                quality control applied to the O-P magnitude
     !                                for each channel
@@ -2533,8 +2516,6 @@ contains
     integer,          intent(in)    :: numObsToProcess
     integer,          intent(in)    :: sensorIndex
     character(len=9), intent(in)    :: burpFileSatId
-    integer,          intent(inout) :: rejcnt(:,:)
-    integer,          intent(inout) :: totobs(:,:)
     integer,          intent(in)    :: obsFlags(:)
 
     ! Locals
@@ -2589,8 +2570,6 @@ contains
 
       if ( .not. btest(obsFlags(obsChanIndex),7) ) then
 
-        totobs(channelNumber,sensorIndex) = totobs(channelNumber,sensorIndex) + 1
-
         if ( oer_tovutil(channelNumber,sensorIndex) == 0 .or. (.not. btest(obsFlags(obsChanIndex),6)) ) then
 
           ! systematic rejection of this channel
@@ -2616,15 +2595,12 @@ contains
       end if
 
       !  Keep statistics of obs rejected by rogue check.
-      if ( flagsInovQc(obsChanIndex) > 2 ) then
-        rejcnt(channelNumber,sensorIndex) = rejcnt(channelNumber,sensorIndex) + 1
-        if ( ssbg_debug ) then
-          write(*,*) ' CHECK_STDDEV: '
-          write(*,*) burpFileSatId(2:9),' Rogue check reject: ',   &
-               &  ' Obs = ',obsChanIndex,' Channel = ',channelNumber,         &
-               &  ' Check value = ',productRogueSTD,             &
-               &  ' O-P = ',ompTb(obsChanIndex)
-        end if
+      if ( (flagsInovQc(obsChanIndex) > 2) .and. (ssbg_debug) ) then
+        write(*,*) ' CHECK_STDDEV: '
+        write(*,*) burpFileSatId(2:9),' Rogue check reject: ',   &
+             &  ' Obs = ',obsChanIndex,' Channel = ',channelNumber,         &
+             &  ' Check value = ',productRogueSTD,             &
+             &  ' O-P = ',ompTb(obsChanIndex)
       end if
 
     end do HEADER0
@@ -2649,10 +2625,7 @@ contains
         if ( abs(ompTb(chanIndex1)) >= productRogueSTD ) then
           do chanIndex = chanIndex1, chanIndex4
             channelNumber = obsChannels(chanIndex)
-            if (flagsInovQc(chanIndex) /= 1) then
-              if ( flagsInovQc(chanIndex) < 3 ) rejcnt(channelNumber,sensorIndex) = rejcnt(channelNumber,sensorIndex) + 1
-              flagsInovQc(chanIndex) = max(flagsInovQc(chanIndex),3)
-            end if
+            if (flagsInovQc(chanIndex) /= 1) flagsInovQc(chanIndex) = max(flagsInovQc(chanIndex),3)
           end do
         end if
       end if
@@ -2663,10 +2636,7 @@ contains
         if ( abs(ompTb(chanIndex8)) >= productRogueSTD ) then
           do chanIndex = chanIndex8, chanIndex11
             channelNumber = obsChannels(chanIndex)
-            if (flagsInovQc(chanIndex) /= 1) then
-              if ( flagsInovQc(chanIndex) < 3 ) rejcnt(channelNumber,sensorIndex) = rejcnt(channelNumber,sensorIndex) + 1
-              flagsInovQc(chanIndex) = max(flagsInovQc(chanIndex),3)
-            end if
+            if (flagsInovQc(chanIndex) /= 1) flagsInovQc(chanIndex) = max(flagsInovQc(chanIndex),3)
           end do
         end if
       end if
@@ -2678,8 +2648,7 @@ contains
   !--------------------------------------------------------------------------
   ! check_topo
   !--------------------------------------------------------------------------
-  subroutine check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess, sensorIndex,  &
-       &                rejcnt,totobs)
+  subroutine check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess, sensorIndex)
     ! :Purpose: Perform rejection of observations for selected channels based
     !           on model surface height (for channels assimilated over land)
 
@@ -2713,10 +2682,6 @@ contains
     !   actualNumChannel  - input  -  number of residual channels
     !   numObsToProcess   - input  -  number of groups of NVAL*NELE
     !   sensorIndex       - input  -  number of satellite (index # --> 1-nsat)
-    !   rejcnt            - in/out -  counter of the rejected obs for each channel
-    !                                 of each satellite (dimension: actualNumChannel*mxsat)
-    !   totobs            - in/out -  counter of the total obs checked for each channel
-    !                                 of each satellite (dimension: actualNumChannel*mxsat)
     !------------------------------------------------------------------
 
     implicit none
@@ -2727,8 +2692,6 @@ contains
     integer, intent(in)    :: actualNumChannel
     integer, intent(in)    :: numObsToProcess
     integer, intent(in)    :: sensorIndex
-    integer, intent(inout) :: rejcnt(:,:)
-    integer, intent(inout) :: totobs(:,:)
 
     !  Locals
     integer, parameter :: nChanCheck=4             ! number of channels to check
@@ -2737,8 +2700,8 @@ contains
     integer            :: chanIndex1
     integer            :: checkedChan(nChanCheck)
     integer            :: checkedChanIndex
-    integer            :: itrejcnt
     integer            :: obsIndex
+    integer            :: topoReject
 
     logical            :: debugSupp
 
@@ -2763,7 +2726,7 @@ contains
 
     !   Loop over all numObsToProcess observation locations
 
-    itrejcnt = 0
+    topoReject = 0
     HEADER: do obsIndex = 1, numObsToProcess
       debugSupp = .false.
       chanIndex1 = (obsIndex-1)*actualNumChannel + 1  ! index of ch.1 obs
@@ -2780,14 +2743,12 @@ contains
         heightLimit = topoLimit(checkedChanIndex)   ! height limit [m] for channel checkedChan(checkedChanIndex)
         chanIndex = chanIndex1 + (checkedChan(checkedChanIndex)-1)  ! channel checkedChan(checkedChanIndex) index
         if ( flagsInovQc(chanIndex) /= 1 ) then
-          totobs(checkedChan(checkedChanIndex),sensorIndex) = totobs(checkedChan(checkedChanIndex),sensorIndex) + 1
           if ( topoHeight > heightLimit ) then
             flagsInovQc(chanIndex) = max(1,flagsInovQc(chanIndex)) + 4
-            if (ssbg_debug .and. debugSupp) write(*,*) 'Incrementing itrejcnt for max topoHeight point for ch.= ', checkedChan(checkedChanIndex)
-            itrejcnt = itrejcnt + 1
-            rejcnt(checkedChan(checkedChanIndex),sensorIndex) = rejcnt(checkedChan(checkedChanIndex),sensorIndex) + 1
+            if (ssbg_debug .and. debugSupp) write(*,*) 'Incrementing topoReject for max topoHeight point for ch.= ', checkedChan(checkedChanIndex)
+            topoReject = topoReject + 1
             if (ssbg_debug) then
-              if ( itrejcnt <= nChanCheck ) then
+              if ( topoReject <= nChanCheck ) then
                 write(*,*) ' Channel =          ', checkedChan(checkedChanIndex), &
                      &     ' Height limit (m) = ', heightLimit,                   &
                      &     ' Model height (m) = ', topoHeight
@@ -2799,8 +2760,8 @@ contains
 
     end do HEADER
 
-    if (ssbg_debug .and. (itrejcnt > 0) ) then
-      write(*,*) '   Number of topography rejections and observations for this box = ', itrejcnt, numObsToProcess*actualNumChannel
+    if (ssbg_debug .and. (topoReject > 0) ) then
+      write(*,*) '   Number of topography rejections and observations for this box = ', topoReject, numObsToProcess*actualNumChannel
     end if
 
   end subroutine check_topo
