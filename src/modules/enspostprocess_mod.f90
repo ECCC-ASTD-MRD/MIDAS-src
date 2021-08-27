@@ -319,7 +319,7 @@ contains
         ! Create subdirectory for outputting sub sample increments
         ierr = clib_mkdir_r('subspace')
 
-        ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis and increment
+        ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis
         call gsv_allocate( stateVectorMeanAnlSubSample, tim_nstepobsinc,  &
                            hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -454,7 +454,7 @@ contains
       end if
     end if
 
-    ! When we read ensmble trials we always need to transform it either for incremnets or for writing
+    ! When we read ensmble trials we always need to transform them either for incremnets or for writing
     if (ens_allocated(ensembleTrl)) then
       call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
