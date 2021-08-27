@@ -223,7 +223,7 @@ EOF
 
 Then you push the tag:
 ```bash
-git push central v_${VERSION}
+git push origin v_${VERSION}
 ```
 and you can monitor the [CI
 pipeline](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
