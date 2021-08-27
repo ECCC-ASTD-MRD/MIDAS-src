@@ -7940,27 +7940,48 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)     :: maskLAM
 
     ! Locals
-    real(4), pointer :: increment(:,:,:,:)
+    real(4), pointer :: increment_r4(:,:,:,:)
+    real(8), pointer :: increment_r8(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
     integer :: latIndex, kIndex, lonIndex, stepIndex
 
     write(*,*) 'gsv_applyMaskLAM: STARTING'
-
-    call gsv_getField(statevector_inout,increment)
+    
     call gsv_getField(maskLAM,analIncMask)
-    do stepIndex = 1, statevector_inout%numStep
-      !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-      do kIndex = 1, statevector_inout%nk
-        do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
-          do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
-            increment(lonIndex,latIndex,kIndex,stepIndex) =      &
-                 increment(lonIndex,latIndex,kIndex,stepIndex) * &
-                 analIncMask(lonIndex,latIndex,1)
+
+    if (statevector_inout%dataKind == 4) then
+      ! apply mask using increment_r4
+      call gsv_getField(statevector_inout,increment_r4)
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = 1, statevector_inout%nk
+          do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
+            do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
+              increment_r4(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment_r4(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
+            end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
-    end do
+    else
+      ! apply mask using increment_r8
+      call gsv_getField(statevector_inout,increment_r8)
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = 1, statevector_inout%nk
+          do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
+            do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
+              increment_r8(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment_r8(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    end if
 
     write(*,*) 'gsv_applyMaskLAM: finished to apply mask to the analysis increments.'
 
