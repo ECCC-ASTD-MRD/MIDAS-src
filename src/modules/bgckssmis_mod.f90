@@ -1667,7 +1667,7 @@ contains
   !--------------------------------------------------------------------------
   ! ssbg_satqcSsmis
   !--------------------------------------------------------------------------
-  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToReject)
+  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
     ! :Purpose: This program is applied as a first stage of processing to
     !           SSMIS data after it is received from UK MetOffice and
     !           organized into boxes by a program of Jose Garcia. The
@@ -1695,7 +1695,6 @@ contains
     ! Arguments
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex            ! Current header index
-    integer, allocatable, intent(out)   :: ssmisNewInfoFlag(:)    !
     logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
     
     ! Locals
@@ -1806,7 +1805,6 @@ contains
     ! Allocate intent out arrays 
 
     call utl_reAllocate(obsToReject, numObsToProcess*actualNumChannel)
-    call utl_reAllocate(ssmisNewInfoFlag, numObsToProcess)
 
     ! Allocate Fortran working arrays 
 
@@ -1888,7 +1886,6 @@ contains
       numUkBadObs = 0
     end if 
     waterObs(:) = .false.
-    ssmisNewInfoFlag(:) = 0
 
     ! Record the total number of obs pts read for each satellite.
     ! Set the satellite ID number.
@@ -1916,8 +1913,6 @@ contains
     call land_ice_mask_ssmis(numObsToProcess, obsLatitude, obsLongitude, landSeaQualifier, &
                               terrainType, waterObs)
 
-    where ( waterobs ) ssmisNewInfoFlag = ibset(ssmisNewInfoFlag,0)
-
     !--------------------------------------------------------------------
     ! Determine which obs pts have been flagged for rain (using UKMO method of identifying
     ! bad quality SSMIS data for DMSP16). First, initialize all obs as good.
@@ -1925,7 +1920,6 @@ contains
 
     rainDetectionUKMethod(:) = .false.
     where ( ukRainObs == 1 ) rainDetectionUKMethod = .true.
-    where ( rainDetectionUKMethod ) ssmisNewInfoFlag = ibset(ssmisNewInfoFlag,10)
 
     !--------------------------------------------------------------------
     ! Check for values of TB that are missing or outside physical limits.
@@ -1934,7 +1928,6 @@ contains
 
     grossRej(:)  = .false.
     call ssbg_grossValueCheck(numObsToProcess, obsTb, 50., 400., grossRej)
-    where ( grossRej ) ssmisNewInfoFlag = ibset(ssmisNewInfoFlag,11)
 
     !--------------------------------------------------------------------
     ! Apply a CLW regression technique to determine cloudy obs pts.
@@ -1958,9 +1951,6 @@ contains
     !    --> if ( (clw > clw_thresh) .or. precipobs(obsIndex) ) cloudobs(obsIndex) = .true.
     !    --> if ( clw == zmisg )  cloudobs(obsIndex) = .true.
     !
-    where ( iwvReject ) ssmisNewInfoFlag = ibset(ssmisNewInfoFlag,5)
-    where ( precipObs ) ssmisNewInfoFlag = ibset(ssmisNewInfoFlag,4)
-      
     !   Extract Tb for channels 18 (91H GHz)  and 8 (150H GHz) for Bennartz SI
     !   Extract Tb for channels 11 (AMSU-B 3) and 9 (AMSU-B 5) for Dryness Index (DI)
 
@@ -2013,35 +2003,6 @@ contains
         !      "BAD" Observations       
         obsToReject(:) = .true.
         numTotFilteredObs = numTotFilteredObs + 1
-        !      Set INFO flag bits (CLW, BSI, DI) for all points without gross data error      
-        if ( .not. grossRej(obsIndex) ) then
-          !----------------------------------------------------------------------
-          if  ( .not. waterObs(obsIndex) ) then   !  LAND or SEA-ICE
-            !        Check BSI and DI for AMSU-B 3-4
-            !         Bennartz Scattering Index
-            !         Land point           
-            if ( scatL(obsIndex) > 0.0  .and. scatL(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),6)
-            !         Sea-ice point 
-            if ( scatW(obsIndex) > 40.0 .and. scatW(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),6)
-            !         Dryness index           
-            if ( amsubDrynessIndex(obsIndex) > 0.0 )   ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),9)
-            if ( amsubDrynessIndex(obsIndex) > -10.0 ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),8)
-            if ( amsubDrynessIndex(obsIndex) > -20.0 ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),7)
-            !----------------------------------------------------------------------
-          else                              !  OPEN WATER
-          !----------------------------------------------------------------------
-            if (cloudObs(obsIndex)) then
-              if ( rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),1)
-              !            AMSU-A like channels 3-5(6)
-              if ( rclw(obsIndex) > clw_amsu_rej .and. rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),3)
-              if ( rclw(obsIndex) > clw_amsu_rej_ch3 .and. rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),2)
-            end if
-            !         Bennartz Scattering Index ( AMSU-B 2-5)
-            !         Open water point
-            if ( scatW(obsIndex) > 15.0 .and. scatW(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),6)
-          end if    ! if not waterObs
-
-        end if    ! if not grossRej
 
       else     ! if ( ukBadObs(obsIndex) .or. grossRej(obsIndex) )
         !      "GOOD" Observations       
@@ -2066,20 +2027,16 @@ contains
           if ( scatW(obsIndex) == ssbg_realMissing .and. scatL(obsIndex) == ssbg_realMissing ) obsToReject(10:11) = .true.
           if ( any(obsToReject(10:11))) then
             numLandScatObs = numLandScatObs + 1
-            ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),6)
           end if
           !         Dryness index           
           if ( amsubDrynessIndex(obsIndex) > 0.0 ) then
             obsToReject(11) = .true.
-            ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),9)
           end if
           if ( amsubDrynessIndex(obsIndex) > -10.0 ) then
             obsToReject(10) = .true.
-            ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),8)
           end if
           if ( amsubDrynessIndex(obsIndex) > -20.0 ) then
             obsToReject(9) = .true.
-            ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),7)
           end if
           if ( amsubDrynessIndex(obsIndex) > -10.0 ) numDryIndexObs = numDryIndexObs + 1
           numTotFilteredObs = numTotFilteredObs + 1
@@ -2100,15 +2057,12 @@ contains
             else  !  ----- CLOUDY OBSERVATION (OR MISSING CLOUD) ------
               !              SSMI-like imager channels
               obsToReject(12:18) = .true.
-              if ( rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),1)
               !              AMSU-A like channels 3-5(6)
               if ( rclw(obsIndex) > clw_amsu_rej ) then
                 obsToReject(2:ipc) = .true.
-                if ( rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),3)
               end if
               if ( rclw(obsIndex) > clw_amsu_rej_ch3  ) then
                 obsToReject(1) = .true.
-                if ( rclw(obsIndex) /= ssbg_realMissing ) ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),2)
               end if
             end if
             numTotFilteredObs = numTotFilteredObs + 1
@@ -2118,7 +2072,6 @@ contains
           !        Open water point
           if ( scatW(obsIndex) > 15.0 .and. scatW(obsIndex) /= ssbg_realMissing ) then
             obsToReject(8:11) = .true.
-            ssmisNewInfoFlag(obsIndex) = ibset(ssmisNewInfoFlag(obsIndex),6)
             numSeaScatObs = numSeaScatObs + 1
             if ( precipObs(obsIndex) ) numScatPrecipObs = numScatPrecipObs + 1
           end if
@@ -2907,7 +2860,6 @@ contains
 
     ! Locals
     integer, allocatable                :: flagsInovQc(:)
-    integer, allocatable                :: ssmisNewInfoFlag(:)
 
     logical, allocatable                :: obsToReject(:)
 
@@ -2972,7 +2924,7 @@ contains
       ! STEP 1) call satQC SSMIS program                                             !
       !###############################################################################
       if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
-      call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToReject)
+      call ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
 
       !###############################################################################
       ! STEP 2) update Flags after satQC SSMIS program                               !
