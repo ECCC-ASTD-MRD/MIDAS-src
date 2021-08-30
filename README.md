@@ -26,12 +26,18 @@ version of the profile which is
 * [List of standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards)
 * [Automatic documentation standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Documentation_Standards)
 
-# MIDAS Fortran code documentation:
+# MIDAS releases general and code documentations:
 
 The documentation for officially supported branches is available:
-* [`master` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
-* [`v_3.6` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.6) (IC-3)
-* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4) (IC-2)
+* `master` branch
+  * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/master/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
+* `v_3.6` branch 
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.6/README.md) 
+  * [Fortran code documentation](http://hpfx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.6) (IC-3)
+* `v_3.4` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.4/README.md) 
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4) (IC-2)
 
 # Contributing
 
