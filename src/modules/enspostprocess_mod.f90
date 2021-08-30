@@ -454,7 +454,7 @@ contains
       end if
     end if
 
-    ! When we read ensmble trials we always need to transform them either for incremnets or for writing
+    ! When we read ensemble trials we always need to transform them either for incremnets or for writing
     if (ens_allocated(ensembleTrl)) then
       call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)

@@ -227,10 +227,10 @@ CONTAINS
     if (.not. hco_trl%global .and. useAnalIncMask) then
       if (gsv_varExist(varName='P0')) then
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
-                                   PsfcReference_opt=PsfcAnalysis(:,:,1,:), mask2d_opt=statevector_mask)
+                                   PsfcReference_opt=PsfcAnalysis(:,:,1,:), statevectorMaskLAM_opt=statevector_mask)
       else
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorAnalHighRes, &
-                                   mask2d_opt=statevector_mask)
+                                   statevectorMaskLAM_opt=statevector_mask)
       end if
     else
       if (gsv_varExist(varName='P0')) then
@@ -583,25 +583,25 @@ CONTAINS
   ! inc_interpolateAndAdd
   !--------------------------------------------------------------------------
   subroutine inc_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
-                                   PsfcReference_opt, mask2d_opt)
+                                   PsfcReference_opt, statevectorMaskLAM_opt)
     !
     ! :Purpose: Interpolate the low-resolution increments to trial grid and add to 
     !           get the high-resolution analysis.
     !
     implicit none
-    type(struct_gsv)  :: statevector_in, statevector_inout
 
-    real(8), optional :: scaleFactor_opt
-    real(pre_incrReal), optional :: PsfcReference_opt(:,:,:)
-    type(struct_gsv),   optional :: mask2d_opt
+    ! Arguments:
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_inout
+    real(8), intent(in), optional   :: scaleFactor_opt
+    real(pre_incrReal), intent(in), optional :: PsfcReference_opt(:,:,:)
+    type(struct_gsv), intent(in), optional   :: statevectorMaskLAM_opt
 
+    ! Locals:
     type(struct_gsv) :: statevector_in_hvInterp
-
     real(pre_incrReal), pointer :: increment(:,:,:,:)
     real(4), allocatable        :: PsfcReference_r4(:,:,:)
     real(8), allocatable        :: PsfcReference_r8(:,:,:)
-
-    integer :: latIndex,kIndex,lonIndex, stepIndex
 
     character(len=4), pointer :: varNamesToInterpolate(:)
 
@@ -654,8 +654,8 @@ CONTAINS
     !
     !- Masking
     !
-    if (present(mask2d_opt)) then
-      call gsv_applyMaskLAM(statevector_in_hvInterp,mask2d_opt)
+    if (present(statevectorMaskLAM_opt)) then
+      call gsv_applyMaskLAM(statevector_in_hvInterp,statevectorMaskLAM_opt)
     end if
 
     !
