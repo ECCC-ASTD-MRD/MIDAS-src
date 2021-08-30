@@ -502,8 +502,9 @@ contains
                          hInterpolateDegree_opt = hInterpolationDegree, &
                          dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
       call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-      call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
       deallocate(varNames)
+
+      call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
 
       !- Mask the mean increment for LAM grid and recompute the mean analysis
       if (.not. hco_ens%global .and. useAnalIncMask) then
@@ -541,9 +542,9 @@ contains
                            hInterpolateDegree_opt = hInterpolationDegree, &
 !                           allocHeight_opt=.false., allocPressure_opt=.false., &
                            varNames_opt=varNames )
+        call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
         deallocate(varNames)
 
-        call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
         call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
 
         !- Mask the mean increment for LAM grid and recompute the mean analysis
@@ -602,7 +603,6 @@ contains
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
       if (stateVectorHeightSfc%allocated) then
-     
         call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                            dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -681,7 +681,7 @@ contains
         !- Output all ensemble member increments
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
-          call ens_writeEnsemble(ensembleAnlInc, '.', '', 'ENS_INC', 'R',  &
+          call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
@@ -716,39 +716,6 @@ contains
       end if
       call tmg_stop(104)
 
-<<<<<<< HEAD
-      if (ens_allocated(ensembleTrl)) then
-        !- Output all ensemble member increments
-        ! WARNING: Increment put in ensembleAnl for output
-        call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-        call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
-
-        !- Mask the ensemble increment for LAM grid
-        if (.not. hco_ens%global .and. useAnalIncMask) then
-          call ens_applyMaskLAM(ensembleAnl, stateVectorAnalIncMask)
-        end if
-
-        call tmg_start(104,'LETKF-writeEns')
-        if (.not. outputOnlyEnsMean) then
-<<<<<<< HEAD
-          call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
-=======
-          call ens_writeEnsemble(ensembleAnl, '.', '', 'ENS_INC', 'R',  &
->>>>>>> Save the result at the first argument in ens_add. Rearrange computation ensembe mean and std. Mask mean increment.
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
-          if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
-            ! Also write the reference (analysis) surface pressure to increment files
-            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                       etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
-                                       ensPath='.')
-          end if
-        end if
-        call tmg_stop(104)
-      end if
-
-=======
->>>>>>> Create arrays to hold analysis increments and rearrange postprocess computation.
       !- Output the sub-sampled ensemble analyses and increments
       if (writeSubSample) then
         ! Output the ensemble mean increment (include MeanAnl Psfc)
@@ -788,15 +755,7 @@ contains
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
-<<<<<<< HEAD
-<<<<<<< HEAD
-          call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
-=======
-          call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', 'ENS_INC', 'R',  &
->>>>>>> Save the result at the first argument in ens_add. Rearrange computation ensembe mean and std. Mask mean increment.
-=======
-          call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', 'ENS_INC', 'R',  &
->>>>>>> Create arrays to hold analysis increments and rearrange postprocess computation.
+          call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           ! Also write the reference (analysis) surface pressure to increment files
