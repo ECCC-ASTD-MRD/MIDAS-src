@@ -108,29 +108,20 @@ contains
     ! :Purpose: Convert Tbs received from UKMO to Tas, by reversing Ta to Tb
     !           spillover correction applied in B. Bell's pre-processing.
 
-    !--------------------------------------------------------------------
-    ! Variable Definitions:
-    ! ---------------------
-    ! numObsToProcess  - input  -  number of obs pts to process
-    ! grossRej         - input  -  gross reject indicator
-    ! ztb              - input  -  Tbs from input BURP file
-    ! zta              - output -  Tas after conversion
-    ! spillCoeffs      -internal-  spillover correction coefficients
-    !------------------------------------------------------------------
     implicit none
 
     ! Arguments
-    integer, intent(in)  :: numObsToProcess
-    logical, intent(in)  :: grossRej(:)
-    real,    intent(in)  :: ztb(:)
-    real,    intent(out) :: zta(:)
+    integer, intent(in)  :: numObsToProcess  ! Number of obs points to process
+    logical, intent(in)  :: grossRej(:)      ! Gross rejection indicator
+    real,    intent(in)  :: ztb(:)           ! Tbs from input BURP file
+    real,    intent(out) :: zta(:)           ! Tas after conversion
 
     ! Locals
     integer :: hiIndex
     integer :: loIndex
     integer :: obsIndex
 
-    real    :: spillCoeffs(ssbg_maxNumChan)
+    real    :: spillCoeffs(ssbg_maxNumChan)  ! Spillover correction coefficients
 
     !  Define spillover correction coefficients
     !!  Row1           ch1  ch2  ch3  ch4   ch5   ch6
@@ -189,9 +180,9 @@ contains
     implicit none
 
     ! Arguments
-    integer, intent(in)  :: satId
-    real,    intent(in)  :: SSMIS_Ta(ssbg_maxNumChan)
-    real,    intent(out) :: Remapped_SSMI_Ta(ssbg_maxNumChan)
+    integer, intent(in)  :: satId                             ! Satellite ID
+    real,    intent(in)  :: SSMIS_Ta(ssbg_maxNumChan)         ! SSMIS antenna temperature
+    real,    intent(out) :: Remapped_SSMI_Ta(ssbg_maxNumChan) ! Remapped SSMI antenna temperature
 
     ! Locals
     integer, parameter :: f16_id = 1
@@ -254,8 +245,8 @@ contains
     implicit none
 
     ! Arugments
-    real, intent(in)  :: Ta(24)
-    real, intent(out) :: Tb(24)
+    real, intent(in)  :: Ta(24) ! Antenna temperature
+    real, intent(out) :: Tb(24) ! Brightness temperature
 
     ! Locals
     real(8), parameter :: AP(24)=(/0.9850,0.9850,0.9850,0.9850,0.9850,0.9790,0.9815,&
@@ -297,8 +288,8 @@ contains
     implicit none
 
     ! Arguments
-    real, intent(in)  :: Ta(:)
-    real, intent(out) :: Tb(:)
+    real, intent(in)  :: Ta(:) ! Antenna temperature
+    real, intent(out) :: Tb(:) ! Brightness temperature
 
     ! Locals
     real :: AV19V,AH19V,A019V,AH19H,AV19H,A019H,AV22V,A022V
@@ -374,34 +365,23 @@ contains
   subroutine compute_iwv_101(Tb, iwv)
     ! :Purpose: Compute integrated water vapor from SSMI brightness temperatures.
 
-    ! INPUT:
-    !      Tb - brightness temperature vector (all 24 SSMIS channels)
-    !
-    ! OUTPUT:
-    !      iwv = IWV_alishouse - estimated total precipitable water (units:kg/m**2)
-    !                            has cubic polynomial correction
-    !
-    !     ALSO COMPUTED:
-    !      IWV_alishouse0 = estimated total precipitable water (units:kg/m**2)
-    !                       does not have cubic polynomial correction
-    !      precip_screen = 1: possible presence of precipitation does
-    !                         not allow retrieval of IWV and CLW.
-    !                      0: retrieval is possible
-
     implicit none
 
     ! Arguments
-    real, intent(in) :: Tb(24)
-    real, intent(out) :: iwv
+    real, intent(in) :: Tb(24) ! Brightness temperature
+    real, intent(out) :: iwv   ! Integrated water vapor (kg/m**2)
 
     ! Locals
-    integer :: precipScreen
+    integer :: precipScreen    ! = 1: possible presence of precipitation does
+                               !      not allow retrieval of IWV and CLW.
+                               ! = 0: retrieval is possible
 
-    real :: IWV_alishouse0,IWV_alishouse
-    real :: precipThresh
-    real :: tb19v,tb22v,tb37v,tb37h
+    real    :: IWV_alishouse   ! estimated total precipitable water, with cubic polynomial correction (=iwv)
+    real    :: IWV_alishouse0  ! estimated total precipitable water, without cubic polynomial correction
+    real    :: precipThresh
+    real    :: tb19v,tb22v,tb37v,tb37h
 
-    real :: ciwv(0:4)
+    real    :: ciwv(0:4)
 
     !  Initializations.
 
@@ -454,10 +434,10 @@ contains
     implicit none
 
     ! Arguments
-    real,    intent(in)  :: Tb(24)
-    integer, intent(in)  :: sType
-    real,    intent(in)  :: seaIce
-    real,    intent(out) :: TPW
+    real,    intent(in)  :: Tb(24)   ! Brightness temperature
+    integer, intent(in)  :: sType    ! Surface type
+    real,    intent(in)  :: seaIce   ! Sea ice coverage
+    real,    intent(out) :: TPW      ! Total precipitable water (mm)
 
     ! Locals
     integer, parameter :: ocean=0
@@ -502,11 +482,11 @@ contains
     implicit none
 
     ! Arguments
-    integer, intent(in)  :: ocean
-    real,    intent(in)  :: Ta(24)
-    integer, intent(in)  :: sType
-    real,    intent(out) :: seaIce
-    real,    intent(in)  :: latitude
+    integer, intent(in)  :: ocean    ! Ocean surface type index
+    real,    intent(in)  :: Ta(24)   ! Antenna temperature
+    integer, intent(in)  :: sType    ! Surface type
+    real,    intent(out) :: seaIce   ! Sea ice coverage
+    real,    intent(in)  :: latitude ! Latitude of observation
 
     ! Locals
     real :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
@@ -542,8 +522,8 @@ contains
   !--------------------------------------------------------------------------
   !  determ_clw
   !--------------------------------------------------------------------------  
-  subroutine determ_clw(algOption, Ta, Tb, sType, CLW, WVP, latitude)
-    ! :Purpose: To calculate cloud liquid water for a single data point (in kg/m^2).
+  subroutine determ_clw(algOption, Ta, Tb, sType, CLW, IWV, latitude)
+    ! :Purpose: To calculate cloud liquid water for a single data point (in kg/m**2).
 
     !    Normally called when sType = 0 (open water).
     !    Also retrieves sea-ice to see if there is sea-ice at water point.
@@ -551,13 +531,13 @@ contains
     implicit none
 
     ! Arguments
-    character(len=6), intent(in)    :: algOption
-    real,             intent(in)    :: Ta(24)
-    real,             intent(in)    :: Tb(24)
-    integer,          intent(inout) :: sType
-    real,             intent(out)   :: CLW
-    real,             intent(inout) :: WVP
-    real,             intent(in)    :: latitude
+    character(len=6), intent(in)    :: algOption ! Algorithm option (fweng, fwentz or nsun)
+    real,             intent(in)    :: Ta(24)    ! Antenna temperature
+    real,             intent(in)    :: Tb(24)    ! Brightness temperature
+    integer,          intent(inout) :: sType     ! Surface type
+    real,             intent(out)   :: CLW       ! Cloud liquid water (in kg/m**2)
+    real,             intent(inout) :: IWV       ! Integrated water vapor
+    real,             intent(in)    :: latitude  ! Latitude of observation
 
     ! Locals
     integer,    parameter :: isSeaIce = 1
@@ -595,12 +575,12 @@ contains
 
       if ( trim(algOption) == 'fweng' ) then
         ! Compute IWV using F. Weng algorithm.
-        WVP = 232.89 - 0.1486*Tb19v - 0.3695*Tb37v - (1.8291 - 0.006193*Tb22v)*Tb22v
-        if ( WVP < 0.0 ) WVP = 0.0
+        IWV = 232.89 - 0.1486*Tb19v - 0.3695*Tb37v - (1.8291 - 0.006193*Tb22v)*Tb22v
+        if ( IWV < 0.0 ) IWV = 0.0
       end if
     if ( trim(algOption) == 'nsun') then
       call determ_tpw(Tb,sType,seaIce,TPW)
-      WVP = TPW
+      IWV = TPW
     end if
 
     if ( (Ta19v < RT) .and. (Ta22v < RT) ) then
@@ -622,7 +602,7 @@ contains
       CLW = ALG1
     else if ( ALG2 > 0.28 ) then
       CLW = ALG2
-    else if ( WVP < 30.0 ) then
+    else if ( IWV < 30.0 ) then
       CLW = ALG3
     else
       CLW = ALG2
@@ -637,7 +617,7 @@ contains
     else
       ! Sea Ice (>70%) detected from s/r determ_sea_ice but sType was 0 = waterobs (on call)
       CLW = -500.0
-      WVP = ssbg_rmisg
+      IWV = ssbg_rmisg
       sType = isSeaIce
 
     end if
@@ -650,26 +630,26 @@ contains
   subroutine cld_filter_fweng(numObsToProcess, obsTb, algOption, waterObs, grossRej,  &
             &                 cloudObs, iwvReject, precipObs, rclw, riwv, iSatId,   &
             &                 obsLatitude, numSeaIceObs)
-    ! :Purpose: Compute the cloud liquid water from SSMIS channels using the
+    ! :Purpose: Compute the cloud liquid water (CLW) from SSMIS channels using the
     !           regression algorithm of Fuzhong Weng and Ninghai Sun.
-    !           Retrieve Cloud Liquid Water Path from F16 SSMIS TDR data
+    !           Retrieve CLW path from F16 SSMIS TDR data
 
     implicit none
 
     ! Arguments
-    integer,          intent(in)    :: numObsToProcess
-    real,             intent(in)    :: obsTb(:)
-    character(len=6), intent(in)    :: algOption
-    logical,          intent(inout) :: waterObs(:)
-    logical,          intent(in)    :: grossRej(:)
-    logical,          intent(inout) :: cloudObs(:)
-    logical,          intent(inout) :: iwvReject(:)
-    logical,          intent(inout) :: precipObs(:)
-    real,             intent(inout) :: rclw(:)
-    real,             intent(inout) :: riwv(:)
-    integer,          intent(in)    :: iSatId
-    real,             intent(in)    :: obsLatitude(:)
-    integer,          intent(inout) :: numSeaIceObs
+    integer,          intent(in)    :: numObsToProcess  ! Number of obs points to process
+    real,             intent(in)    :: obsTb(:)         ! Brightness temperature of observations
+    character(len=6), intent(in)    :: algOption        ! Algorithm option (fweng, fwentz or nsun)
+    logical,          intent(inout) :: waterObs(:)      ! Open water identifier for each obs
+    logical,          intent(in)    :: grossRej(:)      ! Logical array of obs with gross error (obs to reject)
+    logical,          intent(inout) :: cloudObs(:)      ! Logical array of obs for which CLW > 0.01 kg/m**2 or with precipitations
+    logical,          intent(inout) :: iwvReject(:)     ! Logical array of obs for which IWV > 80 kg/m**2
+    logical,          intent(inout) :: precipObs(:)     ! Logical array of obs with precipitations (CLW missing)
+    real,             intent(inout) :: rclw(:)          ! Real array of CLW
+    real,             intent(inout) :: riwv(:)          ! Real array of integrated water vapor (IWV)
+    integer,          intent(in)    :: iSatId           ! Satellite identifier
+    real,             intent(in)    :: obsLatitude(:)   ! Observation latitudes
+    integer,          intent(inout) :: numSeaIceObs     ! Number of observations with sea ice
 
     ! Locals
     real,    parameter :: iwvThresh = 80.0    ! Upper bound for IWV in kg/m**2
@@ -800,15 +780,15 @@ contains
   ! copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
-    ! :Purpose: copy 1 dim Real Array into 2D real array given dim1 and dim2
+    ! :Purpose: copy 1D real array into 2D real array given firstDim and secondDim
 
     implicit none
 
     ! Arguments
-    integer, intent(in)    :: firstDim
-    integer, intent(in)    :: secondDim
-    real,    intent(in)    :: oneDimArray(firstDim*secondDim)
-    real,    intent(inout) :: twoDimArray(firstDim, secondDim)
+    integer, intent(in)    :: firstDim                         ! First dimension
+    integer, intent(in)    :: secondDim                        ! Second dimension
+    real,    intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D real array
+    real,    intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D real array
     
     ! Locals
     integer                :: firstDimIndex
@@ -829,15 +809,15 @@ contains
   ! copy1Dimto2DimIntegerArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
-    ! :Purpose: copy 1 dim Integer Array into 2D Integer array given dim1 and dim2
+    ! :Purpose: copy 1D integer array into 2D Integer array given firstDim and secondDim
 
     implicit none
 
     ! Arguments
-    integer, intent(in)    :: firstDim
-    integer, intent(in)    :: secondDim
-    integer, intent(in)    :: oneDimArray(firstDim*secondDim)
-    integer, intent(inout) :: twoDimArray(firstDim, secondDim)
+    integer, intent(in)    :: firstDim                         ! First dimension
+    integer, intent(in)    :: secondDim                        ! Second dimension
+    integer, intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D integer array
+    integer, intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D integer array
     
     ! Locals
     integer :: firstDimIndex
@@ -870,14 +850,14 @@ contains
     implicit none
 
     ! Arguments
-    integer, intent(in)  :: numObsToProcess      ! number of points to process
-    integer, intent(out) :: ier(numObsToProcess) ! error return code
+    integer, intent(in)  :: numObsToProcess      ! Number of obs points to process
+    integer, intent(out) :: ier(numObsToProcess) ! Error return code
     real,    intent(in)  :: tb89(:)              ! 89Ghz AMSU-B brightness temperature (K)
     real,    intent(in)  :: tb150(:)             ! 150Ghz AMSU-B brightness temperature (K)
-    real,    intent(in)  :: satZenithAngle(:)    ! satellite zenith angle (deg.)
-    integer, intent(in)  :: landSeaQualifier(:)  ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: scatL(:)             ! scattering index over land
-    real,    intent(out) :: scatW(:)             ! scattering index over water
+    real,    intent(in)  :: satZenithAngle(:)    ! Satellite zenith angle (deg.)
+    integer, intent(in)  :: landSeaQualifier(:)  ! Land/sea indicator (0=land; 1=ocean)
+    real,    intent(out) :: scatL(:)             ! Scattering index over land
+    real,    intent(out) :: scatW(:)             ! Scattering index over water
 
     ! Locals
     ! Notes: In the case where an output parameter cannot be calculated, the
@@ -934,17 +914,16 @@ contains
   ! ssbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
   subroutine ssbg_readGeophysicFieldsAndInterpolate(obsLatitude, obsLongitude, modelInterpTer)
-    ! :Purpose: Reads geophysical model variable (GZ) and save for the first time.
-    !             GZ is geopotential height; GZ at surface = surface height (dam)
-    !               -- looks for surface GZ (hybrid or eta level = 1.0)
-    !           Then Interpolate those variables to observation location
+    ! :Purpose: Reads geophysical model variable (GZ) and saves for the first time.
+    !           GZ is geopotential height (GZ at surface = surface height in dam).
+    !           Then interpolates those variables to observation location.
 
     implicit none
 
     ! Arguments
-    real,              intent(in)  :: obsLatitude(:)           ! Observation Lats
-    real,              intent(in)  :: obsLongitude(:)          ! Observation Lons
-    real, allocatable, intent(out) :: modelInterpTer(:) ! topographie filtree (en metres) et interpolees
+    real,              intent(in)  :: obsLatitude(:)    ! Observation latitudes
+    real,              intent(in)  :: obsLongitude(:)   ! Observation longitudes
+    real, allocatable, intent(out) :: modelInterpTer(:) ! Filtered and interpolated topography (in m)
 
     ! Locals
     integer, parameter      :: mxLat = 5
@@ -1215,12 +1194,12 @@ contains
     implicit none
 
     ! Arguments
-    integer,              intent(in)    :: numObsToProcess
-    real,                 intent(in)    :: obsLatitude(:)
-    real,                 intent(in)    :: obsLongitude(:)
-    integer,              intent(inout) :: landSeaQualifier(:)
-    integer, allocatable, intent(out)   :: terrainType(:)
-    logical, allocatable, intent(out)   :: waterObs(:)
+    integer,              intent(in)    :: numObsToProcess     ! Number of obs points to process
+    real,                 intent(in)    :: obsLatitude(:)      ! Observation latitudes
+    real,                 intent(in)    :: obsLongitude(:)     ! Observation longitudes
+    integer,              intent(inout) :: landSeaQualifier(:) ! Land/sea indicator (0=land; 1=ocean)
+    integer, allocatable, intent(out)   :: terrainType(:)      ! Terrain type qualifier
+    logical, allocatable, intent(out)   :: waterObs(:)         ! Open water identifier for each obs
 
     ! Locals
     integer, parameter      :: mxLat=5
@@ -1476,8 +1455,7 @@ contains
     !                              in record plus undefined pts
     ! obsLongitude     - input  -  array of size ssbg_maxObsNum holding lon values for obs pts
     !                              in record plus undefined pts
-    ! landSeaQualifier - output -  array holding land/sea qualifier values for all obs
-    !                              pts of record
+    ! landSeaQualifier - output -  array holding land/sea qualifier values for all obs pts of record
     ! xLat             -internal-  array of size numObsToProcess holding lat values for obs pts in record
     ! xLon             -internal-  array of size numObsToProcess holding lon values for obs pts in record
     ! lm               -internal-  array of size 1440x720 holding gridded wentz surface values
@@ -1487,10 +1465,10 @@ contains
     implicit none
 
     ! Arguments
-    integer, intent(in)               :: numObsToProcess
-    real,    intent(in)               :: obsLatitude(:)
-    real,    intent(in)               :: obsLongitude(:)
-    integer, intent(out), allocatable :: landSeaQualifier(:)
+    integer, intent(in)               :: numObsToProcess      ! Number of obs points to process
+    real,    intent(in)               :: obsLatitude(:)       ! Observation latitudes
+    real,    intent(in)               :: obsLongitude(:)      ! Observation longitudes
+    integer, intent(out), allocatable :: landSeaQualifier(:)  ! Land/sea indicator (0=land; 1=ocean)
 
     ! Locals
     character(len=12) :: etikxx
@@ -1600,7 +1578,7 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
+    type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
 
     ! Locals
     real, parameter      :: satAzimuthAngle = 210.34
@@ -1654,16 +1632,16 @@ contains
   ! ssbg_grossValueCheck
   !--------------------------------------------------------------------------
   subroutine ssbg_grossValueCheck(numObsToProcess, obsTb, obsTbMin, obsTbMax, grossRej)
-    ! :Purpose: Check Tbs for values that are missing or outside physical limits.
+    ! :Purpose: Check obsTb for values that are missing or outside physical limits.
 
     implicit none
 
     ! Arguments
-    integer, intent(in)               :: numObsToProcess  ! number of obs pts to process
-    real,    intent(in)               :: obsTb(:)         ! bs from input BURP file
-    real,    intent(in)               :: obsTbMin         ! obsTb threshold for rejection
-    real,    intent(in)               :: obsTbMax         ! obsTb threshold for rejection
-    logical, intent(out), allocatable :: grossRej(:)      ! ogical array defining which obs are to be rejected
+    integer, intent(in)               :: numObsToProcess  ! Number of obs points to process
+    real,    intent(in)               :: obsTb(:)         ! Brightness temperature of observations
+    real,    intent(in)               :: obsTbMin         ! Min(obsTb) threshold for rejection
+    real,    intent(in)               :: obsTbMax         ! Max(obsTb) threshold for rejection
+    logical, intent(out), allocatable :: grossRej(:)      ! Logical array of obs with gross error (obs to reject)
 
     ! Locals
     integer :: hiIndex
@@ -1689,36 +1667,36 @@ contains
   !--------------------------------------------------------------------------
   ! ssbg_satqcSsmis
   !--------------------------------------------------------------------------
-  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
+  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToReject)
     ! :Purpose: This program is applied as a first stage of processing to
     !           SSMIS data after it is received from UK MetOffice and
     !           organized into boxes by a program of Jose Garcia. The
     !           processing applied in this program includes:
-    !              o  interpolate Wentz surface land mask to each obs pt
+    !             --  interpolate Wentz surface land mask to each obs pt
     !                 (nearest neighbour) to define land/sea qualifier (008012)
-    !              o  interpolate binary ice mask to each obs pt (nearest
+    !             --  interpolate binary ice mask to each obs pt (nearest
     !                 neighbour) to define terrain-type element (013039) where
     !                 0 = sea ice and 1 = snow-covered land
-    !              o  interpolate model MG and LG fields to a grid surrounding each obs
+    !             --  interpolate model MG and LG fields to a grid surrounding each obs
     !                 pt to identify obs that are over open water, far from coast/ice
-    !              o  identify those obs for which the UKMO rain marker
+    !             --  identify those obs for which the UKMO rain marker
     !                 is ON (ie. 020029 = 1) indicating poor quality
-    !              o  apply a cloud filter to identify those obs in cloudy regions;
+    !             --  apply a cloud filter to identify those obs in cloudy regions;
     !                 write CLW and IWV (over ocean) to output BURP file
-    !              o  re-write data to output BURP file while modifying flags
+    !             --  re-write data to output BURP file while modifying flags
     !                 for those obs which are not over open water, or have been
     !                 identified in rain/cloud areas, or are of poor quality
-    !              o  define satellite zenith angle element (007024) and add
+    !             --  define satellite zenith angle element (007024) and add
     !                 this and land/sea qualifier and terrain-type elements
     !                 to the output file
 
     implicit none
 
     ! Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)    :: headerIndex
-    logical, allocatable, intent(out)   :: obsToreject(:)
-    integer, allocatable, intent(out)   :: ssmisNewInfoFlag(:)
+    type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
+    integer,              intent(in)    :: headerIndex            ! Current header index
+    integer, allocatable, intent(out)   :: ssmisNewInfoFlag(:)    !
+    logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
     
     ! Locals
     ! arrays to get from obsspacedata
@@ -1827,7 +1805,7 @@ contains
 
     ! Allocate intent out arrays 
 
-    call utl_reAllocate(obsToreject, numObsToProcess*actualNumChannel)
+    call utl_reAllocate(obsToReject, numObsToProcess*actualNumChannel)
     call utl_reAllocate(ssmisNewInfoFlag, numObsToProcess)
 
     ! Allocate Fortran working arrays 
@@ -2191,15 +2169,15 @@ contains
   !--------------------------------------------------------------------------
   ! ssbg_updateObsSpaceAfterSatQc
   !--------------------------------------------------------------------------
-  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject) 
+  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject) 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
 
     implicit none
 
     !Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)    :: headerIndex            ! current header index
-    logical,              intent(in)    :: obsToReject(:)         ! data flags
+    type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
+    integer,              intent(in)    :: headerIndex            ! Current header index
+    logical,              intent(in)    :: obsToReject(:)         ! Observations that will be rejected
 
     ! Locals
     integer, allocatable                :: obsFlags(:)
@@ -2334,9 +2312,9 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData      ! obspaceData Object
-    integer,              intent(in)    :: headerIndex       ! header index
-    integer, allocatable, intent(out)   :: flagsInovQc(:)    ! flags for assimilation/rejection of obs
+    type(struct_obs),     intent(inout) :: obsSpaceData      ! ObsSpaceData object
+    integer,              intent(in)    :: headerIndex       ! Current header index
+    integer, allocatable, intent(out)   :: flagsInovQc(:)    ! Flags for assimilation/rejection of obs
 
     ! Locals
     character(len=9)     :: burpFileSatId            ! Satellite ID
@@ -2355,7 +2333,7 @@ contains
     integer              :: instr
     integer              :: instrId
     integer              :: iSat
-    integer              :: numObsToProcess          ! number of obs in current report
+    integer              :: numObsToProcess          ! Number of obs points to process
     integer              :: platf
     integer              :: platfId
     integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
@@ -2508,14 +2486,14 @@ contains
     implicit none
 
     ! Arguments
-    integer,          intent(in)    :: obsChannels(:)
-    real   ,          intent(in)    :: ompTb(:)
-    integer,          intent(out)   :: flagsInovQc(:)
-    integer,          intent(in)    :: actualNumChannel
-    integer,          intent(in)    :: numObsToProcess
-    integer,          intent(in)    :: sensorIndex
-    character(len=9), intent(in)    :: burpFileSatId
-    integer,          intent(in)    :: obsFlags(:)
+    integer,          intent(in)    :: obsChannels(:)   ! Channel numbers
+    real   ,          intent(in)    :: ompTb(:)         ! Radiance residuals
+    integer,          intent(out)   :: flagsInovQc(:)   ! Flags for assimilation/rejection of obs
+    integer,          intent(in)    :: actualNumChannel ! Number of channels
+    integer,          intent(in)    :: numObsToProcess  ! Number of obs points to process
+    integer,          intent(in)    :: sensorIndex      ! Identification number of satellite
+    character(len=9), intent(in)    :: burpFileSatId    ! Satellite identification in BURP file
+    integer,          intent(in)    :: obsFlags(:)      ! Radiance data flags
 
     ! Locals
     real, parameter :: factorCh1 = 2.0 ! factor for channel 1 O-P for rejection of channels 1-4
@@ -2658,7 +2636,7 @@ contains
     ! Variable Definitions:
     ! ---------------------
     !   modelInterpTer    - input  -  model surface height (m) at each observation point
-    !   flagsInovQc       - in/out -  quality contol indicator for each channel of each
+    !   flagsInovQc       - in/out -  quality control indicator for each channel of each
     !                                 observation point
     !                                 -- on INPUT
     !                                 =0  ok
@@ -2686,11 +2664,11 @@ contains
     implicit none
 
     !  Arguments
-    real,    intent(in)    :: modelInterpTer(:)  ! dimension (numObsToProcess)
-    integer, intent(inout) :: flagsInovQc(:)         ! dimension (numObsToProcess*actualNumChannel)
-    integer, intent(in)    :: actualNumChannel
-    integer, intent(in)    :: numObsToProcess
-    integer, intent(in)    :: sensorIndex
+    real,    intent(in)    :: modelInterpTer(:)  ! Model surface height (m) for each obs
+    integer, intent(inout) :: flagsInovQc(:)     ! Flags for assimilation/rejection of obs
+    integer, intent(in)    :: actualNumChannel   ! Number of channels
+    integer, intent(in)    :: numObsToProcess    ! Number of obs points to process
+    integer, intent(in)    :: sensorIndex        ! Identification number of satellite
 
     !  Locals
     integer, parameter :: nChanCheck=4             ! number of channels to check
@@ -2774,9 +2752,9 @@ contains
     implicit none
 
     !Arguments
-    type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,          intent(in)    :: headerIndex            ! current header index
-    integer,          intent(in)    :: flagsInovQc(:)         ! data flags
+    type(struct_obs), intent(inout) :: obsSpaceData    ! ObsSpaceData object
+    integer,          intent(in)    :: headerIndex     ! Current header index
+    integer,          intent(in)    :: flagsInovQc(:)  ! Flags for assimilation/rejection of obs
 
     ! Locals
     integer, allocatable :: obsFlags(:)
@@ -2925,13 +2903,13 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
+    type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
 
     ! Locals
     integer, allocatable                :: flagsInovQc(:)
     integer, allocatable                :: ssmisNewInfoFlag(:)
 
-    logical, allocatable                :: obsToreject(:)
+    logical, allocatable                :: obsToReject(:)
 
     integer                             :: codtyp
     integer                             :: dataIndex
@@ -2994,13 +2972,13 @@ contains
       ! STEP 1) call satQC SSMIS program                                             !
       !###############################################################################
       if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
-      call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToreject)
+      call ssbg_satqcSsmis(obsSpaceData, headerIndex, ssmisNewInfoFlag, obsToReject)
 
       !###############################################################################
       ! STEP 2) update Flags after satQC SSMIS program                               !
       !###############################################################################
       if (ssbg_debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
-      call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToreject)
+      call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject)
 
       !###############################################################################
       ! STEP 3) call inovQC SSMIS program                                            !
