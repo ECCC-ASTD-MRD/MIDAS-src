@@ -44,7 +44,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the master branch
@@ -54,13 +54,13 @@ clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-as
 
 ## Getting code related to IC-3 system
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
 clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.6
 ```
 
 ## Getting code related to IC-2 (operational) system
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
 clone_projet --no-central -c v_3.4 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.4
 ```
 
@@ -162,14 +162,86 @@ The [CI](CI.md) has been configured to produce a SSM domain under
 ```
 automatically when a tag is pushed.
 
-## Create your own SSM domain
+## Procedure to follow when creating a new version
 
-You can create your own SSM domain using the script `ssm/domaingen`
-which takes two optional arguments:
- 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
-   * default: `${HOME}/data_maestro/ords/SSM/midas`
- 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
-   * default: `${DOMAIN_BASE}/packages`
+Once a release is decided to be published, identify the version name
+by following the [semantic
+versioning](http://semver.org/spec/v2.0.0.html).  The tag name
+will be prepend by `v_`.  So if the version is `3.6.6`, the tag name
+will be `v_3.6.6`.
+
+### Warning!
+
+First, avoid to create a SSM domain on the last business day of a week
+(for example, a Friday).  Although we took many precautions, we are
+creating files under `/fs/ssm/eccc/mrd/rpn/anl/midas` a directory
+directly used by the CMC Operations.  We do not want to interrupt the
+operational system by doing a mistake in R&D!
+
+Now, let's detail the procedure to publish a new MIDAS version.
+
+### Update CHANGELOG
+
+When the version name is set, modify the [`CHANGELOG`](CHANGELOG.md)
+by replacing `[Unreleased]` by the version name and reintroduce the
+`[Unreleased]` section with empty subsections.  You can take example
+on the commit 6136c4241b5016f5241bf868f73a10d2b84d3504 which did this
+change for version `v_3.6.6`.
+
+Once this changelog is done, commit with the command
+```bash
+git add -v CHANGELOG.md
+git commit -m "Prepare CHANGELOG for version 'v_${VERSION}'"
+```
+and push this change and wait for the [CI automatic
+tests](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
+to be finished.  This is **very** **very** important since if you push
+the tag immediately, the current CI pipeline actived by this commit
+will use the new tag in the program names and the next CI pipeline,
+when you will push the tag, won't work because it cannot overwrite any
+programs already generated.
+
+Do not ask to avoid running the CI by including some string like
+`[skip CI]` because then, when the tag will be pushed, the CI pipeline
+will not be triggered.
+
+### Create the tag
+
+When the CI pipeline for the CHANGELOG commit is done, you can create
+an annotated tag by prepending `v_` in front of the version name.  You
+can use this command to create the tag:
+```bash
+git tag -a v_${VERSION} -F - <<EOF
+This version is available in the SSM domain:
+    /fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}
+
+See CHANGELOG for more details.
+EOF
+```
+
+### Create the SSM domain
+
+Then you push the tag:
+```bash
+git push origin v_${VERSION}
+```
+and you can monitor the [CI
+pipeline](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines)
+to check if
+ * all the programs are compiled (`build` stage),
+ * all tests are running correctly (`test` stage),
+ * the documentation is generated (`doc` stage) and
+ * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}` (`deploy` stage).
+
+### Merge changes from release branch to `master`
+
+Once a version is published, there are probably some changes (like
+bugfixes) that needs to be also made in the `master` branch which is
+our main development branch.
+
+We suggest to open a merge request using the title "Merge tag
+'v_${VERSION}'" which describes the changes that will be introduced.
+See for example, what has been done in the merge request !476.
 
 ## Updating the scripts under `sanl000`
 
@@ -209,6 +281,15 @@ echo "Removing ${PWD}/ssm_publish which is now pointing to $(true_path ssm_publi
 rm -v ssm_publish
 ln -svi midas/${VERSION}/ssm_publish .
 ```
+
+## Create your own SSM domain
+
+You can create your own SSM domain using the script `ssm/domaingen`
+which takes two optional arguments:
+ 1. `DOMAIN_BASE`: a directory where the SSM domain will be published
+   * default: `${HOME}/data_maestro/ords/SSM/midas`
+ 2. `SSM_PACKAGES`: a directory where packages will be copied before published in the SSM domain
+   * default: `${DOMAIN_BASE}/packages`
 
 # Tools
 
@@ -252,3 +333,23 @@ An automatic system of tests has been developed.  For each push in the
 all the tests pass for the `master` branch.  The [instructions for
 automatic testing using GitLab-CI are available in a separate
 file](CI.md).
+
+## Cleaning of the programs directory
+
+The programs compiled in the CI pipeline are moved into the directory:
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+```
+
+Once in a while, we must clean this directory to save them elsewhere
+to avoid filing the `ords` directory of user `sanl888`.
+
+The script
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs/move_abs.sh
+```
+moves the MIDAS programs to
+```
+/home/sanl888/data_maestro/eccc-ppp4/midas/gitlab-ci/abs
+```
+and links them to keep a reference.
