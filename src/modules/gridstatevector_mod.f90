@@ -7899,7 +7899,7 @@ module gridStateVector_mod
   ! gsv_getMaskLAM
   !--------------------------------------------------------------------------
   subroutine gsv_getMaskLAM(statevector_mask, hco_ptr, vco_ptr, hInterpolateDegree_opt)
-    !:Purpose: To read a LAM mask from a file (.analinc_mask by default).
+    !:Purpose: To read a LAM mask from a file (./analinc_mask by default).
     !
     implicit none
 
