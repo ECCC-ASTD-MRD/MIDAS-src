@@ -598,7 +598,6 @@ CONTAINS
     type(struct_gsv) :: statevector_in_hvInterp
 
     real(pre_incrReal), pointer :: increment(:,:,:,:)
-    real(pre_incrReal), pointer :: analIncMask(:,:,:)
     real(4), allocatable        :: PsfcReference_r4(:,:,:)
     real(8), allocatable        :: PsfcReference_r8(:,:,:)
 
