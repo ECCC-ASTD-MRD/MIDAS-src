@@ -2277,8 +2277,13 @@ contains
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
         ! using the minimum CLW value for land FOV
-        if ( runObsOperatorWithClw ) &
-             profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
+        if ( runObsOperatorWithClw ) then
+            if (tvs_useRttovScatt(sensorIndex)) then
+                cld_profiles(tovsIndex) % clw (:) = clw(:,profileIndex)   
+            else
+                profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
+            end if  
+        end if
       end do
 
       deallocate (pressure,            stat = allocStatus(2))
