@@ -476,6 +476,7 @@ contains
 
       ! initialize the vector for the ensemble increment
       allocate(dateStampListInc(tim_nstepobsinc))
+      call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
       nullify(varNames)
       call ens_varNamesList(varNames,ensembleTrl)
       call ens_allocate(ensembleAnlInc, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
