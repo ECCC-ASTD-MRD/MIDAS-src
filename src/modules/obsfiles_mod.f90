@@ -189,19 +189,21 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt)
   implicit none
 
   ! arguments
   type(struct_obs)  :: obsSpaceData
   real(8), optional :: HXens_mpiglobal_opt(:,:)
   logical, optional :: asciDumpObs_opt
+  logical, optional :: writeDiagFiles_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType, sfFileName
   character(len=*), parameter :: myName = 'obsf_writeFiles'
   character(len=*), parameter :: myWarning = myName //' WARNING: '
+  logical :: writeDiagFiles
 
   ! namelist variables
   logical :: lwritediagsql
@@ -211,6 +213,12 @@ contains
   namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+
+  if (present( writeDiagFiles_opt)) then
+    writeDiagFiles = writeDiagFiles_opt
+  else
+    writeDiagFiles = .true.
+  end if
  
   call obsf_determineFileType(obsFileType)
 
@@ -270,7 +278,8 @@ contains
   else
     sfFileName = 'sf'
   end if
-  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+
+  if (lwritediagsql .and. writeDiagFiles) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then

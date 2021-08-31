@@ -40,6 +40,8 @@ MODULE biasCorrectionSat_mod
   use timeCoord_mod
   use clib_interfaces_mod
   use obserrors_mod
+  use fSQLite
+  use obsfiles_mod
 
   implicit none
   save
@@ -51,6 +53,7 @@ MODULE biasCorrectionSat_mod
   public :: bcs_removeOutliers, bcs_applyBiasCorrection
   public :: bcs_mimicSatbcor
   public :: bcs_readConfig
+  public :: bcs_dumpBiasToSqliteAfterThinning
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -112,6 +115,7 @@ MODULE biasCorrectionSat_mod
   character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(25) ! a "global" parameter and
   integer          :: nbscan(25)  ! the number of scan positions are necessary
+  character(len=2), parameter  :: predTab(0:6) = (/ "SB", "KK","T1", "T2", "T3", "T4", "SV"/)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
   logical  :: offlineMode   ! flag to select offline mode for bias correction computation
@@ -119,12 +123,12 @@ MODULE biasCorrectionSat_mod
   logical  :: allModeTovs   ! flag to select "ALL" mode for TOVS (AMSU-A, AMSU-B, MHS, ATMS, MWHS-2)
   logical  :: allModeCsr    ! flag to select "ALL" mode for CSR (GOES, SEVIRI, MVIRI, ABI, etc..)
   logical  :: allModeHyperIr! flag to select "ALL" mode for hyperSpectral Infrared (AIRS, IASI, CrIS)
-  
+  logical  :: dumpToSqliteAfterThinning  ! option to output all usefull parameters to sqlite files after thinning
   namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
   namelist /nambiassat/ centerPredictors, scanBiasCorLength,  mimicSatbcor, weightedEstimate
   namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
-
+  namelist /nambiassat/ dumpToSqliteAfterThinning
 CONTAINS
  
   !-----------------------------------------------------------------------
@@ -163,7 +167,7 @@ CONTAINS
     allModeTovs=.true.
     allModeCsr=.true.
     allModeHyperIr=.false.
-
+    dumpToSqliteAfterThinning=.false.
     !
     ! read in the namelist NAMBIASSAT
     if ( utl_isNamelistPresent('nambiassat','./flnml') ) then
@@ -716,6 +720,277 @@ CONTAINS
     write(*,*) "bcs_calcBias: end"
 
   end subroutine bcs_calcBias
+
+
+
+  !-----------------------------------------------------------------------
+  ! bcs_dumpBiasToSqliteAfterThinning
+  !-----------------------------------------------------------------------
+  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData,columnhr)
+    !
+    ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
+    !
+    implicit none
+    !Arguments:
+    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData) :: columnhr
+    !Locals:
+    integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
+    integer  :: sensorIndex,iPredictor,chanIndx, codeTypeIndex, fileIndex, searchIndex
+    integer  :: iScan, iFov, jPred, burpChanIndex
+    real(8)  :: predictor(NumPredictors)
+    real(8)  :: biasCor
+    real(8)  :: sunzen, sunaz, satzen,sataz
+    type(fSQL_DATABASE),allocatable :: db(:) ! type for SQLIte  file handle    
+    type(fSQL_STATEMENT),allocatable   :: stmtPreds(:), stmtCoeffs(:) ! type for precompiled SQLite statements
+    type(fSQL_STATUS)      :: stat                 ! type for error status
+    character(len = 512)   :: queryCreate, queryPreds, queryCoeffs, queryTrim
+    logical, allocatable   :: first(:)
+    integer, allocatable   :: fileIndexes(:), obsOffset(:),  dataOffset(:)
+    character(len=*), parameter :: myName = 'bcs_calcBias:'
+    character(len=*), parameter :: myError = myName //' ERROR: '
+    character(len=30)      :: fileNameExtention
+    character(len=4)       :: cmyidx, cmyidy
+    integer                :: tovsCodeTypeListSize, tovsCodeTypeList(10)
+    integer                :: tovsFileNameListSize
+    character(len=20)      :: tovsFileNameList(30)
+    character(len=20)      :: fileName
+    integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(10)
+    integer :: flag
+
+    if ( .not. biasActive ) return
+
+    if ( .not. dumpToSqliteAfterThinning ) return
+
+    write(*,*) "bcs_dumpBiasToSqliteAfterThinning: start"
+
+   
+    ! get list of all possible tovs codetype values and unique list of corresponding filenames
+    call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
+    write(*,*) 'tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
+    write(*,*) 'tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
+    
+    tovsFileNameListSize = 0
+    tovsFileNameList(:) = 'XXXXX'
+    do codeTypeIndex = 1, tovsAllCodeTypeListSize
+      fileName = getObsFileName(tovsAllCodeTypeList(codeTypeIndex))
+      if ( all(tovsFileNameList(:) /= fileName) ) then
+        tovsFileNameListSize = tovsFileNameListSize + 1
+        tovsFileNameList(tovsFileNameListSize) = fileName
+      end if
+    end do
+    write(*,*) 'tovsFileNameListSize = ', tovsFileNameListSize
+    write(*,*) 'tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
+    
+    allocate(db(tovsFileNameListSize))
+    allocate(stmtPreds(tovsFileNameListSize))
+    allocate(stmtCoeffs(tovsFileNameListSize))
+    allocate(first(tovsFileNameListSize))
+    first(:) = .true.
+    allocate(fileIndexes( size(obsf_cfilnam)))
+    fileIndexes(:)= -1
+    do fileIndex =1, tovsFileNameListSize
+      do searchIndex=1, size(obsf_cfilnam)
+        if ( index(trim( obsf_cfilnam(searchIndex)), trim(tovsFileNameList(fileIndex))) >0 ) then
+          fileIndexes(searchIndex) = fileIndex
+        end if
+      end do
+    end do
+    print *, 'fileIndexes',fileIndexes(1:tovsFileNameListSize)
+    allocate(obsOffset(tovsFileNameListSize ))
+    allocate(dataOffset(tovsFileNameListSize))
+    do fileIndex = 1, tovsFileNameListSize
+      fileName = tovsFileNameList(fileIndex)
+      write(*,*) 'tovs filename = ', fileName
+      ! get list of codetypes associated with this filename
+      tovsCodeTypeListSize = 0
+      tovsCodeTypeList(:) = MPC_missingValue_INT
+      do codeTypeIndex = 1, tovsAllCodeTypeListSize
+        if (fileName == getObsFileName(tovsAllCodeTypeList(codeTypeIndex))) then
+          tovsCodeTypeListSize = tovsCodeTypeListSize + 1
+          tovsCodeTypeList(tovsCodeTypeListSize) = tovsAllCodeTypeList(codeTypeIndex)
+        end if
+      end do
+      
+      write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
+      write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
+      call getInitialIdObsData(obsSpaceData, 'TO', obsOffset(fileIndex), dataOffset(fileIndex), &
+           codeTypeList_opt= tovsCodeTypeList(1:tovsCodeTypeListSize))
+      write(*,*) 'obsOffset(fileIndex), dataOffset(fileIndex)',fileIndex, obsOffset(fileIndex), dataOffset(fileIndex) 
+    end do
+    
+
+    iobs = 0
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
+
+      ! process only radiance data to be assimilated?
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
+
+      iobs = iobs + 1
+      
+      fileIndex = fileIndexes( obs_headElem_i(obsSpaceData, OBS_OTP, headerIndex) )
+      indxtovs = tvs_tovsIndex(headerIndex)
+      if ( indxtovs < 0 ) cycle HEADER
+
+      sensorIndex = tvs_lsensor( indxTovs )
+
+      
+
+      if (first(fileIndex)) then
+        if ( obs_mpiLocal( obsSpaceData ) ) then
+          write(cmyidy,'(i4.4)') ( mpi_myidy + 1 )
+          write(cmyidx,'(i4.4)') ( mpi_myidx + 1 )
+          fileNameExtention  = trim(cmyidx) // '_' // trim( cmyidy )
+        else
+          fileNameExtention = ' '
+        end if
+        call fSQL_open( db(fileIndex), 'sqliteBcor_' // trim( tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db', stat )
+        write(*,*) 'Open ', 'sqliteBcor_' // trim( tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db'
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
+          call utl_abort( myError//'fSQL_open' )
+        end if
+        ! Create the tables
+        queryCreate = 'CREATE TABLE predictors(id_data integer, id_obs integer, predIndex integer, PredictorValue real, PredictorType varchar(2), bcor real, fov integer, sunzen real, sunaz real, satzen real, sataz real);&
+             &CREATE TABLE  coeffs2( predIndex integer, coeff real, instrument varchar(10), platform varchar(16), vcoord integer, fov integer);'
+        call fSQL_do_many( db(fileIndex), queryCreate, stat)
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) myError//'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort( myError//'fSQL_do_many' )
+        end if
+        queryPreds = 'insert into predictors (id_data, id_obs, predIndex, predictorValue, predictorType,bcor,fov,sunzen,sunaz,satzen,sataz) values(?,?,?,?,?,?,?,?,?,?,?);'
+        queryCoeffs = 'insert into coeffs2 (predIndex, coeff, instrument, platform, vcoord, fov ) values(?,?,?,?,?,?); '
+        write(*,*) myName//' Insert query Predictors   = ', trim( queryPreds )
+        write(*,*) myName//' Insert query Coeffs = ', trim( queryCoeffs )
+        call fSQL_begin(db(fileIndex))
+        call fSQL_prepare( db(fileIndex), queryPreds, stmtPreds(fileIndex), stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare : ')
+        call fSQL_prepare( db(fileIndex), queryCoeffs, stmtCoeffs(fileIndex), stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare : ')
+        first(fileIndex) = .false.
+      end if
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
+      sunzen = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
+      sunaz =  obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex)
+      satzen = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
+      sataz =  obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
+      if ( bias(sensorIndex)%numScan > 1 ) then
+        iScan = iFov
+      else
+        iScan = 1
+      end if
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
+
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
+        if ( obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) == MPC_missingValue_R8) cycle BODY
+        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),11)) cycle BODY 
+        call bcs_getChannelIndex(obsSpaceData,sensorIndex,chanIndx,bodyIndex)
+        if (chanindx > 0) then
+          biasCor = 0.0d0
+          if (bias(sensorIndex)%chans(chanIndx)%isDynamic .and. bias(sensorIndex)%numScan >0) then
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            biasCor = bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan) + &
+                 bias(sensorIndex)%chans(chanIndx)%coeff(1) 
+            burpChanIndex =  nint( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) )                   
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 1, INT_VAR  = 0 )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 2, REAL8_VAR = bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)   )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 3, CHAR_VAR  = trim(tvs_instrumentName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 4, CHAR_VAR =  trim(tvs_satelliteName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 5, INT_VAR = burpChanIndex )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 6, INT_VAR = iScan )
+            call fSQL_exec_stmt ( stmtCoeffs(fileIndex) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 1, INT_VAR  = 1 )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 2, REAL8_VAR =  bias(sensorIndex)%chans(chanIndx)%coeff(1) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 3, CHAR_VAR  = trim(tvs_instrumentName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 4, CHAR_VAR =  trim(tvs_satelliteName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 5, INT_VAR = burpChanIndex )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 6, INT_VAR = iScan )
+            call fSQL_exec_stmt ( stmtCoeffs(fileIndex) )
+            do iPredictor = 2, bias(sensorIndex)%chans(chanIndx)%NumActivePredictors
+              jPred = bias(sensorIndex)%chans(chanIndx)%PredictorIndex(iPredictor)
+              biasCor = biasCor + predictor(jPred) * bias(sensorIndex)%chans(chanIndx)%coeff(iPredictor)
+            end do
+          end if
+          biasCor = -1.d0 * biascor
+
+          do iPredictor = 2, bias(sensorIndex)%chans(chanIndx)%NumActivePredictors
+            jPred = bias(sensorIndex)%chans(chanIndx)%PredictorIndex(iPredictor)
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 1, INT_VAR  = jPred )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 2, REAL8_VAR =  bias(sensorIndex)%chans(chanIndx)%coeff(iPredictor) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 3, CHAR_VAR  = trim(tvs_instrumentName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 4, CHAR_VAR =  trim(tvs_satelliteName(sensorIndex)) )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 5, INT_VAR = burpChanIndex )
+            call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 6, INT_VAR = iScan )
+            call fSQL_exec_stmt ( stmtCoeffs(fileIndex) )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 1, INT_VAR = bodyIndex + dataOffset(fileIndex) )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 2, INT_VAR = headerIndex + obsOffset(fileIndex) )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 3, INT_VAR = jPred )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 4, REAL8_VAR = predictor(jPred) )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 5, CHAR_VAR  =  predtab(jPred) )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 6, REAL8_VAR = biascor )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 7, INT_VAR = iScan )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 8, REAL8_VAR = sunzen )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 9, REAL8_VAR = sunaz  )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 10, REAL8_VAR = satzen  )
+            call fSQL_bind_param( stmtPreds(fileIndex), PARAM_INDEX = 11, REAL8_VAR = sataz )
+            call fSQL_exec_stmt ( stmtPreds(fileIndex) )
+          end do
+        end if
+      end do BODY
+    end do HEADER
+
+    do fileIndex = 1, tovsFileNameListSize
+      if (.not. first(fileIndex)) then
+        call fSQL_finalize( stmtCoeffs(fileIndex))
+        call fSQL_finalize( stmtPreds(fileIndex))
+        queryTrim = 'create table coeffs as select distinct * from coeffs2; drop table coeffs2;'
+        call fSQL_do_many( db(fileIndex), queryTrim, stat)
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) myError//'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort( myError//'fSQL_do_many' )
+        end if
+        call fSQL_commit(db(fileIndex), stat)
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) myError // 'fSQL_commit: ', fSQL_errmsg(stat)
+          call utl_abort( myError//'fSQL_commit' )
+        end if
+        call fSQL_close( db(fileIndex), stat)
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) myError // 'fSQL_close: ', fSQL_errmsg(stat)
+          call utl_abort( myError//'fSQL_close' )
+        end if
+      end if
+    end do
+    deallocate(dataOffset)
+    deallocate(obsOffset)
+    deallocate(fileIndexes)
+    deallocate(first)
+    deallocate(stmtCoeffs)
+    deallocate(stmtPreds)
+    deallocate(db)
+
+    write(*,*) "bcs_dumpBiasToSqliteAfterThinning: end"
+  contains
+
+    subroutine handleError(stat, message)
+      implicit none
+      
+      type(FSQL_STATUS)  :: stat
+      character(len = *) :: message
+
+      write(*,*) message, fSQL_errmsg(stat)
+      call utl_abort( trim(message) )
+
+    end subroutine handleError
+
+  end subroutine bcs_dumpBiasToSqliteAfterThinning
 
 
   !---------------------------------------
@@ -1926,7 +2201,6 @@ CONTAINS
     integer            :: iuncoef, numPred
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
-    character(len=2), parameter  :: predTab(2:6) = (/ "T1", "T2", "T3", "T4", "SV"/)
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
 
     if (mpi_myId == 0 ) then
@@ -3229,6 +3503,83 @@ CONTAINS
     chanIndx = Index(idsat,ichan)
 
   end subroutine bcs_getChannelIndex
+
+
+ 
+  function getObsFileName(codetype) result(fileName)
+    !
+    ! :Purpose: Return the part of the observation file name associated
+    !           with the type of observation it contains.
+    !
+    implicit none
+
+    ! arguments:
+    integer, intent(in) :: codeType
+    character(len=20)   :: fileName
+ 
+    if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
+      fileName  = 'csr'
+    else if ( codtyp_get_name( codeType ) == 'mhs' .or. codtyp_get_name( codeType ) == 'amsub' ) then
+      fileName = 'to_amsub'
+    else if ( codtyp_get_name( codeType ) == 'amsua' ) then
+      fileName = 'to_amsua'
+    else if ( codtyp_get_name( codeType ) == 'ssmi' ) then
+      fileName = 'ssmis'
+    else if ( codtyp_get_name( codeType ) == 'crisfsr' ) then
+      fileName = 'cris'
+    else
+      fileName = codtyp_get_name( codeType )
+    end if
+    
+  end function getObsFileName
+
+  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+    !
+    ! :Purpose: Compute initial value for idObs and idData that will ensure
+    !           unique values over all mpi tasks
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs)  :: obsdat
+    character(len=*)  :: obsFamily    
+    integer           :: idObs, idData
+    integer, optional :: codeTypeList_opt(:)
+
+    ! locals:
+    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer, allocatable   :: allNumHeader(:), allNumBody(:)
+
+    numHeader = 0
+    numBody = 0
+    call obs_set_current_header_list( obsdat, obsFamily )
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex( obsdat )
+      if ( headerIndex < 0 ) exit HEADERCOUNT
+      if ( present( codeTypeList_opt ) ) then
+        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADERCOUNT
+      end if
+      numHeader = numHeader + 1
+      numBody = numBody + obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+    end do HEADERCOUNT
+    allocate(allNumHeader(mpi_nprocs))
+    allocate(allNumBody(mpi_nprocs))
+    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
+                            allNumHeader,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
+                            allNumBody,1,'mpi_integer','GRID',ierr)
+    if (mpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mpi_myid))
+      idData = sum(allNumBody(1:mpi_myid))
+    else
+      idObs = 0
+      idData = 0
+    end if
+    deallocate(allNumHeader)
+    deallocate(allNumBody)
+
+  end subroutine getInitialIdObsData
 
 end MODULE biasCorrectionSat_mod
 
