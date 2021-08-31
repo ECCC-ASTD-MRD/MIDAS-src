@@ -31,8 +31,8 @@ program midas_ensPostProcess
   use ensPostProcess_mod
   implicit none
 
-  type(struct_ens), pointer :: ensembleTrl
-  type(struct_ens) :: ensembleAnl
+  type(struct_ens)          :: ensembleTrl
+  type(struct_ens)          :: ensembleAnl
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
@@ -166,7 +166,6 @@ program midas_ensPostProcess
   end if
 
   !- Allocate ensembles, read the Trl ensemble
-  allocate(ensembleTrl)
   if (readTrlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &

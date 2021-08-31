@@ -32,6 +32,7 @@ module gridStateVector_mod
   use timeCoord_mod
   use utilities_mod
   use physicsFunctions_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -58,7 +59,8 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
-  public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized 
+  public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
+  public :: gsv_getMaskLAM, gsv_applyMaskLAM
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -7892,5 +7894,97 @@ module gridStateVector_mod
     write(*,*) '-------------------- END --------------------'
 
   end subroutine gsv_getInfo
+
+  !--------------------------------------------------------------------------
+  ! gsv_getMaskLAM
+  !--------------------------------------------------------------------------
+  subroutine gsv_getMaskLAM(statevector_mask, hco_ptr, vco_ptr, hInterpolateDegree_opt)
+    !:Purpose: To read a LAM mask from a file (./analinc_mask by default).
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector_mask
+    type(struct_hco), intent(in), pointer :: hco_ptr
+    type(struct_vco), intent(in), pointer :: vco_ptr
+    character(len=*), intent(in), optional :: hInterpolateDegree_opt
+
+    ! Locals
+    character(len=12) :: hInterpolationDegree
+
+    if (present(hInterpolateDegree_opt)) then
+      hInterpolationDegree = hInterpolateDegree_opt
+    else
+      hInterpolationDegree = 'LINEAR'
+    end if
+
+    call gsv_allocate(statevector_mask, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
+                      dataKind_opt=pre_incrReal, &
+                      mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
+                      hInterpolateDegree_opt=hInterpolationDegree)
+    call gsv_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
+                          vcoFileIn_opt=vco_ptr)
+
+  end subroutine gsv_getMaskLAM
+
+  !--------------------------------------------------------------------------
+  ! gsv_applyMaskLAM
+  !--------------------------------------------------------------------------
+  subroutine gsv_applyMaskLAM(statevector_inout, maskLAM)
+    !:Purpose: To apply a mask to a state vector for LAM grid
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout)  :: statevector_inout
+    type(struct_gsv), intent(in)     :: maskLAM
+
+    ! Locals
+    real(4), pointer :: increment_r4(:,:,:,:)
+    real(8), pointer :: increment_r8(:,:,:,:)
+    real(pre_incrReal), pointer :: analIncMask(:,:,:)
+    integer :: latIndex, kIndex, lonIndex, stepIndex
+
+    write(*,*) 'gsv_applyMaskLAM: STARTING'
+    
+    call gsv_getField(maskLAM,analIncMask)
+
+    if (statevector_inout%dataKind == 4) then
+      ! apply mask using increment_r4
+      call gsv_getField(statevector_inout,increment_r4)
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = 1, statevector_inout%nk
+          do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
+            do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
+              increment_r4(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment_r4(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    else
+      ! apply mask using increment_r8
+      call gsv_getField(statevector_inout,increment_r8)
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = 1, statevector_inout%nk
+          do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
+            do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
+              increment_r8(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment_r8(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    end if
+
+    write(*,*) 'gsv_applyMaskLAM: finished to apply mask to the analysis increments.'
+
+  end subroutine gsv_applyMaskLAM
 
 end module gridStateVector_mod

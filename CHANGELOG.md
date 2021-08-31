@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add option to mask the ensemble of analysis increments for LAM grid (#504 and !488)
  * Add prototype module for reading/updating obsDB files (#470 and !486)
  * `make` removes the corresponding installed program (#513 and !485)
  * Add option to impose a minimum value on HU when using HU as the control variable in `BmatrixEnsemble` (#509 and !481)

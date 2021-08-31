@@ -92,7 +92,7 @@ program midas_prepcma
   rejectHighLatIR         = .true.
   obsClean                = .true.
   writeObsFiles           = .false.
-  writeAsciiCmaFiles       = .true.
+  writeAsciiCmaFiles       = .false.
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

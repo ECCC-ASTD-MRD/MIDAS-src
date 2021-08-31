@@ -60,20 +60,22 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_ens), pointer :: ensembleTrl
-    type(struct_ens)          :: ensembleAnl
-    type(struct_gsv)          :: stateVectorHeightSfc
-    type(struct_gsv)          :: stateVectorCtrlTrl
-    logical                   :: writeTrlEnsemble
-    logical, optional         :: outputOnlyEnsMean_opt
+    type(struct_ens), intent(inout) :: ensembleTrl
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_gsv), intent(in)    :: stateVectorHeightSfc
+    type(struct_gsv), intent(inout) :: stateVectorCtrlTrl
+    logical, intent(in)             :: writeTrlEnsemble
+    logical, optional, intent(in)   :: outputOnlyEnsMean_opt
 
     ! Locals
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
     integer                   :: stepIndex, middleStepIndex, nulnam
+    integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
     type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorAnalIncMask
     type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
     type(struct_gsv)          :: stateVectorMeanIncSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSubSample
@@ -83,6 +85,8 @@ contains
     type(struct_ens)          :: ensembleAnlSubSample
     type(struct_ens)          :: ensembleAnlSubSampleUnPert
     character(len=12)         :: etiket
+    type(struct_ens)          :: ensembleAnlInc
+    type(struct_ens)          :: ensembleAnlIncSubSample
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
@@ -110,6 +114,7 @@ contains
     character(len=12) :: etiket_anlmeanpert, etiket_anlrmspert ! etikets for mean and rms of perturbed analyses
     character(len=12) :: etiket_trlmean, etiket_trlrms      ! etikets for mean and rms of trials
     integer  :: numBits ! number of bits when writing ensemble mean and spread
+    logical  :: useAnalIncMask         ! mask out the increment on the pilot zone
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -117,7 +122,7 @@ contains
                                    weightRecenter, weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
                                    etiket_anlmeanpert, etiket_anlrmspert, etiket_trlmean, etiket_trlrms, &
-                                   numBits
+                                   numBits, useAnalIncMask
 
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
@@ -169,6 +174,7 @@ contains
     etiket_trlmean = 'E27_0_0PAVG' ! for file '${trialdate}_006_trialmean'
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
     numBits = 16
+    useAnalIncMask        = .false.
 
     !- Read the namelist
     nulnam = 0
@@ -196,8 +202,8 @@ contains
       end if
     end if
 
-    !- Allocate and compute ensemble mean Trl
     if (ens_allocated(ensembleTrl)) then
+      !- Allocate and compute ensemble mean Trl
       call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -206,10 +212,19 @@ contains
       call gsv_zero(stateVectorMeanTrl)
       call ens_computeMean(ensembleTrl)
       call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
+      
+      !- Allocate and compute ensemble spread stddev Trl
+      call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         hInterpolateDegree_opt = hInterpolationDegree, &
+                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorStdDevTrl)
+      call ens_computeStdDev(ensembleTrl)
+      call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
     end if
 
-    !- Allocate and compute ensemble mean Anl
     if (ens_allocated(ensembleAnl)) then
+      !- Allocate and compute ensemble mean Anl
       call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -218,24 +233,13 @@ contains
       call gsv_zero(stateVectorMeanAnl)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-    end if
 
-    !- Allocate and compute ensemble spread stddev Trl
-    if (ens_allocated(ensembleTrl)) then
-      call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
-      call ens_computeStdDev(ensembleTrl)
-      call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
-    end if
-
-    if (ens_allocated(ensembleAnl)) then
       !- Allocate and compute ensemble spread stddev Anl
       call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          hInterpolateDegree_opt = hInterpolationDegree, &
                          dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorStdDevAnl)
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
@@ -315,7 +319,7 @@ contains
         ! Create subdirectory for outputting sub sample increments
         ierr = clib_mkdir_r('subspace')
 
-        ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis and increment
+        ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis
         call gsv_allocate( stateVectorMeanAnlSubSample, tim_nstepobsinc,  &
                            hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -323,13 +327,6 @@ contains
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            allocHeight_opt=.false., allocPressure_opt=.false. )
         call gsv_zero(stateVectorMeanAnlSubSample)
-        call gsv_allocate( stateVectorMeanIncSubSample, tim_nstepobsinc,  &
-                           hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           allocHeight_opt=.false., allocPressure_opt=.false. )
-        call gsv_zero(stateVectorMeanIncSubSample)
 
       end if
 
@@ -425,11 +422,7 @@ contains
         ! Re-compute analysis mean of sub-sampled ensemble
         call ens_computeMean(ensembleAnlSubSample)
         call ens_copyEnsMean(ensembleAnlSubSample, stateVectorMeanAnlSubSample)
-
-        ! And compute mean increment with respect to mean of full trial ensemble
-        call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
-        call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
-
+        
       end if ! writeSubsample
 
       !- If SubSample requested, do remaining processing and output of sub-sampled members
@@ -445,6 +438,125 @@ contains
       end if
 
     end if ! ens_allocated(ensembleAnl)
+
+    !
+    !- Transform data before computing the increments and writing to files.
+    !
+    if (ens_allocated(ensembleAnl)) then
+      call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      if (writeSubSample) then
+        call gvt_transform(ensembleAnlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
+        call gvt_transform(stateVectorMeanAnlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      end if
+      if (writeSubSampleUnPert) then
+        call gvt_transform(ensembleAnlSubSampleUnPert,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      end if
+    end if
+
+    ! When we read ensemble trials we always need to transform them either for incremnets or for writing
+    if (ens_allocated(ensembleTrl)) then
+      call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      if (writeSubSample) then
+        call gvt_transform(ensembleTrlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      end if
+    end if
+
+    !
+    !- Compute increments
+    !
+    if (ens_allocated(ensembleAnl).and.ens_allocated(ensembleTrl)) then
+
+      !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
+      if (.not. hco_ens%global .and. useAnalIncMask) then
+        call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
+      end if
+
+      ! initialize the vector for the ensemble increment
+      allocate(dateStampListInc(tim_nstepobsinc))
+      call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
+      nullify(varNames)
+      call ens_varNamesList(varNames,ensembleTrl)
+      call ens_allocate(ensembleAnlInc, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStampListInc, varNames_opt=varNames)
+      call ens_copy(ensembleTrl,ensembleAnlInc)
+      deallocate(varNames)
+
+      ! Compute the ensemble increments
+      call ens_add(ensembleAnl, ensembleAnlInc, scaleFactorInOut_opt=-1.0D0)
+      
+      !- Mask the ensemble increments for LAM grid and recompute ensemble analysis
+      if (.not. hco_ens%global .and. useAnalIncMask) then
+        call ens_applyMaskLAM(ensembleAnlInc, stateVectorAnalIncMask)
+        call ens_copy(ensembleAnlInc,ensembleAnl)
+        call ens_add(ensembleTrl,ensembleAnl)
+      end if
+
+      ! Compute mean increment for converted model variables (e.g. VIS and PR)
+      nullify(varNames)
+      call gsv_varNamesList(varNames, stateVectorMeanAnl)
+      call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+                         dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                         hInterpolateDegree_opt = hInterpolationDegree, &
+                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+      call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+      deallocate(varNames)
+
+      call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+
+      !- Mask the mean increment for LAM grid and recompute the mean analysis
+      if (.not. hco_ens%global .and. useAnalIncMask) then
+        call gsv_applyMaskLAM(stateVectorMeanInc, stateVectorAnalIncMask)
+        call gsv_copy(stateVectorMeanInc,stateVectorMeanAnl)
+        call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnl)
+      end if
+
+      ! If subsample reqested compute the subsample increments
+      if (writeSubSample) then
+        ! Compute ensemble increments for subsample
+        nullify(varNames)
+        call ens_varNamesList(varNames,ensembleAnlSubSample)
+        call ens_allocate(ensembleAnlIncSubSample, ens_getNumMembers(ensembleAnlSubSample), &
+                          tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc, varNames_opt=varNames)
+        call ens_copy(ensembleTrlSubSample,ensembleAnlIncSubSample)
+        deallocate(varNames)
+        
+        call ens_add(ensembleAnlSubSample,ensembleAnlIncSubSample,scaleFactorInOut_opt=-1.0D0)
+
+        !- Mask the ensemble increment for LAM grid and recompute the mean analysis
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call ens_applyMaskLAM(ensembleAnlIncSubSample, stateVectorAnalIncMask)
+          call ens_copy(ensembleAnlIncSubSample,ensembleAnlSubSample)
+          call ens_add(ensembleTrlSubSample,ensembleAnlSubSample)
+        end if
+
+        ! Compute mean increment with respect to mean of full trial ensemble
+        nullify(varNames)
+        call gsv_varNamesList(varNames, stateVectorMeanAnlSubSample)
+        call gsv_allocate( stateVectorMeanIncSubSample, tim_nstepobsinc,  &
+                           hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt = hInterpolationDegree, &
+!                           allocHeight_opt=.false., allocPressure_opt=.false., &
+                           varNames_opt=varNames )
+        call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
+        deallocate(varNames)
+
+        call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
+
+        !- Mask the mean increment for LAM grid and recompute the mean analysis
+        if (.not. hco_ens%global .and. useAnalIncMask) then
+          call gsv_applyMaskLAM(stateVectorMeanIncSubSample, stateVectorAnalIncMask)
+          call gsv_copy(stateVectorMeanIncSubSample,stateVectorMeanAnlSubSample)
+          call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnlSubSample)
+        end if
+      end if
+
+    end if !- end of increment computation
 
     !
     !- Output everything
@@ -477,7 +589,6 @@ contains
 
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble) then
-        call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
@@ -493,7 +604,6 @@ contains
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
       if (stateVectorHeightSfc%allocated) then
-     
         call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                            dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -551,24 +661,8 @@ contains
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
 
-      !- Output the ensemble mean increment (include MeanAnl Psfc) and analysis
-
-      ! convert transformed to model variables for ensemble mean of analysis and trial
-      call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      !- Output the ensemble mean increment (include MeanAnl Psfc) and ensemble increments
       if (ens_allocated(ensembleTrl)) then
-        call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-        ! and recompute mean increment for converted model variables (e.g. VIS and PR)
-        nullify(varNames)
-        call gsv_varNamesList(varNames, stateVectorMeanAnl)
-        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-        call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-        deallocate(varNames)
-
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -585,6 +679,21 @@ contains
           end if
         end do
 
+        !- Output all ensemble member increments
+        call tmg_start(104,'LETKF-writeEns')
+        if (.not. outputOnlyEnsMean) then
+          call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
+                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
+          if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
+            ! Also write the reference (analysis) surface pressure to increment files
+            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
+                                       etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                       ensPath='.')
+          end if
+        end if
+        call tmg_stop(104)
+
       end if ! allocated(ensembleTrl)
 
       ! output ensemble mean analysis state
@@ -600,7 +709,6 @@ contains
 
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
-      call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call tmg_start(104,'LETKF-writeEns')
       if (.not. outputOnlyEnsMean) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
@@ -609,29 +717,8 @@ contains
       end if
       call tmg_stop(104)
 
-      if (ens_allocated(ensembleTrl)) then
-        !- Output all ensemble member increments
-        ! WARNING: Increment put in ensembleTrl for output
-        call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-        call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
-        call tmg_start(104,'LETKF-writeEns')
-        if (.not. outputOnlyEnsMean) then
-          call ens_writeEnsemble(ensembleTrl, '.', '', etiket_inc, 'R',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
-          if (stateVectorMeanAnlSfcPresMpiGlb%allocated) then
-            ! Also write the reference (analysis) surface pressure to increment files
-            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                       etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
-                                       ensPath='.')
-          end if
-        end if
-        call tmg_stop(104)
-      end if
-
       !- Output the sub-sampled ensemble analyses and increments
       if (writeSubSample) then
-
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         ! here we assume 4 digits for the ensemble member!!!!
@@ -667,11 +754,9 @@ contains
         call tmg_stop(104)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
-        ! WARNING: Increment put in ensembleTrlSubSample for output
-        call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
         call tmg_start(104,'LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
-          call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', etiket_inc, 'R',  &
+          call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           ! Also write the reference (analysis) surface pressure to increment files
@@ -1131,8 +1216,8 @@ contains
   !-----------------------------------------------------------------
   ! epp_hybridRecentering
   !-----------------------------------------------------------------
-  subroutine epp_hybridRecentering( ensembleAnl, weightRecenter, weightRecenterLand, &
-                                    useOptionTableRecenter, numMembersToRecenter)
+  subroutine epp_hybridRecentering(ensembleAnl, weightRecenter, weightRecenterLand, &
+                                   useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
     !           in the file "recentering_analysis".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
@@ -1200,6 +1285,7 @@ contains
     call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       hInterpolateDegree_opt = 'LINEAR', &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorRecenterAnl)
 

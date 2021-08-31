@@ -33,6 +33,7 @@ module ensembleStateVector_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -50,7 +51,7 @@ module ensembleStateVector_mod
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
-  public :: ens_varNamesList
+  public :: ens_varNamesList, ens_applyMaskLAM
 
   integer,external   :: get_max_rss
 
@@ -2898,5 +2899,54 @@ CONTAINS
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
 
   end subroutine ens_writeEnsemble
+
+  !--------------------------------------------------------------------------
+  ! ens_applyMaskLAM
+  !--------------------------------------------------------------------------
+  subroutine ens_applyMaskLAM(ensIncrement, stateVectorAnalIncMask)
+    !:Purpose: To apply a mask to an ensemble state vector for LAM grid
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_ens), intent(inout) :: ensIncrement
+    type(struct_gsv), intent(in) :: stateVectorAnalIncMask
+
+    ! Locals
+    real(4), pointer :: increment_ptr(:,:,:,:)
+    real(pre_incrReal), pointer :: analIncMask_ptr(:,:,:)
+    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: varLevIndex, lonIndex, latIndex, stepIndex, memberIndex
+
+    write(*,*) 'ens_applyMaskLAM: starting'
+
+    if (.not.(ens_allocated(ensIncrement).and.(stateVectorAnalIncMask%allocated))) then
+      call utl_abort('epp_applyMasLAM: increment and mask must be avaliable.')
+    end if
+
+    call gsv_getField(stateVectorAnalIncMask, analIncMask_ptr)
+
+    nEns = ens_getNumMembers(ensIncrement)
+    numVarLev = ens_getNumK(ensIncrement)
+    call ens_getLatLonBounds(ensIncrement, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    do varLevIndex = 1, numVarLev
+      increment_ptr => ens_getOneLev_r4(ensIncrement,varLevIndex)
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex,memberIndex)    
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do stepIndex = 1, tim_nstepobsinc
+            do memberIndex = 1, nEns
+              increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) =     &
+                  increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) * &
+                  analIncMask_ptr(lonIndex,latIndex,1)
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    end do
+    write(*,*) 'ens_applyMaskLAM: finished to mask each member of increments'
+
+  end subroutine ens_applyMaskLAM
 
 end module ensembleStateVector_mod
