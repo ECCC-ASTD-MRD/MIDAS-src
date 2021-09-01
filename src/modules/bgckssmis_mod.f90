@@ -1068,7 +1068,7 @@ contains
     modelInterpTer(:) = 0.0
     do dataIndex = 1, dataNum
       if (ssbg_debug) then
-        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: infos'  
+        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: infos'
         write(*,*), '   '
         write(*,*), ' dataIndex = ', dataIndex
         write(*,*), '   '
@@ -2110,13 +2110,13 @@ contains
       write(*,*) '******************* SATQC PROGRAM STATS****************************'
       write(*,*) '*******************************************************************'
       write(*,*)
-      write(*,*) 'Number of cloudy obs =    ', numCloudyObs 
+      write(*,*) 'Number of cloudy obs =    ', numCloudyObs
       write(*,*) 'Number of precip obs =    ', numPrecipObs
       write(*,*) 'Number of gross rej obs = ',  numGrossObs
-      write(*,*) 'Number of land  obs =     ',numLandObs  
-      write(*,*) 'Number of dry obs =       ', numDryIndexObs 
+      write(*,*) 'Number of land  obs =     ',numLandObs
+      write(*,*) 'Number of dry obs =       ', numDryIndexObs
       write(*,*) 'Number of Sea Ice obs =   ',numSeaIceObs
-      write(*,*) 'Number of F16 obs =       ', numObsF16 
+      write(*,*) 'Number of F16 obs =       ', numObsF16
       write(*,*) 'Number of F17 obs =       ', numObsF17
       write(*,*) 'Number of F18 obs =       ', numObsF18
       write(*,*) '*******************************************************************'
