@@ -722,7 +722,7 @@ contains
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
         else
-          write(*,*) ' CLD_FILTER_FWENG: Invalid algorithm option !! '
+          write(*,*) ' cld_filter_fweng: Invalid algorithm option !! '
           call abort()
         end if
 
@@ -761,8 +761,8 @@ contains
 
         ! Store CLW and IWV
         if (ssbg_debug) then
-          write(*,*)'CLOUD BY DETERM_CLW = ', clw
-          write(*,*)'IWV BY DETERM_CLW = ', iwv
+          write(*,*)'cld_filter_fweng: CLOUD BY DETERM_CLW = ', clw
+          write(*,*)'cld_filter_fweng: IWV BY DETERM_CLW = ', iwv
         end if
         rclw(obsIndex) = clw
         riwv(obsIndex) = iwv
@@ -900,7 +900,7 @@ contains
                      (0.158+0.0163*satZenithAngle(obsIndex))
         end if
       else if ( (ier(obsIndex) /= 0  ) .and. (obsIndex <= 100 ) .and. (ssbg_debug)) then
-        write(*,*), ' Input Parameters are not all valid: '
+        write(*,*), 'bennartz: Input Parameters are not all valid: '
         write(*,*), ' obsIndex,tb89(obsIndex),tb150(obsIndex),satZenithAngle(obsIndex),landSeaQualifier(obsIndex) = ',     &
                    obsIndex,tb89(obsIndex),tb150(obsIndex),satZenithAngle(obsIndex),landSeaQualifier(obsIndex)
         write(*,*), ' ier(obsIndex),scatL(obsIndex),scatW(obsIndex)=',     &
@@ -1068,7 +1068,8 @@ contains
     modelInterpTer(:) = 0.0
     do dataIndex = 1, dataNum
       if (ssbg_debug) then
-        write(*,*), ' ------------------  '
+        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: infos'  
+        write(*,*), '   '
         write(*,*), ' dataIndex = ', dataIndex
         write(*,*), '   '
         write(*,*), ' obsLatitude, obsLongitude = ', obsLatitude(dataIndex), obsLongitude(dataIndex)
@@ -1084,7 +1085,7 @@ contains
         modelInterpTer(dataIndex) = max(modelInterpTer(dataIndex),GZIntBox(boxPointIndex,dataIndex))
       end do
       if (ssbg_debug) then
-        write(*,*), ' modelInterpTer = ', modelInterpTer(dataIndex)
+        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: modelInterpTer = ', modelInterpTer(dataIndex)
       end if
     end do
 
@@ -1593,6 +1594,8 @@ contains
     real                 :: obsLatitude(1)
     real                 :: obsLongitude(1)
 
+    write(*,*) 'ssbg_computeSsmisSurfaceType: Starting'
+
     ssmisDataPresent=.false.
     call obs_set_current_header_list(obsSpaceData,'TO')
 
@@ -1625,6 +1628,8 @@ contains
       call obs_headSet_r(obsSpaceData, OBS_SZA, headerIndex,satZenithAngle)
       call obs_headSet_r(obsSpaceData, OBS_AZA, headerIndex, satAzimuthAngle)
     end do HEADER1
+
+    write(*,*) 'ssbg_computeSsmisSurfaceType: Finished'
 
   end subroutine ssbg_computeSsmisSurfaceType
   
@@ -2105,15 +2110,15 @@ contains
       write(*,*) '******************* SATQC PROGRAM STATS****************************'
       write(*,*) '*******************************************************************'
       write(*,*)
-      write(*,*) 'Number of cloudy obs = ', numCloudyObs 
-      write(*,*) 'Number of precip obs = ', numPrecipObs
+      write(*,*) 'Number of cloudy obs =    ', numCloudyObs 
+      write(*,*) 'Number of precip obs =    ', numPrecipObs
       write(*,*) 'Number of gross rej obs = ',  numGrossObs
-      write(*,*) 'Number of land  obs = ',numLandObs  
-      write(*,*) 'Number of dry obs = ', numDryIndexObs 
-      write(*,*) 'Number of Sea Ice obs = ',numSeaIceObs
-      write(*,*) 'Number of F16 obs = ', numObsF16 
-      write(*,*) 'Number of F17 obs = ', numObsF17
-      write(*,*) 'Number of F18 obs = ', numObsF18
+      write(*,*) 'Number of land  obs =     ',numLandObs  
+      write(*,*) 'Number of dry obs =       ', numDryIndexObs 
+      write(*,*) 'Number of Sea Ice obs =   ',numSeaIceObs
+      write(*,*) 'Number of F16 obs =       ', numObsF16 
+      write(*,*) 'Number of F17 obs =       ', numObsF17
+      write(*,*) 'Number of F18 obs =       ', numObsF18
       write(*,*) '*******************************************************************'
     end if
 
@@ -2526,7 +2531,7 @@ contains
 
       !  Keep statistics of obs rejected by rogue check.
       if ( (flagsInovQc(obsChanIndex) > 2) .and. (ssbg_debug) ) then
-        write(*,*) ' CHECK_STDDEV: '
+        write(*,*) 'check_stddev: '
         write(*,*) burpFileSatId(2:9),' Rogue check reject: ',   &
              &  ' Obs = ',obsChanIndex,' Channel = ',channelNumber,         &
              &  ' Check value = ',productRogueSTD,             &
@@ -2646,8 +2651,8 @@ contains
     topoLimit   = (/  250., 1000., 2000., 2500. /)
 
     if (ssbg_debug) then
-       write(*,*) ' CHECK_TOPO: Maximum input GZ = ', maxval(modelInterpTer)
-       write(*,*) ' CHECK_TOPO: numObsToProcess = ', numObsToProcess
+       write(*,*) 'check_topo: Maximum input GZ = ', maxval(modelInterpTer)
+       write(*,*) 'check_topo: numObsToProcess = ', numObsToProcess
     end if
 
     !------------------------------------------------------------------
@@ -2664,7 +2669,7 @@ contains
 
       if (ssbg_debug) then
         if (topoHeight == maxval(modelInterpTer) .and. topoHeight > minval(topoLimit)) then
-          write(*,*) ' CHECK_TOPO: ****** Max height point! topoHeight = ', topoHeight
+          write(*,*) 'check_topo: ****** Max height point! topoHeight = ', topoHeight
           debugSupp = .true.
         end if
       end if
@@ -2675,10 +2680,11 @@ contains
         if ( flagsInovQc(chanIndex) /= 1 ) then
           if ( topoHeight > heightLimit ) then
             flagsInovQc(chanIndex) = max(1,flagsInovQc(chanIndex)) + 4
-            if (ssbg_debug .and. debugSupp) write(*,*) 'Incrementing topoReject for max topoHeight point for ch.= ', checkedChan(checkedChanIndex)
+            if (ssbg_debug .and. debugSupp) write(*,*) 'check_topo: Incrementing topoReject for max topoHeight point for ch.= ', checkedChan(checkedChanIndex)
             topoReject = topoReject + 1
             if (ssbg_debug) then
               if ( topoReject <= nChanCheck ) then
+                write(*,*) 'check_topo:'
                 write(*,*) ' Channel =          ', checkedChan(checkedChanIndex), &
                      &     ' Height limit (m) = ', heightLimit,                   &
                      &     ' Model height (m) = ', topoHeight
@@ -2691,7 +2697,7 @@ contains
     end do HEADER
 
     if (ssbg_debug .and. (topoReject > 0) ) then
-      write(*,*) '   Number of topography rejections and observations for this box = ', topoReject, numObsToProcess*actualNumChannel
+      write(*,*) 'check_topo: Number of topography rejections and observations for this box = ', topoReject, numObsToProcess*actualNumChannel
     end if
 
   end subroutine check_topo
@@ -2876,6 +2882,8 @@ contains
 
     real                                :: percentInovQcFlags(9)
 
+    write(*,*) 'ssbg_bgCheckSSMIS: Starting'
+
     call tmg_start(30,'BGCHECK_SSMIS')
     otherDataPresent = .false.
     ssmisDataPresent = .false.
@@ -2892,7 +2900,7 @@ contains
     end do HEADER0
 
     if ( ssmisDataPresent .and. otherDataPresent ) then
-      call utl_abort ('ssbg_computeSsmisSurfaceType: Other data than SSMIS also included in obsSpaceData')
+      call utl_abort ('ssbg_bgCheckSSMIS: Other data than SSMIS also included in obsSpaceData')
     endif
 
     if ( .not. ssmisDataPresent ) then
@@ -2903,7 +2911,6 @@ contains
     statsInovQcFlags(:) = 0
     percentInovQcFlags(:) = 0.0
 
-    write(*,*) ' SSMIS QC PROGRAM STARTS ....'
     ! read nambgck
     call ssbg_init()
     !Quality Control loop over all observations
@@ -2916,32 +2923,32 @@ contains
       if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. (tvs_isIdBurpInst(codtyp,'ssmis')) ) then
-        write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not SSMIS'
+        write(*,*) 'WARNING in ssbg_bgCheckSSMIS: Observation with codtyp = ', codtyp, ' is not SSMIS'
         cycle HEADER
       end if
 
       !###############################################################################
       ! STEP 1) call satQC SSMIS program                                             !
       !###############################################################################
-      if (ssbg_debug) write(*,*) 'STEP 1) call satQC SSMIS program'
+      if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 1) call satQC SSMIS program'
       call ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
 
       !###############################################################################
       ! STEP 2) update Flags after satQC SSMIS program                               !
       !###############################################################################
-      if (ssbg_debug) write(*,*) 'STEP 2) update Flags after satQC SSMIS program'
+      if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 2) update Flags after satQC SSMIS program'
       call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject)
 
       !###############################################################################
       ! STEP 3) call inovQC SSMIS program                                            !
       !###############################################################################
-      if (ssbg_debug) write(*,*) 'STEP 3) call inovQC SSMIS program'
+      if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 3) call inovQC SSMIS program'
       call ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
 
       !###############################################################################
       ! STEP 4) update Flags after inovQC SSMIS program                              !
       !###############################################################################
-      if (ssbg_debug) write(*,*) 'STEP 4) update Flags after inovQC SSMIS program'
+      if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 4) update Flags after inovQC SSMIS program'
       call ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
 
       !###############################################################################
@@ -2986,6 +2993,9 @@ contains
 257 format(A55,i9,f7.2,' %')
 
     call tmg_stop(30)
+
+    write(*,*) 'ssbg_bgCheckSSMIS: Finished'
+
   end subroutine ssbg_bgCheckSSMIS
 
 end module bgckssmis_mod
