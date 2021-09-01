@@ -375,7 +375,7 @@ contains
     type(struct_obs), intent(in)           :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
     ! locals:
-    integer :: columnIndex, varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
+    integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
     real(8), allocatable, target :: dummy(:)
