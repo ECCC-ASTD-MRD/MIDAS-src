@@ -193,7 +193,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   subroutine bcs_setup()
     implicit none
-
+    !Locals:
     integer  :: cvdim
     integer  :: iSensor,iPredictor, instIndex
     integer  :: iChan
@@ -645,8 +645,8 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnTrlLev
+    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,chanIndx
@@ -721,19 +721,17 @@ CONTAINS
 
   end subroutine bcs_calcBias
 
-
-
   !-----------------------------------------------------------------------
   ! bcs_dumpBiasToSqliteAfterThinning
   !-----------------------------------------------------------------------
-  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData,columnhr)
+  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData,columnTrlOnTrlLev)
     !
-    ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
+    ! :Purpose:  to dump bias correction coefficients and predictors in dedicated sqlite files 
     !
     implicit none
     !Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnhr
+    type(struct_obs), intent(inout)     :: obsSpaceData
+    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: sensorIndex,iPredictor,chanIndx, codeTypeIndex, fileIndex, searchIndex
@@ -747,7 +745,7 @@ CONTAINS
     character(len = 512)   :: queryCreate, queryPreds, queryCoeffs, queryTrim
     logical, allocatable   :: first(:)
     integer, allocatable   :: fileIndexes(:), obsOffset(:),  dataOffset(:)
-    character(len=*), parameter :: myName = 'bcs_calcBias:'
+    character(len=*), parameter :: myName = 'bcs_dumpBiasToSqliteAfterThinning::'
     character(len=*), parameter :: myError = myName //' ERROR: '
     character(len=30)      :: fileNameExtention
     character(len=4)       :: cmyidx, cmyidy
@@ -759,16 +757,14 @@ CONTAINS
     integer :: flag
 
     if ( .not. biasActive ) return
-
     if ( .not. dumpToSqliteAfterThinning ) return
 
     write(*,*) "bcs_dumpBiasToSqliteAfterThinning: start"
 
-   
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
-    write(*,*) 'tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
-    write(*,*) 'tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
+    write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
+    write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
     
     tovsFileNameListSize = 0
     tovsFileNameList(:) = 'XXXXX'
@@ -779,8 +775,8 @@ CONTAINS
         tovsFileNameList(tovsFileNameListSize) = fileName
       end if
     end do
-    write(*,*) 'tovsFileNameListSize = ', tovsFileNameListSize
-    write(*,*) 'tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
+    write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsFileNameListSize = ', tovsFileNameListSize
+    write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
     
     allocate(db(tovsFileNameListSize))
     allocate(stmtPreds(tovsFileNameListSize))
@@ -796,7 +792,7 @@ CONTAINS
         end if
       end do
     end do
-    print *, 'fileIndexes',fileIndexes(1:tovsFileNameListSize)
+    write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: fileIndexes',fileIndexes(1:tovsFileNameListSize)
     allocate(obsOffset(tovsFileNameListSize ))
     allocate(dataOffset(tovsFileNameListSize))
     do fileIndex = 1, tovsFileNameListSize
@@ -812,34 +808,26 @@ CONTAINS
         end if
       end do
       
-      write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
-      write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
+      write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsCodeTypeListSize = ', tovsCodeTypeListSize
+      write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
       call getInitialIdObsData(obsSpaceData, 'TO', obsOffset(fileIndex), dataOffset(fileIndex), &
            codeTypeList_opt= tovsCodeTypeList(1:tovsCodeTypeListSize))
-      write(*,*) 'obsOffset(fileIndex), dataOffset(fileIndex)',fileIndex, obsOffset(fileIndex), dataOffset(fileIndex) 
+      write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: obsOffset(fileIndex), dataOffset(fileIndex)',fileIndex, obsOffset(fileIndex), dataOffset(fileIndex) 
     end do
     
-
     iobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if ( headerIndex < 0 ) exit HEADER
-
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-
       iobs = iobs + 1
-      
       fileIndex = fileIndexes( obs_headElem_i(obsSpaceData, OBS_OTP, headerIndex) )
       indxtovs = tvs_tovsIndex(headerIndex)
       if ( indxtovs < 0 ) cycle HEADER
-
       sensorIndex = tvs_lsensor( indxTovs )
-
-      
-
       if (first(fileIndex)) then
         if ( obs_mpiLocal( obsSpaceData ) ) then
           write(cmyidy,'(i4.4)') ( mpi_myidy + 1 )
@@ -849,28 +837,26 @@ CONTAINS
           fileNameExtention = ' '
         end if
         call fSQL_open( db(fileIndex), 'sqliteBcor_' // trim( tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db', stat )
-        write(*,*) 'Open ', 'sqliteBcor_' // trim( tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db'
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
-          call utl_abort( myError//'fSQL_open' )
-        end if
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', 'sqliteBcor_' // trim( tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db'
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_open: ')
+
         ! Create the tables
-        queryCreate = 'CREATE TABLE predictors(id_data integer, id_obs integer, predIndex integer, PredictorValue real, PredictorType varchar(2), bcor real, fov integer, sunzen real, sunaz real, satzen real, sataz real);&
-             &CREATE TABLE  coeffs2( predIndex integer, coeff real, instrument varchar(10), platform varchar(16), vcoord integer, fov integer);'
+        queryCreate = 'CREATE TABLE predictors(id_data integer, id_obs integer, predIndex integer, PredictorValue real,' // &
+                      'PredictorType varchar(2), bcor real, fov integer, sunzen real, sunaz real, satzen real, sataz real);' // &
+                      'CREATE TABLE  coeffs2( predIndex integer, coeff real, instrument varchar(10), platform varchar(16), vcoord integer, fov integer);'
         call fSQL_do_many( db(fileIndex), queryCreate, stat)
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) myError//'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort( myError//'fSQL_do_many' )
-        end if
-        queryPreds = 'insert into predictors (id_data, id_obs, predIndex, predictorValue, predictorType,bcor,fov,sunzen,sunaz,satzen,sataz) values(?,?,?,?,?,?,?,?,?,?,?);'
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_do_many: ')
+
+        queryPreds = 'insert into predictors (id_data, id_obs, predIndex, predictorValue,' // &
+                     ' predictorType,bcor,fov,sunzen,sunaz,satzen,sataz) values(?,?,?,?,?,?,?,?,?,?,?);'
         queryCoeffs = 'insert into coeffs2 (predIndex, coeff, instrument, platform, vcoord, fov ) values(?,?,?,?,?,?); '
         write(*,*) myName//' Insert query Predictors   = ', trim( queryPreds )
         write(*,*) myName//' Insert query Coeffs = ', trim( queryCoeffs )
         call fSQL_begin(db(fileIndex))
         call fSQL_prepare( db(fileIndex), queryPreds, stmtPreds(fileIndex), stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare : ')
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare 1: ')
         call fSQL_prepare( db(fileIndex), queryCoeffs, stmtCoeffs(fileIndex), stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare : ')
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_prepare 2: ')
         first(fileIndex) = .false.
       end if
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -887,7 +873,6 @@ CONTAINS
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
-
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
         if ( obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) == MPC_missingValue_R8) cycle BODY
         if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),11)) cycle BODY 
@@ -919,7 +904,6 @@ CONTAINS
             end do
           end if
           biasCor = -1.d0 * biascor
-
           do iPredictor = 2, bias(sensorIndex)%chans(chanIndx)%NumActivePredictors
             jPred = bias(sensorIndex)%chans(chanIndx)%PredictorIndex(iPredictor)
             call fSQL_bind_param( stmtCoeffs(fileIndex), PARAM_INDEX = 1, INT_VAR  = jPred )
@@ -945,27 +929,17 @@ CONTAINS
         end if
       end do BODY
     end do HEADER
-
     do fileIndex = 1, tovsFileNameListSize
       if (.not. first(fileIndex)) then
         call fSQL_finalize( stmtCoeffs(fileIndex))
         call fSQL_finalize( stmtPreds(fileIndex))
         queryTrim = 'create table coeffs as select distinct * from coeffs2; drop table coeffs2;'
         call fSQL_do_many( db(fileIndex), queryTrim, stat)
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) myError//'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort( myError//'fSQL_do_many' )
-        end if
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_do_many: ')
         call fSQL_commit(db(fileIndex), stat)
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) myError // 'fSQL_commit: ', fSQL_errmsg(stat)
-          call utl_abort( myError//'fSQL_commit' )
-        end if
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_commit: ')
         call fSQL_close( db(fileIndex), stat)
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) myError // 'fSQL_close: ', fSQL_errmsg(stat)
-          call utl_abort( myError//'fSQL_close' )
-        end if
+        if ( fSQL_error(stat) /= FSQL_OK ) call handleError(stat, 'fSQL_close: ')
       end if
     end do
     deallocate(dataOffset)
@@ -975,19 +949,16 @@ CONTAINS
     deallocate(stmtCoeffs)
     deallocate(stmtPreds)
     deallocate(db)
-
     write(*,*) "bcs_dumpBiasToSqliteAfterThinning: end"
   contains
 
     subroutine handleError(stat, message)
       implicit none
-      
-      type(FSQL_STATUS)  :: stat
-      character(len = *) :: message
+      type(FSQL_STATUS), intent(in)  :: stat
+      character(len = *), intent(in) :: message
 
       write(*,*) message, fSQL_errmsg(stat)
       call utl_abort( trim(message) )
-
     end subroutine handleError
 
   end subroutine bcs_dumpBiasToSqliteAfterThinning
@@ -1145,7 +1116,7 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_obs)  :: obsSpaceData
+    type(struct_obs), intent(inout)  :: obsSpaceData
     !Locals:
     real(8), allocatable :: tbias(:,:), tstd(:,:)
     integer, allocatable :: tcount(:,:)
@@ -1332,10 +1303,10 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    real(8)  :: cv_in(:)
-    integer  :: obsColumnIndex
-    type(struct_obs)  :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnTrlLev
+    real(8), intent(in)                    :: cv_in(:)
+    integer, intent(in)                    :: obsColumnIndex
+    type(struct_obs),  intent(inout)       :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
     !Locals:
     integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,chanIndx
@@ -1435,8 +1406,8 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
+    type(struct_obs), intent(inout)        :: obsSpaceData
     !Locals:
     integer  :: headerIndex, idatyp, nobs
     real(8)  :: height1, height2
@@ -1791,7 +1762,7 @@ CONTAINS
     !
     implicit none
     !Parameter:
-    real(8)  :: cv_bias(:)
+    real(8), intent(inout)  :: cv_bias(:)
     !Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
     integer  :: nChan, nScan
@@ -1871,7 +1842,7 @@ CONTAINS
     !
     implicit none
     !Parameter:
-    real(8), optional  :: cv_in(:)
+    real(8), optional, intent(in)  :: cv_in(:)
     !Locals:
     integer  :: iSensor, iChannel, iPredictor, iScan
     integer  :: jSensor, iChannel2
@@ -2270,7 +2241,7 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_obs)                       :: obsSpaceData
+    type(struct_obs), intent(inout)        :: obsSpaceData
     character(len=2), intent(in), optional :: family_opt
     !Locals:
     integer :: nbcor
@@ -2507,7 +2478,7 @@ CONTAINS
     !           observation or O-F and OBS_BCOR is not modified.
     implicit none
     !Arguments:
-    type(struct_obs)                       :: obsSpaceData
+    type(struct_obs), intent(inout)        :: obsSpaceData
     integer, intent(in)                    :: column !obsSpaceData column
     character(len=2), intent(in), optional :: family_opt
     !Locals:
@@ -2560,8 +2531,8 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnTrlLev
+    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     if ( .not.biasActive ) return
     if ( .not. refreshBiasCorrection) return
@@ -3533,7 +3504,7 @@ CONTAINS
     
   end function getObsFileName
 
-  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+  subroutine getInitialIdObsData(obsSpaceData, obsFamily, idObs, idData, codeTypeList_opt)
     !
     ! :Purpose: Compute initial value for idObs and idData that will ensure
     !           unique values over all mpi tasks
@@ -3541,10 +3512,10 @@ CONTAINS
     implicit none
 
     ! arguments:
-    type(struct_obs)  :: obsdat
-    character(len=*)  :: obsFamily    
-    integer           :: idObs, idData
-    integer, optional :: codeTypeList_opt(:)
+    type(struct_obs), intent(inout)   :: obsSpaceData
+    character(len=*), intent(in)      :: obsFamily    
+    integer, intent(out)              :: idObs, idData
+    integer, optional, intent(in)     :: codeTypeList_opt(:)
 
     ! locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
@@ -3552,16 +3523,16 @@ CONTAINS
 
     numHeader = 0
     numBody = 0
-    call obs_set_current_header_list( obsdat, obsFamily )
+    call obs_set_current_header_list( obsSpaceData, obsFamily )
     HEADERCOUNT: do
-      headerIndex = obs_getHeaderIndex( obsdat )
+      headerIndex = obs_getHeaderIndex( obsSpaceData )
       if ( headerIndex < 0 ) exit HEADERCOUNT
       if ( present( codeTypeList_opt ) ) then
-        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        codeType  = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
         if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADERCOUNT
       end if
       numHeader = numHeader + 1
-      numBody = numBody + obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+      numBody = numBody + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
     end do HEADERCOUNT
     allocate(allNumHeader(mpi_nprocs))
     allocate(allNumBody(mpi_nprocs))

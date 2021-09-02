@@ -203,7 +203,6 @@ contains
   character(len=10) :: obsFileType, sfFileName
   character(len=*), parameter :: myName = 'obsf_writeFiles'
   character(len=*), parameter :: myWarning = myName //' WARNING: '
-  logical :: writeDiagFiles
 
   ! namelist variables
   logical :: lwritediagsql
@@ -213,12 +212,6 @@ contains
   namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
-
-  if (present( writeDiagFiles_opt)) then
-    writeDiagFiles = writeDiagFiles_opt
-  else
-    writeDiagFiles = .true.
-  end if
  
   call obsf_determineFileType(obsFileType)
 
@@ -230,6 +223,9 @@ contains
   read(nulnam,nml=namwritediag,iostat=ierr)
   if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
   if (mpi_myid == 0) write(*,nml = namwritediag)
+  if (present(writeDiagFiles_opt)) then
+    lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
+  end if
   ierr=fclos(nulnam)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
@@ -279,7 +275,7 @@ contains
     sfFileName = 'sf'
   end if
 
-  if (lwritediagsql .and. writeDiagFiles) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then
