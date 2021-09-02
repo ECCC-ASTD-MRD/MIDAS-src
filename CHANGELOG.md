@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Add namelist variable `dumpToSqliteAfterThinning` to `namBiasSat` (#479 and !497)
- * Introduction of logical namelist variable dumpToSqliteAfterThinning in nambiassat namelist section (#479 and !497)
  * Add inovQC treatment for SSMIS data to the background check in module `bgckssmis_mod` (#458 and !489)
  * Add option to mask the ensemble of analysis increments for LAM grid (#504 and !488)
  * Add prototype module for reading/updating obsDB files (#470 and !486)
