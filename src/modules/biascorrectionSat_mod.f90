@@ -139,7 +139,8 @@ contains
     ! :Purpose: Read nambiassat namelist section
     !
     implicit none
-    !Locals:
+
+    ! Locals:
     integer  :: ierr, nulnam
     logical, save :: firstCall = .true.
 
@@ -192,7 +193,8 @@ contains
   !-----------------------------------------------------------------------
   subroutine bcs_setup()
     implicit none
-    !Locals:
+
+    ! Locals:
     integer  :: cvdim
     integer  :: iSensor, iPredictor, instIndex
     integer  :: iChan
@@ -373,7 +375,8 @@ contains
     ! :Purpose: Fill the bias structure with read static and dynamic bias correction coefficient files
     !
     implicit none
-    !Locals:
+
+    ! Locals:
     integer :: iSensor, iSat, jchannel, jChan
     integer :: satIndexDynamic, satIndexStatic
     integer :: chanindexDynamic, chanindexStatic
@@ -521,9 +524,11 @@ contains
     ! :Purpose: to compute predictor average
     !
     implicit none
-    !Arguments:
-    type(struct_obs), intent(inout)  :: obsSpaceData
-    !Locals:
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    ! Locals:
     real(8) :: predictor(NumPredictors)
     integer :: iobs, nsize, i, j, npred
     integer :: headerIndex, idatyp, indxtovs
@@ -637,10 +642,12 @@ contains
     ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
-    !Locals:
+
+    ! Locals:
     integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
@@ -718,10 +725,12 @@ contains
     ! :Purpose:  to dump bias correction coefficients and predictors in dedicated sqlite files 
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)     :: obsSpaceData
     type(struct_columnData), intent(in) :: columnTrlOnTrlLev
-    !Locals:
+
+    ! Locals:
     integer  :: headerIndex, bodyIndex,iobs, indxtovs, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
@@ -962,10 +971,12 @@ contains
     ! :Purpose: to compute residuals mean and standard deviation by intrument, channel and scan position
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData
     character(len=*), intent(in)     :: prefix
-    !Locals:
+
+    ! Locals:
     real(8), allocatable :: tbias(:,:), tstd(:,:)
     integer, allocatable :: tcount(:,:)
     real(8), allocatable :: biasMpiGlobal(:,:), stdMpiGLobal(:,:)
@@ -1103,9 +1114,11 @@ contains
     ! :Purpose: to remove outliers (too large OmF) from linear regression
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     real(8), allocatable :: tbias(:,:), tstd(:,:)
     integer, allocatable :: tcount(:,:)
     real(8), allocatable :: biasMpiGlobal(:,:), stdMpiGLobal(:,:)
@@ -1287,12 +1300,14 @@ contains
     ! :Purpose: tl of bias computation (for varBC)
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     real(8), intent(in)                    :: cv_in(:)
     integer, intent(in)                    :: obsColumnIndex
     type(struct_obs),  intent(inout)       :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
-    !Locals:
+
+    ! Locals:
     integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
@@ -1389,10 +1404,12 @@ contains
     ! :Purpose: get predictors from trial fields
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
     type(struct_obs), intent(inout)        :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     integer  :: headerIndex, idatyp, nobs
     real(8)  :: height1, height2
 
@@ -1506,9 +1523,11 @@ contains
     ! :Purpose: get coefficient increment from control vector
     !
     implicit none
-    !Parameter:
+
+    ! Arguments:
     real(8)  :: cv_bias(:)
-    !Locals:
+
+    ! Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
     integer  :: nsize, ierr
  
@@ -1582,11 +1601,13 @@ contains
      ! :Purpose: get predictors
      !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     real(8), intent(out)            :: predictor(NumPredictors)
     integer, intent(in)             :: headerIndex, obsIndex, chanindx
     type(struct_obs), intent(inout) :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     integer  :: iSensor, iPredictor, jPredictor
     real(8)  :: zenithAngle
 
@@ -1636,11 +1657,13 @@ contains
     ! :Purpose: bias computation adjoint (for varBC)
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     real(8), intent(in)  :: cv_out(:)
     integer, intent(in)  :: obsColumnIndex
     type(struct_obs)     :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     integer  :: headerIndex, bodyIndex, iobs, idatyp
     integer  :: iSensor, iChannel, iPredictor, chanIndx
     integer  :: iScan, iFOV, jPred
@@ -1743,9 +1766,11 @@ contains
     ! :Purpose: adjoint of control vector to coeff transfer (for varBC)
     !
     implicit none
-    !Parameter:
+
+    ! Arguments:
     real(8), intent(inout)  :: cv_bias(:)
-    !Locals:
+
+    ! Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
     integer  :: nChan, nScan
     integer  :: nsize, ierr, iChan
@@ -1822,9 +1847,11 @@ contains
     ! :Purpose: to write bias increments and coefficients (varBC)
     !
     implicit none
-    !Parameter:
+
+    ! Arguments:
     real(8), optional, intent(in)  :: cv_in(:)
-    !Locals:
+
+    ! Locals:
     integer  :: iSensor, iChannel, iPredictor, iScan
     integer  :: jSensor, iChannel2
     integer  :: nulfile_inc, nulfile_fov, ierr
@@ -1980,7 +2007,8 @@ contains
     ! :Purpose: to read, and optionaly update and write out, the coeff files (varBC).
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     integer, intent(in)           :: maxsat, maxpred
     character(len=*), intent(in)  :: coeff_file
     logical, optional, intent(in) :: updateCoeff_opt
@@ -1989,7 +2017,8 @@ contains
     integer, intent(out)          :: nchan(maxsat)  ! number of channels
     character(len=10), intent(out):: sats(maxsat) ! Satellite names
     character(len=*), intent(out) :: cinstrum     ! instrument (e.g. AMSUB)
-    !Locals:
+
+    ! Locals:
     real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)
     real(8)            :: coeff(maxsat,tvs_maxChannelNumber,maxpred)
     character(len=2) :: ptypes(maxsat,tvs_maxChannelNumber,maxpred) 
@@ -2145,6 +2174,7 @@ contains
     ! :Purpose:  write out  the coeff files (regression case).
     !
     implicit none
+
     ! Locals:
     integer            :: iuncoef, numPred
     character(len=80)  :: filename
@@ -2217,10 +2247,12 @@ contains
     !           observation and OBS_BCOR is set to zero
     !
     implicit none
-    !Arguments:
-    type(struct_obs), intent(inout)          :: obsSpaceData
+
+    ! Arguments:
+    type(struct_obs), intent(inout)        :: obsSpaceData
     character(len=2), intent(in), optional :: family_opt
-    !Locals:
+
+    ! Locals:
     integer :: nbcor
     integer :: bodyIndex
     real(8) :: biascor, Obs
@@ -2262,9 +2294,11 @@ contains
     !           (same rules as in bgck.gen_table)
     !
     implicit none
-    !Parameter:
+
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     integer :: bodyIndex, headerIndex
     integer :: assim, flag, codtyp, channelNumber
     integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, i, chanIndx
@@ -2454,11 +2488,13 @@ contains
     !           After the call obsSpaceData body column contains the corrected
     !           observation or O-F and OBS_BCOR is not modified.
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
     integer, intent(in)                    :: column !obsSpaceData column
     character(len=2), intent(in), optional :: family_opt
-    !Locals:
+
+    ! Locals:
     integer :: nbcor
     integer :: bodyIndex
     real(8) :: biascor, Obs
@@ -2506,7 +2542,8 @@ contains
     !           and OBS_BCOR is set to applied bias correction
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
@@ -2528,10 +2565,12 @@ contains
     ! :Purpose: initialize the weights to give more importance to data near radiosonde stations
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     logical, intent(in), optional   :: lmodify_obserror_opt
-    !Locals:
+
+    ! Locals:
     integer :: iobs, headerIndex, idatyp, nobs, bodyIndex, stepIndex
     logical :: lmodify_obserror
     real(8) :: sigmaObs
@@ -2612,10 +2651,12 @@ contains
     ! :Purpose: compute the bias correction coefficients by linear regresion
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
-    !Locals:
+
+    ! Locals:
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex, iPred1, jPred1, iobs
     integer    :: headerIndex, idatyp, nPredMax, ierr, iFov, iScan, idim
@@ -2902,7 +2943,8 @@ contains
     ! :Purpose: release allocated memory for the module
     !
     implicit none
-    !Locals:
+
+    ! Locals:
     integer    :: iSensor, iChannel
 
     if (.not. biasActive) return
@@ -2939,10 +2981,12 @@ contains
   !-----------------------------
   function InstrNametoCoeffFileName(nameIn) result(nameOut)
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
-    !Locals
+
+    ! Locals:
     character(len=10)  :: temp_instrName
     integer            :: ierr
 
@@ -2968,6 +3012,7 @@ contains
   function InstrNameinCoeffFile(nameIn) result(nameOut)
     implicit none
     
+    ! Arguments:
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
 
@@ -2990,6 +3035,7 @@ contains
   !-----------------------------
   function SatNameinCoeffFile(nameIn) result(nameOut)
     implicit none
+
     !Arguments:
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
@@ -3018,7 +3064,8 @@ contains
     ! :Purpose: to read channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=*), intent(in)  :: bcifFile
     logical, intent(in)           :: hspec
     integer, intent(out)          :: exitcode, ncan
@@ -3026,7 +3073,8 @@ contains
     character(len=3), intent(in)  :: global_opt
     character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber), bctype(tvs_maxchannelnumber)
     character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictors)
-    !Locals:
+
+    ! Locals:
     character(len=7)             :: instrum
     integer                      :: i, j, ier, ii, iun
     character(len=64)            :: line
@@ -3226,7 +3274,8 @@ contains
     ! :Purpose: to read radiance bias correction coefficients file
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=10), intent(out) :: sats(:)       ! dim(maxsat), satellite names 1
     integer, intent(out)           :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers 2
     real(8), intent(out)           :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
@@ -3239,7 +3288,8 @@ contains
     character(len=*), intent(in)   :: coeff_file    ! 10
     character(len=2), intent(out)  :: ptypes(:,:,:) ! dim(maxsat,maxchan,maxpred) 11
     integer, intent(out)           :: ndata(:,:)    ! dim(maxsat, maxchan), number of channels 12
-    !Locals:
+
+    ! Locals:
     character(len=8)               :: sat
     character(len=120)             :: line
     integer                        :: chan
@@ -3410,11 +3460,13 @@ contains
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
     implicit none
-    !Arguments:
-    integer, intent(in)  :: idsat, indexBody
-    integer, intent(out) :: chanIndx
+
+    ! Arguments:
+    integer, intent(in)              :: idsat, indexBody
+    integer, intent(out)             :: chanIndx
     type(struct_obs), intent(inout)  :: obsSpaceData
-    !Locals:
+
+    ! Locals:
     logical, save :: first =.true.
     integer :: ichan, isensor, indx 
     integer, allocatable, save :: Index(:,:)
@@ -3453,7 +3505,7 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, intent(in) :: codeType
     character(len=20)   :: fileName
  
@@ -3483,13 +3535,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in)    :: obsFamily    
     integer, intent(out)            :: idObs, idData
     integer, optional, intent(in)   :: codeTypeList_opt(:)
 
-    ! locals:
+    ! Locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
     integer, allocatable   :: allNumHeader(:), allNumBody(:)
 
