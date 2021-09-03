@@ -3462,7 +3462,7 @@ CONTAINS
   end subroutine bcs_getChannelIndex
 
   !-----------------------------------------
-  ! bcs_getObsFileName
+  ! getObsFileName
   !-----------------------------------------
   function getObsFileName(codetype) result(fileName)
     !
