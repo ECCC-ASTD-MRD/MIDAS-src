@@ -187,7 +187,6 @@ CONTAINS
 
   end subroutine bcs_readConfig
 
-
   !-----------------------------------------------------------------------
   ! bcs_setup
   !-----------------------------------------------------------------------
@@ -517,7 +516,6 @@ CONTAINS
 
   end subroutine bcs_readCoeffs
 
-
   !-----------------------------------------------------------------------
   ! bcs_computePredictorBiases
   !-----------------------------------------------------------------------
@@ -784,9 +782,9 @@ CONTAINS
     allocate(first(tovsFileNameListSize))
     first(:) = .true.
     allocate(fileIndexes( size(obsf_cfilnam)))
-    fileIndexes(:)= -1
-    do fileIndex =1, tovsFileNameListSize
-      do searchIndex=1, size(obsf_cfilnam)
+    fileIndexes(:) = -1
+    do fileIndex = 1, tovsFileNameListSize
+      do searchIndex = 1, size(obsf_cfilnam)
         if ( index(trim( obsf_cfilnam(searchIndex)), trim(tovsFileNameList(fileIndex))) >0 ) then
           fileIndexes(searchIndex) = fileIndex
         end if
@@ -962,7 +960,6 @@ CONTAINS
     end subroutine handleError
 
   end subroutine bcs_dumpBiasToSqliteAfterThinning
-
 
   !---------------------------------------
   ! bcs_computeResidualsStatistics
@@ -1292,8 +1289,6 @@ CONTAINS
 
   end subroutine bcs_removeOutliers
 
-
-
   !---------------------------------------
   ! bcs_calcBias_tl
   !---------------------------------------- 
@@ -1395,7 +1390,6 @@ CONTAINS
 
 
   end subroutine bcs_calcBias_tl
-
  
   !----------------------
   ! bcs_getTrialPredictors
@@ -1513,7 +1507,6 @@ CONTAINS
     end function logInterpHeight
 
   end subroutine bcs_getTrialPredictors
-
 
   !----------------------
   ! bcs_cvToCoeff
@@ -1644,7 +1637,6 @@ CONTAINS
     end do
    
   end subroutine bcs_getPredictors
-
 
   !---------------------------------------------
   ! bcs_calcBias_ad
@@ -1991,7 +1983,6 @@ CONTAINS
 
 
   end subroutine bcs_writeBias
-
   
   !-----------------------------------------
   ! bcs_updateCoeff
@@ -2158,7 +2149,6 @@ CONTAINS
     end if
 
   end subroutine bcs_updateCoeff
-
 
   !-----------------------------------------
   ! bcs_writeCoeff
@@ -2544,7 +2534,6 @@ CONTAINS
 
   end subroutine bcs_refreshBiasCorrection
 
-
   !-----------------------------------------
   ! bcs_getRadiosondeWeight
   !-----------------------------------------
@@ -2628,7 +2617,6 @@ CONTAINS
     end if
 
   end subroutine bcs_getRadiosondeWeight
-
 
   !-----------------------------------------
   ! bcs_do_regression
@@ -2923,7 +2911,6 @@ CONTAINS
 
   end subroutine bcs_do_regression
 
-
   !----------------------
   ! bcs_Finalize
   !----------------------
@@ -3039,7 +3026,6 @@ CONTAINS
     end if
 
   end function SatNameinCoeffFile
-
   
   !-----------------------------------------
   ! read_bcif
@@ -3475,8 +3461,9 @@ CONTAINS
 
   end subroutine bcs_getChannelIndex
 
-
- 
+  !-----------------------------------------
+  ! bcs_getObsFileName
+  !-----------------------------------------
   function getObsFileName(codetype) result(fileName)
     !
     ! :Purpose: Return the part of the observation file name associated
@@ -3504,6 +3491,9 @@ CONTAINS
     
   end function getObsFileName
 
+  !-----------------------------------------
+  ! getInitialIdObsData
+  !-----------------------------------------
   subroutine getInitialIdObsData(obsSpaceData, obsFamily, idObs, idData, codeTypeList_opt)
     !
     ! :Purpose: Compute initial value for idObs and idData that will ensure
