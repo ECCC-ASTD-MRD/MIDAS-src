@@ -201,7 +201,7 @@ program midas_obsSelection
     call obsf_copyObsDirectory('./obsOriginal',direction='TO')
 
     ! 2.3 Write obs files after background check, but before thinning
-    call obsf_writeFiles(obsSpaceData)
+    call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt=.false.)
     
     ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
     if (obs_famExist(obsSpaceData,'TO')) then
@@ -227,6 +227,8 @@ program midas_obsSelection
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
+    ! if requested, dump the thinned predictors and coefficients to sqlite
+    call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData,columnTrlOnTrlLev)
 
   end if
 

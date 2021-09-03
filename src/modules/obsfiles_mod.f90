@@ -189,13 +189,14 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt)
   implicit none
 
   ! arguments
   type(struct_obs)  :: obsSpaceData
   real(8), optional :: HXens_mpiglobal_opt(:,:)
   logical, optional :: asciDumpObs_opt
+  logical, optional :: writeDiagFiles_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
@@ -222,6 +223,9 @@ contains
   read(nulnam,nml=namwritediag,iostat=ierr)
   if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
   if (mpi_myid == 0) write(*,nml = namwritediag)
+  if (present(writeDiagFiles_opt)) then
+    lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
+  end if
   ierr=fclos(nulnam)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
@@ -270,6 +274,7 @@ contains
   else
     sfFileName = 'sf'
   end if
+
   if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
 
   if ( present(asciDumpObs_opt) ) then
