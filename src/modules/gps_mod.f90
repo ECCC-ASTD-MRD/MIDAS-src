@@ -2847,27 +2847,23 @@ contains
     type(gps_diff)        , intent(out):: bstv(:)
 
     ! Locals:
-    integer                            :: iSize, i, j,j2,j3,j4, ngpslev, jlocm, jlocp
-    real(dp)                           :: imp1,azm1,rad, rad0
-    real(dp)                           :: imp(ngpssize+ngpsxlow)
-    type(gps_diff)                     :: am, ap, da, dam, dap
+    integer                            :: iSize, i,j2,j3,j4, ngpslev,last_i
+    real(dp)                           :: rad0
     type(gps_diff)                     :: h(ngpssize), nu(ngpssize), lnu(ngpssize), n(ngpssize), z(ngpssize)
     type(gps_diff)                     :: N0a, N1a, ka, NAa,Aa, Ba, Ba2, Ba3, delta_alpha, delta_alpha_top, z_0, h_0
     real(dp)                           :: a2, a, gz(ngpssize), cazm, sazm
-    real(dp)                ,parameter :: pi = 4*ATAN(1.0)
+    real(dp)                           :: last_a
 
-
-    call gpsbend1(prf)
     ngpslev=prf%ngpslev
     do i=1,ngpslev 
-       h(i)  = prf%geoid+prf%gst(i)
-       nu(i) = prf%rst(i)
-       lnu(i)=log(nu(i)) 
-       n(i)  = 1._dp+nu(i)*1e-6_dp
-       z(i)  = n(i)*(prf%Rad+prf%geoid+prf%gst(i))
+      h(i)  = prf%geoid+prf%gst(i)
+      nu(i) = prf%rst(i)
+      lnu(i)=log(nu(i)) 
+      n(i)  = 1._dp+nu(i)*1e-6_dp
+      z(i)  = n(i)*(prf%Rad+prf%geoid+prf%gst(i))
     enddo
     do i=1,ngpslev-1
-        gz(i) = (lnu(i+1)%Var - lnu(i)%Var) / (h(i+1)%Var-  h(i)%Var)
+      gz(i) = (lnu(i+1)%Var - lnu(i)%Var) / (h(i+1)%Var-  h(i)%Var)
     enddo
     gz(ngpslev) = 0.0_dp
     
@@ -2877,100 +2873,62 @@ contains
     !
     ! Given an impact
     !
-    do i = 1, iSize
-       a2 = impv(i)*impv(i)
-       a  = impv(i)
-       call j_point(a,z,ngpslev,j2)
-       if  (j2/=0) then
-           h_0   = h(j2)+(((a-z(j2))/(z(j2-1)-z(j2)))*( h(j2-1) -h(j2)))  
-           cazm  = cos(azmv(j2))
-           sazm  = sin(azmv(j2)) 
-           N0a   =  nu(j2)
-           NAa   =  nu(j2)*exp( gz(j2)*(h_0-h(j2)))
-           delta_alpha = 0.d0
-           delta_alpha_top = 0.d0
-           j3 = j2-1
-           z_0 = a
-           do while (j3>=1) 
-              N1a = nu(j3)
-              ka = log(N0a/N1a)/(z(j3) - z(j3+1))
-              j4=j3
-              do while  (ka%Var<0.or.ka%Var>0.1) 
-                 j3=j3-1
-                 N1a = nu(j3) 
-                 ka = log(N0a/N1a)/(z(j3) - z(j4)) 
-              enddo 
-              Aa = 1e-6_dp* sqrt((pi/2.d0*a)/ka )*NAa* exp(ka*(z_0-a))  
+    do i = iSize,1,-1
+      a2 = impv(i)*impv(i)
+      a  = impv(i)
+      call j_point(a,z,ngpslev,j2)
+      if  (j2/=0) then
+        h_0   = h(j2)+(((a-z(j2))/(z(j2-1)-z(j2)))*( h(j2-1) -h(j2)))  
+        cazm  = cos(azmv(j2))
+        sazm  = sin(azmv(j2)) 
+        N0a   =  nu(j2)
+        NAa   =  nu(j2)*exp( gz(j2)*(h_0-h(j2)))
+        delta_alpha = 0.d0
+        delta_alpha_top = 0.d0
+        j3 = j2-1
+        z_0 = a
+        do while (j3>=1) 
+          N1a = nu(j3)
+          ka = log(N0a/N1a)/(z(j3) - z(j3+1))
+          j4=j3
+          do while  (ka%Var<0.or.ka%Var>0.1) 
+            j3=j3-1
+            N1a = nu(j3) 
+            ka = log(N0a/N1a)/(z(j3) - z(j4))    
+            enddo 
+              Aa = 1e-6_dp* sqrt((MPC_PI_R8/2.d0*a)/ka )*NAa* exp(ka*(z_0-a))  
               if (z_0%Var==a) then
-                 Ba = erf(sqrt(ka*(z(j3)-a)))
+                Ba = erf(sqrt(ka*(z(j3)-a)))
               else  
-                 Ba2 = erf(sqrt(ka*(z(j3)-a)))
-                 Ba3 = erf(sqrt((ka*(z_0-a))))
-                 Ba = Ba2 - Ba3
-               endif 
-               delta_alpha = delta_alpha + 2*ka*Ba*Aa 
-               N0a = N1a
-               NAa = N1a 
-               z_0 = z(j3)
-               j3=j3-1
+                Ba2 = erf(sqrt(ka*(z(j3)-a)))
+                Ba3 = erf(sqrt((ka*(z_0-a))))
+                Ba = Ba2 - Ba3
+              endif 
+                delta_alpha = delta_alpha + 2*ka*Ba*Aa 
+                N0a = N1a
+                NAa = N1a 
+                z_0 = z(j3)
+                j3=j3-1
             enddo
             Ba = erf(1-erf(sqrt((ka*(z_0-a)))))
             delta_alpha_top = 2*Aa*ka*Ba 
             if ((abs(delta_alpha%Var +delta_alpha_top%Var))>1) then
-               j2=0
+              j2=0
             endif
             bstv(i)   = delta_alpha +delta_alpha_top
+            last_i    = i
+            last_a    = a
        endif
        if (j2==0) then
-          imp1 = impv(i)
-          azm1 = azmv(i)
-          rad=1._dp/(cos(azm1)**2/prf%radM+sin(azm1)**2/prf%radN)
-          do j=1, ngpslev+ngpsxlow
-             imp(j)=prf%ast(j)%Var
-          enddo
-          !
-          ! Search where it is located
-          !
-          jlocm = -1000
-          jlocp = -1000
-          if (imp1 > imp(1)) then
-             jlocm = 1
-             jlocp = 2
-          endif
 
-          do j=1, ngpslev+ngpsxlow-1
-             if ((imp1 <= imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
-                jlocm = j
-             endif
-          enddo
+         ! Use loglinear extrapolation for most data (notably direct rays)
+         if (a>(1._dp+prf%rst(ngpslev)%Var*1e-6_dp)*prf%Rad) then
+           bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))
+         else
+         ! Use linear extrapolation  for near-zero or negative bending (most reflected rays)
+           bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
+         endif
 
-          do j=jlocm+1, ngpslev+ngpsxlow
-             if ((imp1 >  imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
-                jlocp = j
-             exit
-             endif
-          enddo
-       
-          if (jlocm == -1000) jlocm = ngpslev+ngpsxlow-1
-          if (jlocp == -1000) jlocp = ngpslev+ngpsxlow
-
-          !
-          ! Find properties in that band
-          !
-          am = prf%ast(jlocm)
-          ap = prf%ast(jlocp)
-       
-          da = am - ap
-          dam = (imp1-ap) / da
-          dap = (am-imp1) / da
-       
-          ! Use loglinear interpolation for most data (notably direct rays)
-          if (prf%bst(jlocm)%Var > 1.e-6_dp .and. prf%bst(jlocp)%Var > 1.e-6_dp) then
-             bstv(i)=exp(dam*log(prf%bst(jlocm))+dap*log(prf%bst(jlocp)))*(rad/rad0)
-          else
-          ! Use interpolation/extrapolation for near-zero or negative bending (most reflected rays)
-             bstv(i)=prf%bst(j2+1) * exp((-1._dp/6500._dp)*(h(ngpslev)- prf%gst(j2+1)))
-          endif
        endif
     enddo
   end subroutine gps_bndopv1
