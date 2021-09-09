@@ -45,6 +45,8 @@ public
 #include "rttov_direct.interface"
 
 #include "rttov_scatt.interface"
+#include "rttov_scatt_tl.interface"
+#include "rttov_scatt_ad.interface"
 #include "rttov_alloc_scatt_prof.interface"
 #include "rttov_read_scattcoeffs.interface"
 #include "rttov_dealloc_scattcoeffs.interface"
