@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module calcHeightAndPressure_mod
-  ! MODULE calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
+  ! MODULE czp_calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
   !
   ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or 
   !           orography. 
@@ -31,12 +31,17 @@ module calcHeightAndPressure_mod
   use gridstatevector_mod
   use columnData_mod
   use utilities_mod
+  use varnamelist_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: czp_tt2phi           , czp_tt2phi_tl           , czp_tt2phi_ad
+  public :: czp_tt2phi, czp_tt2phi_tl, czp_tt2phi_ad, &
+            czp_calcGridPressure_nl_r8, czp_calcGridPressure_nl_r4, &
+            czp_calcGridPressure_tl, czp_calcGridPressure_ad, & 
+            czp_calcColumnPressure, czp_calcColumnPressure_tl, &
+            czp_calcColumnPressure_ad 
 
   interface czp_tt2phi_tl
     module procedure czp_tt2phi_gsv_tl
@@ -1818,5 +1823,666 @@ function gpscompressibility_P0_2(p,t,q)
           + pt*pt*e*d_x2
 end function gpscompressibility_P0_2
 
+!--------------------------------------------------------------------------
+! czp_calcGridPressure_nl_r8
+!--------------------------------------------------------------------------
+subroutine czp_calcGridPressure_nl_r8(statevector, beSilent_opt)
+  !
+  !:Purpose: double-precision czp_calculation of the Pressure on the grid.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
+  logical, optional               :: beSilent_opt
+
+  ! Locals:
+  real(kind=8), allocatable   :: Psfc(:,:)
+  real(kind=8), pointer       :: Pressure_out(:,:,:) 
+  real(kind=8), pointer       :: field_Psfc(:,:,:,:)
+  integer                     :: status, stepIndex, numStep
+  logical                     :: beSilent
+  real(8), pointer            :: P_T(:,:,:,:)
+  real(8), pointer            :: P_M(:,:,:,:)
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: computing Pressure on staggered or UNstaggered levels'
+
+  if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
+    call utl_abort('czp_calcGridPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
+  end if
+
+  nullify(P_T)
+  nullify(P_M)
+
+  call gsv_getField(statevector,P_T,'P_T')
+  call gsv_getField(statevector,P_M,'P_M')
+
+  allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                statevector%myLatBeg:statevector%myLatEnd))
+  call gsv_getField(statevector,field_Psfc,'P0')
+  numStep = statevector%numStep
+
+  do stepIndex = 1, numStep
+
+    Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+    ! P_M
+    nullify(Pressure_out)
+    status = vgd_levels(statevector%vco%vgrid, &
+                      ip1_list=statevector%vco%ip1_M, &
+                      levels=Pressure_out, &
+                      sfc_field=Psfc, &
+                      in_log=.false.)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+    P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+    deallocate(Pressure_out)
+
+    ! P_T
+    nullify(Pressure_out)
+    status = vgd_levels(statevector%vco%vgrid, &
+                      ip1_list=statevector%vco%ip1_T, &
+                      levels=Pressure_out, &
+                      sfc_field=Psfc, &
+                      in_log=.false.)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+    P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+    deallocate(Pressure_out)
+
+    if ( .not. beSilent .and. stepIndex == 1 ) then
+      write(*,*) 'stepIndex=',stepIndex, ',P_M='
+      write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      write(*,*) 'stepIndex=',stepIndex, ',P_T='
+      write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+    end if
+
+  end do
+
+  deallocate(Psfc)
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: END'
+
+end subroutine czp_calcGridPressure_nl_r8
+
+!--------------------------------------------------------------------------
+! czp_calcGridPressure_nl_r4
+!--------------------------------------------------------------------------
+subroutine czp_calcGridPressure_nl_r4(statevector, beSilent_opt)
+  !
+  !:Purpose: single-precision czp_calculation of the Pressure on the grid.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
+  logical, optional               :: beSilent_opt
+
+  ! Locals:
+  real(kind=4), allocatable   :: Psfc(:,:)
+  real(kind=4), pointer       :: Pressure_out(:,:,:) 
+  real(kind=4), pointer       :: field_Psfc(:,:,:,:)
+  integer                     :: status, stepIndex, numStep
+  logical                     :: beSilent
+  real(4), pointer            :: P_T(:,:,:,:)
+  real(4), pointer            :: P_M(:,:,:,:)
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r4: computing Pressure on staggered or UNstaggered levels'
+
+  if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
+    call utl_abort('czp_calcGridPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
+  end if
+
+  nullify(P_T)
+  nullify(P_M)
+
+  call gsv_getField(statevector,P_T,'P_T')
+  call gsv_getField(statevector,P_M,'P_M')
+
+  allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                statevector%myLatBeg:statevector%myLatEnd))
+  call gsv_getField(statevector,field_Psfc,'P0')
+  numStep = statevector%numStep
+
+  do stepIndex = 1, numStep
+    Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+    ! P_T
+    nullify(Pressure_out)
+    status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_M, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+    P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+    deallocate(Pressure_out)
+
+    ! P_M
+    nullify(Pressure_out)
+    status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_T, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+    P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+    deallocate(Pressure_out)
+
+    if ( .not. beSilent .and. stepIndex == 1 ) then
+      write(*,*) 'stepIndex=',stepIndex, ',P_M='
+      write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      write(*,*) 'stepIndex=',stepIndex, ',P_T='
+      write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+    end if
+
+  end do
+
+  deallocate(Psfc)
+
+end subroutine czp_calcGridPressure_nl_r4
+
+!--------------------------------------------------------------------------
+! czp_calcGridPressure_tl
+!--------------------------------------------------------------------------
+subroutine czp_calcGridPressure_tl(statevector, statevector_trial, beSilent_opt)
+  !
+  !:Purpose: czp_calculation of the Pressure increment on the grid.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain the P_T/P_M increments
+  type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
+  logical, optional               :: beSilent_opt
+
+  ! Locals:
+  real(8), allocatable  :: Psfc(:,:)
+  real(4), pointer      :: delPsfc_r4(:,:,:,:)
+  real(8), pointer      :: delPsfc_r8(:,:,:,:)
+  real(8), pointer      :: field_Psfc(:,:,:,:)
+  real(4), pointer      :: delP_T_r4(:,:,:,:)
+  real(8), pointer      :: delP_T_r8(:,:,:,:)
+  real(4), pointer      :: delP_M_r4(:,:,:,:)
+  real(8), pointer      :: delP_M_r8(:,:,:,:)
+  real(8), pointer      :: dP_dPsfc_T(:,:,:)
+  real(8), pointer      :: dP_dPsfc_M(:,:,:)
+  integer               :: status, stepIndex,lonIndex,latIndex
+  integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
+  logical               :: beSilent
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_tl: computing delP_T/delP_M on the gridstatevector'
+
+  nullify(dP_dPsfc_T)
+  nullify(dP_dPsfc_M)
+  nullify(delPsfc_r4,delPsfc_r8)
+  nullify(delP_T_r4,delP_T_r8)
+  nullify(delP_M_r4,delP_M_r8)
+
+  if (gsv_getDataKind(statevector) == 4) then
+    call gsv_getField(statevector,delP_T_r4,'P_T')
+    call gsv_getField(statevector,delP_M_r4,'P_M')
+    call gsv_getField(statevector,delPsfc_r4,'P0')
+  else
+    call gsv_getField(statevector,delP_T_r8,'P_T')
+    call gsv_getField(statevector,delP_M_r8,'P_M')
+    call gsv_getField(statevector,delPsfc_r8,'P0')
+  end if
+
+  nullify(field_Psfc)
+  call gsv_getField(statevector_trial,field_Psfc,'P0')
+
+  nlev_T = gsv_getNumLev(statevector,'TH')
+  nlev_M = gsv_getNumLev(statevector,'MM')
+  numStep = statevector%numstep
+
+  allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                statevector%myLatBeg:statevector%myLatEnd))
+
+  do stepIndex = 1, numStep
+
+    Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+    ! dP_dPsfc_M
+    nullify(dP_dPsfc_M)
+    status = vgd_dpidpis(statevector%vco%vgrid, &
+                         statevector%vco%ip1_M, &
+                         dP_dPsfc_M, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_tl: ERROR with vgd_dpidpis')
+    ! calculate delP_M
+    if (gsv_getDataKind(statevector) == 4) then
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_M_r4(lonIndex,latIndex,lev_M,stepIndex) =  &
+                 dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                 delPsfc_r4(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+    else
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_M_r8(lonIndex,latIndex,lev_M,stepIndex) =  &
+                 dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                 delPsfc_r8(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+    end if
+    deallocate(dP_dPsfc_M)
+
+    ! dP_dPsfc_T
+    nullify(dP_dPsfc_T)
+    status = vgd_dpidpis(statevector%vco%vgrid, &
+                         statevector%vco%ip1_T, &
+                         dP_dPsfc_T, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_tl: ERROR with vgd_dpidpis')
+    ! calculate delP_T
+    if (gsv_getDataKind(statevector) == 4) then
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_T_r4(lonIndex,latIndex,lev_T,stepIndex) =  &
+                 dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                 delPsfc_r4(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+    else
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_T_r8(lonIndex,latIndex,lev_T,stepIndex) =  &
+                 dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                 delPsfc_r8(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+    end if
+    deallocate(dP_dPsfc_T)
+
+  end do
+
+  deallocate(Psfc)
+
+end subroutine czp_calcGridPressure_tl
+
+!--------------------------------------------------------------------------
+! czp_calcGridPressure_ad
+!--------------------------------------------------------------------------
+subroutine czp_calcGridPressure_ad(statevector, statevector_trial, beSilent_opt)
+  !
+  !:Purpose: adjoint of czp_calculation of the Pressure on the grid.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain ncrement of Psfc.
+  type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
+  logical, optional               :: beSilent_opt
+
+  ! Locals:
+  real(8), allocatable     :: Psfc(:,:)
+  real(4), pointer         :: delPsfc_r4(:,:,:,:)
+  real(8), pointer         :: delPsfc_r8(:,:,:,:)
+  real(8), pointer         :: field_Psfc(:,:,:,:)
+  real(4), pointer         :: delP_T_r4(:,:,:,:)
+  real(8), pointer         :: delP_T_r8(:,:,:,:)
+  real(4), pointer         :: delP_M_r4(:,:,:,:)
+  real(8), pointer         :: delP_M_r8(:,:,:,:)
+  real(8), pointer         :: dP_dPsfc_T(:,:,:)
+  real(8), pointer         :: dP_dPsfc_M(:,:,:)
+  integer                  :: status, stepIndex,lonIndex,latIndex
+  integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
+  logical                  :: beSilent
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_ad: computing delP_T/delP_M on the gridstatevector'
+
+  nullify(delPsfc_r4, delPsfc_r8)
+  nullify(field_Psfc)
+  nullify(delP_T_r4, delP_T_r8)
+  nullify(delP_M_r4, delP_M_r8)
+  nullify(dP_dPsfc_T)
+  nullify(dP_dPsfc_M)
+
+  if (gsv_getDataKind(statevector) == 4) then
+    call gsv_getField(statevector,delP_T_r4,'P_T')
+    call gsv_getField(statevector,delP_M_r4,'P_M')
+    call gsv_getField(statevector,delPsfc_r4,'P0')
+  else
+    call gsv_getField(statevector,delP_T_r8,'P_T')
+    call gsv_getField(statevector,delP_M_r8,'P_M')
+    call gsv_getField(statevector,delPsfc_r8,'P0')
+  end if
+  call gsv_getField(statevector_trial,field_Psfc,'P0')
+
+  nlev_T = gsv_getNumLev(statevector,'TH')
+  nlev_M = gsv_getNumLev(statevector,'MM')
+  numStep = statevector%numstep
+
+  allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                statevector%myLatBeg:statevector%myLatEnd))
+
+  do stepIndex = 1, numStep
+
+    Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+    ! dP_dPsfc_M
+    nullify(dP_dPsfc_M)
+    status = vgd_dpidpis(statevector%vco%vgrid, &
+                         statevector%vco%ip1_M, &
+                         dP_dPsfc_M, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_ad: ERROR with vgd_dpidpis')
+    ! calculate delP_M
+    if (gsv_getDataKind(statevector) == 4) then
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
+                 delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
+                 dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                 delP_M_r4(lonIndex,latIndex,lev_M,stepIndex)
+          end do
+        end do
+      end do
+    else
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
+                 delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
+                 dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
+                 delP_M_r8(lonIndex,latIndex,lev_M,stepIndex)
+          end do
+        end do
+      end do
+    end if
+    deallocate(dP_dPsfc_M)
+
+    ! dP_dPsfc_T
+    nullify(dP_dPsfc_T)
+    status = vgd_dpidpis(statevector%vco%vgrid, &
+                         statevector%vco%ip1_T, &
+                         dP_dPsfc_T, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcGridPressure_ad: ERROR with vgd_dpidpis')
+    ! calculate delP_T
+    if (gsv_getDataKind(statevector) == 4) then
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
+                 delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
+                 dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                 delP_T_r4(lonIndex,latIndex,lev_T,stepIndex)
+          end do
+        end do
+      end do
+    else
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
+                 delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
+                 dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
+                 delP_T_r8(lonIndex,latIndex,lev_T,stepIndex)
+          end do
+        end do
+      end do
+    end if
+    deallocate(dP_dPsfc_T)
+
+  end do
+
+  deallocate(Psfc)
+
+end subroutine czp_calcGridPressure_ad
+
+!--------------------------------------------------------------------------
+! czp_calcColumnPressure
+!--------------------------------------------------------------------------
+subroutine czp_calcColumnPressure(column, beSilent_opt)
+  implicit none
+  type(struct_columnData), intent(inout) :: column
+  logical, optional :: beSilent_opt
+
+  real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
+  real(kind=8), pointer     :: zppobs1(:,:,:) => null()
+  integer :: headerIndex, status, ilev1, ilev2
+  logical                   :: beSilent
+
+  if ( col_getNumCol(column) <= 0 ) return
+
+  if (.not.col_varExist(column,'P0')) then
+    call utl_abort('czp_calcColumnPressure: P0 must be present as an analysis variable!')
+  end if
+
+  allocate(Psfc(1,col_getNumCol(column)))
+  do headerIndex = 1,col_getNumCol(column)
+    Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
+  end do
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .false.
+  end if
+
+  if ( .not.beSilent ) write(*,*) 'czp_calcColumnPressure: computing Pressure on staggered or UNstaggered levels'
+
+  status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
+                    levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+  if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+  allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
+  zppobs2 = transpose(zppobs1(1,:,:))
+  ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
+  ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_M'))
+  column%all(ilev1:ilev2,:) = zppobs2(:,:)
+  if (associated(zppobs1))  deallocate(zppobs1)
+  deallocate(zppobs2)
+
+  status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
+                    levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+  if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+  allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
+  zppobs2 = transpose(zppobs1(1,:,:))
+  ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
+  ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_T'))
+  column%all(ilev1:ilev2,:) = zppobs2(:,:)
+  if (associated(zppobs1)) deallocate(zppobs1)
+  deallocate(zppobs2)
+
+  deallocate(Psfc)
+
+end subroutine czp_calcColumnPressure
+
+!--------------------------------------------------------------------------
+! czp_calcColumnPressure_tl
+!--------------------------------------------------------------------------
+subroutine czp_calcColumnPressure_tl(columnInc, columnRefOnIncLev, beSilent_opt)
+  !
+  !:Purpose: czp_calculation of the Pressure increment in the column.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
+  type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+  logical, optional                      :: beSilent_opt
+
+  ! Locals:
+  real(8)          :: Psfc
+  real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
+  real(8), pointer :: delP_T(:,:), delP_M(:,:)
+  real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
+  integer          :: status, colIndex
+  integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+  logical          :: beSilent
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcColumnPressure_tl: computing delP_T/delP_M on the column'
+
+  nullify(dP_dPsfc_T)
+  nullify(dP_dPsfc_M)
+  nullify(delPsfc)
+  nullify(delP_T)
+  nullify(delP_M)
+
+  delP_M  => col_getAllColumns(columnInc,'P_M')
+  delP_T  => col_getAllColumns(columnInc,'P_T')
+  delPsfc => col_getAllColumns(columnInc,'P0')
+  PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
+
+  nlev_T = col_getNumLev(columnInc,'TH')
+  nlev_M = col_getNumLev(columnInc,'MM')
+  numColumns = col_getNumCol(columnInc)
+
+  do colIndex = 1, numColumns
+
+    Psfc = PsfcRef(1,colIndex)
+
+    ! dP_dPsfc_M
+    nullify(dP_dPsfc_M)
+    status = vgd_dpidpis(columnInc%vco%vgrid, &
+                         columnInc%vco%ip1_M, &
+                         dP_dPsfc_M, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcColumnPressure_tl: ERROR with vgd_dpidpis')
+    ! calculate delP_M
+    do lev_M = 1, nlev_M
+      delP_M(lev_M,colIndex) = dP_dPsfc_M(lev_M) * delPsfc(1,colIndex)
+    end do
+    deallocate(dP_dPsfc_M)
+
+    ! dP_dPsfc_T
+    nullify(dP_dPsfc_T)
+    status = vgd_dpidpis(columnInc%vco%vgrid, &
+                         columnInc%vco%ip1_T, &
+                         dP_dPsfc_T, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcColumnPressure_tl: ERROR with vgd_dpidpis')
+    ! calculate delP_T
+    do lev_T = 1, nlev_T
+      delP_T(lev_T,colIndex) = dP_dPsfc_T(lev_T) * delPsfc(1,colIndex)
+    end do
+    deallocate(dP_dPsfc_T)
+
+  end do
+
+end subroutine czp_calcColumnPressure_tl
+
+!--------------------------------------------------------------------------
+! czp_calcColumnPressure_ad
+!--------------------------------------------------------------------------
+subroutine czp_calcColumnPressure_ad(columnInc, columnRefOnIncLev, beSilent_opt)
+  !
+  !:Purpose: adjoint of czp_calculation of the Pressure in the column.
+  !
+  implicit none
+
+  ! Arguments:
+  type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of Psfc.
+  type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+  logical, optional                      :: beSilent_opt
+
+  ! Locals:
+  real(8)          :: Psfc
+  real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
+  real(8), pointer :: delP_T(:,:), delP_M(:,:)
+  real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
+  integer          :: status, colIndex
+  integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+  logical          :: beSilent
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .true.
+  end if
+
+  if ( .not. beSilent ) write(*,*) 'czp_calcColumnPressure_ad: computing delP_T/delP_M on the column'
+
+  nullify(delPsfc)
+  nullify(PsfcRef)
+  nullify(delP_T)
+  nullify(delP_M)
+  nullify(dP_dPsfc_T)
+  nullify(dP_dPsfc_M)
+
+  delP_M  => col_getAllColumns(columnInc,'P_M')
+  delP_T  => col_getAllColumns(columnInc,'P_T')
+  delPsfc => col_getAllColumns(columnInc,'P0')
+  PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
+
+  nlev_T = col_getNumLev(columnInc,'TH')
+  nlev_M = col_getNumLev(columnInc,'MM')
+  numColumns = col_getNumCol(columnInc)
+
+  do colIndex = 1, numColumns
+
+    Psfc = PsfcRef(1,colIndex)
+
+    ! dP_dPsfc_M
+    nullify(dP_dPsfc_M)
+    status = vgd_dpidpis(columnInc%vco%vgrid, &
+                         columnInc%vco%ip1_M, &
+                         dP_dPsfc_M, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcColumnPressure_ad: ERROR with vgd_dpidpis')
+    ! calculate delP_M
+    do lev_M = 1, nlev_M
+      delPsfc(1,colIndex) = delPsfc(1,colIndex) + &
+           dP_dPsfc_M(lev_M) * delP_M(lev_M,colIndex)
+    end do
+    deallocate(dP_dPsfc_M)
+
+    ! dP_dPsfc_T
+    nullify(dP_dPsfc_T)
+    status = vgd_dpidpis(columnInc%vco%vgrid, &
+                         columnInc%vco%ip1_T, &
+                         dP_dPsfc_T, &
+                         Psfc)
+    if( status .ne. VGD_OK ) call utl_abort('czp_calcColumnPressure_ad: ERROR with vgd_dpidpis')
+    ! calculate delP_T
+    do lev_T = 1, nlev_T
+      delPsfc(1,colIndex) = delPsfc(1,colIndex) + dP_dPsfc_T(lev_T) * delP_T(lev_T,colIndex)
+    end do
+    deallocate(dP_dPsfc_T)
+
+  end do
+
+end subroutine czp_calcColumnPressure_ad
 
 end module calcHeightAndPressure_mod

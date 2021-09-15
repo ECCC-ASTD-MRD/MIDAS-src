@@ -201,7 +201,7 @@ timecoord_mod.f90
 tovs_extrap_mod.f90
 tovs_lin_mod.f90
 tovs_nl_mod.f90
-czp_tt2phi_mod.f90
+calcheightandpressure_mod.f90
 utilities_mod.f90
 variabletransforms_mod.f90
 varnamelist_mod.f90

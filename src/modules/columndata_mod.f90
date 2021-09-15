@@ -41,7 +41,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
-  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setHeightSfc
+  public :: col_getPressure, col_getPressureDeriv, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
@@ -437,64 +437,6 @@ contains
     call utl_abort('col_getVarNameFromK')
 
   end function col_getVarNameFromK
-
-  !--------------------------------------------------------------------------
-  ! col_calcPressure
-  !--------------------------------------------------------------------------
-  subroutine col_calcPressure(column, beSilent_opt)
-    implicit none
-    type(struct_columnData), intent(inout) :: column
-    logical, optional :: beSilent_opt
-
-    real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
-    real(kind=8), pointer     :: zppobs1(:,:,:) => null()
-    integer :: headerIndex, status, ilev1, ilev2
-    logical                   :: beSilent
-
-    if ( col_getNumCol(column) <= 0 ) return
-
-    if (.not.col_varExist(column,'P0')) then
-      call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
-    end if
-
-    allocate(Psfc(1,col_getNumCol(column)))
-    do headerIndex = 1,col_getNumCol(column)
-      Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
-    end do
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .false.
-    end if
-
-    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
-
-    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-    zppobs2 = transpose(zppobs1(1,:,:))
-    ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
-    ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_M'))
-    column%all(ilev1:ilev2,:) = zppobs2(:,:)
-    if (associated(zppobs1))  deallocate(zppobs1)
-    deallocate(zppobs2)
-
-    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-    zppobs2 = transpose(zppobs1(1,:,:))
-    ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
-    ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_T'))
-    column%all(ilev1:ilev2,:) = zppobs2(:,:)
-    if (associated(zppobs1)) deallocate(zppobs1)
-    deallocate(zppobs2)
-
-    deallocate(Psfc)
-
-  end subroutine col_calcPressure
 
   !--------------------------------------------------------------------------
   ! col_vintprof
