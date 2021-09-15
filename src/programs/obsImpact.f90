@@ -196,7 +196,7 @@ program midas_obsimpact
   call gsv_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Horizontally interpolate 15-min trials to trial columns
+  ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

@@ -38,7 +38,7 @@ module increment_mod
 
   ! public procedures
   public :: inc_computeHighResAnalysis, inc_writeIncrementHighRes, inc_getIncrement, inc_writeIncrement
-  public :: inc_analPostProcessing
+  public :: inc_writeAnalysis, inc_analPostProcessing
 
   integer, external :: get_max_rss
 
@@ -146,7 +146,6 @@ CONTAINS
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
-    !- Use stateVectorUpdateHighRes
     hco_trl => gsv_getHco(stateVectorUpdateHighRes)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
@@ -630,13 +629,13 @@ CONTAINS
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
         else
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-        endif
+        end if
         fileName = './rebm_' // trim(coffset) // 'm'
         call gsv_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
                               ip3_opt=ip3ForWriteToFile, stepIndex_opt=stepIndex, &
                               containsFullField_opt=.false. )
       end if
-    enddo
+    end do
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
 

@@ -61,8 +61,7 @@ module gridStateVector_mod
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
-  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_readTrialsHighRes, gsv_tInterpolate
-  public :: gsv_getHcoVcoFromTrlmFile
+  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_getHcoVcoFromTrlmFile
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4

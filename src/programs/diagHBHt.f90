@@ -101,7 +101,7 @@ program midas_diagHBHt
   call gsv_zero( stateVectorTrialHighRes )
   call gsv_readTrials( stateVectorTrialHighRes )
 
-  ! Horizontally interpolate 15-min trials to trial columns
+  ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorTrialHighRes )
 
