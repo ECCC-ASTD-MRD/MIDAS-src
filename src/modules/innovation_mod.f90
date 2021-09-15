@@ -37,7 +37,7 @@ module innovation_mod
   use varNameList_mod
   use verticalCoord_mod
   use gridStateVector_mod
-  use tt2phi_mod
+  use calcHeightAndPressure_mod
   use utilities_mod
   use obsFilter_mod  
   use gps_mod

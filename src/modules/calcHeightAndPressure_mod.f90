@@ -14,12 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module tt2phi_mod
-  ! MODULE tt2phi (prefix='tt2phi' category='3. High-level transformations')
+module calcHeightAndPressure_mod
+  ! MODULE calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
   !
-  ! :Purpose: Subroutines for computing height from TT, HU and P0. Nonlinear,
-  !           tangent-linear and adjoint versions of this transformation are
-  !           included in separate subroutines.
+  ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or 
+  !           orography. 
+  !           Nonlinear, tangent-linear and adjoint versions of this 
+  !           transformation are included in separate subroutines.
   !
   use codePrecision_mod
   use mpi_mod
@@ -35,16 +36,16 @@ module tt2phi_mod
   private
 
   ! public procedures
-  public :: tt2phi           , tt2phi_tl           , tt2phi_ad
+  public :: czp_tt2phi           , czp_tt2phi_tl           , czp_tt2phi_ad
 
-  interface tt2phi_tl
-    module procedure tt2phi_gsv_tl
-    module procedure tt2phi_col_tl
-  end interface tt2phi_tl
-  interface tt2phi_ad
-    module procedure tt2phi_gsv_ad
-    module procedure tt2phi_col_ad
-  end interface tt2phi_ad
+  interface czp_tt2phi_tl
+    module procedure czp_tt2phi_gsv_tl
+    module procedure czp_tt2phi_col_tl
+  end interface czp_tt2phi_tl
+  interface czp_tt2phi_ad
+    module procedure czp_tt2phi_gsv_ad
+    module procedure czp_tt2phi_col_ad
+  end interface czp_tt2phi_ad
   
   ! constants from gps_mod
   ! Air properties:
@@ -74,7 +75,7 @@ module tt2phi_mod
 contains
 
 
-subroutine tt2phi(statevector_trial,beSilent_opt)
+subroutine czp_tt2phi(statevector_trial,beSilent_opt)
   !
   ! :Purpose: Temperature to geopotential transformation on GEM4 staggered levels
   !           NOTE: we assume 
@@ -116,9 +117,9 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
     beSilent = .true.
   end if
 
-  call tmg_start(192,'tt2phi')
+  call tmg_start(192,'czp_tt2phi')
 
-  if (.not.beSilent) write(*,*) 'tt2phi: START'
+  if (.not.beSilent) write(*,*) 'czp_tt2phi: START'
 
   vco_ghr => gsv_getVco(statevector_trial)
   Vcode = vco_ghr%vcode
@@ -127,18 +128,18 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
   nlev_M = gsv_getNumLev(statevector_trial,'MM')
   numStep = statevector_trial%numstep
 
-  if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
-  if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
+  if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('czp_tt2phi: nlev_T is not equal to nlev_M+1!')
+  if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('czp_tt2phi: nlev_T is not equal to nlev_M!')
 
   if (Vcode == 5005) then
     status = vgd_get(statevector_trial%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=heightSfcOffset_M_r4)
     status = vgd_get(statevector_trial%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=heightSfcOffset_T_r4)
     if ( mpi_myid == 0 .and. .not.beSilent ) then
-      write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', heightSfcOffset_M_r4, ' metres'
-      write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', heightSfcOffset_T_r4, ' metres'
+      write(*,*) 'czp_tt2phi: height offset for near-sfc momentum level is: ', heightSfcOffset_M_r4, ' metres'
+      write(*,*) 'czp_tt2phi: height offset for near-sfc thermo level is:   ', heightSfcOffset_T_r4, ' metres'
       if ( .not.statevector_trial%addHeightSfcOffset ) then
         write(*,*) '----------------------------------------------------------------------------------'
-        write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+        write(*,*) 'czp_tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
         write(*,*) '----------------------------------------------------------------------------------'
       end if
     end if
@@ -385,27 +386,27 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
 
   if ( .not.beSilent ) then
     if ( statevector_trial%dataKind == 4 ) then
-      write(*,*) 'tt2phi, Z_T='
+      write(*,*) 'czp_tt2phi, Z_T='
       write(*,*) height_T_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-      write(*,*) 'tt2phi, Z_M='
+      write(*,*) 'czp_tt2phi, Z_M='
       write(*,*) height_M_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
     else
-      write(*,*) 'tt2phi, Z_T='
+      write(*,*) 'czp_tt2phi, Z_T='
       write(*,*) height_T_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-      write(*,*) 'tt2phi, Z_M='
+      write(*,*) 'czp_tt2phi, Z_M='
       write(*,*) height_M_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
     end if
-    write(*,*) 'tt2phi: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
+    write(*,*) 'czp_tt2phi: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
   end if
 
-  if (.not.beSilent) write(*,*) 'tt2phi: END'
+  if (.not.beSilent) write(*,*) 'czp_tt2phi: END'
 
   call tmg_stop(192)
 
-end subroutine tt2phi
+end subroutine czp_tt2phi
 
 
-subroutine tt2phi_gsv_tl(statevector,statevector_trial)
+subroutine czp_tt2phi_gsv_tl(statevector,statevector_trial)
   !
   ! :Purpose: Temperature to geopotential transformation on gridstatevector
   !
@@ -424,9 +425,9 @@ subroutine tt2phi_gsv_tl(statevector,statevector_trial)
   real(pre_incrReal), pointer :: delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
   type(struct_vco),   pointer :: vco_anl
 
-  call tmg_start(193,'tt2phi_tl')
+  call tmg_start(193,'czp_tt2phi_tl')
 
-  write(*,*) 'tt2phi_gsv_tl: START'
+  write(*,*) 'czp_tt2phi_gsv_tl: START'
 
   vco_anl => gsv_getVco(statevector_trial)
   Vcode_anl = vco_anl%vcode
@@ -578,14 +579,14 @@ subroutine tt2phi_gsv_tl(statevector,statevector_trial)
 
   deallocate(delThick)
 
-  write(*,*) 'tt2phi_gsv_tl: END'
+  write(*,*) 'czp_tt2phi_gsv_tl: END'
 
   call tmg_stop(193)
 
-end subroutine tt2phi_gsv_tl
+end subroutine czp_tt2phi_gsv_tl
 
 
-subroutine tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
+subroutine czp_tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
   !
   ! :Purpose: Temperature to geopotential transformation on gridstatevector
   !
@@ -604,9 +605,9 @@ subroutine tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
   real(8), pointer  :: delP_T(:,:), delP_M(:,:)
   type(struct_vco), pointer :: vco_anl
 
-  call tmg_start(193,'tt2phi_tl')
+  call tmg_start(193,'czp_tt2phi_tl')
 
-  write(*,*) 'tt2phi_col_tl: START'
+  write(*,*) 'czp_tt2phi_col_tl: START'
 
   vco_anl => col_getVco(columnTrlOnAnlInc)
   Vcode_anl = vco_anl%vcode
@@ -735,14 +736,14 @@ subroutine tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
 
   deallocate(delThick)
 
-  write(*,*) 'tt2phi_col_tl: END'
+  write(*,*) 'czp_tt2phi_col_tl: END'
 
   call tmg_stop(193)
 
-end subroutine tt2phi_col_tl
+end subroutine czp_tt2phi_col_tl
 
 
-subroutine tt2phi_gsv_ad(statevector,statevector_trial)
+subroutine czp_tt2phi_gsv_ad(statevector,statevector_trial)
   !
   !:Purpose: Adjoint of temperature to geopotential transformation on
   !          gridstatevector
@@ -763,9 +764,9 @@ subroutine tt2phi_gsv_ad(statevector,statevector_trial)
   real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
   type(struct_vco),   pointer :: vco_anl
 
-  call tmg_start(194,'tt2phi_ad')
+  call tmg_start(194,'czp_tt2phi_ad')
 
-  write(*,*) 'tt2phi_gsv_ad: START'
+  write(*,*) 'czp_tt2phi_gsv_ad: START'
 
   vco_anl => gsv_getVco(statevector_trial)
   Vcode_anl = vco_anl%vcode
@@ -987,14 +988,14 @@ subroutine tt2phi_gsv_ad(statevector,statevector_trial)
   deallocate(delHeight_M)
   deallocate(delHeight_T)
 
-  write(*,*) 'tt2phi_gsv_ad: END'
+  write(*,*) 'czp_tt2phi_gsv_ad: END'
 
   call tmg_stop(194)
 
-end subroutine tt2phi_gsv_ad
+end subroutine czp_tt2phi_gsv_ad
 
 
-subroutine tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
+subroutine czp_tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
   !
   !:Purpose: Adjoint of temperature to geopotential transformation on
   !          columnData
@@ -1015,9 +1016,9 @@ subroutine tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
   real(8), pointer     :: delP_M(:,:),delP_T(:,:)
   type(struct_vco), pointer :: vco_anl
 
-  call tmg_start(194,'tt2phi_ad')
+  call tmg_start(194,'czp_tt2phi_ad')
 
-  write(*,*) 'tt2phi_col_ad: START'
+  write(*,*) 'czp_tt2phi_col_ad: START'
 
   vco_anl => col_getVco(columnTrlOnAnlInc)
   Vcode_anl = vco_anl%vcode
@@ -1208,16 +1209,16 @@ subroutine tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
   deallocate(delHeight_M)
   deallocate(delHeight_T)
 
-  write(*,*) 'tt2phi_col_ad: END'
+  write(*,*) 'czp_tt2phi_col_ad: END'
 
   call tmg_stop(194)
 
-end subroutine tt2phi_col_ad
+end subroutine czp_tt2phi_col_ad
 
 
 subroutine calcHeightCoeff_gsv(statevector_trial)
   !
-  ! :Purpose: Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
+  ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
   !
   implicit none
 
@@ -1439,7 +1440,7 @@ end subroutine calcHeightCoeff_gsv
 
 subroutine calcHeightCoeff_col(columnTrlOnAnlInc)
   !
-  ! :Purpose: Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
+  ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
   !
   implicit none
 
@@ -1818,4 +1819,4 @@ function gpscompressibility_P0_2(p,t,q)
 end function gpscompressibility_P0_2
 
 
-end module tt2phi_mod
+end module calcHeightAndPressure_mod

@@ -28,7 +28,7 @@ module columnVariableTransforms_mod
   use verticalCoord_mod
   use utilities_mod
   use varNameList_mod
-  use tt2phi_mod
+  use calcHeightAndPressure_mod
   use utilities_mod
   
   implicit none
@@ -129,7 +129,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call tt2phi_tl(columnInc, columnRefOnIncLev)
+    call czp_tt2phi_tl(columnInc, columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_tl
 
@@ -141,7 +141,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call tt2phi_ad(columnInc,columnRefOnIncLev)
+    call czp_tt2phi_ad(columnInc,columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_ad
 

@@ -36,7 +36,7 @@ module gridVariableTransforms_mod
   use verticalCoord_mod
   use utilities_mod
   use varNameList_mod
-  use tt2phi_mod
+  use calcHeightAndPressure_mod
   use utilities_mod
   use humiditylimits_mod
   
@@ -150,8 +150,8 @@ CONTAINS
       call gsv_deallocate(statevector_noZnoP)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( stateVectorRefHeight )
-      call tt2phi( stateVectorRefHeight )
+      call PsfcToP_nl( stateVectorTrialHeight )
+      call czp_tt2phi( stateVectorTrialHeight )
 
     case default
       if ( present(varKind_opt) ) then
@@ -1316,7 +1316,7 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    call tt2phi(statevector)
+    call czp_tt2phi(statevector)
 
   end subroutine TTHUtoHeight_nl
 
@@ -1332,7 +1332,7 @@ CONTAINS
       call utl_abort('TTHUtoHeight_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
-    call tt2phi_tl(stateVector, stateVectorRefHeight)
+    call czp_tt2phi_tl(statevector, stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_tl
 
@@ -1348,7 +1348,7 @@ CONTAINS
       call utl_abort('TTHUtoHeight_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
-    call tt2phi_ad(stateVector, stateVectorRefHeight)
+    call czp_tt2phi_ad(statevector,stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_ad
 
