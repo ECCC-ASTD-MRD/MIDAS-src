@@ -180,12 +180,14 @@ help:	#> print this help
 	awk 'BEGIN {FS = ":[^:]*#> "}; \
 		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
 
-
+##  External splitobs program compilation
+splitobs:	#> compile external splitobs program
+		$(MAKE) -C ../tools/splitobs PGM=$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)
 
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
-__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst
+__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst splitobs
 ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
