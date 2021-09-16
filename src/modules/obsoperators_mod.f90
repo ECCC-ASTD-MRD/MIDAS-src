@@ -1913,20 +1913,12 @@ contains
 
     call oop_Hto()           ! fill in OBS_WORK : Hdx
 
-    if ( present(initializeLinearization_opt) ) then
-      call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
-    else
-      call oop_Hro()
-    end if
+    call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
 
     call oop_Hzp()
 
     if ( numGPSZTD > 0 ) then 
-      if ( present(initializeLinearization_opt) ) then
-        call oop_Hgp( initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_Hgp()
-      end if
+      call oop_Hgp( initializeLinearization_opt=initializeLinearization_opt )
     end if
 
     call oop_Hchm()          ! fill in OBS_WORK : Hdx
@@ -2349,42 +2341,31 @@ contains
 
       integer :: NH, NH1
 
-      !C     * 1.  Initializations
-      !C     *     ---------------
-      !C
+      ! Initializations
       NGPSLEV = col_getNumLev(columnAnlInc,'TH')
       NWNDLEV = col_getNumLev(columnAnlInc,'MM')
 
       ! call to calculate the GPSRO Jacobians
-      if ( present(initializeLinearization_opt) ) then
-        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
-                                    initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData )
-      end if
+      call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                  initializeLinearization_opt=initializeLinearization_opt )
 
-      !
-      !    Loop over all header indices of the 'RO' family (Radio Occultation)
-      !
+      ! Loop over all header indices of the 'RO' family (Radio Occultation)
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
-         !
-         !     * Process only refractivity data (codtyp 169)
-         !
+
+         ! Process only refractivity data (codtyp 169)
          IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
          DATYP: if ( IDATYP == 169 ) THEN
-            !
-            !     *    Scan for requested data values of the profile, and count them
-            !
+
+            ! Scan for requested data values of the profile, and count them
             ASSIM = .FALSE.
             NH = 0
-            !
-            !     *    Loop over all body indices for this headerIndex:
-            !     *    (start at the beginning of the list)
-            !
+
+            ! Loop over all body indices for this headerIndex:
+            ! (start at the beginning of the list)
             call obs_set_current_body_list(obsSpaceData, headerIndex)
             BODY: do 
                bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -2394,24 +2375,21 @@ contains
                   NH = NH + 1
                end if
             end do BODY
-            !
-            !     *    If assimilations are requested, prepare and apply the observation operator
-            !
+
+            ! If assimilations are requested, prepare and apply the observation operator
             ASSIMILATE: if (ASSIM) THEN
                iProfile=gps_iprofile_from_index(headerIndex)
-               !
-               !     *       Local vector state
-               !
+
+               ! Local vector state
                do JL = 1, NGPSLEV
                   DX (        JL) = col_getElem(columnAnlInc,JL,headerIndex,'TT')
                   DX (NGPSLEV+JL) = col_getElem(columnAnlInc,JL,headerIndex,'HU')
                end do
                DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
                DX (3*NGPSLEV+1:4*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
-               !
-               !     *       Perform the (H(xb)DX-Y') operation
-               !     *       Loop over all body indices for this headerIndex:
-               !
+
+               ! Perform the (H(xb)DX-Y') operation
+               ! Loop over all body indices for this headerIndex:
                NH1 = 0
                call obs_set_current_body_list(obsSpaceData, headerIndex)
                BODY_3: do 
@@ -2419,16 +2397,14 @@ contains
                   if (bodyIndex < 0) exit BODY_3
                   if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
                      NH1 = NH1 + 1
-                     !
-                     !     *             Evaluate H(xb)DX
-                     !
+
+                     ! Evaluate H(xb)DX
                      ZMHXL = 0.d0
                      do JV = 1, 4*NGPSLEV
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      end do
-                     !
-                     !     *             Store in CMA
-                     !
+
+                     ! Store in CMA
                      call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZMHXL)
                   end if
                end do BODY_3
@@ -2571,21 +2547,16 @@ contains
       icount = 0
 
       ! call to calculate the GPSGB Jacobians
-      if ( present(initializeLinearization_opt) ) then
-        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
-                                    initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData )
-      end if
+      call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                  initializeLinearization_opt=initializeLinearization_opt )
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       call obs_set_current_header_list(obsSpaceData,'GP')
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
-         !
-         !     *     Scan for ZTD assimilation at this location
-         !
+
+         ! Scan for ZTD assimilation at this location
          ASSIM = .FALSE.
          ! loop over all body indices for this headerIndex
          call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -2599,17 +2570,15 @@ contains
                ASSIM = .TRUE.
             end if
          end do BODY
-         !
-         !     * If ZTD assimilation, apply the TL observation operator
-         !
+
+         ! If ZTD assimilation, apply the TL observation operator
          if ( ASSIM ) THEN
             iztd = gps_i_from_index(headerIndex)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
                call utl_abort('oop_Hgp: ERROR: index from gps_i_from_index() is out of range!')
             end if
-            !
-            !     *    Local vector state (analysis increments)
-            !
+
+            ! Local vector state (analysis increments)
             do JL = 1, NFLEV
                DX (JL)        = col_getElem(columnAnlInc,JL,headerIndex,'TT')
                DX (NFLEV+JL)  = col_getElem(columnAnlInc,JL,headerIndex,'HU')
@@ -2617,15 +2586,13 @@ contains
             DX (2*NFLEV+1:3*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
             DX (3*NFLEV+1:4*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
 
-            !     *    Evaluate H'(xb)*dX
-            !
+            ! Evaluate H'(xb)*dX
             ZHX = 0.D0
             do JL = 1, 4*NFLEV
                ZHX = ZHX + vGPSZTD_Jacobian(iztd,JL)*DX(JL)
             end do
-            !
-            !     *    Store ZHX = H'dx in OBS_WORK
-            !
+
+            ! Store ZHX = H'dx in OBS_WORK
             ! loop over all body indices for this headerIndex
             call obs_set_current_body_list(obsSpaceData, headerIndex)
             BODY_2: do 
@@ -2712,20 +2679,12 @@ contains
     call oop_HTchm
 
     if ( numGPSZTD > 0 ) then
-      if ( present(initializeLinearization_opt) ) then
-        call oop_HTgp( initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_HTgp
-      end if
+      call oop_HTgp( initializeLinearization_opt=initializeLinearization_opt )
     end if
 
     call oop_HTzp
 
-    if ( present(initializeLinearization_opt) ) then
-      call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
-    else
-      call oop_HTro
-    end if
+    call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
 
     call oop_HTto
 
@@ -3126,22 +3085,14 @@ contains
 
       integer :: NH, NH1
 
-      !     * 1.  Initializations
-      !     *     ---------------
-      !
+      ! Initializations
       NGPSLEV=col_getNumLev(columnAnlInc,'TH')
 
       ! call to calculate the GPSRO Jacobians
-      if ( present(initializeLinearization_opt) ) then
-        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
-                                    initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData )
-      end if
+      call oop_calcGPSROJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                  initializeLinearization_opt=initializeLinearization_opt )
 
-      !
-      !    Loop over all header indices of the 'RO' family (Radio Occultation)
-      !
+      ! Loop over all header indices of the 'RO' family (Radio Occultation)
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
       HEADER: do
@@ -3149,20 +3100,17 @@ contains
          if (headerIndex < 0) exit HEADER
 
          DPJO0 = 0.d0
-         !
-         !     * Process only refractivity data (codtyp 169)
-         !
+
+         ! Process only refractivity data (codtyp 169)
          IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
          DATYP: if ( IDATYP == 169 ) THEN
-            !
-            !     *    Scan for requested data values of the profile, and count them
-            !
+
+            ! Scan for requested data values of the profile, and count them
             ASSIM = .FALSE.
             NH = 0
-            !
-            !     *    Loop over all body indices for this headerIndex:
-            !     *    (start at the beginning of the list)
-            !
+
+            ! Loop over all body indices for this headerIndex:
+            ! (start at the beginning of the list)
             call obs_set_current_body_list(obsSpaceData, headerIndex)
             BODY: do 
                bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -3174,19 +3122,16 @@ contains
                   NH = NH + 1
                end if
             end do BODY
-            !
-            !     *    If assimilations are requested, prepare and apply the observation operator
-            !
+
+            ! If assimilations are requested, prepare and apply the observation operator
             ASSIMILATE: if (ASSIM) THEN
                iProfile=gps_iprofile_from_index(headerIndex)
-               !
-               !     *       Perform the (H(xb)DX-Y')/S operation
-               !
+
+               ! Perform the (H(xb)DX-Y')/S operation
                NH1 = 0
-               !
-               !     *       Loop over all body indices for this headerIndex:
-               !     *       (start at the beginning of the list)
-               !
+
+               ! Loop over all body indices for this headerIndex:
+               ! (start at the beginning of the list)
                call obs_set_current_body_list(obsSpaceData, headerIndex)
                BODY_3: do 
                   bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -3195,25 +3140,21 @@ contains
                   LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated )
                   if ( LUSE ) THEN
                      NH1 = NH1 + 1
-                     !
-                     !     *             Normalized increment
-                     !
+
+                     ! Normalized increment
                      ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-                     !
-                     !     *             O-F Tested criteria:
-                     !
+
+                     ! O-F Tested criteria:
                      DPJO1(1:4*NGPSLEV) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
-                     !
-                     !     *             Accumulate the gradient of the observation cost function:
-                     !
+
+                     ! Accumulate the gradient of the observation cost function:
                      DPJO0(1:4*NGPSLEV) = DPJO0(1:4*NGPSLEV) + DPJO1(1:4*NGPSLEV)
                   end if
                end do BODY_3
             end if ASSIMILATE
          end if DATYP
-         !
-         !     * Store H* (HX - Z)/SIGMA in COMMVO
-         !
+
+         ! Store H* (HX - Z)/SIGMA in COMMVO
          tt_column => col_getColumn(columnAnlInc,headerIndex,'TT')
          hu_column => col_getColumn(columnAnlInc,headerIndex,'HU')
          height_column => col_getColumn(columnAnlInc,headerIndex,'Z_T')
@@ -3225,7 +3166,6 @@ contains
             p_column(JL)  = DPJO0(JL+3*NGPSLEV)
          end do
       end do HEADER
-
       
     end subroutine oop_HTro
 
@@ -3365,12 +3305,8 @@ contains
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
       ! call to calculate the GPSGB Jacobians
-      if ( present(initializeLinearization_opt) ) then
-        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
-                                    initializeLinearization_opt=initializeLinearization_opt )
-      else
-        call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData )
-      end if
+      call oop_calcGPSGBJacobian( columnTrlOnAnlIncLev, obsSpaceData, &
+                                  initializeLinearization_opt=initializeLinearization_opt )
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       ! Set the header list & start at the beginning of the list
@@ -3384,10 +3320,10 @@ contains
 
          DPJO0(:) = 0.0D0
          JAC(:)   = 0.0D0
-         !
-         !       Scan for requested ZTD assimilation
-         !
+
+         ! Scan for requested ZTD assimilation
          ASSIM = .FALSE.
+
          ! loop over all body indices (still in the 'GP' family)
          ! Set the body list & start at the beginning of the list)
          call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3413,9 +3349,8 @@ contains
             do JL = 1, 4*NFLEV
                JAC(JL) = vGPSZTD_Jacobian(iztd,JL)
             end do
-            !
-            !          Get Ht*grad(HeaderIndex) = Ht*(H'dx - d)/sigma_o^2
-            !
+
+            ! Get Ht*grad(HeaderIndex) = Ht*(H'dx - d)/sigma_o^2
             ! loop over all body indices (still in the 'GP' family)
             ! Start at the beginning of the list)
             call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3426,13 +3361,13 @@ contains
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == bufr_nezd) &
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                   ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-                  !     *       Accumulate the gradient of the observation cost function
+
+                  ! Accumulate the gradient of the observation cost function
                   DPJO0(1:4*NFLEV) = ZINC * vGPSZTD_Jacobian(iztd,:)
                end if
             end do BODY_2
-            !
-            !      *   Store Ht*grad(HeaderIndex) in COMMVO
-            !
+
+            ! Store Ht*grad(HeaderIndex) in COMMVO
             tt_column     => col_getColumn(columnAnlInc,headerIndex,'TT')
             hu_column     => col_getColumn(columnAnlInc,headerIndex,'HU')
             height_column => col_getColumn(columnAnlInc,headerIndex,'Z_T')
