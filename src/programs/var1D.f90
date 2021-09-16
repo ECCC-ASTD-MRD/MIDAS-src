@@ -48,16 +48,22 @@ program midas_var1D
   integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
-  type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: columnTrlOnAnlIncLev
-  type(struct_columnData), target  :: columnTrlOnTrlLev
-  type(struct_columnData), target  :: columnAnlInc
-  type(struct_gsv)                 :: stateVectorIncr
-  type(struct_gsv)                 :: stateVectorTrial
-  type(struct_gsv)                 :: stateVectorAnalysis
-  type(struct_hco), pointer        :: hco_anl => null()
-  type(struct_vco), pointer        :: vco_anl => null()
-  type(struct_hco), pointer        :: hco_core => null()
+  real(8), allocatable :: controlVectorIncrSum(:)
+  type(struct_obs),        target :: obsSpaceData
+  type(struct_columnData), target :: columnTrlOnAnlIncLev
+  type(struct_columnData), target :: columnTrlOnTrlLev
+  type(struct_columnData), target :: columnAnlInc
+  type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorTrialHighRes
+  type(struct_gsv)                :: stateVectorAnalysis
+  type(struct_hco),       pointer :: hco_anl => null()
+  type(struct_vco),       pointer :: vco_anl => null()
+  type(struct_hco),       pointer :: hco_core => null()
+  type(struct_hco),       pointer :: hco_trl => null()
+  type(struct_vco),       pointer :: vco_trl => null()
+
+  integer :: outerLoopIndex
+  logical :: allocHeightSfc
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -84,14 +90,10 @@ program midas_var1D
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  !
-  !- Initialize the Temporal grid
-  !
+  ! Initialize the Temporal grid
   call tim_setup
 
-  !     
-  !- Initialize observation file names and set datestamp
-  !
+  ! Initialize observation file names and set datestamp
   call obsf_setup( dateStamp, varMode )
   if ( dateStamp > 0 ) then
     call tim_setDatestamp(datestamp)     ! IN
@@ -99,14 +101,10 @@ program midas_var1D
     call utl_abort('var1D: Problem getting dateStamp from observation file')
   end if
 
-  !
-  !- Initialize constants
-  !
+  ! Initialize constants
   if (mpi_myid == 0) call mpc_printConstants(6)
 
-  !
-  !- Initialize the Analysis grid
-  !
+  ! Initialize the Analysis grid
   if (mpi_myid == 0) write(*,*)''
   if (mpi_myid == 0) write(*,*)'var1D: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
@@ -119,84 +117,81 @@ program midas_var1D
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
-  !     
-  !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-  !
+  ! Initialisation of the analysis grid vertical coordinate from analysisgrid file
   call vco_SetupFromFile( vco_anl,        & ! OUT
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev, vco_anl)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !
-  !- Setup and read observations
-  !
+  ! Setup and read observations
   call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !
-  !- Basic setup of columnData module
-  !
+  ! Basic setup of columnData module
   call col_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  !- Memory allocation for background column data
-  !
+  ! Memory allocation for background column data
   call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
 
-  !
-  !- Initialize the observation error covariances
-  !
+  ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(2)
 
-  !
   ! Initialize list of analyzed variables.
-  !
   call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Read trials and horizontally interpolate to columns
-  call tmg_start(2, 'PREMIN')
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
-                                   stateVectorTrialOut_opt=stateVectorTrial )
+  ! Reading trials
+  call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-  !
-  !- Initialize the background-error covariance, also sets up control vector module (cvm)
-  !
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Initialize the background-error covariance, also sets up control vector module (cvm)
   call var1D_bsetup(vco_anl, obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  ! - Initialize the gridded variable transform module
-  !
+  ! Initialize the gridded variable transform module
   call gvt_setup(hco_anl, hco_core, vco_anl)
 
-  !
-  !- Set up the minimization module, now that the required parameters are known
-  !  NOTE: some global variables remain in minimization_mod that must be initialized before
-  !        inn_setupBackgroundColumns
-  !
+  ! Set up the minimization module, now that the required parameters are known
+  ! NOTE: some global variables remain in minimization_mod that must be initialized before
+  !       inn_setupBackgroundColumns
   call min_setup( cvm_nvadim, hco_anl, oneDVarMode_opt=.true. ) ! IN
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
-  ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
-
-  ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
-  call tmg_stop(2)
-
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var1D: Problem allocating memory for ''controlVectorIncr''',ierr
     call utl_abort('aborting in VAR1D')
   end if
+  call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+  ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
+                                   stateVectorTrialHighRes )
+
+  ! Interpolate trial columns to analysis levels and setup for linearized H
+  call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
+
+  ! Compute observation innovations and prepare obsSpaceData for minimization
+  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
 
   ! Do minimization of cost function
-  call min_minimize(columnTrlOnAnlIncLev,obsSpaceData,controlVectorIncr)
+  outerLoopIndex = 1
+  controlVectorIncr(:) = 0.0d0
+  call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                     controlVectorIncr )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
   ! Is is still necessary ? (will do nothing, but does it make sense in 1DVar mode ?)
@@ -208,9 +203,11 @@ program midas_var1D
   ! get final increment
   call var1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
   call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc)
+
   ! output the analysis increment
   call tmg_start(6, 'WRITEINCR')
-  call inc_writeIncrement(stateVectorIncr)
+  call inc_writeIncrement( outerLoopIndex, min_numOuterLoopIterations, stateVectorIncr)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(6)
 
   ! compute and write the analysis (as well as the increment on the trial grid)
@@ -231,6 +228,7 @@ program midas_var1D
 
   ! write the Hessian
   call min_writeHessian(controlVectorIncr)
+  deallocate(controlVectorIncrSum)
   deallocate(controlVectorIncr)
 
   ! Deallocate memory related to variational bias correction
@@ -251,9 +249,7 @@ program midas_var1D
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  !
-  ! 3. Job termination
-  !
+  ! Job termination
   istamp = exfin('VAR1D','FIN','NON')
 
   call tmg_stop(1)
