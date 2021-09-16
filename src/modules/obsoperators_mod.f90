@@ -3547,9 +3547,7 @@ contains
 
     ! Re-compute the Jacobian for re-linearized state
     if ( present(initializeLinearization_opt) ) then
-      if ( initializeLinearization_opt ) then
-        firstTime = .true.
-      end if
+      firstTime = initializeLinearization_opt
     end if
 
     if ( .not. firstTime ) return
@@ -3734,9 +3732,7 @@ contains
 
     ! Re-compute the Jacobian for re-linearized state
     if ( present(initializeLinearization_opt) ) then
-      if ( initializeLinearization_opt ) then
-        firstTime = .true.
-      end if
+      firstTime = initializeLinearization_opt
     end if
 
     if ( .not. firstTime ) return
