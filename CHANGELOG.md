@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Link splitobs compilation to `src/Makefile` (#490 and !499)
  * Implementation of outer-loop for computing analysis increment with results
    of some `var` program changed (#474 and !460)
  * Add namelist variable `dumpToSqliteAfterThinning` to `namBiasSat` (#479 and !497)

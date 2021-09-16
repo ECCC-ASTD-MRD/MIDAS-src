@@ -181,10 +181,11 @@ help:	#> print this help
 		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
 
 ##  External splitobs program compilation
+.PHONY: splitobs
 splitobs:	#> compile and install external splitobs program
-		$(MAKE) -C ../tools/splitobs \
-			PGM=$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)/splitobs_$(ORDENV_PLAT)-$(VERSION).Abs && \
-			$(MAKE) -C ../tools/splitobs clean
+		$(MAKE) -C $(SRC_ROOT)/../tools/splitobs \
+			PGM=$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)/midas-splitobs_$(ORDENV_PLAT)-$(VERSION).Abs && \
+			$(MAKE) -C $(SRC_ROOT)/../tools/splitobs clean
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
@@ -411,7 +412,7 @@ $(DEP_ABS): $(DEP_OBJ)
 ##
 .PHONY: all absolutes objects info install depend 
 
-all: absolutes	#> compile and link all programs 
+all: splitobs absolutes	#> compile and link all programs 
 
 absolutes: $(ABS) 
 
