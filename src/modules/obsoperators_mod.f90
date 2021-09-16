@@ -1894,9 +1894,7 @@ contains
 
     ! Re-linearlize if it is asked for
     if ( present(initializeLinearization_opt) ) then
-      if ( initializeLinearization_opt ) then
-        initializeLinearization = .true. 
-      end if
+      initializeLinearization = initializeLinearization_opt
     end if
 
     if ( initializeLinearization ) then
@@ -2702,9 +2700,7 @@ contains
 
     ! Re-linearlize if it is asked for
     if ( present(initializeLinearization_opt) ) then
-      if ( initializeLinearization_opt ) then
-        initializeLinearization = .true. 
-      end if
+      initializeLinearization = initializeLinearization_opt
     end if
 
     !     Find interpolation layer in model profiles (used by several operators)
