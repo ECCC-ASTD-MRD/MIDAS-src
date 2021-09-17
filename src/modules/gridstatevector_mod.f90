@@ -7978,7 +7978,7 @@ module gridStateVector_mod
 
     ! figure out the maximum possible number of grid points to search
     if (statevector%hco%dlat > 0.0d0) then
-      maxDeltaIndex = ceiling(1.5D0 * horizontalScale / (RA * max(statevector%hco%dlat,statevector%hco%dlon)))
+      maxDeltaIndex = ceiling(1.5D0 * horizontalScale / (EC_RA * max(statevector%hco%dlat,statevector%hco%dlon)))
       write(*,*) 'gsv_smoothHorizontal: maxDistance, maxDeltaIndex = ', horizontalScale/1000.0D0, 'km',  &
            maxDeltaIndex, max(statevector%hco%dlat,statevector%hco%dlon)
     else

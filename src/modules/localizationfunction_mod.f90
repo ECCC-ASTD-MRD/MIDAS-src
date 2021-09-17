@@ -179,7 +179,7 @@ CONTAINS
 ! lfn_CreateBiPerFunction
 !--------------------------------------------------------------------------
   SUBROUTINE  lfn_CreateBiPerFunction(gridpoint,CorrelLength,dlon,ni,nj,nk)
-    use earthConstants_mod, only: RA
+    use earthConstants_mod
     implicit none
 
     integer, intent(in)  :: ni,nj,nk
@@ -193,7 +193,7 @@ CONTAINS
 
     gridpoint(:,:,:) = 0.d0
 
-    distance_ref = dlon * RA
+    distance_ref = dlon * EC_RA
 
     !
     !- Create a bi-periodic correlation function by centering the function in each 4 corners

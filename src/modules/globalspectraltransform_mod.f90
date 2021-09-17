@@ -1806,7 +1806,7 @@ contains
              jk2 = jk + 1
              do jj = 1, gst(gstID)%nj
                 jj2 = gst(gstID)%nj - jj + 1
-                factor = ra / cos(gst(gstID)%rlati(jj))
+                factor = EC_RA / cos(gst(gstID)%rlati(jj))
                 if(jj.ne.jj2) then
                    ! For latitudes not exactly at equator
                    if(jj.le.gst(gstID)%njlath) then
@@ -1872,7 +1872,7 @@ contains
     dlrwt(:)   = gst(gstID)%rwt(:)
     !dlrwocs(:) = gst(gstID)%rwocs(:)
     do jj = 1, gst(gstID)%nj
-      dlrwocs(jj) = gst(gstID)%rwt(jj)/(ra*cos(gst(gstID)%rlati(jj)))
+      dlrwocs(jj) = gst(gstID)%rwt(jj)/(EC_RA*cos(gst(gstID)%rlati(jj)))
     enddo
     if (mod(gst(gstID)%nj,2).ne.0) then
        dlrwt(gst(gstID)%njlath)   = dlrwt(gst(gstID)%njlath)/2.d0
@@ -2170,7 +2170,7 @@ contains
              enddo
              if(jk .le. 2*nflev) then
                 do jj = 1, gst(gstID)%njlath
-                   factor = ra / cos(gst(gstID)%rlati(jj))
+                   factor = EC_RA / cos(gst(gstID)%rlati(jj))
                    zfms(jj,1,jk) = factor*zjm*zfms(jj,1,jk)
                    zfms(jj,2,jk) = factor*zjm*zfms(jj,2,jk)
                    zfma(jj,1,jk) = factor*zjm*zfma(jj,1,jk)
@@ -2237,7 +2237,7 @@ contains
           do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
              if(jk .le. 2*nflev) then
                 do jj = 1, gst(gstID)%njlath
-                   factor = ra / cos(gst(gstID)%rlati(jj))
+                   factor = EC_RA / cos(gst(gstID)%rlati(jj))
                    zfms(jj,1,jk) = factor*dlrwt(jj)*zfms(jj,1,jk)
                    zfms(jj,2,jk) = factor*dlrwt(jj)*zfms(jj,2,jk)
                    zfma(jj,1,jk) = factor*dlrwt(jj)*zfma(jj,1,jk)
@@ -3194,7 +3194,7 @@ contains
 
     do jlat = 1, gst(gstID)%njlath
        gst(gstID)%rlati(jlat) = asin(gst(gstID)%rmu(jlat))
-       gst(gstID)%r1mua(jlat) = r1sa*gst(gstID)%r1mui(jlat)
+       gst(gstID)%r1mua(jlat) = EC_R1SA*gst(gstID)%r1mui(jlat)
     enddo
 
     !     2. COMPLETION FOR THE SOUTHERN HEMISPHERE

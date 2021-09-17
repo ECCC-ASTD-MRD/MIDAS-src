@@ -2196,7 +2196,7 @@ contains
           Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
-          zMT  = zMT * RG / gpsgravitysrf(sLat)
+          zMT  = zMT * EC_RG / gpsgravitysrf(sLat)
           zP0  = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
@@ -2606,7 +2606,7 @@ contains
               LESTP = .TRUE.
               ZDZ = zlev - ZBZSFC
               ZPSFC  = ZBPSFC * &
-                   (1.0D0-(ZGAMMA/ZBTSFC)*ZDZ)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
+                   (1.0D0-(ZGAMMA/ZBTSFC)*ZDZ)**(EC_RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
               ICOUNT2 = ICOUNT2 + 1
             end if
                 !                Compute the hydrostatic delay ZHD (m) from Psfc (Pa)

@@ -25,7 +25,7 @@ module obsVariableTransforms_mod
   use bufr_mod
   use codePrecision_mod
   use mathPhysConstants_mod
-  use earthConstants_mod, only: grav
+  use earthConstants_mod
   use codtyp_mod
   use utilities_mod
   use obsFilter_mod
@@ -1113,7 +1113,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsValue )
         case(bufr_negz)
           obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR, bodyIndex )
-          gz = obsValue * grav
+          gz = obsValue * EC_RG
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, gz )
         end select
 

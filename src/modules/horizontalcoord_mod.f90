@@ -514,7 +514,7 @@ contains
       end do
     end do
 
-    maxGridSpacing = RA * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
+    maxGridSpacing = EC_RA * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
   
     if ( mpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
       maxGridSpacingPrevious = maxGridSpacing

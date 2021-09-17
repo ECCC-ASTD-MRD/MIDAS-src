@@ -796,7 +796,7 @@ contains
         dlc = 1.d0/dble(pcscl(jlev))
         dlc = 0.5d0*dlc*dlc
         do  jlat = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jlat,gstID))
+          zr = EC_RA * acos(gst_getRmu(jlat,gstID))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = myLonBeg, myLonEnd
             zgd(jlon,jlat,jlev) = dlcorr
@@ -809,7 +809,7 @@ contains
         dlc = dltemp/dble(pcscl(jlev))
         dlcsurn = dlc/dln
         do jlat = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jlat,gstID))
+          zr = EC_RA * acos(gst_getRmu(jlat,gstID))
           dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*dexp(-zr*dlc)    &
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
@@ -1293,7 +1293,7 @@ contains
           dlc = 1.d0/dble(dtlen)
           dlc = 0.5d0*dlc*dlc
           do jlat = 1, nj
-            zr = ra * acos(zrmu(jlat))
+            zr = EC_RA * acos(zrmu(jlat))
             dlfact = dexp(-(zr**2)*dlc)
             zgr(jlat,jk) = dlfact*zgr(jlat,jk)
           end do
@@ -2730,7 +2730,7 @@ contains
     call gst_reespe(sp,gd_out)
     call tmg_stop(58) 
 
-    dla2   = ra*ra
+    dla2   = EC_RA * EC_RA
     dl1sa2 = 1.d0/dla2
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M
@@ -2788,7 +2788,7 @@ contains
     call gst_spgda(sp,gd_in2,nLev_M)
     call tmg_stop(56) 
 
-    dla2   = ra*ra
+    dla2   = EC_RA * EC_RA
     dl1sa2 = 1.d0/dla2
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M

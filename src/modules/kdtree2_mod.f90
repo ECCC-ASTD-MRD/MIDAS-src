@@ -1924,9 +1924,9 @@ contains
     real(kdkind) :: positionArray(3)  ! returned values of function
     real(8), intent(in) :: lon_rad, lat_rad
     
-    positionArray(1) = RA * sin(lon_rad) * cos(lat_rad)
-    positionArray(2) = RA * cos(lon_rad) * cos(lat_rad)
-    positionArray(3) = RA * sin(lat_rad)
+    positionArray(1) = EC_RA * sin(lon_rad) * cos(lat_rad)
+    positionArray(2) = EC_RA * cos(lon_rad) * cos(lat_rad)
+    positionArray(3) = EC_RA * sin(lat_rad)
 
   end function kdtree2_3dPosition
 

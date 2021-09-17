@@ -218,27 +218,6 @@ MODULE MathPhysConstants_mod
    real(8), parameter :: MPC_missingValue_R8 = -999.D0
    integer, parameter :: MPC_missingValue_INT = -999
 
-! GPSRO constants
-
-  ! Semimajor axis (a) (m)                             [*Defining constant*]
-  real(8), parameter :: WGS_a = 6378137.0D0
-
-  ! Flattening (f)                                     [*Defining constant*]
-  real(8), parameter :: WGS_f = 1.D0 / 298.257223563D0
-
-  ! m = omega^2 a^2 b / GM
-  real(8), parameter :: WGS_m = 0.00344978650684D0
-
-  ! Theoretical (Normal) Gravity Formula Constant:
-  real(8), parameter :: WGS_TNGk = 0.00193185265241D0
-
-  ! First eccentricity squared:
-  real(8), parameter :: WGS_e2 = 6.69437999014D-3
-
-  ! Theoretical (Normal) Gravity at the equator (m/s2):
-  real(8), parameter :: WGS_GammaE = 9.7803253359D0
-
-
 contains
 
   subroutine mpc_setValue(name, var_r4, var_r8, value)

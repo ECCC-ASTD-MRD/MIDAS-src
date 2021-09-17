@@ -710,7 +710,7 @@ CONTAINS
       do jk1 = 1, nlev_T
         zfact = corvert(jk1+nkgdim,jk1+nkgdim)
         do jlat = 1, nj_l
-          zcoriolis = abs(2.d0*romega*gst_getrmu(jlat,gstID))
+          zcoriolis = abs(2*EC_Omega*gst_getrmu(jlat,gstID))
           if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
             zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
           else 
@@ -732,7 +732,7 @@ CONTAINS
         do jk1 = 1, nlevPtoT
           zfact = zfact+PtoT(nlev_T+1,jk1,klatPtoT)*zpsips(jk1)
         enddo
-        zcoriolis = abs(2.d0*romega*gst_getrmu(jlat,gstID))
+        zcoriolis = abs(2*EC_Omega*gst_getrmu(jlat,gstID))
         if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
           zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
         else 
@@ -1003,7 +1003,7 @@ CONTAINS
         dlc = 1.d0/dble(pcscl(jlev))
         dlc = 0.5d0*dlc*dlc
         do  jlat = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jlat,gstID))
+          zr = EC_RA * acos(gst_getRmu(jlat,gstID))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = myLonBeg, myLonEnd
             zgd(jlon,jlat,jlev) = dlcorr
@@ -1016,7 +1016,7 @@ CONTAINS
         dlc = dltemp/dble(pcscl(jlev))
         dlcsurn = dlc/dln
         do jlat = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jlat,gstID))
+          zr = EC_RA * acos(gst_getRmu(jlat,gstID))
           dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*dexp(-zr*dlc)    &
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
@@ -1499,7 +1499,7 @@ CONTAINS
         dlc = 1.d0/dble(dtlen)
         dlc = 0.5d0*dlc*dlc
         do jlat = 1, nj_l
-          zr = ra * acos(zrmu(jlat))
+          zr = EC_RA * acos(zrmu(jlat))
           dlfact = dexp(-(zr**2)*dlc)
           zgr(jlat,jk) = dlfact*zgr(jlat,jk)
         enddo
@@ -3193,7 +3193,7 @@ CONTAINS
 
     !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
-      zcoriolis = 2.d0*romega*gst_getRmu(jlat,gstID)
+      zcoriolis = 2*EC_Omega*gst_getRmu(jlat,gstID)
       do jlon = myLonBeg, myLonEnd
         zpsb(jlon,jlat) = 0.0d0
         do jlev = 1, nlevPtoT
@@ -3250,7 +3250,7 @@ CONTAINS
     call gst_reespe(sp,gd)
     call tmg_stop(56) 
 
-    dla2   = ra*ra
+    dla2   = EC_RA * EC_RA
     dl1sa2 = 1.d0/dla2
     !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M
@@ -3328,7 +3328,7 @@ CONTAINS
     call gst_spgda(sp,gd,nlev_M)
     call tmg_stop(57)
 
-    dla2   = ra*ra
+    dla2   = EC_RA * EC_RA
     dl1sa2 = 1.d0/dla2
     !$OMP PARALLEL DO PRIVATE(JLEV,JLA_MPILOCAL,ILA_MPIGLOBAL)
     do jlev = 1, nlev_M
@@ -3361,7 +3361,7 @@ CONTAINS
 
     !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
-      zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
+      zcoriolis = 2*EC_Omega*gst_getRMU(jlat,gstID)
       tb0(:,jlat,:) = 0.0d0
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd

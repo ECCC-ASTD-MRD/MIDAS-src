@@ -987,8 +987,8 @@ contains
   ! calcHorizScale
   !--------------------------------------------------------------------------
   subroutine calcHorizScale(HorizScale,SpCovariance)
-    use MathPhysConstants_mod, only: MPC_PI_R8
-    use EarthConstants_mod, only: RA
+    use MathPhysConstants_mod
+    use EarthConstants_mod
     implicit none
 
     real(8), intent(out) :: HorizScale(bhi%nVarLev)
@@ -1006,7 +1006,7 @@ contains
     !
 
     ! Grid spacing in meters
-    dx = hco_bhi%dlon * RA
+    dx = hco_bhi%dlon * EC_RA
     write(*,*)
     write(*,*) 'grid spacing (m) =', dx
 

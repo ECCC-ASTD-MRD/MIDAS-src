@@ -209,7 +209,7 @@ contains
       zenithAngle_rad = zenithAngle * MPC_RADIANS_PER_DEGREE_R8
       elevationAngle_rad = 0.5d0 * MPC_PI_R8 - zenithAngle_rad
 
-      obsCordGlb  = RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
+      obsCordGlb  = EC_RA * (/ cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat) /)
       unitz = (/  cos(lat)*cos(lon), cos(lat)*sin(lon) , sin(lat) /)
       unitx = (/ -sin(lon)         , cos(lon)          , 0.d0     /)
       unity = (/ -sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat) /)
@@ -682,9 +682,9 @@ contains
     real(8)              :: Re 
     
     ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! earth_r2 = 6371007.1809
+    ! WGS_R2 = 6371007.1809
     ! effective radius of the earth
-    Re = earth_r2 * (4./3.)
+    Re = WGS_R2 * (4./3.)
 
     !compute height of radar observation
     call slp_radar_getHfromRange(r_radar, ralt, rele, h_radar)
@@ -693,8 +693,8 @@ contains
     d_radar = atan(r_radar*cos(rele)/(r_radar*sin(rele)+Re+ralt))*Re
 
     ! lat lon of the path along the radar beam  
-    latSlant = asin( sin(lat)*cos(d_radar/earth_r2) + cos(lat)*sin(d_radar/earth_r2)*cos(rzam))
-    lonSlant = lon + atan2(sin(rzam)*sin(d_radar/earth_r2)*cos(lat), cos(d_radar/earth_r2)-sin(lat)*sin(latSlant))
+    latSlant = asin( sin(lat)*cos(d_radar/WGS_R2) + cos(lat)*sin(d_radar/WGS_R2)*cos(rzam))
+    lonSlant = lon + atan2(sin(rzam)*sin(d_radar/WGS_R2)*cos(lat), cos(d_radar/WGS_R2)-sin(lat)*sin(latSlant))
 
   end subroutine slp_radar_getlatlonHRfromRange
 
@@ -711,9 +711,9 @@ contains
     real(8)               :: Re 
    
     ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! earth_r2 = 6371007.1809
+    ! WGS_R2 = 6371007.1809
     ! efective radius of the earth
-    Re = earth_r2*(4./3.)
+    Re = WGS_R2*(4./3.)
     ! height of radar beam  from range at rele and ralt 
     h_radar = sqrt(r_radar**2.+(Re+ralt)**2.+2.*r_radar*(Re+ralt)*sin(rele))-(Re)
 
@@ -737,10 +737,10 @@ contains
     real(8)               :: a, b, c 
   
     ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! earth_r2 = 6371007.1809
+    ! WGS_R2 = 6371007.1809
     a = 1.
-    b = 2.*(earth_r2+ralt)*sin(rele)
-    c = -(earth_r2+h_radar)**2+(earth_r2+ralt)**2.
+    b = 2.*(WGS_R2+ralt)*sin(rele)
+    c = -(WGS_R2+h_radar)**2+(WGS_R2+ralt)**2.
     ! range of radar beam  from height and elevation of the radar beam 
     r_radar  = (-b+sqrt(b**2-4*a*c))/2*a
      

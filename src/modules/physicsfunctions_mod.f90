@@ -716,7 +716,7 @@ module physicsFunctions_mod
     integer, intent(in) :: nlev           ! number of levels
     real(8) :: rgz(nlev)                  ! geopotential heights (m)
 
-    rgz = (RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * RA*altitude/(RA+altitude)
+    rgz = (EC_RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * EC_RA*altitude/(EC_RA+altitude)
 
   end function phf_convert_z_to_gz
 
@@ -963,7 +963,7 @@ module physicsFunctions_mod
               uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0-vs)**2, 1.D-8 ) 
            end if
          
-           RiB2 = grav * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
+           RiB2 = EC_RG * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
            if (RiBmax.lt.RiB2.and.RiB2.ge.reduced*RiB_threshold) then
               RiBmax=RiB2
               iRiBmax=i
@@ -1074,7 +1074,7 @@ module physicsFunctions_mod
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
-    distanceInM = RA * c
+    distanceInM = EC_RA * c
 
   end function phf_calcDistance
 
@@ -1099,7 +1099,7 @@ module physicsFunctions_mod
     dlon = (lon2 - lon1)*cos(lat1)
     dlat = lat2 - lat1
 
-    distanceInM = RA * sqrt(dlon*dlon + dlat*dlat)
+    distanceInM = EC_RA * sqrt(dlon*dlon + dlat*dlat)
 
   end function phf_calcDistanceFast
 

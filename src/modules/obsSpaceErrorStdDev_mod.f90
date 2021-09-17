@@ -491,7 +491,7 @@ module obsSpaceErrorStdDev_mod
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*RG*10.d0
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*EC_RG*10.d0
             end do
          end do
       end do
@@ -1440,7 +1440,7 @@ module obsSpaceErrorStdDev_mod
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zMT  = zMT * EC_RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
                   ! approximation for dPdPs               
