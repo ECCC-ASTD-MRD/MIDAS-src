@@ -181,8 +181,9 @@ help:	#> print this help
 		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
 
 ##  External splitobs program compilation
-.PHONY: splitobs
-splitobs:	#> compile and install external splitobs program
+.PHONY: splitobs splitobs.Abs
+splitobs : splitobs.Abs
+splitobs.Abs:	#> compile and install external splitobs program
 		$(MAKE) -C $(SRC_ROOT)/../tools/splitobs \
 			PGM=$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)/midas-splitobs_$(ORDENV_PLAT)-$(VERSION).Abs && \
 			$(MAKE) -C $(SRC_ROOT)/../tools/splitobs clean
