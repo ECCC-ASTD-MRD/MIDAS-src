@@ -22,7 +22,7 @@ module varqc_mod
   !           weight begins to be reduced
   !
   use MathPhysConstants_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use codtyp_mod
   use bufr_mod
   use obsSpaceData_mod

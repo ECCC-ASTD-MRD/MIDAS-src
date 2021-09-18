@@ -23,7 +23,7 @@ module obsFilter_mod
   use codePrecision_mod
   use mpi_mod
   use mpivar_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod

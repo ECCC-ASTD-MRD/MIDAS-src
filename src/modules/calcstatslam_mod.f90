@@ -21,6 +21,8 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use MathPhysConstants_mod
+  use earthConstants_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
   use analysisGrid_mod
@@ -987,8 +989,6 @@ contains
   ! calcHorizScale
   !--------------------------------------------------------------------------
   subroutine calcHorizScale(HorizScale,SpCovariance)
-    use MathPhysConstants_mod
-    use EarthConstants_mod
     implicit none
 
     real(8), intent(out) :: HorizScale(bhi%nVarLev)

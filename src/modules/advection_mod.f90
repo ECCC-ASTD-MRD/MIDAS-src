@@ -25,7 +25,7 @@ MODULE advection_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use timeCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod

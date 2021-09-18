@@ -21,7 +21,7 @@ module analysisGrid_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
-  use earthconstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod

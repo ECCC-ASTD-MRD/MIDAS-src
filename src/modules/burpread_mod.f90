@@ -26,7 +26,7 @@ use bufr_mod
 use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod
-use earthconstants_mod
+use earthConstants_mod
 use utilities_mod
 use obsUtil_mod
 use obsVariableTransforms_mod

@@ -25,7 +25,7 @@ module obsSpaceDiag_mod
   use mpivar_mod
   use bufr_mod
   use codtyp_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use timeCoord_mod

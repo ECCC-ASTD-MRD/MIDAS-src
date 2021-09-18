@@ -34,7 +34,7 @@ module diffusion_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use randomNumber_mod
   use utilities_mod
   use gridStateVector_mod

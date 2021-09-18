@@ -24,7 +24,7 @@ module lamSpectralTransform_mod
   use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
-  use earthconstants_mod
+  use earthConstants_mod
   use utilities_mod
   implicit none
   save

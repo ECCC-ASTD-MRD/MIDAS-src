@@ -25,7 +25,7 @@ module obsSpaceErrorStdDev_mod
   use columnData_mod
   use bufr_mod
   use utilities_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use stateToColumn_mod
   use gridStateVector_mod

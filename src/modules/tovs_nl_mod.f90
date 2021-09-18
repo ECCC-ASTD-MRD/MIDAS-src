@@ -66,7 +66,7 @@ module tovs_nl_mod
   use mpi
   use utilities_mod
   use obsSpaceData_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use ozoneclim_mod
   use columnData_mod 

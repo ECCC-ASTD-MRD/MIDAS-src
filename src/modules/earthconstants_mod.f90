@@ -1,5 +1,5 @@
-MODULE EarthConstants_mod
-  ! MODULE EarthConstants_mod (prefix='' category='8. Global constants and interfaces')
+MODULE earthConstants_mod
+  ! MODULE earthConstants_mod (prefix='' category='8. Global constants and interfaces')
   ! Prefixes:
   !    EC (Earth constants), for miscellaneous values from diverse sources
   ! or
@@ -157,4 +157,4 @@ MODULE EarthConstants_mod
   real(8), parameter :: WGS_PMI_B      = 8.0092559D37
   real(8), parameter :: WGS_PMI_C      = 8.0354872D37
 
-end MODULE EarthConstants_mod
+end MODULE earthConstants_mod

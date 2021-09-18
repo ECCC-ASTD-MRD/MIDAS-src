@@ -441,7 +441,7 @@ module kdtree2_mod
   use utilities_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
-  use earthconstants_mod
+  use earthConstants_mod
   ! K-D tree routines in Fortran 90 by Matt Kennel.
   ! Original program was written in Sather by Steve Omohundro and
   ! Matt Kennel.  Only the Euclidean metric is supported. 

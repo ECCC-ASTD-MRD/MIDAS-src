@@ -21,7 +21,7 @@ module physicsFunctions_mod
   !           (e.g. computing saturation vapour pressure)
   !
   use MathPhysConstants_mod
-  use earthconstants_mod
+  use earthConstants_mod
   use utilities_mod
   
   implicit none

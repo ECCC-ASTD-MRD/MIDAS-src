@@ -35,7 +35,7 @@ MODULE ensembleObservations_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use utilities_mod
-  use earthconstants_mod
+  use earthConstants_mod
   use bufr_mod
   use codePrecision_mod
   implicit none

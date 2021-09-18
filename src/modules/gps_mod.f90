@@ -24,7 +24,7 @@ module gps_mod
   use mpi_mod
   use utilities_mod
   use mathPhysConstants_mod
-  use earthconstants_mod
+  use earthConstants_mod
   implicit none
   save
   private
