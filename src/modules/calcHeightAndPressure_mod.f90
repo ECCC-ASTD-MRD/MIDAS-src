@@ -409,7 +409,6 @@ contains
   
   end subroutine czp_tt2phi
   
-  
   subroutine czp_tt2phi_gsv_tl(statevector,statevector_trial)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
@@ -589,7 +588,6 @@ contains
   
   end subroutine czp_tt2phi_gsv_tl
   
-  
   subroutine czp_tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
@@ -745,7 +743,6 @@ contains
     call tmg_stop(193)
   
   end subroutine czp_tt2phi_col_tl
-  
   
   subroutine czp_tt2phi_gsv_ad(statevector,statevector_trial)
     !
@@ -998,7 +995,6 @@ contains
   
   end subroutine czp_tt2phi_gsv_ad
   
-  
   subroutine czp_tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
@@ -1218,7 +1214,6 @@ contains
     call tmg_stop(194)
   
   end subroutine czp_tt2phi_col_ad
-  
   
   subroutine calcHeightCoeff_gsv(statevector_trial)
     !
@@ -1441,7 +1436,6 @@ contains
   
   end subroutine calcHeightCoeff_gsv
   
-  
   subroutine calcHeightCoeff_col(columnTrlOnAnlInc)
     !
     ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
@@ -1631,7 +1625,6 @@ contains
   
   end subroutine calcHeightCoeff_col
   
-  
   function gpscompressibility(p,t,q)
     real(8), intent(in)  :: p,t,q
     real(8)              :: gpscompressibility
@@ -1789,7 +1782,6 @@ contains
             2*pt*d_pt*(d+e*x2)
   end function gpscompressibility_P0_1
   
-  
   ! gpscompressibility_P0_2 has NO dpdp0 dependency
   function gpscompressibility_P0_2(p,t,q)
     real(8), intent(in)  :: p,t,q
@@ -1821,7 +1813,6 @@ contains
     gpscompressibility_P0_2 = -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
             + pt*pt*e*d_x2
   end function gpscompressibility_P0_2
-  
 
   subroutine czp_calcGridPressure_nl_r8(statevector, beSilent_opt)
     !
@@ -1905,7 +1896,6 @@ contains
     if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: END'
   
   end subroutine czp_calcGridPressure_nl_r8
-  
 
   subroutine czp_calcGridPressure_nl_r4(statevector, beSilent_opt)
     !
@@ -1986,7 +1976,6 @@ contains
     deallocate(Psfc)
   
   end subroutine czp_calcGridPressure_nl_r4
-  
 
   subroutine czp_calcGridPressure_tl(statevector, statevector_trial, beSilent_opt)
     !
@@ -2119,7 +2108,6 @@ contains
     deallocate(Psfc)
   
   end subroutine czp_calcGridPressure_tl
-  
 
   subroutine czp_calcGridPressure_ad(statevector, statevector_trial, beSilent_opt)
     !
@@ -2255,7 +2243,6 @@ contains
     deallocate(Psfc)
   
   end subroutine czp_calcGridPressure_ad
-  
 
   subroutine czp_calcColumnPressure(column, beSilent_opt)
     !
@@ -2314,7 +2301,6 @@ contains
     deallocate(Psfc)
   
   end subroutine czp_calcColumnPressure
-  
 
   subroutine czp_calcColumnPressure_tl(columnInc, columnRefOnIncLev, beSilent_opt)
     !
@@ -2392,7 +2378,6 @@ contains
     end do
   
   end subroutine czp_calcColumnPressure_tl
-  
 
   subroutine czp_calcColumnPressure_ad(columnInc, columnRefOnIncLev, beSilent_opt)
     !
