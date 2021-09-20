@@ -79,6 +79,9 @@ module calcHeightAndPressure_mod
 
 contains
 
+  !---------------------------------------------------------
+  ! czp_tt2phi
+  !---------------------------------------------------------
   subroutine czp_tt2phi(statevector_trial,beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on GEM4 staggered levels
@@ -409,6 +412,9 @@ contains
   
   end subroutine czp_tt2phi
   
+  !---------------------------------------------------------
+  ! czp_tt2phi_gsv_tl
+  !---------------------------------------------------------
   subroutine czp_tt2phi_gsv_tl(statevector,statevector_trial)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
@@ -588,6 +594,9 @@ contains
   
   end subroutine czp_tt2phi_gsv_tl
   
+  !---------------------------------------------------------
+  ! czp_tt2phi_col_tl
+  !---------------------------------------------------------
   subroutine czp_tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
@@ -744,6 +753,9 @@ contains
   
   end subroutine czp_tt2phi_col_tl
   
+  !---------------------------------------------------------
+  ! czp_tt2phi_gsv_ad
+  !---------------------------------------------------------
   subroutine czp_tt2phi_gsv_ad(statevector,statevector_trial)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
@@ -995,6 +1007,9 @@ contains
   
   end subroutine czp_tt2phi_gsv_ad
   
+  !---------------------------------------------------------
+  ! czp_tt2phi_col_ad
+  !---------------------------------------------------------
   subroutine czp_tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
@@ -1215,6 +1230,9 @@ contains
   
   end subroutine czp_tt2phi_col_ad
   
+  !---------------------------------------------------------
+  ! calcHeightCoeff_gsv
+  !---------------------------------------------------------
   subroutine calcHeightCoeff_gsv(statevector_trial)
     !
     ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
@@ -1436,6 +1454,9 @@ contains
   
   end subroutine calcHeightCoeff_gsv
   
+  !---------------------------------------------------------
+  ! calcHeightCoeff_col
+  !---------------------------------------------------------
   subroutine calcHeightCoeff_col(columnTrlOnAnlInc)
     !
     ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
@@ -1625,6 +1646,9 @@ contains
   
   end subroutine calcHeightCoeff_col
   
+  !---------------------------------------------------------
+  ! gpscompressibility
+  !---------------------------------------------------------
   function gpscompressibility(p,t,q)
     real(8), intent(in)  :: p,t,q
     real(8)              :: gpscompressibility
@@ -1650,6 +1674,9 @@ contains
     gpscompressibility = 1.D0 - pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + pt*pt*(d+e*x2)
   end function gpscompressibility
   
+  !---------------------------------------------------------
+  ! gpscompressibility_TT
+  !---------------------------------------------------------
   function gpscompressibility_TT(p,t,q)
     real(8), intent(in)  :: p,t,q
     real(8)              :: gpscompressibility_TT
@@ -1683,6 +1710,9 @@ contains
             2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
   end function gpscompressibility_TT
   
+  !---------------------------------------------------------
+  ! gpscompressibility_HU
+  !---------------------------------------------------------
   function gpscompressibility_HU(p,t,q)
     real(8), intent(in)  :: p,t,q
     real(8)              :: gpscompressibility_HU
@@ -1749,8 +1779,11 @@ contains
             2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
   end function gpscompressibility_P0
   
-  ! gpscompressibility_P0_1 has dpdp0 dependency
+  !---------------------------------------------------------
+  ! gpscompressibility_P0_1
+  !---------------------------------------------------------
   function gpscompressibility_P0_1(p,t,q,dpdp0)
+    ! gpscompressibility_P0_1 has dpdp0 dependency
     real(8), intent(in)  :: p,t,q,dpdp0
     real(8)              :: gpscompressibility_P0_1
   
@@ -1782,8 +1815,11 @@ contains
             2*pt*d_pt*(d+e*x2)
   end function gpscompressibility_P0_1
   
-  ! gpscompressibility_P0_2 has NO dpdp0 dependency
+  !---------------------------------------------------------
+  ! gpscompressibility_P0_2
+  !---------------------------------------------------------
   function gpscompressibility_P0_2(p,t,q)
+    ! gpscompressibility_P0_2 has NO dpdp0 dependency
     real(8), intent(in)  :: p,t,q
     real(8)              :: gpscompressibility_P0_2
   
@@ -1814,6 +1850,9 @@ contains
             + pt*pt*e*d_x2
   end function gpscompressibility_P0_2
 
+  !---------------------------------------------------------
+  ! czp_calcGridPressure_nl_r8
+  !---------------------------------------------------------
   subroutine czp_calcGridPressure_nl_r8(statevector, beSilent_opt)
     !
     !:Purpose: double-precision calculation of the Pressure on the grid.
@@ -1897,6 +1936,9 @@ contains
   
   end subroutine czp_calcGridPressure_nl_r8
 
+  !---------------------------------------------------------
+  ! czp_calcGridPressure_nl_r4
+  !---------------------------------------------------------
   subroutine czp_calcGridPressure_nl_r4(statevector, beSilent_opt)
     !
     !:Purpose: single-precision calculation of the Pressure on the grid.
@@ -1977,6 +2019,9 @@ contains
   
   end subroutine czp_calcGridPressure_nl_r4
 
+  !---------------------------------------------------------
+  ! czp_calcGridPressure_tl
+  !---------------------------------------------------------
   subroutine czp_calcGridPressure_tl(statevector, statevector_trial, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment on the grid.
@@ -2109,6 +2154,9 @@ contains
   
   end subroutine czp_calcGridPressure_tl
 
+  !---------------------------------------------------------
+  ! czp_calcGridPressure_ad
+  !---------------------------------------------------------
   subroutine czp_calcGridPressure_ad(statevector, statevector_trial, beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure on the grid.
@@ -2244,6 +2292,9 @@ contains
   
   end subroutine czp_calcGridPressure_ad
 
+  !---------------------------------------------------------
+  ! czp_calcColumnPressure
+  !---------------------------------------------------------
   subroutine czp_calcColumnPressure(column, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure in the column.
@@ -2302,6 +2353,9 @@ contains
   
   end subroutine czp_calcColumnPressure
 
+  !---------------------------------------------------------
+  ! czp_calcColumnPressure_tl
+  !---------------------------------------------------------
   subroutine czp_calcColumnPressure_tl(columnInc, columnRefOnIncLev, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment in the column.
@@ -2379,6 +2433,9 @@ contains
   
   end subroutine czp_calcColumnPressure_tl
 
+  !---------------------------------------------------------
+  ! czp_calcColumnPressure_ad
+  !---------------------------------------------------------
   subroutine czp_calcColumnPressure_ad(columnInc, columnRefOnIncLev, beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure in the column.
