@@ -33,7 +33,6 @@ module stateToColumn_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsTimeInterp_mod
-  use calcHeightAndPressure_mod
   use windRotation_mod
   use utilities_mod
   use gridVariableTransforms_mod
