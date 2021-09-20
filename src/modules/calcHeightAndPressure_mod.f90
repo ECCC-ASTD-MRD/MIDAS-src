@@ -140,11 +140,13 @@ contains
     nlev_M = gsv_getNumLev(statevector_trial,'MM')
     numStep = statevector_trial%numstep
   
-    if (Vcode == 5002 .and. nlev_T /= nlev_M+1) &
+    if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
       call utl_abort('czp_tt2phi: nlev_T is not equal to nlev_M+1!')
-    if (Vcode == 5005 .and. nlev_T /= nlev_M) &
+    end if
+    if (Vcode == 5005 .and. nlev_T /= nlev_M) then
       call utl_abort('czp_tt2phi: nlev_T is not equal to nlev_M!')
-  
+    end if
+
     if (Vcode == 5005) then
       status = vgd_get(&
           statevector_trial%vco%vgrid,key='DHM - height of the diagnostic level (m)', &
@@ -2032,7 +2034,6 @@ contains
     numStep = statevector%numStep
   
     do stepIndex = 1, numStep
-  
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
   
       ! P_M
@@ -2042,8 +2043,9 @@ contains
                         levels=Pressure_out, &
                         sfc_field=Psfc, &
                         in_log=.false.)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+      end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
   
@@ -2054,8 +2056,9 @@ contains
                         levels=Pressure_out, &
                         sfc_field=Psfc, &
                         in_log=.false.)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+      end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
   
@@ -2067,9 +2070,9 @@ contains
       end if
   
     end do
-  
+
     deallocate(Psfc)
-  
+
     if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: END'
   
   end subroutine czp_calcGridPressure_nl_r8
@@ -2131,8 +2134,9 @@ contains
                           levels=Pressure_out, &
                           sfc_field=Psfc, &
                           in_log=.false.)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+      end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
   
@@ -2143,8 +2147,9 @@ contains
                           levels=Pressure_out, &
                           sfc_field=Psfc, &
                           in_log=.false.)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+      end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
   
@@ -2158,6 +2163,8 @@ contains
     end do
   
     deallocate(Psfc)
+
+    if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r4: END'
   
   end subroutine czp_calcGridPressure_nl_r4
 
@@ -2235,8 +2242,9 @@ contains
                            statevector%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_tl: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_M
       if (gsv_getDataKind(statevector) == 4) then
         do lev_M = 1, nlev_M
@@ -2269,8 +2277,9 @@ contains
                            statevector%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_tl: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_T
       if (gsv_getDataKind(statevector) == 4) then
         do lev_T = 1, nlev_T
@@ -2314,7 +2323,7 @@ contains
     implicit none
   
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain ncrement of Psfc.
+    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain increment of Psfc.
     type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
     logical, optional               :: beSilent_opt
   
@@ -2411,8 +2420,9 @@ contains
                            statevector%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcGridPressure_ad: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_T
       if (gsv_getDataKind(statevector) == 4) then
         do lev_T = 1, nlev_T
@@ -2565,8 +2575,9 @@ contains
                            columnInc%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcColumnPressure_tl: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_M
       do lev_M = 1, nlev_M
         delP_M(lev_M,colIndex) = dP_dPsfc_M(lev_M) * delPsfc(1,colIndex)
@@ -2579,8 +2590,9 @@ contains
                            columnInc%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcColumnPressure_tl: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_T
       do lev_T = 1, nlev_T
         delP_T(lev_T,colIndex) = dP_dPsfc_T(lev_T) * delPsfc(1,colIndex)
@@ -2649,8 +2661,9 @@ contains
                            columnInc%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
-      if( status .ne. VGD_OK ) &
+      if( status .ne. VGD_OK ) then
           call utl_abort('czp_calcColumnPressure_ad: ERROR with vgd_dpidpis')
+      end if
       ! calculate delP_M
       do lev_M = 1, nlev_M
         delPsfc(1,colIndex) = delPsfc(1,colIndex) + &
