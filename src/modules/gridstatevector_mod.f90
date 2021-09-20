@@ -62,6 +62,7 @@ module gridStateVector_mod
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_getHcoVcoFromTrlmFile
+  public :: gsv_equalsZero
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -8260,5 +8261,35 @@ module gridStateVector_mod
     write(*,*) 'gsv_applyMaskLAM: finished to apply mask to the analysis increments.'
 
   end subroutine gsv_applyMaskLAM
+
+  !--------------------------------------------------------------------------
+  ! gsv_equalsZero
+  !--------------------------------------------------------------------------
+  function gsv_equalsZero(stateVector) result(stateVectorIsAllZero)
+    implicit none
+    type(struct_gsv) :: stateVector
+    logical          :: stateVectorIsAllZero
+
+    real(4), pointer :: field_r4_ptr(:,:,:,:)
+    real(8), pointer :: field_r8_ptr(:,:,:,:)
+    logical          :: allZero, allZero_mpiglobal
+    integer          :: ierr 
+
+    if ( .not. stateVector%allocated) then
+      call utl_abort('gsv_equalsZero: stateVector should be allocated first')
+    end if
+
+    if ( stateVector%dataKind == 4 ) then
+      call gsv_getField(stateVector,field_r4_ptr)
+      allZero = ( maxval(abs(field_r4_ptr(:,:,:,:))) == 0.0 )
+    else if ( stateVector%dataKind == 8 ) then
+      call gsv_getField(stateVector,field_r8_ptr)
+      allZero = ( maxval(abs(field_r8_ptr(:,:,:,:))) == 0.0D0 )
+    end if
+
+    call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+    stateVectorIsAllZero = allZero_mpiglobal
+
+  end function gsv_equalsZero
 
 end module gridStateVector_mod
