@@ -565,7 +565,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_computeStateVectorHeight( stateVector, stateVectorOut_opt )
     !
-    !:Purpose: computing the height stateVector.
+    !:Purpose: computing the height stateVector on the analysis grid at each 
+    !          outer-loop iteration, storing the results in stateVectorOut_opt.
+    !          The calculation is skipped if heightTrialsInitialized=.true.
+    !          The input stateVector need to contain TT/HU/P0 for 3D height 
+    !          computation.
     !
     implicit none
 
