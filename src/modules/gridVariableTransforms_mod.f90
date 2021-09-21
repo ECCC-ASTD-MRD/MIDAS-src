@@ -150,7 +150,7 @@ CONTAINS
       call gsv_deallocate(statevector_noZnoP)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( stateVectorTrialHeight )
+      call czp_calcGridPressure_nl( stateVectorTrialHeight )
       call czp_tt2phi( stateVectorTrialHeight )
 
     case default
@@ -401,7 +401,7 @@ CONTAINS
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for PsfcToP_nl, the option statevectorOut_opt is not yet available')
       end if
-      call PsfcToP_nl(stateVector)
+      call czp_calcGridPressure_nl(statevector)
 
     case ('PsfcToP_tl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -1351,22 +1351,6 @@ CONTAINS
     call czp_tt2phi_ad(statevector,stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_ad
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_nl
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_nl(statevector)
-    implicit none
-
-    type(struct_gsv)    :: statevector
-
-    if ( gsv_getDataKind(statevector) == 4 ) then
-      call czp_calcGridPressure_nl_r4(statevector)
-    else
-      call czp_calcGridPressure_nl_r8(statevector)
-    end if
-
-  end subroutine PsfcToP_nl
 
   !--------------------------------------------------------------------------
   ! PsfcToP_tl

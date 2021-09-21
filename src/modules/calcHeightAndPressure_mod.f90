@@ -38,8 +38,8 @@ module calcHeightAndPressure_mod
 
   ! public procedures
   public :: czp_tt2phi, czp_tt2phi_tl, czp_tt2phi_ad, &
-            czp_calcGridPressure_nl_r8, czp_calcGridPressure_nl_r4, &
-            czp_calcGridPressure_tl, czp_calcGridPressure_ad, & 
+            czp_calcGridPressure_nl, czp_calcGridPressure_tl, &
+            czp_calcGridPressure_ad, & 
             czp_calcColumnPressure, czp_calcColumnPressure_tl, &
             czp_calcColumnPressure_ad 
 
@@ -1987,11 +1987,31 @@ contains
   end function gpscompressibility_P0_2
 
   !---------------------------------------------------------
-  ! czp_calcGridPressure_nl_r8
+  ! czp_calcGridPressure_nl
   !---------------------------------------------------------
-  subroutine czp_calcGridPressure_nl_r8(statevector, beSilent_opt)
+  subroutine czp_calcGridPressure_nl(statevector)
     !
-    !:Purpose: double-precision calculation of the Pressure on the grid.
+    ! :Purpose: calculation of the pressure on the grid subroutine
+    !
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( gsv_getDataKind(statevector) == 4 ) then
+      call calcGridPressure_nl_r4(statevector)
+    else
+      call calcGridPressure_nl_r8(statevector)
+    end if
+
+  end subroutine czp_calcGridPressure_nl
+
+
+  !---------------------------------------------------------
+  ! calcGridPressure_nl_r8
+  !---------------------------------------------------------
+  subroutine calcGridPressure_nl_r8(statevector, beSilent_opt)
+    !
+    !:Purpose: double-precision calculation of the pressure on the grid.
     !
     implicit none
   
@@ -2014,12 +2034,12 @@ contains
       beSilent = .true.
     end if
   
-    if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: computing Pressure on staggered or UNstaggered levels'
+    if ( .not. beSilent ) write(*,*) 'calcGridPressure_nl_r8: computing Pressure on staggered or UNstaggered levels'
   
     if ( .not. gsv_varExist(statevector,'P_T') .or. &
         .not. gsv_varExist(statevector,'P_M') .or. &
         .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('czp_calcGridPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
+      call utl_abort('calcGridPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
     end if
   
     nullify(P_T)
@@ -2044,7 +2064,7 @@ contains
                         sfc_field=Psfc, &
                         in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+          call utl_abort('calcGridPressure_nl_r8: ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2057,7 +2077,7 @@ contains
                         sfc_field=Psfc, &
                         in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('czp_calcGridPressure_nl_r8: ERROR with vgd_levels')
+          call utl_abort('calcGridPressure_nl_r8: ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2073,16 +2093,16 @@ contains
 
     deallocate(Psfc)
 
-    if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r8: END'
+    if ( .not. beSilent ) write(*,*) 'calcGridPressure_nl_r8: END'
   
-  end subroutine czp_calcGridPressure_nl_r8
+  end subroutine calcGridPressure_nl_r8
 
   !---------------------------------------------------------
-  ! czp_calcGridPressure_nl_r4
+  ! calcGridPressure_nl_r4
   !---------------------------------------------------------
-  subroutine czp_calcGridPressure_nl_r4(statevector, beSilent_opt)
+  subroutine calcGridPressure_nl_r4(statevector, beSilent_opt)
     !
-    !:Purpose: single-precision calculation of the Pressure on the grid.
+    !:Purpose: single-precision calculation of the pressure on the grid.
     !
     implicit none
   
@@ -2105,12 +2125,12 @@ contains
       beSilent = .true.
     end if
   
-    if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r4: computing Pressure on staggered or UNstaggered levels'
+    if ( .not. beSilent ) write(*,*) 'calcGridPressure_nl_r4: computing Pressure on staggered or UNstaggered levels'
   
     if ( .not. gsv_varExist(statevector,'P_T') .or. &
         .not. gsv_varExist(statevector,'P_M') .or. &
         .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('czp_calcGridPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
+      call utl_abort('calcGridPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
     end if
   
     nullify(P_T)
@@ -2135,7 +2155,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+          call utl_abort('calcGridPressure_nl_r4: ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2148,7 +2168,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('czp_calcGridPressure_nl_r4: ERROR with vgd_levels')
+          call utl_abort('calcGridPressure_nl_r4: ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2164,9 +2184,9 @@ contains
   
     deallocate(Psfc)
 
-    if ( .not. beSilent ) write(*,*) 'czp_calcGridPressure_nl_r4: END'
+    if ( .not. beSilent ) write(*,*) 'calcGridPressure_nl_r4: END'
   
-  end subroutine czp_calcGridPressure_nl_r4
+  end subroutine calcGridPressure_nl_r4
 
   !---------------------------------------------------------
   ! czp_calcGridPressure_tl
