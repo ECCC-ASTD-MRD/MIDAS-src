@@ -102,6 +102,7 @@ program midas_thinning
   call thn_thinGbGps(obsSpaceData)
   call thn_thinGpsRo(obsSpaceData)
   call thn_thinAladin(obsSpaceData)
+  call thn_thinSsmis(obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   if (obs_famExist( obsSpaceData, 'UA' )) then

@@ -636,6 +636,22 @@ contains
 
   end subroutine thn_thinHyper
 
+  !--------------------------------------------------------------------------
+  ! thn_thinSsmis
+  !--------------------------------------------------------------------------
+  subroutine thn_thinSsmis(obsdat)
+    ! :Purpose: Main thinning subroutine for SSMIS data.
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! return if no TOVS obs
+    if (.not. obs_famExist(obsdat,'TO')) return
+
+  end subroutine thn_thinSsmis
+
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 !_/
 !_/ The following methods are intended to be general algorithms that may be
