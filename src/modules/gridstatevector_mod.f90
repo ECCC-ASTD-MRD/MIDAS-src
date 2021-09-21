@@ -61,8 +61,7 @@ module gridStateVector_mod
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
-  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_getHcoVcoFromTrlmFile
-  public :: gsv_equalsZero
+  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_equalsZero
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -6405,42 +6404,6 @@ module gridStateVector_mod
     call tmg_stop(150)
 
   end subroutine gsv_readTrials
-
-  !--------------------------------------------------------------------------
-  ! gsv_getHcoVcoFromTrlmFile
-  !--------------------------------------------------------------------------
-  subroutine gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
-    !
-    !:Purpose: Get hco/vco of the trials
-    !
-    implicit none
-
-    ! arguments
-    type(struct_hco), pointer, intent(inout) :: hco_trl
-    type(struct_vco), pointer, intent(inout) :: vco_trl
-
-    ! locals
-    character(len=4), pointer :: anlVar(:)
-
-    write(*,*) 'gsv_getHcoVcoFromTrlmFile: START'
-    nullify(hco_trl,vco_trl)
-
-    ! check if gsv is initialized.
-    if ( .not. gsv_isInitialized() ) then
-      write(*,*)
-      write(*,*) 'gsv_getHcoVcoFromTrlmFile: gsv_setup must be called first. Call it now'
-      call gsv_setup
-    end if
-
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
-    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
-
-    call vco_SetupFromFile(vco_trl, './trlm_01')
-
-    write(*,*) 'gsv_getHcoVcoFromTrlmFile: END'
-
-  end subroutine gsv_getHcoVcoFromTrlmFile
 
   !--------------------------------------------------------------------------
   ! gsv_transposeStepToVarsLevs

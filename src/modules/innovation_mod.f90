@@ -57,6 +57,7 @@ module innovation_mod
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
   public :: inn_perturbObs, inn_setupColumnsOnTrlLev, inn_setupColumnsOnAnlIncLev
+  public :: inn_getHcoVcoFromTrlmFile
 
   character(len=48) :: innovationMode
 
@@ -916,5 +917,41 @@ contains
     end do
 
   end subroutine inn_perturbObs
+
+  !--------------------------------------------------------------------------
+  ! inn_getHcoVcoFromTrlmFile
+  !--------------------------------------------------------------------------
+  subroutine inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+    !
+    !:Purpose: Get hco/vco of the trials
+    !
+    implicit none
+
+    ! arguments
+    type(struct_hco), pointer, intent(inout) :: hco_trl
+    type(struct_vco), pointer, intent(inout) :: vco_trl
+
+    ! locals
+    character(len=4), pointer :: anlVar(:)
+
+    write(*,*) 'inn_getHcoVcoFromTrlmFile: START'
+    nullify(hco_trl,vco_trl)
+
+    ! check if gsv is initialized.
+    if ( .not. gsv_isInitialized() ) then
+      write(*,*)
+      write(*,*) 'inn_getHcoVcoFromTrlmFile: gsv_setup must be called first. Call it now'
+      call gsv_setup
+    end if
+
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
+
+    call vco_SetupFromFile(vco_trl, './trlm_01')
+
+    write(*,*) 'inn_getHcoVcoFromTrlmFile: END'
+
+  end subroutine inn_getHcoVcoFromTrlmFile
 
 end module innovation_mod

@@ -158,7 +158,7 @@ module oMinusF_mod
       end if
 
       ! Reading trials
-      call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+      call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
       allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
       call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
