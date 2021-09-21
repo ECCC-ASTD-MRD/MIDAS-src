@@ -1989,18 +1989,19 @@ contains
   !---------------------------------------------------------
   ! czp_calcGridPressure_nl
   !---------------------------------------------------------
-  subroutine czp_calcGridPressure_nl(statevector)
+  subroutine czp_calcGridPressure_nl(statevector, beSilent_opt)
     !
     ! :Purpose: calculation of the pressure on the grid subroutine
     !
     implicit none
 
     type(struct_gsv)    :: statevector
+    logical, optional   :: beSilent_opt
 
     if ( gsv_getDataKind(statevector) == 4 ) then
-      call calcGridPressure_nl_r4(statevector)
+      call calcGridPressure_nl_r4(statevector, beSilent_opt=beSilent_opt)
     else
-      call calcGridPressure_nl_r8(statevector)
+      call calcGridPressure_nl_r8(statevector, beSilent_opt=beSilent_opt)
     end if
 
   end subroutine czp_calcGridPressure_nl
