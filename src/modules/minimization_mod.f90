@@ -948,11 +948,11 @@ CONTAINS
          call bmat_reduceToMPILocal_r4( vatra_r4,            & ! OUT
                                         vatravec_r4_mpiglobal) ! IN (contains data only on proc 0)
          call tmg_stop(119)
-!$OMP PARALLEL DO PRIVATE(ii)
+         !$OMP PARALLEL DO PRIVATE(ii)
          do ii = 1, nvadim_mpilocal
            vatra((jvec-1)*nvadim_mpilocal+ii) = real(vatra_r4(ii),8)
          enddo
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
 
       end do
 
@@ -1033,11 +1033,11 @@ CONTAINS
 
       if (k1gc == 3) ictrlvec = 2*nvamaj+1
       do jvec = 1, ictrlvec
-!$OMP PARALLEL DO PRIVATE(ii)
+        !$OMP PARALLEL DO PRIVATE(ii)
         do ii = 1, nvadim_mpilocal
           vatra_r4(ii) = vatra((jvec-1)*nvadim_mpilocal+ii)
         enddo
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
         call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
                                         vatravec_r4_mpiglobal )  ! OUT
         call tmg_start(76,'MIN_WRITEHESS_IO')
