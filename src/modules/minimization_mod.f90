@@ -85,6 +85,7 @@ module minimization_mod
   ! variables stored for later call to min_writeHessian
   real(8), allocatable :: vatra(:)
   real(8), pointer     :: controlVectorIncrSum_ptr(:)
+  real(8), allocatable :: controlVectorIncrSumZero(:)
   real(8) :: zeps0, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   integer :: outerLoopIndex
@@ -220,6 +221,10 @@ CONTAINS
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
+    ! zero array for writing to hessian
+    allocate(controlVectorIncrSumZero(cvm_nvadim))
+    controlVectorIncrSumZero(:) = 0.0d0
+
     call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
     call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
 
@@ -229,6 +234,9 @@ CONTAINS
     call quasiNewtonMinimization( columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, vazx )
 
     call col_deallocate(columnAnlInc)
+
+    deallocate(controlVectorIncrSumZero)
+
     call tmg_stop(3)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -339,7 +347,7 @@ CONTAINS
 
         call hessianIO (preconFileName,0,                    &
           isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000,  &
-          isimdone_000,iztrl,vatra,controlVectorIncrSum_ptr, &
+          isimdone_000,iztrl,vatra,controlVectorIncrSumZero, &
           vazx,llxbar,llvazx,n1gc,imode)
       endif
 
@@ -502,7 +510,7 @@ CONTAINS
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call hessianIO (preconFileNameOut,1,  &
         min_nsim,tim_getDatestamp(),zeps0,zdf1,itertot,isimtot,  &
-        iztrl,vatra,controlVectorIncrSum_ptr,vazx,.true.,llvazx,n1gc,imode)
+        iztrl,vatra,controlVectorIncrSumZero,vazx,.true.,llvazx,n1gc,imode)
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     endif
 
