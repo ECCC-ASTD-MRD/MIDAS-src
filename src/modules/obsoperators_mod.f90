@@ -289,7 +289,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'Entering subroutine oop_ppp_nl'
 
-    zexp = MPC_RGAS_DRY_AIR_R8 * temperatureLapseRate / EC_RG
+    zexp = MPC_RGAS_DRY_AIR_R8 * temperatureLapseRate / ec_rg
 
     nlev_T = col_getNumLev(columnTrlOnTrlLev,'TH')
     allocate(geopotential(nlev_T))
@@ -359,7 +359,7 @@ contains
            call phf_height2geopotential(heightSfc,lat,geopotentialSfc)
 
            zomp = (  zvar - geopotentialSfc(1) -  &
-                ztvg/(temperatureLapseRate/EC_RG)*(1.D0-(zlev/col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0'))**zexp))
+                ztvg/(temperatureLapseRate/ec_rg)*(1.D0-(zlev/col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0'))**zexp))
            Jobs = Jobs + zomp*zomp/(zoer*zoer)
            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
          end if
@@ -722,7 +722,7 @@ contains
             ! 3) Compute the correction coefficient
             ! The legacy code says...
             coeffA = (trlVirtTemp-deltaT)/trlVirtTemp
-            coeffB = 1.0D0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/EC_RG)
+            coeffB = 1.0D0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/ec_rg)
             pCorrectionFactor = coeffA**coeffB
             ! However, the U.S. Standard Atmosphere (1976, U.S. Government Printing Office, Washington, D.C., 1976*)
             ! at page 12 says...
@@ -2089,7 +2089,7 @@ contains
       !
       !     Temperature lapse rate for extrapolation of height below model surface
       !
-      coeffB   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/EC_RG)
+      coeffB   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/ec_rg)
       !
       !
       list_family(1) = 'UA'
@@ -2824,7 +2824,7 @@ contains
       character(len=4) :: varLevel
 
       !- Temperature lapse rate for extrapolation of height below model surface
-      coeffB   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/EC_RG)
+      coeffB   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/ec_rg)
 
       !
       !-   1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
@@ -3266,9 +3266,9 @@ contains
             end if
 
             height_column(layerIndex+1) =   height_column(layerIndex+1) &
-                              + (trlValueBot - trlValueTop)*ZDA2*ZRES/EC_RG
+                              + (trlValueBot - trlValueTop)*ZDA2*ZRES/ec_rg
             height_column(layerIndex)   =   height_column(layerIndex) &
-                              + (trlValueBot - trlValueTop)*ZDA1*ZRES/EC_RG
+                              + (trlValueBot - trlValueTop)*ZDA1*ZRES/ec_rg
 
             if (bufrCode /= bufr_neal) then
               all_column(levIndexBot) = all_column(levIndexBot) + ZWB*ZRES

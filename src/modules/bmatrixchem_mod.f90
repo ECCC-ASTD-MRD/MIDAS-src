@@ -835,7 +835,7 @@ module BmatrixChem_mod
         dlc = 1.d0/dble(dtlen)
         dlc = 0.5d0*dlc*dlc
         do latIndex = 1, nj_l
-          zr = EC_RA * acos(zrmu(latIndex))
+          zr = ec_ra * acos(zrmu(latIndex))
           dlfact = dexp(-(zr**2)*dlc)
           zgr(latIndex,jk) = dlfact*zgr(latIndex,jk)
         enddo
@@ -916,7 +916,7 @@ module BmatrixChem_mod
     if (lfound) return
 
     do latIndex = 1, nj_l
-      hdist(latIndex)=EC_RA*acos(zrmu(latIndex))
+      hdist(latIndex)=ec_ra*acos(zrmu(latIndex))
     end do
 
     zleg(:,:)=0.0d0

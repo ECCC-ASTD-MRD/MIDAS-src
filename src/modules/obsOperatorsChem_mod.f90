@@ -2675,7 +2675,7 @@ contains
           ! For conversion from ug/kg to integrand values in kg/(m^2*Pa) 
           ! Note: 1 kg/(m^2**Pa) = = 1 mmr / RG = 1E-9 ug/kg / RG 
           !
-          zcoef = zcoef * 1.0d-9 / EC_RG
+          zcoef = zcoef * 1.0d-9 / ec_rg
           
        case(BUFR_UNIT_IntegMolarDens) 
         
@@ -2688,7 +2688,7 @@ contains
           ! Note: One u or Da (unified atomic mass unit or dalton) is numerically equivalent to 1 g/mole.
           ! So 1 kg is equivalent to (1E3/(atomic mass)) moles
           
-          zcoef = zcoef * 1.0d-6 / (EC_RG*vnl_varMassFromVarNum(obsoper%constituent_id))
+          zcoef = zcoef * 1.0d-6 / (ec_rg*vnl_varMassFromVarNum(obsoper%constituent_id))
           
        case(BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2)
           
@@ -2699,7 +2699,7 @@ contains
           ! divide by the gas molar mass (kg/mole) and multiply by the Avogrado number          
 
           zcoef = zcoef * 1.0d-6 * MPC_AVOGADRO_R8 &
-               / (EC_RG*vnl_varMassFromVarNum(obsoper%constituent_id))
+               / (ec_rg*vnl_varMassFromVarNum(obsoper%constituent_id))
 
        case(BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4) 
       
@@ -2723,7 +2723,7 @@ contains
           ! So for conversion from kg/m^2 to DU, must divide by (m_gas*rho_stp/m_air * 1E-5)       
           
           zcoef = zcoef * 1.0d-4 * MPC_MOLAR_MASS_DRY_AIR_R8 &
-                /(vnl_varMassFromVarNum(obsoper%constituent_id)*EC_RG*rho_stp)
+                /(vnl_varMassFromVarNum(obsoper%constituent_id)*ec_rg*rho_stp)
         
        case(BUFR_UNIT_Density, BUFR_UNIT_Density2, &
             BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity)

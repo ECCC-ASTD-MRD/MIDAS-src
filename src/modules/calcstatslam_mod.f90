@@ -1006,7 +1006,7 @@ contains
     !
 
     ! Grid spacing in meters
-    dx = hco_bhi%dlon * EC_RA
+    dx = hco_bhi%dlon * ec_ra
     write(*,*)
     write(*,*) 'grid spacing (m) =', dx
 

@@ -193,7 +193,7 @@ CONTAINS
 
     gridpoint(:,:,:) = 0.d0
 
-    distance_ref = dlon * EC_RA
+    distance_ref = dlon * ec_ra
 
     !
     !- Create a bi-periodic correlation function by centering the function in each 4 corners

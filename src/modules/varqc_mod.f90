@@ -726,9 +726,9 @@ module varqc_mod
                    !
                    ! CONVERT FROM GEOPOTENTIAL TO GEOPOTENTIAL HEIGHT
                    !
-                   ZVAR = ZVAR/EC_RG
-                   ZFCST = ZFCST/EC_RG
-                   ZANA  = ZANA/EC_RG
+                   ZVAR = ZVAR/ec_rg
+                   ZFCST = ZFCST/ec_rg
+                   ZANA  = ZANA/ec_rg
                  else if (ityp == BUFR_NETT) then
                    CLDESC = CLITM(4)
                    ICOUNT(4,JFAM) = ICOUNT(4,JFAM) + 1

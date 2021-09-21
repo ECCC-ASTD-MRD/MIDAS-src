@@ -494,9 +494,9 @@ CONTAINS
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       allocate(positionArray(3,ensObs%numObs))
       do bodyIndex = 1, ensObs%numObs
-        positionArray(1,bodyIndex) = EC_RA * sin(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
-        positionArray(2,bodyIndex) = EC_RA * cos(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
-        positionArray(3,bodyIndex) = EC_RA *                              sin(ensObs%lat(bodyIndex))
+        positionArray(1,bodyIndex) = ec_ra * sin(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
+        positionArray(2,bodyIndex) = ec_ra * cos(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
+        positionArray(3,bodyIndex) = ec_ra *                              sin(ensObs%lat(bodyIndex))
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
       write(*,*) 'eob_getLocalBodyIndices: done creating kdtree'
@@ -506,9 +506,9 @@ CONTAINS
     ! do the search
     maxNumLocalObs = size(localBodyIndices)
     maxRadius = hLocalize**2
-    refPosition(1) = EC_RA * sin(lon) * cos(lat)
-    refPosition(2) = EC_RA * cos(lon) * cos(lat)
-    refPosition(3) = EC_RA *            sin(lat)
+    refPosition(1) = ec_ra * sin(lon) * cos(lat)
+    refPosition(2) = ec_ra * cos(lon) * cos(lat)
+    refPosition(3) = ec_ra *            sin(lat)
     allocate(searchResults(maxNumLocalObsSearch))
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numLocalObsFoundSearch,&
                            nalloc=maxNumLocalObsSearch, results=searchResults)

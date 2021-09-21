@@ -303,9 +303,9 @@ contains
     real(dp)              :: ks2
     real(dp)              :: e2s
 
-    ks2 = WGS_TNGk * sLat*sLat
-    e2s = 1._dp - WGS_e2 * sLat*sLat
-    gpsgravitysrf = WGS_GammaE * (1._dp + ks2) / sqrt(e2s)
+    ks2 = ec_wgs_TNGk * sLat*sLat
+    e2s = 1._dp - ec_wgs_e2 * sLat*sLat
+    gpsgravitysrf = ec_wgs_GammaE * (1._dp + ks2) / sqrt(e2s)
   end function gpsgravitysrf
 
   pure function gpsgravityalt(sLat, Altitude)
@@ -323,8 +323,8 @@ contains
     real(dp)              :: C1
     real(dp)              :: C2
 
-    C1 =-2._dp/WGS_a*(1._dp+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
-    C2 = 3._dp/WGS_a**2
+    C1 =-2._dp/ec_wgs_a*(1._dp+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*sLat*sLat)
+    C2 = 3._dp/ec_wgs_a**2
     gpsgravityalt = gpsgravitysrf(sLat)*                                   &
          (1._dp + C1 * Altitude + C2 * Altitude**2)
   end function gpsgravityalt
@@ -385,9 +385,9 @@ contains
     real(dp)              :: sLat, e2s
 
     sLat = sin(Latitude)
-    e2s = 1._dp - WGS_e2 * sLat * sLat
-    RadN = WGS_a / sqrt(e2s)
-    RadM = WGS_a * (1._dp - WGS_e2) / (e2s*sqrt(e2s))
+    e2s = 1._dp - ec_wgs_e2 * sLat * sLat
+    RadN = ec_wgs_a / sqrt(e2s)
+    RadM = ec_wgs_a * (1._dp - ec_wgs_e2) / (e2s*sqrt(e2s))
   end subroutine gpsRadii
 
 
@@ -973,8 +973,8 @@ contains
        ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
-       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
+       Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
        Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
        Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
@@ -2143,7 +2143,7 @@ contains
        zfph = (1.0_dp - 2.66e-03_dp*cos(2.0*lat) - 2.8e-07_dp*h)
 
 !  Pressure at obs height (CMC hydrostatic extrapolation from Psfc)
-       x      = EC_RG/(p_Rd*gamma)
+       x      = ec_rg/(p_Rd*gamma)
        tvsfc  = prf%tst(ngpslev)*(1._dp+delta*prf%qst(ngpslev))
        Pobs   = prf%pst(ngpslev)*(((tvsfc-gamma*dh)/tvsfc)**x)
 !  Dry delay ZHD (m) at obs height
@@ -2202,7 +2202,7 @@ contains
           ZTDopv = prf%ztd(jloc)
           Pobs   = prf%pst(jloc)
         else ! otherwise do extrapolation from lowest level values
-          x      = EC_RG/(p_Rd*gamma)
+          x      = ec_rg/(p_Rd*gamma)
           tvsfc  = prf%tst(jloc)*(1._dp+delta*prf%qst(jloc))
           Pobs   = prf%pst(jloc)*(((tvsfc-gamma*dh)/tvsfc)**x)
           if ( abs(dh) <= dzmax ) then

@@ -124,7 +124,7 @@ module calcStatsGlb_mod
     ni=hco_in%ni
     nj=hco_in%nj
 
-    gridSpacingInKm = EC_RA * hco_in%dlon / 1000.d0
+    gridSpacingInKm = ec_ra * hco_in%dlon / 1000.d0
     write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
 
     ! setup mpi local grid parameters
@@ -1541,7 +1541,7 @@ module calcStatsGlb_mod
       do jn = 0, ntrunc
         ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
         if ( jn /= 0) then
-          waveLength=2*MPC_PI_R8*EC_RA/dble(jn)
+          waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
         else
           waveLength=0.d0
         end if
@@ -1633,7 +1633,7 @@ module calcStatsGlb_mod
       do jn = 0, ntrunc
         ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
         if ( jn /= 0) then
-          waveLength=2*MPC_PI_R8*EC_RA/dble(jn)
+          waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
         else
           waveLength=0.d0
         end if
@@ -1807,7 +1807,7 @@ module calcStatsGlb_mod
     DATA DLLATMIN / -60.0D0, -30.0D0, 30.0D0 /
     DATA DLLATMAX / -30.0D0,  30.0D0, 60.0D0 /
 
-    DLA2 = EC_RA * EC_RA
+    DLA2 = ec_ra * ec_ra
     DL1SA2 = 1.D0/DLA2
 
     ! 1. Initialize P_to_T, ZM1, ZM2
@@ -2076,7 +2076,7 @@ module calcStatsGlb_mod
     real(8) :: zn, zm, zenm, zenmp1, zcon, dl1sa2
     
     ! convert PSI to vorticity 
-    dl1sa2   = 1.0d0/(EC_RA*EC_RA)
+    dl1sa2   = 1.0d0/(ec_ra*ec_ra)
     spvor_mpiglobal(:,:,:) = 0.0d0
     spvor_mpiglobal2(:,:,:) = 0.0d0
     do levIndex = 1, nlevEns_M
@@ -2099,7 +2099,7 @@ module calcStatsGlb_mod
     ! loop over levels and zonal wavenumbers
     ! n.b.: at the tip of the triangle, no contributions
     
-    zcon = -2*EC_ROmega*EC_RA**2
+    zcon = -2*ec_ROmega*ec_ra**2
     do levIndex = 1, nlevEns_M
 
       ! the base address ia will point to the spherical harmonic
@@ -2314,7 +2314,7 @@ module calcStatsGlb_mod
 
     ! Convert from U/V to PSI/CHI and spectrally filter all fields
     call tmg_start(2,'UV_TO_PSICHI')
-    dla2   = EC_RA * EC_RA
+    dla2   = ec_ra * ec_ra
     do ensIndex=1,nens
       write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', ensIndex
       member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))
@@ -2639,7 +2639,7 @@ module calcStatsGlb_mod
           end if
        end do
        if ( a > 0.d0 .and. b /= 0.d0 ) then
-          HorizScale(jk) = EC_RA * sqrt(-2.0d0*a/b)
+          HorizScale(jk) = ec_ra * sqrt(-2.0d0*a/b)
        else
           HorizScale(jk) = 0.d0
        end if
@@ -2732,7 +2732,7 @@ module calcStatsGlb_mod
 
        do jn = 0, ntrunc
           if ( jn /= 0) then
-             waveLength=2*MPC_PI_R8*EC_RA/dble(jn)
+             waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
           else
              waveLength=0.d0
           end if
@@ -2755,7 +2755,7 @@ module calcStatsGlb_mod
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
           if ( jn /= 0) then
-             waveLength=2*MPC_PI_R8*EC_RA/dble(jn)
+             waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
           else
              waveLength=0.d0
           end if

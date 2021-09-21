@@ -686,7 +686,7 @@ contains
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
-    distanceInM = EC_RA * c
+    distanceInM = ec_ra * c
 
   end function calcDistance
 

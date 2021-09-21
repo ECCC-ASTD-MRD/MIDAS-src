@@ -1113,7 +1113,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsValue )
         case(bufr_negz)
           obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR, bodyIndex )
-          gz = obsValue * EC_RG
+          gz = obsValue * ec_rg
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, gz )
         end select
 

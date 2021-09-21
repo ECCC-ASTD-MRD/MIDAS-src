@@ -599,7 +599,7 @@ contains
         call phf_height2geopotential(height,lat,geopotential)
 
         zval = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-        altitudeDiff = ( zval - geopotential(1) )/EC_RG
+        altitudeDiff = ( zval - geopotential(1) )/ec_rg
         ! obs is above surface, so it is ok, lets jump to the next obs
         if(altitudeDiff >= 0.0d0) cycle BODY
 
