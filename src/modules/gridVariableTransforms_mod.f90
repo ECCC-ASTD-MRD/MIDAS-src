@@ -574,8 +574,9 @@ CONTAINS
     !          outer-loop iteration, storing the results in stateVectorOut_opt.
     !          The calculation is skipped if stateVectorTrialHeigh is 
     !          initialized (gsv_equalsZero(stateVectorTrialHeight)=.false.).
-    !          The input stateVector need to contain TT/HU/P0 for 3D height 
-    !          computation.
+    !          The input stateVector is the high spatial/temporal resolution
+    !          statevector used for reading the trials and should contain 
+    !          TT/HU/P0 for 3D height computation.
     !
     implicit none
 
@@ -598,9 +599,8 @@ CONTAINS
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
 
-    if ( .not. associated(hco_trl) .or. .not. associated(vco_trl) ) then
-      call gsv_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
-    end if
+    if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVector)
+    if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVector)
 
     if ( .not. stateVectorTrialHeight%allocated ) then
       call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
