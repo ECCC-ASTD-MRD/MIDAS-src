@@ -94,14 +94,12 @@ module minimization_mod
   ! namelist variables
   integer,parameter   :: maxNumLevels = 200
   real(8) :: REPSG, rdf1fac
-  real(8) :: e1_scaleFactor, e2_scaleFactor
-  real(8) :: pertScaleFactor_UV(maxNumLevels)
   integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
-  integer :: numAnalyses, ntrunc_pert
+  integer :: numAnalyses
   integer :: numOuterLoopIterations
   logical :: limitHuInOuterLoop
   logical :: lxbar, lwrthess, lgrtest, lvazx
-  logical :: lvarqc, pertBhiOnly, writeAnalysis
+  logical :: lvarqc, writeAnalysis
   logical :: oneDVarMode
   character(len=256) :: ensPathName
 
@@ -111,8 +109,6 @@ module minimization_mod
   NAMELIST /NAMMIN/ REPSG, rdf1fac
   NAMELIST /NAMMIN/ LVARQC, NWOQCV
   NAMELIST /NAMMIN/ numAnalyses, ensPathName
-  NAMELIST /NAMMIN/ e1_scaleFactor, e2_scaleFactor, pertBhiOnly
-  NAMELIST /NAMMIN/ pertScaleFactor_UV, ntrunc_pert
   NAMELIST /NAMMIN/ numOuterLoopIterations, limitHuInOuterLoop
 
 CONTAINS
@@ -162,11 +158,6 @@ CONTAINS
     nwoqcv   = 5
     numAnalyses = 20
     ensPathName = './ensemble'
-    e1_scaleFactor = 0.66d0
-    e2_scaleFactor = 0.33d0
-    pertBhiOnly = .true.
-    pertScaleFactor_UV(:) = 1.0d0
-    ntrunc_pert = 0
 
     ! read in the namelist NAMMIN
     nulnam=0
