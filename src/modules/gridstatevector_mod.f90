@@ -61,7 +61,7 @@ module gridStateVector_mod
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
-  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_equalsZero
+  public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -8226,12 +8226,12 @@ module gridStateVector_mod
   end subroutine gsv_applyMaskLAM
 
   !--------------------------------------------------------------------------
-  ! gsv_equalsZero
+  ! gsv_containsNonZeroValues
   !--------------------------------------------------------------------------
-  function gsv_equalsZero(stateVector) result(stateVectorIsAllZero)
+  function gsv_containsNonZeroValues(stateVector) result(stateVectorHasNonZeroValue)
     implicit none
     type(struct_gsv) :: stateVector
-    logical          :: stateVectorIsAllZero
+    logical          :: stateVectorHasNonZeroValue
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(8), pointer :: field_r8_ptr(:,:,:,:)
@@ -8239,7 +8239,8 @@ module gridStateVector_mod
     integer          :: ierr 
 
     if ( .not. stateVector%allocated) then
-      call utl_abort('gsv_equalsZero: stateVector should be allocated first')
+      stateVectorHasNonZeroValue = .false.
+      return
     end if
 
     if ( stateVector%dataKind == 4 ) then
@@ -8251,8 +8252,8 @@ module gridStateVector_mod
     end if
 
     call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
-    stateVectorIsAllZero = allZero_mpiglobal
+    stateVectorHasNonZeroValue = .not. allZero_mpiglobal
 
-  end function gsv_equalsZero
+  end function gsv_containsNonZeroValues
 
 end module gridStateVector_mod

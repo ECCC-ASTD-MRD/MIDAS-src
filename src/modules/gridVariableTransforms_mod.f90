@@ -83,9 +83,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_in
     
     if ( huTrialsInitialized ) return
-    if ( stateVectorTrialHeight%allocated ) then
-      if ( .not. gsv_equalsZero(stateVectorTrialHeight) ) return
-    end if
+    if ( gsv_containsNonZeroValues(stateVectorTrialHeight) ) return
     if ( any(varKindCHTrialsInitialized(:)) ) return
 
     write(*,*) 'gvt_setup: starting'
@@ -127,11 +125,14 @@ CONTAINS
 
       huTrialsInitialized = .true.
     case ('height')
-      ! initialize stateVectorTrialHeight on analysis grid
-      call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+      if ( .not. stateVectorTrialHeight%allocated ) then
+        ! initialize stateVectorTrialHeight on analysis grid
+        call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                          varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        call gsv_zero(stateVectorTrialHeight)
+      end if
 
       ! initialize statevector_noZnoP on analysis grid
       call gsv_allocate(statevector_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
@@ -550,11 +551,7 @@ CONTAINS
       huTrialsInitialized = .true.
 
     case ('height')
-      if ( stateVectorTrialHeight%allocated ) then
-        if ( gsv_equalsZero(stateVectorTrialHeight) ) then
-          call gvt_setupTrials('height')
-        end if
-      else
+      if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
         call gvt_setupTrials('height')
       end if
       statevector_ptr => stateVectorTrialHeight
@@ -572,8 +569,8 @@ CONTAINS
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
     !          outer-loop iteration, storing the results in stateVectorOut_opt.
-    !          The calculation is skipped if stateVectorTrialHeigh is 
-    !          initialized (gsv_equalsZero(stateVectorTrialHeight)=.false.).
+    !          The calculation is skipped if stateVectorTrialHeight is 
+    !          initialized (gsv_containsNonZeroValue(stateVectorTrialHeight)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
     !          statevector used for reading the trials and should contain 
     !          TT/HU/P0 for 3D height computation.
@@ -590,11 +587,9 @@ CONTAINS
 
     character(len=4), pointer :: varNames(:)
 
-    if ( stateVectorTrialHeight%allocated ) then
-      if ( .not. gsv_equalsZero(stateVectorTrialHeight) ) then
-        if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
-        return
-      end if
+    if ( gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
+      return
     end if
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
@@ -1279,8 +1274,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! Maziar: need to check for allocation status
-    if ( gsv_equalsZero(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
@@ -1301,8 +1295,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! Maziar: need to check for allocation status
-    if ( gsv_equalsZero(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
@@ -1339,8 +1332,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! Maziar: need to check for allocation status
-    if ( gsv_equalsZero(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
@@ -1361,8 +1353,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! Maziar: need to check for allocation status
-    if ( gsv_equalsZero(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
