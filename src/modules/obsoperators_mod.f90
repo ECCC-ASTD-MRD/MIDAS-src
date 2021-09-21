@@ -3539,7 +3539,7 @@ contains
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
-    logical, save :: firstTime = .true.
+    logical, save :: initializeLinearization = .true.
     integer :: nh, nh1
     type(gps_profile)           :: prf
     real(8)       , allocatable :: h   (:),azmv(:)
@@ -3547,14 +3547,14 @@ contains
 
     ! Re-compute the Jacobian for re-linearized state
     if ( present(initializeLinearization_opt) ) then
-      firstTime = initializeLinearization_opt
+      initializeLinearization = initializeLinearization_opt
     end if
 
-    if ( .not. firstTime ) return
+    if ( .not. initializeLinearization ) return
 
     write(*,*) 'ENTER oop_calcGPSROJacobian'
 
-    firstTime = .false.
+    initializeLinearization = .false.
 
     ! Initializations
     ngpslev = col_getNumLev(columnTrlOnAnlIncLev,'TH')
@@ -3728,18 +3728,18 @@ contains
     type(struct_vco), pointer :: vco_anl
     character(len=12) :: cstnid
 
-    logical, save :: firstTime = .true.
+    logical, save :: initializeLinearization = .true.
 
     ! Re-compute the Jacobian for re-linearized state
     if ( present(initializeLinearization_opt) ) then
-      firstTime = initializeLinearization_opt
+      initializeLinearization = initializeLinearization_opt
     end if
 
-    if ( .not. firstTime ) return
+    if ( .not. initializeLinearization ) return
 
     write(*,*) 'ENTER oop_calcGPSGBJacobian'
 
-    firstTime = .FALSE.
+    initializeLinearization = .FALSE.
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
