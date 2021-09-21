@@ -98,7 +98,7 @@ program midas_gencoeff
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate trials to trial columns
-  call inn_setupColumnsOnTrialLev( columnTrlOnAnlIncLev, obsSpaceData, hco_core, &
+  call inn_setupColumnsOnTrlLev( columnTrlOnAnlIncLev, obsSpaceData, hco_core, &
                                    stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

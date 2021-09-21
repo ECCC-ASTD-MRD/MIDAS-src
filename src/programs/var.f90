@@ -182,7 +182,7 @@ program midas_var
 
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
-  !       inn_setupColumnsOnTrialLev
+  !       inn_setupColumnsOnTrlLev
   call min_setup( cvm_nvadim, hco_anl ) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
@@ -197,7 +197,7 @@ program midas_var
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
-    call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+    call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                      stateVectorUpdateHighRes, &
                                      initializeStateVectorRef_opt=.true. )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -207,7 +207,7 @@ program midas_var
       call col_setVco(columnTrlOnAnlIncLev,vco_anl)
       call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
     end if
-    call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
+    call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization

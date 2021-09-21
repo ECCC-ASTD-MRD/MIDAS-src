@@ -177,11 +177,11 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
-  call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
+  call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
                                    stateVectorTrialHighRes )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
+  call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)

@@ -56,7 +56,7 @@ module innovation_mod
 
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
-  public :: inn_perturbObs, inn_setupColumnsOnTrialLev, inn_setupColumnsOnAnlLev
+  public :: inn_perturbObs, inn_setupColumnsOnTrlLev, inn_setupColumnsOnAnlIncLev
 
   character(len=48) :: innovationMode
 
@@ -192,11 +192,11 @@ contains
   end subroutine inn_setupobs
 
   !--------------------------------------------------------------------------
-  ! inn_setupColumnsOnTrialLev
+  ! inn_setupColumnsOnTrlLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                         stateVectorUpdateHighRes, &
-                                         initializeStateVectorRef_opt )
+  subroutine inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                       stateVectorUpdateHighRes, &
+                                       initializeStateVectorRef_opt )
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     !
@@ -222,7 +222,7 @@ contains
     NAMELIST /NAMINN/timeInterpType_nl, numObsBatches
 
     write(*,*)
-    write(*,*) 'inn_setupColumnsOnTrialLev: START'
+    write(*,*) 'inn_setupColumnsOnTrlLev: START'
 
     timeInterpType_nl = 'NEAREST'
     numObsBatches     = 20
@@ -230,14 +230,14 @@ contains
     if (utl_isNamelistPresent('naminn','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrialLev: Error opening file flnml')
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error opening file flnml')
       read(nulnam,nml=naminn,iostat=ierr)
-      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrialLev: Error reading namelist')
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mpi_myid == 0) write(*,nml=naminn)
       ierr = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'inn_setupColumnsOnTrialLev: Namelist block NAMINN is missing in the namelist.'
+      write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'
       write(*,*) '                            The default values will be taken.'
       if (mpi_myid == 0) write(*,nml=naminn)
     end if
@@ -293,14 +293,14 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupColumnsOnTrialLev: END'
+    write(*,*) 'inn_setupColumnsOnTrlLev: END'
 
-  end subroutine inn_setupColumnsOnTrialLev
+  end subroutine inn_setupColumnsOnTrlLev
 
   !--------------------------------------------------------------------------
-  ! inn_setupColumnsOnAnlLev
+  ! inn_setupColumnsOnAnlIncLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupColumnsOnAnlLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  subroutine inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
     implicit none
@@ -313,7 +313,7 @@ contains
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
     write(*,*)
-    write(*,*) 'inn_setupColumnsOnAnlLev: START'
+    write(*,*) 'inn_setupColumnsOnAnlIncLev: START'
 
     call tmg_start(10,'SETUPCOLUMN')
 
@@ -346,12 +346,12 @@ contains
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupColumnsOnAnlLev, before vintprof, columnTrlOnTrlLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnTrlLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
         write(*,*) columnTrlOnTrlLev_ptr (:)
 
-        write(*,*) 'inn_setupColumnsOnAnlLev, before vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -405,7 +405,7 @@ contains
     ! Print pressure on thermo levels for the first column
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupColumnsOnAnlLev, after vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, after vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -439,7 +439,7 @@ contains
     ! Print height info of the first original and interpolated columns
     if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
       write(*,*)
-      write(*,*) 'inn_setupColumnsOnAnlLev, vIntProf output:'
+      write(*,*) 'inn_setupColumnsOnAnlIncLev, vIntProf output:'
 
       if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
         write(*,*) 'Z_T (columnTrlOnTrlLev):'
@@ -464,9 +464,9 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupColumnsOnAnlLev: END'
+    write(*,*) 'inn_setupColumnsOnAnlIncLev: END'
 
-  end subroutine inn_setupColumnsOnAnlLev
+  end subroutine inn_setupColumnsOnAnlIncLev
 
   !--------------------------------------------------------------------------
   ! inn_computeInnovation

@@ -171,7 +171,7 @@ module oMinusF_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! Horizontally interpolate trials to trial columns
-      call inn_setupColumnsOnTrialLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+      call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                        stateVectorTrialHighRes )
 
       write(*,*)
@@ -191,7 +191,7 @@ module oMinusF_mod
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupColumnsOnAnlLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
+        call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
         !- 2.3 Compute the background errors in observation space
         call ose_computeStddev(columnTrlOnAnlIncLev,hco_anl,obsSpaceData)
       end if
