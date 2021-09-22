@@ -55,7 +55,7 @@ module gridVariableTransforms_mod
 
   type(struct_gsv), target :: stateVectorTrialHU
   type(struct_gsv), target :: stateVectorTrialvarKindCH(vnl_numVarMax)
-  type(struct_gsv), target :: stateVectorTrialHeight
+  type(struct_gsv), target :: stateVectorRefHeight
 
   ! module interfaces
   interface gvt_transform
@@ -83,7 +83,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_in
     
     if ( huTrialsInitialized ) return
-    if ( gsv_containsNonZeroValues(stateVectorTrialHeight) ) return
+    if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) return
     if ( any(varKindCHTrialsInitialized(:)) ) return
 
     write(*,*) 'gvt_setup: starting'
@@ -125,13 +125,13 @@ CONTAINS
 
       huTrialsInitialized = .true.
     case ('height')
-      if ( .not. stateVectorTrialHeight%allocated ) then
-        ! initialize stateVectorTrialHeight on analysis grid
-        call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+      if ( .not. stateVectorRefHeight%allocated ) then
+        ! initialize stateVectorRefHeight on analysis grid
+        call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
-        call gsv_zero(stateVectorTrialHeight)
+        call gsv_zero(stateVectorRefHeight)
       end if
 
       ! initialize statevector_noZnoP on analysis grid
@@ -145,13 +145,13 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowVarMismatch_opt=.true. )
+      call gsv_copy( statevector_noZnoP, stateVectorRefHeight, allowVarMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( stateVectorTrialHeight )
-      call tt2phi( stateVectorTrialHeight )
+      call PsfcToP_nl( stateVectorRefHeight )
+      call tt2phi( stateVectorRefHeight )
 
     case default
       if ( present(varKind_opt) ) then
@@ -206,10 +206,10 @@ CONTAINS
       end if
     end if
 
-    ! initialize stateVectorTrialHeight for each outer-loop iteration greater than one.
+    ! initialize stateVectorRefHeight for each outer-loop iteration greater than one.
     if ( present(initializeStateVectorRefHeight_opt) ) then
       if ( initializeStateVectorRefHeight_opt ) then
-        if ( stateVectorTrialHeight%allocated ) call gsv_zero( stateVectorTrialHeight )
+        if ( stateVectorRefHeight%allocated ) call gsv_zero( stateVectorRefHeight )
       end if
     end if
 
@@ -553,10 +553,10 @@ CONTAINS
       huTrialsInitialized = .true.
 
     case ('height')
-      if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+      if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
         call gvt_setupRefFromTrialFiles('height')
       end if
-      statevector_ptr => stateVectorTrialHeight
+      statevector_ptr => stateVectorRefHeight
 
     case default
       call utl_abort('gvt_getStateVectorTrial: unknown variable ='//trim(varName))
@@ -572,8 +572,8 @@ CONTAINS
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
     !          outer-loop iteration, storing the results in stateVectorOut_opt.
-    !          The calculation is skipped if stateVectorTrialHeight is 
-    !          initialized (gsv_containsNonZeroValue(stateVectorTrialHeight)=.true.).
+    !          The calculation is skipped if stateVectorRefHeight is 
+    !          initialized (gsv_containsNonZeroValue(stateVectorRefHeight)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
     !          statevector used for reading the trials and should contain 
     !          TT/HU/P0 for 3D height computation.
@@ -591,8 +591,8 @@ CONTAINS
 
     character(len=4), pointer :: varNames(:)
 
-    if ( gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
-      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
+    if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) then
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
       return
     end if
 
@@ -605,13 +605,13 @@ CONTAINS
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
     if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
 
-    if ( .not. stateVectorTrialHeight%allocated ) then
-      call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+    if ( .not. stateVectorRefHeight%allocated ) then
+      call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                          varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
     else
-      call gsv_zero( stateVectorTrialHeight )
+      call gsv_zero( stateVectorRefHeight )
     end if
 
     ! First, degrade the time steps
@@ -632,16 +632,16 @@ CONTAINS
     call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
     ! Now copy to create final stateVector height.
-    call gsv_copy( stateVectorLowResTimeSpace, stateVectorTrialHeight, &
+    call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHeight, &
                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
     call gsv_deallocate(stateVectorLowResTimeSpace)
     call gsv_deallocate(stateVectorLowResTime)
 
     ! do height/P calculation of the grid
-    call PsfcToP_nl( stateVectorTrialHeight )
-    call tt2phi( stateVectorTrialHeight )
+    call PsfcToP_nl( stateVectorRefHeight )
+    call tt2phi( stateVectorRefHeight )
 
-    if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
+    if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
 
@@ -1282,7 +1282,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
@@ -1290,7 +1290,7 @@ CONTAINS
       end if
     end if
 
-    call tt2phi_tl(stateVector, stateVectorTrialHeight)
+    call tt2phi_tl(stateVector, stateVectorRefHeight)
 
   end subroutine TTHUtoHeight_tl
 
@@ -1303,7 +1303,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
@@ -1311,7 +1311,7 @@ CONTAINS
       end if
     end if
 
-    call tt2phi_ad(stateVector, stateVectorTrialHeight)
+    call tt2phi_ad(stateVector, stateVectorRefHeight)
 
   end subroutine TTHUtoHeight_ad
 
@@ -1340,7 +1340,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
@@ -1348,7 +1348,7 @@ CONTAINS
       end if
     end if
 
-    call calcpressure_tl(stateVector, stateVectorTrialHeight)
+    call calcpressure_tl(stateVector, stateVectorRefHeight)
 
   end subroutine PsfcToP_tl
 
@@ -1361,7 +1361,7 @@ CONTAINS
     type(struct_gsv)           :: stateVector
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
+    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
@@ -1369,7 +1369,7 @@ CONTAINS
       end if
     end if
 
-    call calcpressure_ad(stateVector, stateVectorTrialHeight)
+    call calcpressure_ad(stateVector, stateVectorRefHeight)
 
   end subroutine PsfcToP_ad
 
