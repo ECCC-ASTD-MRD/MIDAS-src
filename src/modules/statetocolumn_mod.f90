@@ -45,6 +45,7 @@ module stateToColumn_mod
   use codtyp_mod
   use getGridPosition_mod
   use kdtree2_mod
+  use calcHeightAndPressure_mod
 
   implicit none
   save
@@ -1312,19 +1313,8 @@ contains
     end do k_loop
 
     if (calcHeightPressIncrOnColumn) then
-      ! calculate delP_T/delP_M on the columns
-      if ( statevector_in%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector_in%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'PsfcToP_tl')      ! IN
-      end if
-
-      ! calculate del Z_T/Z_M on the columns
-      if ( statevector_in%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector_in%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'TTHUtoHeight_tl') ! IN
-      end if
+      ! calculate delP_T/delP_M and  del Z_T/Z_M on the columns
+      call czp_calcColumnZandP_tl(columnAnlInc, columnTrlOnAnlIncLev)
     end if
 
     deallocate(cols_hint)
@@ -1391,20 +1381,8 @@ contains
                          mpi_local_opt=.true., &
                          dataKind_opt=gsv_getDataKind(statevector_out), &
                          allocHeight_opt=.false., allocPressure_opt=.false. )
-      ! Adjoint of calculate del Z_T/Z_M on the columns
-      if ( statevector_out%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector_out%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'TTHUtoHeight_ad') ! IN
-      end if
-
-      ! Adjoint of calculate delP_T/delP_M on the columns
-      if ( statevector_out%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector_out%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'PsfcToP_ad')      ! IN
-      end if
-
+      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the columns
+      call czp_calcColumnZandP_ad(columnAnlInc, columnTrlOnAnlIncLev)
     else
       stateVector => stateVector_out
     end if
