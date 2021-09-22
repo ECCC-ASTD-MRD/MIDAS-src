@@ -523,7 +523,7 @@ contains
 
       else
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
                                            stateVectorOut_opt=stateVector_Tiles_ptr) 
         else
           stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
@@ -1168,7 +1168,7 @@ contains
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
                                            stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,  &                            ! INOUT
@@ -1185,7 +1185,7 @@ contains
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
                                            stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,       &                       ! INOUT
@@ -1611,7 +1611,7 @@ contains
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
                                            stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,       &                       ! INOUT
@@ -1628,7 +1628,7 @@ contains
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
                                            stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,  &                            ! INOUT
