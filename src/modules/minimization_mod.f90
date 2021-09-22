@@ -508,9 +508,19 @@ CONTAINS
     if ( nitermax > 0 .and. lwrthess ) then
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      ! zero array for writing to hessian
+      if ( .not. allocated(controlVectorIncrSumZero) ) then
+        allocate(controlVectorIncrSumZero(cvm_nvadim))
+      end if
+      controlVectorIncrSumZero(:) = 0.0d0
+
       call hessianIO (preconFileNameOut,1,  &
         min_nsim,tim_getDatestamp(),zeps0,zdf1,itertot,isimtot,  &
         iztrl,vatra,controlVectorIncrSumZero,vazx,.true.,llvazx,n1gc,imode)
+
+      deallocate(controlVectorIncrSumZero)
+
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     endif
 

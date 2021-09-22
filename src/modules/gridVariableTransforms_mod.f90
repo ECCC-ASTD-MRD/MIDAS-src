@@ -206,9 +206,11 @@ CONTAINS
       end if
     end if
 
-    ! initialize stateVectorTrialHeight for each outer-loop iteration
+    ! initialize stateVectorTrialHeight for each outer-loop iteration greater than one.
     if ( present(initializeStateVectorRef_opt) ) then
-      if ( initializeStateVectorRef_opt ) call gsv_zero( stateVectorTrialHeight )
+      if ( initializeStateVectorRef_opt ) then
+        if ( stateVectorTrialHeight%allocated ) call gsv_zero( stateVectorTrialHeight )
+      end if
     end if
 
     select case(trim(transform))
