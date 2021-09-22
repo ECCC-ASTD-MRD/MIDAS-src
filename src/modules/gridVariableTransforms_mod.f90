@@ -98,9 +98,9 @@ CONTAINS
   end subroutine gvt_setup
 
   !--------------------------------------------------------------------------
-  ! gvt_setupTrials
+  ! gvt_setupRefFromTrialFiles
   !--------------------------------------------------------------------------
-  subroutine gvt_setupTrials(varName, varKind_opt)
+  subroutine gvt_setupRefFromTrialFiles(varName, varKind_opt)
 
     implicit none
 
@@ -139,7 +139,7 @@ CONTAINS
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'TT','HU','P0'/))
-      write(*,*) 'gvt_setupTrials: statevector_noZnoP allocated'
+      write(*,*) 'gvt_setupRefFromTrialFiles: statevector_noZnoP allocated'
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
@@ -172,14 +172,14 @@ CONTAINS
           varKindCHTrialsInitialized(varIndex) = .true.
            
         else
-          call utl_abort('gvt_setupTrials: unknown variable ='//trim(varName))
+          call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
         end if 
       else
-        call utl_abort('gvt_setupTrials: unknown variable ='//trim(varName))
+        call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
       end if
     end select
 
-  end subroutine gvt_setupTrials
+  end subroutine gvt_setupRefFromTrialFiles
 
   !--------------------------------------------------------------------------
   ! gvt_transform_gsv
@@ -548,13 +548,13 @@ CONTAINS
 
     select case ( trim(varName) )
     case ('HU')
-      if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
+      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
       statevector_ptr => stateVectorTrialHU
       huTrialsInitialized = .true.
 
     case ('height')
       if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
-        call gvt_setupTrials('height')
+        call gvt_setupRefFromTrialFiles('height')
       end if
       statevector_ptr => stateVectorTrialHeight
 
@@ -782,7 +782,7 @@ CONTAINS
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
-      if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
+      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
       call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
@@ -842,7 +842,7 @@ CONTAINS
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
-      if ( .not. huTrialsInitialized ) call gvt_setupTrials('HU')
+      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
       call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
     end if
 
@@ -1280,7 +1280,7 @@ CONTAINS
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
-        call gvt_setupTrials('height')
+        call gvt_setupRefFromTrialFiles('height')
       end if
     end if
 
@@ -1301,7 +1301,7 @@ CONTAINS
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
-        call gvt_setupTrials('height')
+        call gvt_setupRefFromTrialFiles('height')
       end if
     end if
 
@@ -1338,7 +1338,7 @@ CONTAINS
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
-        call gvt_setupTrials('height')
+        call gvt_setupRefFromTrialFiles('height')
       end if
     end if
 
@@ -1359,7 +1359,7 @@ CONTAINS
       if ( present(stateVectorRef_opt) ) then
         call gvt_computeStateVectorHeight(stateVectorRef_opt)
       else
-        call gvt_setupTrials('height')
+        call gvt_setupRefFromTrialFiles('height')
       end if
     end if
 
@@ -2181,7 +2181,7 @@ CONTAINS
        call gsv_getField(stateVectorRef_opt,var_trial,trim(varName))
     else
       varIndex = vnl_varListIndex(varName)
-      if ( .not. varKindCHTrialsInitialized(varIndex) ) call gvt_setupTrials(trim(varName),varKind_opt='CH')
+      if ( .not. varKindCHTrialsInitialized(varIndex) ) call gvt_setupRefFromTrialFiles(trim(varName),varKind_opt='CH')
       call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,trim(varName))
     end if
 
