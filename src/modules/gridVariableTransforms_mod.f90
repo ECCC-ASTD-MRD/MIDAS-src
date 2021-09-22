@@ -44,7 +44,7 @@ module gridVariableTransforms_mod
 
   ! public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
-  public :: gvt_computeStateVectorHeight
+  public :: gvt_setupRefFromStateVector
 
   logical                   :: huTrialsInitialized  = .false.
   logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
@@ -565,9 +565,9 @@ CONTAINS
   end function gvt_getStateVectorTrial
 
   !--------------------------------------------------------------------------
-  ! gvt_computeStateVectorHeight
+  ! gvt_setupRefFromStateVector
   !--------------------------------------------------------------------------
-  subroutine gvt_computeStateVectorHeight( stateVectorOnTrlGrid, stateVectorOut_opt )
+  subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
     !          outer-loop iteration, storing the results in stateVectorOut_opt.
@@ -594,7 +594,7 @@ CONTAINS
       return
     end if
 
-    if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
+    if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
 
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
     if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
@@ -637,9 +637,9 @@ CONTAINS
 
     if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorTrialHeight 
 
-    if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: END'
+    if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
 
-  end subroutine gvt_computeStateVectorHeight
+  end subroutine gvt_setupRefFromStateVector
 
   !--------------------------------------------------------------------------
   ! LQtoHU
@@ -1278,7 +1278,7 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
-        call gvt_computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_setupRefFromStateVector(stateVectorRef_opt)
       else
         call gvt_setupRefFromTrialFiles('height')
       end if
@@ -1299,7 +1299,7 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
-        call gvt_computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_setupRefFromStateVector(stateVectorRef_opt)
       else
         call gvt_setupRefFromTrialFiles('height')
       end if
@@ -1336,7 +1336,7 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
-        call gvt_computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_setupRefFromStateVector(stateVectorRef_opt)
       else
         call gvt_setupRefFromTrialFiles('height')
       end if
@@ -1357,7 +1357,7 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorTrialHeight) ) then
       if ( present(stateVectorRef_opt) ) then
-        call gvt_computeStateVectorHeight(stateVectorRef_opt)
+        call gvt_setupRefFromStateVector(stateVectorRef_opt)
       else
         call gvt_setupRefFromTrialFiles('height')
       end if

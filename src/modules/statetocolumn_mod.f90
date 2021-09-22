@@ -523,8 +523,8 @@ contains
 
       else
         if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
-                                            stateVectorOut_opt=stateVector_Tiles_ptr) 
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+                                           stateVectorOut_opt=stateVector_Tiles_ptr) 
         else
           stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
         end if
@@ -1168,8 +1168,8 @@ contains
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
-                                            stateVectorOut_opt=stateVectorHeight_ptr)
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+                                           stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,  &                            ! INOUT
                               'PsfcToP_tl', &                            ! IN
@@ -1185,8 +1185,8 @@ contains
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
-                                            stateVectorOut_opt=stateVectorHeight_ptr)
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+                                           stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,       &                       ! INOUT
                               'TTHUtoHeight_tl', &                       ! IN
@@ -1611,8 +1611,8 @@ contains
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
-                                            stateVectorOut_opt=stateVectorHeight_ptr)
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+                                           stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,       &                       ! INOUT
                               'TTHUtoHeight_ad', &                       ! IN
@@ -1628,8 +1628,8 @@ contains
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
         if ( present(stateVectorRefHeight_opt) ) then
 
-          call gvt_computeStateVectorHeight(stateVectorRefHeight_opt, &
-                                            stateVectorOut_opt=stateVectorHeight_ptr)
+          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, &
+                                           stateVectorOut_opt=stateVectorHeight_ptr)
 
           call gvt_transform( statevector,  &                            ! INOUT
                               'PsfcToP_ad', &                            ! IN
