@@ -186,7 +186,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
                                 stateVectorRef_opt, varName_opt, allowOverWrite_opt, &
-                                initializeStateVectorRef_opt )
+                                initializeStateVectorRefHeight_opt )
     implicit none
    
     ! Arguments
@@ -195,7 +195,7 @@ CONTAINS
     type(struct_gsv), optional :: statevectorOut_opt
     type(struct_gsv), optional :: statevectorRef_opt
     logical, optional          :: allowOverWrite_opt
-    logical, optional          :: initializeStateVectorRef_opt
+    logical, optional          :: initializeStateVectorRefHeight_opt
     character(len=*), optional :: varName_opt
 
     ! check stateVector and statevectorOut_opt are on the same grid
@@ -207,8 +207,8 @@ CONTAINS
     end if
 
     ! initialize stateVectorTrialHeight for each outer-loop iteration greater than one.
-    if ( present(initializeStateVectorRef_opt) ) then
-      if ( initializeStateVectorRef_opt ) then
+    if ( present(initializeStateVectorRefHeight_opt) ) then
+      if ( initializeStateVectorRefHeight_opt ) then
         if ( stateVectorTrialHeight%allocated ) call gsv_zero( stateVectorTrialHeight )
       end if
     end if

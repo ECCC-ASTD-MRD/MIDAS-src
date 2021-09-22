@@ -198,8 +198,8 @@ program midas_var
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                     stateVectorUpdateHighRes, &
-                                     initializeStateVectorRef_opt=.true. )
+                                   stateVectorUpdateHighRes, &
+                                   initializeStateVectorRefHeight_opt=.true. )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
