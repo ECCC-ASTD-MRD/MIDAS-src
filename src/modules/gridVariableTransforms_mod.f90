@@ -567,7 +567,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_computeStateVectorHeight
   !--------------------------------------------------------------------------
-  subroutine gvt_computeStateVectorHeight( stateVector, stateVectorOut_opt )
+  subroutine gvt_computeStateVectorHeight( stateVectorOnTrlGrid, stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
     !          outer-loop iteration, storing the results in stateVectorOut_opt.
@@ -580,7 +580,7 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(in) :: stateVector
+    type(struct_gsv), intent(in) :: stateVectorOnTrlGrid
     type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
@@ -596,8 +596,8 @@ CONTAINS
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_computeStateVectorHeight: START'
 
-    if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVector)
-    if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVector)
+    if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
+    if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
 
     if ( .not. stateVectorTrialHeight%allocated ) then
       call gsv_allocate( stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
@@ -613,7 +613,7 @@ CONTAINS
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                        varNames_opt=(/'TT','HU','P0'/) )
-    call gsv_copy( stateVector, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
+    call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
                    allowVarMismatch_opt=.true. )
 
     ! Second, interpolate to the low-resolution spatial grid.
