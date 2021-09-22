@@ -40,8 +40,11 @@ module calcHeightAndPressure_mod
   public :: czp_tt2phi, czp_tt2phi_tl, czp_tt2phi_ad, &
             czp_calcGridPressure_nl, czp_calcGridPressure_tl, &
             czp_calcGridPressure_ad, & 
-            czp_calcColumnPressure, czp_calcColumnPressure_tl, &
+            czp_calcColumnZandP_tl, czp_calcColumnZandP_ad, &
+            czp_calcColumnPressure_nl, czp_calcColumnPressure_tl, &
             czp_calcColumnPressure_ad 
+
+  ! (mad001) @TODO : interface for calc(Grid|Pressure)_*
 
   interface czp_tt2phi_tl
     module procedure czp_tt2phi_gsv_tl
@@ -114,7 +117,7 @@ contains
     real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
     real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
     real(4), pointer     :: P0_ptr_r4(:,:,:,:)
-    real                 :: heightSfcOffset_T_r4, heightSfcOffset_M_r4
+    real(4)              :: heightSfcOffset_T_r4, heightSfcOffset_M_r4
     real(4) :: lat_4
     real(8) :: lat_8, rMT
     real(8) :: h0, dh, Rgh, sLat, cLat
@@ -499,7 +502,7 @@ contains
     delHeight_M_ptr_r48(:,:,nlev_M,:) = 0.0d0
     delHeight_T_ptr_r48(:,:,nlev_T,:) = 0.0d0
   
-    if (Vcode_anl .eq. 5002) then
+    if (Vcode_anl == 5002) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do stepIndex = 1, numStep
@@ -580,7 +583,7 @@ contains
         enddo
       enddo
   
-    elseif(Vcode_anl .eq. 5005) then
+    elseif(Vcode_anl == 5005) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do stepIndex = 1, numStep
@@ -655,14 +658,14 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_col_tl
   !---------------------------------------------------------
-  subroutine czp_tt2phi_col_tl(columnAnlInc,columnTrlOnAnlInc)
+  subroutine czp_tt2phi_col_tl(columnInc,columnTrlOnAnlInc)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
     !
     implicit none
   
-    type(struct_columnData) :: columnAnlInc,columnTrlOnAnlInc
+    type(struct_columnData) :: columnInc,columnTrlOnAnlInc
   
     integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,colIndex,numColumns
     real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -684,7 +687,7 @@ contains
     nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
     nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
   
-    numColumns = col_getNumCol(columnAnlInc)
+    numColumns = col_getNumCol(columnInc)
     
     allocate(delThick(nlev_T,numColumns))
     delThick(:,:) = 0.0d0
@@ -699,19 +702,19 @@ contains
     P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
     P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
   
-    delHeight_M_ptr => col_getAllColumns(columnAnlInc,'Z_M')
-    delHeight_T_ptr => col_getAllColumns(columnAnlInc,'Z_T')
-    delTT           => col_getAllColumns(columnAnlInc,'TT')
-    delHU           => col_getAllColumns(columnAnlInc,'HU')
-    delP0           => col_getAllColumns(columnAnlInc,'P0')
-    delP_M          => col_getAllColumns(columnAnlInc,'P_M')
-    delP_T          => col_getAllColumns(columnAnlInc,'P_T')
+    delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
+    delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
+    delTT           => col_getAllColumns(columnInc,'TT')
+    delHU           => col_getAllColumns(columnInc,'HU')
+    delP0           => col_getAllColumns(columnInc,'P0')
+    delP_M          => col_getAllColumns(columnInc,'P_M')
+    delP_T          => col_getAllColumns(columnInc,'P_T')
   
     ! ensure increment at sfc is zero (fixed height level)
     delHeight_M_ptr(nlev_M,:) = 0.0d0
     delHeight_T_ptr(nlev_T,:) = 0.0d0
   
-    if (Vcode_anl .eq. 5002) then
+    if (Vcode_anl == 5002) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do colIndex = 1, numColumns
@@ -763,7 +766,7 @@ contains
         enddo
       enddo
   
-    elseif(Vcode_anl .eq. 5005) then
+    elseif(Vcode_anl == 5005) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do colIndex = 1, numColumns
@@ -879,7 +882,7 @@ contains
     delHeight_M(:,:,:,:) = delHeight_M_ptr_r48(:,:,:,:)
     delHeight_T(:,:,:,:) = delHeight_T_ptr_r48(:,:,:,:)
   
-    if(Vcode_anl .eq. 5002) then
+    if(Vcode_anl == 5002) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do stepIndex = 1, numStep
@@ -1005,7 +1008,7 @@ contains
         enddo
       enddo
   
-    elseif(Vcode_anl .eq. 5005) then
+    elseif(Vcode_anl == 5005) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do stepIndex = 1, numStep
@@ -1102,7 +1105,7 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_col_ad
   !---------------------------------------------------------
-  subroutine czp_tt2phi_col_ad(columnAnlInc,columnTrlOnAnlInc)
+  subroutine czp_tt2phi_col_ad(columnInc,columnTrlOnAnlInc)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          columnData
@@ -1110,7 +1113,7 @@ contains
     !
     implicit none
   
-    type(struct_columnData) :: columnAnlInc,columnTrlOnAnlInc
+    type(struct_columnData) :: columnInc,columnTrlOnAnlInc
   
     integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numColumns,colIndex
     real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -1146,18 +1149,18 @@ contains
     P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
     P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
   
-    delHeight_M_ptr => col_getAllColumns(columnAnlInc,'Z_M')
-    delHeight_T_ptr => col_getAllColumns(columnAnlInc,'Z_T')
-    delTT           => col_getAllColumns(columnAnlInc,'TT')
-    delHU           => col_getAllColumns(columnAnlInc,'HU')
-    delP0           => col_getAllColumns(columnAnlInc,'P0')
-    delP_M          => col_getAllColumns(columnAnlInc,'P_M')
-    delP_T          => col_getAllColumns(columnAnlInc,'P_T')
+    delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
+    delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
+    delTT           => col_getAllColumns(columnInc,'TT')
+    delHU           => col_getAllColumns(columnInc,'HU')
+    delP0           => col_getAllColumns(columnInc,'P0')
+    delP_M          => col_getAllColumns(columnInc,'P_M')
+    delP_T          => col_getAllColumns(columnInc,'P_T')
   
     delHeight_M(:,:) = delHeight_M_ptr(:,:)
     delHeight_T(:,:) = delHeight_T_ptr(:,:)
   
-    if(Vcode_anl .eq. 5002) then
+    if(Vcode_anl == 5002) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do colIndex = 1, numColumns
@@ -1257,7 +1260,7 @@ contains
         enddo
       enddo
   
-    elseif(Vcode_anl .eq. 5005) then
+    elseif(Vcode_anl == 5005) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do colIndex = 1, numColumns
@@ -2479,9 +2482,99 @@ contains
   end subroutine czp_calcGridPressure_ad
 
   !---------------------------------------------------------
-  ! czp_calcColumnPressure
+  ! czp_calcColumnZandP_tl
   !---------------------------------------------------------
-  subroutine czp_calcColumnPressure(column, beSilent_opt)
+  subroutine czp_calcColumnZandP_tl(columnInc, columnRefOnIncLev, beSilent_opt)
+    !
+    ! :Purpose: compute pressure and height increment in the column in proper 
+    !           order depending on the vgrid kind
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
+    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+    logical, intent(in), optional          :: beSilent_opt
+
+    ! Locals
+    integer   :: Vcode
+
+    Vcode = columnInc%vco%vcode
+    if (Vcode == 5002 .or. Vcode == 5005) then
+      if (col_varExist(columnInc,'P_T') .and. &
+          col_varExist(columnInc,'P_M') ) then
+        call czp_calcColumnPressure_tl( columnInc, columnRefOnIncLev, &
+                                        beSilent_opt=beSilent_opt)
+      end if
+      if (col_varExist(columnInc,'Z_T') .and. &
+          col_varExist(columnInc,'Z_M') ) then
+        call czp_tt2phi_col_tl(columnInc, columnRefOnIncLev)
+      end if
+    else if (Vcode == 21001) then
+      if (col_varExist(columnInc,'Z_T') .and. &
+          col_varExist(columnInc,'Z_M') ) then
+        call czp_tt2phi_col_tl(columnInc, columnRefOnIncLev)
+      end if
+      if (col_varExist(columnInc,'P_T') .and. &
+          col_varExist(columnInc,'P_M') ) then
+        call czp_calcColumnPressure_tl( columnInc, columnRefOnIncLev, &
+                                        beSilent_opt=beSilent_opt)
+      end if
+    else
+      call utl_abort('czp_calcColumnZandP_tl: invalid Vcode')
+    end if
+
+  end subroutine czp_calcColumnZandP_tl
+
+  !---------------------------------------------------------
+  ! czp_calcColumnZandP_ad
+  !---------------------------------------------------------
+  subroutine czp_calcColumnZandP_ad(columnInc, columnRefOnIncLev, beSilent_opt)
+    !
+    ! :Purpose: adjoint of pressure and height increment computation in the 
+    !           column in proper order depending on the vgrid kind
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
+    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+    logical, intent(in), optional          :: beSilent_opt
+
+    ! Locals
+    integer   :: Vcode
+
+    Vcode = columnInc%vco%vcode
+    if (Vcode == 5002 .or. Vcode == 5005) then
+      if (col_varExist(columnInc,'Z_T') .and. &
+          col_varExist(columnInc,'Z_M') ) then
+        call czp_tt2phi_col_ad(columnInc, columnRefOnIncLev)
+      end if
+      if (col_varExist(columnInc,'P_T') .and. &
+          col_varExist(columnInc,'P_M') ) then
+        call czp_calcColumnPressure_ad( columnInc, columnRefOnIncLev, &
+                                      beSilent_opt=beSilent_opt)
+      end if
+    else if (Vcode == 21001) then
+      if (col_varExist(columnInc,'P_T') .and. &
+          col_varExist(columnInc,'P_M') ) then
+        call czp_calcColumnPressure_ad( columnInc, columnRefOnIncLev, &
+                                        beSilent_opt=beSilent_opt)
+      end if
+      if (col_varExist(columnInc,'Z_T') .and. &
+          col_varExist(columnInc,'Z_M') ) then
+        call czp_tt2phi_col_ad(columnInc, columnRefOnIncLev)
+      end if
+    else
+      call utl_abort('czp_calcColumnZandP_ad: invalid Vcode')
+    end if
+
+  end subroutine czp_calcColumnZandP_ad
+
+  !---------------------------------------------------------
+  ! czp_calcColumnPressure_nl
+  !---------------------------------------------------------
+  subroutine czp_calcColumnPressure_nl(column, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure in the column.
     !
@@ -2497,7 +2590,7 @@ contains
     if ( col_getNumCol(column) <= 0 ) return
   
     if (.not.col_varExist(column,'P0')) then
-      call utl_abort('czp_calcColumnPressure: P0 must be present as an analysis variable!')
+      call utl_abort('czp_calcColumnPressure_nl: P0 must be present as an analysis variable!')
     end if
   
     allocate(Psfc(1,col_getNumCol(column)))
@@ -2511,7 +2604,7 @@ contains
       beSilent = .false.
     end if
   
-    if ( .not.beSilent ) write(*,*) 'czp_calcColumnPressure: computing Pressure on staggered or UNstaggered levels'
+    if ( .not.beSilent ) write(*,*) 'czp_calcColumnPressure_nl: computing Pressure on staggered or UNstaggered levels'
   
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
@@ -2537,7 +2630,7 @@ contains
   
     deallocate(Psfc)
   
-  end subroutine czp_calcColumnPressure
+  end subroutine czp_calcColumnPressure_nl
 
   !---------------------------------------------------------
   ! czp_calcColumnPressure_tl
@@ -2552,7 +2645,7 @@ contains
     ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
     type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
-    logical, optional                      :: beSilent_opt
+    logical, intent(in), optional          :: beSilent_opt
   
     ! Locals:
     real(8)          :: Psfc

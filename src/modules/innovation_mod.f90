@@ -333,7 +333,7 @@ contains
     !- Calculate pressure profiles on analysis increment levels
     !
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      call czp_calcColumnPressure(columnTrlOnAnlIncLev)
+      call czp_calcColumnPressure_nl(columnTrlOnAnlIncLev)
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then
