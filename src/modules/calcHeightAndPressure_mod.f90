@@ -18,7 +18,7 @@ module calcHeightAndPressure_mod
   ! MODULE czp_calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
   !
   ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or 
-  !           orography. 
+  !           orography (ME). 
   !           Nonlinear, tangent-linear and adjoint versions of this 
   !           transformation are included in separate subroutines.
   !
@@ -85,7 +85,7 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi
   !---------------------------------------------------------
-  subroutine czp_tt2phi(statevector_trial,beSilent_opt)
+  subroutine czp_tt2phi(statevector,beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on GEM4 staggered 
     !           levels
@@ -99,10 +99,12 @@ contains
     !              (according to Ron and Claude)
     !
     implicit none
-  
-    type(struct_gsv) :: statevector_trial
-    logical, optional :: beSilent_opt
-  
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
+
+    ! Locals
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode,numStep,stepIndex, &
                 latIndex,lonIndex
     real(8) ::  hu, tt, Pr, cmp, delThick, ratioP, ScaleFactorBottom, &
@@ -136,12 +138,12 @@ contains
   
     if (.not.beSilent) write(*,*) 'czp_tt2phi: START'
   
-    vco_ghr => gsv_getVco(statevector_trial)
+    vco_ghr => gsv_getVco(statevector)
     Vcode = vco_ghr%vcode
   
-    nlev_T = gsv_getNumLev(statevector_trial,'TH')
-    nlev_M = gsv_getNumLev(statevector_trial,'MM')
-    numStep = statevector_trial%numstep
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    numStep = statevector%numstep
   
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
       call utl_abort('czp_tt2phi: nlev_T is not equal to nlev_M+1!')
@@ -152,17 +154,17 @@ contains
 
     if (Vcode == 5005) then
       status = vgd_get(&
-          statevector_trial%vco%vgrid,key='DHM - height of the diagnostic level (m)', &
+          statevector%vco%vgrid,key='DHM - height of the diagnostic level (m)', &
           value=heightSfcOffset_M_r4)
       status = vgd_get(&
-            statevector_trial%vco%vgrid,key='DHT - height of the diagnostic level (t)', &
+            statevector%vco%vgrid,key='DHT - height of the diagnostic level (t)', &
             value=heightSfcOffset_T_r4)
       if ( mpi_myid == 0 .and. .not.beSilent ) then
         write(*,*) 'czp_tt2phi: height offset for near-sfc momentum level is: ', &
               heightSfcOffset_M_r4, ' metres'
         write(*,*) 'czp_tt2phi: height offset for near-sfc thermo level is:   ', &
               heightSfcOffset_T_r4, ' metres'
-        if ( .not.statevector_trial%addHeightSfcOffset ) then
+        if ( .not.statevector%addHeightSfcOffset ) then
           write(*,*) '----------------------------------------------------------------------------------'
           write(*,*) 'czp_tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
           write(*,*) '----------------------------------------------------------------------------------'
@@ -174,53 +176,53 @@ contains
     allocate(height_T(nlev_T))
     allocate(height_M(nlev_M))
   
-    if ( statevector_trial%dataKind == 4 ) then
-      call gsv_getField(statevector_trial,height_M_ptr_r4,'Z_M')
-      call gsv_getField(statevector_trial,height_T_ptr_r4,'Z_T')
+    if ( statevector%dataKind == 4 ) then
+      call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
+      call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
   
       ! initialize the height pointer to zero
       height_M_ptr_r4(:,:,:,:) = 0.0
       height_T_ptr_r4(:,:,:,:) = 0.0
     else
-      call gsv_getField(statevector_trial,height_M_ptr_r8,'Z_M')
-      call gsv_getField(statevector_trial,height_T_ptr_r8,'Z_T')
+      call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
+      call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
   
       ! initialize the height pointer to zero
       height_M_ptr_r8(:,:,:,:) = 0.0d0
       height_T_ptr_r8(:,:,:,:) = 0.0d0
     end if
   
-    if ( statevector_trial%dataKind == 4 ) then
-      call gsv_getField(statevector_trial,hu_ptr_r4,'HU')
-      call gsv_getField(statevector_trial,tt_ptr_r4,'TT')
-      call gsv_getField(statevector_trial,P_T_ptr_r4,'P_T')
-      call gsv_getField(statevector_trial,P_M_ptr_r4,'P_M')
-      call gsv_getField(statevector_trial,P0_ptr_r4,'P0')
+    if ( statevector%dataKind == 4 ) then
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,tt_ptr_r4,'TT')
+      call gsv_getField(statevector,P_T_ptr_r4,'P_T')
+      call gsv_getField(statevector,P_M_ptr_r4,'P_M')
+      call gsv_getField(statevector,P0_ptr_r4,'P0')
     else
-      call gsv_getField(statevector_trial,hu_ptr_r8,'HU')
-      call gsv_getField(statevector_trial,tt_ptr_r8,'TT')
-      call gsv_getField(statevector_trial,P_T_ptr_r8,'P_T')
-      call gsv_getField(statevector_trial,P_M_ptr_r8,'P_M')
-      call gsv_getField(statevector_trial,P0_ptr_r8,'P0')
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,tt_ptr_r8,'TT')
+      call gsv_getField(statevector,P_T_ptr_r8,'P_T')
+      call gsv_getField(statevector,P_M_ptr_r8,'P_M')
+      call gsv_getField(statevector,P0_ptr_r8,'P0')
     end if
-    HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector_trial)
+    HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
   
     ! compute virtual temperature on thermo levels (corrected of compressibility)
     do stepIndex = 1, numStep
-      do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-        do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+      do latIndex = statevector%myLatBeg, statevector%myLatEnd
+        do lonIndex = statevector%myLonBeg, statevector%myLonEnd
   
           height_T(:) = 0.0D0
           height_M(:) = 0.0D0
   
           ! latitude
-          lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
+          lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
           lat_8 = real(lat_4,8)
           sLat = sin(lat_8)
           cLat = cos(lat_8)
   
           do lev_T = 1, nlev_T
-            if ( statevector_trial%dataKind == 4 ) then
+            if ( statevector%dataKind == 4 ) then
               hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
               tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
               Pr = real(P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
@@ -239,13 +241,13 @@ contains
           ! compute altitude on bottom momentum level
           if (Vcode == 5002) then
             height_M(nlev_M) = rMT
-          elseif (Vcode == 5005) then
+          else if (Vcode == 5005) then
             height_M(nlev_M) = rMT + heightSfcOffset_M_r4
           end if 
   
           ! compute altitude on 2nd momentum level
           if (nlev_M > 1) then
-            if ( statevector_trial%dataKind == 4 ) then
+            if ( statevector%dataKind == 4 ) then
               P_M = real(P_M_ptr_r4(lonIndex,latIndex,nlev_M-1,stepIndex),8)
               P0  = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
             else
@@ -267,7 +269,7 @@ contains
   
           ! compute altitude on rest of momentum levels
           do lev_M = nlev_M-2, 1, -1
-            if ( statevector_trial%dataKind == 4 ) then
+            if ( statevector%dataKind == 4 ) then
               P_M = real(P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
               P_M1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
             else
@@ -300,7 +302,7 @@ contains
             do lev_T = 2, nlev_T-1
               lev_M = lev_T ! momentum level just below thermo level being computed
   
-              if ( statevector_trial%dataKind == 4 ) then
+              if ( statevector%dataKind == 4 ) then
                 P_T   = real(P_T_ptr_r4(lonIndex,latIndex,lev_T  ,stepIndex),8)
                 P_M   = real(P_M_ptr_r4(lonIndex,latIndex,lev_M  ,stepIndex),8)
                 P_Mm1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M-1,stepIndex),8)
@@ -317,7 +319,7 @@ contains
             end do
   
             ! compute altitude on top thermo level
-            if ( statevector_trial%dataKind == 4 ) then
+            if ( statevector%dataKind == 4 ) then
               P_T = real(P_T_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
               P_M = real(P_M_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
             else
@@ -341,7 +343,7 @@ contains
   
             do lev_T = 1, nlev_T-2
               lev_M = lev_T + 1  ! momentum level just below thermo level being computed
-              if ( statevector_trial%dataKind == 4 ) then
+              if ( statevector%dataKind == 4 ) then
                 P_T   = real(P_T_ptr_r4(lonIndex,latIndex,lev_T  ,stepIndex),8)
                 P_M   = real(P_M_ptr_r4(lonIndex,latIndex,lev_M  ,stepIndex),8)
                 P_Mm1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M-1,stepIndex),8)
@@ -359,7 +361,7 @@ contains
   
             ! compute altitude on next to bottom thermo level
             if (nlev_T > 1) then
-              if ( statevector_trial%dataKind == 4 ) then
+              if ( statevector%dataKind == 4 ) then
                 P_T = real(P_T_ptr_r4(lonIndex,latIndex,nlev_T-1,stepIndex),8)
                 P0  = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
               else
@@ -380,7 +382,7 @@ contains
           end if
   
           ! fill the height array
-          if ( statevector_trial%dataKind == 4 ) then
+          if ( statevector%dataKind == 4 ) then
             do lev_T = 1, nlev_T
               height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) &
                   = real(height_T(lev_T),4)
@@ -397,8 +399,8 @@ contains
           end if
   
           ! remove the height offset for the diagnostic levels for backward compatibility only
-          if ( .not. statevector_trial%addHeightSfcOffset ) then
-            if ( statevector_trial%dataKind == 4 ) then
+          if ( .not. statevector%addHeightSfcOffset ) then
+            if ( statevector%dataKind == 4 ) then
               height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex) = real(rMT,4)
               height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex) = real(rMT,4)
             else
@@ -407,32 +409,32 @@ contains
             end if
           end if
   
-        enddo
-      enddo
-    enddo
+        end do
+      end do
+    end do
   
     deallocate(height_M)
     deallocate(height_T)
     deallocate(tv)
   
     if ( .not.beSilent ) then
-      if ( statevector_trial%dataKind == 4 ) then
+      if ( statevector%dataKind == 4 ) then
         write(*,*) 'czp_tt2phi, Z_T='
-        write(*,*) height_T_ptr_r4(statevector_trial%myLonBeg, &
-            statevector_trial%myLatBeg,:,1)
+        write(*,*) height_T_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
         write(*,*) 'czp_tt2phi, Z_M='
-        write(*,*) height_M_ptr_r4(statevector_trial%myLonBeg, &
-            statevector_trial%myLatBeg,:,1)
+        write(*,*) height_M_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
       else
         write(*,*) 'czp_tt2phi, Z_T='
-        write(*,*) height_T_ptr_r8(statevector_trial%myLonBeg, &
-            statevector_trial%myLatBeg,:,1)
+        write(*,*) height_T_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
         write(*,*) 'czp_tt2phi, Z_M='
-        write(*,*) height_M_ptr_r8(statevector_trial%myLonBeg, &
-            statevector_trial%myLatBeg,:,1)
+        write(*,*) height_M_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
       end if
-      write(*,*) 'czp_tt2phi: statevector_trial%addHeightSfcOffset=', &
-          statevector_trial%addHeightSfcOffset 
+      write(*,*) 'czp_tt2phi: statevector%addHeightSfcOffset=', &
+          statevector%addHeightSfcOffset 
     end if
   
     if (.not.beSilent) write(*,*) 'czp_tt2phi: END'
@@ -444,15 +446,18 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_gsv_tl
   !---------------------------------------------------------
-  subroutine czp_tt2phi_gsv_tl(statevector,statevector_trial)
+  subroutine czp_tt2phi_gsv_tl(statevector,statevectorRef)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
     !
     implicit none
-  
-    type(struct_gsv) :: statevector,statevector_trial
-  
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(in)    :: statevectorRef
+
+    ! Locals
     integer ::  lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numStep,stepIndex, &
                 latIndex,lonIndex
     real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -470,26 +475,26 @@ contains
   
     write(*,*) 'czp_tt2phi_gsv_tl: START'
   
-    vco_anl => gsv_getVco(statevector_trial)
+    vco_anl => gsv_getVco(statevectorRef)
     Vcode_anl = vco_anl%vcode
   
-    nlev_T = gsv_getNumLev(statevector_trial,'TH')
-    nlev_M = gsv_getNumLev(statevector_trial,'MM')
-    numStep = statevector_trial%numstep
+    nlev_T = gsv_getNumLev(statevectorRef,'TH')
+    nlev_M = gsv_getNumLev(statevectorRef,'MM')
+    numStep = statevectorRef%numstep
   
-    allocate(delThick(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                      statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+    allocate(delThick(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                      statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
                       nlev_T,numStep))
   
     ! generate the height coefficients on the grid
-    call calcHeightCoeff_gsv(statevector_trial)
+    call calcHeightCoeff_gsv(statevectorRef)
   
     ! loop over all lat/lon/step
   
-    call gsv_getField(statevector_trial,height_M_ptr,'Z_M')
-    call gsv_getField(statevector_trial,height_T_ptr,'Z_T')
-    call gsv_getField(statevector_trial,P_T,'P_T')
-    call gsv_getField(statevector_trial,P_M,'P_M')
+    call gsv_getField(statevectorRef,height_M_ptr,'Z_M')
+    call gsv_getField(statevectorRef,height_T_ptr,'Z_T')
+    call gsv_getField(statevectorRef,P_T,'P_T')
+    call gsv_getField(statevectorRef,P_M,'P_M')
   
     call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
     call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
@@ -507,8 +512,8 @@ contains
       ! compute increment to thickness for each layer between the two momentum levels
       do stepIndex = 1, numStep
         do lev_T = 2, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               delThick(lonIndex,latIndex,lev_T,stepIndex) = &
                   coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delTT_r48(lonIndex,latIndex,lev_T,stepIndex) + &
@@ -523,30 +528,30 @@ contains
                   delP_T_r48(lonIndex,latIndex,lev_T,stepIndex) + &
                   coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delP0_r48(lonIndex,latIndex,1,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! compute height increment on momentum levels above the surface
       do stepIndex = 1, numStep
         do lev_M = (nlev_M-1), 1, -1
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_T = lev_M + 1 ! thermo level just below momentum level being computed
               delHeight_M_ptr_r48(lonIndex,latIndex,lev_M,stepIndex) =  &
                    delHeight_M_ptr_r48(lonIndex,latIndex,lev_M+1,stepIndex) &
                    + delThick(lonIndex,latIndex,lev_T,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! compute height increment on thermo levels using weighted average of height increment of momentum levels
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               if ( lev_T == 1) then
                 ! compute height increment for top thermo level (from top momentum level)
                 delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex) = &
@@ -577,19 +582,19 @@ contains
                     delHeight_M_ptr_r48(lonIndex,latIndex,lev_M  ,stepIndex) + &
                     ScaleFactorTop * &
                     delHeight_M_ptr_r48(lonIndex,latIndex,lev_M-1,stepIndex)
-              endif
-            enddo
-          enddo
-        enddo
-      enddo
+              end if
+            end do
+          end do
+        end do
+      end do
   
-    elseif(Vcode_anl == 5005) then
+    else if(Vcode_anl == 5005) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               delThick(lonIndex,latIndex,lev_T,stepIndex) = &
                   coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delTT_r48(lonIndex,latIndex,lev_T,stepIndex) + &
@@ -604,30 +609,30 @@ contains
                   delP_T_r48(lonIndex,latIndex,lev_T,stepIndex) + &
                   coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delP0_r48(lonIndex,latIndex,1,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! compute height increment on momentum levels above the surface
       do stepIndex = 1, numStep
         do lev_M = (nlev_M-1), 1, -1
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_T = lev_M ! thermo level just below momentum level being computed
               delHeight_M_ptr_r48(lonIndex,latIndex,lev_M,stepIndex) = &
               delHeight_M_ptr_r48(lonIndex,latIndex,lev_M+1,stepIndex) + &
               delThick(lonIndex,latIndex,lev_T,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! compute height increment on thermo levels using weighted average of height increment of momentum levels
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_M = lev_T + 1 ! momentum level just below thermo level being computed
               ScaleFactorBottom = &
                   (height_T_ptr(lonIndex,latIndex,lev_T,stepIndex) - &
@@ -640,12 +645,12 @@ contains
                   delHeight_M_ptr_r48(lonIndex,latIndex,lev_M  ,stepIndex) + &
                   ScaleFactorTop * &
                   delHeight_M_ptr_r48(lonIndex,latIndex,lev_M-1,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
-    endif
+    end if
   
     deallocate(delThick)
   
@@ -658,16 +663,19 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_col_tl
   !---------------------------------------------------------
-  subroutine czp_tt2phi_col_tl(columnInc,columnTrlOnAnlInc)
+  subroutine czp_tt2phi_col_tl(columnInc,columnIncRef)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
     !
     implicit none
-  
-    type(struct_columnData) :: columnInc,columnTrlOnAnlInc
-  
-    integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,colIndex,numColumns
+
+    ! Arguments
+    type(struct_columnData), intent(inout)  :: columnInc
+    type(struct_columnData), intent(in)     :: columnIncRef
+
+    ! Locals
+    integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode,colIndex,numColumns
     real(8) :: ScaleFactorBottom, ScaleFactorTop
     real(8), allocatable :: delThick(:,:)
     real(8), pointer     :: height_T_ptr(:,:),height_M_ptr(:,:)
@@ -675,17 +683,17 @@ contains
     real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
     real(8), pointer  :: delTT(:,:),delHU(:,:),delP0(:,:)
     real(8), pointer  :: delP_T(:,:), delP_M(:,:)
-    type(struct_vco), pointer :: vco_anl
+    type(struct_vco), pointer :: vco
   
     call tmg_start(193,'czp_tt2phi_tl')
   
     write(*,*) 'czp_tt2phi_col_tl: START'
   
-    vco_anl => col_getVco(columnTrlOnAnlInc)
-    Vcode_anl = vco_anl%vcode
+    vco => col_getVco(columnIncRef)
+    Vcode = vco%vcode
   
-    nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
-    nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
+    nlev_T = col_getNumLev(columnIncRef,'TH')
+    nlev_M = col_getNumLev(columnIncRef,'MM')
   
     numColumns = col_getNumCol(columnInc)
     
@@ -693,14 +701,14 @@ contains
     delThick(:,:) = 0.0d0
   
     ! generate the height coefficients on the grid
-    call calcHeightCoeff_col(columnTrlOnAnlInc)
+    call calcHeightCoeff_col(columnIncRef)
   
     ! loop over all lat/lon/step
   
-    height_M_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_M')
-    height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
-    P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
-    P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
+    height_M_ptr => col_getAllColumns(columnIncRef,'Z_M')
+    height_T_ptr => col_getAllColumns(columnIncRef,'Z_T')
+    P_M          => col_getAllColumns(columnIncRef,'P_M')
+    P_T          => col_getAllColumns(columnIncRef,'P_T')
   
     delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
     delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
@@ -714,7 +722,7 @@ contains
     delHeight_M_ptr(nlev_M,:) = 0.0d0
     delHeight_T_ptr(nlev_T,:) = 0.0d0
   
-    if (Vcode_anl == 5002) then
+    if (Vcode == 5002) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do colIndex = 1, numColumns
@@ -728,8 +736,8 @@ contains
                 coeff_M_P0_dP_delPT_col(lev_T,colIndex) * &
                 delP_T(lev_T,colIndex) + &
                 coeff_M_P0_dP_delP0_col(lev_T,colIndex) * delP0(1,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
       ! compute height increment on momentum levels above the surface
       do colIndex = 1, numColumns
@@ -737,8 +745,8 @@ contains
           lev_T = lev_M + 1 ! thermo level just below momentum level being computed
           delHeight_M_ptr(lev_M,colIndex) =  &
                delHeight_M_ptr(lev_M+1,colIndex) + delThick(lev_T,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
       ! compute height increment on thermo levels using weighted average of height increment of momentum levels
       do colIndex = 1, numColumns
@@ -762,11 +770,11 @@ contains
             delHeight_T_ptr(lev_T,colIndex) =  &
                  ScaleFactorBottom * delHeight_M_ptr(lev_M  ,colIndex) + &
                  ScaleFactorTop * delHeight_M_ptr(lev_M-1,colIndex)
-          endif
-        enddo
-      enddo
+          end if
+        end do
+      end do
   
-    elseif(Vcode_anl == 5005) then
+    else if(Vcode == 5005) then
   
       ! compute increment to thickness for each layer between the two momentum levels
       do colIndex = 1, numColumns
@@ -780,8 +788,8 @@ contains
                coeff_M_P0_dP_delPT_col(lev_T,colIndex) * &
                delP_T(lev_T,colIndex) + &
                coeff_M_P0_dP_delP0_col(lev_T,colIndex) * delP0(1,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
       ! compute height increment on momentum levels above the surface
       do colIndex = 1, numColumns
@@ -789,8 +797,8 @@ contains
           lev_T = lev_M ! thermo level just below momentum level being computed
           delHeight_M_ptr(lev_M,colIndex) =  &
                delHeight_M_ptr(lev_M+1,colIndex) + delThick(lev_T,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
       ! compute height increment on thermo levels using weighted average of height increment of momentum levels
       do colIndex = 1, numColumns
@@ -803,10 +811,10 @@ contains
           delHeight_T_ptr(lev_T,colIndex) =  &
                ScaleFactorBottom * delHeight_M_ptr(lev_M  ,colIndex) + &
                ScaleFactorTop * delHeight_M_ptr(lev_M-1,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
-    endif
+    end if
   
     deallocate(delThick)
   
@@ -819,17 +827,20 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_gsv_ad
   !---------------------------------------------------------
-  subroutine czp_tt2phi_gsv_ad(statevector,statevector_trial)
+  subroutine czp_tt2phi_gsv_ad(statevector,statevectorRef)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          gridstatevector
     !
     !
     implicit none
-  
-    type(struct_gsv) :: statevector,statevector_trial
-  
-    integer ::  lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numStep,stepIndex, &
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(in)    :: statevectorRef
+
+    ! Locals
+    integer ::  lev_M,lev_T,nlev_M,nlev_T,Vcode,numStep,stepIndex, &
                 latIndex,lonIndex
     real(8) :: ScaleFactorBottom, ScaleFactorTop
     real(8), allocatable :: delThick(:,:,:,:)
@@ -839,38 +850,38 @@ contains
     real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:),delHeight_T_ptr_r48(:,:,:,:)
     real(pre_incrReal), pointer :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:),delP0_r48(:,:,:,:)
     real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
-    type(struct_vco),   pointer :: vco_anl
+    type(struct_vco),   pointer :: vco
   
     call tmg_start(194,'czp_tt2phi_ad')
   
     write(*,*) 'czp_tt2phi_gsv_ad: START'
   
-    vco_anl => gsv_getVco(statevector_trial)
-    Vcode_anl = vco_anl%vcode
+    vco => gsv_getVco(statevectorRef)
+    Vcode = vco%vcode
   
-    nlev_T = gsv_getNumLev(statevector_trial,'TH')
-    nlev_M = gsv_getNumLev(statevector_trial,'MM')
-    numStep = statevector_trial%numstep
+    nlev_T = gsv_getNumLev(statevectorRef,'TH')
+    nlev_M = gsv_getNumLev(statevectorRef,'MM')
+    numStep = statevectorRef%numstep
   
-    allocate(delHeight_M(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                         statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+    allocate(delHeight_M(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
                          nlev_M,numStep))
-    allocate(delHeight_T(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                         statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+    allocate(delHeight_T(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
                          nlev_T,numStep))
-    allocate(delThick(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                      statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+    allocate(delThick(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                      statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
                       0:nlev_T,numStep))
   
     ! generate the height coefficients on the grid
-    call calcHeightCoeff_gsv(statevector_trial)
+    call calcHeightCoeff_gsv(statevectorRef)
   
     ! loop over all lat/lon/step
   
-    call gsv_getField(statevector_trial,height_M_ptr,'Z_M')
-    call gsv_getField(statevector_trial,height_T_ptr,'Z_T')
-    call gsv_getField(statevector_trial,P_T,'P_T')
-    call gsv_getField(statevector_trial,P_M,'P_M')
+    call gsv_getField(statevectorRef,height_M_ptr,'Z_M')
+    call gsv_getField(statevectorRef,height_T_ptr,'Z_T')
+    call gsv_getField(statevectorRef,P_T,'P_T')
+    call gsv_getField(statevectorRef,P_M,'P_M')
   
     call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
     call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
@@ -882,13 +893,13 @@ contains
     delHeight_M(:,:,:,:) = delHeight_M_ptr_r48(:,:,:,:)
     delHeight_T(:,:,:,:) = delHeight_T_ptr_r48(:,:,:,:)
   
-    if(Vcode_anl == 5002) then
+    if(Vcode == 5002) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_M = lev_T ! momentum level just below thermo level being computed
   
               ! adjoint of compute height increment on top thermo level 
@@ -947,17 +958,17 @@ contains
                     ScaleFactorBottom * &
                     delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
               end if
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! adjoint of compute height increment on momentum levels above the surface
       delThick(:,:,0:1,:) = 0.0d0
       do stepIndex = 1, numStep
         do lev_M = 1, (nlev_M-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_T = lev_M + 1 ! thermo level just below momentum level being computed
               delThick(lonIndex,latIndex,lev_T,stepIndex) =  &
                    delThick(lonIndex,latIndex,lev_T-1,stepIndex) + &
@@ -970,8 +981,8 @@ contains
       ! adjoint of compute increment to thickness for each layer between the two momentum levels
       do stepIndex = 1, numStep
         do lev_T = 2, nlev_T-1
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               delTT_r48(lonIndex,latIndex,lev_T,stepIndex) =  &
                   delTT_r48(lonIndex,latIndex,lev_T,stepIndex) + &
                   coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
@@ -1003,18 +1014,18 @@ contains
                   delP0_r48(lonIndex,latIndex,1,stepIndex) + &
                   coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delThick(lonIndex,latIndex,lev_T,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
-    elseif(Vcode_anl == 5005) then
+    else if(Vcode == 5005) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_M = lev_T+1 ! momentum level just below thermo level being computed
               ScaleFactorBottom = &
                   (height_T_ptr(lonIndex,latIndex,lev_T,stepIndex) - &
@@ -1030,17 +1041,17 @@ contains
                   delHeight_M(lonIndex,latIndex,lev_M  ,stepIndex) + &
                   ScaleFactorBottom * &
                   delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
       ! adjoint of compute height increment on momentum levels
       delThick(:,:,0,:) = 0.0d0
       do stepIndex = 1, numStep
         do lev_M = 1, (nlev_M-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               lev_T = lev_M ! thermo level just below momentum level being computed
               delThick(lonIndex,latIndex,lev_T,stepIndex) = &
                   delThick(lonIndex,latIndex,lev_T-1,stepIndex) + &
@@ -1052,8 +1063,8 @@ contains
   
       do stepIndex = 1, numStep
         do lev_T = 1, nlev_T-1
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
+            do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
               delTT_r48(lonIndex,latIndex,lev_T,stepIndex) =  &
                   delTT_r48(lonIndex,latIndex,lev_T,stepIndex) + &
                   coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
@@ -1085,12 +1096,12 @@ contains
                   delP0_r48(lonIndex,latIndex,1,stepIndex) + &
                   coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                   delThick(lonIndex,latIndex,lev_T,stepIndex)
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
-    endif
+    end if
   
     deallocate(delThick)
     deallocate(delHeight_M)
@@ -1105,17 +1116,20 @@ contains
   !---------------------------------------------------------
   ! czp_tt2phi_col_ad
   !---------------------------------------------------------
-  subroutine czp_tt2phi_col_ad(columnInc,columnTrlOnAnlInc)
+  subroutine czp_tt2phi_col_ad(columnInc,columnIncRef)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          columnData
     !
     !
     implicit none
-  
-    type(struct_columnData) :: columnInc,columnTrlOnAnlInc
-  
-    integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numColumns,colIndex
+
+    ! Arguments
+    type(struct_columnData), intent(inout) :: columnInc
+    type(struct_columnData), intent(in) :: columnIncRef
+
+    ! Locals
+    integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode,numColumns,colIndex
     real(8) :: ScaleFactorBottom, ScaleFactorTop
     real(8), allocatable :: delThick(:,:)
     real(8), pointer     :: height_M_ptr(:,:),height_T_ptr(:,:)
@@ -1124,30 +1138,30 @@ contains
     real(8), pointer     :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
     real(8), pointer     :: delTT(:,:),delHU(:,:),delP0(:,:)
     real(8), pointer     :: delP_M(:,:),delP_T(:,:)
-    type(struct_vco), pointer :: vco_anl
+    type(struct_vco), pointer :: vco
   
     call tmg_start(194,'czp_tt2phi_ad')
   
     write(*,*) 'czp_tt2phi_col_ad: START'
   
-    vco_anl => col_getVco(columnTrlOnAnlInc)
-    Vcode_anl = vco_anl%vcode
+    vco => col_getVco(columnIncRef)
+    Vcode = vco%vcode
   
-    nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
-    nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
-    numColumns = col_getNumCol(columnTrlOnAnlInc)
+    nlev_T = col_getNumLev(columnIncRef,'TH')
+    nlev_M = col_getNumLev(columnIncRef,'MM')
+    numColumns = col_getNumCol(columnIncRef)
   
     allocate(delHeight_M(nlev_M,numColumns))
     allocate(delHeight_T(nlev_T,numColumns))
     allocate(delThick(0:nlev_T,numColumns))
   
     ! generate the height coefficients on the grid
-    call calcHeightCoeff_col(columnTrlOnAnlInc)
+    call calcHeightCoeff_col(columnIncRef)
   
-    height_M_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_M')
-    height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
-    P_M          => col_getAllColumns(columnTrlOnAnlInc,'P_M')
-    P_T          => col_getAllColumns(columnTrlOnAnlInc,'P_T')
+    height_M_ptr => col_getAllColumns(columnIncRef,'Z_M')
+    height_T_ptr => col_getAllColumns(columnIncRef,'Z_T')
+    P_M          => col_getAllColumns(columnIncRef,'P_M')
+    P_T          => col_getAllColumns(columnIncRef,'P_T')
   
     delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
     delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
@@ -1160,7 +1174,7 @@ contains
     delHeight_M(:,:) = delHeight_M_ptr(:,:)
     delHeight_T(:,:) = delHeight_T_ptr(:,:)
   
-    if(Vcode_anl == 5002) then
+    if(Vcode == 5002) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do colIndex = 1, numColumns
@@ -1213,8 +1227,8 @@ contains
                  delHeight_M(lev_M  ,colIndex) + &
                  ScaleFactorBottom * delHeight_T(lev_T,colIndex)
           end if
-        enddo
-      enddo
+        end do
+      end do
   
       ! adjoint of compute height increment on momentum levels above the surface
       delThick(0:1,:) = 0.0d0
@@ -1257,10 +1271,10 @@ contains
               delP0(1,colIndex) + &
               coeff_M_P0_dP_delP0_col(lev_T,colIndex) * &
               delThick(lev_T,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
-    elseif(Vcode_anl == 5005) then
+    else if(Vcode == 5005) then
   
       ! adjoint of compute height increment on thermo levels by simple averaging
       do colIndex = 1, numColumns
@@ -1274,8 +1288,8 @@ contains
               ScaleFactorTop * delHeight_T(lev_T  ,colIndex)
           delHeight_M(lev_M,colIndex)   = delHeight_M(lev_M  ,colIndex) + &
               ScaleFactorBottom * delHeight_T(lev_T  ,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
       ! adjoint of compute height increment on momentum levels
       delThick(0,:) = 0.0d0
@@ -1314,10 +1328,10 @@ contains
           delP0(1,colIndex)     =  &
               delP0(1,colIndex) + &
               coeff_M_P0_dP_delP0_col(lev_T,colIndex) * delThick(lev_T,colIndex)
-        enddo
-      enddo
+        end do
+      end do
   
-    endif
+    end if
   
     deallocate(delThick)
     deallocate(delHeight_M)
@@ -1332,22 +1346,25 @@ contains
   !---------------------------------------------------------
   ! calcHeightCoeff_gsv
   !---------------------------------------------------------
-  subroutine calcHeightCoeff_gsv(statevector_trial)
+  subroutine calcHeightCoeff_gsv(statevector)
     !
-    ! :Purpose: Calculating the coefficients of height for czp_tt2phi_tl/czp_tt2phi_ad
+    ! :Purpose: Calculating the coefficients of height for 
+    !           czp_tt2phi_tl/czp_tt2phi_ad
     !
     implicit none
-  
-    type(struct_gsv) :: statevector_trial
-  
-    integer :: lev_T,nlev_M,nlev_T,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
+
+    ! Arguments
+    type(struct_gsv), intent(in) :: statevector
+
+    ! Locals
+    integer :: lev_T,nlev_M,nlev_T,numStep,stepIndex,latIndex,lonIndex,Vcode
     real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
     real(4) :: lat_4
     real(8) :: Rgh, sLat, lat_8
     real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:)
     real(8), pointer :: P_T_ptr(:,:,:,:),P_M_ptr(:,:,:,:)
     real(8), pointer :: height_T_ptr(:,:,:,:)
-    type(struct_vco), pointer :: vco_anl
+    type(struct_vco), pointer :: vco
   
     logical, save :: firstTimeHeightCoeff_gsv = .true.
   
@@ -1356,57 +1373,57 @@ contains
     Write(*,*) "calcHeightCoeff_gsv: START"
   
     ! initialize and save coefficients for increased efficiency 
-    !(assumes no relinearization)
+    ! (assumes no relinearization)
     firstTimeHeightCoeff_gsv = .false.
   
-    vco_anl => gsv_getVco(statevector_trial)
-    Vcode_anl = vco_anl%vcode 
+    vco => gsv_getVco(statevector)
+    Vcode = vco%vcode 
   
-    nlev_T = gsv_getNumLev(statevector_trial,'TH')
-    nlev_M = gsv_getNumLev(statevector_trial,'MM')
-    numStep = statevector_trial%numstep
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    numStep = statevector%numstep
   
     ! saved arrays
     allocate(coeff_M_TT_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         nlev_T,numStep))
     allocate(coeff_M_HU_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         nlev_T,numStep))
     allocate(coeff_M_P0_delPM_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         nlev_T,numStep))
     allocate(coeff_M_P0_dP_delPT_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         nlev_T,numStep))
     allocate(coeff_M_P0_dP_delP0_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         nlev_T,numStep))
   
     allocate(coeff_T_TT_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         numStep))
     allocate(coeff_T_HU_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         numStep))
     allocate(coeff_T_P0_delP1_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         numStep))
     allocate(coeff_T_P0_dP_delPT_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         numStep))
     allocate(coeff_T_P0_dP_delP0_gsv(&
-        statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-        statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+        statevector%myLonBeg:statevector%myLonEnd, &
+        statevector%myLatBeg:statevector%myLatEnd, &
         numStep))
   
     coeff_M_TT_gsv(:,:,:,:) = 0.0D0
@@ -1425,18 +1442,18 @@ contains
     coeff_T_P0_dP_delPT_gsv(:,:,:) = 0.0D0  
     coeff_T_P0_dP_delP0_gsv(:,:,:) = 0.0D0  
   
-    call gsv_getField(statevector_trial,hu_ptr,'HU')
-    call gsv_getField(statevector_trial,tt_ptr,'TT')
-    call gsv_getField(statevector_trial,P_T_ptr,'P_T')
-    call gsv_getField(statevector_trial,P_M_ptr,'P_M')
-    call gsv_getField(statevector_trial,height_T_ptr,'Z_T')
+    call gsv_getField(statevector,hu_ptr,'HU')
+    call gsv_getField(statevector,tt_ptr,'TT')
+    call gsv_getField(statevector,P_T_ptr,'P_T')
+    call gsv_getField(statevector,P_M_ptr,'P_M')
+    call gsv_getField(statevector,height_T_ptr,'Z_T')
   
-    if (Vcode_anl == 5002) then
+    if (Vcode == 5002) then
   
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               if ( lev_T == 1 ) then 
                 ! compute height coefficients on only the top thermo level
                 ratioP1 = log( P_M_ptr(lonIndex,latIndex,1,stepIndex) / &
@@ -1454,7 +1471,7 @@ contains
                 cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
                 ! Gravity acceleration 
-                lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
+                lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
                 lat_8 = real(lat_4,8)
                 sLat = sin(lat_8)
                 Rgh = phf_gravityalt(sLat, height_T)
@@ -1494,7 +1511,7 @@ contains
                 cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
                 ! Gravity acceleration 
-                lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
+                lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
                 lat_8 = real(lat_4,8)
                 sLat = sin(lat_8)
                 Rgh = phf_gravityalt(sLat, height_T)
@@ -1517,18 +1534,18 @@ contains
                 coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                     (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * &
                     ratioP1
-              endif
-            enddo
-          enddo
-        enddo
-      enddo
+              end if
+            end do
+          end do
+        end do
+      end do
   
-    elseif (Vcode_anl == 5005) then
+    else if (Vcode == 5005) then
   
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
-          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
-            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               ! compute height coefficients on momentum levels
               ratioP1 = log( P_M_ptr(lonIndex,latIndex,lev_T+1,stepIndex) / &
                              P_M_ptr(lonIndex,latIndex,lev_T  ,stepIndex) )
@@ -1545,7 +1562,7 @@ contains
               cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
               ! Gravity acceleration 
-              lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
+              lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
               lat_8 = real(lat_4,8)
               sLat = sin(lat_8)
               Rgh = phf_gravityalt(sLat, height_T)
@@ -1568,10 +1585,10 @@ contains
               coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                   (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * &
                   ratioP1
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
   
     end if
   
@@ -1582,22 +1599,24 @@ contains
   !---------------------------------------------------------
   ! calcHeightCoeff_col
   !---------------------------------------------------------
-  subroutine calcHeightCoeff_col(columnTrlOnAnlInc)
+  subroutine calcHeightCoeff_col(column)
     !
     ! :Purpose: Calculating the coefficients of height for 
     !           czp_tt2phi_tl/czp_tt2phi_ad
     !
     implicit none
-  
-    type(struct_columnData) :: columnTrlOnAnlInc
-  
-    integer :: lev_T,nlev_M,nlev_T,numColumns,colIndex,Vcode_anl
+
+    ! Arguments
+    type(struct_columnData), intent(in) :: column
+
+    ! Locals
+    integer :: lev_T,nlev_M,nlev_T,numColumns,colIndex,Vcode
     real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
     real(8) :: Rgh, sLat, lat_8
     real(8), pointer :: hu_ptr(:,:),tt_ptr(:,:)
     real(8), pointer :: P_T_ptr(:,:),P_M_ptr(:,:)
     real(8), pointer :: height_T_ptr(:,:)
-    type(struct_vco), pointer :: vco_anl
+    type(struct_vco), pointer :: vco
   
     logical, save :: firstTimeHeightCoeff_col = .true.
   
@@ -1609,12 +1628,12 @@ contains
     ! (assumes no relinearization)
     firstTimeHeightCoeff_col = .false.
   
-    vco_anl => col_getVco(columnTrlOnAnlInc)
-    Vcode_anl = vco_anl%vcode 
+    vco => col_getVco(column)
+    Vcode = vco%vcode 
   
-    nlev_T = col_getNumLev(columnTrlOnAnlInc,'TH')
-    nlev_M = col_getNumLev(columnTrlOnAnlInc,'MM')
-    numColumns = col_getNumCol(columnTrlOnAnlInc)
+    nlev_T = col_getNumLev(column,'TH')
+    nlev_M = col_getNumLev(column,'MM')
+    numColumns = col_getNumCol(column)
   
     ! saved arrays
     allocate(coeff_M_TT_col         (nlev_T,numColumns))
@@ -1645,13 +1664,13 @@ contains
     coeff_T_P0_dP_delPT_col(:) = 0.0D0  
     coeff_T_P0_dP_delP0_col(:) = 0.0D0  
   
-    hu_ptr       => col_getAllColumns(columnTrlOnAnlInc,'HU')
-    tt_ptr       => col_getAllColumns(columnTrlOnAnlInc,'TT')
-    P_T_ptr      => col_getAllColumns(columnTrlOnAnlInc,'P_T')
-    P_M_ptr      => col_getAllColumns(columnTrlOnAnlInc,'P_M')
-    height_T_ptr => col_getAllColumns(columnTrlOnAnlInc,'Z_T')
+    hu_ptr       => col_getAllColumns(column,'HU')
+    tt_ptr       => col_getAllColumns(column,'TT')
+    P_T_ptr      => col_getAllColumns(column,'P_T')
+    P_M_ptr      => col_getAllColumns(column,'P_M')
+    height_T_ptr => col_getAllColumns(column,'Z_T')
   
-    if (Vcode_anl == 5002) then
+    if (Vcode == 5002) then
   
       do colIndex = 1, numColumns
         do lev_T = 1, (nlev_T-1)
@@ -1671,7 +1690,7 @@ contains
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
             ! Gravity acceleration 
-            lat_8 = columnTrlOnAnlInc%lat(colIndex)
+            lat_8 = column%lat(colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
   
@@ -1707,7 +1726,7 @@ contains
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
             ! Gravity acceleration 
-            lat_8 = columnTrlOnAnlInc%lat(colIndex)
+            lat_8 = column%lat(colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
   
@@ -1727,11 +1746,11 @@ contains
                 
             coeff_M_P0_dP_delP0_col(lev_T,colIndex) = &
                 (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
-          endif
-        enddo
-      enddo
+          end if
+        end do
+      end do
   
-    elseif (Vcode_anl == 5005) then
+    else if (Vcode == 5005) then
   
       do colIndex = 1, numColumns
         do lev_T = 1, (nlev_T-1)
@@ -1750,7 +1769,7 @@ contains
           cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
   
           ! Gravity acceleration 
-          lat_8 = columnTrlOnAnlInc%lat(colIndex)
+          lat_8 = column%lat(colIndex)
           sLat = sin(lat_8)
           Rgh = phf_gravityalt(sLat, height_T)
   
@@ -1770,8 +1789,8 @@ contains
   
           coeff_M_P0_dP_delP0_col(lev_T,colIndex) = &
               (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
-        enddo
-      enddo
+        end do
+      end do
   
     end if
   
@@ -1783,7 +1802,11 @@ contains
   ! gpscompressibility
   !---------------------------------------------------------
   function gpscompressibility(p,t,q)
+    implicit none
+    ! Arguments
     real(8), intent(in)  :: p,t,q
+
+    ! Locals
     real(8)              :: gpscompressibility
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1812,7 +1835,11 @@ contains
   ! gpscompressibility_TT
   !---------------------------------------------------------
   function gpscompressibility_TT(p,t,q)
+    implicit none
+    ! Arguments
     real(8), intent(in)  :: p,t,q
+
+    ! Locals
     real(8)              :: gpscompressibility_TT
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1849,7 +1876,11 @@ contains
   ! gpscompressibility_HU
   !---------------------------------------------------------
   function gpscompressibility_HU(p,t,q)
+    implicit none
+    ! Arguments
     real(8), intent(in)  :: p,t,q
+
+    ! Locals
     real(8)              :: gpscompressibility_HU
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1882,8 +1913,15 @@ contains
         (c0+c1*tc)*d_x2) + 2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
   end function gpscompressibility_HU
   
+  !---------------------------------------------------------
+  ! gpscompressibility_P0
+  !---------------------------------------------------------
   function gpscompressibility_P0(p,t,q,dpdp0)
+    implicit none
+    ! Arguments
     real(8), intent(in)  :: p,t,q,dpdp0
+
+    ! Locals
     real(8)              :: gpscompressibility_P0
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1921,7 +1959,12 @@ contains
   !---------------------------------------------------------
   function gpscompressibility_P0_1(p,t,q,dpdp0)
     ! gpscompressibility_P0_1 has dpdp0 dependency
+    implicit none
+
+    ! Arguments
     real(8), intent(in)  :: p,t,q,dpdp0
+
+    ! Locals
     real(8)              :: gpscompressibility_P0_1
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1958,7 +2001,12 @@ contains
   !---------------------------------------------------------
   function gpscompressibility_P0_2(p,t,q)
     ! gpscompressibility_P0_2 has NO dpdp0 dependency
+    implicit none
+
+    ! Arguments
     real(8), intent(in)  :: p,t,q
+
+    ! Locals
     real(8)              :: gpscompressibility_P0_2
   
     real(8), parameter   :: a0= 1.58123D-6
@@ -1998,8 +2046,9 @@ contains
     !
     implicit none
 
-    type(struct_gsv)    :: statevector
-    logical, optional   :: beSilent_opt
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
 
     if ( gsv_getDataKind(statevector) == 4 ) then
       call calcGridPressure_nl_r4(statevector, beSilent_opt=beSilent_opt)
@@ -2019,11 +2068,11 @@ contains
     !
     implicit none
   
-    ! Arguments:
+    ! Arguments
     type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
-    logical, optional               :: beSilent_opt
+    logical, intent(in), optional   :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
@@ -2110,11 +2159,11 @@ contains
     !
     implicit none
   
-    ! Arguments:
+    ! Arguments
     type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
-    logical, optional               :: beSilent_opt
+    logical, intent(in), optional   :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:) 
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
@@ -2195,19 +2244,19 @@ contains
   !---------------------------------------------------------
   ! czp_calcGridPressure_tl
   !---------------------------------------------------------
-  subroutine czp_calcGridPressure_tl( statevector, statevector_trial, &
+  subroutine czp_calcGridPressure_tl( statevector, statevectorRef, &
                                       beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment on the grid.
     !
     implicit none
   
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
-    logical, optional               :: beSilent_opt
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
+    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector that has the Psfc
+    logical, intent(in), optional   :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(8), allocatable  :: Psfc(:,:)
     real(4), pointer      :: delPsfc_r4(:,:,:,:)
     real(8), pointer      :: delPsfc_r8(:,:,:,:)
@@ -2247,7 +2296,7 @@ contains
     end if
   
     nullify(field_Psfc)
-    call gsv_getField(statevector_trial,field_Psfc,'P0')
+    call gsv_getField(statevectorRef,field_Psfc,'P0')
   
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -2339,19 +2388,19 @@ contains
   !---------------------------------------------------------
   ! czp_calcGridPressure_ad
   !---------------------------------------------------------
-  subroutine czp_calcGridPressure_ad( statevector, statevector_trial, &
+  subroutine czp_calcGridPressure_ad( statevector, statevectorRef, &
                                       beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure on the grid.
     !
     implicit none
   
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain increment of Psfc.
-    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
-    logical, optional               :: beSilent_opt
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector    ! statevector that will contain increment of Psfc.
+    type(struct_gsv), intent(in)    :: statevectorRef ! statevector that has the Psfc
+    logical, intent(in), optional   :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(8), allocatable     :: Psfc(:,:)
     real(4), pointer         :: delPsfc_r4(:,:,:,:)
     real(8), pointer         :: delPsfc_r8(:,:,:,:)
@@ -2390,7 +2439,7 @@ contains
       call gsv_getField(statevector,delP_M_r8,'P_M')
       call gsv_getField(statevector,delPsfc_r8,'P0')
     end if
-    call gsv_getField(statevector_trial,field_Psfc,'P0')
+    call gsv_getField(statevectorRef,field_Psfc,'P0')
   
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -2484,16 +2533,16 @@ contains
   !---------------------------------------------------------
   ! czp_calcColumnZandP_tl
   !---------------------------------------------------------
-  subroutine czp_calcColumnZandP_tl(columnInc, columnRefOnIncLev, beSilent_opt)
+  subroutine czp_calcColumnZandP_tl(columnInc, columnIncRef, beSilent_opt)
     !
     ! :Purpose: compute pressure and height increment in the column in proper 
     !           order depending on the vgrid kind
     !
     implicit none
 
-    ! Arguments:
+    ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -2503,21 +2552,21 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcColumnPressure_tl( columnInc, columnRefOnIncLev, &
+        call czp_calcColumnPressure_tl( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_tt2phi_col_tl(columnInc, columnRefOnIncLev)
+        call czp_tt2phi_col_tl(columnInc, columnIncRef)
       end if
     else if (Vcode == 21001) then
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_tt2phi_col_tl(columnInc, columnRefOnIncLev)
+        call czp_tt2phi_col_tl(columnInc, columnIncRef)
       end if
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcColumnPressure_tl( columnInc, columnRefOnIncLev, &
+        call czp_calcColumnPressure_tl( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
     else
@@ -2529,16 +2578,16 @@ contains
   !---------------------------------------------------------
   ! czp_calcColumnZandP_ad
   !---------------------------------------------------------
-  subroutine czp_calcColumnZandP_ad(columnInc, columnRefOnIncLev, beSilent_opt)
+  subroutine czp_calcColumnZandP_ad(columnInc, columnIncRef, beSilent_opt)
     !
     ! :Purpose: adjoint of pressure and height increment computation in the 
     !           column in proper order depending on the vgrid kind
     !
     implicit none
 
-    ! Arguments:
+    ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -2548,22 +2597,22 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_tt2phi_col_ad(columnInc, columnRefOnIncLev)
+        call czp_tt2phi_col_ad(columnInc, columnIncRef)
       end if
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcColumnPressure_ad( columnInc, columnRefOnIncLev, &
+        call czp_calcColumnPressure_ad( columnInc, columnIncRef, &
                                       beSilent_opt=beSilent_opt)
       end if
     else if (Vcode == 21001) then
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcColumnPressure_ad( columnInc, columnRefOnIncLev, &
+        call czp_calcColumnPressure_ad( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_tt2phi_col_ad(columnInc, columnRefOnIncLev)
+        call czp_tt2phi_col_ad(columnInc, columnIncRef)
       end if
     else
       call utl_abort('czp_calcColumnZandP_ad: invalid Vcode')
@@ -2579,9 +2628,12 @@ contains
     !:Purpose: calculation of the Pressure in the column.
     !
     implicit none
-    type(struct_columnData), intent(inout) :: column
-    logical, optional :: beSilent_opt
-  
+
+    ! Arguments
+    type(struct_columnData), intent(inout)  :: column
+    logical, intent(in), optional           :: beSilent_opt
+
+    ! Locals
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     integer :: headerIndex, status, ilev1, ilev2
@@ -2635,19 +2687,19 @@ contains
   !---------------------------------------------------------
   ! czp_calcColumnPressure_tl
   !---------------------------------------------------------
-  subroutine czp_calcColumnPressure_tl( columnInc, columnRefOnIncLev, &
+  subroutine czp_calcColumnPressure_tl( columnInc, columnIncRef, &
                                         beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment in the column.
     !
     implicit none
   
-    ! Arguments:
+    ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
+    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
     logical, intent(in), optional          :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(8)          :: Psfc
     real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
     real(8), pointer :: delP_T(:,:), delP_M(:,:)
@@ -2673,7 +2725,7 @@ contains
     delP_M  => col_getAllColumns(columnInc,'P_M')
     delP_T  => col_getAllColumns(columnInc,'P_T')
     delPsfc => col_getAllColumns(columnInc,'P0')
-    PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
+    PsfcRef => col_getAllColumns(columnIncRef,'P0')
   
     nlev_T = col_getNumLev(columnInc,'TH')
     nlev_M = col_getNumLev(columnInc,'MM')
@@ -2720,19 +2772,19 @@ contains
   !---------------------------------------------------------
   ! czp_calcColumnPressure_ad
   !---------------------------------------------------------
-  subroutine czp_calcColumnPressure_ad( columnInc, columnRefOnIncLev, &
+  subroutine czp_calcColumnPressure_ad( columnInc, columnIncRef, &
                                         beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure in the column.
     !
     implicit none
   
-    ! Arguments:
-    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of Psfc.
-    type(struct_columnData), intent(in)    :: columnRefOnIncLev ! column that has the Psfc
-    logical, optional                      :: beSilent_opt
+    ! Arguments
+    type(struct_columnData), intent(inout) :: columnInc         ! column that will contain increments of Psfc.
+    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
+    logical, intent(in), optional          :: beSilent_opt
   
-    ! Locals:
+    ! Locals
     real(8)          :: Psfc
     real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
     real(8), pointer :: delP_T(:,:), delP_M(:,:)
@@ -2759,7 +2811,7 @@ contains
     delP_M  => col_getAllColumns(columnInc,'P_M')
     delP_T  => col_getAllColumns(columnInc,'P_T')
     delPsfc => col_getAllColumns(columnInc,'P0')
-    PsfcRef => col_getAllColumns(columnRefOnIncLev,'P0')
+    PsfcRef => col_getAllColumns(columnIncRef,'P0')
   
     nlev_T = col_getNumLev(columnInc,'TH')
     nlev_M = col_getNumLev(columnInc,'MM')
