@@ -2099,7 +2099,7 @@ module calcStatsGlb_mod
     ! loop over levels and zonal wavenumbers
     ! n.b.: at the tip of the triangle, no contributions
     
-    zcon = -2*ec_ROmega*ec_ra**2
+    zcon = -2.D0*ec_ROmega*ec_ra**2
     do levIndex = 1, nlevEns_M
 
       ! the base address ia will point to the spherical harmonic
