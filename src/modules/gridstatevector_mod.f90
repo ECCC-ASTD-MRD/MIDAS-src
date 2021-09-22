@@ -8229,14 +8229,19 @@ module gridStateVector_mod
   ! gsv_containsNonZeroValues
   !--------------------------------------------------------------------------
   function gsv_containsNonZeroValues(stateVector) result(stateVectorHasNonZeroValue)
+    !:Purpose: To check if stateVector has any non-zero value.
+    !
     implicit none
-    type(struct_gsv) :: stateVector
-    logical          :: stateVectorHasNonZeroValue
 
-    real(4), pointer :: field_r4_ptr(:,:,:,:)
-    real(8), pointer :: field_r8_ptr(:,:,:,:)
-    logical          :: allZero, allZero_mpiglobal
-    integer          :: ierr 
+    ! Arguments
+    type(struct_gsv), intent(in) :: stateVector
+    logical                      :: stateVectorHasNonZeroValue
+
+    ! Locals
+    real(4), pointer             :: field_r4_ptr(:,:,:,:)
+    real(8), pointer             :: field_r8_ptr(:,:,:,:)
+    logical                      :: allZero, allZero_mpiglobal
+    integer                      :: ierr
 
     if ( .not. stateVector%allocated) then
       stateVectorHasNonZeroValue = .false.
