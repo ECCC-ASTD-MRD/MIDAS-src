@@ -55,10 +55,9 @@ module gridVariableTransforms_mod
   type(struct_hco), pointer :: hco_trl => null()
   type(struct_vco), pointer :: vco_trl => null()
 
-  type(struct_gsv), target :: stateVectorTrialHU
+  type(struct_gsv), target :: stateVectorRefHU
   type(struct_gsv), target :: stateVectorTrialvarKindCH(vnl_numVarMax)
   type(struct_gsv), target :: stateVectorRefHeight
-  type(struct_gsv), target :: stateVectorRefHU
 
   ! module interfaces
   interface gvt_transform
@@ -117,14 +116,14 @@ CONTAINS
     
     select case ( trim(varName) )
     case ('HU')
-      ! initialize stateVectorTrialHU on analysis grid
-      call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+      ! initialize stateVectorRefHU on analysis grid
+      call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
+      call gsv_readTrials( stateVectorRefHU )  ! IN/OUT
 
       huTrialsInitialized = .true.
     case ('height')
@@ -552,7 +551,7 @@ CONTAINS
     select case ( trim(varName) )
     case ('HU')
       if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
-      statevector_ptr => stateVectorTrialHU
+      statevector_ptr => stateVectorRefHU
       huTrialsInitialized = .true.
 
     case ('height')
@@ -858,7 +857,7 @@ CONTAINS
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
-      call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
+      call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
 
     if ( gsv_getDataKind(statevector) == 4 ) then
@@ -918,7 +917,7 @@ CONTAINS
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
-      call gsv_getField(stateVectorTrialHU,hu_trial,'HU')
+      call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
 
     if ( gsv_getDataKind(statevector) == 4 ) then
