@@ -65,8 +65,7 @@ program midas_var
   type(struct_gsv)                :: stateVectorLowResTime
   type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnal
-  type(struct_gsv)       , target :: stateVectorRefHU
-  type(struct_gsv)       , target :: stateVectorRefHUTT
+  type(struct_gsv)      , pointer :: stateVectorRefHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_trl => null()
@@ -216,51 +215,10 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'HU','TT','P0'/) )
-
-      ! First, degrade the time steps
-      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, &
-                         stateVectorUpdateHighRes%hco, stateVectorUpdateHighRes%vco,  &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
-      call gsv_copy( stateVectorUpdateHighRes, stateVectorLowResTime,  &
-                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
-
-      ! Second, interpolate to the low-resolution spatial grid.
-      nullify(varNames)
-      call gsv_varNamesList(varNames, stateVectorLowResTime)
-      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=varNames)
-      call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)        
-
-      ! Now copy only P0, HU, and TT to create reference stateVector.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHUTT, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-      call gsv_deallocate(stateVectorLowResTimeSpace)
-      call gsv_deallocate(stateVectorLowResTime)
-
-      ! Impose limits on stateVectorRefHUTT only when outerLoopIndex > 1
-      if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
-        write(*,*) 'var: impose limits on stateVectorRefHUTT'
-        call qlim_saturationLimit(stateVectorRefHUTT)
-        call qlim_rttovLimit(stateVectorRefHUTT)
-      end if
-
-      call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'HU','P0'/) )
-      call gsv_copy( stateVectorRefHUTT, stateVectorRefHU, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-      call gsv_deallocate(stateVectorRefHUTT)
+      call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
+                                        limitHuInOuterLoop_opt=.true., &
+                                        outerLoopIndex_opt=outerLoopIndex, &
+                                        stateVectorOut_opt=stateVectorRefHU )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -311,7 +269,6 @@ program midas_var
     call tmg_stop(6)
 
     call gsv_deallocate(stateVectorIncr)
-    if ( stateVectorRefHU%allocated ) call gsv_deallocate(stateVectorRefHU)
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop

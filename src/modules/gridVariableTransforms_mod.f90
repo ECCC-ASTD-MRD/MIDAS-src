@@ -23,6 +23,7 @@ module gridVariableTransforms_mod
   !
   use mpi_mod
   use mpivar_mod
+  use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use timeCoord_mod
@@ -57,6 +58,7 @@ module gridVariableTransforms_mod
   type(struct_gsv), target :: stateVectorTrialHU
   type(struct_gsv), target :: stateVectorTrialvarKindCH(vnl_numVarMax)
   type(struct_gsv), target :: stateVectorRefHeight
+  type(struct_gsv), target :: stateVectorRefHU
 
   ! module interfaces
   interface gvt_transform
@@ -569,6 +571,8 @@ CONTAINS
   ! gvt_setupRefFromStateVector
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
+                                          limitHuInOuterLoop_opt, &
+                                          outerLoopIndex_opt, &
                                           stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
@@ -582,23 +586,24 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(in) :: stateVectorOnTrlGrid
-    character(len=*), intent(in) :: varName
+    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
+    character(len=*),  intent(in) :: varName
+    logical, intent(in), optional :: limitHuInOuterLoop_opt
+    integer, intent(in), optional :: outerLoopIndex_opt
     type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
-    type(struct_gsv) :: stateVectorLowResTime
-    type(struct_gsv) :: stateVectorLowResTimeSpace
+    type(struct_gsv)         :: stateVectorLowResTime
+    type(struct_gsv)         :: stateVectorLowResTimeSpace
+    type(struct_gsv), target :: stateVectorRefHUTT
 
+    logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
 
-    if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) then
+    if ( gsv_containsNonZeroValues(stateVectorRefHeight) .and. &
+         trim(varName) == 'height' ) then
       if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
       return
-    end if
-
-    if ( trim(varName) /= 'height' ) then
-      call utl_abort('gvt_setupRefFromStateVector: only height varName input is supported')
     end if
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
@@ -606,43 +611,106 @@ CONTAINS
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
     if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
 
-    if ( .not. stateVectorRefHeight%allocated ) then
-      call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+    select case ( trim(varName) )
+    case ('HU')
+      if ( .not. ( present(limitHuInOuterLoop_opt) .and. &
+                   present(outerLoopIndex_opt) ) ) then
+        call utl_abort('gvt_setupRefFromStateVector: optional arguments for RefHU missing')
+      end if
+
+      if ( .not. stateVectorRefHU%allocated ) then
+        call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
+                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                          varNames_opt=(/'HU','P0'/) )
+      else
+        call gsv_zero(stateVectorRefHU)
+      end if
+
+      allocHeightSfc = ( vco_trl%Vcode /= 0 )
+
+      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'HU','TT','P0'/) )
+
+      ! First, degrade the time steps
+      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
+                         dataKind_opt=pre_incrReal, &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, &
+                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
+
+      ! Second, interpolate to the low-resolution spatial grid.
+      nullify(varNames)
+      call gsv_varNamesList(varNames, stateVectorLowResTime)
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=varNames)
+      call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
+
+      ! Now copy only P0, HU, and TT to create reference stateVector.
+      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHUTT, &
+                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_deallocate(stateVectorLowResTimeSpace)
+      call gsv_deallocate(stateVectorLowResTime)
+
+      ! Impose limits on stateVectorRefHUTT only when outerLoopIndex > 1
+      if ( limitHuInOuterLoop_opt .and. outerLoopIndex_opt > 1 ) then
+        write(*,*) 'var: impose limits on stateVectorRefHUTT'
+        call qlim_saturationLimit(stateVectorRefHUTT)
+        call qlim_rttovLimit(stateVectorRefHUTT)
+      end if
+
+      call gsv_copy( stateVectorRefHUTT, stateVectorRefHU, &
+                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_deallocate(stateVectorRefHUTT)
+
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHU
+
+    case ('height')
+      if ( .not. stateVectorRefHeight%allocated ) then
+        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
+                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                           varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+      else
+        call gsv_zero( stateVectorRefHeight )
+      end if
+
+      ! First, degrade the time steps
+      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
-    else
-      call gsv_zero( stateVectorRefHeight )
-    end if
+                         varNames_opt=(/'TT','HU','P0'/) )
+      call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
+                     allowVarMismatch_opt=.true. )
 
-    ! First, degrade the time steps
-    call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=(/'TT','HU','P0'/) )
-    call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
-                   allowVarMismatch_opt=.true. )
+      ! Second, interpolate to the low-resolution spatial grid.
+      nullify(varNames)
+      call gsv_varNamesList(varNames, stateVectorLowResTime)
+      call gsv_allocate( stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                         varNames_opt=varNames )
+      call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
-    ! Second, interpolate to the low-resolution spatial grid.
-    nullify(varNames)
-    call gsv_varNamesList(varNames, stateVectorLowResTime)
-    call gsv_allocate( stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=varNames )
-    call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
+      ! Now copy to create final stateVector height.
+      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHeight, &
+                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_deallocate(stateVectorLowResTimeSpace)
+      call gsv_deallocate(stateVectorLowResTime)
 
-    ! Now copy to create final stateVector height.
-    call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHeight, &
-                   allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
-    call gsv_deallocate(stateVectorLowResTimeSpace)
-    call gsv_deallocate(stateVectorLowResTime)
+      ! do height/P calculation of the grid
+      call PsfcToP_nl( stateVectorRefHeight )
+      call tt2phi( stateVectorRefHeight )
 
-    ! do height/P calculation of the grid
-    call PsfcToP_nl( stateVectorRefHeight )
-    call tt2phi( stateVectorRefHeight )
-
-    if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight
+    end select
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
 
