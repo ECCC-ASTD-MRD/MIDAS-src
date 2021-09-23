@@ -37,6 +37,7 @@ module gridVariableTransforms_mod
   use varNameList_mod
   use tt2phi_mod
   use utilities_mod
+  use humiditylimits_mod
   
   implicit none
   save
