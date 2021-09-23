@@ -129,7 +129,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call czp_tt2phi_tl(columnInc, columnRefOnIncLev)
+    call czp_calcHeight_tl(columnInc, columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_tl
 
@@ -141,7 +141,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call czp_tt2phi_ad(columnInc,columnRefOnIncLev)
+    call czp_calcHeight_ad(columnInc,columnRefOnIncLev)
 
   end subroutine TTHUtoHeight_ad
 
@@ -153,7 +153,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call czp_calcColumnPressure_tl(columnInc,columnRefOnIncLev)
+    call czp_calcPressure_tl(columnInc,columnRefOnIncLev)
 
   end subroutine PsfcToP_tl
 
@@ -165,7 +165,7 @@ CONTAINS
 
     type(struct_columnData)    :: columnInc, columnRefOnIncLev
 
-    call czp_calcColumnPressure_ad(columnInc,columnRefOnIncLev)
+    call czp_calcPressure_ad(columnInc,columnRefOnIncLev)
 
   end subroutine PsfcToP_ad
 
