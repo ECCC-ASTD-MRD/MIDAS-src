@@ -48,7 +48,6 @@ module gridVariableTransforms_mod
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromStateVector
 
-  logical                   :: huTrialsInitialized  = .false.
   logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
@@ -84,7 +83,7 @@ CONTAINS
     type(struct_hco), pointer :: hco_core
     type(struct_vco), pointer :: vco_in
     
-    if ( huTrialsInitialized ) return
+    if ( gsv_containsNonZeroValues(stateVectorRefHU) ) return
     if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) return
     if ( any(varKindCHTrialsInitialized(:)) ) return
 
@@ -125,7 +124,6 @@ CONTAINS
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( stateVectorRefHU )  ! IN/OUT
 
-      huTrialsInitialized = .true.
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
         ! initialize stateVectorRefHeight on analysis grid
@@ -550,9 +548,10 @@ CONTAINS
 
     select case ( trim(varName) )
     case ('HU')
-      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
+      if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call gvt_setupRefFromTrialFiles('HU')
+      end if
       statevector_ptr => stateVectorRefHU
-      huTrialsInitialized = .true.
 
     case ('height')
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
@@ -856,7 +855,9 @@ CONTAINS
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
-      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
+      if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call gvt_setupRefFromTrialFiles('HU')
+      end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
 
@@ -916,7 +917,9 @@ CONTAINS
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
-      if ( .not. huTrialsInitialized ) call gvt_setupRefFromTrialFiles('HU')
+      if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call gvt_setupRefFromTrialFiles('HU')
+      end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
 
