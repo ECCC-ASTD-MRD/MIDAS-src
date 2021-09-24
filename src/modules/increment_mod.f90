@@ -555,7 +555,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_getIncrement
   !--------------------------------------------------------------------------
-  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal,statevectorRef_opt)
+  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal)
     !
     ! :Purpose: Get true analysis increment from control vector.
     !
@@ -565,11 +565,9 @@ CONTAINS
     real(8)          :: incr_cv(:)
     type(struct_gsv) :: statevector_incr
     integer          :: nvadim_mpilocal
-    type(struct_gsv), optional :: statevectorRef_opt
 
     ! compute increment from control vector (multiply by B^1/2)
-    call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr, &
-                    statevectorRef_opt=statevectorRef_opt)
+    call bmat_sqrtB( incr_cv, nvadim_mpilocal, statevector_incr )
 
     ! Compute new diagnotics based on NAMSTATE
     if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then

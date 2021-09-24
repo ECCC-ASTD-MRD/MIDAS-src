@@ -65,7 +65,6 @@ program midas_var
   type(struct_gsv)                :: stateVectorLowResTime
   type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnal
-  type(struct_gsv)      , pointer :: stateVectorRefHU
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
   type(struct_hco)      , pointer :: hco_trl => null()
@@ -219,8 +218,7 @@ program midas_var
       applyLimitOnHU = (  min_limitHuInOuterLoop .and. outerLoopIndex > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
-                                        applyLimitOnHU_opt=applyLimitOnHU, &
-                                        stateVectorOut_opt=stateVectorRefHU )
+                                        applyLimitOnHU_opt=applyLimitOnHU )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -228,8 +226,7 @@ program midas_var
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr, stateVectorRefHU_opt=stateVectorRefHU, &
-                       stateVectorRefHeight_opt=stateVectorUpdateHighRes )
+                       controlVectorIncr, stateVectorRefHeight_opt=stateVectorUpdateHighRes )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
@@ -246,9 +243,8 @@ program midas_var
          dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment with mask if it exists
-    call inc_getIncrement(controlVectorIncr, stateVectorIncr, cvm_nvadim, &
-                          stateVectorRef_opt=stateVectorRefHU)
-    call gsv_readMaskFromFile(stateVectorIncr,'./analysisgrid')
+    call inc_getIncrement( controlVectorIncr, stateVectorIncr, cvm_nvadim )
+    call gsv_readMaskFromFile( stateVectorIncr, './analysisgrid' )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute high-resolution analysis on trial grid
@@ -259,8 +255,8 @@ program midas_var
     ! Impose limits on stateVectorUpdateHighRes only when outerLoopIndex > 1
     if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
-      call qlim_saturationLimit(stateVectorUpdateHighRes)
-      call qlim_rttovLimit(stateVectorUpdateHighRes)
+      call qlim_saturationLimit( stateVectorUpdateHighRes )
+      call qlim_rttovLimit( stateVectorUpdateHighRes )
     end if
 
     ! output the analysis increment

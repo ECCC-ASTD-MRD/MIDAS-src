@@ -64,7 +64,6 @@ module minimization_mod
   type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()
   type(struct_columnData), pointer :: columnAnlInc_ptr         => null()
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr => null()
-  type(struct_gsv)       , pointer :: stateVectorRefHU_ptr     => null()
   type(struct_gsv)       , pointer :: stateVectorRefHeight_ptr => null()
   type(struct_hco)       , pointer :: hco_anl                  => null()
 
@@ -187,7 +186,7 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx, stateVectorRefHU_opt, stateVectorRefHeight_opt )
+                           vazx, stateVectorRefHeight_opt )
     implicit none
 
     ! Arguments:
@@ -196,7 +195,6 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
-    type(struct_gsv), target, optional  :: stateVectorRefHU_opt
     type(struct_gsv), target, optional  :: stateVectorRefHeight_opt
 
     ! Locals:
@@ -209,9 +207,6 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_start(3,'MIN')
 
-    if ( present(stateVectorRefHU_opt) ) then
-      if ( stateVectorRefHU_opt%allocated ) stateVectorRefHU_ptr => stateVectorRefHU_opt
-    end if
     if ( present(stateVectorRefHeight_opt) ) then
       if ( stateVectorRefHeight_opt%allocated ) stateVectorRefHeight_ptr => stateVectorRefHeight_opt
     end if
@@ -596,12 +591,7 @@ CONTAINS
            call gsv_readMaskFromFile(statevector,'./analysisgrid')
          end if
 
-         if ( associated(stateVectorRefHU_ptr) ) then
-           call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
-                stateVectorRef_opt=stateVectorRefHU_ptr)
-         else
-           call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
-         end if
+         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
          ! put in columnAnlInc H_horiz dx
          call tmg_start(30,'OBS_INTERP')
@@ -686,12 +676,7 @@ CONTAINS
          call cvt_transform( columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr, 'PsfcToP_ad')      ! IN
          call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
        else
-         if ( associated(stateVectorRefHU_ptr) ) then
-           call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
-                            stateVectorRef_opt=stateVectorRefHU_ptr)
-         else
-           call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
-         end if
+         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
          !call gsv_deallocate(statevector)
        end if
 
