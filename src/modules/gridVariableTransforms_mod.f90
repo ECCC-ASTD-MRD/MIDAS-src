@@ -569,8 +569,7 @@ CONTAINS
   ! gvt_setupRefFromStateVector
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
-                                          limitHuInOuterLoop_opt, &
-                                          outerLoopIndex_opt, &
+                                          applyLimitOnHU_opt, &
                                           stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
@@ -586,8 +585,7 @@ CONTAINS
     ! Arguments
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
     character(len=*),  intent(in) :: varName
-    logical, intent(in), optional :: limitHuInOuterLoop_opt
-    integer, intent(in), optional :: outerLoopIndex_opt
+    logical, intent(in), optional :: applyLimitOnHU_opt
     type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
@@ -611,9 +609,8 @@ CONTAINS
 
     select case ( trim(varName) )
     case ('HU')
-      if ( .not. ( present(limitHuInOuterLoop_opt) .and. &
-                   present(outerLoopIndex_opt) ) ) then
-        call utl_abort('gvt_setupRefFromStateVector: optional arguments for RefHU missing')
+      if ( .not. present(applyLimitOnHU_opt) ) then
+        call utl_abort('gvt_setupRefFromStateVector: applyLimitOnHU_opt for RefHU missing')
       end if
 
       if ( .not. stateVectorRefHU%allocated ) then
@@ -657,8 +654,8 @@ CONTAINS
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
-      ! Impose limits on stateVectorRefHUTT only when outerLoopIndex > 1
-      if ( limitHuInOuterLoop_opt .and. outerLoopIndex_opt > 1 ) then
+      ! Impose humidity limits on stateVectorRefHUTT
+      if ( applyLimitOnHU_opt ) then
         write(*,*) 'var: impose limits on stateVectorRefHUTT'
         call qlim_saturationLimit(stateVectorRefHUTT)
         call qlim_rttovLimit(stateVectorRefHUTT)

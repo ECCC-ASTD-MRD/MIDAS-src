@@ -75,7 +75,7 @@ program midas_var
   integer :: outerLoopIndex
 
   character(len=4), pointer :: varNames(:)
-  logical :: allocHeightSfc
+  logical :: allocHeightSfc, applyLimitOnHU
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -215,9 +215,10 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
+      applyLimitOnHU = (  min_limitHuInOuterLoop .and. outerLoopIndex > 1 )
+
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
-                                        limitHuInOuterLoop_opt=.true., &
-                                        outerLoopIndex_opt=outerLoopIndex, &
+                                        applyLimitOnHU_opt=applyLimitOnHU, &
                                         stateVectorOut_opt=stateVectorRefHU )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
