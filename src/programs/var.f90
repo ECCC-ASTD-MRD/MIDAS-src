@@ -190,6 +190,7 @@ program midas_var
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call tmg_stop(2)
 
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, min_numOuterLoopIterations
@@ -223,7 +224,6 @@ program midas_var
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
-    call tmg_stop(2)
 
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0

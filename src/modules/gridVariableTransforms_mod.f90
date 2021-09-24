@@ -602,6 +602,12 @@ CONTAINS
       return
     end if
 
+    if ( gsv_containsNonZeroValues(stateVectorRefHU) .and. &
+         trim(varName) == 'HU' ) then
+      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHU
+      return
+    end if
+
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
 
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
