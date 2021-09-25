@@ -55,6 +55,11 @@ module stateToColumn_mod
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
 
+  ! public variables
+  public :: s2c_calcHeightPressIncrOnColumn
+
+  logical :: s2c_calcHeightPressIncrOnColumn
+
   ! private module variables and derived types
 
   type struct_stepProcData
@@ -247,8 +252,7 @@ contains
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   headerIndexBeg, headerIndexEnd, &
                                   timeInterpType, rejectOutsideObs, &
-                                  inputStateVectorType, lastCall_opt, & 
-                                  stateVectorRefHeight_opt )
+                                  inputStateVectorType, lastCall_opt )
     ! :Purpose: Setup all of the information needed to quickly
     !           perform the horizontal interpolation to the observation
     !           locations.
@@ -265,7 +269,6 @@ contains
     character(len=*)           :: timeInterpType
     character(len=*)           :: inputStateVectorType
     logical, optional          :: lastCall_opt
-    type(struct_gsv), target, optional :: stateVectorRefHeight_opt
 
     ! locals
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
@@ -347,6 +350,8 @@ contains
       end if
       if ( mpi_myid == 0 ) write(*, nml = nams2c)
     end if
+
+    s2c_alcHeightPressIncrOnColumn = calcHeightPressIncrOnColumn
 
     doSlantPath = .false.
     SlantTO     = .false.
@@ -522,12 +527,7 @@ contains
         call gsv_deallocate(stateVector_Tiles_allVar_1Step)
 
       else
-        if ( present(stateVectorRefHeight_opt) ) then
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
-                                           stateVectorOut_opt=stateVector_Tiles_ptr) 
-        else
-          stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
-        end if
+        stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
 
         call gsv_allocate( stateVector_Tiles_1Step, 1, &
                            stateVector%hco, stateVector%vco, &
@@ -1103,8 +1103,7 @@ contains
   !---------------------------------------------------------
   ! s2c_tl
   !---------------------------------------------------------
-  subroutine s2c_tl( statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
-                     stateVectorRefHeight_opt )
+  subroutine s2c_tl( statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
     !
     ! :Purpose: Tangent linear version of the horizontal
     !           interpolation, used for the increment (or perturbations).
@@ -1116,12 +1115,10 @@ contains
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: columnAnlInc
     type(struct_columnData)    :: columnTrlOnAnlIncLev
-    type(struct_gsv), optional :: stateVectorRefHeight_opt
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    type(struct_gsv), pointer  :: stateVectorHeight_ptr
     integer :: kIndex, kIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
@@ -1166,35 +1163,15 @@ contains
       ! calculate delP_T/delP_M on the grid
       if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
-        if ( present(stateVectorRefHeight_opt) ) then
-
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
-                                           stateVectorOut_opt=stateVectorHeight_ptr)
-
-          call gvt_transform( statevector,  &                            ! INOUT
-                              'PsfcToP_tl', &                            ! IN
-                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
-        else
-          call gvt_transform( statevector,  &                            ! INOUT
-                              'PsfcToP_tl' )                             ! IN
-        end if
+        call gvt_transform( statevector, &      ! INOUT
+                            'PsfcToP_tl' )      ! IN
       end if
 
       ! calculate del Z_T/Z_M on the grid
       if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        if ( present(stateVectorRefHeight_opt) ) then
-
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
-                                           stateVectorOut_opt=stateVectorHeight_ptr)
-
-          call gvt_transform( statevector,       &                       ! INOUT
-                              'TTHUtoHeight_tl', &                       ! IN
-                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
-        else
-          call gvt_transform( statevector,       &                       ! INOUT
-                              'TTHUtoHeight_tl' )                        ! IN
-        end if
+        call gvt_transform( statevector, &      ! INOUT
+                            'TTHUtoHeight_tl' ) ! IN
       end if
     end if
 
@@ -1215,16 +1192,9 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      if ( present(stateVectorRefHeight_opt) ) then
-        call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                  1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
-                                  inputStateVectorType='tl',                            & 
-                                  stateVectorRefHeight_opt=stateVectorRefHeight_opt )
-      else
-        call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                  1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
-                                  inputStateVectorType='tl' )
-      end if
+      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
+                                1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
+                                inputStateVectorType='tl' )
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1381,8 +1351,7 @@ contains
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
-  subroutine s2c_ad( statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
-                     stateVectorRefHeight_opt )
+  subroutine s2c_ad( statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
     !
     ! :Purpose: Adjoint version of the horizontal interpolation,
     !           used for the cost function gradient with respect to the increment.
@@ -1394,12 +1363,10 @@ contains
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: columnAnlInc
     type(struct_columnData)    :: columnTrlOnAnlIncLev
-    type(struct_gsv), optional :: stateVectorRefHeight_opt
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    type(struct_gsv), pointer  :: stateVectorHeight_ptr
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
@@ -1467,16 +1434,9 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      if ( present(stateVectorRefHeight_opt) ) then
-        call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                  1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
-                                  inputStateVectorType='ad',                            &
-                                  stateVectorRefHeight_opt=stateVectorRefHeight_opt )
-      else
-        call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                  1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
-                                  inputStateVectorType='ad' )
-      end if
+      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
+                                1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
+                                inputStateVectorType='ad' )
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1609,35 +1569,15 @@ contains
       ! Adjoint of calculate del Z_T/Z_M on the grid
       if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
            statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        if ( present(stateVectorRefHeight_opt) ) then
-
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
-                                           stateVectorOut_opt=stateVectorHeight_ptr)
-
-          call gvt_transform( statevector,       &                       ! INOUT
-                              'TTHUtoHeight_ad', &                       ! IN
-                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
-        else
-          call gvt_transform( statevector,       &                       ! INOUT
-                              'TTHUtoHeight_ad')                         ! IN
-        end if
+        call gvt_transform( statevector,  &    ! INOUT
+                            'TTHUtoHeight_ad') ! IN
       end if
 
       ! Adjoint of calculate delP_T/delP_M on the grid
       if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
            statevector%varExistList(vnl_varListIndex('P_M')) ) then
-        if ( present(stateVectorRefHeight_opt) ) then
-
-          call gvt_setupRefFromStateVector(stateVectorRefHeight_opt, 'height', &
-                                           stateVectorOut_opt=stateVectorHeight_ptr)
-
-          call gvt_transform( statevector,  &                            ! INOUT
-                              'PsfcToP_ad', &                            ! IN
-                              stateVectorRef_opt=stateVectorHeight_ptr ) ! IN
-        else
-          call gvt_transform( statevector,  &                            ! INOUT
-                              'PsfcToP_ad')                              ! IN
-        end if
+        call gvt_transform( statevector,  &    ! INOUT
+                            'PsfcToP_ad')      ! IN
       end if
     end if
 
@@ -1730,15 +1670,15 @@ contains
     ! calculate P_T/P_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call gvt_transform( stateVector,  &                       ! INOUT
-                          'PsfcToP_nl', &                       ! IN
+      call gvt_transform( stateVector,  &     ! INOUT
+                          'PsfcToP_nl', &     ! IN
                           initializeStateVectorRefHeight_opt=initializeStateVectorRefHeight )
     end if
 
     ! calculate Z_T/Z_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
          statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call gvt_transform( stateVector, & ! INOUT
+      call gvt_transform( stateVector, &     ! INOUT
                           'TTHUtoHeight_nl') ! IN
     end if
     call tmg_stop(171)

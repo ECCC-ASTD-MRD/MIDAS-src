@@ -64,7 +64,6 @@ module minimization_mod
   type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()
   type(struct_columnData), pointer :: columnAnlInc_ptr         => null()
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr => null()
-  type(struct_gsv)       , pointer :: stateVectorRefHeight_ptr => null()
   type(struct_hco)       , pointer :: hco_anl                  => null()
 
   logical             :: initialized = .false.
@@ -186,7 +185,7 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx, stateVectorRefHeight_opt )
+                           vazx )
     implicit none
 
     ! Arguments:
@@ -195,7 +194,6 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
-    type(struct_gsv), target, optional  :: stateVectorRefHeight_opt
 
     ! Locals:
     type(struct_columnData)   :: columnAnlInc
@@ -206,10 +204,6 @@ CONTAINS
     write(*,*) '--------------------------------'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_start(3,'MIN')
-
-    if ( present(stateVectorRefHeight_opt) ) then
-      if ( stateVectorRefHeight_opt%allocated ) stateVectorRefHeight_ptr => stateVectorRefHeight_opt
-    end if
 
     initializeForOuterLoop = .true.
     outerLoopIndex = outerLoopIndex_in
@@ -595,12 +589,7 @@ CONTAINS
 
          ! put in columnAnlInc H_horiz dx
          call tmg_start(30,'OBS_INTERP')
-         if ( associated(stateVectorRefHeight_ptr) ) then
-           call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
-                       stateVectorRefHeight_opt=stateVectorRefHeight_ptr)
-         else
-           call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
-         end if
+         call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
          call tmg_stop(30)
        end if
 
@@ -660,12 +649,7 @@ CONTAINS
          ! no interpolation needed for 1Dvar case
        else
          call tmg_start(31,'OBS_INTERPAD')
-         if ( associated(stateVectorRefHeight_ptr) ) then
-           call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
-                       stateVectorRefHeight_opt=stateVectorRefHeight_ptr)
-         else
-           call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
-         end if
+         call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
          call tmg_stop(31)
        end if
 

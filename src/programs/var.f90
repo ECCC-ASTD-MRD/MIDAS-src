@@ -42,6 +42,7 @@ program midas_var
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
+  use statetocolumn_mod
   use biasCorrectionSat_mod
 
   implicit none
@@ -224,10 +225,22 @@ program midas_var
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
+    ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to 
+    ! height/pressure increments.
+    if ( .not. s2c_calcHeightPressIncrOnColumn ) then
+      if ( (gsv_varExist(stateVectorUpdateHighRes,'P_T') .and. &
+            gsv_varExist(stateVectorUpdateHighRes,'P_M')) .or. &
+           (gsv_varExist(stateVectorUpdateHighRes,'Z_T') .and. &
+            gsv_varExist(stateVectorUpdateHighRes,'Z_M')) ) then
+
+        call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height' )
+      end if
+    end if
+
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr, stateVectorRefHeight_opt=stateVectorUpdateHighRes )
+                       controlVectorIncr )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
