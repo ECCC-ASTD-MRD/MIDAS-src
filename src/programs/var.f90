@@ -218,7 +218,8 @@ program midas_var
       applyLimitOnHU = (  min_limitHuInOuterLoop .and. outerLoopIndex > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
-                                        applyLimitOnHU_opt=applyLimitOnHU )
+                                        applyLimitOnHU_opt=applyLimitOnHU, &
+                                        initializeStateVectorRefHU_opt=.true. )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if

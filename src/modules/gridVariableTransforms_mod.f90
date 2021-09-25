@@ -570,6 +570,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
                                           applyLimitOnHU_opt, &
+                                          initializeStateVectorRefHU_opt, &
                                           stateVectorOut_opt )
     !
     !:Purpose: computing the height stateVector on the analysis grid at each 
@@ -586,6 +587,7 @@ CONTAINS
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
     character(len=*),  intent(in) :: varName
     logical, intent(in), optional :: applyLimitOnHU_opt
+    logical, intent(in), optional :: initializeStateVectorRefHU_opt
     type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
@@ -602,6 +604,11 @@ CONTAINS
       return
     end if
 
+    if ( present(initializeStateVectorRefHU_opt) ) then
+      if ( initializeStateVectorRefHU_opt .and. stateVectorRefHU%allocated ) then
+        call gsv_zero(stateVectorRefHU)
+      end if
+    end if
     if ( gsv_containsNonZeroValues(stateVectorRefHU) .and. &
          trim(varName) == 'HU' ) then
       if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHU
@@ -624,8 +631,6 @@ CONTAINS
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=(/'HU','P0'/) )
-      else
-        call gsv_zero(stateVectorRefHU)
       end if
 
       allocHeightSfc = ( vco_trl%Vcode /= 0 )
