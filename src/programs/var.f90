@@ -233,7 +233,10 @@ program midas_var
            (gsv_varExist(stateVectorUpdateHighRes,'Z_T') .and. &
             gsv_varExist(stateVectorUpdateHighRes,'Z_M')) ) then
 
-        call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height' )
+        call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height', &
+                                          initializeStateVectorRefHeight_opt=.true. )
+
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       end if
     end if
 

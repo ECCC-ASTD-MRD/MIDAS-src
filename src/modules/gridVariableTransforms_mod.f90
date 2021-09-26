@@ -570,16 +570,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
                                           applyLimitOnHU_opt, &
+                                          initializeStateVectorRefHeight_opt, &
                                           initializeStateVectorRefHU_opt, &
                                           stateVectorOut_opt )
     !
-    !:Purpose: computing the height stateVector on the analysis grid at each 
-    !          outer-loop iteration, storing the results in stateVectorOut_opt.
-    !          The calculation is skipped if stateVectorRefHeight is 
-    !          initialized (gsv_containsNonZeroValue(stateVectorRefHeight)=.true.).
+    !:Purpose: computing the reference stateVector on the analysis grid at each 
+    !          outer-loop iterationt. The calculation is skipped if stateVectorRef* is 
+    !          initialized (gsv_containsNonZeroValue(stateVectorRef*)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
     !          statevector used for reading the trials and should contain 
-    !          TT/HU/P0 for 3D height computation.
+    !          TT/HU/P0 if stateVectorRefHeight is asked for.
     !
     implicit none
 
@@ -587,6 +587,7 @@ CONTAINS
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
     character(len=*),  intent(in) :: varName
     logical, intent(in), optional :: applyLimitOnHU_opt
+    logical, intent(in), optional :: initializeStateVectorRefHeight_opt
     logical, intent(in), optional :: initializeStateVectorRefHU_opt
     type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
@@ -598,6 +599,11 @@ CONTAINS
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
 
+    if ( present(initializeStateVectorRefHeight_opt) ) then
+      if ( initializeStateVectorRefHeight_opt ) then
+        if ( stateVectorRefHeight%allocated ) call gsv_zero(stateVectorRefHeight)
+      end if
+    end if
     if ( gsv_containsNonZeroValues(stateVectorRefHeight) .and. &
          trim(varName) == 'height' ) then
       if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
@@ -605,8 +611,8 @@ CONTAINS
     end if
 
     if ( present(initializeStateVectorRefHU_opt) ) then
-      if ( initializeStateVectorRefHU_opt .and. stateVectorRefHU%allocated ) then
-        call gsv_zero(stateVectorRefHU)
+      if ( initializeStateVectorRefHU_opt ) then
+        if ( stateVectorRefHU%allocated ) call gsv_zero(stateVectorRefHU)
       end if
     end if
     if ( gsv_containsNonZeroValues(stateVectorRefHU) .and. &
