@@ -42,7 +42,6 @@ program midas_var
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
-  use statetocolumn_mod
   use biasCorrectionSat_mod
 
   implicit none
@@ -196,10 +195,22 @@ program midas_var
   outer_loop: do outerLoopIndex = 1, min_numOuterLoopIterations
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
+    ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to
+    ! height/pressure increments.
+    if ( (gsv_varExist(stateVectorUpdateHighRes,'P_T') .and. &
+          gsv_varExist(stateVectorUpdateHighRes,'P_M')) .or. &
+         (gsv_varExist(stateVectorUpdateHighRes,'Z_T') .and. &
+          gsv_varExist(stateVectorUpdateHighRes,'Z_M')) ) then
+
+      call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height', &
+                                        initializeStateVectorRefHeight_opt=.true. )
+
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorUpdateHighRes, &
-                                   initializeStateVectorRefHeight_opt=.true. )
+                                   stateVectorUpdateHighRes )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -223,21 +234,6 @@ program midas_var
                                         initializeStateVectorRefHU_opt=.true. )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
-
-    ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to 
-    ! height/pressure increments.
-    if ( .not. s2c_calcHeightPressIncrOnColumn ) then
-      if ( (gsv_varExist(stateVectorUpdateHighRes,'P_T') .and. &
-            gsv_varExist(stateVectorUpdateHighRes,'P_M')) .or. &
-           (gsv_varExist(stateVectorUpdateHighRes,'Z_T') .and. &
-            gsv_varExist(stateVectorUpdateHighRes,'Z_M')) ) then
-
-        call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height', &
-                                          initializeStateVectorRefHeight_opt=.true. )
-
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      end if
     end if
 
     ! Do minimization of cost function

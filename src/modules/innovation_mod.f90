@@ -196,8 +196,7 @@ contains
   ! inn_setupColumnsOnTrlLev
   !--------------------------------------------------------------------------
   subroutine inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                       stateVectorUpdateHighRes, &
-                                       initializeStateVectorRefHeight_opt )
+                                       stateVectorUpdateHighRes )
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     !
@@ -208,13 +207,11 @@ contains
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
     type(struct_gsv)           :: stateVectorUpdateHighRes
-    logical, optional          :: initializeStateVectorRefHeight_opt
 
     ! locals
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfo
-    logical                   :: initializeStateVectorRefHeight
     real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
@@ -245,12 +242,6 @@ contains
 
     call tmg_start(10,'SETUPCOLUMN')
 
-    if ( present(initializeStateVectorRefHeight_opt) ) then
-      initializeStateVectorRefHeight = initializeStateVectorRefHeight_opt
-    else
-      initializeStateVectorRefHeight = .false.
-    end if
-
     nullify(vco_trl)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
@@ -266,8 +257,7 @@ contains
     call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
-                 dealloc_opt=deallocInterpInfo, &
-                 initializeStateVectorRefHeight_opt=initializeStateVectorRefHeight )
+                 dealloc_opt=deallocInterpInfo )
 
     if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'

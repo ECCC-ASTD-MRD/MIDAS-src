@@ -55,11 +55,6 @@ module stateToColumn_mod
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
 
-  ! public variables
-  public :: s2c_calcHeightPressIncrOnColumn
-
-  logical :: s2c_calcHeightPressIncrOnColumn
-
   ! private module variables and derived types
 
   type struct_stepProcData
@@ -350,8 +345,6 @@ contains
       end if
       if ( mpi_myid == 0 ) write(*, nml = nams2c)
     end if
-
-    s2c_alcHeightPressIncrOnColumn = calcHeightPressIncrOnColumn
 
     doSlantPath = .false.
     SlantTO     = .false.
@@ -1592,8 +1585,7 @@ contains
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, hco_core, &
                      timeInterpType, varName_opt, &
-                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt, &
-                     initializeStateVectorRefHeight_opt )
+                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
     !           the innovation vector).
@@ -1610,7 +1602,6 @@ contains
     integer, optional          :: numObsBatches_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
-    logical, optional          :: initializeStateVectorRefHeight_opt
 
     ! locals
     type(struct_gsv) :: stateVector_VarsLevs 
@@ -1629,7 +1620,6 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: dealloc, moveObsAtPole, rejectOutsideObs
-    logical              :: initializeStateVectorRefHeight
     character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
@@ -1657,12 +1647,6 @@ contains
       moveObsAtPole = .false.
     end if
 
-    if ( present(initializeStateVectorRefHeight_opt) ) then
-      initializeStateVectorRefHeight = initializeStateVectorRefHeight_opt
-    else
-      initializeStateVectorRefHeight = .false.
-    end if
-
     ! check the column and statevector have same nk/varNameList
     call checkColumnStatevectorMatch(column,statevector)
 
@@ -1671,8 +1655,7 @@ contains
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
       call gvt_transform( stateVector,  &     ! INOUT
-                          'PsfcToP_nl', &     ! IN
-                          initializeStateVectorRefHeight_opt=initializeStateVectorRefHeight )
+                          'PsfcToP_nl' )      ! IN
     end if
 
     ! calculate Z_T/Z_M on the grid
