@@ -595,21 +595,11 @@ CONTAINS
         if ( stateVectorRefHeight%allocated ) call gsv_zero(stateVectorRefHeight)
       end if
     end if
-    if ( gsv_containsNonZeroValues(stateVectorRefHeight) .and. &
-         trim(varName) == 'height' ) then
-      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight 
-      return
-    end if
 
     if ( present(initializeStateVectorRefHU_opt) ) then
       if ( initializeStateVectorRefHU_opt ) then
         if ( stateVectorRefHU%allocated ) call gsv_zero(stateVectorRefHU)
       end if
-    end if
-    if ( gsv_containsNonZeroValues(stateVectorRefHU) .and. &
-         trim(varName) == 'HU' ) then
-      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHU
-      return
     end if
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
