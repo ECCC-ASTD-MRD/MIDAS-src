@@ -214,10 +214,6 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
-    if ( outerLoopIndex > 1 ) then
-      call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-      call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-    end if
     call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
