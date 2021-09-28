@@ -46,7 +46,7 @@ module gridVariableTransforms_mod
 
   ! public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
-  public :: gvt_setupRefFromStateVector
+  public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 
   logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
   type(struct_hco), pointer :: hco_anl => null()

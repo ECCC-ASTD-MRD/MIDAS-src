@@ -253,6 +253,8 @@ contains
     !
    
     call gvt_setup(hco_anl,hco_core,vco_anl)
+    call gvt_setupRefFromTrialFiles('HU')
+    call gvt_setupRefFromTrialFiles('height')
     
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

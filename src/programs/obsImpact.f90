@@ -211,6 +211,8 @@ program midas_obsimpact
   ! - Initialize the gridded variable transform module
   !
   call gvt_setup(hco_anl,hco_core,vco_anl)
+  call gvt_setupRefFromTrialFiles('HU')
+  call gvt_setupRefFromTrialFiles('height')
 
   !
   !- 2. Do the actual job
