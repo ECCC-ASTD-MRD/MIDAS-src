@@ -540,12 +540,14 @@ CONTAINS
     select case ( trim(varName) )
     case ('HU')
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call utl_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHU transform at higher level')
         call gvt_setupRefFromTrialFiles('HU')
       end if
       statevector_ptr => stateVectorRefHU
 
     case ('height')
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
+        call utl_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromTrialFiles('height')
       end if
       statevector_ptr => stateVectorRefHeight
@@ -832,6 +834,7 @@ CONTAINS
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call utl_abort('LQtoHU_tlm: do trials to stateVectorRefHU transform at higher level')
         call gvt_setupRefFromTrialFiles('HU')
       end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
@@ -894,6 +897,7 @@ CONTAINS
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
+        call utl_abort('HUtoLQ_tlm: do trials to stateVectorRefHU transform at higher level')
         call gvt_setupRefFromTrialFiles('HU')
       end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
@@ -1331,8 +1335,10 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
+        call utl_abort('TTHUtoHeight_tl: do stateVectorRef to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
+        call utl_abort('TTHUtoHeight_tl: do trials to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromTrialFiles('height')
       end if
     end if
@@ -1352,8 +1358,10 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
+        call utl_abort('TTHUtoHeight_ad: do stateVectorRef to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
+        call utl_abort('TTHUtoHeight_ad: do trials to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromTrialFiles('height')
       end if
     end if
@@ -1389,8 +1397,10 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
+        call utl_abort('PsfcToP_tl: do stateVectorRef to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
+        call utl_abort('PsfcToP_tl: do trials to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromTrialFiles('height')
       end if
     end if
@@ -1410,8 +1420,10 @@ CONTAINS
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       if ( present(stateVectorRef_opt) ) then
+        call utl_abort('PsfcToP_ad: do stateVectorRef to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromStateVector(stateVectorRef_opt, 'height')
       else
+        call utl_abort('PsfcToP_ad: do trials to stateVectorRefHeight transform at higher level')
         call gvt_setupRefFromTrialFiles('height')
       end if
     end if
@@ -2234,7 +2246,10 @@ CONTAINS
        call gsv_getField(stateVectorRef_opt,var_trial,trim(varName))
     else
       varIndex = vnl_varListIndex(varName)
-      if ( .not. varKindCHTrialsInitialized(varIndex) ) call gvt_setupRefFromTrialFiles(trim(varName),varKind_opt='CH')
+      if ( .not. varKindCHTrialsInitialized(varIndex) ) then
+        call utl_abort('expCH_tlm: do trials to stateVectorRefChem transform at higher level')
+        call gvt_setupRefFromTrialFiles(trim(varName),varKind_opt='CH')
+      end if
       call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,trim(varName))
     end if
 
