@@ -46,16 +46,16 @@ program midas_sstBias
   type(struct_columnData), target :: trlColumnOnAnlLev
   type(struct_hco), pointer       :: hco_anl => null()
   type(struct_vco), pointer       :: vco_anl => null()
-  real(8)                         :: horizontalSearchRadius ! horizontal search radius, in km, around input grid points
-                                                            ! where to search satellite observations
+  real(8)                         :: searchRadius            ! horizontal search radius, in km, for obs gridding
   character(len=48),parameter     :: obsMpiStrategy = 'LIKESPLITFILES', &
                                      varMode        = 'analysis'
+  real(4)                         :: iceFractionThreshold    ! consider no ice condition below this threshold
+  real(4)                         :: maxBias                 ! max acceptable difference (insitu - satellite) 
+  integer                         :: numberSensors           ! number of sensors to treat
+  integer                         :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
+  character(len=10)               :: sensorList( 10 )        ! list of sensors
   integer                         :: dateStamp
-  integer                         :: numberDays             ! number of days to perform temporal averaging of O and A
-  real(4)                         :: iceFractionThreshold   ! consider no ice condition below this threshold 
-  integer                         :: numberSatellites       ! number of satellites to treat
-  character(len=10)               :: satelliteList( 10 )    ! list of satellite names
-
+  
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
   call ver_printNameAndVersion('SSTbiasEstimation','SST Bias Estimation')
@@ -76,8 +76,8 @@ program midas_sstBias
   call SSTbiasEstimation_setup( 'VAR', dateStamp ) ! obsColumnMode
   call tmg_stop(2)
   
-  call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, numberDays, iceFractionThreshold, &
-                         horizontalSearchRadius, numberSatellites, satelliteList, dateStamp )
+  call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
+                         numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -107,8 +107,9 @@ program midas_sstBias
     !Locals:	
     type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: myName = 'SSTbiasEstimation_setup'
-    integer                     :: satelliteIndex
-    namelist /namSSTbiasEstimate/ numberDays, horizontalSearchRadius, iceFractionThreshold, numberSatellites, satelliteList
+    character(len=*), parameter :: gridFile = './analysisgrid'
+    integer                     :: sensorIndex
+    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberSensors, numberPointsBG, sensorList
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -118,7 +119,7 @@ program midas_sstBias
     !
     !- Initialize the Temporal grid
     !
-    call tim_setup
+    call tim_setup( gridFile )
 
     !     
     !- Initialize observation file names and set datestamp
@@ -127,12 +128,12 @@ program midas_sstBias
 
 
     ! Setting default namelist variable values
-    numberDays             = 1  
-    horizontalSearchRadius = 100.  ! horizontal search radius, in km, around input grid points
-                                   ! where to search satellite observations
-    iceFractionThreshold   = 0.05  ! if sea-ice fraction is smaller, open water is considered
-    numberSatellites = 0           ! number of satellites to treat
-    satelliteList(:) = ''
+    searchRadius = 10.            
+    maxBias = 1.                  
+    iceFractionThreshold   = 0.05 
+    numberSensors = 0             
+    numberPointsBG = 0            
+    sensorList(:) = ''
     
     ! Read the namelist
     nulnam = 0
@@ -142,10 +143,10 @@ program midas_sstBias
     if ( mpi_myid == 0 ) write(*, nml = namSSTbiasEstimate )
     ierr = fclos( nulnam )
 
-    if ( numberSatellites == 0) call utl_abort( myName//': Number of satellites to treat is not defined!!!')
+    if ( numberSensors == 0) call utl_abort( myName//': Number of satellites to treat is not defined!!!')
     write(*,*) myName//': satellites to treat: '
-    do satelliteIndex = 1, numberSatellites
-      write(*,*) myName//': satellite index: ', satelliteIndex, ', satellite: ', satelliteList( satelliteIndex )
+    do sensorIndex = 1, numberSensors
+      write(*,*) myName//': sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
     end do
        
     !
@@ -164,14 +165,14 @@ program midas_sstBias
     !
     if(mpi_myid == 0) write(*,*)''
     if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
-    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANCHOR' ) ! IN
+    call hco_SetupFromFile(hco_anl, gridFile, 'GRID' ) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
       if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
-      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
@@ -179,8 +180,8 @@ program midas_sstBias
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    call vco_SetupFromFile( vco_anl,        & ! OUT
-                            './analysisgrid') ! IN
+    call vco_SetupFromFile( vco_anl, & ! OUT
+                            gridFile ) ! IN
 
     call col_setVco(trlColumnOnAnlLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
