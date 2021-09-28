@@ -1,6 +1,6 @@
 # Machine stuff
 FRONTEND=eccc-ppp3
-BACKEND=daley
+BACKEND=banting
 
 REFERENCE_MACHINE=eccc-ppp4
 REFERENCE_UPDATE_MACHINE=eccc-ppp4
