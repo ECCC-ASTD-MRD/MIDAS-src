@@ -560,10 +560,7 @@ CONTAINS
   ! gvt_setupRefFromStateVector
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
-                                          applyLimitOnHU_opt, &
-                                          initializeStateVectorRefHeight_opt, &
-                                          initializeStateVectorRefHU_opt, &
-                                          stateVectorOut_opt )
+                                          applyLimitOnHU_opt )
     !
     !:Purpose: computing the reference stateVector on the analysis grid at each 
     !          outer-loop iterationt. The calculation is skipped if stateVectorRef* is 
@@ -578,9 +575,6 @@ CONTAINS
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
     character(len=*),  intent(in) :: varName
     logical, intent(in), optional :: applyLimitOnHU_opt
-    logical, intent(in), optional :: initializeStateVectorRefHeight_opt
-    logical, intent(in), optional :: initializeStateVectorRefHU_opt
-    type(struct_gsv), intent(out), pointer, optional :: stateVectorOut_opt
 
     ! Locals
     type(struct_gsv)         :: stateVectorLowResTime
@@ -589,18 +583,6 @@ CONTAINS
 
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
-
-    if ( present(initializeStateVectorRefHeight_opt) ) then
-      if ( initializeStateVectorRefHeight_opt ) then
-        if ( stateVectorRefHeight%allocated ) call gsv_zero(stateVectorRefHeight)
-      end if
-    end if
-
-    if ( present(initializeStateVectorRefHU_opt) ) then
-      if ( initializeStateVectorRefHU_opt ) then
-        if ( stateVectorRefHU%allocated ) call gsv_zero(stateVectorRefHU)
-      end if
-    end if
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
 
@@ -618,6 +600,8 @@ CONTAINS
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=(/'HU','P0'/) )
+      else
+        call gsv_zero( stateVectorRefHU )
       end if
 
       allocHeightSfc = ( vco_trl%Vcode /= 0 )
@@ -663,8 +647,6 @@ CONTAINS
                      allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
       call gsv_deallocate(stateVectorRefHUTT)
 
-      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHU
-
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
         call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
@@ -702,7 +684,6 @@ CONTAINS
       call PsfcToP_nl( stateVectorRefHeight )
       call tt2phi( stateVectorRefHeight )
 
-      if ( present(stateVectorOut_opt) ) stateVectorOut_opt => stateVectorRefHeight
     end select
 
     if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
