@@ -365,7 +365,7 @@ CONTAINS
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_tl, the option statevectorOut_opt is not yet available')
       end if
-      call TTHUtoHeight_tl(stateVector, stateVectorRef_opt)
+      call TTHUtoHeight_tl(stateVector)
 
     case ('TTHUtoHeight_ad')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
@@ -386,7 +386,7 @@ CONTAINS
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_ad, the option statevectorOut_opt is not yet available')
       end if
-      call TTHUtoHeight_ad(stateVector, stateVectorRef_opt)
+      call TTHUtoHeight_ad(stateVector)
 
     case ('PsfcToP_nl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -416,7 +416,7 @@ CONTAINS
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for PsfcToP_tl, the option statevectorOut_opt is not yet available')
       end if
-      call PsfcToP_tl(stateVector, stateVectorRef_opt)
+      call PsfcToP_tl(stateVector)
 
     case ('PsfcToP_ad')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -431,7 +431,7 @@ CONTAINS
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for PsfcToP_ad, the option statevectorOut_opt is not yet available')
       end if
-      call PsfcToP_ad(stateVector, stateVectorRef_opt)
+      call PsfcToP_ad(stateVector)
 
     case ('expCH_tlm')
       if ( .not. gsv_varKindExist('CH')  ) then
@@ -1323,18 +1323,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_tl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(stateVector, stateVectorRef_opt)
+  subroutine TTHUtoHeight_tl(stateVector)
     implicit none
 
     type(struct_gsv)           :: stateVector
-    type(struct_gsv), optional :: stateVectorRef_opt
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      if ( present(stateVectorRef_opt) ) then
-        call utl_abort('TTHUtoHeight_tl: do stateVectorRef to stateVectorRefHeight transform at higher level')
-      else
-        call utl_abort('TTHUtoHeight_tl: do trials to stateVectorRefHeight transform at higher level')
-      end if
+      call utl_abort('TTHUtoHeight_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
     call tt2phi_tl(stateVector, stateVectorRefHeight)
@@ -1344,18 +1339,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! TTHUtoHeight_ad
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(stateVector, stateVectorRef_opt)
+  subroutine TTHUtoHeight_ad(stateVector)
     implicit none
 
     type(struct_gsv)           :: stateVector
-    type(struct_gsv), optional :: stateVectorRef_opt
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      if ( present(stateVectorRef_opt) ) then
-        call utl_abort('TTHUtoHeight_ad: do stateVectorRef to stateVectorRefHeight transform at higher level')
-      else
-        call utl_abort('TTHUtoHeight_ad: do trials to stateVectorRefHeight transform at higher level')
-      end if
+      call utl_abort('TTHUtoHeight_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
     call tt2phi_ad(stateVector, stateVectorRefHeight)
@@ -1381,18 +1371,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! PsfcToP_tl
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(stateVector, stateVectorRef_opt)
+  subroutine PsfcToP_tl(stateVector)
     implicit none
 
     type(struct_gsv)           :: stateVector
-    type(struct_gsv), optional :: stateVectorRef_opt
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      if ( present(stateVectorRef_opt) ) then
-        call utl_abort('PsfcToP_tl: do stateVectorRef to stateVectorRefHeight transform at higher level')
-      else
-        call utl_abort('PsfcToP_tl: do trials to stateVectorRefHeight transform at higher level')
-      end if
+      call utl_abort('PsfcToP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
     call calcpressure_tl(stateVector, stateVectorRefHeight)
@@ -1402,18 +1387,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! PsfcToP_ad
   !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(stateVector, stateVectorRef_opt)
+  subroutine PsfcToP_ad(stateVector)
     implicit none
 
     type(struct_gsv)           :: stateVector
-    type(struct_gsv), optional :: stateVectorRef_opt
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      if ( present(stateVectorRef_opt) ) then
-        call utl_abort('PsfcToP_ad: do stateVectorRef to stateVectorRefHeight transform at higher level')
-      else
-        call utl_abort('PsfcToP_ad: do trials to stateVectorRefHeight transform at higher level')
-      end if
+      call utl_abort('PsfcToP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
     call calcpressure_ad(stateVector, stateVectorRefHeight)
