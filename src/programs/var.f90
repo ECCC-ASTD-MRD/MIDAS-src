@@ -259,8 +259,11 @@ program midas_var
 
     ! Do minimization of cost function
     controlVectorIncr(:) = 0.0d0
+    deallocHessian = ( numOuterLoopIterations == 1 )
+    isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr )
+                       controlVectorIncr, deallocHessian_opt=deallocHessian, &
+                       isMinimizationFinalCall_opt=isMinimizationFinalCall )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations

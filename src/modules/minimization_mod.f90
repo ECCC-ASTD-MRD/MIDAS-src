@@ -56,8 +56,8 @@ module minimization_mod
   private
 
   ! public variables
-  public              :: min_niter, min_nsim, min_numOuterLoopIterations
-  public              :: min_limitHuInOuterLoop
+  public              :: min_niter, min_nsim
+
   ! public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
@@ -71,8 +71,6 @@ module minimization_mod
   integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
-  integer             :: min_numOuterLoopIterations
-  logical             :: min_limitHuInOuterLoop
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
@@ -89,14 +87,14 @@ module minimization_mod
   integer :: outerLoopIndex
   logical :: llvazx
   logical :: initializeForOuterLoop
+  logical :: deallocHessian
+  logical :: isMinimizationFinalCall
 
   ! namelist variables
   integer,parameter   :: maxNumLevels = 200
   real(8) :: REPSG, rdf1fac
   integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
   integer :: numAnalyses
-  integer :: numOuterLoopIterations
-  logical :: limitHuInOuterLoop
   logical :: lxbar, lwrthess, lgrtest, lvazx
   logical :: lvarqc, writeAnalysis
   logical :: oneDVarMode
@@ -108,7 +106,6 @@ module minimization_mod
   NAMELIST /NAMMIN/ REPSG, rdf1fac
   NAMELIST /NAMMIN/ LVARQC, NWOQCV
   NAMELIST /NAMMIN/ numAnalyses, ensPathName
-  NAMELIST /NAMMIN/ numOuterLoopIterations, limitHuInOuterLoop
 
 CONTAINS
 
@@ -144,8 +141,6 @@ CONTAINS
     ! set default values for namelist variables
     nvamaj = 6
     nitermax = 0
-    numOuterLoopIterations = 1
-    limitHuInOuterLoop = .false.
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
@@ -166,9 +161,6 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    min_numOuterLoopIterations = numOuterLoopIterations 
-    min_limitHuInOuterLoop = limitHuInOuterLoop
-
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
@@ -185,7 +177,8 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx )
+                           vazx, deallocHessian_opt, &
+                           isMinimizationFinalCall_opt )
     implicit none
 
     ! Arguments:
@@ -194,10 +187,12 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
+    logical,                   optional :: deallocHessian_opt
+    logical,                   optional :: isMinimizationFinalCall_opt
 
     ! Locals:
-    type(struct_columnData)   :: columnAnlInc
-    integer :: get_max_rss
+    type(struct_columnData) :: columnAnlInc
+    integer                 :: get_max_rss
 
     write(*,*) '--------------------------------'
     write(*,*) '--Starting subroutine minimize--'
@@ -207,6 +202,17 @@ CONTAINS
 
     initializeForOuterLoop = .true.
     outerLoopIndex = outerLoopIndex_in
+
+    if ( present(deallocHessian_opt) ) then
+      deallocHessian = deallocHessian_opt
+    else
+      deallocHessian = .true.
+    end if
+    if ( present(isMinimizationFinalCall_opt) ) then
+      isMinimizationFinalCall = isMinimizationFinalCall_opt
+    else
+      isMinimizationFinalCall = .true.
+    end if
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
@@ -457,7 +463,7 @@ CONTAINS
         min_niter = itertot
 
         ! Test the gradient at the final point
-        if ( lgrtest .and. outerLoopIndex == numOuterLoopIterations ) then
+        if ( lgrtest .and. isMinimizationFinalCall ) then
           WRITE(*,FMT=9400)
  9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
           call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
@@ -484,7 +490,7 @@ CONTAINS
 
       ! deallocate the gradient
       deallocate(vazg)
-      if ( numOuterLoopIterations == 1 .and. .not. lwrthess ) deallocate(vatra)
+      if ( deallocHessian .and. .not. lwrthess ) deallocate(vatra)
 
   end subroutine quasiNewtonMinimization
 
