@@ -47,8 +47,8 @@ program midas_var
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStamp
-  integer :: get_max_rss
+  integer :: ierr, dateStamp, nulnam
+  integer :: get_max_rss, fclos, fnom
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -75,6 +75,12 @@ program midas_var
 
   character(len=4), pointer :: varNames(:)
   logical :: allocHeightSfc, applyLimitOnHU
+  logical :: deallocHessian, isMinimizationFinalCall
+
+  ! namelist variables
+  integer :: numOuterLoopIterations
+  logical :: limitHuInOuterLoop
+  NAMELIST /NAMVAR/ numOuterLoopIterations, limitHuInOuterLoop
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -99,6 +105,27 @@ program midas_var
 
   ! Do initial set up
   call tmg_start(2,'PREMIN')
+
+  ! Set/Read values for the namelist NAMVAR
+  ! Setting default namelist variable values
+  numOuterLoopIterations = 1
+  limitHuInOuterLoop = .false.
+
+  if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'midas-var: namvar is missing in the namelist.'
+      write(*,*) '           The default values will be taken.'
+    end if
+
+  else
+    ! read in the namelist NAMVAR
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namvar, iostat=ierr)
+    if( ierr /= 0) call utl_abort('midas-var: Error reading namelist')
+    ierr = fclos(nulnam)
+  end if
+  if ( mpi_myid == 0 ) write(*,nml=namvar)
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
@@ -192,7 +219,7 @@ program midas_var
   call tmg_stop(2)
 
   ! Enter outer-loop
-  outer_loop: do outerLoopIndex = 1, min_numOuterLoopIterations
+  outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
     ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to
@@ -222,7 +249,7 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      applyLimitOnHU = (  min_limitHuInOuterLoop .and. outerLoopIndex > 1 )
+      applyLimitOnHU = ( limitHuInOuterLoop .and. outerLoopIndex > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
@@ -241,7 +268,7 @@ program midas_var
 
     ! Compute satellite bias correction increment and write to file on last outer-loop 
     ! iteration
-    if ( outerLoopIndex == min_numOuterLoopIterations ) then
+    if ( outerLoopIndex == numOuterLoopIterations ) then
       call bcs_writebias(controlVectorIncr)
     end if
 
@@ -260,7 +287,7 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Impose limits on stateVectorUpdateHighRes only when outerLoopIndex > 1
-    if ( min_limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
+    if ( limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
       call qlim_saturationLimit( stateVectorUpdateHighRes )
       call qlim_rttovLimit( stateVectorUpdateHighRes )
@@ -268,7 +295,7 @@ program midas_var
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
-    call inc_writeIncrement( outerLoopIndex, min_numOuterLoopIterations, stateVectorIncr ) ! IN
+    call inc_writeIncrement( outerLoopIndex, numOuterLoopIterations, stateVectorIncr ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
