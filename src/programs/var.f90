@@ -71,7 +71,7 @@ program midas_var
   type(struct_vco)      , pointer :: vco_trl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
-  integer :: outerLoopIndex
+  integer :: outerLoopIndex, ip3ForWriteToFile
 
   character(len=4), pointer :: varNames(:)
   logical :: allocHeightSfc, applyLimitOnHU
@@ -298,7 +298,13 @@ program midas_var
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
-    call inc_writeIncrement( outerLoopIndex, numOuterLoopIterations, stateVectorIncr ) ! IN
+    if ( numOuterLoopIterations == 1 )  then
+      ip3ForWriteToFile = 0
+    else
+      ip3ForWriteToFile = outerLoopIndex
+    end if
+    call inc_writeIncrement( stateVectorIncr, &                        ! IN
+                             ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
