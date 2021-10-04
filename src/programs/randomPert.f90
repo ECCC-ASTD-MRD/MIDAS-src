@@ -166,6 +166,7 @@ program midas_randomPert
 
   !- 2.6 Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_core,vco_anl)
+  if ( gsv_varExist(varName='HU') ) call gvt_setupRefFromTrialFiles('HU')
 
   !
   !- 3. Memory allocations

@@ -54,19 +54,23 @@ program midas_obsimpact
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
+  type(struct_gsv)               :: stateVectorTrialHighRes
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
 
-  type(struct_obs),pointer        :: obsSpaceData_ptr
-  type(struct_columnData),pointer :: columnTrlOnAnlIncLev_ptr
-  type(struct_columnData),pointer :: column_ptr
-  type(struct_vco),pointer        :: vco_anl => null()
-  type(struct_hco),pointer        :: hco_anl => null()
-  type(struct_hco),pointer        :: hco_core => null()
+  type(struct_obs),        pointer :: obsSpaceData_ptr
+  type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr
+  type(struct_columnData), pointer :: column_ptr
+  type(struct_vco),        pointer :: vco_anl => null()
+  type(struct_hco),        pointer :: hco_anl => null()
+  type(struct_hco),        pointer :: hco_trl => null()
+  type(struct_vco),        pointer :: vco_trl => null()
+  type(struct_hco),        pointer :: hco_core => null()
   integer             :: fso_nsim, nvadim_mpilocal, dateStamp
   integer,external    :: get_max_rss
   real(8),allocatable :: vhat(:)
+  logical             :: allocHeightSfc
 
   ! namelist variables
   integer             :: nvamaj, nitermax, nsimmax
@@ -97,10 +101,6 @@ program midas_obsimpact
     call utl_writeStatus('VAR3D_BEG')
   end if
 
-  write(*,*)
-  write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
-  write(*,*)
-
   call ram_setup
 
   !
@@ -128,7 +128,10 @@ program midas_obsimpact
   !
   !- Initialize constants
   !
-  if (mpi_myid.eq.0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !
   !- Initialize variables of the model states
@@ -180,10 +183,23 @@ program midas_obsimpact
   call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  !- Reading and horizontal interpolation of the 3D trial fields
-  !
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
+  ! Reading trials
+  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  allocHeightSfc = ( vco_trl%Vcode /= 0 )
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate trials to trial columns
+  call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -195,13 +211,15 @@ program midas_obsimpact
   ! - Initialize the gridded variable transform module
   !
   call gvt_setup(hco_anl,hco_core,vco_anl)
+  call gvt_setupRefFromTrialFiles('HU')
+  call gvt_setupRefFromTrialFiles('height')
 
   !
   !- 2. Do the actual job
   !
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)

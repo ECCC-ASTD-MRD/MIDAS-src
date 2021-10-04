@@ -56,7 +56,8 @@ module innovation_mod
 
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
-  public :: inn_perturbObs, inn_setupBackgroundColumns, inn_setupBackgroundColumnsAnl
+  public :: inn_perturbObs, inn_setupColumnsOnTrlLev, inn_setupColumnsOnAnlIncLev
+  public :: inn_getHcoVcoFromTrlmFile
 
   character(len=48) :: innovationMode
 
@@ -190,32 +191,28 @@ contains
     end if
 
   end subroutine inn_setupobs
-  
+
   !--------------------------------------------------------------------------
-  ! inn_setupBackgroundColumns
+  ! inn_setupColumnsOnTrlLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumns(columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                        stateVectorTrialOut_opt)
+  subroutine inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                       stateVectorUpdateHighRes )
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
+    !
     implicit none
-    
+
     ! arguments
     type(struct_columnData)    :: columnTrlOnTrlLev
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
-    type(struct_gsv), optional :: stateVectorTrialOut_opt
+    type(struct_gsv)           :: stateVectorUpdateHighRes
 
     ! locals
-    type(struct_gsv)          :: stateVectorTrial
-    type(struct_gsv)          :: stateVectorTrialNoZorP 
-    type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
-    logical                   :: deallocInterpInfo, allocHeightSfc
+    logical                   :: deallocInterpInfo
     real(8), pointer          :: onecolumn(:)
-
-    character(len=4), pointer :: anlVar(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     integer           :: numObsBatches      ! number of batches for calling interp setup
@@ -223,8 +220,7 @@ contains
     NAMELIST /NAMINN/timeInterpType_nl, numObsBatches
 
     write(*,*)
-    write(*,*) 'inn_setupBackgroundColumns: START'
-    nullify(hco_trl,vco_trl)
+    write(*,*) 'inn_setupColumnsOnTrlLev: START'
 
     timeInterpType_nl = 'NEAREST'
     numObsBatches     = 20
@@ -232,30 +228,22 @@ contains
     if (utl_isNamelistPresent('naminn','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error opening file flnml')
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error opening file flnml')
       read(nulnam,nml=naminn,iostat=ierr)
-      if (ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error reading namelist')
+      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mpi_myid == 0) write(*,nml=naminn)
       ierr = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'inn_setupBackgroundColumns: Namelist block NAMINN is missing in the namelist.'
+      write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'
       write(*,*) '                            The default values will be taken.'
       if (mpi_myid == 0) write(*,nml=naminn)
     end if
 
-    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+    call tmg_start(10,'SETUPCOLUMN')
 
-    ! check if gsv is initialized.
-    if ( .not. gsv_isInitialized() ) then
-       call utl_abort('inn_setupBackgroundColumns: add call to gsv_setup in the main program.')
-    end if
-
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
-    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
-
-    call vco_SetupFromFile(vco_trl, './trlm_01')
+    nullify(vco_trl)
+    vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
     call col_setVco(columnTrlOnTrlLev,vco_trl)
     call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
@@ -265,57 +253,11 @@ contains
       call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
     end if
 
-    if (vco_trl%Vcode == 0) then
-      allocHeightSfc = .false.
-    else
-      allocHeightSfc = .true.
-    end if
-
     deallocInterpInfo = .true.
-
-    call gsv_allocate( stateVectorTrial, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       beSilent_opt=.false. )
-    call gsv_zero( stateVectorTrial )
-
-    if ( gsv_varExist(stateVectorTrial,'Z_T') .or. &
-         gsv_varExist(stateVectorTrial,'Z_M') .or. &
-         gsv_varExist(stateVectorTrial,'P_T') .or. &
-         gsv_varExist(stateVectorTrial,'P_M') ) then
-
-      ! Use statevector without Z/P allocated to read trials 
-      call gsv_allocate( stateVectorTrialNoZorP, tim_nstepobs, hco_trl, vco_trl,  &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false., &
-                         beSilent_opt=.false. )
-      call gsv_zero( stateVectorTrialNoZorP )
-      call gsv_readTrials( stateVectorTrialNoZorP )
-      call gsv_copy( stateVectorTrialNoZorP, stateVectorTrial, allowVarMismatch_opt=.true. )
-      call gsv_deallocate( stateVectorTrialNoZorP )
-    else
-      call gsv_readTrials( stateVectorTrial )
-    end if
-
-    ! if requested, make trials available to calling routine after degrading timesteps
-    if (present(stateVectorTrialOut_opt)) then
-      call gsv_allocate( stateVectorTrialOut_opt, tim_nstepobsinc, hco_trl, vco_trl,  &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
-      call gsv_copy( stateVectorTrial, stateVectorTrialOut_opt,  &
-                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
-    end if
-
-    call s2c_nl( stateVectorTrial, obsSpaceData, columnTrlOnTrlLev, hco_core, &
+    call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
                  dealloc_opt=deallocInterpInfo )
-    call gsv_deallocate(stateVectorTrial)
 
     if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
@@ -342,14 +284,14 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupBackgroundColumns: END'
+    write(*,*) 'inn_setupColumnsOnTrlLev: END'
 
-  end subroutine inn_setupBackgroundColumns
+  end subroutine inn_setupColumnsOnTrlLev
 
   !--------------------------------------------------------------------------
-  ! inn_setupBackgroundColumnsAnl
+  ! inn_setupColumnsOnAnlIncLev
   !--------------------------------------------------------------------------
-  subroutine inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  subroutine inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
     implicit none
@@ -362,9 +304,9 @@ contains
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
     write(*,*)
-    write(*,*) 'inn_setupBackgroundColumnsAnl: START'
+    write(*,*) 'inn_setupColumnsOnAnlIncLev: START'
 
-    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+    call tmg_start(10,'SETUPCOLUMN')
 
     !
     !- Data copying from columnh to columnTrlOnAnlIncLev
@@ -395,12 +337,12 @@ contains
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnTrlLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnTrlLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
         write(*,*) columnTrlOnTrlLev_ptr (:)
 
-        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -454,7 +396,7 @@ contains
     ! Print pressure on thermo levels for the first column
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, columnTrlOnAnlIncLev(1):'
+        write(*,*) 'inn_setupColumnsOnAnlIncLev, after vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
         write(*,*) columnTrlOnAnlIncLev_ptr (:)
@@ -488,7 +430,7 @@ contains
     ! Print height info of the first original and interpolated columns
     if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
       write(*,*)
-      write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
+      write(*,*) 'inn_setupColumnsOnAnlIncLev, vIntProf output:'
 
       if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
         write(*,*) 'Z_T (columnTrlOnTrlLev):'
@@ -513,15 +455,15 @@ contains
 
     call tmg_stop(10)
 
-    write(*,*) 'inn_setupBackgroundColumnsAnl: END'
+    write(*,*) 'inn_setupColumnsOnAnlIncLev: END'
 
-  end subroutine inn_setupBackgroundColumnsAnl
+  end subroutine inn_setupColumnsOnAnlIncLev
 
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, destObsColumn_opt, &
-                                   beSilent_opt)
+  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt, &
+                                    destObsColumn_opt, beSilent_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
@@ -529,6 +471,7 @@ contains
     ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
+    integer, optional       :: outerLoopIndex_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
 
@@ -536,16 +479,19 @@ contains
     real(8) :: Jo, JoRaob, JoSatWind, JoSurfc
     real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
-    integer :: destObsColumn, get_max_rss
+    integer :: destObsColumn, get_max_rss, outerloopIndex
     logical :: lgpdata, beSilent
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    !
-    !- Subroutine options seting
-    !
+    if ( present(outerLoopIndex_opt) ) then
+      outerLoopIndex = outerLoopIndex_opt
+    else
+      outerLoopIndex = 1
+    end if
+
     if ( present(destObsColumn_opt) ) then
       destObsColumn = destObsColumn_opt
     else
@@ -561,26 +507,29 @@ contains
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: Before filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
+    ! Reject observed elements too far below the surface. Pressure values
+    ! for elements slightly below the surface are replaced by the surface
+    ! pressure values of the trial field.
     !
-    !- Pre-processing
+    ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-
-    ! Reject observed elements too far below the surface
-    call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
-    ! ( Note: Pressure values for elements slightly below the surface are replaced by the surface
-    !   pressure values of the trial field. GB-GPS (met and ZTD) observations are processed in
-    !   s/r filt_topoSFC in obsFilter_mod.ftn90 )
-
+    if ( outerLoopIndex == 1 ) then
+      call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo for outer-loop index=', outerLoopIndex
+    end if
+    
     ! Remove surface station wind observations
-    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-      call filt_surfaceWind(obsSpaceData,beSilent)
+    if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
+      if ( outerLoopIndex == 1 ) then
+        call filt_surfaceWind(obsSpaceData,beSilent)
+      else
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind for outer-loop index=', outerLoopIndex
+      end if
     end if
     
     ! Find interpolation layer in model profiles
-    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) then
-      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
-    end if
-    
+    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
@@ -593,7 +542,11 @@ contains
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
 
     ! SatWinds
-    call oer_sw(columnTrlOnTrlLev,obsSpaceData)
+    if ( outerLoopIndex == 1 ) then
+      call oer_sw(columnTrlOnTrlLev,obsSpaceData)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for outer-loop index=', outerLoopIndex
+    end if
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
@@ -610,9 +563,13 @@ contains
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
 
     ! Sea ice concentration
-    call filt_iceConcentration(obsSpaceData, beSilent)
-    call filt_backScatAnisIce(obsSpaceData, beSilent)
-    call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    if ( outerLoopIndex == 1 ) then
+      call filt_iceConcentration(obsSpaceData, beSilent)
+      call filt_backScatAnisIce(obsSpaceData, beSilent)
+      call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for outer-loop index=', outerLoopIndex
+    end if
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
 
     ! Hydrology
@@ -636,9 +593,13 @@ contains
     ! GPS radio occultation
     JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-       call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
-       call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
-       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
+      if ( outerLoopIndex == 1 ) then
+        call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
+        call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
+      else
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for outer-loop index=', outerLoopIndex
+      end if
+      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
     end if
 
     ! Chemical constituents
@@ -648,11 +609,19 @@ contains
     JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
+        if ( outerLoopIndex == 1 ) then
+          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
+        else
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+        end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.true.)
       else
-        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
+        if ( outerLoopIndex == 1 ) then
+          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
+        else
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+        end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
                                        destObsColumn, analysisMode_opt=.false.)
       end if
@@ -938,5 +907,41 @@ contains
     end do
 
   end subroutine inn_perturbObs
+
+  !--------------------------------------------------------------------------
+  ! inn_getHcoVcoFromTrlmFile
+  !--------------------------------------------------------------------------
+  subroutine inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+    !
+    !:Purpose: Get hco/vco of the trials
+    !
+    implicit none
+
+    ! arguments
+    type(struct_hco), pointer, intent(inout) :: hco_trl
+    type(struct_vco), pointer, intent(inout) :: vco_trl
+
+    ! locals
+    character(len=4), pointer :: anlVar(:)
+
+    write(*,*) 'inn_getHcoVcoFromTrlmFile: START'
+    nullify(hco_trl,vco_trl)
+
+    ! check if gsv is initialized.
+    if ( .not. gsv_isInitialized() ) then
+      write(*,*)
+      write(*,*) 'inn_getHcoVcoFromTrlmFile: gsv_setup must be called first. Call it now'
+      call gsv_setup
+    end if
+
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
+
+    call vco_SetupFromFile(vco_trl, './trlm_01')
+
+    write(*,*) 'inn_getHcoVcoFromTrlmFile: END'
+
+  end subroutine inn_getHcoVcoFromTrlmFile
 
 end module innovation_mod

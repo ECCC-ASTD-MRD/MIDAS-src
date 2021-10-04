@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Implementation of outer-loop for computing analysis increment with results
+   of some `var` program changed (#474 and !460)
  * Add namelist variable `dumpToSqliteAfterThinning` to `namBiasSat` (#479 and !497)
  * Add inovQC treatment for SSMIS data to the background check in module `bgckssmis_mod` (#458 and !489)
  * Add option to mask the ensemble of analysis increments for LAM grid (#504 and !488)

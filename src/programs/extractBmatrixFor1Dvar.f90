@@ -140,6 +140,7 @@ program midas_extractBmatrixFor1Dvar
   call bmat_setup(hco_anl,hco_core,vco_anl)
   !- Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_core,vco_anl)
+  call gvt_setupRefFromTrialFiles('HU')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !

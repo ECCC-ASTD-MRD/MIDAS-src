@@ -19,6 +19,7 @@ program midas_gencoeff
   ! :Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
   use version_mod
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -47,16 +48,19 @@ program midas_gencoeff
   integer, external :: exdb,exfin,fnom, fclos, get_max_rss
   integer :: ierr,istamp
 
-  type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: columnTrlOnAnlIncLev
-  type(struct_hco), pointer        :: hco_anl => null()
-  type(struct_hco), pointer        :: hco_core => null()
-  type(struct_vco), pointer        :: vco_anl => null()
+  type(struct_obs),         target :: obsSpaceData
+  type(struct_columnData),  target :: columnTrlOnAnlIncLev
+  type(struct_gsv)                 :: stateVectorTrialHighRes
+  type(struct_hco),        pointer :: hco_anl => null()
+  type(struct_hco),        pointer :: hco_core => null()
+  type(struct_vco),        pointer :: vco_anl => null()
+  type(struct_hco),        pointer :: hco_trl => null()
+  type(struct_vco),        pointer :: vco_trl => null()
 
+  logical :: allocHeightSfc
 
-  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
-                                 varMode        = 'analysis'
-
+  character(len=48), parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
+                                  varMode        = 'analysis'
 
   istamp = exdb('GENCOEFF','DEBUT','NON')
 
@@ -71,18 +75,33 @@ program midas_gencoeff
 
  
   ! 1. Top level setup
-
   call ram_setup()
  
-
   ! Do initial set up
   call tmg_start(2,'SETUP')
   call gencoeff_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
-  ! Read trials and horizontally interpolate to columns
   call tmg_start(3,'TRIALS')
-  call inn_setupBackgroundColumns( columnTrlOnAnlIncLev, obsSpaceData, hco_core )
+
+  ! Reading trials
+  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  allocHeightSfc = ( vco_trl%Vcode /= 0 )
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate trials to trial columns
+  call inn_setupColumnsOnTrlLev( columnTrlOnAnlIncLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   call tmg_stop(3)
 
   !
@@ -194,7 +213,10 @@ contains
     !
     !- Initialize constants
     !
-    if(mpi_myid == 0) call mpc_printConstants(6)
+    if ( mpi_myid == 0 ) then
+      call mpc_printConstants(6)
+      call pre_printPrecisions
+    end if
 
     !
     !- Initialize variables of the model states

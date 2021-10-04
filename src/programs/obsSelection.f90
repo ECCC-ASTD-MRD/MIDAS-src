@@ -21,6 +21,7 @@ program midas_obsSelection
   !           (O-F => Observation minus Forecast, i.e. y-H(x))
   !
   use version_mod
+  use codePrecision_mod
   use ramDisk_mod
   use mpi_mod
   use utilities_mod
@@ -48,10 +49,14 @@ program midas_obsSelection
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
-  type(struct_hco), pointer      :: hco_anl => null()
-  type(struct_vco), pointer      :: vco_anl => null()
-  type(struct_hco), pointer      :: hco_core => null()
+  type(struct_gsv)               :: stateVectorTrialHighRes
+  type(struct_hco),      pointer :: hco_anl => null()
+  type(struct_vco),      pointer :: vco_anl => null()
+  type(struct_hco),      pointer :: hco_trl => null()
+  type(struct_vco),      pointer :: vco_trl => null()
+  type(struct_hco),      pointer :: hco_core => null()
 
+  logical :: allocHeightSfc
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
@@ -103,7 +108,10 @@ program midas_obsSelection
   !
   !- Initialize constants
   !
-  if(mpi_myid.eq.0) call mpc_printConstants(6)
+  if ( mpi_myid == 0 ) then
+    call mpc_printConstants(6)
+    call pre_printPrecisions
+  end if
 
   !
   !- Initialize the Analysis grid
@@ -165,11 +173,26 @@ program midas_obsSelection
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
     
-  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call inn_setupBackgroundColumns( columnTrlOnTrlLev, obsSpaceData, hco_core )
+  ! Reading trials
+  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  allocHeightSfc = ( vco_trl%Vcode /= 0 )
+
+  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                     beSilent_opt=.false. )
+  call gsv_zero( stateVectorTrialHighRes )
+  call gsv_readTrials( stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Horizontally interpolate trials to trial columns
+  call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorTrialHighRes )
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)

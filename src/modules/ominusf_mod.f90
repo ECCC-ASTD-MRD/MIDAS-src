@@ -19,6 +19,7 @@ module oMinusF_mod
   !
   ! :Purpose: Module for Observation minus Forecast (O-F) computation
   !
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -59,6 +60,7 @@ module oMinusF_mod
       type(struct_columnData),target, intent(inout)  :: columnTrlOnAnlIncLev
       type(struct_columnData),target, intent(inout)  :: columnTrlOnTrlLev
       type(struct_obs),       target, intent(inout)  :: obsSpaceData
+      type(struct_gsv)             :: stateVectorTrialHighRes
       character(len=*), intent(in) :: varMode
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
@@ -66,7 +68,11 @@ module oMinusF_mod
       ! locals
       type(struct_vco),       pointer :: vco_anl  => null()
       type(struct_hco),       pointer :: hco_anl  => null()
+      type(struct_hco),       pointer :: hco_trl => null()
+      type(struct_vco),       pointer :: vco_trl => null()
       type(struct_hco),       pointer :: hco_core => null()
+
+      logical           :: allocHeightSfc
 
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
@@ -99,7 +105,10 @@ module oMinusF_mod
       call obsf_setup(dateStamp, trim(varMode))
 
       !- 1.6 Constants
-      if (mpi_myid == 0) call mpc_printConstants(6)
+      if ( mpi_myid == 0 ) then
+        call mpc_printConstants(6)
+        call pre_printPrecisions
+      end if
 
       !- 1.7 Variables of the model states
       call gsv_setup
@@ -148,8 +157,22 @@ module oMinusF_mod
         call oer_setObsErrors(obsSpaceData, trim(varMode))
       end if
 
-      !- 1.14 Reading, horizontal interpolation and unit conversions of the 3D background fields
-      call inn_setupBackgroundColumns(columnTrlOnTrlLev,obsSpaceData,hco_core)
+      ! Reading trials
+      call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+      allocHeightSfc = ( vco_trl%Vcode /= 0 )
+
+      call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                         beSilent_opt=.false. )
+      call gsv_zero( stateVectorTrialHighRes )
+      call gsv_readTrials( stateVectorTrialHighRes )
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      ! Horizontally interpolate trials to trial columns
+      call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                       stateVectorTrialHighRes )
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
@@ -168,7 +191,7 @@ module oMinusF_mod
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupBackgroundColumnsAnl(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+        call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
         !- 2.3 Compute the background errors in observation space
         call ose_computeStddev(columnTrlOnAnlIncLev,hco_anl,obsSpaceData)
       end if
