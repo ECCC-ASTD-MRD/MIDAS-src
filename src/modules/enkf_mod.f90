@@ -69,7 +69,7 @@ contains
   !----------------------------------------------------------------------
   ! enkf_LETKFanalyses
   !----------------------------------------------------------------------
-  subroutine enkf_LETKFanalyses(algorithm, numSubEns,  &
+  subroutine enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
@@ -83,6 +83,7 @@ contains
     ! Arguments
     character(len=*)            :: algorithm
     integer                     :: numSubEns
+    logical                     :: randomShuffleSubEns
     type(struct_ens), pointer   :: ensembleTrl
     type(struct_ens)            :: ensembleAnl
     type(struct_eob)            :: ensObs_mpiglobal
@@ -107,6 +108,7 @@ contains
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
+    integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
     real(8) :: anlLat, anlLon, anlLogPres, distance, tolerance, localization
 
     integer, allocatable :: localBodyIndices(:)
@@ -116,6 +118,7 @@ contains
     integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEnsComp(:,:)
+    integer, allocatable :: randomMemberIndexArray(:)
 
     real(8), allocatable :: distances(:)
     real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
@@ -225,12 +228,37 @@ contains
       allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
-      do subEnsIndex = 1, numSubEns
-        do memberIndex = 1, nEnsPerSubEns
-          memberIndexSubEns(memberIndex,subEnsIndex) =  &
-               (subEnsIndex-1)*nEnsPerSubEns + memberIndex
+      if (.not.randomShuffleSubEns) then
+        ! form subensembles with contiguous sequential groups of members
+        do subEnsIndex = 1, numSubEns
+          do memberIndex = 1, nEnsPerSubEns
+            memberIndexSubEns(memberIndex,subEnsIndex) =  &
+                 (subEnsIndex-1)*nEnsPerSubEns + memberIndex
+          end do
         end do
-      end do
+      else
+        ! compute random seed from the date for randomly forming subensembles
+        imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+        dateStamp = tim_getDateStamp()
+        ierr = newdate(dateStamp, datePrint, timePrint, imode)
+        timePrint = timePrint/1000000
+        datePrint =  datePrint*100 + timePrint
+        ! Remove the century, keeping 2 digits of the year
+        randomSeed = datePrint - 100000000*(datePrint/100000000)
+        allocate(randomMemberIndexArray(nEns))
+        do memberIndex = 1, nEns
+          randomMemberIndexArray(memberIndex) = memberIndex
+        end do
+        call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
+        write(*,*) 'enkf_LETKFanalyses: seed for random shuffle of sub ens = ', randomSeed
+        write(*,*) 'enkf_LETKFanalyses: randomOrder = ', randomMemberIndexArray(:)
+        do subEnsIndex = 1, numSubEns
+          do memberIndex = 1, nEnsPerSubEns
+            memberIndexSubEns(memberIndex,subEnsIndex) =  &
+                 randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex)
+          end do
+        end do
+      end if
       do subEnsIndex = 1, numSubEns
         memberIndex = 1
         do subEnsIndex2 = 1, numSubEns
