@@ -24,6 +24,8 @@ DEBUG_OPTIONS =
 
 OPT_LEVEL = 2
 
+install : # defining default target
+
 splitobs_ubuntu-18.04-skylake-64: version.h $(SRC)
 	. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199; . ssmuse-sh -d eccc/mrd/rpn/code-tools/1.5.0; make splitobs_libs_19
 

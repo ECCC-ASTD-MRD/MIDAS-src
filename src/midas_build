@@ -107,6 +107,7 @@ __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 mv .tmp.config.out ${__listing_config}
 
 __abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
+__abs_all="${__abs_all} splitobs"
 
 ##=========================================================
 ##  parsing input and building job for submissions
@@ -249,7 +250,7 @@ mv ${__listing_config} ${__listing_frontend}
 ## Checking if compilation and linking have been successful
 
 ## regex elements to find errors
-typeset __err_regex='error #|undefined|make.*Circular'
+typeset __err_regex='error #|(?<!-)undefined|make.*Circular'
 
 typeset __err_comp=0
 typeset __err_back=$(grep -En "${__err_regex}" ${__listing_frontend})
@@ -287,8 +288,11 @@ then
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
         typeset __abs_installed=$(abs_path ${__abs} ${__plat})
-        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
-        find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
+        if [ ! "${__abs}" == "splitobs" ]; then
+          ## splitobs is already compiled and installed (as an external program)
+          typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
+          find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
+        fi
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
             __status=1
