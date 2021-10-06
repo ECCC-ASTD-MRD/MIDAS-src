@@ -145,7 +145,11 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readAIBcor: error 2 while reading airplanes bias correction file ' // biasCorrectionFileName )
           end if
-          if ( correctionValue == 99. ) correctionValue = MPC_missingValue_R8
+          if ( correctionValue == 99. ) then
+            correctionValue = MPC_missingValue_R8
+          else
+            correctionValue = -1.0*correctionValue
+          end if
           ttCorrections(stationIndex,phaseIndex,levelIndex) = correctionValue
           aircraftIds(stationIndex)                       = stationId
           !print*, stationIndex, phaseIndex, levelIndex, aircraftIds(stationIndex), ttCorrections(stationIndex,phaseIndex,levelIndex)
@@ -227,16 +231,16 @@ CONTAINS
                 corr = 0.0
                 levelIndex = 5
               else if ( (pressure <= 700.d0)  .and. (pressure > 500.d0) ) then
-                corr = 0.1
+                corr = -0.1
                 levelIndex = 4
               else if ( (pressure <= 500.d0)  .and. (pressure > 400.d0) ) then
-                corr = 0.2
+                corr = -0.2
                 levelIndex = 3
               else if ( (pressure <= 400.d0)  .and. (pressure > 300.d0) ) then
-                corr = 0.3
+                corr = -0.3
                 levelIndex = 2
               else if ( (pressure <= 300.d0)  .and. (pressure > 100.d0) ) then
-                corr = 0.5
+                corr = -0.5
                 levelIndex = 1
               else 
                 levelIndex = 0
@@ -296,7 +300,7 @@ CONTAINS
               end if
             
               ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
-              tt = tt - corr
+              tt = tt + corr
               flag = ibset(flag, 6)
             
             end if
