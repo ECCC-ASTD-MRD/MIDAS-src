@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add ability to randomly create subensembles in LETKF with cross validation (#532 and !505)
 
 ### Changed
 
