@@ -20,6 +20,7 @@ module utilities_mod
   ! :Purpose: A place to collect numerous simple utility routines
   !
   use clib_interfaces_mod
+  use randomNumber_mod
 
   implicit none
   save
@@ -36,6 +37,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
+  public :: utl_randomOrderInt
   public :: utl_copyFile, utl_allReduce
 
   ! module interfaces
@@ -2537,4 +2539,43 @@ contains
     
   end subroutine utl_allReduce
 
+  !--------------------------------------------------------------------------
+  ! utl_randomOrderInt
+  !--------------------------------------------------------------------------
+  subroutine utl_randomOrderInt(intArray,randomSeed)
+    ! :Purpose: Randomly shuffle the order of the integer array elements.
+
+    implicit none
+
+    ! Arguments:
+    integer, intent(inout) :: intArray(:)
+    integer, intent(in)    :: randomSeed
+
+    ! Locals:
+    integer              :: arraySize, arrayIndex, arrayIndexMin
+    integer, allocatable :: intArrayOut(:)
+    real(8), allocatable :: realRandomArray(:)
+
+    arraySize = size(intArray)
+    allocate(realRandomArray(arraySize))
+    allocate(intArrayOut(arraySize))
+
+    call rng_setup(randomSeed)
+    do arrayIndex = 1, arraySize
+      realRandomArray(arrayIndex) = rng_uniform()
+    end do
+
+    do arrayIndex = 1, arraySize
+      arrayIndexMin = minloc(realRandomArray,dim=1)
+      realRandomArray(arrayIndexMin) = huge(1.0D0)
+      intArrayOut(arrayIndex) = intArray(arrayIndexMin)
+    end do
+
+    intArray(:) = intArrayOut(:)
+
+    deallocate(intArrayOut)
+    deallocate(realRandomArray)
+
+  end subroutine utl_randomOrderInt
+  
 end module utilities_mod

@@ -82,6 +82,7 @@ program midas_letkf
   integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
   integer  :: nEns                 ! ensemble size
+  logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
@@ -96,7 +97,7 @@ program midas_letkf
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, nEns, numSubEns, ensPathName,  &
-                     hLocalize, hLocalizePressure, vLocalize,  &
+                     randomShuffleSubEns, hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      obsTimeInterpType, mpiDistribution, etiket_anl
@@ -134,6 +135,7 @@ program midas_letkf
   ensPathName           = 'ensemble'
   nEns                  = 10
   numSubEns             = 2
+  randomShuffleSubEns   = .false.
   maxNumLocalObs        = 1000
   weightLatLonStep      = 1
   modifyAmsubObsError   = .false.
@@ -400,7 +402,7 @@ program midas_letkf
   !- 5. Main calculation of ensemble analyses
   !
   call tmg_start(3,'LETKF-doAnalysis')
-  call enkf_LETKFanalyses(algorithm, numSubEns,  &
+  call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
