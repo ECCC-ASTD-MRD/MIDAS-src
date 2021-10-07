@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the compilation bug when building from a empty `compiledir`, one without an existing `midas_abs` dir (#534 and !508)
  * Removed non ascii-127 characters from compilation message boxes (#507 and !495)
  * Using new env. variable for `install_suite.sh` + retrocompatibility (#484 and !456)
  * Fix the recursive dependency computation (#483 and !455)
