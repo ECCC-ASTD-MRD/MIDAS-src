@@ -288,11 +288,8 @@ then
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
         typeset __abs_installed=$(abs_path ${__abs} ${__plat})
-        if [ ! "${__abs}" == "splitobs" ]; then
-          ## splitobs is already compiled and installed (as an external program)
-          typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
-          find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
-        fi
+        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
+        find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
             __status=1
