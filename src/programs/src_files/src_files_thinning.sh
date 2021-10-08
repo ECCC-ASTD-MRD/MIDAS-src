@@ -1,5 +1,5 @@
 SRC_FILES=""
-SRC_FILES="$SRC_FILES clib_interfaces_mod.ftn90"
+SRC_FILES="$SRC_FILES clib_interfaces_mod.ftn90 randomnumber_mod.f90"
 SRC_FILES="$SRC_FILES utilities_mod.f90"
 SRC_FILES="$SRC_FILES bufr_mod.f90 codeprecision_mod.ftn90 mathphysconstants_mod.f90 mpi_mod.f90 "
 SRC_FILES="$SRC_FILES varnamelist_mod.f90"

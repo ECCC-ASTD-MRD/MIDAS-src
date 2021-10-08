@@ -28,7 +28,7 @@ module randomNumber_mod
   private
 
   ! public procedures
-  public :: rng_setup, rng_gaussian
+  public :: rng_setup, rng_gaussian, rng_uniform
 
   logical :: initialized = .false.
 

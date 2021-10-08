@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.6.8]
+
+### Added
+
+ * Add ability to randomly create subensembles in LETKF with cross validation (#532 and !505)
+
 ## [3.6.7]
 
 ### Added
@@ -779,7 +785,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...HEAD
+[3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
 [3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6
 [3.6.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.4...v_3.6.5
