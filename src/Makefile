@@ -180,14 +180,6 @@ help:	#> print this help
 	awk 'BEGIN {FS = ":[^:]*#> "}; \
 		{printf "    %-30s %s\n", $$1, $$2}' | cut -d":" -f2
 
-##  External splitobs program compilation
-.PHONY: splitobs splitobs.Abs
-splitobs : splitobs.Abs
-splitobs.Abs:	#> compile and install external splitobs program
-		$(MAKE) -C $(SRC_ROOT)/../tools/splitobs \
-			PGM=$(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)/midas-splitobs_$(ORDENV_PLAT)-$(VERSION).Abs && \
-			$(MAKE) -C $(SRC_ROOT)/../tools/splitobs clean
-
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
 __nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst splitobs
@@ -362,6 +354,14 @@ _D_options=$(filter -D%,$(COMPF))
 ##	 $^ and $<)
 %.o: $(DEP_OBJ) 
 %.Abs: $(DEP_ABS)
+
+##  External splitobs program compilation
+.PHONY: splitobs splitobs.Abs
+splitobs : splitobs.Abs
+splitobs.Abs:	#> compile and install external splitobs program
+		$(MAKE) -C $(SRC_ROOT)/../tools/splitobs \
+			PGM=$(CURDIR)/splitobs.Abs && \
+			$(MAKE) -C $(SRC_ROOT)/../tools/splitobs clean
 
 
 ## Compilation time modification to version_mod.f90
