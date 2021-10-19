@@ -253,8 +253,8 @@ mv ${__listing_config} ${__listing_frontend}
 typeset __err_regex='error #|(?<!-)undefined|make.*Circular'
 
 typeset __err_comp=0
-typeset __err_back=$(grep -En "${__err_regex}" ${__listing_frontend})
-typeset __err_front=$(grep -En "${__err_regex}" ${__listing_backend})
+typeset __err_back=$(grep -Pn "${__err_regex}" ${__listing_frontend})
+typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_backend})
 if [ ! -z "${__err_front}" ]; then 
     echo
     echo "<!> some error found in ${__listing_frontend}"
