@@ -1,7 +1,6 @@
- &THIN_SSMIS
-   idelta1 = 100
-   idelta2 = 150
-   pacdt   = 200
+ &THIN_TOVS
+   delta   = 100
+   deltrad = 150
 /
  &NAMTIME
   DSTEPOBS = 0.25D0
@@ -25,7 +24,7 @@
    NLIST(14)=15036,
    NLIST(15)=15031,
    NLIST(16)=40030,
-   NFLAGS=0,
+   NFLAGS=4,
    NLISTFLG(1)=2,
    NLISTFLG(2)=4,
    NLISTFLG(3)=5,
@@ -46,6 +45,7 @@
    CINSTRUMENTID(3) = 'SSMIS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   regLimitExtrap=.false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -283,7 +283,7 @@
   BLISTELEMENTS=12163,20081
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=0
-  BITEMLIST(1)='OMP'
+  BN_ITEMS=0,
+  BITEMLIST(1)='OMP',
   TYPE_RESUME='BGCKALT'
 /

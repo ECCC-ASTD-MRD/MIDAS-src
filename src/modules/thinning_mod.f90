@@ -567,6 +567,8 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_stop(114)
 
   end subroutine thn_thinTovs
@@ -635,22 +637,6 @@ contains
     call utl_tmg_stop(114)
 
   end subroutine thn_thinHyper
-
-  !--------------------------------------------------------------------------
-  ! thn_thinSsmis
-  !--------------------------------------------------------------------------
-  subroutine thn_thinSsmis(obsdat)
-    ! :Purpose: Main thinning subroutine for SSMIS data.
-
-    implicit none
-
-    ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-
-    ! return if no TOVS obs
-    if (.not. obs_famExist(obsdat,'TO')) return
-
-  end subroutine thn_thinSsmis
 
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 !_/
@@ -4907,6 +4893,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
+    integer, parameter :: mxscanssmis=90
 
     instrumName = codtyp_get_name(codtyp)
     write(*,*)
@@ -5060,6 +5047,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     else if ( codtyp == codtyp_get_codtyp('mwhs2') ) then
       loscan   = 1
       hiscan   = mxscanmwhs2
+    else if ( codtyp == codtyp_get_codtyp('ssmis') ) then
+      loscan   = 1
+      hiscan   = mxscanssmis
     end if
 
     countQc = 0
