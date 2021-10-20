@@ -2743,26 +2743,6 @@ contains
     endif
   end subroutine gpsbendunit
 
-  subroutine j_point(a,z,ngpslev,j2)
-
-    ! Arguments:
-    integer                 , intent(in) :: ngpslev
-    type(gps_diff)          , intent(in) :: z  (:)
-    real(dp)                , intent(in) :: a
-    integer                 , intent(out):: j2
-
-    ! Locals:
-    integer                              :: j
-
-    j2=0
-    do j=2,ngpslev
-       if ((z(j-1)%Var>a) .and. (a>z(j)%Var)) then !    
-          j2=j
-          exit  
-       endif
-    enddo
-  end subroutine j_point
-
   subroutine gpsbndopv(impv, azmv, nval, prf, bstv)
 
     ! Arguments:
@@ -2839,7 +2819,11 @@ contains
   end subroutine gpsbndopv
 
   subroutine gps_bndopv1(impv, azmv, nval, prf, bstv)
-
+    ! :Purpose: Computation of the observation operator for Bending 
+    !
+    ! :Note: The Operator is based  from Assimilation experiments withCHAMP GPS radio occultation measurements
+    !         (S. B. HEALY and J.-N. THEPAUT, 2005)
+    
     ! Arguments:
     real(dp)              , intent(in) :: impv(:), azmv(:)
     integer(i4)           , intent(in) :: nval
@@ -2847,89 +2831,87 @@ contains
     type(gps_diff)        , intent(out):: bstv(:)
 
     ! Locals:
-    integer                            :: iSize, i,j2,j3,j4, ngpslev,last_i
-    real(dp)                           :: rad0
+    integer                            :: i, ngpslev,last_i,numLevels,levelHigh,levelLow,levelIndex 
     type(gps_diff)                     :: h(ngpssize), nu(ngpssize), lnu(ngpssize), n(ngpssize), z(ngpssize)
     type(gps_diff)                     :: N0a, N1a, ka, NAa,Aa, Ba, Ba2, Ba3, delta_alpha, delta_alpha_top, z_0, h_0
-    real(dp)                           :: a2, a, gz(ngpssize), cazm, sazm
-    real(dp)                           :: last_a
+    real(dp)                           :: a2, a, gz, cazm, sazm, last_a
 
+    ! model levels 
     ngpslev=prf%ngpslev
-    do i=1,ngpslev 
-      h(i)  = prf%geoid+prf%gst(i)
-      nu(i) = prf%rst(i)
-      lnu(i)=log(nu(i)) 
-      n(i)  = 1._dp+nu(i)*1e-6_dp
-      z(i)  = n(i)*(prf%Rad+prf%geoid+prf%gst(i))
+    do levelIndex = 1,ngpslev 
+      h(levelIndex)  = prf%geoid+prf%gst(levelIndex)
+      nu(levelIndex) = prf%rst(levelIndex)
+      lnu(levelIndex)=log(nu(levelIndex)) 
+      n(levelIndex)  = 1._dp+nu(levelIndex)*1e-6_dp
+      z(levelIndex)  = n(levelIndex)*(prf%Rad+prf%geoid+prf%gst(levelIndex))
     enddo
-    do i=1,ngpslev-1
-      gz(i) = (lnu(i+1)%Var - lnu(i)%Var) / (h(i+1)%Var-  h(i)%Var)
-    enddo
-    gz(ngpslev) = 0.0_dp
+    ! number of levels in the profile
+    numLevels  = size(impv)
+    if (nval < numLevels) numLevels=nval
     
-    iSize = size(impv)
-    if (nval < iSize) iSize=nval
-    rad0=prf%rad
-    !
-    ! Given an impact
-    !
-    do i = iSize,1,-1
+    do i =  numLevels,1,-1
       a2 = impv(i)*impv(i)
       a  = impv(i)
-      call j_point(a,z,ngpslev,j2)
-      if  (j2/=0) then
-        h_0   = h(j2)+(((a-z(j2))/(z(j2-1)-z(j2)))*( h(j2-1) -h(j2)))  
-        cazm  = cos(azmv(j2))
-        sazm  = sin(azmv(j2)) 
-        N0a   =  nu(j2)
-        NAa   =  nu(j2)*exp( gz(j2)*(h_0-h(j2)))
+      !find model levels that bracket the observation
+      !   note to self:   like in GEM, level=1 is the highest level
+      do levelIndex = 1, ngpslev-1
+        levelHigh = levelIndex - 1
+        levelLow  = levelIndex
+        if (z(levelIndex)%VaR< a) exit 
+          levelLow  = 0
+      end do
+    
+      if  (levelLow/=0) then
+        h_0  = h(levelLow)+(((a-z(levelLow))/(z(levelHigh)-z(levelLow)))*(h(levelHigh)-h(levelLow)))  
+        cazm = cos(azmv(levelLow))
+        sazm = sin(azmv(levelLow)) 
+        N0a  = nu(levelLow)
+        gz   = (lnu(levelLow+1)%Var-lnu(levelLow)%Var)/(h(levelLow+1)%Var-h(levelLow)%Var)
+        NAa  = nu(levelLow)*exp(gz*(h_0-h(levelLow)))
         delta_alpha = 0.d0
         delta_alpha_top = 0.d0
-        j3 = j2-1
         z_0 = a
-        do while (j3>=1) 
-          N1a = nu(j3)
-          ka = log(N0a/N1a)/(z(j3) - z(j3+1))
-          j4=j3
-          do while  (ka%Var<0.or.ka%Var>0.1) 
-            j3=j3-1
-            N1a = nu(j3) 
-            ka = log(N0a/N1a)/(z(j3) - z(j4))    
-            enddo 
-              Aa = 1e-6_dp* sqrt((MPC_PI_R8/2.d0*a)/ka )*NAa* exp(ka*(z_0-a))  
-              if (z_0%Var==a) then
-                Ba = erf(sqrt(ka*(z(j3)-a)))
-              else  
-                Ba2 = erf(sqrt(ka*(z(j3)-a)))
-                Ba3 = erf(sqrt((ka*(z_0-a))))
-                Ba = Ba2 - Ba3
-              endif 
-                delta_alpha = delta_alpha + 2*ka*Ba*Aa 
-                N0a = N1a
-                NAa = N1a 
-                z_0 = z(j3)
-                j3=j3-1
-            enddo
-            Ba = erf(1-erf(sqrt((ka*(z_0-a)))))
-            delta_alpha_top = 2*Aa*ka*Ba 
-            if ((abs(delta_alpha%Var +delta_alpha_top%Var))>1) then
-              j2=0
-            endif
-            bstv(i)   = delta_alpha +delta_alpha_top
-            last_i    = i
-            last_a    = a
-       endif
-       if (j2==0) then
+        do while ((levelHigh)>=1) 
+          N1a = nu(levelHigh)
+          ka  = log(N0a/N1a)/(z(levelHigh) - z(levelLow))
+          ! Test of Reflected
+          do while (ka%Var<0.or.ka%Var>0.1) 
+            levelHigh = levelHigh - 1
+            N1a = nu(levelHigh)
+            ka = log(N0a/N1a)/(z(levelHigh) - z(levelLow))
+          end do
+          Aa = 1e-6_dp* sqrt((MPC_PI_R8/2.d0*a)/ka )*NAa* exp(ka*(z_0-a))  
+          if (z_0%Var==a) then
+            Ba  = erf(sqrt(ka*(z(levelHigh)-a)))
+          else  
+            Ba2 = erf(sqrt(ka*(z(levelHigh)-a)))
+            Ba3 = erf(sqrt((ka*(z_0-a))))
+            Ba  = Ba2 - Ba3
+          end if   
+          delta_alpha = delta_alpha+2*ka*Ba*Aa 
+          N0a = N1a
+          NAa = N1a 
+          z_0 = z(levelHigh)
 
-         ! Use loglinear extrapolation for most data (notably direct rays)
-         if (a>(1._dp+prf%rst(ngpslev)%Var*1e-6_dp)*prf%Rad) then
-           bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))
-         else
-         ! Use linear extrapolation  for near-zero or negative bending (most reflected rays)
-           bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
-         endif
+          levelLow  = levelHigh 
+          levelHigh = levelLow-1
+        enddo
+        Ba = erf(1-erf(sqrt((ka*(z_0-a)))))
+        delta_alpha_top = 2*Aa*ka*Ba 
+        last_a = a
+        last_i = i
+        bstv(i)= delta_alpha +delta_alpha_top
+      else  ! (levelLow==0) 
+        ! Use loglinear extrapolation for most data (notably direct rays)
+        if (a>(1._dp+prf%rst(ngpslev)%Var*1e-6_dp)*prf%Rad) then
+          bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))
+        else
+        ! Use linear extrapolation (most reflected rays) from Information content in reflected
+        ! signals during GPS Radio Occultation observations (Josep Aparicio et al.,2017) 
+          bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
+        endif
 
-       endif
+      endif
     enddo
   end subroutine gps_bndopv1
 
