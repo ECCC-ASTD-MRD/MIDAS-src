@@ -344,7 +344,7 @@ CONTAINS
     !Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex
-    real(8) :: correctionValue, biasEstimate
+    real(8) :: biasEstimate
     character(len=9) :: stationId
 
     if ( gpRevOnly ) return
