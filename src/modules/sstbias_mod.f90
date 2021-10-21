@@ -16,7 +16,7 @@
 
 module SSTbias_mod
 
-  ! MODULE SSTbias (prefix='sstb')
+  ! MODULE SSTbias (prefix='sstb' category='1. High-level functionality')
   !
   ! :Purpose: Compute SST bias estimation and correction
   !
@@ -29,6 +29,7 @@ module SSTbias_mod
   use mathPhysConstants_mod
   use utilities_mod
   use mpi_mod
+  use codtyp_mod
   use mpivar_mod
   use gridStateVector_mod
   use oceanMask_mod
@@ -39,25 +40,28 @@ module SSTbias_mod
   save
   private
 
-  ! Public Subroutines
+  ! public subroutines
   public :: sstb_computeBias
-  integer, external :: get_max_rss
+  
+  ! mpi topology
   integer           :: myLatBeg, myLatEnd
   integer           :: myLonBeg, myLonEnd
   integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
   contains
-  
+
+  !--------------------------------------------------------------------------
+  ! sstb_computeBias
+  !--------------------------------------------------------------------------
   subroutine sstb_computeBias( obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                               numberSensors, sensorList, dateStamp, &
-                               maxBias, numberPointsBG )
+                               numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
     !
     ! :Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
     implicit none
     
     ! Arguments: 
-    type(struct_obs)                         :: obsData
+    type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
     type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
     real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
@@ -71,9 +75,9 @@ module SSTbias_mod
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
     integer                     :: headerIndex, sensorIndex
-    real(8)                     :: insituGrid    ( hco % ni, hco % nj )
-    real(8)                     :: satelliteGrid ( hco % ni, hco % nj, numberSensors, 2 )
-    integer, allocatable        :: mask( :, : ) 
+    real(8)                     :: insituGrid   ( hco % ni, hco % nj )
+    real(8)                     :: satelliteGrid( hco % ni, hco % nj, numberSensors, 2 )
+    logical                     :: mask( hco % ni, hco % nj ), openWater( hco % ni, hco % nj ) 
     type(struct_ocm)            :: oceanMask
     integer                     :: numberOpenWaterPoints, lonIndex, latIndex, ierr
     type(struct_gsv)            :: stateVector_ice
@@ -81,10 +85,6 @@ module SSTbias_mod
     
     write(*,*) 'Starting '//myName//'...'
     write(*,*) myName//': Current analysis date: ', dateStamp
-    write(*,*) myName//': satellites to treat: '
-    do sensorIndex = 1, numberSensors
-      write(*,*) myName//': satellite index: ', sensorIndex, ', satellite: ', sensorList( sensorIndex )
-    end do
     write(*,*) myName//': Sea-ice Fraction threshold: ', iceFractionThreshold
 
     ! get mpi topology
@@ -95,92 +95,78 @@ module SSTbias_mod
     call gsv_allocate( stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
                        datestamp_opt = -1, mpi_local_opt = .false.,    &
                        varNames_opt = (/'LG'/) )
-    call gsv_readFromFile( stateVector_ice, './seaice_analysis', 'G6_1_2_1N','A', &
+    call gsv_readFromFile( stateVector_ice, './seaice_analysis', ' ','A', &
                            unitConversion_opt=.false., containsFullField_opt=.true. )
     call gsv_getField( stateVector_ice, seaice_ptr )
     
     ! Get land mask from analysisgrid file ( 1=water, 0=land ) 
     ! and the number of open water points
-    allocate( mask( hco % ni, hco % nj) )
-    write(*,*) myName//': reading ocean-land mask...'
     call ocm_readMaskFromFile( oceanMask, hco, vco, './analysisgrid' )
-    write(*,*) myName//': ocean-land mask ok'
 
     numberOpenWaterPoints = 0
+    mask( :, : ) = .false.
+    openWater( :, : ) = .false.
     do lonIndex = 1, hco % ni
       do latIndex = 1, hco % nj
-        if ( oceanMask%mask ( lonIndex, latIndex, 1 ) ) then
-          mask ( lonIndex, latIndex ) = 1
-          if ( seaice_ptr ( lonIndex, latIndex, 1 ) <= iceFractionThreshold ) then
+        if ( oceanMask%mask( lonIndex, latIndex, 1 ) ) then
+          mask( lonIndex, latIndex ) = .true.
+          if ( seaice_ptr( lonIndex, latIndex, 1 ) <= iceFractionThreshold ) then
+            openWater( lonIndex, latIndex ) = .true.
             numberOpenWaterPoints = numberOpenWaterPoints + 1
-          end if 
-        else
-          mask ( lonIndex, latIndex ) = 0
+          end if
         end if
       end do
     end do
     call ocm_deallocate( oceanMask )
+    call gsv_deallocate( stateVector_ice )
     write(*,*) myName//': computing bias for ', numberOpenWaterPoints, ' open water points'
     
     insituGrid( :, : ) = MPC_missingValue_R8
     satelliteGrid( :, : , : , : ) = MPC_missingValue_R8
 
-    call sstb_getGriddedObs( obsData, insituGrid, hco, vco, searchRadius, &
-                             mask, seaice_ptr, iceFractionThreshold, 'insitu', dateStamp )
+    call sstb_getGriddedObs( obsData, insituGrid, hco, vco, searchRadius, openWater, 'insitu' )
 
     do sensorIndex = 1, numberSensors 
-    
-
-      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 1 ), hco, vco, &
-                               searchRadius, mask, seaice_ptr, iceFractionThreshold, &
-                               trim( sensorList( sensorIndex )), dateStamp, dayOrNight = 'day' )
-
-      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 2 ), hco, vco, &
-                               searchRadius, mask, seaice_ptr, iceFractionThreshold, &
-                               trim( sensorList( sensorIndex )), dateStamp, dayOrNight = 'night' )
-
-      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 1 ), insituGrid, hco, vco, &
-                                seaice_ptr, iceFractionThreshold, mask, maxBias, trim( sensorList( sensorIndex )), &
-                                numberOpenWaterPoints, numberPointsBG, dateStamp, dayOrNight = 'day' )
-
-      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 2 ), insituGrid, hco, vco, &
-                                seaice_ptr, iceFractionThreshold, mask, maxBias, trim( sensorList( sensorIndex )), &
-                                numberOpenWaterPoints, numberPointsBG, dateStamp, dayOrNight = 'night' )
-    
+      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 1 ), hco, vco, searchRadius, &
+                               openWater, trim( sensorList( sensorIndex )), dayOrNight_opt = 'day' )
+      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 2 ), hco, vco, searchRadius, &
+                               openWater, trim( sensorList( sensorIndex )), dayOrNight_opt = 'night' )
+      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 1 ), insituGrid, hco, vco, mask, openWater, &
+                                maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
+                                numberPointsBG, dateStamp, 'day' )
+      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 2 ), insituGrid, hco, vco, mask, openWater, &
+                                maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
+                                numberPointsBG, dateStamp, 'night' )
     end do
-    
-    deallocate( mask )
-    call gsv_deallocate( stateVector_ice )
     
   end subroutine sstb_computeBias
   
-
-  subroutine sstb_getGriddedObs( obsData, obsGrid, hco, vco, searchRadius, mask, seaice_ptr, &
-                                 iceFractionThreshold, instrument, dateStamp, dayOrNight )
+  !--------------------------------------------------------------------------
+  ! sstb_getGriddedObs
+  !--------------------------------------------------------------------------
+  subroutine sstb_getGriddedObs( obsData, obsGrid, hco, vco, searchRadius, &
+                                 openWater, instrument, dayOrNight_opt )
     !
     ! :Purpose: put observations of a given family on the grid
     !           
     implicit none
     
     ! Arguments: 
-    type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
-    real(8)         , intent(inout)          :: obsGrid(:,:)         ! observations on the grid
-    type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(8)         , intent(in)             :: searchRadius         ! horizontal search radius where to search obs
-    integer         , intent(in)             :: mask( :, : )         ! ocean mask
-    real(4)         , intent(in)   , pointer :: seaice_ptr( :, :, : )! sea-ice fraction
-    real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, open water      
-    character(len=*), intent(in)             :: instrument           ! name of instrument
-    integer         , intent(in)             :: dateStamp            ! date to put into output fst files
-    character(len=*), intent(in), optional   :: dayOrNight           ! look for daytime or nighttime obs
+    type(struct_obs), intent(inout)          :: obsData        ! obsSpaceData
+    real(8)         , intent(inout)          :: obsGrid(:,:)   ! observations on the grid
+    type(struct_hco), intent(in)   , pointer :: hco            ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco            ! vertical grid structure
+    real(8)         , intent(in)             :: searchRadius   ! horizontal search radius where to search obs
+    logical         , intent(in)             :: openWater(:,:) ! open water points (.true.)
+    character(len=*), intent(in)             :: instrument     ! name of instrument
+    character(len=*), intent(in), optional   :: dayOrNight_opt ! look for daytime or nighttime obs
     
     ! locals
-    integer, parameter          :: maxObsPointsSearch = 200000
+    integer, parameter          :: maxPointsSearch = 200000
     real, parameter             :: solarZenithThreshold = 90.0      ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
-    type(kdtree2_result)        :: searchResults( maxObsPointsSearch )
+    type(kdtree2_result)        :: searchResults( maxPointsSearch )
     real(kdkind)                :: refPosition(3)
     real(kdkind)                :: lon_grd, lat_grd
     real(pre_obsReal)           :: lon_obs, lat_obs
@@ -194,7 +180,6 @@ module SSTbias_mod
     type(struct_gsv)            :: stateVector
     real(4), pointer            :: obsGrid_r4_ptr( :, :, : )
     character(len=50)           :: instrumentString 
-    character(len=1)            :: extention
     character(len=*), parameter :: myName = 'sstb_getGriddedObs'
 
     countObs = 0
@@ -204,24 +189,24 @@ module SSTbias_mod
       instrumentString = instrument
       do headerIndex = 1, obs_numheader( obsData )
         codtyp = obs_headElem_i( obsData, obs_ity, headerIndex )
-        if ( codtyp == 13 .or. codtyp == 18 .or. codtyp == 147 ) then
+        if ( codtyp == codtyp_get_codtyp( 'shipnonauto' ) .or. &
+             codtyp == codtyp_get_codtyp( 'drifter' )     .or. &
+             codtyp == codtyp_get_codtyp( 'ashipauto' )        ) then
           countObs = countObs + 1
         end if
       end do
 
     else
       
-      instrumentString = instrument//' '//dayOrNight
+      instrumentString = instrument//' '//dayOrNight_opt
       do headerIndex = 1, obs_numheader( obsData )
         if ( obs_elem_c( obsData, 'STID' , headerIndex ) == trim(instrument) ) then
-          if ( trim(dayOrNight) == 'day'   ) then
+          if ( trim( dayOrNight_opt ) == 'day'   ) then
             if ( obs_headElem_r( obsData, obs_sun, headerIndex ) <  solarZenithThreshold ) &
               countObs = countObs + 1
-            extention = 'D'
-          else if ( trim(dayOrNight) == 'night' ) then
+          else if ( trim( dayOrNight_opt ) == 'night' ) then
             if ( obs_headElem_r( obsData, obs_sun, headerIndex ) >= solarZenithThreshold ) &
               countObs = countObs + 1
-            extention = 'N'
           end if
         end if
       end do 
@@ -241,7 +226,10 @@ module SSTbias_mod
       do headerIndex = 1, obs_numheader( obsData )
         if (instrument == 'insitu') then
           codtyp = obs_headElem_i( obsData, obs_ity, headerIndex )
-          if ( codtyp == 13 .or. codtyp == 18 .or. codtyp == 147 ) then
+	  if ( codtyp == codtyp_get_codtyp( 'shipnonauto' ) .or. &
+               codtyp == codtyp_get_codtyp( 'drifter' )     .or. &
+               codtyp == codtyp_get_codtyp( 'ashipauto' )        ) then
+
             lon_obs = obs_headElem_r( obsData, obs_lon, headerIndex )
             lat_obs = obs_headElem_r( obsData, obs_lat, headerIndex )
             headerCounter = headerCounter + 1
@@ -250,7 +238,7 @@ module SSTbias_mod
           end if
         else
           if ( obs_elem_c( obsData, 'STID' , headerIndex ) == trim(instrument) ) then
-            if ( trim(dayOrNight) == 'day'   ) then
+            if ( trim( dayOrNight_opt ) == 'day'   ) then
               if ( obs_headElem_r( obsData, obs_sun, headerIndex ) <  solarZenithThreshold ) then
                 lon_obs = obs_headElem_r( obsData, obs_lon, headerIndex )
                 lat_obs = obs_headElem_r( obsData, obs_lat, headerIndex )
@@ -258,7 +246,7 @@ module SSTbias_mod
                 positionArray( :, headerCounter ) = kdtree2_3dPosition( lon_obs, lat_obs )
                 headerIndexes( headerCounter ) = headerIndex
               end if
-            else if ( trim(dayOrNight) == 'night'   ) then 
+            else if ( trim( dayOrNight_opt ) == 'night'   ) then 
               if ( obs_headElem_r( obsData, obs_sun, headerIndex ) >= solarZenithThreshold ) then
                 lon_obs = obs_headElem_r( obsData, obs_lon, headerIndex )
                 lat_obs = obs_headElem_r( obsData, obs_lat, headerIndex )
@@ -282,17 +270,16 @@ module SSTbias_mod
         do latIndex = 1, hco % nj
 
           ! compute gridded obs for every open water point
-          if ( mask( lonIndex, latIndex ) == 1 .and. &
-               seaice_ptr( lonIndex, latIndex, 1 ) <= iceFractionThreshold ) then 
+          if ( openWater( lonIndex, latIndex ) == .true. ) then 
         
             lon_grd = real( hco % lon2d_4 ( lonIndex, latIndex ), 8 )
             lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
             refPosition(:) = kdtree2_3dPosition( lon_grd, lat_grd )
             call kdtree2_r_nearest( tp = tree, qv = refPosition, r2 = searchRadiusSquared, &
                                     nfound = numObsFoundLoc, & 
-                                    nalloc = maxObsPointsSearch, results = searchResults )
-            if ( numObsFoundLoc > maxObsPointsSearch ) &
-            call utl_abort( myName//': the parameter maxObsPointsSearch must be increased' )
+                                    nalloc = maxPointsSearch, results = searchResults )
+            if ( numObsFoundLoc > maxPointsSearch ) &
+            call utl_abort( myName//': the parameter maxPointsSearch must be increased' )
 
             if ( numObsFoundLoc > 0 ) then
 	    
@@ -336,10 +323,12 @@ module SSTbias_mod
     write(*,*) myName//': gridding for ', instrumentString, ' data completed'
 
   end subroutine sstb_getGriddedObs
-  
-  
-  subroutine sstb_getGriddedBias( satelliteGrid, insituGrid, hco, vco, seaice_ptr, iceFractionThreshold, &
-                                  mask, maxBias, instrument, numberOpenWaterPoints, &
+
+  !--------------------------------------------------------------------------
+  ! sstb_getGriddedBias
+  !--------------------------------------------------------------------------
+  subroutine sstb_getGriddedBias( satelliteGrid, insituGrid, hco, vco,  mask, openWater, &
+                                  maxBias, sensor, numberOpenWaterPoints, &
                                   numberPointsBG, dateStamp, dayOrNight )
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
@@ -349,13 +338,12 @@ module SSTbias_mod
     ! Arguments: 
     real(8)         , intent(inout)          :: satelliteGrid(:,:)   ! gridded satellite data
     real(8)         , intent(inout)          :: insituGrid(:,:)      ! gridded insitu data
-    type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
+    type(struct_hco), intent(in)   , pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)         , intent(in)   , pointer :: seaice_ptr( :, :, : )! sea-ice fraction
-    real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, open water      
-    integer         , intent(in)             :: mask( :, : )         ! land-ocean mask
+    logical         , intent(in)             :: mask( :, : )         ! land-ocean mask
+    logical         , intent(in)             :: openWater( :, : )    ! open water points (.true.)
     real(4)         , intent(in)             :: maxBias              ! maximum difference in degrees between satellite and insitu SST
-    character(len=*), intent(in)             :: instrument           ! name of instrument
+    character(len=*), intent(in)             :: sensor               ! current sensor
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points 
                                                                      ! used to compute the previous (background) bias estimation
@@ -363,12 +351,11 @@ module SSTbias_mod
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
     
     ! locals
-    integer, parameter          :: maxObsPointsSearch = 200000
     real, parameter             :: solarZenithThreshold = 90.0      ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
     integer, parameter          :: maxPointsSearch = 200000    
-    type(kdtree2_result)        :: searchResults( maxObsPointsSearch )
+    type(kdtree2_result)        :: searchResults( maxPointsSearch )
     real(kdkind)                :: refPosition(3)
     real(kdkind)                :: lon_grd, lat_grd
     real(pre_obsReal)           :: lon_obs, lat_obs
@@ -383,17 +370,17 @@ module SSTbias_mod
     real(4), pointer            :: griddedBias_r4_previous_ptr( :, :, : )
     integer, allocatable        :: gridPointIndexes(:,:)
     real(8)                     :: weight, distance, correlation, lengthscale, difference, numberPoints
-    character(len=1)            :: extention
+    character(len=1)            :: extension
     character(len=*), parameter :: outputFileName = './satellite_bias.fst'
     character(len=*), parameter :: myName = 'sstb_getGriddedBias'
     
     write(*,*) ''
-    write(*,*) myName//' computing bias for: ', instrument, ' ', dayOrNight
+    write(*,*) myName//' computing bias for: ', sensor, ' ', dayOrNight
     
     if ( dayOrNight == 'day' ) then
-      extention = 'D'
+      extension = 'D'
     else if ( dayOrNight == 'night' ) then
-      extention = 'N'
+      extension = 'N'
     end if  
     
     allocate( positionArray( 3, numberOpenWaterPoints ))
@@ -405,13 +392,11 @@ module SSTbias_mod
     do lonIndex = 1, hco % ni 
       do latIndex = 1, hco % nj
     
-        if (   mask( lonIndex, latIndex ) == 1 .and. & 
-             seaice_ptr( lonIndex, latIndex, 1 ) <= iceFractionThreshold ) then
+        if ( openWater( lonIndex, latIndex ) == .true. ) then
 
           indexCounter = indexCounter + 1
           lon_grd = real( hco % lon2d_4 ( lonIndex, latIndex ), 8 )
           lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
-  
           positionArray( :, indexCounter ) = kdtree2_3dPosition( lon_grd, lat_grd )
           gridPointIndexes( 1, indexCounter ) = lonIndex
           gridPointIndexes( 2, indexCounter ) = latIndex
@@ -434,7 +419,7 @@ module SSTbias_mod
     ! previous bias estimation
     call gsv_allocate( stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
-    call gsv_readFromFile( stateVector_previous, './trlm_01', 'B_'//instrument//'_'//extention, &
+    call gsv_readFromFile( stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
                            'R', unitConversion_opt=.false., containsFullField_opt=.true. )
     call gsv_getField( stateVector_previous, griddedBias_r4_previous_ptr ) 
        
@@ -444,7 +429,7 @@ module SSTbias_mod
     call gsv_getField( stateVector, griddedBias_r4_ptr )
 
     ! do the search
-    write(*,*) myName//': do the search for ', instrument, ' ', dayOrNight,'...' 
+    write(*,*) myName//': do the search for ', sensor, ' ', dayOrNight,'...' 
 
     do lonIndex = myLonBeg, myLonEnd 
       do latIndex = myLatBeg, myLatEnd
@@ -452,7 +437,7 @@ module SSTbias_mod
         griddedBias_r4_ptr( lonIndex, latIndex, 1 ) = 0.0d0
         numberPoints = 0.0d0
     
-        if ( mask( lonIndex, latIndex ) == 1 ) then
+        if ( mask( lonIndex, latIndex ) == .true. ) then
     
           lon_grd = real( hco % lon2d_4 ( lonIndex, latIndex ), 8 )
           lat_grd = real( hco % lat2d_4 ( lonIndex, latIndex ), 8 )
@@ -493,15 +478,15 @@ module SSTbias_mod
     
     call rpn_comm_barrier( 'GRID', ierr )
     write(*,*) myName//': saving results...'
-    call gsv_writeToFile( stateVector, outputFileName, 'B_'//instrument//'_'//extention )
+    call gsv_writeToFile( stateVector, outputFileName, 'B_'//sensor//'_'//extension )
     
     deallocate( gridPointIndexes )
     deallocate( positionArray )
     call gsv_deallocate( stateVector )
     call gsv_deallocate( stateVector_searchRadius )
-    call gsv_deallocate(stateVector_previous)
+    call gsv_deallocate( stateVector_previous )
     
-    write(*,*) myName//' completed for: ', instrument, ' ', dayOrNight
+    write(*,*) myName//' completed for: ', sensor, ' ', dayOrNight
 
   end subroutine sstb_getGriddedBias
 

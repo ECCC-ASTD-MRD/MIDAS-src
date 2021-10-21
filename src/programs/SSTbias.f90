@@ -28,12 +28,9 @@ program midas_sstBias
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
   use gridStateVector_mod
   use obsFiles_mod
   use innovation_mod
-  use statetocolumn_mod
-  use biasCorrectionSat_mod
   use analysisGrid_mod
   use SSTbias_mod
   
@@ -42,28 +39,27 @@ program midas_sstBias
   integer, external :: exdb, exfin, fnom, fclos, get_max_rss
   integer :: ierr, istamp, nulnam
 
-  type(struct_obs),        target :: obsSpaceData
-  type(struct_columnData), target :: trlColumnOnAnlLev
-  type(struct_hco), pointer       :: hco_anl => null()
-  type(struct_vco), pointer       :: vco_anl => null()
-  real(8)                         :: searchRadius            ! horizontal search radius, in km, for obs gridding
-  character(len=48),parameter     :: obsMpiStrategy = 'LIKESPLITFILES', &
-                                     varMode        = 'analysis'
-  real(4)                         :: iceFractionThreshold    ! consider no ice condition below this threshold
-  real(4)                         :: maxBias                 ! max acceptable difference (insitu - satellite) 
-  integer                         :: numberSensors           ! number of sensors to treat
-  integer                         :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
-  character(len=10)               :: sensorList( 10 )        ! list of sensors
-  integer                         :: dateStamp
+  type(struct_obs), target    :: obsSpaceData
+  type(struct_hco), pointer   :: hco_anl => null()
+  type(struct_vco), pointer   :: vco_anl => null()
+  real(8)                     :: searchRadius            ! horizontal search radius, in km, for obs gridding
+  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
+                                 varMode        = 'analysis'
+  real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
+  real(4)                     :: maxBias                 ! max acceptable difference (insitu - satellite) 
+  integer                     :: numberSensors           ! number of sensors to treat
+  integer                     :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
+  character(len=10)           :: sensorList( 10 )        ! list of sensors
+  integer                     :: dateStamp
   
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
-  call ver_printNameAndVersion('SSTbiasEstimation','SST Bias Estimation')
+  call ver_printNameAndVersion('SSTbias','SST Bias Estimation')
 
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_SSTbiasEstimation' )
+  call tmg_init(mpi_myid, 'TMG_SSTbias' )
 
   call tmg_start(1,'MAIN')
  
@@ -73,7 +69,7 @@ program midas_sstBias
  
   ! Do initial set up
   call tmg_start(2,'SETUP')
-  call SSTbiasEstimation_setup( 'VAR', dateStamp ) ! obsColumnMode
+  call SSTbias_setup( 'VAR', dateStamp ) ! obsColumnMode
   call tmg_stop(2)
   
   call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
@@ -84,17 +80,17 @@ program midas_sstBias
   
   ! 3. Job termination
 
-  istamp = exfin('SSTBIASESTIMATION','FIN','NON')
+  istamp = exfin('SSTBIAS','FIN','NON')
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_SSTbiasEstimation' )
+  call tmg_terminate(mpi_myid, 'TMG_SSTbias' )
 
   call rpn_comm_finalize(ierr) 
 
   contains
 
-  subroutine SSTbiasEstimation_setup( obsColumnMode, dateStamp )
+  subroutine SSTbias_setup( obsColumnMode, dateStamp )
     !
     ! :Purpose:  Control of the preprocessing of bias estimation
     !
@@ -106,7 +102,7 @@ program midas_sstBias
     
     !Locals:	
     type(struct_hco), pointer   :: hco_core => null()
-    character(len=*), parameter :: myName = 'SSTbiasEstimation_setup'
+    character(len=*), parameter :: myName = 'SSTbias_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'
     integer                     :: sensorIndex
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberSensors, numberPointsBG, sensorList
@@ -182,24 +178,14 @@ program midas_sstBias
     !
     call vco_SetupFromFile( vco_anl, & ! OUT
                             gridFile ) ! IN
-
-    call col_setVco(trlColumnOnAnlLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    !
-    !- Basic setup of columnData module
-    !
-    call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     if(mpi_myid == 0) write(*,*) myName//': done.'
     
-  end subroutine SSTbiasEstimation_setup
+  end subroutine SSTbias_setup
 
 end program midas_sstBias
