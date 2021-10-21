@@ -180,6 +180,7 @@ CONTAINS
     integer  :: flag, phase, bufrCode
     integer  :: phaseIndex, levelIndex, stationIndex, stationNumber
     integer  :: countTailCorrections,  countBulkCorrections
+    integer  :: headerFlag
     real(8)  :: corr, tt, oldCorr, pressure
     character(len=9) :: stnid, stnId1, stnId2
 
@@ -196,6 +197,8 @@ CONTAINS
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if ( headerIndex < 0 ) exit HEADER
+      
+      headerFlag = obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex )
       
       call obs_set_current_body_list(obsSpaceData, headerIndex)
 
@@ -217,7 +220,11 @@ CONTAINS
           if ( tt /= MPC_missingValue_R8 ) then
           
             if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
-              tt = tt - oldCorr
+              if ( btest(headerFlag, 15) ) then
+                tt = tt - oldCorr
+              else
+                tt = tt + oldCorr
+              end if
               flag = ibclr(flag, 6)
             end if
             if ( aiRevOnly ) corr = 0.0D0
@@ -314,6 +321,10 @@ CONTAINS
         end if
         
       end do BODY
+      
+      headerFlag = ibset(headerFlag, 15)
+      call obs_headSet_i( obsSpaceData, OBS_ST1, headerIndex, headerFlag )
+      
     end do HEADER
     
     if ( countBulkCorrections + countTailCorrections /= 0 ) then
