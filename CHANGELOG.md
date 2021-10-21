@@ -143,6 +143,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix near-surface extrapolation in GPSRO ObsOperator for bending, caused large erroneous values and an abort (#520 and !510).
  * Fix near-surface extrapolation in GPSRO ObsOperator, caused large erroneous values and an abort (#460 and !433).
    * The change in !433	can infrequently cause differences in resulting analyses
  * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !427)
