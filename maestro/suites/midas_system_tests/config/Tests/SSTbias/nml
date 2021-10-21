@@ -41,7 +41,6 @@
  &NAMBEN
    SCALEFACTOR = 200*0.0D0
 /
-
  &namSSTbiasEstimate
    searchRadius =   25.    
    iceFractionThreshold = 0.01
@@ -53,7 +52,6 @@
    sensorList(3)='METO-A'
    sensorList(4)='NOAA19'
    sensorList(5)='NPP'
-  
 /
  &NAMSQLsfc
    numberElem=1
