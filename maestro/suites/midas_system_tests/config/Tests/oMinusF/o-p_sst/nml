@@ -357,13 +357,11 @@
  &NAMSQLsc
    numberElem=2
    listElem="11011,11012"
-   sqlExtraDat=" order by id_obs, varno "
    sqlNull = " and obsvalue is not null "
 /
  &NAMSQLsfc
    numberElem=1
    listElem="22042, 7025"
-   sqlExtraDat=" order by id_obs "
    sqlNull=" and obsvalue is not null "  
 /
  &NAMSQLsw
@@ -374,7 +372,6 @@
  &NAMSQLua
   numberElem=11   
   listElem="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
-  sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null " 
 /
  &NAMSQLpr

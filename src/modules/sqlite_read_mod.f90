@@ -1,4 +1,4 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------
+!--t------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -309,7 +309,11 @@ contains
     character(len=9)         :: rdbSchema
     character(len=12)        :: idStation
     integer                  :: codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
-    integer(8)               :: headPrimaryKey, bodyPrimaryKey
+    integer(8)               :: headPrimaryKey,  bodyPrimaryKey, nextHeadPrimaryKey
+    integer(8), allocatable  :: bodyHeadKeys(:), bodyPrimaryKeys(:)
+    integer(8), allocatable  :: tempBodyKeys(:,:)
+    integer                  :: numBodyKeys, firstBodyIndexOfThisBatch
+    logical                  :: createHeaderEntry
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
     real                     :: obsrzam , obsrans, obsrane, obsrele          
@@ -323,20 +327,22 @@ contains
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
-    integer                  :: bitIndex, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex
-    integer                  :: bitsFlagOn, bitsFlagOff, reportLocation, numBody, numHeader
+    integer                  :: bitIndex, rowIndex, obsNlv, headerIndex, bodyIndex
+    integer                  :: bitsFlagOn, bitsFlagOff, numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
-    character(len=512)       :: query, queryData, queryHeader
+    character(len=512)       :: query, queryData, queryHeader, queryIDs
+    character(len=256)       :: selectIDs, selectData
     character(len=256)       :: cfgSqlite, csqlcrit, columnsHeader, columnsData
     logical                  :: finished
     real(8), allocatable     :: matdata(:,:)
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
-    type(fSQL_STATUS)        :: stat,stat2 ! type for error status
-    character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit
+    type(fSQL_STATEMENT)     :: stmt,stmt2,stmt3 ! type for precompiled SQLite statements
+    type(fSQL_STATUS)        :: stat,stat2 !type for error status
+    character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit 
+    character(len=256)       :: sqlDataOrder
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
-    integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
+    integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns
     character(len=*), parameter :: myName = 'sqlr_readSqlite'
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -390,7 +396,7 @@ contains
     end if
 
     vertCoordfact  = 1
-    columnsData = " id_data, id_obs, vcoord, varno, obsvalue, flag "
+    columnsData = " vcoord, varno, obsvalue, flag "
     if ( trim(familyType) == 'TO' ) then      
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, id_sat, land_sea, instrument, zenith, solar_zenith "
       vertCoordType = 3
@@ -574,13 +580,34 @@ contains
       csqlcrit = trim(csqlcrit)//" = "//cfgSqlite
     end if
 
-    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
-    queryData= "select "//columnsData
-    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlLimit)//";"
-    queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
+    !ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
+    sqlDataOrder = ' order by id_obs, varno, id_data' 
+
+    !TODO not sure we want to completely disable sqlExtraDat
+    !     An alternative would be to search for "order by" and stop here if it is found
+    !     doing this in fortran is unpleasant so I did not do it so far.
+    !Deprecation warning for sqlExtraDat
+    if ( trim(sqlExtraDat) /= '' ) then
+      write(*,*) ''
+      write(*,*) '-------------------------------'
+      write(*,*) 'WARNING:'
+      write(*,*) 'The "sqlExtraDat" parameter is deprecated.'
+      write(*,*) 'The options provided there will be ignored.'
+      write(*,*) 'queryData now gets systematically appended with: "'//trim(sqlDataOrder)//'"'
+      write(*,*) 'Please remove "sqlExtraDat" from your config file to make this message go away.'
+      write(*,*) '-------------------------------'
+      write(*,*) ''
+    end if
+
+    selectIDs  = "select id_data, id_obs"
+    selectData = "select "//trim(columnsData)
+    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)
+    !it is very important that queryIDs and queryData be identical except for the column names being selected
+    queryIDs  =  trim(selectIDs)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
+    queryData = trim(selectData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
+    write(*,'(4a)') myName//': ',trim(rdbSchema),' queryIDs     --> ', trim(queryIDs)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
-    write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
-    write(*,*) myName//': =========================================='
+    !the first queryHeader is printed below in the BODY loop
 
     if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' .or. trim(rdbSchema)=='sst' ) then
       elevFact=1.
@@ -588,14 +615,11 @@ contains
       elevFact=0.
     end if
 
-    call fSQL_prepare( db, trim(queryHeader) , stmt, stat )
     call fSQL_prepare( db, trim(queryData), stmt2, stat2 )
-    if ( fSQL_error(stat)  /= FSQL_OK ) call sqlr_handleError(stat ,'fSQL_prepare hdr: ')
-    if ( fSQL_error(stat2) /= FSQL_OK ) call sqlr_handleError(stat2,'fSQL_prepare dat: ')
+    if ( fSQL_error(stat2) /= FSQL_OK ) call sqlr_handleError(stat2,'fSQL_prepare matdata fill statement: ')
 
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
-    headerIndexStart = headerIndex
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)
     write(*,*) myName//': DEBUT numheader  =', numHeader
@@ -610,290 +634,315 @@ contains
     call fSQL_free_mem( stmt2 )
     call fSQL_finalize( stmt2 )
 
+    ! read id_data and id_obs columns in the body table
+    call fSQL_prepare( db, trim(queryIDs) , stmt3, status=stat )
+    ! note: "status" not set when getting integers
+    allocate( bodyPrimaryKeys(numberRows) )
+    allocate( bodyHeadKeys(numberRows) )
+    allocate( tempBodyKeys(numberRows,2) )
+    call fSQL_get_many( stmt3, nrows=numberRows, ncols=numberColumns, &
+                        mode=FSQL_INT8 )
+    call fSQL_fill_matrix( stmt3, tempBodyKeys )
+    bodyPrimaryKeys(:) = tempBodyKeys(:,1)
+    bodyHeadKeys(:)    = tempBodyKeys(:,2)
+    deallocate(tempBodyKeys)
+    call fSQL_free_mem( stmt3 )
+    call fSQL_finalize( stmt3 )
+
+    ! Here is a summary of what is going on in the rest of this routine:
+    ! 
+    ! for each row of the body table
+    !
+    !   if this if the first id_data associated with a given id_obs
+    !     -> read associated header
+    !
+    !   -> write body entry in obsspacedata
+    !
+    !   if this is the last id_data associated with a given id_obs
+    !     -> write header entry in obsspacedata
+    !
     obsNlv = 0
-    lastId = 1
+    numBodyKeys = size(bodyPrimaryKeys)
+    if ( numBodyKeys /= numberRows ) then
+      call utl_abort( 'sqlr_readSqlite: number of body keys not equal to number of rows in matdata' )
+    end if 
+    BODY: do rowIndex = 1, numBodyKeys
 
-    HEADER: do
+      !"id_data" and "id_obs" values for this entry
+      bodyPrimaryKey = bodyPrimaryKeys(rowIndex)
+      headPrimaryKey = bodyHeadKeys(rowIndex)
+      bodyIndex = bodyIndex + 1
+      obsNlv    = obsNlv + 1
+      
 
-      call fSQL_get_row( stmt, finished )   ! Fetch the next row
-      if (finished) then                    ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
-        if ( headerIndex > 1 .and. obsNlv > 0 ) then
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
-                                earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                                real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,  &
-                                obsDate, obsTime/100, obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),        &
-                                real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
+      READHEADER: if ( obsNlv == 1 ) then
+
+        !this is the first body entry associated with a new headPrimaryKey
+        firstBodyIndexOfThisBatch = bodyIndex
+
+        !we read the associated header
+        queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" where id_obs = ? "
+        if ( rowIndex == 1 ) then
+          write(*,'(4a)') myName//': ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
+          write(*,*) myName//': =========================================='
         end if
-        exit HEADER
+        call fSQL_prepare( db, queryHeader, stmt, stat )
+        if ( fSQL_error(stat)  /= FSQL_OK ) then
+          write(*,*) 'sqlr_readSqlite: problem reading header entry. Query:', trim(queryHeader)
+          call sqlr_handleError( stat, 'fSQL_prepare')
+        end if
+         
+        call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey )
+
+        call fSQL_get_row( stmt, finished )
+        if ( finished ) then
+          write(*,*) 'sqlr_readSqlite: problem reading header entry. Query:', trim(queryHeader)
+          call utl_abort( 'Problem with fSQL_get_row()' )
+        end if
+
+        ! The query result is inserted into variables
+        terrainType = MPC_missingValue_INT
+        landSea     = MPC_missingValue_INT
+        sensor      = MPC_missingValue_INT
+        cloudCoverReal = MPC_missingValue_R4
+        elev = 0.; elevReal = 0.
+        solarAzimuthReal = MPC_missingValue_R4
+        solarZenithReal  = MPC_missingValue_R4
+        zenithReal = MPC_missingValue_R4
+        instrument = MPC_missingValue_INT
+        azimuthReal_R8 = MPC_missingValue_R8
+        obsrzam = MPC_missingValue_R4
+        obsrele = MPC_missingValue_R4
+        obsrans = MPC_missingValue_R4
+        obsrane = MPC_missingValue_R4
+
+        call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
+        call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon    )
+        call fSQL_get_column( stmt, COL_INDEX = 4, INT_VAR   = codeType  )
+        call fSQL_get_column( stmt, COL_INDEX = 5, INT_VAR   = obsDate   )
+        call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime   )
+        call fSQL_get_column( stmt, COL_INDEX = 7, CHAR_VAR  = idStation )
+
+
+        FAMILYEXCEPTIONS: if ( trim(familyType) == 'TO' ) then
+
+          call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR   = obsStatus )
+          call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
+          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
+          call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument, INT_MISSING=MPC_missingValue_INT  )
+          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = zenithReal, REAL_MISSING=MPC_missingValue_R4  )
+          call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+
+          if ( trim(rdbSchema) /= 'csr' ) then
+
+            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
+           
+            call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
+
+          end if
+
+          if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
+
+            call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4   )
+            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+
+          else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then
+
+            call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+
+          end if
+          if ( trim(rdbSchema) == 'iasi'  ) then
+            call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = iasiGeneralQualityFlag,    INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT )
+          end if
+
+          if ( instrument == 420 ) obsSat  = 784
+          if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
+          if ( sensor == MPC_missingValue_INT ) then
+            sensor = 0
+            if (instrument == MPC_missingValue_INT ) instrument = 0
+          else
+            instrument = obsu_cvt_obs_instrum(sensor)
+          end if
+
+        else if ( trim(familyType) == 'GL' ) then
+
+          ! It does not have the obsStatus column.
+
+          if ( idStation(1:6) == 'METOP-') then
+            call fSQL_get_column( stmt, COL_INDEX = 8, INT_VAR  = trackCellNum )
+            if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
+            call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
+            modelWindSpeed = modelWindSpeed_R8
+          end if
+
+        else if ( trim(familyType) == 'RA' ) then
+          if ( trim(rdbSchema) == 'radvel') then
+            call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+            elevReal=elev
+            call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
+            call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
+            call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
+            call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
+          end if
+
+        else  ! remaining families
+
+          call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
+          call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+          elevReal=elev
+
+          if ( trim(rdbSchema)=='ro' ) then
+
+            call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation_R8 )
+            geoidUndulation = geoidUndulation_R8
+            call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv_R8 )
+            earthLocRadCurv = earthLocRadCurv_R8
+            call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
+
+          else if ( trim(rdbSchema)=='al' ) then
+            call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
+          end if
+
+        end if FAMILYEXCEPTIONS
+
+        !we are done reading this header entry
+        call fSQL_finalize( stmt )
+
+        if ( obsLon < 0. ) obsLon = obsLon + 360.
+        xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
+        xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
+
+      end if READHEADER
+
+      ! From this point on, we read this body entry and add it to obsspacedata
+              
+      vertCoord = matdata(rowIndex,1)
+      obsVarno = int(matdata(rowIndex,2))
+      obsValue = matdata(rowIndex,3)
+      obsFlag = int(matdata(rowIndex,4))
+
+      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
+
+      if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
+
+        surfEmiss = matdata(rowIndex,5)
+        call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
+
+        biasCorrection = matdata(rowIndex,6)
+
+        if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+          call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
+        end if
+
       end if
 
-      ! The query result is inserted into variables
-      terrainType = MPC_missingValue_INT
-      landSea     = MPC_missingValue_INT
-      sensor      = MPC_missingValue_INT
-      cloudCoverReal = MPC_missingValue_R4
-      elev = 0.; elevReal = 0.
-      solarAzimuthReal = MPC_missingValue_R4
-      solarZenithReal  = MPC_missingValue_R4
-      zenithReal = MPC_missingValue_R4
-      instrument = MPC_missingValue_INT
-      azimuthReal_R8 = MPC_missingValue_R8
-      obsrzam = MPC_missingValue_R4
-      obsrele = MPC_missingValue_R4
-      obsrans = MPC_missingValue_R4
-      obsrane = MPC_missingValue_R4
+      if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. &
+           trim(rdbSchema) == 'atms'  .or.   trim(rdbSchema) =="ssmi" .or. &
+           trim(rdbSchema) =="csr" ) then
 
-      call fSQL_get_column( stmt, COL_INDEX = 1, INT8_VAR  = headPrimaryKey)
-      call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
-      call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon    )
-      call fSQL_get_column( stmt, COL_INDEX = 4, INT_VAR   = codeType  )
-      call fSQL_get_column( stmt, COL_INDEX = 5, INT_VAR   = obsDate   )
-      call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime   )
-      call fSQL_get_column( stmt, COL_INDEX = 7, CHAR_VAR  = idStation )
+        biasCorrection = matdata(rowIndex,5)
 
+        if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) &
+             call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
+
+      end if
+
+      if (trim(rdbSchema) == 'radvel') then
+
+        !matdata is initialized with 0.0d0 
+        !if vcoord is missing in observation file its value will be set to 0.0d0
+        !we change it to missing to make it more obvious that this value has to be calculated later
+        if (vertCoord == real(0.0d0, pre_obsReal)) then
+          vertCoord = real(MPC_missingValue_R8, pre_obsReal)
+        end if
+
+        !write standard body values to obsSpaceData
+        call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+
+        !add range along radar beam
+        range_m = matdata(rowIndex,5)
+        call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, range_m )
+
+      end if
+        
       if ( trim(familyType) == 'TO' ) then
 
-        call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus )
-        call fSQL_get_column( stmt, COL_INDEX =  9,  INT_VAR = obsSat    )
-        call fSQL_get_column( stmt, COL_INDEX = 10,  INT_VAR = landSea        , INT_MISSING=MPC_missingValue_INT )
-        call fSQL_get_column( stmt, COL_INDEX = 11,  INT_VAR = instrument     , INT_MISSING=MPC_missingValue_INT )
-        call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR = zenithReal     , REAL_MISSING=MPC_missingValue_R4 )
-        call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
-
-        if ( trim(rdbSchema) /= 'csr' ) then
-
-          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
-         
-          call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
-
-        end if
-
-        if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
-
-          call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4   )
-          call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
-
-        else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then
-
-          call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
-
-        end if
-        if ( trim(rdbSchema) == 'iasi'  ) then
-          call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = iasiGeneralQualityFlag,    INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT )
-        end if
-
-        if ( instrument == 420 ) obsSat  = 784
-        if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
-        if ( sensor == MPC_missingValue_INT ) then
-          sensor = 0
-          if (instrument == MPC_missingValue_INT ) instrument = 0
+        if ( obsValue /= MPC_missingValue_R8 ) then
+          call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
         else
-          instrument = obsu_cvt_obs_instrum(sensor)
-        end if
+          call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
+        endif
 
-      else if ( trim(familyType) == 'GL' ) then
+      else 
 
-        ! It does not have the obsStatus column.
+        call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                            obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
-        if ( idStation(1:6) == 'METOP-') then
-          call fSQL_get_column( stmt, COL_INDEX = 8, INT_VAR  = trackCellNum )
-          if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
-          call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
-          modelWindSpeed = modelWindSpeed_R8
-        end if
 
-      else if ( trim(rdbSchema) == 'sst' ) then
-        ! satellite SST observations
-
-        call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus                                         )
-        call fSQL_get_column( stmt, COL_INDEX =  9, REAL_VAR = elev           , REAL_MISSING=MPC_missingValue_R4 )
-        call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
-	
-      else if ( trim(familyType) == 'RA' ) then
-        if ( trim(rdbSchema) == 'radvel') then
-          call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-          elevReal=elev
-          call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
-          call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
-          call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
-          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
-        end if
-      else  ! familyType = CONV
-
-        call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
-        call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-        elevReal=elev
-
-        if ( trim(rdbSchema)=='ro' ) then
-
-          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation_R8 )
-          geoidUndulation = geoidUndulation_R8
-          call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv_R8 )
-          earthLocRadCurv = earthLocRadCurv_R8
-          call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
-
-        else if ( trim(rdbSchema)=='al' ) then
-          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
-        end if
-
-      end if  ! TOVS or CONV
-
-      if ( obsLon < 0. ) obsLon = obsLon + 360.
-      xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
-      xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
-      headerIndex = headerIndex + 1 
-
-      obsNlv = 0
-      DATA: do rowIndex = lastId,numberRows
-        ! ---------------------------------------------------
-        if ( int(matdata(rowIndex,2)) > headPrimaryKey ) then 
-
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
-               real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
-               roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
-               real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-               real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
-               iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
-               xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
-               trackCellNum, modelWindSpeed,                                                  &
-               real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-               real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
-          exit DATA
-
-        else if ( int(matdata(rowIndex,2)) == headPrimaryKey ) then
-
-          if ( headerIndex == headerIndexStart .and. obsNlv == 0 ) then
-            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
-                 real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
-                 roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
-                 real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-                 real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
-                 iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
-                 xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
-                 trackCellNum, modelWindSpeed,                                                  &
-                 real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-                 real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
-          end if
-
-          lastId = rowIndex + 1
-          bodyPrimaryKey = int(matdata(rowIndex,1))
-          vertCoord = matdata(rowIndex,3)
-          obsVarno = int(matdata(rowIndex,4))
-          obsValue = matdata(rowIndex,5)
-          obsFlag = int(matdata(rowIndex,6))
-
+        if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
+            .not. ovt_bufrCodeSkipped(obsVarno)) then
+          ! This observation will need to be converted to something else before being assimilated
+          ! Add an extra row in data table that will hold the converted variable
+          call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
+          call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                              obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
+                              0, vertCoordType, bodyIndex + 1 )
           bodyIndex = bodyIndex + 1
-          obsNlv   = obsNlv + 1
-          call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
-
-          if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
-
-            surfEmiss = matdata(rowIndex,7)
-            call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
-
-            biasCorrection = matdata(rowIndex,8)
-
-            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-              call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
-            end if
-
-          end if
-
-          if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. &
-               trim(rdbSchema) == 'atms'  .or.   trim(rdbSchema) =="ssmi" .or. &
-               trim(rdbSchema) =="csr" ) then
-
-            biasCorrection = matdata(rowIndex,7)
-
-            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) &
-                 call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
-
-          end if
-
-          if (trim(rdbSchema) == 'radvel') then
-
-            !matdata is initialized with 0.0d0 
-            !if vcoord is missing in observation file its value will thus be set to 0.0d0
-            !we change it to missing to make it more obvious that this value has to be calculated later
-            if (vertCoord == real(0.0d0, pre_obsReal)) then
-              vertCoord = real(MPC_missingValue_R8, pre_obsReal)
-            end if
-
-            !write standard body values to obsSpaceData
-            call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
-
-            !add range along radar beam
-            range_m = matdata(rowIndex,7)
-            call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, range_m )
-
-          end if
-
-          if ( trim(familyType) == 'TO' ) then
-            if ( obsValue /= MPC_missingValue_R8 ) then
-              call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
-            else
-              call sqlr_initData(obsdat, vertCoord, real(MPC_missingValue_R8,pre_obsReal), obsVarno, obsFlag, vertCoordType, bodyIndex)
-            endif
-
-          else ! CONV
- 
+          obsNlv = obsNlv + 1
+          if (ovt_isWindObs(obsVarno)) then
+            ! Add an extra row for the other wind component
+            call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
             call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+                                obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
+                                0, vertCoordType, bodyIndex + 1 )
+            bodyIndex = bodyIndex + 1
+            obsNlv = obsNlv + 1
+          end if
+        end if
+      end if     
 
-            if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
-                .not. ovt_bufrCodeSkipped(obsVarno)) then
-              call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
-              call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                  obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
-                                  0, vertCoordType, bodyIndex + 1 )
-              bodyIndex = bodyIndex + 1
-              obsNlv = obsNlv + 1
-              if (ovt_isWindObs(obsVarno)) then
-                ! Add an extra row for the other wind component
-                call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
-                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
-                                    0, vertCoordType, bodyIndex + 1 )
-                bodyIndex = bodyIndex + 1
-                obsNlv = obsNlv + 1
-              end if
-            end if
-           
-          end if       ! TOVS or CONV
+      !Logic to determine whether we need to create a header entry
+      createHeaderEntry = .false.
+      if (rowIndex == numBodyKeys) then
+        !This is the last body entry, nothing comes after.
+        createHeaderEntry = .true.
+      else 
+        nextHeadPrimaryKey = bodyHeadKeys(rowIndex+1)
+        if ( headPrimaryKey /= nextHeadPrimaryKey ) then
+          !we just treated the last body entry associated with this id_obs (headPrimaryKey)
+          !make header for this id_obs
+          createHeaderEntry = .true.
+        end if
+      end if
+      WRITEHEADER: if (createHeaderEntry) then
 
-        end if          !  headPrimaryKey   
+        headerIndex = headerIndex + 1 
 
-      end do DATA  ! END OF DATA LOOP
+        call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
+             real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
+             roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
+             real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
+             real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
+             iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
+             xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
+             trackCellNum, modelWindSpeed,                                                  &
+             real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
+             real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
 
-      if ( obsNlv > 0 ) then
-
-        if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
-
+        ! TODO it would make sense to put this in sqlr_initHeader()
+        call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch )
         call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv )
 
-        if ( headerIndex > 1 ) then
-          reportLocation = obs_headElem_i(obsdat, OBS_RLN, headerIndex - 1 ) +  obs_headElem_i(obsdat, OBS_NLV, headerIndex - 1 )
-          call obs_headSet_i(obsdat, OBS_RLN, headerIndex, reportLocation )
-        end if
+        !reset level counter for next batch of data entries
+        obsNlv = 0
 
-        if ( lastId > numberRows ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, &
-                                earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=pre_obsReal), real(cloudCoverReal,kind=pre_obsReal),      &
-                                real(solarZenithReal,kind=pre_obsReal), real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                &
-                                iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey, xlat, xlon, codeType,obsDate, obsTime/100,         &
-                                obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, real(obsrzam,kind=pre_obsReal),                           &
-                                real(obsrele,kind=pre_obsReal), real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal))
-      else
+      end if WRITEHEADER
 
-        headerIndex = headerIndex - 1
-
-      end if
-
-    end do HEADER ! HEADER
+    end do BODY
 
     deallocate(matdata)
     numHeader = obs_numHeader(obsdat)
@@ -901,8 +950,12 @@ contains
     write(*,*) myName//': FIN numheader  =', numHeader
     write(*,*) myName//': FIN numbody    =', numBody
     write(*,*) myName//': fin header '
-    call fSQL_finalize( stmt )
+
     call fSQL_close( db, stat ) 
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
+      call sqlr_handleError( stat, 'fSQL_close')
+    end if
 
   end subroutine sqlr_readSqlite
 
@@ -1157,8 +1210,12 @@ contains
 
     end if
 
-    call fSQL_commit(db)
-    write(*,*) myName//': End ===================  ', trim( familyType )
+    call fSQL_commit(db, stat)
+    if ( fSQL_error(stat)  /= FSQL_OK ) then
+      write(*,*) 'sqlr_updateSqlite: problem committing updates to file.'
+      call sqlr_handleError( stat, 'fSQL_commit')
+    end if
+    write(*,*) myName//': End ===================  ', trim(familyType)
 
   end subroutine sqlr_updateSqlite
 
