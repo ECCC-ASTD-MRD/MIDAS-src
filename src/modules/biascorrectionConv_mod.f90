@@ -30,7 +30,7 @@ MODULE biasCorrectionConv_mod
   implicit none
   save
   private
-  public               :: bcc_readConfig, bcc_applyAIBcor, bcc_applyGPBcor
+  public               :: bcc_applyAIBcor, bcc_applyGPBcor
   public               :: bcc_biasActive
 
   integer, parameter :: nPhases=3, nLevels=5, nAircraftMax=100000 
@@ -49,6 +49,7 @@ MODULE biasCorrectionConv_mod
   character(len=9), allocatable :: aircraftIds(:), gpsStations(:)
   
   logical :: bcc_aiBiasActive, bcc_gpBiasActive
+  logical :: initialized = .false.
   
   ! Bias correction files (must be in program working directory)
   character(len=8), parameter :: aiBcFile = "ai_bcors", gpBcFile = "gp_bcors"
@@ -95,6 +96,8 @@ CONTAINS
     bcc_aiBiasActive = aiBiasActive
     bcc_gpBiasActive = gpBiasActive
     
+    initialized = .true.
+    
     
   end subroutine bcc_readConfig
 
@@ -121,6 +124,8 @@ CONTAINS
     real(8) :: biasEstimate, correctionValue
     character(len=9) :: stationId
 
+    if (.not.initialized) call bcc_readConfig()
+    
     if ( aiRevOnly ) return
     
     nulcoeff = 0
@@ -184,6 +189,8 @@ CONTAINS
     real(8)  :: corr, tt, oldCorr, pressure
     character(len=9) :: stnid, stnId1, stnId2
 
+    if (.not.initialized) call bcc_readConfig()
+    
     if ( .not. aiBiasActive ) return
 
     write(*,*) "bcc_applyAIBcor: start"
@@ -358,6 +365,8 @@ CONTAINS
     real(8) :: biasEstimate
     character(len=9) :: stationId
 
+    if (.not.initialized) call bcc_readConfig()
+    
     if ( gpRevOnly ) return
     
     nulcoeff = 0
@@ -380,7 +389,7 @@ CONTAINS
        if ( ierr /= 0 ) then
           call utl_abort('bcc_readGPBiases: error 2 while reading GB-GPS bias correction file ' // biasEstimateFile )
        end if
-       if ( biasEstimate /= -999.0D0 ) ztdCorrections(stationIndex) = -1.0D0*(biasEstimate/1000.0D0)  ! mm to m
+       if ( biasEstimate /= MPC_missingValue_R8 ) ztdCorrections(stationIndex) = -1.0D0*(biasEstimate/1000.0D0)  ! mm to m
        gpsStations(stationIndex) = stationId
     end do
     ierr = fclos(nulcoeff)
@@ -405,6 +414,8 @@ CONTAINS
     real(8)  :: corr, ztd, oldCorr
     character(len=9) :: stnid, stnId1, stnId2
 
+    if (.not.initialized) call bcc_readConfig()
+    
     if ( .not. gpBiasActive ) return
 
     write(*,*) "bcc_applyGPBcor: start"
@@ -510,7 +521,9 @@ CONTAINS
     implicit none
     character(len=*),intent(in) :: obsFam
 
-    bcc_biasActive = ( bcc_gpBiasActive .and. trim(obsFam) == 'GP')
+    if (.not.initialized) call bcc_readConfig()
+    
+    bcc_biasActive = (bcc_gpBiasActive .and. trim(obsFam) == 'GP') .or. (bcc_aiBiasActive .and. trim(obsFam) == 'AI')
 
   end function bcc_biasActive
 
