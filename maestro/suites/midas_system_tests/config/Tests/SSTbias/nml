@@ -46,7 +46,7 @@
    iceFractionThreshold = 0.01
    maxBias = 5.
    numberPointsBG = 250
-   numberSensors = 5
+   numberSensors = 2
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
    sensorList(3)='METO-A'
