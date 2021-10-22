@@ -74,15 +74,17 @@ module SSTbias_mod
                                                                      ! the background state
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
-    integer                     :: headerIndex, sensorIndex
+    integer                     :: headerIndex, sensorIndex, productIndex
     real(8)                     :: insituGrid   ( hco % ni, hco % nj )
-    real(8)                     :: satelliteGrid( hco % ni, hco % nj, numberSensors, 2 )
+    real(8)                     :: satelliteGrid( hco % ni, hco % nj )
     logical                     :: mask( hco % ni, hco % nj ), openWater( hco % ni, hco % nj ) 
     type(struct_ocm)            :: oceanMask
     integer                     :: numberOpenWaterPoints, lonIndex, latIndex, ierr
     type(struct_gsv)            :: stateVector_ice
     real(4), pointer            :: seaice_ptr( :, :, : )
-    
+    integer         , parameter :: numberProducts = 2  ! day and night
+    character(len=*), parameter :: listProducts( numberProducts )= (/ 'day', 'night' /)
+
     write(*,*) 'Starting '//myName//'...'
     write(*,*) myName//': Current analysis date: ', dateStamp
     write(*,*) myName//': Sea-ice Fraction threshold: ', iceFractionThreshold
@@ -122,21 +124,19 @@ module SSTbias_mod
     write(*,*) myName//': computing bias for ', numberOpenWaterPoints, ' open water points'
     
     insituGrid( :, : ) = MPC_missingValue_R8
-    satelliteGrid( :, : , : , : ) = MPC_missingValue_R8
 
     call sstb_getGriddedObs( obsData, insituGrid, hco, vco, searchRadius, openWater, 'insitu' )
 
     do sensorIndex = 1, numberSensors 
-      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 1 ), hco, vco, searchRadius, &
-                               openWater, trim( sensorList( sensorIndex )), dayOrNight_opt = 'day' )
-      call sstb_getGriddedObs( obsData, satelliteGrid ( :, :, sensorIndex, 2 ), hco, vco, searchRadius, &
-                               openWater, trim( sensorList( sensorIndex )), dayOrNight_opt = 'night' )
-      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 1 ), insituGrid, hco, vco, mask, openWater, &
-                                maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
-                                numberPointsBG, dateStamp, 'day' )
-      call sstb_getGriddedBias( satelliteGrid ( :, :, sensorIndex, 2 ), insituGrid, hco, vco, mask, openWater, &
-                                maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
-                                numberPointsBG, dateStamp, 'night' )
+      do productIndex = 1, numberProducts
+        satelliteGrid( :, : ) = MPC_missingValue_R8
+        call sstb_getGriddedObs( obsData, satelliteGrid ( :, : ), hco, vco, searchRadius, &
+                                 openWater, trim( sensorList( sensorIndex )), &
+                                 dayOrNight_opt = trim( listProducts(productIndex)) )
+        call sstb_getGriddedBias( satelliteGrid ( :, : ), insituGrid, hco, vco, mask, openWater, &
+                                  maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
+                                  numberPointsBG, dateStamp, trim( listProducts(productIndex)) )
+      end do
     end do
     
   end subroutine sstb_computeBias
@@ -214,7 +214,7 @@ module SSTbias_mod
     end if  
     
     write(*,*) ''
-    write(*,*) myName//': found ', countObs, ' ', instrumentString, ' data'
+    write(*,"(a, i10, a)") myName//': found ', countObs, ' '//trim(instrumentString)//' data'
     
     if ( countObs > 0 ) then
     
@@ -320,7 +320,7 @@ module SSTbias_mod
     end if  
     
     call rpn_comm_barrier( 'GRID', ierr )
-    write(*,*) myName//': gridding for ', instrumentString, ' data completed'
+    write(*,*) myName//': gridding for '//trim(instrumentString)//' data completed'
 
   end subroutine sstb_getGriddedObs
 
@@ -375,7 +375,7 @@ module SSTbias_mod
     character(len=*), parameter :: myName = 'sstb_getGriddedBias'
     
     write(*,*) ''
-    write(*,*) myName//' computing bias for: ', sensor, ' ', dayOrNight
+    write(*,*) myName//' computing bias for: '//trim(sensor)//' '//trim(dayOrNight)
     
     if ( dayOrNight == 'day' ) then
       extension = 'D'
@@ -429,7 +429,7 @@ module SSTbias_mod
     call gsv_getField( stateVector, griddedBias_r4_ptr )
 
     ! do the search
-    write(*,*) myName//': do the search for ', sensor, ' ', dayOrNight,'...' 
+    write(*,*) myName//': do the search for '//trim(sensor)//' '//trim(dayOrNight)//'...' 
 
     do lonIndex = myLonBeg, myLonEnd 
       do latIndex = myLatBeg, myLatEnd
@@ -477,7 +477,6 @@ module SSTbias_mod
     end do
     
     call rpn_comm_barrier( 'GRID', ierr )
-    write(*,*) myName//': saving results...'
     call gsv_writeToFile( stateVector, outputFileName, 'B_'//sensor//'_'//extension )
     
     deallocate( gridPointIndexes )
@@ -486,7 +485,7 @@ module SSTbias_mod
     call gsv_deallocate( stateVector_searchRadius )
     call gsv_deallocate( stateVector_previous )
     
-    write(*,*) myName//' completed for: ', sensor, ' ', dayOrNight
+    write(*,*) myName//' completed for: '//trim(sensor)//' '//trim(dayOrNight)
 
   end subroutine sstb_getGriddedBias
 
