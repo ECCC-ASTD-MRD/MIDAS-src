@@ -144,9 +144,6 @@ contains
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
-    ! Read NAMBIASCONV namelist to check if bias correction for conventional data is active
-    call bcc_readConfig()
-    
     call obsf_determineFileType(obsFileType)
 
     if ( obsFileType == 'CMA' ) then
