@@ -154,6 +154,11 @@ contains
     else
 
       call obs_headSet_r( obsdat, OBS_ALT ,headerIndex , elev )
+      
+      if ( trim(rdbSchema) == 'sst' ) then
+        call obs_headSet_r( obsdat, OBS_SUN , headerIndex, solarZenith )
+      end if
+      
       if ( trim(rdbSchema) == 'ro' ) then
         call obs_headSet_i( obsdat, OBS_ROQF, headerIndex, roQcFlag        )
         call obs_headSet_r( obsdat, OBS_GEOI, headerIndex, geoidUndulation )
@@ -325,7 +330,7 @@ contains
     real(8), allocatable     :: matdata(:,:)
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
-    type(fSQL_STATUS)        :: stat,stat2 !type for error status
+    type(fSQL_STATUS)        :: stat,stat2 ! type for error status
     character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
@@ -449,6 +454,7 @@ contains
         if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'sst' )
+        columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
@@ -577,7 +583,7 @@ contains
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
     write(*,*) myName//': =========================================='
 
-    if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' ) then
+    if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' .or. trim(rdbSchema)=='sst' ) then
       elevFact=1.
     else
       elevFact=0.
@@ -648,12 +654,12 @@ contains
 
       if ( trim(familyType) == 'TO' ) then
 
-        call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR   = obsStatus )
-        call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
-        call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
-        call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument, INT_MISSING=MPC_missingValue_INT  )
-        call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = zenithReal, REAL_MISSING=MPC_missingValue_R4  )
-        call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+        call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus )
+        call fSQL_get_column( stmt, COL_INDEX =  9,  INT_VAR = obsSat    )
+        call fSQL_get_column( stmt, COL_INDEX = 10,  INT_VAR = landSea        , INT_MISSING=MPC_missingValue_INT )
+        call fSQL_get_column( stmt, COL_INDEX = 11,  INT_VAR = instrument     , INT_MISSING=MPC_missingValue_INT )
+        call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR = zenithReal     , REAL_MISSING=MPC_missingValue_R4 )
+        call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
 
         if ( trim(rdbSchema) /= 'csr' ) then
 
@@ -699,6 +705,13 @@ contains
           modelWindSpeed = modelWindSpeed_R8
         end if
 
+      else if ( trim(rdbSchema) == 'sst' ) then
+        ! satellite SST observations
+
+        call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus                                         )
+        call fSQL_get_column( stmt, COL_INDEX =  9, REAL_VAR = elev           , REAL_MISSING=MPC_missingValue_R4 )
+        call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+	
       else if ( trim(familyType) == 'RA' ) then
         if ( trim(rdbSchema) == 'radvel') then
           call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )

@@ -1,0 +1,4 @@
+<?xml version="1.0" ?>
+<NODE_RESOURCES>
+  <BATCH catchup="2" cpu="40x10x1" machine="${BACKEND}" mpi="1" memory="4G" queue="${BACKEND_DEFAULT_Q}" wallclock="40"/>
+</NODE_RESOURCES>
