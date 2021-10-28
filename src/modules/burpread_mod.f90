@@ -1279,7 +1279,8 @@ CONTAINS
                 if(HIRES) KOBSN=0
                 !pikpik
 
-                elems: do IL = 1, NBELE  
+                ! Loop over elements to add all to the new blocks and the initialize values 
+                elems0: do IL = 1, NBELE
 
                   iele=BURP_Get_Element(BLOCK_OBS_MUL_CP,INDEX =il,IOSTAT= error)
                   call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP") 
@@ -1334,6 +1335,24 @@ CONTAINS
 
                   end if
 
+                end do elems0
+
+                ! Loop over elements to update the values
+                elems: do IL = 1, NBELE  
+
+                  iele=-1
+                  iele=BURP_Get_Element(BLOCK_OBS_MUL_CP,INDEX =il,IOSTAT= error)
+                  call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP") 
+
+                  IND_ELE_MAR= BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000)
+                  if (IND_ele_mar <  0 ) cycle
+
+                  IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele)
+                  if (IND_ele == IND_LAT  .and. hires ) cycle
+                  if (IND_ele == IND_LON  .and. hires ) cycle
+                  if (IND_ele == IND_TIME .and. hires ) cycle
+                  IND_ELE_STAT=-1
+                  IND_ele_STAT  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele)
                   VCOORD =  BURP_Get_Rval(BLOCK_OBS_MUL_CP, &
                                       &   NELE_IND = IND_VCOORD, &
                                       &   NVAL_IND = j, &
