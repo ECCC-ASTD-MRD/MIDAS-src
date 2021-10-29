@@ -16,6 +16,31 @@
 <!--The text here should describe how the change was implemented.-->
 <!--Detail here the changes answered as YES in the previous section-->
 
+### Description of the impact on the results
+
+<!--
+
+Describe how the results are affected by the code introduced in this
+merge request:
+
+ 1. quick explanation of why the results are affected:
+   * order of obs changed
+   * affecting cost function calculation
+ 2. which programs are affected (e.g. `midas-var.Abs`)
+ 3. in which configurations are the impacts seen
+   * e.g. all operational NWP systems using `midas-var.Abs` program
+ 4. how significant are the changes
+   * no impact at all (backward compatible)
+   * minor, only due to numerical round-off error or
+   * major like impacting the meteorological evaluation
+      * if so, in which data assimilation experiments were the impact
+        of the changes evaluated
+
+-->
+
+Delete this line and replace it with your description of the impact on
+the results based on the text above.
+
 ### Addition to CHANGELOG:
 
 <!--Some oneliners describing changes for the whole merge-request-->
@@ -28,6 +53,10 @@
 
 **Don't forget to add a description of your changes in the
   'Unreleased' section of `CHANGELOG.md`.**
+
+If the changes have impact on the results, please insert
+  * "minor impact on results" or
+  * "major impact on results".
 
 ### Resolved issues:
 
