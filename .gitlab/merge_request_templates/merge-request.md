@@ -51,8 +51,8 @@ the results based on the text above.
 <!--   * input/output files -->
 <!--   * results            -->
 
-**Don't forget to add a description of your changes in the
-  'Unreleased' section of `CHANGELOG.md`.**
+Delete this line and replace it with the CHANGELOG entry that you put
+in the [CHANGELOG "Unreleased"](CHANGELOG.md#Unreleased).
 
 If the changes have impact on the results, please insert
   * "minor impact on results" or
