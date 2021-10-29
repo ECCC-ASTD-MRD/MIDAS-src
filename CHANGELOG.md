@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Changed the merge template to better guide the user when he/she is
+   updating the [`CHANGELOG`](CHANGELOG.md) (#539 and !513)
+   * A token must be put in that entry to show the impact on the
+     results.
  * Satellite SST data bias correction is added to `SSTbias` program (#494 and !511) 
  * SST bias estimation program (#461 and !502)
  * Link splitobs compilation to `src/Makefile` (#490 and !499)
