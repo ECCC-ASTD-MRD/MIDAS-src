@@ -2912,8 +2912,8 @@ contains
           bstv(levIndexObs)=bstv(last_levIndexObs)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
         end if
 
-      endif
-    enddo
+      end if
+    end do
   end subroutine gps_bndopv1
 
 
