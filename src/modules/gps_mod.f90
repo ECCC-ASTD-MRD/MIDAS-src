@@ -2823,7 +2823,8 @@ contains
     !
     ! :Note: The Operator is based  from Assimilation experiments withCHAMP GPS radio occultation measurements
     !         (S. B. HEALY and J.-N. THEPAUT, 2005)
-    
+    implicit none
+
     ! Arguments:
     real(dp)              , intent(in) :: impv(:), azmv(:)
     integer(i4)           , intent(in) :: nval
@@ -2831,33 +2832,33 @@ contains
     type(gps_diff)        , intent(out):: bstv(:)
 
     ! Locals:
-    integer                            :: i, ngpslev,last_i,numLevels,levelHigh,levelLow,levelIndex 
+    integer                            :: levIndexObs, ngpslev,last_levIndexObs,numLevels,levelHigh,levelLow,levIndexAnl 
     type(gps_diff)                     :: h(ngpssize), nu(ngpssize), lnu(ngpssize), n(ngpssize), z(ngpssize)
     type(gps_diff)                     :: N0a, N1a, ka, NAa,Aa, Ba, Ba2, Ba3, delta_alpha, delta_alpha_top, z_0, h_0
     real(dp)                           :: a2, a, gz, cazm, sazm, last_a
 
     ! model levels 
     ngpslev=prf%ngpslev
-    do levelIndex = 1,ngpslev 
-      h(levelIndex)  = prf%geoid+prf%gst(levelIndex)
-      nu(levelIndex) = prf%rst(levelIndex)
-      lnu(levelIndex)=log(nu(levelIndex)) 
-      n(levelIndex)  = 1._dp+nu(levelIndex)*1e-6_dp
-      z(levelIndex)  = n(levelIndex)*(prf%Rad+prf%geoid+prf%gst(levelIndex))
-    enddo
+    do levIndexAnl = 1,ngpslev 
+      h(levIndexAnl)  = prf%geoid+prf%gst(levIndexAnl)
+      nu(levIndexAnl) = prf%rst(levIndexAnl)
+      lnu(levIndexAnl)=log(nu(levIndexAnl)) 
+      n(levIndexAnl)  = 1._dp+nu(levIndexAnl)*1e-6_dp
+      z(levIndexAnl)  = n(levIndexAnl)*(prf%Rad+prf%geoid+prf%gst(levIndexAnl))
+    end do
     ! number of levels in the profile
     numLevels  = size(impv)
     if (nval < numLevels) numLevels=nval
     
-    do i =  numLevels,1,-1
-      a2 = impv(i)*impv(i)
-      a  = impv(i)
+    do levIndexObs =  numLevels,1,-1
+      a2 = impv(levIndexObs)*impv(levIndexObs)
+      a  = impv(levIndexObs)
       !find model levels that bracket the observation
       !   note to self:   like in GEM, level=1 is the highest level
-      do levelIndex = 1, ngpslev-1
-        levelHigh = levelIndex - 1
-        levelLow  = levelIndex
-        if (z(levelIndex)%VaR< a) exit 
+      do levIndexAnl = 1, ngpslev-1
+        levelHigh = levIndexAnl - 1
+        levelLow  = levIndexAnl
+        if (z(levIndexAnl)%VaR< a) exit 
           levelLow  = 0
       end do
     
@@ -2895,21 +2896,21 @@ contains
 
           levelLow  = levelHigh 
           levelHigh = levelLow-1
-        enddo
+        end do
         Ba = erf(1-erf(sqrt((ka*(z_0-a)))))
         delta_alpha_top = 2*Aa*ka*Ba 
         last_a = a
-        last_i = i
-        bstv(i)= delta_alpha +delta_alpha_top
+        last_levIndexObs = levIndexObs
+        bstv(levIndexObs)= delta_alpha +delta_alpha_top
       else  ! (levelLow==0) 
         ! Use loglinear extrapolation for most data (notably direct rays)
         if (a>(1._dp+prf%rst(ngpslev)%Var*1e-6_dp)*prf%Rad) then
-          bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))
+          bstv(levIndexObs)=bstv(last_levIndexObs)*exp((-1._dp/6500._dp)*(a-last_a))
         else
         ! Use linear extrapolation (most reflected rays) from Information content in reflected
         ! signals during GPS Radio Occultation observations (Josep Aparicio et al.,2017) 
-          bstv(i)=bstv(last_i)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
-        endif
+          bstv(levIndexObs)=bstv(last_levIndexObs)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
+        end if
 
       endif
     enddo
