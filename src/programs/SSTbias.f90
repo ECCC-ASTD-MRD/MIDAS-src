@@ -53,6 +53,8 @@ program midas_sstBias
   character(len=10)           :: sensorList( 10 )        ! list of sensors
   integer                     :: dateStamp
   type(struct_columnData)     :: column                  ! column data 
+  character(len=20)           :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
+  integer                     :: numObsBatches           ! number of batches for calling interp setup
    
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
@@ -75,8 +77,9 @@ program midas_sstBias
   call tmg_stop(2)
   
   call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                         column, numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
-
+                         column, numberSensors, sensorList, dateStamp, maxBias, numberPointsBG, &
+                         timeInterpType_nl, numObsBatches )
+			 
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then 
     write(*,*) 'We read/write global observation files'
@@ -119,7 +122,8 @@ program midas_sstBias
     character(len=*), parameter :: myName = 'SSTbias_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'
     integer                     :: sensorIndex
-    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberSensors, numberPointsBG, sensorList
+    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
+                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -143,6 +147,8 @@ program midas_sstBias
     iceFractionThreshold   = 0.05 
     numberSensors = 0             
     numberPointsBG = 0            
+    timeInterpType_nl = 'NEAREST'
+    numObsBatches = 20
     sensorList(:) = ''
     
     ! Read the namelist
@@ -153,11 +159,14 @@ program midas_sstBias
     if ( mpi_myid == 0 ) write(*, nml = namSSTbiasEstimate )
     ierr = fclos( nulnam )
 
-    if ( numberSensors == 0) call utl_abort( myName//': Number of satellites to treat is not defined!!!')
-    write(*,*) myName//': satellites to treat: '
+    if ( numberSensors == 0) call utl_abort( myName//': Number of sensors to treat is not defined!!!')
+    write(*,*)''
+    write(*,*) myName//': sensors to treat: '
     do sensorIndex = 1, numberSensors
       write(*,*) myName//': sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
     end do
+    write(*,*) myName//': interpolation type: ', timeInterpType_nl
+    write(*,*) myName//': number obs batches: ', numObsBatches
        
     !
     !- Initialize constants

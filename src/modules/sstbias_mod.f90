@@ -59,7 +59,8 @@ module SSTbias_mod
   ! sstb_computeBias
   !--------------------------------------------------------------------------
   subroutine sstb_computeBias( obsData, hco, vco, iceFractionThreshold, searchRadius, column, &
-                               numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
+                               numberSensors, sensorList, dateStamp, maxBias, numberPointsBG, &
+                               timeInterpType_nl, numObsBatches )
     !
     ! :Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
@@ -78,6 +79,8 @@ module SSTbias_mod
     real(4)                , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
     integer                , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute
                                                                             ! the background state
+    character(len=20)      , intent(in)             :: timeInterpType_nl    ! 'NEAREST' or 'LINEAR'
+    integer                , intent(in)             :: numObsBatches        ! number of batches for calling interp setup
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
     integer                     :: headerIndex, sensorIndex, productIndex
@@ -90,33 +93,12 @@ module SSTbias_mod
     real(4), pointer            :: seaice_ptr( :, :, : )
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts( numberProducts )= (/ 'day', 'night' /)
-    character(len=20)           :: timeInterpType_nl   ! 'NEAREST' or 'LINEAR'
-    integer                     :: numObsBatches       ! number of batches for calling interp setup
     integer                     :: nulnam
-    namelist /NAMINN/ timeInterpType_nl, numObsBatches
+
     write(*,*) 'Starting '//myName//'...'
     write(*,*) myName//': Current analysis date: ', dateStamp
     write(*,*) myName//': Sea-ice Fraction threshold: ', iceFractionThreshold
     
-    timeInterpType_nl = 'NEAREST'
-    numObsBatches     = 20
-    if ( utl_isNamelistPresent( 'naminn', './flnml' )) then
-      nulnam = 0
-      ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-      if ( ierr /= 0) call utl_abort( myName//': Error opening file flnml' )
-      read( nulnam, nml = naminn, iostat = ierr )
-      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
-      if ( mpi_myid == 0 ) write( *, nml = naminn )
-      ierr = fclos( nulnam )
-    else
-      write(*,*)
-      write(*,*) myName//': Namelist block NAMINN is missing in the namelist.'
-      write(*,*) myName//'                  The default values will be taken:'
-      write(*,*) myName//'                  Interpolation type: ', timeInterpType_nl
-      write(*,*) myName//'                  Number obs batches: ', numObsBatches
-      if ( mpi_myid == 0 ) write( *, nml = naminn )
-    end if
-
     ! get mpi topology
     call mpivar_setup_lonbands( hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
     call mpivar_setup_latbands( hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
