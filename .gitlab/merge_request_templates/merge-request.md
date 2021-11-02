@@ -18,28 +18,26 @@
 
 ### Description of the impact on the results
 
-<!--
-
-Describe how the results are affected by the code introduced in this
-merge request:
+<!--Describe how the results are affected by the code modifications introduced
+in this merge request:
 
  1. quick explanation of why the results are affected:
-   * order of obs changed
-   * affecting cost function calculation
- 2. which programs are affected (e.g. `midas-var.Abs`)
- 3. in which configurations are the impacts seen
+   * e.g. order of obs changed affecting cost function calculation
+ 2. list the program(s) that are affected
+   * e.g. `midas-var.Abs`
+ 3. describe in which configurations the impacts are seen
    * e.g. all operational NWP systems using `midas-var.Abs` program
- 4. how significant are the changes
-   * no impact at all (backward compatible)
+ 4. level of significance of the changes to the results (choose one of following)
+   * no impact (completely backward compatible)
    * minor, only due to numerical round-off error or
-   * major like impacting the meteorological evaluation
-      * if so, in which data assimilation experiments were the impact
-        of the changes evaluated
-
+   * major, impacting the meteorological evaluation
+      * give the link to results of data assimilation experiments in
+        which the impact of the changes were evaluated
 -->
 
 Delete this line and replace it with your description of the impact on
-the results based on the text above.
+the results based on the text above. If there are no absolutely no impacts
+on the results then simply state "No impact"
 
 ### Addition to CHANGELOG:
 
@@ -52,9 +50,9 @@ the results based on the text above.
 <!--   * results            -->
 
 Delete this line and replace it with the CHANGELOG entry that you put
-in the [CHANGELOG "Unreleased"](CHANGELOG.md#Unreleased).
+in the [CHANGELOG under one of the subheadings after "Unreleased"](CHANGELOG.md#Unreleased).
 
-If the changes have impact on the results, please insert
+If the changes have any impact on the results, then you must include either
   * "minor impact on results" or
   * "major impact on results".
 
