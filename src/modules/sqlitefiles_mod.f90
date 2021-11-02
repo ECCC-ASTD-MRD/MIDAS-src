@@ -41,6 +41,9 @@ module sqliteFiles_mod
 
   contains
 
+  !--------------------------------------------------------------------------
+  ! sqlf_getDateStamp
+  !--------------------------------------------------------------------------
   subroutine sqlf_getDateStamp(datestamp, sqliteFileName)
     implicit none
     ! arguments
@@ -94,7 +97,9 @@ module sqliteFiles_mod
 
   end subroutine sqlf_getDateStamp
 
-
+  !--------------------------------------------------------------------------
+  ! sqlf_readFile
+  !--------------------------------------------------------------------------
   subroutine sqlf_readFile(obsdat, fileName, familyType, fileIndex )
     implicit none
     ! arguments
@@ -170,7 +175,9 @@ module sqliteFiles_mod
 
   end subroutine  sqlf_readFile
 
-  
+  !--------------------------------------------------------------------------
+  ! sqlf_updateFile
+  !--------------------------------------------------------------------------
   subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex )
     implicit none
     ! arguments
@@ -208,7 +215,9 @@ module sqliteFiles_mod
 
   end subroutine sqlf_updateFile
 
-
+  !--------------------------------------------------------------------------
+  ! sqlf_cleanFile
+  !--------------------------------------------------------------------------
   subroutine sqlf_cleanFile(fileName, familyType)
     !
     ! :Purpose: to reduce the number of observation data in an SQLite file
@@ -233,7 +242,9 @@ module sqliteFiles_mod
     call tmg_stop(96)
   end subroutine sqlf_cleanFile
 
-
+  !--------------------------------------------------------------------------
+  ! sqlf_addCloudParametersandEmissivity
+  !--------------------------------------------------------------------------
   subroutine sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, fileName)
     !
     ! :Purpose: To insert cloud parameters in obsspace data into sqlite file
@@ -258,7 +269,9 @@ module sqliteFiles_mod
     call fSQL_close( db, statusSqlite )
   end subroutine sqlf_addCloudParametersandEmissivity
 
-
+  !--------------------------------------------------------------------------
+  ! sqlf_writeSqlDiagFiles
+  !--------------------------------------------------------------------------
   subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
     implicit none
     ! arguments
@@ -273,6 +286,5 @@ module sqliteFiles_mod
     call tmg_stop(99)
 
   end subroutine sqlf_writeSqlDiagFiles
-
 
 end module sqliteFiles_mod

@@ -33,6 +33,7 @@ program midas_sstBias
   use innovation_mod
   use analysisGrid_mod
   use SSTbias_mod
+  use columnData_mod
   
   implicit none
 
@@ -51,7 +52,8 @@ program midas_sstBias
   integer                     :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
   character(len=10)           :: sensorList( 10 )        ! list of sensors
   integer                     :: dateStamp
-  
+  type(struct_columnData)     :: column                  ! column data 
+   
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
   call ver_printNameAndVersion('SSTbias','SST Bias Estimation')
@@ -73,11 +75,23 @@ program midas_sstBias
   call tmg_stop(2)
   
   call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                         numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
+                         column, numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
+
+  ! Now write out the observation data files
+  if ( .not. obsf_filesSplit() ) then 
+    write(*,*) 'We read/write global observation files'
+    call obs_expandToMpiGlobal(obsSpaceData)
+    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+  else
+    ! redistribute obs data to how it was just after reading the files
+    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    call obsf_writeFiles(obsSpaceData)
+  end if
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
-  
+  call col_deallocate( column )
+
   ! 3. Job termination
 
   istamp = exfin('SSTBIAS','FIN','NON')
@@ -178,11 +192,19 @@ program midas_sstBias
     !
     call vco_SetupFromFile( vco_anl, & ! OUT
                             gridFile ) ! IN
+
+    call col_setVco( column, vco_anl )
     !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !- Basic setup of columnData module
+    call col_setup
+
+    !- Memory allocation for background column data
+    call col_allocate( column, obs_numHeader( obsSpaceData ), mpiLocal_opt = .true. )
 
     if(mpi_myid == 0) write(*,*) myName//': done.'
     

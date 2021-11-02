@@ -35,6 +35,7 @@ use tovs_nl_mod
 use codtyp_mod
 use obsVariableTransforms_mod
 use obsFilter_mod
+use sqliteUtilities_mod
 
 implicit none   
  
@@ -292,6 +293,9 @@ contains
   end subroutine sqlr_readSqlite_avhrr
 
 
+  !--------------------------------------------------------------------------
+  ! sqlr_readSqlite
+  !--------------------------------------------------------------------------
   subroutine sqlr_readSqlite(obsdat, familyType, fileName )
     !
     ! :Purpose: To read SQLite namelist and files.
@@ -907,7 +911,9 @@ contains
 
   end subroutine sqlr_readSqlite
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_query
+  !--------------------------------------------------------------------------
   function sqlr_query(db,query)
     !
     ! :Purpose: To create a query to read an SQLite file
@@ -950,32 +956,41 @@ contains
 
   end subroutine sqlr_handleError
 
-  
-  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber )
+  !--------------------------------------------------------------------------
+  ! sqlr_updateSqlite
+  !--------------------------------------------------------------------------
+  subroutine sqlr_updateSqlite( db, obsdat, familyType, fileName, fileNumber )
+    !
+    ! :Purpose: update SQLite files. List of items to update is in the 
+    !           namSQLUpdate namelist
+      
     implicit none
+    
     ! arguments
-    type(fSQL_DATABASE),intent(inout):: db
-    type (struct_obs),  intent(inout) :: obsdat
-    character(len=*),   intent(in)    :: fileName   
-    character(len=*),   intent(in)    :: familyType ! Observation Family Type 
-    integer         ,   intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
-    !  locals
-    type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
-    type(fSQL_STATUS)                :: stat ! type error status
-    integer                          :: obsRln, obsNlv, obsIdf, obsFlag
-    integer                          :: obsStatus, last_question, landSea, terrainType
-    integer(8)                       :: headPrimaryKey, bodyPrimaryKey
-    integer                          :: itemId, headPrimaryKeyIndex, landSeaIndex
-    integer                          :: headerIndex, bodyIndex, numberUpdateItems, numberUpdateItemsRadar
-    character(len =   3)             :: item, itemUpdateList(15), itemUpdateListRadar(15)
-    integer                          :: updateList(20), fnom, fclos, nulnam, ierr
-    character(len =  10)             :: item2
-    character(len = 128)             :: query
-    character(len = 356)             :: itemChar,item2Char
-    logical                          :: back
-    real                             :: romp, obsValue, scaleFactor
-    character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
-    character(len=*), parameter      :: myError = myName //': ERROR: '
+    type(fSQL_database), intent(inout) :: db         ! SQL database
+    type (struct_obs)  , intent(inout) :: obsdat     ! obsSpaceData
+    character(len=*)   , intent(in)    :: fileName   ! file name  
+    character(len=*)   , intent(in)    :: familyType ! Observation Family Type 
+    integer            , intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
+    
+    ! locals
+    type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
+    type(fSQL_status)           :: stat ! type error status
+    integer                     :: obsRln, obsNlv, obsIdf, obsFlag
+    integer                     :: obsStatus, last_question, landSea, terrainType
+    integer(8)                  :: headPrimaryKey, bodyPrimaryKey
+    integer                     :: itemIndex, headPrimaryKeyIndex, landSeaIndex
+    integer                     :: headerIndex, bodyIndex, numberUpdateItems, numberUpdateItemsRadar
+    character(len =   3)        :: item, itemUpdateList(15), itemUpdateListRadar(15)
+    integer                     :: updateList(20), fnom, fclos, nulnam, ierr
+    character(len =  10)        :: columnName
+    character(len = 128)        :: query
+    character(len = 356)        :: itemChar, columnNameChar
+    logical                     :: back
+    real                        :: romp, obsValue, scaleFactor
+    character(len=*), parameter :: myName = 'sqlr_updateSqlite'
+    character(len=*), parameter :: myError = '****** '// myName //': ERROR: '
+    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
@@ -996,64 +1011,71 @@ contains
     ierr = fclos( nulnam )
 
     ! Append extra sqlite columns to update to itemUpdateList
-    if (trim(familyType) == 'RA') then
-      do itemId = 1, numberUpdateItemsRadar
+    if (trim( familyType ) == 'RA') then
+      do itemIndex = 1, numberUpdateItemsRadar
         numberUpdateItems = numberUpdateItems + 1
-        itemUpdateList(numberUpdateItems) = itemUpdateListRadar(itemId)
+        itemUpdateList(numberUpdateItems) = itemUpdateListRadar( itemIndex )
       end do
     end if
 
-    write(*,*) myName//': Family Type   = ', trim(familyType)
-    write(*,*) myName//': Number of items to update: ', numberUpdateItems
-    write(*,*) myName//': File Name     = ', trim(fileName)
-    write(*,*) myName//': Missing Value = ', MPC_missingValue_R8    
+    write(*,*) myName//': family type   = ', trim(familyType)
+    write(*,*) myName//': number of items to update: ', numberUpdateItems
+    write(*,*) myName//': file name     = ', trim(fileName)
+    write(*,*) myName//': missing value = ', MPC_missingValue_R8    
 
-    ! CREATE QUERY
+    ! create query
     itemChar='  '
 
-    do itemId = 1, numberUpdateItems
-      item = itemUpdateList(itemId)
-      write(*,*) 'Updating ', itemId, item
+    do itemIndex = 1, numberUpdateItems
+    
+      item = itemUpdateList( itemIndex )
+      write(*,*) myName//': updating ', itemIndex, trim(item)
       select case(item)
         case('OMA')
-          updateList(itemId) = OBS_OMA
-          item2='oma'
+          updateList( itemIndex ) = OBS_OMA
+          columnName = 'oma'
         case('OMP')
-          updateList(itemId) = OBS_OMP
-          item2='omp'
+          updateList( itemIndex ) = OBS_OMP
+          columnName = 'omp'
         case('VAR')
-          updateList(itemId) = OBS_VAR
-          item2='obsvalue'
+          updateList( itemIndex ) = OBS_VAR
+          columnName = 'obsvalue'
         case('OER')
-          updateList(itemId) = OBS_OER
-          item2='obs_error'
+          updateList( itemIndex ) = OBS_OER
+          columnName = 'obs_error'
         case('FGE')
-          updateList(itemId) = OBS_HPHT
-          item2='fg_error'
+          updateList( itemIndex ) = OBS_HPHT
+          columnName = 'fg_error'
         case('EMI')
-          updateList(itemId) = OBS_SEM
-          item2='surf_emiss'
+          updateList( itemIndex ) = OBS_SEM
+          columnName = 'surf_emiss'
         case('COR')
-          updateList(itemId) = OBS_BCOR
-          item2='bias_corr'
+          updateList( itemIndex ) = OBS_BCOR
+          columnName = 'bias_corr'
         case('ALT')
-          updateList(itemId) = OBS_PPP
-          item2='vcoord'
+          updateList( itemIndex ) = OBS_PPP
+          columnName = 'vcoord'
         case DEFAULT
-          write(*,*) 'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
-          call utl_abort( myError//'invalid item ' )
+          call utl_abort( myError//'invalid item '// columnName //' EXIT sqlr_updateSQL!!!' )
       end select
-      itemChar = trim(itemChar)//','//trim(item2)//trim(' = ? ')
+      
+      if ( sqlutil_sqlColumnExists( fileName, 'data', columnName ) == .true. ) then
+        itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
+      else
+        write(*,*) myWarning//': column '// columnName// &
+                   ' does not exist in the file '//trim(fileName)
+      end if	
     end do
 
     back=.true.
     last_question  = scan(itemChar, '?', back)
-    item2Char   = itemChar(1:last_question)
-    itemChar    = item2Char
-    query = ' update data set flag = ? '//trim(itemChar)
+    columnNameChar = itemChar(1:last_question)
+    itemChar    = columnNameChar
+    
+    query = ' update data set flag = ? '//trim( itemChar )
     query = trim(query)//' where id_data = ?  ;'
-    write(*,*) ' Update query --->  ', query
-    call fSQL_do_many( db,'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
+    write(*,*) myName//': update query --->  ', query
+    call fSQL_do_many( db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;' )
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
@@ -1062,29 +1084,32 @@ contains
  
       obsIdf = obs_headElem_i( obsdat,OBS_IDF, headerIndex )
  
-      if ( obsIdf /= fileNumber) cycle HEADER
+      if ( obsIdf /= fileNumber ) cycle HEADER
       headPrimaryKey = obs_headPrimaryKey( obsdat, headerIndex )
       obsRln = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+	
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
         bodyPrimaryKey  = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
-        call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
-        ITEMS: do itemId = 1, numberUpdateItems
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+        call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR = obsFlag )
+        
+	ITEMS: do itemIndex = 1, numberUpdateItems
+          
+	  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue /= obs_missingValue_R ) then  
-            romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
+            romp = obs_bodyElem_r(obsdat, updateList( itemIndex ), bodyIndex )
             if ( romp == obs_missingValue_R ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
+              call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1 ) ! sql null values
             else
               scaleFactor=1.0
-              if ( updateList(itemId) == OBS_SEM ) scaleFactor=100.0
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scaleFactor )
+              if ( updateList( itemIndex ) == OBS_SEM ) scaleFactor=100.0
+              call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1, REAL_VAR = romp*scaleFactor )
             end if
           else
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1)  ! sql null values
+            call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1)  ! sql null values
           end if
 
         end do ITEMS
@@ -1098,53 +1123,54 @@ contains
 
     call fSQL_finalize( stmt )
 
-    if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' ) then
+    if ( trim( familyType ) /= 'GL'.and. trim( familyType ) /= 'RA' ) then
 
-       ! UPDATES FOR THE STATUS FLAGS and land_sea (for satellites) IN THE HEADER TABLE
-       !! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined here and used below.
-       !! Any change in this logic must be coherent with the code below!
-       if ( trim(familyType) == 'TO' ) then
-          query = ' update header set status  = ?, land_sea= ? where id_obs = ? '
-          landSeaIndex = 2
-          headPrimaryKeyIndex = 3
-        else
-          query = ' update header set status  = ?  where id_obs = ? '
-          headPrimaryKeyIndex = 2
-       endif
-       call fSQL_prepare( db, query , stmt, stat)
-       if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
+      ! UPDATES FOR THE STATUS FLAGS and land_sea (for satellites) IN THE HEADER TABLE
+      ! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined here and used below.
+      ! Any change in this logic must be coherent with the code below!
+      if ( trim( familyType ) == 'TO' ) then
+        query = ' update header set status  = ?, land_sea= ? where id_obs = ? '
+        landSeaIndex = 2
+        headPrimaryKeyIndex = 3
+      else
+        query = ' update header set status  = ?  where id_obs = ? '
+        headPrimaryKeyIndex = 2
+      end if
+      call fSQL_prepare( db, query , stmt, stat)
+      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
 
-       HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
-          terrainType=MPC_missingValue_INT
+      HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
+         
+	terrainType=MPC_missingValue_INT
+        obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
+        if ( obsIdf /= fileNumber ) cycle HEADER2
+        headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
+        obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
+        landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
+        call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
+        ! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined above and
+        ! they must be coherent with the query designed above
+        call fSQL_bind_param( stmt, PARAM_INDEX = headPrimaryKeyIndex, INT8_VAR = headPrimaryKey )
+        if ( trim( familyType ) == 'TO' ) then
+          call fSQL_bind_param( stmt, PARAM_INDEX = landSeaIndex, INT_VAR  = landSea )
+        end if
 
-          obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-          if ( obsIdf /= fileNumber ) cycle HEADER2
-          headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
-          obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
-          landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
-          call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-          !! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined above and
-          !! they must be coherent with the query designed above
-          call fSQL_bind_param( stmt, PARAM_INDEX = headPrimaryKeyIndex, INT8_VAR = headPrimaryKey )
-          if ( trim(familyType) == 'TO' ) then
-            call fSQL_bind_param( stmt, PARAM_INDEX = landSeaIndex, INT_VAR  = landSea )
-          else
-          end if
+        call fSQL_exec_stmt ( stmt)
 
-          call fSQL_exec_stmt ( stmt)
-
-       end do HEADER2
+      end do HEADER2
     
-       call fSQL_finalize( stmt )
+      call fSQL_finalize( stmt )
 
     end if
 
     call fSQL_commit(db)
-    write(*,*) myName//': End ===================  ', trim(familyType)
+    write(*,*) myName//': End ===================  ', trim( familyType )
 
   end subroutine sqlr_updateSqlite
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_addCloudParametersandEmissivity
+  !--------------------------------------------------------------------------
   subroutine sqlr_addCloudParametersandEmissivity( db, obsdat,fileNumber )
     implicit none
     ! arguments
@@ -1220,7 +1246,9 @@ contains
 
   end subroutine sqlr_addCloudParametersandEmissivity
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_insertSqlite
+  !--------------------------------------------------------------------------
   subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber )
     implicit none
     ! arguments
@@ -1390,7 +1418,9 @@ contains
 
   end subroutine sqlr_insertSqlite
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_cleanSqlite
+  !--------------------------------------------------------------------------
   subroutine sqlr_cleanSqlite(db, fileName)
     !
     ! :Purpose: Remove flagged (bit 11 set) observations in an SQLite file
@@ -1425,7 +1455,9 @@ contains
     call fSQL_close( db, status )
   end subroutine sqlr_cleanSqlite
 
-
+  !--------------------------------------------------------------------------
+  ! getObsFileName
+  !--------------------------------------------------------------------------
   function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
     !
     ! :Purpose: Return the part of the observation file name associated
@@ -1476,7 +1508,9 @@ contains
 
   end function getObsFileName
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_writeAllSqlDiagFiles
+  !--------------------------------------------------------------------------
   subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs, addFSOdiag )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
@@ -1558,7 +1592,9 @@ contains
 
   end subroutine sqlr_writeAllSqlDiagFiles
 
-
+  !--------------------------------------------------------------------------
+  ! getObsFamilyListMpiGlobal
+  !--------------------------------------------------------------------------
   subroutine getObsFamilyListMpiGlobal(obsdat, obsFamilyListSizeCommon,  &
                                        obsFamilyListCommon)
     !
@@ -1655,7 +1691,9 @@ contains
 
   end subroutine getObsFamilyListMpiGlobal
 
-
+  !--------------------------------------------------------------------------
+  ! sqlr_writeSqlDiagFile
+  !--------------------------------------------------------------------------
   subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, onlyAssimObs, addFSOdiag, &
                                     instrumentFileName, codeTypeList_opt )
     !
@@ -1943,6 +1981,9 @@ contains
 
   end subroutine sqlr_writeSqlDiagFile
 
+  !--------------------------------------------------------------------------
+  ! getInitialIdObsData
+  !--------------------------------------------------------------------------
   subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
     !
     ! :Purpose: Compute initial value for idObs and idData that will ensure

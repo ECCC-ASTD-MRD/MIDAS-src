@@ -60,11 +60,8 @@
    sqlNull=" and obsvalue is not null "  
 /
  &namSQLUpdate
-  numberUpdateItems=4
-  itemUpdateList(1)='OMP'
-  itemUpdateList(2)='OMA'
-  itemUpdateList(3)='OER'
-  itemUpdateList(4)='FGE'
+  numberUpdateItems=1
+  itemUpdateList(1)='COR'
 /
  &namSQLInsert
 /
