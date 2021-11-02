@@ -1059,7 +1059,7 @@ contains
           call utl_abort( myError//'invalid item '// columnName //' EXIT sqlr_updateSQL!!!' )
       end select
       
-      if ( sqlutil_sqlColumnExists( fileName, 'data', columnName ) == .true. ) then
+      if ( sqlu_sqlColumnExists( fileName, 'data', columnName ) == .true. ) then
         itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
       else
         write(*,*) myWarning//': column '// columnName// &

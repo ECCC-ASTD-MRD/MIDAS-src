@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module sqliteUtilities_mod
-  ! MODULE sqliteUtilities (prefix='sqlutil' category='6. Observation input/output')
+  ! MODULE sqliteUtilities (prefix='sqlu' category='6. Observation input/output')
   !
   ! :Purpose: A place to collect utilities for SQLite files.
 
@@ -26,7 +26,7 @@ use utilities_mod
 implicit none
 save
 private
-public :: sqlutil_sqlColumnExists
+public :: sqlu_sqlColumnExists
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -34,9 +34,9 @@ integer, parameter :: lenSqlName = 60
 contains
    
   !--------------------------------------------------------------------------
-  ! sqlutil_sqlColumnExists
+  ! sqlu_sqlColumnExists
   !--------------------------------------------------------------------------
-  function sqlutil_sqlColumnExists(fileName, tableName, columnName) result(columnExists)
+  function sqlu_sqlColumnExists(fileName, tableName, columnName) result(columnExists)
     !
     ! :Purpose: Check if a column exists in the sqlite file/table
     !
@@ -57,7 +57,7 @@ contains
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
     type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
     logical, parameter          :: debug = .false.
-    character(len=*), parameter :: myName = 'sqlutil_sqlColumnExists'
+    character(len=*), parameter :: myName = 'sqlu_sqlColumnExists'
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
     
     ! open the SQLite file
@@ -85,6 +85,6 @@ contains
     ! close the obsDB file
     call fSQL_close( db, stat ) 
 
-  end function sqlutil_sqlColumnExists
+  end function sqlu_sqlColumnExists
   
 end module sqliteUtilities_mod

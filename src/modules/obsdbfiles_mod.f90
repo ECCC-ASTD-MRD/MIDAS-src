@@ -30,6 +30,7 @@ module obsdbFiles_mod
   use clib_interfaces_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
+  use sqliteUtilities_mod
 
   implicit none
   save
@@ -427,7 +428,7 @@ contains
     do sqlNameIndex = 1, numColMidasTable
       sqlColumnName = midasOutputNamesList(1,sqlNameIndex)
       midasColumnExists(sqlNameIndex) = &
-           odbf_sqlColumnExists(fileName, midasTableName, sqlColumnName)
+           sqlu_sqlColumnExists(fileName, midasTableName, sqlColumnName)
     end do
 
     ! open the obsDB file
@@ -716,7 +717,7 @@ contains
     do updateItemIndex = 1, numberUpdateItems
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex))
       midasColumnExists(updateItemIndex) = &
-           odbf_sqlColumnExists(fileName, midasTableName, sqlColumnName)
+           sqlu_sqlColumnExists(fileName, midasTableName, sqlColumnName)
     end do
 
     ! now that the table exists, we can update the selected columns
@@ -1917,58 +1918,5 @@ contains
     call fSQL_close( db, stat ) 
 
   end function odbf_sqlTableExists
-
-  !--------------------------------------------------------------------------
-  ! odbf_sqlColumnExists
-  !--------------------------------------------------------------------------
-  function odbf_sqlColumnExists(fileName, tableName, columnName) result(columnExists)
-    !
-    ! :Purpose: Check if a column exists in the sqlite file/table
-    !
-    implicit none
-
-    ! arguments:
-    character(len=*),              intent(in)  :: fileName
-    character(len=*),              intent(in)  :: tableName
-    character(len=*),              intent(in)  :: columnName
-    logical                                    :: columnExists
-
-    ! locals:
-    integer                   :: ierr
-    logical                   :: finished
-    character(len=3000)       :: query, sqliteOutput
-    character(len=lenSqlName) :: upperColumnName
-    type(fSQL_STATUS)         :: stat ! sqlite error status
-    type(fSQL_DATABASE)       :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)      :: stmt ! precompiled sqlite statements
-    logical, parameter        :: debug = .false.
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_sqlColumnExists: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_sqlColumnExists: fSQL_open' )
-    end if
-
-    upperColumnName = trim(columnName)
-    ierr = clib_toUpper(upperColumnName)
-
-    query = "select upper(name) as uppername from pragma_table_info('" // &
-            trim(tableName) // "') where uppername='" // trim(upperColumnName) // "';"
-    if (debug) write(*,*) 'odbf_sqlColumnExists: query = ', trim(query)
-
-    call fSQL_prepare( db, trim(query), stmt, stat)
-    finished = .false.
-    call fSQL_get_row( stmt, finished )
-    call fSQL_get_column( stmt, COL_INDEX = 1, CHAR_VAR = sqliteOutput )
-    call fSQL_get_row( stmt, finished )
-    call fSQL_finalize( stmt )
-    if (debug) write(*,*) 'odbf_sqlColumnExists: output = XXX' // trim(sqliteOutput) // 'XXX'
-    columnExists = (trim(sqliteOutput) == trim(upperColumnName))
-
-    ! close the obsDB file
-    call fSQL_close( db, stat ) 
-
-  end function odbf_sqlColumnExists
 
 end module obsdbFiles_mod
