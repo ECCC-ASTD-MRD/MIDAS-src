@@ -10,6 +10,16 @@ change in the [environment variable naming convention](#new-environment-variable
 
 Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), we provide a fully automated build wrapper script that should be used in most use cases: **`midas_build`**.  It builds MIDAS executables on both front and backend using multicore compilation and does some error checking.
 
+## Before submitting a merge request
+
+Although this compilation solution is expected to produce equivalent binaries 
+than the official `compile_*.sh` scripts described in the 
+[main README.md](../README.md#compiling-a-single-program), it is still 
+**mandatory** to test the compilation using `compile_all_plat.sh` 
+**prior to submitting a merge request**.
+This imply for instance that if your contribution modify dependencies or add a
+new program, you have to modify the content of `src/programs/src_files`.
+
 ### Configuring the compilation and linking process
 
 The compilation and linking is configured through some environment variables.
