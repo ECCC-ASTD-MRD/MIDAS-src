@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Mention to test `compile_all_plat.sh` prior to MR in `midas_build` doc (#542 and !514)
  * Changed the merge template to better guide the user when he/she is
    updating the [`CHANGELOG`](CHANGELOG.md) (#539 and !513)
    * A token must be included to show the impact on the results

@@ -19,6 +19,8 @@ than the official `compile_*.sh` scripts described in the
 **prior to submitting a merge request**.
 This imply for instance that if your contribution modify dependencies or add a
 new program, you have to modify the content of `src/programs/src_files`.
+The `src_files`  files can be automatically updated by running the script 
+`make_src_files.sh` that is located in the same directory as the main programs.
 
 ### Configuring the compilation and linking process
 
