@@ -42,40 +42,40 @@ module calcHeightAndPressure_mod
             czp_calcZandP_nl, czp_calcZandP_tl, czp_calcZandP_ad
 
   interface czp_calcZandP_nl
-    module procedure czp_calcZandP_gsv_nl 
+    module procedure calcZandP_gsv_nl 
   end interface czp_calcZandP_nl
   interface czp_calcZandP_tl
-    module procedure czp_calcZandP_gsv_tl 
-    module procedure czp_calcZandP_col_tl 
+    module procedure calcZandP_gsv_tl 
+    module procedure calcZandP_col_tl 
   end interface czp_calcZandP_tl
   interface czp_calcZandP_ad
-    module procedure czp_calcZandP_gsv_ad
-    module procedure czp_calcZandP_col_ad 
+    module procedure calcZandP_gsv_ad
+    module procedure calcZandP_col_ad 
   end interface czp_calcZandP_ad
 
   interface czp_calcHeight_nl
-    module procedure czp_calcHeight_gsv_nl
+    module procedure calcHeight_gsv_nl
   end interface czp_calcHeight_nl
   interface czp_calcHeight_tl
-    module procedure czp_calcHeight_gsv_tl
-    module procedure czp_calcHeight_col_tl
+    module procedure calcHeight_gsv_tl
+    module procedure calcHeight_col_tl
   end interface czp_calcHeight_tl
   interface czp_calcHeight_ad
-    module procedure czp_calcHeight_gsv_ad
-    module procedure czp_calcHeight_col_ad
+    module procedure calcHeight_gsv_ad
+    module procedure calcHeight_col_ad
   end interface czp_calcHeight_ad
 
   interface czp_calcPressure_nl
-    module procedure czp_calcPressure_gsv_nl 
-    module procedure czp_calcPressure_col_nl 
+    module procedure calcPressure_gsv_nl 
+    module procedure calcPressure_col_nl 
   end interface czp_calcPressure_nl
   interface czp_calcPressure_tl
-    module procedure czp_calcPressure_gsv_tl 
-    module procedure czp_calcPressure_col_tl 
+    module procedure calcPressure_gsv_tl 
+    module procedure calcPressure_col_tl 
   end interface czp_calcPressure_tl
   interface czp_calcPressure_ad
-    module procedure czp_calcPressure_gsv_ad
-    module procedure czp_calcPressure_col_ad 
+    module procedure calcPressure_gsv_ad
+    module procedure calcPressure_col_ad 
   end interface czp_calcPressure_ad
 
   ! constants from gps_mod
@@ -112,9 +112,9 @@ contains
   !---------------------------------------------------------------------
 
   !---------------------------------------------------------
-  ! czp_calcZandP_gsv_nl
+  ! calcZandP_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcZandP_gsv_nl(statevector, beSilent_opt)
+  subroutine calcZandP_gsv_nl(statevector, beSilent_opt)
     !
     ! :Purpose: pressure and height computation on the grid in proper order
     !           depending on the vgrid kind
@@ -133,31 +133,31 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_nl(statevector, beSilent_opt)
+        call calcPressure_gsv_nl(statevector, beSilent_opt)
       end if
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
-        call czp_calcHeight_gsv_nl(statevector)
+        call calcHeight_gsv_nl(statevector)
       end if
     else if (Vcode == 21001) then
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
-        call czp_calcHeight_gsv_nl(statevector)
+        call calcHeight_gsv_nl(statevector)
       end if
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_nl(statevector, beSilent_opt)
+        call calcPressure_gsv_nl(statevector, beSilent_opt)
       end if
     else
-      call utl_abort('czp_calcGridZandP: invalid Vcode')
+      call utl_abort('calcZandP_gsv_nl (czp): invalid Vcode')
     end if
 
-  end subroutine czp_calcZandP_gsv_nl
+  end subroutine calcZandP_gsv_nl
 
   !---------------------------------------------------------
-  ! czp_calcZandP_gsv_tl
+  ! calcZandP_gsv_tl
   !---------------------------------------------------------
-  subroutine czp_calcZandP_gsv_tl(statevector, statevectorRef, &
+  subroutine calcZandP_gsv_tl(statevector, statevectorRef, &
                                   beSilent_opt)
     !
     ! :Purpose: pressure and height incremnt computation on the grid in proper 
@@ -180,7 +180,7 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
       end if
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
@@ -193,18 +193,18 @@ contains
       end if
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
       end if
     else
-      call utl_abort('czp_calcZandP_gsv_tl: invalid Vcode')
+      call utl_abort('calcZandP_gsv_tl (czp): invalid Vcode')
     end if
 
-  end subroutine czp_calcZandP_gsv_tl
+  end subroutine calcZandP_gsv_tl
 
   !---------------------------------------------------------
-  ! czp_calcZandP_gsv_ad
+  ! calcZandP_gsv_ad
   !---------------------------------------------------------
-  subroutine czp_calcZandP_gsv_ad(statevector, statevectorRef, &
+  subroutine calcZandP_gsv_ad(statevector, statevectorRef, &
                                   beSilent_opt)
     !
     ! :Purpose: pressure and height increment adjoint computation on the grid 
@@ -231,27 +231,27 @@ contains
       end if
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
       end if
     else if (Vcode == 21001) then
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
-        call czp_calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
       end if
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
         call czp_calcHeight_ad(statevector, statevectorRef)
       end if
     else
-      call utl_abort('czp_calcZandP_gsv_ad: invalid Vcode')
+      call utl_abort('calcZandP_gsv_ad (czp): invalid Vcode')
     end if
 
-  end subroutine czp_calcZandP_gsv_ad
+  end subroutine calcZandP_gsv_ad
 
   !---------------------------------------------------------
-  ! czp_calcHeight_gsv_nl
+  ! calcHeight_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcHeight_gsv_nl(statevector,beSilent_opt)
+  subroutine calcHeight_gsv_nl(statevector,beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on GEM4 staggered 
     !           levels
@@ -280,9 +280,9 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(192,'czp_calcHeight_gsv_nl')
+    call tmg_start(192,'calcHeight_gsv_nl')
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_nl: START'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -291,7 +291,7 @@ contains
       call calcHeight_gsv_nl_vcode2100x 
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_nl: END'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): END'
 
     call tmg_stop(192)
 
@@ -302,7 +302,7 @@ contains
       subroutine calcHeight_gsv_nl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_gsv_nl: vcode 21001 not implemented yet')
+        call utl_abort('calcHeight_gsv_nl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcHeight_gsv_nl_vcode2100x
 
@@ -341,10 +341,10 @@ contains
         numStep = statevector%numstep
 
         if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-          call utl_abort('czp_calcHeight_gsv_nl: nlev_T is not equal to nlev_M+1!')
+          call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M+1!')
         end if
         if (Vcode == 5005 .and. nlev_T /= nlev_M) then
-          call utl_abort('czp_calcHeight_gsv_nl: nlev_T is not equal to nlev_M!')
+          call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M!')
         end if
 
         if (Vcode == 5005) then
@@ -355,13 +355,13 @@ contains
                             key='DHT - height of the diagnostic level (t)', &
                             value=heightSfcOffset_T_r4)
           if ( mpi_myid == 0 .and. .not.beSilent ) then
-            write(*,*) 'czp_calcHeight_gsv_nl: height offset for near-sfc momentum level is: ', &
+            write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
                   heightSfcOffset_M_r4, ' metres'
-            write(*,*) 'czp_calcHeight_gsv_nl: height offset for near-sfc thermo level is:   ', &
+            write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc thermo level is:   ', &
                   heightSfcOffset_T_r4, ' metres'
             if ( .not.statevector%addHeightSfcOffset ) then
               write(*,*) '----------------------------------------------------------------------------------'
-              write(*,*) 'calcHeight_gsv_nl_vcode500x: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+              write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
               write(*,*) '----------------------------------------------------------------------------------'
             end if
           end if
@@ -627,32 +627,32 @@ contains
 
         if ( .not.beSilent ) then
           if ( statevector%dataKind == 4 ) then
-            write(*,*) 'czp_calcHeight_gsv_nl, Z_T='
+            write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
             write(*,*) height_T_ptr_r4(statevector%myLonBeg, &
                 statevector%myLatBeg,:,1)
-            write(*,*) 'czp_calcHeight_gsv_nl, Z_M='
+            write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
             write(*,*) height_M_ptr_r4(statevector%myLonBeg, &
                 statevector%myLatBeg,:,1)
           else
-            write(*,*) 'czp_calcHeight_gsv_nl, Z_T='
+            write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
             write(*,*) height_T_ptr_r8(statevector%myLonBeg, &
                 statevector%myLatBeg,:,1)
-            write(*,*) 'czp_calcHeight_gsv_nl, Z_M='
+            write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
             write(*,*) height_M_ptr_r8(statevector%myLonBeg, &
                 statevector%myLatBeg,:,1)
           end if
-          write(*,*) 'czp_calcHeight_gsv_nl: statevector%addHeightSfcOffset=', &
+          write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
               statevector%addHeightSfcOffset 
         end if
 
       end subroutine calcHeight_gsv_nl_vcode500x
 
-  end subroutine czp_calcHeight_gsv_nl
+  end subroutine calcHeight_gsv_nl
 
   !---------------------------------------------------------
-  ! czp_calcHeight_gsv_tl
+  ! calcHeight_gsv_tl
   !---------------------------------------------------------
-  subroutine czp_calcHeight_gsv_tl(statevector,statevectorRef,beSilent_opt)
+  subroutine calcHeight_gsv_tl(statevector,statevectorRef,beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
@@ -676,7 +676,7 @@ contains
 
     call tmg_start(193,'czp_calcHeight_tl')
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_tl: START'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): START'
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -685,7 +685,7 @@ contains
       call calcHeight_gsv_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_tl: END'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): END'
 
     call tmg_stop(193)
 
@@ -696,7 +696,7 @@ contains
       subroutine calcHeight_gsv_tl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_gsv_tl: vcode 21001 not implemented yet')
+        call utl_abort('calcHeight_gsv_tl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcHeight_gsv_tl_vcode2100x
 
@@ -907,12 +907,12 @@ contains
 
       end subroutine calcHeight_gsv_tl_vcode500x
 
-  end subroutine czp_calcHeight_gsv_tl
+  end subroutine calcHeight_gsv_tl
 
   !---------------------------------------------------------
-  ! czp_calcHeight_gsv_ad
+  ! calcHeight_gsv_ad
   !---------------------------------------------------------
-  subroutine czp_calcHeight_gsv_ad(statevector,statevectorRef,beSilent_opt)
+  subroutine calcHeight_gsv_ad(statevector,statevectorRef,beSilent_opt)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          gridstatevector
@@ -937,7 +937,7 @@ contains
 
     call tmg_start(194,'czp_calcHeight_ad')
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_ad: START'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): START'
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -946,7 +946,7 @@ contains
       call calcHeight_gsv_ad_vcode2100x 
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_gsv_ad: END'
+    if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): END'
 
     call tmg_stop(194)
 
@@ -957,12 +957,12 @@ contains
       subroutine calcHeight_gsv_ad_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_gsv_ad: vcode 21001 not implemented yet')
+        call utl_abort('calcHeight_gsv_ad (czp): vcode 21001 not implemented yet')
 
       end subroutine calcHeight_gsv_ad_vcode2100x
 
       !---------------------------------------------------------
-      ! czp_calcHeight_gsv_ad
+      ! calcHeight_gsv_ad
       !---------------------------------------------------------
       subroutine calcHeight_gsv_ad_vcode500x
         implicit none
@@ -1235,12 +1235,12 @@ contains
 
         end subroutine calcHeight_gsv_ad_vcode500x
 
-  end subroutine czp_calcHeight_gsv_ad
+  end subroutine calcHeight_gsv_ad
 
   !---------------------------------------------------------
-  ! czp_calcPressure_gsv_nl
+  ! calcPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcPressure_gsv_nl(statevector, beSilent_opt)
+  subroutine calcPressure_gsv_nl(statevector, beSilent_opt)
     !
     ! :Purpose: calculation of the pressure on the grid subroutine
     !
@@ -1260,7 +1260,7 @@ contains
       beSilent = .true.
     end if
 
-    if ( .not. beSilent ) write(*,*) 'czp_calcPressure_gsv_nl: computing Pressure on staggered or UNstaggered levels'
+    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): computing Pressure on staggered or UNstaggered levels'
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -1273,7 +1273,7 @@ contains
       call calcPressure_gsv_nl_vcode2100x
     end if
 
-    if ( .not. beSilent ) write(*,*) 'czp_calcPressure_gsv_nl: END'
+    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
 
     contains
       !---------------------------------------------------------
@@ -1282,7 +1282,7 @@ contains
       subroutine calcPressure_gsv_nl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcPressure_gsv_nl: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_gsv_nl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_gsv_nl_vcode2100x
 
@@ -1307,7 +1307,7 @@ contains
         if ( .not. gsv_varExist(statevector,'P_T') .or. &
             .not. gsv_varExist(statevector,'P_M') .or. &
             .not. gsv_varExist(statevector,'P0')) then
-          call utl_abort('calcPressure_gsv_nl_r8: P_T/P_M/P0 do not exist in statevector!')
+          call utl_abort('calcPressure_gsv_nl_r8 (czp): P_T/P_M/P0 do not exist in statevector!')
         end if
 
         nullify(P_T)
@@ -1332,7 +1332,7 @@ contains
                             sfc_field=Psfc, &
                             in_log=.false.)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r8: ERROR with vgd_levels')
+              call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
           end if
           P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
           deallocate(Pressure_out)
@@ -1345,7 +1345,7 @@ contains
                               sfc_field=Psfc, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r8: ERROR with vgd_levels')
+              call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
           end if
           P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
           deallocate(Pressure_out)
@@ -1386,7 +1386,7 @@ contains
         if ( .not. gsv_varExist(statevector,'P_T') .or. &
             .not. gsv_varExist(statevector,'P_M') .or. &
             .not. gsv_varExist(statevector,'P0')) then
-          call utl_abort('calcPressure_gsv_nl_r4: P_T/P_M/P0 do not exist in statevector!')
+          call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
         end if
 
         nullify(P_T)
@@ -1411,7 +1411,7 @@ contains
                               sfc_field=Psfc, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r4: ERROR with vgd_levels')
+              call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
           end if
           P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
           deallocate(Pressure_out)
@@ -1424,7 +1424,7 @@ contains
                               sfc_field=Psfc, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r4: ERROR with vgd_levels')
+              call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
           end if
           P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
           deallocate(Pressure_out)
@@ -1444,12 +1444,12 @@ contains
 
       end subroutine calcPressure_gsv_nl_vcode500x_r4
 
-  end subroutine czp_calcPressure_gsv_nl
+  end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
-  ! czp_calcPressure_gsv_tl
+  ! calcPressure_gsv_tl
   !---------------------------------------------------------
-  subroutine czp_calcPressure_gsv_tl( statevector, statevectorRef, &
+  subroutine calcPressure_gsv_tl( statevector, statevectorRef, &
                                       beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment on the grid.
@@ -1472,7 +1472,7 @@ contains
     end if
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcPressure_gsv_tl: START'
+      write(*,*) 'calcPressure_gsv_tl (czp): START'
       write(*,*) '      computing delP_T/delP_M on the gridstatevector'
     end if
 
@@ -1483,7 +1483,7 @@ contains
       call calcPressure_gsv_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcPressure_gsv_tl: END'
+    if (.not.beSilent) write(*,*) 'calcPressure_gsv_tl (czp): END'
 
     contains
 
@@ -1493,7 +1493,7 @@ contains
       subroutine calcPressure_gsv_tl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_gsv_tl: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_gsv_tl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_gsv_tl_vcode2100x
 
@@ -1555,7 +1555,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_gsv_tl: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           if (gsv_getDataKind(statevector) == 4) then
@@ -1590,7 +1590,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_gsv_tl: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           if (gsv_getDataKind(statevector) == 4) then
@@ -1624,12 +1624,12 @@ contains
 
       end subroutine calcPressure_gsv_tl_vcode500x
 
-  end subroutine czp_calcPressure_gsv_tl
+  end subroutine calcPressure_gsv_tl
 
   !---------------------------------------------------------
-  ! czp_calcPressure_gsv_ad
+  ! calcPressure_gsv_ad
   !---------------------------------------------------------
-  subroutine czp_calcPressure_gsv_ad( statevector, statevectorRef, &
+  subroutine calcPressure_gsv_ad( statevector, statevectorRef, &
                                       beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure on the grid.
@@ -1652,7 +1652,7 @@ contains
     end if
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcPressure_gsv_ad: START'
+      write(*,*) 'calcPressure_gsv_ad (czp): START'
       write(*,*) '      computing adjoint of delP_T/delP_M on the gridstatevector'
     end if
 
@@ -1663,7 +1663,7 @@ contains
       call calcPressure_gsv_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcPressure_gsv_tl: END'
+    if (.not.beSilent) write(*,*) 'calcPressure_gsv_ad (czp): END'
 
     contains
 
@@ -1673,7 +1673,7 @@ contains
       subroutine calcPressure_gsv_ad_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcPressure_gsv_ad: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_gsv_ad (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_gsv_ad_vcode2100x
 
@@ -1733,7 +1733,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-            call utl_abort('czp_calcPressure_gsv_ad: ERROR with vgd_dpidpis')
+            call utl_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           if (gsv_getDataKind(statevector) == 4) then
@@ -1770,7 +1770,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_gsv_ad: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           if (gsv_getDataKind(statevector) == 4) then
@@ -1806,16 +1806,16 @@ contains
 
       end subroutine calcPressure_gsv_ad_vcode500x
 
-  end subroutine czp_calcPressure_gsv_ad
+  end subroutine calcPressure_gsv_ad
 
   !---------------------------------------------------------------------
   ! subroutines operating on struct_columnData
   !---------------------------------------------------------------------
 
   !---------------------------------------------------------
-  ! czp_calcZandP_col_tl
+  ! calcZandP_col_tl
   !---------------------------------------------------------
-  subroutine czp_calcZandP_col_tl(columnInc, columnIncRef, beSilent_opt)
+  subroutine calcZandP_col_tl(columnInc, columnIncRef, beSilent_opt)
     !
     ! :Purpose: compute pressure and height increment in the column in proper 
     !           order depending on the vgrid kind
@@ -1834,33 +1834,33 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcPressure_col_tl( columnInc, columnIncRef, &
+        call calcPressure_col_tl( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_calcHeight_col_tl(columnInc, columnIncRef)
+        call calcHeight_col_tl(columnInc, columnIncRef)
       end if
     else if (Vcode == 21001) then
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_calcHeight_col_tl(columnInc, columnIncRef)
+        call calcHeight_col_tl(columnInc, columnIncRef)
       end if
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcPressure_col_tl( columnInc, columnIncRef, &
+        call calcPressure_col_tl( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
     else
-      call utl_abort('czp_calcZandP_col_tl: invalid Vcode')
+      call utl_abort('calcZandP_col_tl (czp): invalid Vcode')
     end if
 
-  end subroutine czp_calcZandP_col_tl
+  end subroutine calcZandP_col_tl
 
   !---------------------------------------------------------
-  ! czp_calcZandP_col_ad
+  ! calcZandP_col_ad
   !---------------------------------------------------------
-  subroutine czp_calcZandP_col_ad(columnInc, columnIncRef, beSilent_opt)
+  subroutine calcZandP_col_ad(columnInc, columnIncRef, beSilent_opt)
     !
     ! :Purpose: adjoint of pressure and height increment computation in the 
     !           column in proper order depending on the vgrid kind
@@ -1879,33 +1879,33 @@ contains
     if (Vcode == 5002 .or. Vcode == 5005) then
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_calcHeight_col_ad(columnInc, columnIncRef)
+        call calcHeight_col_ad(columnInc, columnIncRef)
       end if
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcPressure_col_ad( columnInc, columnIncRef, &
+        call calcPressure_col_ad( columnInc, columnIncRef, &
                                       beSilent_opt=beSilent_opt)
       end if
     else if (Vcode == 21001) then
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
-        call czp_calcPressure_col_ad( columnInc, columnIncRef, &
+        call calcPressure_col_ad( columnInc, columnIncRef, &
                                         beSilent_opt=beSilent_opt)
       end if
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
-        call czp_calcHeight_col_ad(columnInc, columnIncRef)
+        call calcHeight_col_ad(columnInc, columnIncRef)
       end if
     else
-      call utl_abort('czp_calcZandP_col_ad: invalid Vcode')
+      call utl_abort('calcZandP_col_ad (czp): invalid Vcode')
     end if
 
-  end subroutine czp_calcZandP_col_ad
+  end subroutine calcZandP_col_ad
 
   !---------------------------------------------------------
-  ! czp_calcHeight_col_tl
+  ! calcHeight_col_tl
   !---------------------------------------------------------
-  subroutine czp_calcHeight_col_tl(columnInc,columnIncRef, beSilent_opt)
+  subroutine calcHeight_col_tl(columnInc,columnIncRef, beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
@@ -1930,7 +1930,7 @@ contains
     call tmg_start(193,'czp_calcHeight_tl')
     
     if (.not.beSilent) then
-      write(*,*) 'czp_calcHeight_col_tl: START'
+      write(*,*) 'calcHeight_col_tl (czp): START'
       write(*,*) '      computing delP_T/delP_M in the column'
     end if
 
@@ -1941,7 +1941,7 @@ contains
       call calcHeight_col_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_col_tl: END'
+    if (.not.beSilent) write(*,*) 'calcHeight_col_tl (czp): END'
 
     call tmg_stop(193)
 
@@ -1952,7 +1952,7 @@ contains
       subroutine calcHeight_col_tl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_col_tl: vcode 21001 not implemented yet')
+        call utl_abort('calcHeight_col_tl: vcode 21001 not implemented yet')
 
       end subroutine calcHeight_col_tl_vcode2100x
 
@@ -2101,12 +2101,12 @@ contains
     
       end subroutine calcHeight_col_tl_vcode500x
 
-  end subroutine czp_calcHeight_col_tl
+  end subroutine calcHeight_col_tl
 
   !---------------------------------------------------------
-  ! czp_calcHeight_col_ad
+  ! calcHeight_col_ad
   !---------------------------------------------------------
-  subroutine czp_calcHeight_col_ad(columnInc,columnIncRef,beSilent_opt)
+  subroutine calcHeight_col_ad(columnInc,columnIncRef,beSilent_opt)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          columnData
@@ -2129,10 +2129,10 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(194,'czp_calcHeight_col_ad')
+    call tmg_start(194,'calcHeight_col_ad')
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcHeight_col_ad: START'
+      write(*,*) 'calcHeight_col_ad (czp): START'
       write(*,*) '      adjoint computing delP_T/delP_M in the column'
     end if
 
@@ -2143,7 +2143,7 @@ contains
       call calcHeight_col_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcHeight_col_ad: END'
+    if (.not.beSilent) write(*,*) 'calcHeight_col_ad (czp): END'
 
     call tmg_stop(194)
 
@@ -2154,7 +2154,7 @@ contains
       subroutine calcHeight_col_ad_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcHeight_col_ad: vcode 21001 not implemented yet')
+        call utl_abort('calcHeight_col_ad (czp): vcode 21001 not implemented yet')
 
       end subroutine calcHeight_col_ad_vcode2100x
 
@@ -2371,12 +2371,12 @@ contains
 
       end subroutine calcHeight_col_ad_vcode500x
 
-  end subroutine czp_calcHeight_col_ad
+  end subroutine calcHeight_col_ad
 
   !---------------------------------------------------------
-  ! czp_calcPressure_col_nl
+  ! calcPressure_col_nl
   !---------------------------------------------------------
-  subroutine czp_calcPressure_col_nl(column, beSilent_opt)
+  subroutine calcPressure_col_nl(column, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure in the column.
     !
@@ -2397,7 +2397,7 @@ contains
     end if
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcPressure_col_nl: START'
+      write(*,*) 'calcPressure_col_nl (czp): START'
       write(*,*) '    computing Pressure on staggered or UNstaggered levels'
     end if
 
@@ -2408,7 +2408,7 @@ contains
       call calcPressure_col_nl_vcode2100x 
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcPressure_col_nl: END'
+    if (.not.beSilent) write(*,*) 'calcPressure_col_nl (czp): END'
 
     contains
       !---------------------------------------------------------
@@ -2417,7 +2417,7 @@ contains
       subroutine calcPressure_col_nl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcPressure_col_nl: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_col_nl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_col_nl_vcode2100x
 
@@ -2436,7 +2436,7 @@ contains
         if ( col_getNumCol(column) <= 0 ) return
 
         if (.not.col_varExist(column,'P0')) then
-          call utl_abort('czp_calcPressure_col_nl: P0 must be present as an analysis variable!')
+          call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
         end if
 
         allocate(Psfc(1,col_getNumCol(column)))
@@ -2470,12 +2470,12 @@ contains
 
       end subroutine calcPressure_col_nl_vcode500x
 
-  end subroutine czp_calcPressure_col_nl
+  end subroutine calcPressure_col_nl
 
   !---------------------------------------------------------
-  ! czp_calcPressure_col_tl
+  ! calcPressure_col_tl
   !---------------------------------------------------------
-  subroutine czp_calcPressure_col_tl( columnInc, columnIncRef, &
+  subroutine calcPressure_col_tl( columnInc, columnIncRef, &
                                         beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment in the column.
@@ -2498,7 +2498,7 @@ contains
     end if
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcPressure_col_tl: START'
+      write(*,*) 'calcPressure_col_tl (czp): START'
       write(*,*) '    computing delP_T/delP_M on the column'
     end if
 
@@ -2509,7 +2509,7 @@ contains
       call calcPressure_col_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcPressure_col_tl: END'
+    if (.not.beSilent) write(*,*) 'calcPressure_col_tl (czp): END'
 
     contains
       !---------------------------------------------------------
@@ -2518,7 +2518,7 @@ contains
       subroutine calcPressure_col_tl_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcPressure_col_tl: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_col_tl (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_col_tl_vcode2100x
 
@@ -2562,7 +2562,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_col_tl: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           do lev_M = 1, nlev_M
@@ -2577,7 +2577,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_col_tl: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           do lev_T = 1, nlev_T
@@ -2589,12 +2589,12 @@ contains
 
       end subroutine calcPressure_col_tl_vcode500x
 
-  end subroutine czp_calcPressure_col_tl
+  end subroutine calcPressure_col_tl
 
   !---------------------------------------------------------
-  ! czp_calcPressure_col_ad
+  ! calcPressure_col_ad
   !---------------------------------------------------------
-  subroutine czp_calcPressure_col_ad( columnInc, columnIncRef, &
+  subroutine calcPressure_col_ad( columnInc, columnIncRef, &
                                         beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure in the column.
@@ -2617,7 +2617,7 @@ contains
     end if
 
     if (.not.beSilent) then
-      write(*,*) 'czp_calcPressure_col_ad: START'
+      write(*,*) 'calcPressure_col_ad (czp): START'
       write(*,*) '    adjoint computing of delP_T/delP_M on the column'
     end if
 
@@ -2628,7 +2628,7 @@ contains
       call calcPressure_col_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'czp_calcPressure_col_ad: END'
+    if (.not.beSilent) write(*,*) 'calcPressure_col_ad (czp): END'
 
     contains
       !---------------------------------------------------------
@@ -2637,7 +2637,7 @@ contains
       subroutine calcPressure_col_ad_vcode2100x
         implicit none
 
-        call utl_abort('czp_calcPressure_col_ad: vcode 21001 not implemented yet')
+        call utl_abort('calcPressure_col_ad (czp): vcode 21001 not implemented yet')
 
       end subroutine calcPressure_col_ad_vcode2100x
 
@@ -2682,7 +2682,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('czp_calcPressure_col_ad: ERROR with vgd_dpidpis')
+              call utl_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           do lev_M = 1, nlev_M
@@ -2698,7 +2698,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then 
-            call utl_abort('czp_calcPressure_col_ad: ERROR with vgd_dpidpis')
+            call utl_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           do lev_T = 1, nlev_T
@@ -2710,7 +2710,7 @@ contains
         end do
       end subroutine calcPressure_col_ad_vcode500x
 
-  end subroutine czp_calcPressure_col_ad
+  end subroutine calcPressure_col_ad
 
   !---------------------------------------------------------------------
   ! helper private functions and subroutines
@@ -2743,7 +2743,7 @@ contains
 
     if ( .not. firstTimeHeightCoeff_gsv ) return
 
-    Write(*,*) "calcHeightCoeff_gsv: START"
+    Write(*,*) "calcHeightCoeff_gsv (czp): START"
 
     ! initialize and save coefficients for increased efficiency 
     ! (assumes no relinearization)
@@ -2965,7 +2965,7 @@ contains
 
     end if
 
-    write(*,*) "calcHeightCoeff_gsv: END"
+    write(*,*) "calcHeightCoeff_gsv (czp): END"
 
   end subroutine calcHeightCoeff_gsv
 
@@ -2995,7 +2995,7 @@ contains
 
     if ( .not. firstTimeHeightCoeff_col ) return
 
-    write(*,*) "calcHeightCoeff_col: START"
+    write(*,*) "calcHeightCoeff_col (czp): START"
 
     ! initialize and save coefficients for increased efficiency 
     ! (assumes no relinearization)
@@ -3167,7 +3167,7 @@ contains
 
     end if
 
-    write(*,*) "calcHeightCoeff_col: END"
+    write(*,*) "calcHeightCoeff_col (czp): END"
 
   end subroutine calcHeightCoeff_col
 
