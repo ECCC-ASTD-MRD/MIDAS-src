@@ -37,9 +37,9 @@ module calcHeightAndPressure_mod
   private
 
   ! public procedures
-  public :: czp_calcHeight_nl, czp_calcHeight_tl, czp_calcHeight_ad, &
-            czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad, & 
-            czp_calcZandP_nl, czp_calcZandP_tl, czp_calcZandP_ad
+  public :: czp_calcZandP_nl, czp_calcZandP_tl, czp_calcZandP_ad
+  public :: czp_calcHeight_nl, czp_calcHeight_tl, czp_calcHeight_ad
+  public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
 
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl 
@@ -719,7 +719,6 @@ contains
         real(pre_incrReal), pointer ::  delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer ::  delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
 
-
         Vcode_anl = gsv_getVco(statevectorRef)%vcode
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
@@ -1303,7 +1302,6 @@ contains
         real(8), pointer            :: P_T(:,:,:,:)
         real(8), pointer            :: P_M(:,:,:,:)
 
-
         if ( .not. gsv_varExist(statevector,'P_T') .or. &
             .not. gsv_varExist(statevector,'P_M') .or. &
             .not. gsv_varExist(statevector,'P0')) then
@@ -1358,7 +1356,6 @@ contains
             write(*,*) P_T(&
                         statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
           end if
-
         end do
 
         deallocate(Psfc)
@@ -1928,7 +1925,7 @@ contains
     end if
 
     call tmg_start(193,'czp_calcHeight_tl')
-    
+
     if (.not.beSilent) then
       write(*,*) 'calcHeight_col_tl (czp): START'
       write(*,*) '      computing delP_T/delP_M in the column'
@@ -1961,7 +1958,7 @@ contains
       !---------------------------------------------------------
       subroutine calcHeight_col_tl_vcode500x
         implicit none
-    
+
         ! Locals
         integer :: lev_M,lev_T,nlev_M,nlev_T,colIndex,numColumns
         real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -1971,26 +1968,25 @@ contains
         real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
         real(8), pointer  :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer  :: delP_T(:,:), delP_M(:,:)
-    
-    
+
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
-    
+
         numColumns = col_getNumCol(columnInc)
-    
+
         allocate(delThick(nlev_T,numColumns))
         delThick(:,:) = 0.0d0
-    
+
         ! generate the height coefficients on the grid
         call calcHeightCoeff_col(columnIncRef)
-    
+
         ! loop over all lat/lon/step
-    
+
         height_M_ptr => col_getAllColumns(columnIncRef,'Z_M')
         height_T_ptr => col_getAllColumns(columnIncRef,'Z_T')
         P_M          => col_getAllColumns(columnIncRef,'P_M')
         P_T          => col_getAllColumns(columnIncRef,'P_T')
-    
+
         delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
         delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
         delTT           => col_getAllColumns(columnInc,'TT')
@@ -1998,13 +1994,13 @@ contains
         delP0           => col_getAllColumns(columnInc,'P0')
         delP_M          => col_getAllColumns(columnInc,'P_M')
         delP_T          => col_getAllColumns(columnInc,'P_T')
-    
+
         ! ensure increment at sfc is zero (fixed height level)
         delHeight_M_ptr(nlev_M,:) = 0.0d0
         delHeight_T_ptr(nlev_T,:) = 0.0d0
-    
+
         if_computeHeight_col_tl_vcodes : if (Vcode == 5002) then
-    
+
           ! compute increment to thickness for each layer between the two momentum levels
           do colIndex = 1, numColumns
             do lev_T = 2, (nlev_T-1)
@@ -2019,7 +2015,7 @@ contains
                     coeff_M_P0_dP_delP0_col(lev_T,colIndex) * delP0(1,colIndex)
             end do
           end do
-    
+
           ! compute height increment on momentum levels above the surface
           do colIndex = 1, numColumns
             do lev_M = (nlev_M-1), 1, -1
@@ -2028,7 +2024,7 @@ contains
                    delHeight_M_ptr(lev_M+1,colIndex) + delThick(lev_T,colIndex)
             end do
           end do
-    
+
           ! compute height increment on thermo levels using weighted average of height increment of momentum levels
           do colIndex = 1, numColumns
             do lev_T = 1, (nlev_T-1)
@@ -2054,9 +2050,9 @@ contains
               end if
             end do
           end do
-    
+
         else if(Vcode == 5005) then if_computeHeight_col_tl_vcodes
-    
+
           ! compute increment to thickness for each layer between the two momentum levels
           do colIndex = 1, numColumns
             do lev_T = 1, (nlev_T-1)
@@ -2071,7 +2067,7 @@ contains
                    coeff_M_P0_dP_delP0_col(lev_T,colIndex) * delP0(1,colIndex)
             end do
           end do
-    
+
           ! compute height increment on momentum levels above the surface
           do colIndex = 1, numColumns
             do lev_M = (nlev_M-1), 1, -1
@@ -2080,7 +2076,7 @@ contains
                    delHeight_M_ptr(lev_M+1,colIndex) + delThick(lev_T,colIndex)
             end do
           end do
-    
+
           ! compute height increment on thermo levels using weighted average of height increment of momentum levels
           do colIndex = 1, numColumns
             do lev_T = 1, (nlev_T-1)
@@ -2094,11 +2090,10 @@ contains
                    ScaleFactorTop * delHeight_M_ptr(lev_M-1,colIndex)
             end do
           end do
-    
         end if if_computeHeight_col_tl_vcodes
-    
+
         deallocate(delThick)
-    
+
       end subroutine calcHeight_col_tl_vcode500x
 
   end subroutine calcHeight_col_tl
@@ -2362,7 +2357,6 @@ contains
                   delThick(lev_T,colIndex)
             end do
           end do
-
         end if if_computeHeight_col_ad_vcodes
 
         deallocate(delThick)
@@ -2427,7 +2421,6 @@ contains
       subroutine calcPressure_col_nl_vcode500x
         implicit none
 
-
         ! Locals
         real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
         real(kind=8), pointer     :: zppobs1(:,:,:) => null()
@@ -2475,8 +2468,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_tl
   !---------------------------------------------------------
-  subroutine calcPressure_col_tl( columnInc, columnIncRef, &
-                                        beSilent_opt)
+  subroutine calcPressure_col_tl( columnInc, columnIncRef, beSilent_opt)
     !
     !:Purpose: calculation of the Pressure increment in the column.
     !
@@ -2594,15 +2586,14 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_ad
   !---------------------------------------------------------
-  subroutine calcPressure_col_ad( columnInc, columnIncRef, &
-                                        beSilent_opt)
+  subroutine calcPressure_col_ad( columnInc, columnIncRef, beSilent_opt)
     !
     !:Purpose: adjoint of calculation of the Pressure in the column.
     !
     implicit none
 
     ! Arguments
-    type(struct_columnData), intent(inout) :: columnInc         ! column that will contain increments of Psfc.
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of Psfc.
     type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
     logical, intent(in), optional          :: beSilent_opt
 
@@ -2821,7 +2812,7 @@ contains
     call gsv_getField(statevector,P_M_ptr,'P_M')
     call gsv_getField(statevector,height_T_ptr,'Z_T')
 
-    if (Vcode == 5002) then
+    if_calcHeightCoeff_gsv_vcodes : if (Vcode == 5002) then
 
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
@@ -2913,7 +2904,7 @@ contains
         end do
       end do
 
-    else if (Vcode == 5005) then
+    else if (Vcode == 5005) then if_calcHeightCoeff_gsv_vcodes
 
       do stepIndex = 1, numStep
         do lev_T = 1, (nlev_T-1)
@@ -2963,7 +2954,7 @@ contains
         end do
       end do
 
-    end if
+    end if if_calcHeightCoeff_gsv_vcodes
 
     write(*,*) "calcHeightCoeff_gsv (czp): END"
 
@@ -3043,7 +3034,7 @@ contains
     P_M_ptr      => col_getAllColumns(column,'P_M')
     height_T_ptr => col_getAllColumns(column,'Z_T')
 
-    if (Vcode == 5002) then
+    if_calcHeightCoeff_col_vcodes : if (Vcode == 5002) then
 
       do colIndex = 1, numColumns
         do lev_T = 1, (nlev_T-1)
@@ -3123,7 +3114,7 @@ contains
         end do
       end do
 
-    else if (Vcode == 5005) then
+    else if (Vcode == 5005) then if_calcHeightCoeff_col_vcodes
 
       do colIndex = 1, numColumns
         do lev_T = 1, (nlev_T-1)
@@ -3165,7 +3156,7 @@ contains
         end do
       end do
 
-    end if
+    end if if_calcHeightCoeff_col_vcodes
 
     write(*,*) "calcHeightCoeff_col (czp): END"
 
@@ -3409,6 +3400,5 @@ contains
         -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 &
               + (c0+c1*tc)*d_x2) + pt*pt*e*d_x2
   end function gpscompressibility_P0_2
-
 
 end module calcHeightAndPressure_mod
