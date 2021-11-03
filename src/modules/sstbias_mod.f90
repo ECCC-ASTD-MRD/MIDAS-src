@@ -35,13 +35,18 @@ module SSTbias_mod
   use oceanMask_mod
   use timeCoord_mod
   use localizationFunction_mod
-  
+  use columnData_mod
+  use statetocolumn_mod 
+   
   implicit none
   save
   private
 
   ! public subroutines
   public :: sstb_computeBias
+  
+  ! external 
+  integer, external :: fnom, fclos
   
   ! mpi topology
   integer           :: myLatBeg, myLatEnd
@@ -53,25 +58,29 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_computeBias
   !--------------------------------------------------------------------------
-  subroutine sstb_computeBias( obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                               numberSensors, sensorList, dateStamp, maxBias, numberPointsBG )
+  subroutine sstb_computeBias( obsData, hco, vco, iceFractionThreshold, searchRadius, column, &
+                               numberSensors, sensorList, dateStamp, maxBias, numberPointsBG, &
+                               timeInterpType_nl, numObsBatches )
     !
     ! :Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
     implicit none
     
     ! Arguments: 
-    type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
-    type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
-    real(8)         , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
-    integer         , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
-    integer         , intent(in)             :: dateStamp            ! date to put into output fst file
-    character(len=*), intent(in)             :: sensorList(:)        ! list of satellite names
-    real(4)         , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
-    integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute
-                                                                     ! the background state
+    type(struct_obs)       , intent(inout)          :: obsData              ! obsSpaceData
+    type(struct_hco)       , intent(inout), pointer :: hco                  ! horizontal grid structure
+    type(struct_vco)       , intent(in)   , pointer :: vco                  ! vertical grid structure
+    real(4)                , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
+    real(8)                , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
+    type(struct_columnData), intent(inout)          :: column               ! column data
+    integer                , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
+    integer                , intent(in)             :: dateStamp            ! date to put into output fst file
+    character(len=*)       , intent(in)             :: sensorList(:)        ! list of satellite names
+    real(4)                , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
+    integer                , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute
+                                                                            ! the background state
+    character(len=20)      , intent(in)             :: timeInterpType_nl    ! 'NEAREST' or 'LINEAR'
+    integer                , intent(in)             :: numObsBatches        ! number of batches for calling interp setup
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
     integer                     :: headerIndex, sensorIndex, productIndex
@@ -80,15 +89,16 @@ module SSTbias_mod
     logical                     :: mask( hco % ni, hco % nj ), openWater( hco % ni, hco % nj ) 
     type(struct_ocm)            :: oceanMask
     integer                     :: numberOpenWaterPoints, lonIndex, latIndex, ierr
-    type(struct_gsv)            :: stateVector_ice
+    type(struct_gsv)            :: stateVector_ice, stateVector
     real(4), pointer            :: seaice_ptr( :, :, : )
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts( numberProducts )= (/ 'day', 'night' /)
+    integer                     :: nulnam
 
     write(*,*) 'Starting '//myName//'...'
     write(*,*) myName//': Current analysis date: ', dateStamp
     write(*,*) myName//': Sea-ice Fraction threshold: ', iceFractionThreshold
-
+    
     ! get mpi topology
     call mpivar_setup_lonbands( hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
     call mpivar_setup_latbands( hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
@@ -127,6 +137,10 @@ module SSTbias_mod
 
     call sstb_getGriddedObs( obsData, insituGrid, hco, vco, searchRadius, openWater, 'insitu' )
 
+    ! allocate state vector for bias estimation field
+    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 4, &
+                       datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
+
     do sensorIndex = 1, numberSensors 
       do productIndex = 1, numberProducts
         satelliteGrid( :, : ) = MPC_missingValue_R8
@@ -135,10 +149,14 @@ module SSTbias_mod
                                  dayOrNight_opt = trim( listProducts(productIndex)) )
         call sstb_getGriddedBias( satelliteGrid ( :, : ), insituGrid, hco, vco, mask, openWater, &
                                   maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
-                                  numberPointsBG, dateStamp, trim( listProducts(productIndex)) )
+                                  numberPointsBG, dateStamp, trim( listProducts(productIndex)), stateVector )
+        call sstb_getBiasCorrection( stateVector, column, obsData, hco, vco, trim( sensorList( sensorIndex )), &
+                                     trim( listProducts( productIndex )), timeInterpType_nl, numObsBatches )
       end do
     end do
     
+    call gsv_deallocate( stateVector )
+  
   end subroutine sstb_computeBias
   
   !--------------------------------------------------------------------------
@@ -329,7 +347,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedBias( satelliteGrid, insituGrid, hco, vco,  mask, openWater, &
                                   maxBias, sensor, numberOpenWaterPoints, &
-                                  numberPointsBG, dateStamp, dayOrNight )
+                                  numberPointsBG, dateStamp, dayOrNight, stateVector )
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -349,7 +367,7 @@ module SSTbias_mod
                                                                      ! used to compute the previous (background) bias estimation
     integer         , intent(in)             :: dateStamp            ! date to put into output fst files
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
-    
+    type(struct_gsv), intent(inout)          :: stateVector          ! state vector containing bias estimation field    
     ! locals
     real, parameter             :: solarZenithThreshold = 90.0      ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
@@ -365,7 +383,7 @@ module SSTbias_mod
     integer                     :: numPointsFound
     real(kdkind)                :: searchRadiusSquared
     integer, allocatable        :: headerIndexes(:)
-    type(struct_gsv)            :: stateVector, stateVector_searchRadius, stateVector_previous
+    type(struct_gsv)            :: stateVector_searchRadius, stateVector_previous
     real(4), pointer            :: griddedBias_r4_ptr( :, :, : ), searchRadius_ptr( :, :, : )
     real(4), pointer            :: griddedBias_r4_previous_ptr( :, :, : )
     integer, allocatable        :: gridPointIndexes(:,:)
@@ -423,9 +441,7 @@ module SSTbias_mod
                            'R', unitConversion_opt=.false., containsFullField_opt=.true. )
     call gsv_getField( stateVector_previous, griddedBias_r4_previous_ptr ) 
        
-    ! allocate state vector for bias estimation field
-    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 4, &
-                       datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
+    ! pointer for bias estimation stateVector
     call gsv_getField( stateVector, griddedBias_r4_ptr )
 
     ! do the search
@@ -481,12 +497,71 @@ module SSTbias_mod
     
     deallocate( gridPointIndexes )
     deallocate( positionArray )
-    call gsv_deallocate( stateVector )
     call gsv_deallocate( stateVector_searchRadius )
     call gsv_deallocate( stateVector_previous )
     
     write(*,*) myName//' completed for: '//trim(sensor)//' '//trim(dayOrNight)
 
   end subroutine sstb_getGriddedBias
+
+  !--------------------------------------------------------------------------
+  ! sstb_getBiasCorrection
+  !--------------------------------------------------------------------------
+  subroutine sstb_getBiasCorrection( stateVector, column, obsData, hco, vco, &
+                                     sensor, dayOrNight, timeInterpType_nl, numObsBatches )
+    !
+    !:Purpose: To compute bias correction and put it into obsSpace data. 
+    !          Columns from input field are interpolated to obs location
+    !     
+    implicit none
+    
+    ! arguments
+    type(struct_gsv)       , intent(inout)       :: stateVector       ! state vector containing bias estimation field    
+    type(struct_columnData), intent(in)          :: column            ! column data
+    type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData
+    type(struct_hco)       , intent(in), pointer :: hco               ! horizontal grid
+    type(struct_vco)       , intent(in), pointer :: vco               ! vertical grid
+    character(len=*)       , intent(in)          :: sensor            ! current sensor name
+    character(len=*)       , intent(in)          :: dayOrNight        ! look for daytime or nighttime obs
+    character(len=20)      , intent(in)          :: timeInterpType_nl ! 'NEAREST' or 'LINEAR'
+    integer                , intent(in)          :: numObsBatches     ! number of batches for calling interp setup
+
+    ! locals
+    real, parameter              :: solarZenithThreshold = 90.0 ! to distinguish day and night
+    integer                      :: bodyIndex, headerIndex
+    real(8)                      :: currentObs
+    character(len=*) , parameter :: myName = 'sstb_getBiasCorrection'
+
+    write(*,*)
+    write(*,*) myName//': computing bias correction for ', sensor, ' ', dayOrNight, 'time'
+
+    call s2c_nl( stateVector, obsData, column, hco, timeInterpType = timeInterpType_nl, &
+                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true. )
+
+    do headerIndex = 1, obs_numheader( obsData )
+      
+      if ( obs_elem_c( obsData, 'STID' , headerIndex ) == trim( sensor ) ) then
+        
+        bodyIndex  = obs_headElem_i( obsData, obs_rln, headerIndex )
+	currentObs = obs_bodyElem_r( obsData, obs_var, bodyIndex )
+	
+	if ( trim( dayOrNight ) == 'day' ) then
+          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) <  solarZenithThreshold ) then
+            call obs_bodySet_r( obsData, obs_bcor, bodyIndex, col_getElem( column, 1, headerIndex, 'TM' ))
+            call obs_bodySet_r( obsData, obs_var , bodyIndex, currentObs - col_getElem( column, 1, headerIndex, 'TM' ))
+	  end if  
+	else if ( trim( dayOrNight ) == 'night' ) then
+          if ( obs_headElem_r( obsData, obs_sun, headerIndex ) >= solarZenithThreshold ) then
+            call obs_bodySet_r( obsData, obs_bcor, bodyIndex, col_getElem( column, 1, headerIndex, 'TM' ))
+            call obs_bodySet_r( obsData, obs_var , bodyIndex, currentObs - col_getElem( column, 1, headerIndex, 'TM' ))
+          end if
+	end if
+      end if
+      
+    end do 
+ 
+    write(*,*) myName//': END'
+
+  end subroutine sstb_getBiasCorrection
 
 end module SSTbias_mod

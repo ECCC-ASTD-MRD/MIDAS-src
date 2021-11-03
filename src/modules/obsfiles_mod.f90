@@ -765,7 +765,7 @@ contains
     end do
 
     if (numFound == 0) then
-      write(*,*) "obsf_getFileName: File not found for obs family '" // trim(obsfam) // "'"
+      write(*,*) "obsf_getFileName: WARNING: File not found for obs family '" // trim(obsfam) // "'"
     end if
     if (numFound > 1) then
       write(*,*) "obsf_getFileName: WARNING: Multiple files found for obs family '" // trim(obsfam) // "'"

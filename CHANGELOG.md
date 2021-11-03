@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Satellite SST data bias correction is added to `SSTbias` program (#494 and !511) 
  * SST bias estimation program (#461 and !502)
  * Link splitobs compilation to `src/Makefile` (#490 and !499)
  * Implementation of outer-loop for computing analysis increment with results
