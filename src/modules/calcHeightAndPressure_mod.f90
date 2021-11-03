@@ -403,7 +403,7 @@ contains
         HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
         ! compute virtual temperature on thermo levels (corrected of compressibility)
-        do stepIndex = 1, numStep
+        do_computeHeight_gsv_nl : do stepIndex = 1, numStep
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
 
@@ -493,7 +493,7 @@ contains
               end do
 
               ! compute Altitude on thermo levels
-              if (Vcode == 5002) then
+              if_computeHeight_gsv_nl_vcodes : if (Vcode == 5002) then
                 height_T(nlev_T) = height_M(nlev_M)
 
                 do lev_T = 2, nlev_T-1
@@ -538,7 +538,7 @@ contains
                 delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
                 height_T(1) = height_M(1) + delThick
 
-              else if (Vcode == 5005) then
+              else if (Vcode == 5005) then if_computeHeight_gsv_nl_vcodes
                 height_T(nlev_T) = rMT + heightSfcOffset_T_r4
 
                 do lev_T = 1, nlev_T-2
@@ -585,7 +585,7 @@ contains
                               ratioP
                   height_T(nlev_T-1) = rMT + delThick
                 end if
-              end if
+              end if if_computeHeight_gsv_nl_vcodes
 
               ! fill the height array
               if ( statevector%dataKind == 4 ) then
@@ -619,7 +619,7 @@ contains
 
             end do
           end do
-        end do
+        end do do_computeHeight_gsv_nl
 
         deallocate(height_M)
         deallocate(height_T)
@@ -751,7 +751,7 @@ contains
         delHeight_M_ptr_r48(:,:,nlev_M,:) = 0.0d0
         delHeight_T_ptr_r48(:,:,nlev_T,:) = 0.0d0
 
-        if (Vcode_anl == 5002) then
+        if_computeHeight_gsv_tl_vcodes : if(Vcode_anl == 5002) then
 
           ! compute increment to thickness for each layer between the two momentum levels
           do stepIndex = 1, numStep
@@ -837,7 +837,7 @@ contains
             end do
           end do
 
-        else if(Vcode_anl == 5005) then
+        else if(Vcode_anl == 5005) then if_computeHeight_gsv_tl_vcodes
 
           ! compute increment to thickness for each layer between the two momentum levels
           do stepIndex = 1, numStep
@@ -901,7 +901,7 @@ contains
             end do
           end do
 
-        end if
+        end if if_computeHeight_gsv_tl_vcodes
 
         deallocate(delThick)
 
@@ -1015,7 +1015,7 @@ contains
         delHeight_M(:,:,:,:) = delHeight_M_ptr_r48(:,:,:,:)
         delHeight_T(:,:,:,:) = delHeight_T_ptr_r48(:,:,:,:)
 
-        if(Vcode == 5002) then
+        if_computeHeight_gsv_ad_vcodes : if(Vcode == 5002) then
 
           ! adjoint of compute height increment on thermo levels by simple averaging
           do stepIndex = 1, numStep
@@ -1143,7 +1143,7 @@ contains
             end do
           end do
 
-        else if(Vcode == 5005) then
+        else if(Vcode == 5005) then if_computeHeight_gsv_ad_vcodes
 
           ! adjoint of compute height increment on thermo levels by simple averaging
           do stepIndex = 1, numStep
@@ -1227,7 +1227,7 @@ contains
             end do
           end do
 
-        end if
+        end if if_computeHeight_gsv_ad_vcodes
 
         deallocate(delThick)
         deallocate(delHeight_M)
@@ -2003,7 +2003,7 @@ contains
         delHeight_M_ptr(nlev_M,:) = 0.0d0
         delHeight_T_ptr(nlev_T,:) = 0.0d0
     
-        if (Vcode == 5002) then
+        if_computeHeight_col_tl_vcodes : if (Vcode == 5002) then
     
           ! compute increment to thickness for each layer between the two momentum levels
           do colIndex = 1, numColumns
@@ -2055,7 +2055,7 @@ contains
             end do
           end do
     
-        else if(Vcode == 5005) then
+        else if(Vcode == 5005) then if_computeHeight_col_tl_vcodes
     
           ! compute increment to thickness for each layer between the two momentum levels
           do colIndex = 1, numColumns
@@ -2095,7 +2095,7 @@ contains
             end do
           end do
     
-        end if
+        end if if_computeHeight_col_tl_vcodes
     
         deallocate(delThick)
     
@@ -2202,7 +2202,7 @@ contains
         delHeight_M(:,:) = delHeight_M_ptr(:,:)
         delHeight_T(:,:) = delHeight_T_ptr(:,:)
 
-        if(Vcode == 5002) then
+        if_computeHeight_col_ad_vcodes : if(Vcode == 5002) then
 
           ! adjoint of compute height increment on thermo levels by simple averaging
           do colIndex = 1, numColumns
@@ -2303,7 +2303,7 @@ contains
             end do
           end do
 
-        else if(Vcode == 5005) then
+        else if(Vcode == 5005) then if_computeHeight_col_ad_vcodes
 
           ! adjoint of compute height increment on thermo levels by simple averaging
           do colIndex = 1, numColumns
@@ -2363,7 +2363,7 @@ contains
             end do
           end do
 
-        end if
+        end if if_computeHeight_col_ad_vcodes
 
         deallocate(delThick)
         deallocate(delHeight_M)
