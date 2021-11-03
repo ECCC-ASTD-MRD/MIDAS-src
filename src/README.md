@@ -21,6 +21,13 @@ This imply for instance that if your contribution modify dependencies or add a
 new program, you have to modify the content of `src/programs/src_files`.
 The `src_files`  files can be automatically updated by running the script 
 `make_src_files.sh` that is located in the same directory as the main programs.
+Running the script without argument default to running it sequencially for all 
+programs, but that can be too long for the PPPs and it often gets killed.
+As a workaround, one can either launch it only for the modified (or new) 
+programs or launch it in parallel for every programs, from `src/programs/`:
+```sh
+for pgm in $(ls *.f90); do ./make_src_files.sh $pgm & done
+```
 
 ### Configuring the compilation and linking process
 
