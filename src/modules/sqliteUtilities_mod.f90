@@ -58,12 +58,11 @@ contains
     type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
     logical, parameter          :: debug = .false.
     character(len=*), parameter :: myName = 'sqlu_sqlColumnExists'
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
     
     ! open the SQLite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//fSQL_errmsg(stat) )
+      call utl_abort( myName//fSQL_errmsg(stat) )
     end if
 
     upperColumnName = trim(columnName)
@@ -111,12 +110,11 @@ contains
     type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
     logical, parameter          :: debug = .false.
     character(len=*), parameter :: myName = 'sqlu_sqlTableExists'
-    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
 
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//': fSQL_open '//fSQL_errmsg(stat) )
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     upperTableName = trim(tableName)
@@ -164,12 +162,11 @@ contains
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
     character(len=*), parameter :: myName = 'sqlu_getSqlColumnNames'
-    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
 
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//': fSQL_open '//fSQL_errmsg(stat) )
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     ! read the column names
@@ -179,7 +176,7 @@ contains
       dataTypeCriteria = 'type="real" or type="REAL" or type="double" or ' // &
                          'type="DOUBLE" or type="integer" or type="INTEGER"'
     else
-      call utl_abort( myError//': invalid dataType = ' // trim(dataType) )
+      call utl_abort( myName//': invalid dataType = ' // trim(dataType) )
     end if
     query = 'select name from pragma_table_info("' // trim(tableName) // &
             '") where ' // trim(dataTypeCriteria) // ' ;'
@@ -187,7 +184,7 @@ contains
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//': problem with fSQL_get_many '//fSQL_errmsg(stat))
+      call utl_abort( myName//': problem with fSQL_get_many '//fSQL_errmsg(stat))
     end if
     allocate( charValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, charValues )

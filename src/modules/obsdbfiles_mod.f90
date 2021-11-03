@@ -1763,12 +1763,11 @@ contains
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     character(len=*), parameter :: myName = 'odbf_createMidasTable'
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//': fSQL_open '//fSQL_errmsg(stat) )
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     ! create the new MIDAS table
@@ -1792,7 +1791,7 @@ contains
     write(*,*) myName//': query = ', trim(query)
     call fSQL_do_many( db, query, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myError//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
+      call utl_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
     end if
 
     ! close the obsDB file

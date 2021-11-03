@@ -227,14 +227,12 @@ contains
     REAL(pre_obsReal) :: CFRAC,MOYRAD,STDRAD
     character(len=*), parameter :: myName = 'sqlr_readSqlite_avhrr'
     character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //': ERROR: '
 
     write(*,*) myName//': fileName : ', trim(fileName)
 
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( myError//': fSQL_open' )
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     if ( sqlr_doesSQLTableExist(db,'avhrr') ) then
@@ -340,7 +338,6 @@ contains
     integer,allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
     character(len=*), parameter :: myName = 'sqlr_readSqlite'
-    character(len=*), parameter :: myError   = myName //': ERROR: '
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -367,8 +364,7 @@ contains
     write(*,*) myName//': familyType : ', trim(familyType)
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) myError//' fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( myError//'fSQL_open' )
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     query = "select schema from rdb4_schema ;"
@@ -417,135 +413,134 @@ contains
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLua )
       case ( 'ai' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLai )
       case ( 'sw' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsw )
       case ( 'pr' )
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
       case ( 'al' )  
         columnsHeader = trim(columnsHeader)//", id_prof"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLal, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLal )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLro )
       case ( 'sf' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'sst' )
         columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'scat' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         write(columnsData,'(a,f3.2,a)') trim(columnsData)//", ifnull(surf_emiss,", tvs_defaultEmissivity, "), bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLiasi )
       case( 'cris' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcris )
       case( 'crisfsr' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsua )
       case( 'amsub' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsub )
       case( 'atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLatms )
       case( 'ssmi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLssmi )
       case( 'csr' )
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
       case( 'gl' )
         read(nulnam, nml = NAMSQLgl, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case( 'gl_ascat' )
         columnsHeader = trim(columnsHeader)//", track_cell_no, mod_wind_spd "
         read(nulnam, nml = NAMSQLgl, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case( 'ra' )
         read(nulnam, nml = NAMSQLradar, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
       case( 'radvel' )
         columnsHeader = trim(columnsHeader) 
         ! add  range to data columns to read
         columnsData = trim(columnsData)//", range "
         read(nulnam, nml = NAMSQLradvel, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradvel )
       case DEFAULT
-        write(*,*) myError//'Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
-        call utl_abort( myError//'Unsupported  SCHEMA in SQLITE file!' )
+        call utl_abort( myName//': Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema) )
     end select
     ierr=fclos( nulnam )
 
@@ -989,7 +984,6 @@ contains
     logical                     :: back
     real                        :: romp, obsValue, scaleFactor
     character(len=*), parameter :: myName = 'sqlr_updateSqlite'
-    character(len=*), parameter :: myError = '****** '// myName //': ERROR: '
     character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
@@ -1006,7 +1000,7 @@ contains
     nulnam = 0
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam,nml = namSQLUpdate, iostat = ierr )
-    if ( ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
     if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
     ierr = fclos( nulnam )
 
@@ -1056,7 +1050,7 @@ contains
           updateList( itemIndex ) = OBS_PPP
           columnName = 'vcoord'
         case DEFAULT
-          call utl_abort( myError//'invalid item '// columnName //' EXIT sqlr_updateSQL!!!' )
+          call utl_abort( myName//': invalid item '// columnName //' EXIT sqlr_updateSQL!!!' )
       end select
       
       if ( sqlu_sqlColumnExists( fileName, 'data', columnName ) == .true. ) then
@@ -1187,7 +1181,6 @@ contains
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
     character(len=*), parameter :: myName    = 'sqlr_addCloudParametersandEmissivity'
     character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //': ERROR: '
 
     query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
          ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
@@ -1269,7 +1262,6 @@ contains
     character(len = 256)   :: query
     logical                :: llok    
     character(len=*), parameter :: myName = 'sqlr_insertSqlite'
-    character(len=*), parameter :: myError   = myName //': ERROR: '
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
     write(*,*)  myName//': --- Starting ---   '
@@ -1284,7 +1276,7 @@ contains
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam, nml = namSQLInsert, iostat = ierr )
-    if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
+    if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
     if (mpi_myid == 0) write(*, nml = namSQLInsert )
     ierr=fclos( nulnam )
 
@@ -1720,8 +1712,8 @@ contains
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
     character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
+    character(len=*), parameter :: myError = myName //': ERROR: '
     character(len=*), parameter :: myWarning = myName //': WARNING: '
-    character(len=*), parameter :: myError   = myName //': ERROR: '
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
