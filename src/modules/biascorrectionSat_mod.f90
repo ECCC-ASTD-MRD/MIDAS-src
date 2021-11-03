@@ -744,7 +744,6 @@ contains
     logical, allocatable   :: first(:)
     integer, allocatable   :: fileIndexes(:), obsOffset(:),  dataOffset(:)
     character(len=*), parameter :: myName = 'bcs_dumpBiasToSqliteAfterThinning::'
-    character(len=*), parameter :: myError = myName // ' ERROR: '
     character(len=30)  :: fileNameExtention
     character(len=4)   :: cmyidx, cmyidy
     integer              :: tovsCodeTypeListSize, tovsCodeTypeList(10)
