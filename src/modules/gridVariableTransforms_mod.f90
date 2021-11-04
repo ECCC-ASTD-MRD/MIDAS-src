@@ -73,15 +73,12 @@ CONTAINS
     ! 
     ! :Purpose: To set up a variable transformation object
     !
-    ! :Arguments:
-    !           :hco_in: horizontal coordinate object input 
-    !           :vco_in: vertical   coordinate object input
-    !
     implicit none
 
-    type(struct_hco), pointer :: hco_in
-    type(struct_hco), pointer :: hco_core
-    type(struct_vco), pointer :: vco_in
+    ! Arguments
+    type(struct_hco), pointer, intent(inout) :: hco_in
+    type(struct_hco), pointer, intent(inout) :: hco_core
+    type(struct_vco), pointer, intent(inout) :: vco_in
     
     if ( gsv_containsNonZeroValues(stateVectorRefHU) ) return
     if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) return
@@ -102,14 +99,21 @@ CONTAINS
   ! gvt_setupRefFromTrialFiles
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromTrialFiles(varName, varKind_opt)
-
+    ! 
+    ! :Purpose: Initialise reference statevector from file 
+    !
+    ! :Arguments:
+    !   :varKind_opt: optional variable "kind" argument presently used to 
+    !                 initialise the reference state in a chemical assimilation
+    !                 context.
+    !
     implicit none
 
-    !Arguments:
-    character(len=*), intent(in) :: varName
-    character(len=*), optional   :: varKind_opt
+    ! Arguments
+    character(len=*), intent(in) :: varName ! reference variable/type used
+    character(len=*), optional, intent(in) :: varKind_opt ! additional variable/type information mandatory for some initialization
 
-    !Locals:
+    ! Locals
     type(struct_gsv) :: statevector_noZnoP
     integer :: varIndex
     
@@ -185,15 +189,18 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
                                 stateVectorRef_opt, varName_opt, allowOverWrite_opt )
+    ! 
+    ! :Purpose: Top-level switch routine for transformations on the grid.
+    !
     implicit none
    
     ! Arguments
-    type(struct_gsv)           :: statevector
-    character(len=*), intent(in) :: transform
-    type(struct_gsv), optional :: statevectorOut_opt
-    type(struct_gsv), optional :: statevectorRef_opt
-    logical, optional          :: allowOverWrite_opt
-    character(len=*), optional :: varName_opt
+    type(struct_gsv), intent(inout)         :: statevector ! statevector operand of the transformation
+    character(len=*), intent(in)            :: transform ! string identifying the requested transformation
+    type(struct_gsv), optional, intent(out) :: statevectorOut_opt
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt ! reference statevector necessary for some transformation 
+    logical, optional, intent(in)           :: allowOverWrite_opt 
+    character(len=*), optional, intent(in)  :: varName_opt ! additional variable/type information mandatory for some transformation
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -568,15 +575,19 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_ens
   !--------------------------------------------------------------------------
-  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt, huMinValue_opt)
+    subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt, huMinValue_opt)
+    ! 
+    ! :Purpose: Top-level switch routine for ensemble transformations on the 
+    !           grid
+    !
     implicit none
    
     ! Arguments
-    type(struct_ens)             :: ens
-    character(len=*), intent(in) :: transform
-    logical, optional            :: allowOverWrite_opt
-    character(len=*), optional   :: varName_opt
-    real(8), optional            :: huMinValue_opt
+    type(struct_ens), intent(inout) :: ens ! operand (ensemble of statevector)
+    character(len=*), intent(in)    :: transform ! string identifying the requested transformation
+    logical, optional, intent(in)   :: allowOverWrite_opt
+    character(len=*), optional, intent(in)  :: varName_opt ! additional variable/type information mandatory for some transformation
+    real(8), optional, intent(in)   :: huMinValue_opt ! HU min value for 'HUtoLQ' transformation
 
     select case(trim(transform))
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
@@ -609,12 +620,15 @@ CONTAINS
   ! gvt_getStateVectorTrial
   !--------------------------------------------------------------------------
   function gvt_getStateVectorTrial(varName) result(statevector_ptr)
+    ! 
+    ! :Purpose: Returns a pointer to requested reference statevector 
+    !
     implicit none
 
-    ! arguments
-    character(len=*), intent(in) :: varName
+    ! Arguments
+    character(len=*), intent(in) :: varName ! reference variable/type requested 
 
-    ! local
+    ! Locals
     type(struct_gsv), pointer  :: statevector_ptr
 
     select case ( trim(varName) )
@@ -643,7 +657,7 @@ CONTAINS
                                           applyLimitOnHU_opt )
     !
     !:Purpose: computing the reference stateVector on the analysis grid at each 
-    !          outer-loop iterationt. The calculation is skipped if stateVectorRef* is 
+    !          outer-loop iteration. The calculation is skipped if stateVectorRef* is 
     !          initialized (gsv_containsNonZeroValue(stateVectorRef*)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
     !          statevector used for reading the trials and should contain 
@@ -652,8 +666,8 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
-    character(len=*),  intent(in) :: varName
+    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector 
+    character(len=*),  intent(in) :: varName ! reference variable/type used
     logical, intent(in), optional :: applyLimitOnHU_opt
 
     ! Locals
@@ -773,9 +787,15 @@ CONTAINS
   ! LQtoHU
   !--------------------------------------------------------------------------
   subroutine LQtoHU(statevector)
+    ! 
+    ! :Purpose: Specific humidity logarithm exponentiation. 
+    !
     implicit none
 
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
@@ -801,9 +821,15 @@ CONTAINS
   ! HUtoLQ_gsv
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_gsv(statevector)
+    ! 
+    ! :Purpose: Logarithmic transformation of specific humidity 
+    !
     implicit none
 
-    type(struct_gsv)    :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
@@ -851,11 +877,16 @@ CONTAINS
   ! HUtoLQ_ens
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_ens(ens, huMinValue_opt)
+    ! 
+    ! :Purpose: Specific humidity logarithm exponentiation (ensemble processing) 
+    !
     implicit none
 
-    type(struct_ens)  :: ens
-    real(8), optional :: huMinValue_opt
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
+    real(8), optional, intent(in)   :: huMinValue_opt
 
+    ! Locals
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
     character(len=4) :: varName
@@ -896,11 +927,15 @@ CONTAINS
   ! LQtoHU_tlm
   !--------------------------------------------------------------------------
   subroutine LQtoHU_tlm(statevector, stateVectorRef_opt)
+    ! 
+    ! :Purpose: Tangent linear of exponentiation transformation of specific 
+    !           humidity in logarithmic representation
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    type(struct_gsv), intent(inout)         :: statevector
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -958,16 +993,21 @@ CONTAINS
   ! HUtoLQ_tlm
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_tlm(statevector, stateVectorRef_opt)
+    ! 
+    ! :Purpose: Tangent linear of logarithmic transformation of specific 
+    !           humidity
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    type(struct_gsv), intent(inout)         :: statevector
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
     ! Locals
-    integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
+    integer           :: lonIndex,latIndex,levIndex,stepIndex
+    real(8), pointer  :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
+    real(8), pointer  :: hu_trial(:,:,:,:)
+    real(4), pointer  :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
@@ -1019,13 +1059,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LPRtoPR_gsv
   !--------------------------------------------------------------------------
-  subroutine LPRtoPR_gsv(statevector_in, statevectorOut_opt, allowOverWrite_opt)
+  subroutine LPRtoPR_gsv(stateVector, statevectorOut_opt, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
-    logical, optional          :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)         :: stateVector
+    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
+    logical, optional, intent(in)           :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1040,7 +1083,7 @@ CONTAINS
         overWriteNeeded = .true.
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
+      if (.not. gsv_varExist(stateVector,'PR')) then
         overWriteNeeded = .true.
       end if
     end if
@@ -1054,7 +1097,7 @@ CONTAINS
       end if
     end if
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'PR')) then
@@ -1063,19 +1106,19 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,pr_ptr_r8,'LPR')
         end if
       else
-        if (gsv_varExist(stateVector_in,'PR')) then
-          call gsv_getField(statevector_in,pr_ptr_r8,'PR')
+        if (gsv_varExist(stateVector,'PR')) then
+          call gsv_getField(stateVector,pr_ptr_r8,'PR')
         else
-          call gsv_getField(statevector_in,pr_ptr_r8,'LPR')
+          call gsv_getField(stateVector,pr_ptr_r8,'LPR')
         end if
       end if
-      call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
+      call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.99D0*MPC_missingValue_R8) then
                 pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =   &
                      max(0.0D0, exp(lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)) - &
@@ -1098,19 +1141,19 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,pr_ptr_r4,'LPR')
         end if
       else
-        if (gsv_varExist(stateVector_in,'PR')) then
-          call gsv_getField(statevector_in,pr_ptr_r4,'PR')
+        if (gsv_varExist(stateVector,'PR')) then
+          call gsv_getField(stateVector,pr_ptr_r4,'PR')
         else
-          call gsv_getField(statevector_in,pr_ptr_r4,'LPR')
+          call gsv_getField(stateVector,pr_ptr_r4,'LPR')
         end if
       end if
-      call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
+      call gsv_getField(stateVector,lpr_ptr_r4,'LPR')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > 0.99*MPC_missingValue_R4) then
                 pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =   &
                      max(0.0, exp(lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)) - &
@@ -1132,8 +1175,8 @@ CONTAINS
         call gsv_modifyVarName(stateVectorOut_opt,'LPR','PR')
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
-        call gsv_modifyVarName(stateVector_in,'LPR','PR')
+      if (.not. gsv_varExist(stateVector,'PR')) then
+        call gsv_modifyVarName(stateVector,'LPR','PR')
       end if
     end if
 
@@ -1143,11 +1186,15 @@ CONTAINS
   ! LPRtoPR_ens
   !--------------------------------------------------------------------------
   subroutine LPRtoPR_ens(ens, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !           (ensemble processing)
+    !
     implicit none
 
     ! Arguments
-    type(struct_ens)  :: ens
-    logical, optional :: allowOverWrite_opt
+    type(struct_ens), intent(inout) :: ens
+    logical, optional, intent(in)   :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
@@ -1208,32 +1255,35 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! PRtoLPR_gsv
   !--------------------------------------------------------------------------
-  subroutine PRtoLPR_gsv(statevector_in, statevectorOut_opt)
+  subroutine PRtoLPR_gsv(stateVector, statevectorOut_opt)
+    ! 
+    ! :Purpose: Logarithmic transformation of quantity of precipitation
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
+    type(struct_gsv), intent(inout)         :: stateVector
+    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
     real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
     real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         call gsv_getField(statevectorOut_opt,lpr_ptr_r8,'LPR')
       else
-        call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
+        call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
       end if
-      call gsv_getField(statevector_in,pr_ptr_r8,'PR')
+      call gsv_getField(stateVector,pr_ptr_r8,'PR')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > -1.0D0) then
                 lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                      log(MPC_MINIMUM_PR_R8 + max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)))
@@ -1251,15 +1301,15 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call gsv_getField(statevectorOut_opt,lpr_ptr_r4,'LPR')
       else
-        call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
+        call gsv_getField(stateVector,lpr_ptr_r4,'LPR')
       end if
-      call gsv_getField(statevector_in,pr_ptr_r4,'PR')
+      call gsv_getField(stateVector,pr_ptr_r4,'PR')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > -1.0) then
                 lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                      log(MPC_MINIMUM_PR_R4 + max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)))
@@ -1279,13 +1329,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LVIStoVIS
   !--------------------------------------------------------------------------
-  subroutine LVIStoVIS(statevector_in, statevectorOut_opt, allowOverWrite_opt)
+  subroutine LVIStoVIS(stateVector, statevectorOut_opt, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Visibility logarithm exponentiation 
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
-    logical, optional          :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)         :: stateVector
+    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
+    logical, optional, intent(in)           :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1300,7 +1353,7 @@ CONTAINS
         overWriteNeeded = .true.
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
+      if (.not. gsv_varExist(stateVector,'PR')) then
         overWriteNeeded = .true.
       end if
     end if
@@ -1314,7 +1367,7 @@ CONTAINS
       end if
     end if
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'VIS')) then
@@ -1323,19 +1376,19 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,vis_ptr_r8,'LVIS')
         end if
       else
-        if (gsv_varExist(stateVector_in,'VIS')) then
-          call gsv_getField(statevector_in,vis_ptr_r8,'VIS')
+        if (gsv_varExist(stateVector,'VIS')) then
+          call gsv_getField(stateVector,vis_ptr_r8,'VIS')
         else
-          call gsv_getField(statevector_in,vis_ptr_r8,'LVIS')
+          call gsv_getField(stateVector,vis_ptr_r8,'LVIS')
         end if
       end if
-      call gsv_getField(statevector_in,lvis_ptr_r8,'LVIS')
+      call gsv_getField(stateVector,lvis_ptr_r8,'LVIS')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
@@ -1352,19 +1405,19 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,vis_ptr_r4,'LVIS')
         end if
       else
-        if (gsv_varExist(stateVector_in,'VIS')) then
-          call gsv_getField(statevector_in,vis_ptr_r4,'VIS')
+        if (gsv_varExist(stateVector,'VIS')) then
+          call gsv_getField(stateVector,vis_ptr_r4,'VIS')
         else
-          call gsv_getField(statevector_in,vis_ptr_r4,'LVIS')
+          call gsv_getField(stateVector,vis_ptr_r4,'LVIS')
         end if
       end if
-      call gsv_getField(statevector_in,lvis_ptr_r4,'LVIS')
+      call gsv_getField(stateVector,lvis_ptr_r4,'LVIS')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
@@ -1380,8 +1433,8 @@ CONTAINS
         call gsv_modifyVarName(stateVectorOut_opt,'LVIS','VIS')
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'VIS')) then
-        call gsv_modifyVarName(stateVector_in,'LVIS','VIS')
+      if (.not. gsv_varExist(stateVector,'VIS')) then
+        call gsv_modifyVarName(stateVector,'LVIS','VIS')
       end if
     end if
 
@@ -1391,9 +1444,16 @@ CONTAINS
   ! ZandP_nl
   !--------------------------------------------------------------------------
   subroutine ZandP_nl(statevector)
+    ! 
+    ! :Purpose: Computation of both height and pressure.  The computation order 
+    !           depends on the native model representation (height or pressure 
+    !           based).
+    !
     implicit none
+
     ! Arguments
-    type(struct_gsv)      :: stateVector
+    type(struct_gsv), intent(inout) :: stateVector
+
     ! Locals
     integer               :: Vcode
 
@@ -1412,9 +1472,16 @@ CONTAINS
   ! ZandP_tl
   !--------------------------------------------------------------------------
   subroutine ZandP_tl(stateVector)
+    ! 
+    ! :Purpose: Tangeant linear of height and pressure computation.  
+    !           The computation order depends on the native model 
+    !           representation (height or pressure based).
+    !
     implicit none
+
     ! Arguments
-    type(struct_gsv)      :: stateVector
+    type(struct_gsv), intent(inout) :: stateVector
+
     ! Locals
     integer               :: Vcode
 
@@ -1437,9 +1504,16 @@ CONTAINS
   ! ZandP_ad
   !--------------------------------------------------------------------------
   subroutine ZandP_ad(stateVector)
+    ! 
+    ! :Purpose: Adjoint of the tangeant linear computation of both height and 
+    !           pressure. The computation order depends on the native model 
+    !           representation (height or pressure based).
+    !
     implicit none
+
     ! Arguments
-    type(struct_gsv)      :: stateVector
+    type(struct_gsv), intent(inout) :: stateVector
+
     ! Locals
     integer               :: Vcode
 
@@ -1462,9 +1536,13 @@ CONTAINS
   ! TTHUtoHeight_nl
   !--------------------------------------------------------------------------
   subroutine TTHUtoHeight_nl(statevector)
+    ! 
+    ! :Purpose: Height computation from virtual temperature. 
+    !
     implicit none
 
-    type(struct_gsv)    :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector
 
     call czp_calcHeight_nl(statevector)
 
@@ -1474,9 +1552,13 @@ CONTAINS
   ! TTHUtoHeight_tl
   !--------------------------------------------------------------------------
   subroutine TTHUtoHeight_tl(stateVector)
+    ! 
+    ! :Purpose: Tangent linear of height computation from virtual temperature. 
+    !
     implicit none
 
-    type(struct_gsv)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('TTHUtoHeight_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
@@ -1490,9 +1572,13 @@ CONTAINS
   ! TTHUtoHeight_ad
   !--------------------------------------------------------------------------
   subroutine TTHUtoHeight_ad(stateVector)
+    ! 
+    ! :Purpose: Adjoint of the tangent linear of height computation. 
+    !
     implicit none
 
-    type(struct_gsv)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('TTHUtoHeight_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
@@ -1506,9 +1592,13 @@ CONTAINS
   ! PsfcToP_tl
   !--------------------------------------------------------------------------
   subroutine PsfcToP_tl(stateVector)
+    ! 
+    ! :Purpose: Tangent linear of pressure levels computation.
+    !
     implicit none
 
-    type(struct_gsv)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('PsfcToP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
@@ -1522,9 +1612,13 @@ CONTAINS
   ! PsfcToP_ad
   !--------------------------------------------------------------------------
   subroutine PsfcToP_ad(stateVector)
+    ! 
+    ! :Purpose: Adjoint of tangent linear of pressure levels computation.
+    !
     implicit none
 
-    type(struct_gsv)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('PsfcToP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
@@ -1538,15 +1632,19 @@ CONTAINS
   ! UVtoVortDiv_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_gsv(statevector)
+    ! 
+    ! :Purpose: Wind speed to relative vorticity and divergence transformation.
+    !
     implicit none
    
-    type(struct_gsv) :: statevector
-    integer :: stepIndex
- 
-    real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
-    real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    integer :: nlev_M
+    ! Locals
+    real(8), pointer  :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
+    real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    integer           :: stepIndex
+    integer           :: nlev_M
 
     call gsv_getField(statevector,uu_ptr,'UU')
     call gsv_getField(statevector,vv_ptr,'VV')
@@ -1577,15 +1675,20 @@ CONTAINS
   ! vortDivtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine vortDivToPsiChi_gsv(statevector)
+    ! 
+    ! :Purpose: Relative vorticity and divergence to stream function and 
+    !           velocity potential transformation.
+    !
     implicit none
-   
-    type(struct_gsv) :: statevector
-    integer :: stepIndex
 
-    logical, save :: firstTime = .true.
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
-    real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
+    ! Locals
+    integer           :: stepIndex
+    logical, save     :: firstTime = .true.
+    real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    real(8), pointer  :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
 
     type(struct_lst), save :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
     integer :: nlev_M
@@ -1649,17 +1752,23 @@ CONTAINS
   ! UVtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_gsv(statevector)
+    ! 
+    ! :Purpose: Wind speed to stream function and velocity potential 
+    !           transformation.
+    !
     implicit none
    
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    integer :: stepIndex 
-    real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
-    real(8), pointer :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
-    real(8), allocatable :: gridState(:,:,:), spectralState(:,:,:)
-    real(8) :: dla2
-    integer :: nlev_M, levIndex
-    integer :: ila_mpiglobal, ila_mpilocal
+    ! Locals
+    integer               :: stepIndex 
+    real(8), pointer      :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
+    real(8), pointer      :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
+    real(8), allocatable  :: gridState(:,:,:), spectralState(:,:,:)
+    real(8)               :: dla2
+    integer               :: nlev_M, levIndex
+    integer               :: ila_mpiglobal, ila_mpilocal
 
     ! spectral transform configuration (saved)
     integer, save :: gstID = -1
@@ -1737,14 +1846,19 @@ CONTAINS
   ! UVtoPsiChi_ens
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_ens(ens)
+    ! 
+    ! :Purpose: Wind speed to stream function and velocity potential 
+    !           transformation (ensemble processing).
+    !
     implicit none
    
-    type(struct_ens) :: ens
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
 
+    ! Locals
     type(struct_hco), pointer :: hco_ens => null()
-    type(struct_gsv) :: gridStateVector_oneMember
-
-    integer :: memberIndex
+    type(struct_gsv)          :: gridStateVector_oneMember
+    integer                   :: memberIndex
 
     write(*,*)
     write(*,*) 'gvt_UVtoPsiChi_ens: starting'
@@ -1790,14 +1904,19 @@ CONTAINS
   ! UVtoVorDiv_ens
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_ens(ens)
+    ! 
+    ! :Purpose: Wind speed to relative vorticity and divergence transformation
+    !           (ensemble processing)
+    !
     implicit none
    
-    type(struct_ens) :: ens
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
 
+    ! Locals
     type(struct_hco), pointer :: hco_ens => null()
-    type(struct_gsv) :: gridStateVector_oneMember
-
-    integer :: memberIndex
+    type(struct_gsv)          :: gridStateVector_oneMember
+    integer                   :: memberIndex
 
     write(*,*)
     write(*,*) 'gvt_UVtoVortDiv_ens: starting'
@@ -1843,19 +1962,22 @@ CONTAINS
   ! logCH_ens
   !--------------------------------------------------------------------------
   subroutine logCH_ens(ens,varName)
+    ! 
+    ! :Purpose: Logarithmic transformation of a chemical species concentration
+    !           (ensemble processing)
+    !
     implicit none
 
-    !Arguments:
-    type(struct_ens) :: ens
-    character(len=4) :: varName
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
+    character(len=4), intent(in)    :: varName
 
-    !Locals:
-    integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
-    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
-    character(len=4) :: varName_ens
-    real(4) :: minVal
-
-    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    ! Locals
+    integer           :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    integer           :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
+    character(len=4)  :: varName_ens
+    real(4)           :: minVal
+    real(4), pointer  :: ptr4d_r4(:,:,:,:)
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
@@ -1886,21 +2008,24 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine expCH_tlm(statevector, varName, stateVectorRef_opt)
     ! 
-    ! :Purpose: Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
+    ! :Purpose: Tangent linear of exponentiation of chemical species
+    !           concentration.
+    !           Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
     !           the input 'statevector' component is d[log(x)] and
     !           the output 'statevector' component is dx.
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: statevector
-    character(len=*) :: varName
-    type(struct_gsv), optional :: statevectorRef_opt
+    ! Arguments
+    type(struct_gsv), intent(inout)         :: statevector
+    character(len=*), intent(in)            :: varName
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
     
-    ! Locals:
-    integer :: lonIndex,latIndex,levIndex,stepIndex,varIndex
-    real(8), pointer :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:), var_trial(:,:,:,:)
-    real(8) :: minVal
+    ! Locals
+    integer           :: lonIndex,latIndex,levIndex,stepIndex,varIndex
+    real(8), pointer  :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:)
+    real(8), pointer  :: var_trial(:,:,:,:)
+    real(8)           :: minVal
 
     if ( present(statevectorRef_opt) ) then
        call gsv_getField(stateVectorRef_opt,var_trial,trim(varName))
@@ -1941,14 +2066,14 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
     
-    ! Locals:
-    integer :: varIndex,lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: var_ptr(:,:,:,:)
-    real(8) :: minVal
-    character(len=4) :: varName
+    ! Locals
+    integer           :: varIndex,lonIndex,latIndex,levIndex,stepIndex
+    real(8), pointer  :: var_ptr(:,:,:,:)
+    real(8)           :: minVal
+    character(len=4)  :: varName
 
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
@@ -1995,14 +2120,17 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: stateVector, stateVectorRef
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(in)    :: stateVectorRef
 
-    ! Locals:
-    type(struct_gsv) :: statevector_analysis_1step_r8, statevector_trial_1step_r8
+    ! Locals
+    type(struct_gsv) :: statevector_analysis_1step_r8
+    type(struct_gsv) :: statevector_trial_1step_r8
 
-    real(8), pointer :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:), GL_ptr(:,:,:,:)
-    real(8) :: alpha, factor, correc, rms, maxAbsCorr, basic
+    real(8), pointer  :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:)
+    real(8), pointer  :: GL_ptr(:,:,:,:)
+    real(8)           :: alpha, factor, correc, rms, maxAbsCorr, basic
 
     integer :: lonIndex, latIndex, levIndex, stepIndex
     integer :: ipass, numPass, numCorrect

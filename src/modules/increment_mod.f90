@@ -381,7 +381,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in), target :: stateVectorTrial
+    type(struct_gsv), intent(inout), target :: stateVectorTrial
     type(struct_gsv), intent(in) :: stateVectorPsfc
     type(struct_gsv), intent(in) :: stateVectorAnal
 
