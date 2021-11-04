@@ -48,7 +48,8 @@ module gridVariableTransforms_mod
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 
-  logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
+  logical :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
+
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_trl => null()
@@ -121,8 +122,9 @@ CONTAINS
     case ('HU')
       ! initialize stateVectorRefHU on analysis grid
       call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
@@ -131,17 +133,20 @@ CONTAINS
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
         ! initialize stateVectorRefHeight on analysis grid
-        call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                          varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                          vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                          mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                          hInterpolateDegree_opt='LINEAR', &
+                          varNames_opt=&
+                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
         call gsv_zero(stateVectorRefHeight)
       end if
 
       ! initialize statevector_noZnoP on analysis grid
       call gsv_allocate(statevector_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'TT','HU','P0'/))
       write(*,*) 'gvt_setupRefFromTrialFiles: statevector_noZnoP allocated'
 
@@ -149,7 +154,8 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, stateVectorRefHeight, allowVarMismatch_opt=.true. )
+      call gsv_copy(statevector_noZnoP, stateVectorRefHeight, &
+                    allowVarMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 
@@ -158,16 +164,19 @@ CONTAINS
 
     case default
       if ( present(varKind_opt) ) then
-        if (varKind_opt == 'CH' .and. vnl_varKindFromVarname(varName) == varKind_opt ) then
+        if (varKind_opt == 'CH' .and. &
+            vnl_varKindFromVarname(varName) == varKind_opt ) then
         
           varIndex = vnl_varListIndex(varName)
           
           ! initialize stateVectorTrialvarKindCH(varIndex) on analysis grid
           
-          call gsv_allocate(stateVectorTrialvarKindCH(varIndex), tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/trim(varName),'P0'/) )
+          call gsv_allocate(stateVectorTrialvarKindCH(varIndex), &
+                            tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), &
+                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                            hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/trim(varName),'P0'/) )
 
           ! read trial files using default horizontal interpolation degree
           call gsv_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
@@ -188,7 +197,8 @@ CONTAINS
   ! gvt_transform_gsv
   !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
-                                stateVectorRef_opt, varName_opt, allowOverWrite_opt )
+                                stateVectorRef_opt, varName_opt, &
+                                allowOverWrite_opt )
     ! 
     ! :Purpose: Top-level switch routine for transformations on the grid.
     !
@@ -231,7 +241,8 @@ CONTAINS
       call UVtoVortDiv_gsv(statevector)
 
     case ('VortDivToPsiChi')
-      if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
+      if (.not. gsv_varExist(statevector,'QR') .or. .not. &
+          gsv_varExist(statevector,'DD') ) then
         call utl_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -240,7 +251,8 @@ CONTAINS
       call VortDivToPsiChi_gsv(statevector)
 
     case ('UVtoPsiChi')
-      if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
+      if (.not. gsv_varExist(statevector,'PP') .or. .not. &
+          gsv_varExist(statevector,'CC') ) then
         call utl_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -325,7 +337,8 @@ CONTAINS
         end if
         call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt)
       else
-        if ( .not. gsv_varExist(statevector,'VIS') .or. .not. gsv_varExist(statevector,'LVIS') ) then
+        if (.not. gsv_varExist(statevector,'VIS') .or. .not. &
+            gsv_varExist(statevector,'LVIS') ) then
           call utl_abort('gvt_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
         end if
         call LVIStoVIS(statevector)
@@ -575,7 +588,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_ens
   !--------------------------------------------------------------------------
-    subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt, huMinValue_opt)
+    subroutine gvt_transform_ens( ens,transform, allowOverWrite_opt, &
+                                  varName_opt, huMinValue_opt)
     ! 
     ! :Purpose: Top-level switch routine for ensemble transformations on the 
     !           grid
@@ -690,9 +704,10 @@ CONTAINS
       end if
 
       if ( .not. stateVectorRefHU%allocated ) then
-        call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+        call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,&
+                          dateStamp_opt=tim_getDateStamp(), &
+                          mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                          hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=(/'HU','P0'/) )
       else
         call gsv_zero( stateVectorRefHU )
@@ -700,33 +715,35 @@ CONTAINS
 
       allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,&
+                        dateStamp_opt=tim_getDateStamp(),&
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','TT','P0'/) )
 
       ! First, degrade the time steps
-      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorLowResTime, tim_nstepobsinc, hco_trl, &
+                        vco_trl, dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
+                        allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt='LINEAR', & 
+                        allocHeight_opt=.false., allocPressure_opt=.false. )
       call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, &
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
       ! Second, interpolate to the low-resolution spatial grid.
       nullify(varNames)
       call gsv_varNamesList(varNames, stateVectorLowResTime)
-      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=varNames)
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, &
+                        vco_anl, dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
+                        allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
       call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy only P0, HU, and TT to create reference stateVector.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHUTT, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHUTT, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
@@ -737,40 +754,43 @@ CONTAINS
         call qlim_rttovLimit(stateVectorRefHUTT)
       end if
 
-      call gsv_copy( stateVectorRefHUTT, stateVectorRefHU, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorRefHUTT, stateVectorRefHU, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorRefHUTT)
 
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
-        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                           varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt='LINEAR', &
+                           varNames_opt=&
+                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
       else
         call gsv_zero( stateVectorRefHeight )
       end if
 
       ! First, degrade the time steps
-      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=(/'TT','HU','P0'/) )
-      call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
-                     allowVarMismatch_opt=.true. )
+      call gsv_allocate(stateVectorLowResTime, tim_nstepobsinc, hco_trl, &
+                        vco_trl, dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/) )
+      call gsv_copy(stateVectorOnTrlGrid, stateVectorLowResTime, &
+                    allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true.)
 
       ! Second, interpolate to the low-resolution spatial grid.
       nullify(varNames)
       call gsv_varNamesList(varNames, stateVectorLowResTime)
-      call gsv_allocate( stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=varNames )
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl,&
+                        vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
       call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy to create final stateVector height.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHeight, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHeight, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
@@ -808,7 +828,8 @@ CONTAINS
       do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
           end do
         end do
       end do
@@ -845,7 +866,9 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),gsv_rhumin))
+              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                  log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),&
+                          gsv_rhumin) )
             end do
           end do
         end do
@@ -862,7 +885,9 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),real(gsv_rhumin,4)))
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                  log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),&
+                          real(gsv_rhumin,4)) )
             end do
           end do
         end do
@@ -913,7 +938,8 @@ CONTAINS
           do stepIndex = 1, ens_getNumStep(ens)
             do memberIndex = 1, ens_getNumMembers(ens)
               ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = &
-                   log( max( ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex), huMinValue ) )
+                   log(max( ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),&
+                            huMinValue) )
             end do
           end do
         end do
@@ -939,7 +965,8 @@ CONTAINS
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
+    real(8), pointer :: hu_trial(:,:,:,:)
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if ( present(statevectorRef_opt) ) then
@@ -962,7 +989,8 @@ CONTAINS
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R4)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R4)
             end do
           end do
         end do
@@ -979,7 +1007,8 @@ CONTAINS
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
               hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)*  &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -1024,12 +1053,13 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do levIndex = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) / &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -1041,12 +1071,13 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do levIndex = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                    hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) / &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -1119,12 +1150,16 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
           do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-              if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.99D0*MPC_missingValue_R8) then
+              if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > &
+                  0.99D0*MPC_missingValue_R8) then
+
                 pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =   &
-                     max(0.0D0, exp(lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)) - &
-                                MPC_MINIMUM_PR_R8)
+                     max( 0.0D0, exp( lpr_ptr_r8(lonIndex,latIndex,levIndex,&
+                                      stepIndex)) - &
+                          MPC_MINIMUM_PR_R8)
               else
-                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R8
               end if
             end do
           end do
@@ -1151,15 +1186,19 @@ CONTAINS
 
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
+        do levIndex = 1,gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
           do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-              if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > 0.99*MPC_missingValue_R4) then
+              if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > &
+                  0.99*MPC_missingValue_R4) then
+
                 pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =   &
-                     max(0.0, exp(lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)) - &
-                              MPC_MINIMUM_PR_R4)
+                     max( 0.0, exp( lpr_ptr_r4(lonIndex,latIndex,levIndex,&
+                                    stepIndex)) - &
+                          MPC_MINIMUM_PR_R4)
               else
-                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R4
               end if
             end do
           end do
@@ -1235,8 +1274,9 @@ CONTAINS
         do stepIndex = 1, ens_getNumStep(ens)
           do memberIndex = 1, ens_getNumMembers(ens)
               PR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
-                   max(0.0, exp(LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)) - &
-                              MPC_MINIMUM_PR_R4)
+                   max( 0.0, exp( LPR_ptr_r4(memberIndex,stepIndex,lonIndex,&
+                                  latIndex)) - &
+                        MPC_MINIMUM_PR_R4)
               ! maybe also impose minimum value of LPR
               !LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
               !     max(log(MPC_MINIMUM_PR_R4), LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex))
@@ -1286,9 +1326,12 @@ CONTAINS
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > -1.0D0) then
                 lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
-                     log(MPC_MINIMUM_PR_R8 + max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)))
+                     log( MPC_MINIMUM_PR_R8 + &
+                          max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,&
+                                              stepIndex)))
               else
-                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R8
               end if
             end do
           end do
@@ -1307,14 +1350,17 @@ CONTAINS
 
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
+        do levIndex = 1,gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
           do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > -1.0) then
                 lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                     log(MPC_MINIMUM_PR_R4 + max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)))
+                     log( MPC_MINIMUM_PR_R4 + &
+                          max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,&
+                                            stepIndex)))
               else
-                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R4
               end if
             end do
           end do
@@ -1386,10 +1432,12 @@ CONTAINS
       
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LVIS'))
+        do levIndex = 1, gsv_getNumLev( stateVector,&
+                                        vnl_varLevelFromVarname('LVIS'))
           do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
+              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                  exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
@@ -1415,10 +1463,12 @@ CONTAINS
 
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LVIS'))
+        do levIndex = 1, gsv_getNumLev( stateVector,&
+                                        vnl_varLevelFromVarname('LVIS'))
           do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
             do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
+              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                  exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
@@ -1799,8 +1849,11 @@ CONTAINS
         gstID = gst_setup(statevector%ni,statevector%nj,ntrunc,2*nlev_M)
         call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
         call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
-        call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        call gst_ilaList_mpiglobal( ilaList_mpiglobal,nla_mpilocal,maxMyNla,&
+                                    gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,&
+                                    mynSkip)
+        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,&
+                                  mynBeg,mynEnd,mynSkip)
       end if
 
       dla2   = dble(ra)*dble(ra)
@@ -1873,7 +1926,8 @@ CONTAINS
     !- 1.  Create a working stateVector
     !
     call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
-                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      varNames_opt=(/'UU','VV'/), &
+                      datestamp_opt=tim_getDatestamp(), &
                       mpi_local_opt=.true., dataKind_opt=8)
 
     !
@@ -1931,7 +1985,8 @@ CONTAINS
     !- 1.  Create a working stateVector
     !
     call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
-                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      varNames_opt=(/'UU','VV'/), &
+                      datestamp_opt=tim_getDatestamp(), &
                       mpi_local_opt=.true., dataKind_opt=8)
 
     !
@@ -1993,7 +2048,9 @@ CONTAINS
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, ens_getNumStep(ens)
             do memberIndex = 1, ens_getNumMembers(ens)
-              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),minVal))
+              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = &
+                  log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),&
+                          minVal))
             end do
           end do
         end do
@@ -2034,7 +2091,8 @@ CONTAINS
       if ( .not. varKindCHTrialsInitialized(varIndex) ) then
         call utl_abort('expCH_tlm: do trials to stateVectorRefChem transform at higher level')
       end if
-      call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,trim(varName))
+      call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,&
+                        trim(varName))
     end if
 
     call gsv_getField(statevector,var_ptr,trim(varName))
@@ -2044,11 +2102,13 @@ CONTAINS
 
     do stepIndex = 1, statevector%numStep
       !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+      do levIndex = 1, gsv_getNumLev( statevector,&
+                                      vnl_varLevelFromVarname(trim(varName)))
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
-            var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
-                     *max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
+            var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  &
+                logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
+                * max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
           end do
         end do
       end do
@@ -2086,10 +2146,12 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+        do levIndex = 1, gsv_getNumLev( statevector,&
+                                        vnl_varLevelFromVarname(trim(varName)))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
-              var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
+              var_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                  max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
             end do
           end do
         end do
@@ -2144,12 +2206,12 @@ CONTAINS
 
     ! allocate statevector for single time steps
     if ( mpi_myid < stateVector%numStep ) then
-      call gsv_allocate( stateVector_analysis_1step_r8, 1, stateVector%hco, stateVector%vco, &
-                         mpi_local_opt=.false., dataKind_opt=8, &
-                         varNames_opt=(/'GL','LG'/) )
-      call gsv_allocate( stateVector_trial_1step_r8, 1, stateVectorRef%hco, stateVectorRef%vco, &
-                         mpi_local_opt=.false., dataKind_opt=8, &
-                         varNames_opt=(/'GL','LG'/) )
+      call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
+                        stateVector%vco, mpi_local_opt=.false., &
+                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
+      call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
+                        stateVectorRef%vco, mpi_local_opt=.false., &
+                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
     end if
 
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
@@ -2188,9 +2250,11 @@ CONTAINS
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
               if ( stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                    GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
               else
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                    LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
               end if
             end do
           end do
@@ -2203,12 +2267,15 @@ CONTAINS
             do latIndex = 2, stateVector%nj-1
               do lonIndex = 2, stateVector%ni-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
+                            ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2223,12 +2290,18 @@ CONTAINS
               lonIndex = 1
               do latIndex = 2, stateVector%nj-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,      latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni-2,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,        latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,        latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1, latIndex, levIndex,&
+                                        stepIndex) + &
+                            LGAnal_ptr( stateVector%ni-2, latIndex, levIndex,&
+                                        stepIndex) + &
+                            LGAnal_ptr( lonIndex, latIndex+1, levIndex, &
+                                        stepIndex) + &
+                            LGAnal_ptr( lonIndex, latIndex-1, levIndex, &
+                                        stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2239,12 +2312,15 @@ CONTAINS
               lonIndex = stateVector%ni
               do latIndex = 2, stateVector%nj-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(3,         latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(3, latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
+                            ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2256,12 +2332,16 @@ CONTAINS
               latIndex = stateVector%nj
               do lonIndex = 2, stateVector%ni-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,                latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,                latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-2,levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-2,&
+                                        levIndex,stepIndex) + &
+                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-1,&
+                                        levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex, &
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
