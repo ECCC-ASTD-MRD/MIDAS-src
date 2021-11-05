@@ -487,10 +487,11 @@ module calcStatsGlb_mod
 
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
+    logical :: doSpectralFilter
     
     character(len=60) :: tool
 
-    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter
 
     write(*,*)
     write(*,*) 'csg_toolbox'
@@ -501,6 +502,7 @@ module calcStatsGlb_mod
     !
     variableType = modelSpace     ! hardwired
     ensContainsFullField = .true. ! default value
+    doSpectralFilter     = .true.
     
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -577,6 +579,20 @@ module calcStatsGlb_mod
       call ens_computeStdDev(ensPerts_ptr)
       call ens_normalize(ensPerts_ptr)
       call calcLocalCorrelations(ensPerts_ptr) ! IN
+
+     case ('VCORRELMATRIX_LOCAL')
+      write(*,*)
+      write(*,*) 'Computing Local Correlation'
+
+      if (doSpectralFilter) then
+        call ens_removeGlobalMean(ensPerts)
+        call spectralFilter2(ensPerts,          & ! IN
+                             ensPerts_ptr,      & ! OUT
+                             waveBandIndex_opt=1) ! IN
+      end if
+      call ens_computeStdDev(ensPerts_ptr)
+      call ens_normalize(ensPerts_ptr)
+      call calcLocalVertCorrMatrix(ensPerts_ptr) ! IN
 
     case ('LOCALIZATIONRADII')
        write(*,*)
@@ -2891,4 +2907,82 @@ module calcStatsGlb_mod
 
   end subroutine calcLocalCorrelations
   
+  !--------------------------------------------------------------------------
+  ! calcLocalVertCorrMatrix
+  !--------------------------------------------------------------------------
+  subroutine calcLocalVertCorrMatrix(ensPerts)
+    implicit none
+
+    ! Arguments:
+    type(struct_ens) :: ensPerts
+
+    ! Locals:
+    type(struct_gsv) :: statevector_vertCorr
+    type(struct_gsv) :: statevector_oneMember
+    real(8), pointer :: ptr3d_r8(:,:,:)
+    real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
+    real(8) :: dnEns
+    integer :: lonIndex, latIndex, varLevIndex1, varLevIndex2, memberIndex, levIndex
+    character(len=4), pointer :: varNamesList(:)
+    character(len=12) :: etiket
+    character(len=4)  :: varName
+    character(len=3)  :: levIndexStr
+
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts) 
+
+    call gsv_allocate(statevector_vertCorr, ens_getNumStep(ensPerts),                     &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='VarsLevs', dataKind_opt=8 )
+
+    call gsv_allocate(statevector_oneMember, ens_getNumStep(ensPerts),                  &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
+
+    call gsv_zero(statevector_vertCorr)
+
+    dnEns = 1.0d0/dble(nEns-1)
+
+    call gsv_getField(statevector_vertCorr,ptr3d_r8)
+
+    varLev1: do varLevIndex1 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+
+      ! Compute vertical correlations relative to varLev1
+      call gsv_zero(statevector_vertCorr)
+      member: do memberIndex = 1, nEns
+        call ens_copyMember(ensPerts, statevector_oneMember, memberIndex)
+        call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
+        do varLevIndex2 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+          do latIndex = statevector_vertCorr%myLatBeg, statevector_vertCorr%myLatEnd
+            do lonIndex = statevector_vertCorr%myLonBeg, statevector_vertCorr%myLonEnd
+              ptr3d_r8(lonIndex,latIndex,varLevIndex2) = &
+                     ptr3d_r8(lonIndex,latIndex,varLevIndex2) + &
+                     ptr3d_r8_oneMember(lonIndex,latIndex,varLevIndex1)* &
+                     ptr3d_r8_oneMember(lonIndex,latIndex,varLevIndex2)
+            end do
+          end do
+        end do
+      end do member
+      call gsv_scale(statevector_vertCorr,dnEns)
+
+      ! Write to file the correlation matrix 'row' for this value of varLev1
+      varName = ens_getVarNameFromK(ensPerts,varLevIndex1)
+      levIndex = ens_getLevFromK(ensPerts,varLevIndex1)
+      write(levIndexStr,'(i3.3)') levIndex
+      etiket = 'VCOR_' // trim(varName) // levIndexStr
+      call gsv_writeToFile(statevector_vertCorr, './vertCorrMatrixLocal.fst', &
+                           etiket_in = etiket, &
+                           typvar_opt = 'E', numBits_opt = 32)
+      write(*,*) 'calcLocalVertCorrMatrix: finished variable/level =', varName, levIndex
+    end do varLev1
+
+    write(*,*) 'calcLocalVertCorrMatrix: finished computing the local vertical correlation matrix...'
+
+    call gsv_deallocate(statevector_vertCorr)
+    call gsv_deallocate(statevector_oneMember)
+
+  end subroutine calcLocalVertCorrMatrix
+
 end module calcStatsGlb_mod
