@@ -1,0 +1,23 @@
+ &NAMCONF
+   MODE   = 'TOOLBOX'
+/
+&NAMTOOLBOX
+   TOOL   = 'VCORRMATRIX'
+   ensContainsFullField = .true.
+   doSpectralFilter     = .false.
+/
+&NAMSTATE
+   ANLVAR(1)   ='TT'
+   ANLVAR(2)   ='HU'
+   ANLVAR(3)   ='TG'
+   ANLVAR(4)   ='I0'
+   ANLVAR(5)   ='I1'
+/
+ &NAMENS
+   NENS=256
+/
+ &NAMCALCSTATS_GLB
+   NTRUNC=380
+/
+ &NAMTIME
+/
