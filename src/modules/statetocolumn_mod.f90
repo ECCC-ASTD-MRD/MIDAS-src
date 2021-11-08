@@ -1153,25 +1153,8 @@ contains
     else
       stateVector => stateVector_in
 
-      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('P_M')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
-        call gvt_transform( statevector, 'ZandP_tl' )
-      else
-        if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-             statevector%varExistList(vnl_varListIndex('P_M')) ) then
-          ! calculate delP_T/delP_M on the grid
-          call gvt_transform( statevector, 'PsfcToP_tl' )
-        end if
-        
-        if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-             statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-          ! calculate del Z_T/Z_M on the grid
-          call gvt_transform( statevector, 'TTHUtoHeight_tl' ) 
-        end if
-      end if
+      ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
+      call gvt_transform( statevector, 'ZandP_tl' )
     end if
 
     nullify(varNames)
@@ -1542,26 +1525,8 @@ contains
       call gsv_zero(statevector_out)
       call gsv_copy(stateVector, stateVector_out, allowVarMismatch_opt=.true.)
     else
-
-      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('P_M')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the grid
-        call gvt_transform( statevector, 'ZandP_ad' )
-      else
-        if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-             statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-          ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
-          call gvt_transform( statevector, 'TTHUtoHeight_ad') 
-        end if
-  
-        if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-             statevector%varExistList(vnl_varListIndex('P_M')) ) then
-          ! Adjoint of calculate delP_T/delP_M on the grid
-          call gvt_transform( statevector, 'PsfcToP_ad')
-        end if
-      end if
+      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the grid
+      call gvt_transform( statevector, 'ZandP_ad' )
     end if
 
     call gsv_deallocate( statevector_VarsLevs )
@@ -1642,26 +1607,9 @@ contains
 
     call tmg_start(171,'s2c_nl_calcPandZ')
 
+    ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
+    call gvt_transform( statevector, 'ZandP_nl' )
 
-    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_M')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
-      call gvt_transform( statevector, 'ZandP_nl' )
-    else
-      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('P_M')) ) then
-        ! calculate P_T/P_M on the grid
-        call gvt_transform( stateVector, 'PsfcToP_nl' )
-      end if
-  
-      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        ! calculate Z_T/Z_M on the grid
-        call gvt_transform( stateVector, 'TTHUtoHeight_nl') 
-      end if
-    end if
     call tmg_stop(171)
 
     nullify(varNames)

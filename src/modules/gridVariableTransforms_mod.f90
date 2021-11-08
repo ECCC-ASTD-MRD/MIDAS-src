@@ -345,81 +345,18 @@ CONTAINS
       end if
 
     case ('ZandP_nl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_nl, variable Z_M must be allocated in gridstatevector')
-      end if
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for ZandP_nl, the option statevectorOut_opt is not yet available')
       end if
-      call ZandP_nl(stateVector)
+      call czp_calcZandP_nl(stateVector)
 
     case ('ZandP_tl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_tl, variable Z_M must be allocated in gridstatevector')
-      end if
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for ZandP_tl, the option statevectorOut_opt is not yet available')
       end if
       call ZandP_tl(stateVector)
 
     case ('ZandP_ad')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for ZandP_ad, variable Z_M must be allocated in gridstatevector')
-      end if
       if ( present(statevectorOut_opt) ) then
         call utl_abort('gvt_transform: for ZandP_ad, the option statevectorOut_opt is not yet available')
       end if
@@ -1490,33 +1427,6 @@ CONTAINS
 
   end subroutine LVIStoVIS
 
-  !--------------------------------------------------------------------------
-  ! ZandP_nl
-  !--------------------------------------------------------------------------
-  subroutine ZandP_nl(statevector)
-    ! 
-    ! :Purpose: Computation of both height and pressure.  The computation order 
-    !           depends on the native model representation (height or pressure 
-    !           based).
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: stateVector
-
-    ! Locals
-    integer               :: Vcode
-
-    Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5002 .or. Vcode == 5005) then
-      call czp_calcPressure_nl(statevector)
-      call czp_calcHeight_nl(statevector)
-    else if (Vcode == 21001) then
-      call czp_calcHeight_nl(statevector)
-      call czp_calcPressure_nl(statevector)
-    end if
-
-  end subroutine ZandP_nl
 
   !--------------------------------------------------------------------------
   ! ZandP_tl
@@ -1532,21 +1442,11 @@ CONTAINS
     ! Arguments
     type(struct_gsv), intent(inout) :: stateVector
 
-    ! Locals
-    integer               :: Vcode
-
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('ZandP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
-    Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5002 .or. Vcode == 5005) then
-      call czp_calcPressure_tl(statevector,stateVectorRefHeight)
-      call czp_calcHeight_tl(statevector, stateVectorRefHeight)
-    else if (Vcode == 21001) then
-      call czp_calcHeight_tl(statevector, stateVectorRefHeight)
-      call czp_calcPressure_tl(statevector, stateVectorRefHeight)
-    end if
+    call czp_calcZandP_tl(statevector, stateVectorRefHeight)
 
   end subroutine ZandP_tl
 
@@ -1564,21 +1464,11 @@ CONTAINS
     ! Arguments
     type(struct_gsv), intent(inout) :: stateVector
 
-    ! Locals
-    integer               :: Vcode
-
     if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
       call utl_abort('ZandP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
     end if
 
-    Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5002 .or. Vcode == 5005) then
-      call czp_calcHeight_ad(statevector, stateVectorRefHeight)
-      call czp_calcPressure_ad(statevector, stateVectorRefHeight)
-    else if (Vcode == 21001) then
-      call czp_calcPressure_ad(statevector,stateVectorRefHeight)
-      call czp_calcHeight_ad(statevector, stateVectorRefHeight)
-    end if
+    call czp_calcZandP_ad(statevector, stateVectorRefHeight)
 
   end subroutine ZandP_ad
 

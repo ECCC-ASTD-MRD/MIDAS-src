@@ -17,9 +17,9 @@
 module calcHeightAndPressure_mod
   ! MODULE czp_calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
   !
-  ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or 
-  !           orography (ME). 
-  !           Nonlinear, tangent-linear and adjoint versions of this 
+  ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or
+  !           orography (ME).
+  !           Nonlinear, tangent-linear and adjoint versions of this
   !           transformation are included in separate subroutines.
   !
   use codePrecision_mod
@@ -42,15 +42,15 @@ module calcHeightAndPressure_mod
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
 
   interface czp_calcZandP_nl
-    module procedure calcZandP_gsv_nl 
+    module procedure calcZandP_gsv_nl
   end interface czp_calcZandP_nl
   interface czp_calcZandP_tl
-    module procedure calcZandP_gsv_tl 
-    module procedure calcZandP_col_tl 
+    module procedure calcZandP_gsv_tl
+    module procedure calcZandP_col_tl
   end interface czp_calcZandP_tl
   interface czp_calcZandP_ad
     module procedure calcZandP_gsv_ad
-    module procedure calcZandP_col_ad 
+    module procedure calcZandP_col_ad
   end interface czp_calcZandP_ad
 
   interface czp_calcHeight_nl
@@ -66,16 +66,16 @@ module calcHeightAndPressure_mod
   end interface czp_calcHeight_ad
 
   interface czp_calcPressure_nl
-    module procedure calcPressure_gsv_nl 
-    module procedure calcPressure_col_nl 
+    module procedure calcPressure_gsv_nl
+    module procedure calcPressure_col_nl
   end interface czp_calcPressure_nl
   interface czp_calcPressure_tl
-    module procedure calcPressure_gsv_tl 
-    module procedure calcPressure_col_tl 
+    module procedure calcPressure_gsv_tl
+    module procedure calcPressure_col_tl
   end interface czp_calcPressure_tl
   interface czp_calcPressure_ad
     module procedure calcPressure_gsv_ad
-    module procedure calcPressure_col_ad 
+    module procedure calcPressure_col_ad
   end interface czp_calcPressure_ad
 
   ! constants from gps_mod
@@ -131,25 +131,25 @@ contains
     Vcode = gsv_getVco(statevector)%vcode
 
     if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
         call calcPressure_gsv_nl(statevector, beSilent_opt)
-      end if
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
-        call calcHeight_gsv_nl(statevector)
+        if (gsv_varExist(statevector, 'Z_T') .and. &
+            gsv_VarExist(statevector, 'Z_M')) then
+          call calcHeight_gsv_nl(statevector)
+        end if
       end if
     else if (Vcode == 21001) then
+      ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
-        call calcHeight_gsv_nl(statevector)
+          call calcHeight_gsv_nl(statevector)
+        if (gsv_varExist(statevector, 'P_T') .and. &
+            gsv_VarExist(statevector, 'P_M')) then
+          call calcPressure_gsv_nl(statevector, beSilent_opt)
+        end if
       end if
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
-        call calcPressure_gsv_nl(statevector, beSilent_opt)
-      end if
-    else
-      call utl_abort('calcZandP_gsv_nl (czp): invalid Vcode')
     end if
 
   end subroutine calcZandP_gsv_nl
@@ -160,7 +160,7 @@ contains
   subroutine calcZandP_gsv_tl(statevector, statevectorRef, &
                                   beSilent_opt)
     !
-    ! :Purpose: pressure and height incremnt computation on the grid in proper 
+    ! :Purpose: pressure and height incremnt computation on the grid in proper
     !           order depending on the vgrid kind
     !
     implicit none
@@ -178,25 +178,25 @@ contains
     Vcode = vco%vcode
 
     if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
         call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
-      end if
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
-        call czp_calcHeight_tl(statevector, statevectorRef)
+        if (gsv_varExist(statevector, 'Z_T') .and. &
+            gsv_VarExist(statevector, 'Z_M')) then
+          call czp_calcHeight_tl(statevector, statevectorRef)
+        end if
       end if
     else if (Vcode == 21001) then
+      ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
         call czp_calcHeight_tl(statevector, statevectorRef)
+        if (gsv_varExist(statevector, 'P_T') .and. &
+            gsv_VarExist(statevector, 'P_M')) then
+          call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+        end if
       end if
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
-        call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
-      end if
-    else
-      call utl_abort('calcZandP_gsv_tl (czp): invalid Vcode')
     end if
 
   end subroutine calcZandP_gsv_tl
@@ -207,7 +207,7 @@ contains
   subroutine calcZandP_gsv_ad(statevector, statevectorRef, &
                                   beSilent_opt)
     !
-    ! :Purpose: pressure and height increment adjoint computation on the grid 
+    ! :Purpose: pressure and height increment adjoint computation on the grid
     !           in proper order depending on the vgrid kind
     !
     implicit none
@@ -225,25 +225,25 @@ contains
     Vcode = vco%vcode
 
     if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
         call czp_calcHeight_ad(statevector, statevectorRef)
-      end if
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
-        call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        if (gsv_varExist(statevector, 'P_T') .and. &
+            gsv_VarExist(statevector, 'P_M')) then
+          call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        end if
       end if
     else if (Vcode == 21001) then
+      ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
         call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        if (gsv_varExist(statevector, 'Z_T') .and. &
+            gsv_VarExist(statevector, 'Z_M')) then
+          call czp_calcHeight_ad(statevector, statevectorRef)
+        end if
       end if
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
-        call czp_calcHeight_ad(statevector, statevectorRef)
-      end if
-    else
-      call utl_abort('calcZandP_gsv_ad (czp): invalid Vcode')
     end if
 
   end subroutine calcZandP_gsv_ad
@@ -253,14 +253,14 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl(statevector,beSilent_opt)
     !
-    ! :Purpose: Temperature to geopotential transformation on GEM4 staggered 
+    ! :Purpose: Temperature to geopotential transformation on GEM4 staggered
     !           levels
-    !           NOTE: we assume 
-    !           1) nlev_T = nlev_M+1 (only for 5002?) 
+    !           NOTE: we assume
+    !           1) nlev_T = nlev_M+1 (only for 5002?)
     !           2) alt_T(nlev_T) = alt_M(nlev_M), both at the surface
-    !           3) a thermo level exists at the top, higher than the highest 
+    !           3) a thermo level exists at the top, higher than the highest
     !              momentum level
-    !           4) the placement of the thermo levels means that alt_T is the 
+    !           4) the placement of the thermo levels means that alt_T is the
     !              average of 2 nearest alt_M
     !              (according to Ron and Claude)
     !
@@ -280,15 +280,37 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(192,'calcHeight_gsv_nl')
+    call tmg_start(192,'calcHeight_gsv_nl (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_gsv_nl_vcode500x 
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
+      call calcHeight_gsv_nl_vcode500x
     else if (Vcode == 21001) then
-      call calcHeight_gsv_nl_vcode2100x 
+      !! some gsv_varExist(statevector,.)
+      call calcHeight_gsv_nl_vcode2100x
     end if
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): END'
@@ -315,9 +337,9 @@ contains
         ! Locals
         integer ::  lev_M,lev_T,nlev_M,nlev_T,status
         integer ::  numStep, stepIndex, latIndex,lonIndex
-        real(8) ::  hu, tt, Pr, cmp, delThick, ratioP 
+        real(8) ::  hu, tt, Pr, cmp, delThick, ratioP
         real(8) ::  ScaleFactorBottom, ScaleFactorTop
-        real(8), allocatable :: tv(:), height_T(:), height_M(:) 
+        real(8), allocatable :: tv(:), height_T(:), height_M(:)
         real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
         real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
         real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
@@ -428,7 +450,7 @@ contains
                 end if
                 cmp = gpscompressibility(Pr,tt,hu)
 
-                tv(lev_T) = fotvt8(tt,hu) * cmp 
+                tv(lev_T) = fotvt8(tt,hu) * cmp
               end do
 
               rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
@@ -438,7 +460,7 @@ contains
                 height_M(nlev_M) = rMT
               else if (Vcode == 5005) then
                 height_M(nlev_M) = rMT + heightSfcOffset_M_r4
-              end if 
+              end if
 
               ! compute altitude on 2nd momentum level
               if (nlev_M > 1) then
@@ -454,7 +476,7 @@ contains
 
                 ratioP  = log( P_M / P0 )
 
-                ! Gravity acceleration 
+                ! Gravity acceleration
                 h0  = rMT
                 Rgh = phf_gravityalt(sLat,h0)
                 dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
@@ -482,7 +504,7 @@ contains
                   lev_T = lev_M
                 end if
 
-                ! Gravity acceleration 
+                ! Gravity acceleration
                 h0  = height_M(lev_M+1)
                 Rgh = phf_gravityalt(sLat,h0)
                 dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
@@ -529,7 +551,7 @@ contains
 
                 ratioP = log( P_T / P_M )
 
-                ! Gravity acceleration 
+                ! Gravity acceleration
                 h0  = height_M(1)
                 Rgh = phf_gravityalt(sLat, h0)
                 dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
@@ -642,7 +664,7 @@ contains
                 statevector%myLatBeg,:,1)
           end if
           write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
-              statevector%addHeightSfcOffset 
+              statevector%addHeightSfcOffset
         end if
 
       end subroutine calcHeight_gsv_nl_vcode500x
@@ -674,14 +696,36 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(193,'czp_calcHeight_tl')
+    call tmg_start(193,'calcHeight_gsv_tl (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): START'
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_gsv_tl_vcode500x 
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
+      call calcHeight_gsv_tl_vcode500x
     else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
       call calcHeight_gsv_tl_vcode2100x
     end if
 
@@ -934,15 +978,37 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(194,'czp_calcHeight_ad')
+    call tmg_start(194,'calcHeight_gsv_ad (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): START'
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_gsv_ad_vcode500x 
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
+      call calcHeight_gsv_ad_vcode500x
     else if (Vcode == 21001) then
-      call calcHeight_gsv_ad_vcode2100x 
+      !! some gsv_varExist(statevector,.)
+      call calcHeight_gsv_ad_vcode2100x
     end if
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): END'
@@ -1023,7 +1089,7 @@ contains
                 do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
                   lev_M = lev_T ! momentum level just below thermo level being computed
 
-                  ! adjoint of compute height increment on top thermo level 
+                  ! adjoint of compute height increment on top thermo level
                   ! (from top momentum level)
                   if (lev_T == 1) then
                     delHeight_M(lonIndex,latIndex,1,stepIndex)  =  &
@@ -1263,12 +1329,22 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
       if ( gsv_getDataKind(statevector) == 4 ) then
         call calcPressure_gsv_nl_vcode500x_r4
       else
         call calcPressure_gsv_nl_vcode500x_r8
       end if
     else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
       call calcPressure_gsv_nl_vcode2100x
     end if
 
@@ -1296,17 +1372,11 @@ contains
 
         ! Locals
         real(kind=8), allocatable   :: Psfc(:,:)
-        real(kind=8), pointer       :: Pressure_out(:,:,:) 
+        real(kind=8), pointer       :: Pressure_out(:,:,:)
         real(kind=8), pointer       :: field_Psfc(:,:,:,:)
         integer                     :: status, stepIndex, numStep
         real(8), pointer            :: P_T(:,:,:,:)
         real(8), pointer            :: P_M(:,:,:,:)
-
-        if ( .not. gsv_varExist(statevector,'P_T') .or. &
-            .not. gsv_varExist(statevector,'P_M') .or. &
-            .not. gsv_varExist(statevector,'P0')) then
-          call utl_abort('calcPressure_gsv_nl_r8 (czp): P_T/P_M/P0 do not exist in statevector!')
-        end if
 
         nullify(P_T)
         nullify(P_M)
@@ -1373,7 +1443,7 @@ contains
 
         ! Locals
         real(kind=4), allocatable   :: Psfc(:,:)
-        real(kind=4), pointer       :: Pressure_out(:,:,:) 
+        real(kind=4), pointer       :: Pressure_out(:,:,:)
         real(kind=4), pointer       :: field_Psfc(:,:,:,:)
         integer                     :: status, stepIndex, numStep
         logical                     :: beSilent
@@ -1475,8 +1545,18 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcPressure_gsv_tl_vcode500x 
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
+      call calcPressure_gsv_tl_vcode500x
     else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
       call calcPressure_gsv_tl_vcode2100x
     end if
 
@@ -1655,8 +1735,18 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcPressure_gsv_ad_vcode500x 
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+      end if
+      call calcPressure_gsv_ad_vcode500x
     else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
       call calcPressure_gsv_ad_vcode2100x
     end if
 
@@ -1814,7 +1904,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_col_tl(columnInc, columnIncRef, beSilent_opt)
     !
-    ! :Purpose: compute pressure and height increment in the column in proper 
+    ! :Purpose: compute pressure and height increment in the column in proper
     !           order depending on the vgrid kind
     !
     implicit none
@@ -1829,27 +1919,28 @@ contains
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if P_T, P_M not allocated : do nothing
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
         call calcPressure_col_tl( columnInc, columnIncRef, &
-                                        beSilent_opt=beSilent_opt)
-      end if
-      if (col_varExist(columnInc,'Z_T') .and. &
-          col_varExist(columnInc,'Z_M') ) then
-        call calcHeight_col_tl(columnInc, columnIncRef)
+                                  beSilent_opt=beSilent_opt)
+        if (col_varExist(columnInc,'Z_T') .and. &
+            col_varExist(columnInc,'Z_M') ) then
+          call calcHeight_col_tl(columnInc, columnIncRef)
+        end if
       end if
     else if (Vcode == 21001) then
+      ! if Z_T, Z_M not allocated : do nothing
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
         call calcHeight_col_tl(columnInc, columnIncRef)
+
+        if (col_varExist(columnInc,'P_T') .and. &
+            col_varExist(columnInc,'P_M') ) then
+          call calcPressure_col_tl( columnInc, columnIncRef, &
+                                    beSilent_opt=beSilent_opt)
+        end if
       end if
-      if (col_varExist(columnInc,'P_T') .and. &
-          col_varExist(columnInc,'P_M') ) then
-        call calcPressure_col_tl( columnInc, columnIncRef, &
-                                        beSilent_opt=beSilent_opt)
-      end if
-    else
-      call utl_abort('calcZandP_col_tl (czp): invalid Vcode')
     end if
 
   end subroutine calcZandP_col_tl
@@ -1859,7 +1950,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_col_ad(columnInc, columnIncRef, beSilent_opt)
     !
-    ! :Purpose: adjoint of pressure and height increment computation in the 
+    ! :Purpose: adjoint of pressure and height increment computation in the
     !           column in proper order depending on the vgrid kind
     !
     implicit none
@@ -1874,27 +1965,27 @@ contains
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if Z_T, Z_M not allocated : do nothing
       if (col_varExist(columnInc,'Z_T') .and. &
           col_varExist(columnInc,'Z_M') ) then
         call calcHeight_col_ad(columnInc, columnIncRef)
-      end if
-      if (col_varExist(columnInc,'P_T') .and. &
-          col_varExist(columnInc,'P_M') ) then
-        call calcPressure_col_ad( columnInc, columnIncRef, &
-                                      beSilent_opt=beSilent_opt)
+        if (col_varExist(columnInc,'P_T') .and. &
+            col_varExist(columnInc,'P_M') ) then
+          call calcPressure_col_ad( columnInc, columnIncRef, &
+                                    beSilent_opt=beSilent_opt)
+        end if
       end if
     else if (Vcode == 21001) then
+      ! if P_T, P_M not allocated : do nothing
       if (col_varExist(columnInc,'P_T') .and. &
           col_varExist(columnInc,'P_M') ) then
         call calcPressure_col_ad( columnInc, columnIncRef, &
-                                        beSilent_opt=beSilent_opt)
+                                  beSilent_opt=beSilent_opt)
+        if (col_varExist(columnInc,'Z_T') .and. &
+            col_varExist(columnInc,'Z_M') ) then
+          call calcHeight_col_ad(columnInc, columnIncRef)
+        end if
       end if
-      if (col_varExist(columnInc,'Z_T') .and. &
-          col_varExist(columnInc,'Z_M') ) then
-        call calcHeight_col_ad(columnInc, columnIncRef)
-      end if
-    else
-      call utl_abort('calcZandP_col_ad (czp): invalid Vcode')
     end if
 
   end subroutine calcZandP_col_ad
@@ -1924,7 +2015,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(193,'czp_calcHeight_tl')
+    call tmg_start(193,'calcHeight_col_tl (czp)')
 
     if (.not.beSilent) then
       write(*,*) 'calcHeight_col_tl (czp): START'
@@ -1933,8 +2024,30 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_col_tl_vcode500x 
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'Z_M')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable Z_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'Z_T')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable Z_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'TT')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable TT must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'HU')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable HU must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P0 must be allocated in column')
+      end if
+      call calcHeight_col_tl_vcode500x
     else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
       call calcHeight_col_tl_vcode2100x
     end if
 
@@ -2124,7 +2237,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(194,'calcHeight_col_ad')
+    call tmg_start(194,'calcHeight_col_ad (czp)')
 
     if (.not.beSilent) then
       write(*,*) 'calcHeight_col_ad (czp): START'
@@ -2133,8 +2246,30 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_col_ad_vcode500x 
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'Z_M')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable Z_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'Z_T')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable Z_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'TT')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable TT must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'HU')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable HU must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P0 must be allocated in column')
+      end if
+      call calcHeight_col_ad_vcode500x
     else if (Vcode == 21001) then
+      !! some col_varExist(columnInc,.)
       call calcHeight_col_ad_vcode2100x
     end if
 
@@ -2237,7 +2372,7 @@ contains
                      coeff_T_P0_dp_delP0_col(colIndex) * delHeight_T(1,colIndex)
               else
                 ScaleFactorBottom =  &
-                    (height_T_ptr(lev_T,colIndex) - & 
+                    (height_T_ptr(lev_T,colIndex) - &
                       height_M_ptr(lev_M-1,colIndex)) / &
                     (height_M_ptr(lev_M,colIndex) - &
                       height_M_ptr(lev_M-1,colIndex))
@@ -2348,7 +2483,7 @@ contains
 
               delP_T(lev_T  ,colIndex) =  &
                   delP_T(lev_T  ,colIndex) + &
-                  coeff_M_P0_dP_delPT_col(lev_T,colIndex) * & 
+                  coeff_M_P0_dP_delPT_col(lev_T,colIndex) * &
                   delThick(lev_T,colIndex)
 
               delP0(1,colIndex)     =  &
@@ -2397,9 +2532,19 @@ contains
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcPressure_col_nl_vcode500x 
+      if ( .not. col_varExist(column,'P_M')  ) then
+        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(column,'P_T')  ) then
+        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(column,'P0')  ) then
+        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
+      end if
+      call calcPressure_col_nl_vcode500x
     else if (Vcode == 21001) then
-      call calcPressure_col_nl_vcode2100x 
+      !! some col_varExist(columnInc,.)
+      call calcPressure_col_nl_vcode2100x
     end if
 
     if (.not.beSilent) write(*,*) 'calcPressure_col_nl (czp): END'
@@ -2496,8 +2641,18 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcPressure_col_tl_vcode500x 
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P0 must be allocated in column')
+      end if
+      call calcPressure_col_tl_vcode500x
     else if (Vcode == 21001) then
+      !! some col_varExist(columnInc,.)
       call calcPressure_col_tl_vcode2100x
     end if
 
@@ -2614,8 +2769,18 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcPressure_col_ad_vcode500x 
+      if ( .not. col_varExist(columnInc,'P_M')  ) then
+        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P_M must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P_T')  ) then
+        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P_T must be allocated in column')
+      end if
+      if ( .not. col_varExist(columnInc,'P0')  ) then
+        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P0 must be allocated in column')
+      end if
+      call calcPressure_col_ad_vcode500x
     else if (Vcode == 21001) then
+      !! some col_varExist(columnInc,.)
       call calcPressure_col_ad_vcode2100x
     end if
 
@@ -2688,7 +2853,7 @@ contains
                                columnInc%vco%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
-          if( status .ne. VGD_OK ) then 
+          if( status .ne. VGD_OK ) then
             call utl_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
@@ -2712,7 +2877,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeightCoeff_gsv(statevector)
     !
-    ! :Purpose: Calculating the coefficients of height for 
+    ! :Purpose: Calculating the coefficients of height for
     !           czp_calcHeight_tl/czp_calcHeight_ad
     !
     implicit none
@@ -2736,12 +2901,12 @@ contains
 
     Write(*,*) "calcHeightCoeff_gsv (czp): START"
 
-    ! initialize and save coefficients for increased efficiency 
+    ! initialize and save coefficients for increased efficiency
     ! (assumes no relinearization)
     firstTimeHeightCoeff_gsv = .false.
 
     vco => gsv_getVco(statevector)
-    Vcode = vco%vcode 
+    Vcode = vco%vcode
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -2798,13 +2963,13 @@ contains
     coeff_M_P0_dP_delPT_gsv(:,:,:,:) = 0.0D0
     coeff_M_P0_dP_delP0_gsv(:,:,:,:) = 0.0D0
 
-    coeff_T_TT_gsv(:,:,:) = 0.0D0  
-    coeff_T_HU_gsv(:,:,:) = 0.0D0  
+    coeff_T_TT_gsv(:,:,:) = 0.0D0
+    coeff_T_HU_gsv(:,:,:) = 0.0D0
 
     coeff_T_P0_delP1_gsv(:,:,:) = 0.0D0
 
-    coeff_T_P0_dP_delPT_gsv(:,:,:) = 0.0D0  
-    coeff_T_P0_dP_delP0_gsv(:,:,:) = 0.0D0  
+    coeff_T_P0_dP_delPT_gsv(:,:,:) = 0.0D0
+    coeff_T_P0_dP_delP0_gsv(:,:,:) = 0.0D0
 
     call gsv_getField(statevector,hu_ptr,'HU')
     call gsv_getField(statevector,tt_ptr,'TT')
@@ -2818,10 +2983,10 @@ contains
         do lev_T = 1, (nlev_T-1)
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              if ( lev_T == 1 ) then 
+              if ( lev_T == 1 ) then
                 ! compute height coefficients on only the top thermo level
                 ratioP1 = log( P_M_ptr(lonIndex,latIndex,1,stepIndex) / &
-                               P_T_ptr(lonIndex,latIndex,1,stepIndex) ) 
+                               P_T_ptr(lonIndex,latIndex,1,stepIndex) )
                 hu = max(hu_ptr(lonIndex,latIndex,1,stepIndex),&
                                 MPC_MINIMUM_HU_R8)
                 tt = tt_ptr(lonIndex,latIndex,1,stepIndex)
@@ -2834,7 +2999,7 @@ contains
                 cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
                 cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-                ! Gravity acceleration 
+                ! Gravity acceleration
                 lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
                 lat_8 = real(lat_4,8)
                 sLat = sin(lat_8)
@@ -2845,8 +3010,8 @@ contains
                     fotvt8(tt,hu) * cmp_TT) * ratioP1
 
                 coeff_T_HU_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / & 
-                    hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / &
+                    hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
 
                 coeff_T_P0_delP1_gsv(lonIndex,latIndex,stepIndex) = &
                     (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
@@ -2874,7 +3039,7 @@ contains
                 cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
                 cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-                ! Gravity acceleration 
+                ! Gravity acceleration
                 lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
                 lat_8 = real(lat_4,8)
                 sLat = sin(lat_8)
@@ -2886,10 +3051,10 @@ contains
 
                 coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                     (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                    cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+                    cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
 
                 coeff_M_P0_delPM_gsv   (lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp 
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
 
                 coeff_M_P0_dP_delPT_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                     (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * &
@@ -2925,7 +3090,7 @@ contains
               cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
               cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-              ! Gravity acceleration 
+              ! Gravity acceleration
               lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
               lat_8 = real(lat_4,8)
               sLat = sin(lat_8)
@@ -2937,7 +3102,7 @@ contains
 
               coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                   (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                  cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+                  cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
 
               coeff_M_P0_delPM_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
                   (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
@@ -2965,7 +3130,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeightCoeff_col(column)
     !
-    ! :Purpose: Calculating the coefficients of height for 
+    ! :Purpose: Calculating the coefficients of height for
     !           czp_calcHeight_tl/czp_calcHeight_ad
     !
     implicit none
@@ -2988,12 +3153,12 @@ contains
 
     write(*,*) "calcHeightCoeff_col (czp): START"
 
-    ! initialize and save coefficients for increased efficiency 
+    ! initialize and save coefficients for increased efficiency
     ! (assumes no relinearization)
     firstTimeHeightCoeff_col = .false.
 
     vco => col_getVco(column)
-    Vcode = vco%vcode 
+    Vcode = vco%vcode
 
     nlev_T = col_getNumLev(column,'TH')
     nlev_M = col_getNumLev(column,'MM')
@@ -3020,13 +3185,13 @@ contains
     coeff_M_P0_dP_delPT_col(:,:) = 0.0D0
     coeff_M_P0_dP_delP0_col(:,:) = 0.0D0
 
-    coeff_T_TT_col(:) = 0.0D0  
-    coeff_T_HU_col(:) = 0.0D0  
+    coeff_T_TT_col(:) = 0.0D0
+    coeff_T_HU_col(:) = 0.0D0
 
     coeff_T_P0_delP1_col(:) = 0.0D0
 
-    coeff_T_P0_dP_delPT_col(:) = 0.0D0  
-    coeff_T_P0_dP_delP0_col(:) = 0.0D0  
+    coeff_T_P0_dP_delPT_col(:) = 0.0D0
+    coeff_T_P0_dP_delP0_col(:) = 0.0D0
 
     hu_ptr       => col_getAllColumns(column,'HU')
     tt_ptr       => col_getAllColumns(column,'TT')
@@ -3038,10 +3203,10 @@ contains
 
       do colIndex = 1, numColumns
         do lev_T = 1, (nlev_T-1)
-          if ( lev_T == 1 ) then 
+          if ( lev_T == 1 ) then
             ! compute height coefficients on only the top thermo level
             ratioP1 = log( P_M_ptr(1,colIndex) / &
-                           P_T_ptr(1,colIndex) ) 
+                           P_T_ptr(1,colIndex) )
             hu = max(hu_ptr(1,colIndex),MPC_MINIMUM_HU_R8)
             tt = tt_ptr(1,colIndex)
             Pr = P_T_ptr(1,colIndex)
@@ -3053,7 +3218,7 @@ contains
             cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-            ! Gravity acceleration 
+            ! Gravity acceleration
             lat_8 = column%lat(colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
@@ -3064,7 +3229,7 @@ contains
 
             coeff_T_HU_col(colIndex) = &
                 (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * &
-                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
 
             coeff_T_P0_delP1_col   (colIndex) = &
                 (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
@@ -3089,7 +3254,7 @@ contains
             cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-            ! Gravity acceleration 
+            ! Gravity acceleration
             lat_8 = column%lat(colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
@@ -3100,10 +3265,10 @@ contains
 
             coeff_M_HU_col(lev_T,colIndex) = &
                 (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
 
             coeff_M_P0_delPM_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp 
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
 
             coeff_M_P0_dP_delPT_col(lev_T,colIndex) = &
                 (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
@@ -3132,7 +3297,7 @@ contains
           cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
           cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
-          ! Gravity acceleration 
+          ! Gravity acceleration
           lat_8 = column%lat(colIndex)
           sLat = sin(lat_8)
           Rgh = phf_gravityalt(sLat, height_T)
@@ -3143,7 +3308,7 @@ contains
 
           coeff_M_HU_col(lev_T,colIndex) = &
               (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + &
-              fotvt8(tt,hu) * cmp_HU) * ratioP1 
+              fotvt8(tt,hu) * cmp_HU) * ratioP1
 
           coeff_M_P0_delPM_col   (lev_T,colIndex) = &
               (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp

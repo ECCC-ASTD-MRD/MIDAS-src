@@ -50,8 +50,14 @@ CONTAINS
     type(struct_columnData)      :: columnInc
     type(struct_columnData)      :: columnRefOnIncLev
     character(len=*), intent(in) :: transform
-
+    
     select case(trim(transform))
+
+    case ('ZandP_tl')
+      call czp_calcZandP_tl(columnInc, columnRefOnIncLev)
+
+    case ('ZandP_ad')
+      call czp_calcZandP_ad(columnInc, columnRefOnIncLev)
 
     case ('TTHUtoHeight_tl')
       if ( .not. col_varExist(columnInc,'TT')  ) then
