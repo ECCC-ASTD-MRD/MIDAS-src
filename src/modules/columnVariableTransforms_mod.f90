@@ -65,48 +65,6 @@ CONTAINS
       end if
       call czp_calcZandP_ad(columnInc, columnRefOnIncLev_opt)
 
-    case ('TTHUtoHeight_tl')
-      if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
-      end if
-      if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable HU must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable P0 must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_T')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_M')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in columnInc')
-      end if
-      call TTHUtoHeight_tl(columnInc,columnRefOnIncLev_opt)
-
-    case ('TTHUtoHeight_ad')
-      if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
-      end if
-      if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable HU must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable P0 must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_T')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_M')  ) then
-        call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in columnInc')
-      end if
-      call TTHUtoHeight_ad(columnInc,columnRefOnIncLev_opt)
-
     case ('PsfcToP_nl')
       call czp_calcPressure_nl(columnInc)
 
@@ -147,30 +105,6 @@ CONTAINS
     end select
 
   end subroutine cvt_transform
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_tl
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(columnInc,columnRefOnIncLev)
-    implicit none
-
-    type(struct_columnData)    :: columnInc, columnRefOnIncLev
-
-    call czp_calcHeight_tl(columnInc, columnRefOnIncLev)
-
-  end subroutine TTHUtoHeight_tl
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_ad
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(columnInc,columnRefOnIncLev)
-    implicit none
-
-    type(struct_columnData)    :: columnInc, columnRefOnIncLev
-
-    call czp_calcHeight_ad(columnInc,columnRefOnIncLev)
-
-  end subroutine TTHUtoHeight_ad
 
   !--------------------------------------------------------------------------
   ! PsfcToP_tl

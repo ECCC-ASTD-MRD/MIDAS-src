@@ -362,69 +362,6 @@ CONTAINS
       end if
       call ZandP_ad(stateVector)
 
-    case ('TTHUtoHeight_nl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable Z_M must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, the option statevectorOut_opt is not yet available')
-      end if
-      call TTHUtoHeight_nl(stateVector)
-
-    case ('TTHUtoHeight_tl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, the option statevectorOut_opt is not yet available')
-      end if
-      call TTHUtoHeight_tl(stateVector)
-
-    case ('TTHUtoHeight_ad')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, the option statevectorOut_opt is not yet available')
-      end if
-      call TTHUtoHeight_ad(stateVector)
-
     case ('PsfcToP_nl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
         call utl_abort('gvt_transform: for PsfcToP_nl, variable P_T must be allocated in gridstatevector')
@@ -1463,62 +1400,6 @@ CONTAINS
     call czp_calcZandP_ad(statevector, stateVectorRefHeight)
 
   end subroutine ZandP_ad
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_nl
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_nl(statevector)
-    ! 
-    ! :Purpose: Height computation from virtual temperature. 
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: stateVector
-
-    call czp_calcHeight_nl(statevector)
-
-  end subroutine TTHUtoHeight_nl
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_tl
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(stateVector)
-    ! 
-    ! :Purpose: Tangent linear of height computation from virtual temperature. 
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('TTHUtoHeight_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call czp_calcHeight_tl(statevector, stateVectorRefHeight)
-
-  end subroutine TTHUtoHeight_tl
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_ad
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(stateVector)
-    ! 
-    ! :Purpose: Adjoint of the tangent linear of height computation. 
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('TTHUtoHeight_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call czp_calcHeight_ad(statevector,stateVectorRefHeight)
-
-  end subroutine TTHUtoHeight_ad
 
   !--------------------------------------------------------------------------
   ! PsfcToP_tl
