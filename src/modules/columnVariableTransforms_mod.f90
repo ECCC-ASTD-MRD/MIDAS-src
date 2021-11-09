@@ -43,23 +43,32 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! cvt_transform
   !--------------------------------------------------------------------------
-  subroutine cvt_transform(columnInc, columnRefOnIncLev, transform)
+  subroutine cvt_transform(columnInc, transform, columnRefOnIncLev_opt)
     implicit none
    
     ! Arguments
-    type(struct_columnData)      :: columnInc
-    type(struct_columnData)      :: columnRefOnIncLev
-    character(len=*), intent(in) :: transform
+    type(struct_columnData), intent(inout)        :: columnInc
+    character(len=*), intent(in)                  :: transform
+    type(struct_columnData), optional, intent(in) :: columnRefOnIncLev_opt
     
     select case(trim(transform))
 
     case ('ZandP_tl')
-      call czp_calcZandP_tl(columnInc, columnRefOnIncLev)
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
+      call czp_calcZandP_tl(columnInc, columnRefOnIncLev_opt)
 
     case ('ZandP_ad')
-      call czp_calcZandP_ad(columnInc, columnRefOnIncLev)
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
+      call czp_calcZandP_ad(columnInc, columnRefOnIncLev_opt)
 
     case ('TTHUtoHeight_tl')
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in columnInc')
       end if
@@ -75,9 +84,12 @@ CONTAINS
       if ( .not. col_varExist(columnInc,'Z_M')  ) then
         call utl_abort('cvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in columnInc')
       end if
-      call TTHUtoHeight_tl(columnInc,columnRefOnIncLev)
+      call TTHUtoHeight_tl(columnInc,columnRefOnIncLev_opt)
 
     case ('TTHUtoHeight_ad')
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in columnInc')
       end if
@@ -93,9 +105,15 @@ CONTAINS
       if ( .not. col_varExist(columnInc,'Z_M')  ) then
         call utl_abort('cvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in columnInc')
       end if
-      call TTHUtoHeight_ad(columnInc,columnRefOnIncLev)
+      call TTHUtoHeight_ad(columnInc,columnRefOnIncLev_opt)
+
+    case ('PsfcToP_nl')
+      call czp_calcPressure_nl(columnInc)
 
     case ('PsfcToP_tl')
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
       if ( .not. col_varExist(columnInc,'P_T')  ) then
         call utl_abort('cvt_transform: for PsfcToP_tl, variable P_T must be allocated in columnInc')
       end if
@@ -105,9 +123,12 @@ CONTAINS
       if ( .not. col_varExist(columnInc,'P0')  ) then
         call utl_abort('cvt_transform: for PsfcToP_tl, variable P0 must be allocated in columnInc')
       end if
-      call PsfcToP_tl(columnInc,columnRefOnIncLev)
+      call PsfcToP_tl(columnInc,columnRefOnIncLev_opt)
 
     case ('PsfcToP_ad')
+      if (.not. present(columnRefOnIncLev_opt)) then
+        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+      end if
       if ( .not. col_varExist(columnInc,'P_T')  ) then
         call utl_abort('cvt_transform: for PsfcToP_ad, variable P_T must be allocated in columnInc')
       end if
@@ -117,7 +138,7 @@ CONTAINS
       if ( .not. col_varExist(columnInc,'P0')  ) then
         call utl_abort('cvt_transform: for PsfcToP_ad, variable P0 must be allocated in columnInc')
       end if
-      call PsfcToP_ad(columnInc,columnRefOnIncLev)
+      call PsfcToP_ad(columnInc,columnRefOnIncLev_opt)
 
     case default
       write(*,*)

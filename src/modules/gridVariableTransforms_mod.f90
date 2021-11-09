@@ -1565,7 +1565,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_gsv(statevector)
     ! 
-    ! :Purpose: Wind speed to relative vorticity and divergence transformation.
+    ! :Purpose: Wind components to relative vorticity and divergence transformation.
     !
     implicit none
    
@@ -1685,7 +1685,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_gsv(statevector)
     ! 
-    ! :Purpose: Wind speed to stream function and velocity potential 
+    ! :Purpose: Wind components to stream function and velocity potential 
     !           transformation.
     !
     implicit none
@@ -1782,7 +1782,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_ens(ens)
     ! 
-    ! :Purpose: Wind speed to stream function and velocity potential 
+    ! :Purpose: Wind components to stream function and velocity potential 
     !           transformation (ensemble processing).
     !
     implicit none
@@ -1841,7 +1841,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_ens(ens)
     ! 
-    ! :Purpose: Wind speed to relative vorticity and divergence transformation
+    ! :Purpose: Wind components to relative vorticity and divergence transformation
     !           (ensemble processing)
     !
     implicit none
