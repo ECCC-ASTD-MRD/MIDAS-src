@@ -476,8 +476,8 @@ contains
 
     doSetup3dHeights = doSlantPath .and.  &
                        .not. stateVector_1Step%allocated .and. &
-                       stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-                       stateVector%varExistList(vnl_varListIndex('Z_M')) 
+                       gsv_varExist(stateVector,'Z_T') .and. &
+                       gsv_varExist(stateVector,'Z_M')
 
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSetup3dHeights ) then
@@ -587,8 +587,8 @@ contains
       lonColumn(:,:) = 0.0d0
 
       if ( doSlantPath .and. &
-           stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+           gsv_varExist(stateVector,'Z_T') .and. &
+           gsv_varExist(stateVector,'Z_M') ) then
 
         allocate(latLev_T(nlev_T))
         allocate(lonLev_T(nlev_T))
