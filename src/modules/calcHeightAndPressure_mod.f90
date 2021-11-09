@@ -132,21 +132,17 @@ contains
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
+      if (gsv_varExist(statevector, 'P_*')) then
         call calcPressure_gsv_nl(statevector, beSilent_opt)
-        if (gsv_varExist(statevector, 'Z_T') .and. &
-            gsv_VarExist(statevector, 'Z_M')) then
+        if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_nl(statevector)
         end if
       end if
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
+      if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_nl(statevector)
-        if (gsv_varExist(statevector, 'P_T') .and. &
-            gsv_VarExist(statevector, 'P_M')) then
+        if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_nl(statevector, beSilent_opt)
         end if
       end if
@@ -179,32 +175,28 @@ contains
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
+      if (gsv_varExist(statevector, 'P_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
         end if
         call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
 
-        if (gsv_varExist(statevector, 'Z_T') .and. &
-            gsv_VarExist(statevector, 'Z_M')) then
+        if (gsv_varExist(statevector, 'Z_*')) then
           call czp_calcHeight_tl(statevector, statevectorRef)
         end if
 
       end if
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
+      if (gsv_varExist(statevector, 'Z_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
         end if
         call calcHeight_gsv_tl(statevector, statevectorRef)
 
-        if (gsv_varExist(statevector, 'P_T') .and. &
-            gsv_VarExist(statevector, 'P_M')) then
+        if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
         end if
 
@@ -238,32 +230,28 @@ contains
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if Z_T, Z_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'Z_T') .and. &
-          gsv_VarExist(statevector, 'Z_M')) then
+      if (gsv_varExist(statevector, 'Z_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
         call czp_calcHeight_ad(statevector, statevectorRef)
 
-        if (gsv_varExist(statevector, 'P_T') .and. &
-            gsv_VarExist(statevector, 'P_M')) then
+        if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
         end if
 
       end if
     else if (Vcode == 21001) then
       ! if P_T, P_M not allocated : do nothing
-      if (gsv_varExist(statevector, 'P_T') .and. &
-          gsv_VarExist(statevector, 'P_M')) then
+      if (gsv_varExist(statevector, 'P_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
         call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
 
-        if (gsv_varExist(statevector, 'Z_T') .and. &
-            gsv_VarExist(statevector, 'Z_M')) then
+        if (gsv_varExist(statevector, 'Z_*')) then
           call czp_calcHeight_ad(statevector, statevectorRef)
         end if
 
@@ -310,17 +298,11 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
@@ -726,17 +708,11 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
@@ -1008,17 +984,11 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable Z_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable Z_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variables Z_M and Z_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
@@ -1353,11 +1323,8 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
@@ -1474,8 +1441,7 @@ contains
         real(4), pointer            :: P_T(:,:,:,:)
         real(4), pointer            :: P_M(:,:,:,:)
 
-        if ( .not. gsv_varExist(statevector,'P_T') .or. &
-            .not. gsv_varExist(statevector,'P_M') .or. &
+        if ( .not. gsv_varExist(statevector,'P_*') .or. &
             .not. gsv_varExist(statevector,'P0')) then
           call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
         end if
@@ -1569,11 +1535,8 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
@@ -1759,11 +1722,8 @@ contains
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
@@ -1944,23 +1904,19 @@ contains
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
-      if (col_varExist(columnInc,'P_T') .and. &
-          col_varExist(columnInc,'P_M') ) then
+      if (col_varExist(columnInc,'P_*')) then
         call calcPressure_col_tl( columnInc, columnIncRef, &
                                   beSilent_opt=beSilent_opt)
-        if (col_varExist(columnInc,'Z_T') .and. &
-            col_varExist(columnInc,'Z_M') ) then
+        if (col_varExist(columnInc,'Z_*')) then
           call calcHeight_col_tl(columnInc, columnIncRef)
         end if
       end if
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
-      if (col_varExist(columnInc,'Z_T') .and. &
-          col_varExist(columnInc,'Z_M') ) then
+      if (col_varExist(columnInc,'Z_*')) then
         call calcHeight_col_tl(columnInc, columnIncRef)
 
-        if (col_varExist(columnInc,'P_T') .and. &
-            col_varExist(columnInc,'P_M') ) then
+        if (col_varExist(columnInc,'P_*')) then
           call calcPressure_col_tl( columnInc, columnIncRef, &
                                     beSilent_opt=beSilent_opt)
         end if
@@ -1990,23 +1946,19 @@ contains
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if Z_T, Z_M not allocated : do nothing
-      if (col_varExist(columnInc,'Z_T') .and. &
-          col_varExist(columnInc,'Z_M') ) then
+      if (col_varExist(columnInc,'Z_*')) then
         call calcHeight_col_ad(columnInc, columnIncRef)
-        if (col_varExist(columnInc,'P_T') .and. &
-            col_varExist(columnInc,'P_M') ) then
+        if (col_varExist(columnInc,'P_*')) then
           call calcPressure_col_ad( columnInc, columnIncRef, &
                                     beSilent_opt=beSilent_opt)
         end if
       end if
     else if (Vcode == 21001) then
       ! if P_T, P_M not allocated : do nothing
-      if (col_varExist(columnInc,'P_T') .and. &
-          col_varExist(columnInc,'P_M') ) then
+      if (col_varExist(columnInc,'P_*')) then
         call calcPressure_col_ad( columnInc, columnIncRef, &
                                   beSilent_opt=beSilent_opt)
-        if (col_varExist(columnInc,'Z_T') .and. &
-            col_varExist(columnInc,'Z_M') ) then
+        if (col_varExist(columnInc,'Z_*')) then
           call calcHeight_col_ad(columnInc, columnIncRef)
         end if
       end if
@@ -2048,17 +2000,11 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_*')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P_T must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_M')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable Z_M must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_T')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable Z_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_*')  ) then
+        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable TT must be allocated in column')
@@ -2270,17 +2216,11 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P_M must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_*')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P_T must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_M')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable Z_M must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'Z_T')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable Z_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'Z_*')  ) then
+        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable TT must be allocated in column')
@@ -2556,11 +2496,8 @@ contains
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(column,'P_M')  ) then
-        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P_M must be allocated in column')
-      end if
-      if ( .not. col_varExist(column,'P_T')  ) then
-        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P_T must be allocated in column')
+      if ( .not. col_varExist(column,'P_*')  ) then
+        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(column,'P0')  ) then
         call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
@@ -2665,11 +2602,8 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P_M must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_*')  ) then
+        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
         call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P0 must be allocated in column')
@@ -2793,11 +2727,8 @@ contains
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P_M must be allocated in column')
-      end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P_T must be allocated in column')
+      if ( .not. col_varExist(columnInc,'P_*')  ) then
+        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
         call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P0 must be allocated in column')

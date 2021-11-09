@@ -370,30 +370,38 @@ contains
   !--------------------------------------------------------------------------
   ! col_varExist
   !--------------------------------------------------------------------------
-  function col_varExist(column_opt,varName) result(varExist)
+  recursive function col_varExist(column_opt,varName) result(varExist)
     implicit none
     type(struct_columnData), optional :: column_opt
     character(len=*), intent(in)      :: varName
     logical                           :: varExist 
 
-    if ( present(column_opt) ) then
-      if ( column_opt%varExistList(vnl_varListIndex(varName)) ) then
-        varExist = .true.
-      else
-        varExist = .false.
-      end if
+    if (varName == 'Z_*') then
+      varExist =  col_varExist(column_opt, 'Z_T') .and. &
+                  col_varExist(column_opt, 'Z_M')
+    else if (varName == 'P_*') then
+      varExist =  col_varExist(column_opt, 'P_T') .and. &
+                  col_varExist(column_opt, 'P_M')
     else
-      if ( varExistList(vnl_varListIndex(varName)) ) then
-        varExist = .true.
+      if ( present(column_opt) ) then
+        if ( column_opt%varExistList(vnl_varListIndex(varName)) ) then
+          varExist = .true.
+        else
+          varExist = .false.
+        end if
       else
-        varExist = .false.
+        if ( varExistList(vnl_varListIndex(varName)) ) then
+          varExist = .true.
+        else
+          varExist = .false.
+        end if
       end if
-    end if
 
-    if (present(column_opt)) then  
-      varExist = column_opt % varExistList(vnl_varListIndex(varName))
-    else
-      varExist = varExistList(vnl_varListIndex(varName))
+      if (present(column_opt)) then
+        varExist = column_opt % varExistList(vnl_varListIndex(varName))
+      else
+        varExist = varExistList(vnl_varListIndex(varName))
+      end if
     end if
   
   end function col_varExist
