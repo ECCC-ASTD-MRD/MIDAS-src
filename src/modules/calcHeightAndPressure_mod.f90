@@ -181,21 +181,33 @@ contains
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
+
+        if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
+          call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
+        end if
         call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+
         if (gsv_varExist(statevector, 'Z_T') .and. &
             gsv_VarExist(statevector, 'Z_M')) then
           call czp_calcHeight_tl(statevector, statevectorRef)
         end if
+
       end if
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
-        call czp_calcHeight_tl(statevector, statevectorRef)
+
+        if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
+          call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
+        end if
+        call calcHeight_gsv_tl(statevector, statevectorRef)
+
         if (gsv_varExist(statevector, 'P_T') .and. &
             gsv_VarExist(statevector, 'P_M')) then
           call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
         end if
+
       end if
     end if
 
@@ -228,21 +240,33 @@ contains
       ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_T') .and. &
           gsv_VarExist(statevector, 'Z_M')) then
+
+        if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
+          call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
+        end if
         call czp_calcHeight_ad(statevector, statevectorRef)
+
         if (gsv_varExist(statevector, 'P_T') .and. &
             gsv_VarExist(statevector, 'P_M')) then
           call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
         end if
+
       end if
     else if (Vcode == 21001) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_T') .and. &
           gsv_VarExist(statevector, 'P_M')) then
+
+        if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
+          call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
+        end if
         call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+
         if (gsv_varExist(statevector, 'Z_T') .and. &
             gsv_VarExist(statevector, 'Z_M')) then
           call czp_calcHeight_ad(statevector, statevectorRef)
         end if
+
       end if
     end if
 

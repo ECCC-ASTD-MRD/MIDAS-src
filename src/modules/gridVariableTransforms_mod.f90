@@ -1442,10 +1442,6 @@ CONTAINS
     ! Arguments
     type(struct_gsv), intent(inout) :: stateVector
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('ZandP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
     call czp_calcZandP_tl(statevector, stateVectorRefHeight)
 
   end subroutine ZandP_tl
@@ -1463,10 +1459,6 @@ CONTAINS
 
     ! Arguments
     type(struct_gsv), intent(inout) :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('ZandP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
 
     call czp_calcZandP_ad(statevector, stateVectorRefHeight)
 
