@@ -117,12 +117,18 @@ contains
   subroutine calcZandP_gsv_nl(statevector, beSilent_opt)
     !
     ! :Purpose: pressure and height computation on the grid in proper order
-    !           depending on the vgrid kind
+    !           depending on the vgrid kind.
+    !           Depending on the vcode, the routine will check the existence of
+    !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
+    !           pressure (height) computation.  Then, if the other variables are
+    !           also present, it will secondly compute height (pressure).
+    !           Hence if only P_* (Z_*) is present, only these are computed.
+    !           If the first variable P_* (Z_*) is not present, nothing is done.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
+    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* fields
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
@@ -157,13 +163,19 @@ contains
                                   beSilent_opt)
     !
     ! :Purpose: pressure and height incremnt computation on the grid in proper
-    !           order depending on the vgrid kind
+    !           order depending on the vgrid kind.
+    !           Depending on the vcode, the routine will check the existence of
+    !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
+    !           pressure (height) computation.  Then, if the other variables are
+    !           also present, it will secondly compute height (pressure).
+    !           Hence if only P_* (Z_*) is present, only these are computed.
+    !           If the first variable P_* (Z_*) is not present, nothing is done.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector that has the Psfc
+    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
+    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
@@ -213,12 +225,19 @@ contains
     !
     ! :Purpose: pressure and height increment adjoint computation on the grid
     !           in proper order depending on the vgrid kind
+    !           Depending on the vcode, the routine will check the existence of
+    !           Z_* (vcode=500x) or P_* (vcode=2100x) first and proceed with
+    !           height (pressure) adjoint computation.  Then, if the other
+    !           variables are also present, it will secondly proceed with
+    !           adjoint computation of pressure (height).
+    !           Hence if only Z_* (P_*) is present, only these are computed.
+    !           If the first variable Z_* (P_*) is not present, nothing is done.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector that has the Psfc
+    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
+    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
@@ -1272,14 +1291,12 @@ contains
 
                   delP_T_r48(lonIndex,latIndex,lev_T  ,stepIndex) =  &
                       delP_T_r48(lonIndex,latIndex,lev_T  ,stepIndex) + &
-                      coeff_M_P0_dP_delPT_gsv(&
-                                        lonIndex,latIndex,lev_T,stepIndex) * &
+                      coeff_M_P0_dP_delPT_gsv( lonIndex,latIndex,lev_T,stepIndex) * &
                       delThick(lonIndex,latIndex,lev_T,stepIndex)
 
                   delP0_r48(lonIndex,latIndex,1,stepIndex)     =  &
                       delP0_r48(lonIndex,latIndex,1,stepIndex) + &
-                      coeff_M_P0_dP_delP0_gsv(&
-                                        lonIndex,latIndex,lev_T,stepIndex) * &
+                      coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
                       delThick(lonIndex,latIndex,lev_T,stepIndex)
                 end do
               end do
@@ -1515,7 +1532,7 @@ contains
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector that has the Psfc
+    type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
@@ -1701,8 +1718,8 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector    ! statevector that will contain increment of Psfc.
-    type(struct_gsv), intent(in)    :: statevectorRef ! statevector that has the Psfc
+    type(struct_gsv), intent(inout) :: statevector    ! statevector that will contain increment of P_T/P_M
+    type(struct_gsv), intent(in)    :: statevectorRef ! statevector containing needed reference fields
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
@@ -1895,7 +1912,7 @@ contains
 
     ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
+    type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -1936,8 +1953,9 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
+    type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
+
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -2582,7 +2600,8 @@ contains
 
     ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
-    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
+    type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
+
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -2706,8 +2725,9 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of Psfc.
-    type(struct_columnData), intent(in)    :: columnIncRef ! column that has the Psfc
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of P_M/P_T
+    type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
+
     logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
@@ -3073,6 +3093,9 @@ contains
           end do
         end do
       end do
+
+    else if_calcHeightCoeff_gsv_vcodes
+      call utl_abort('calcHeightCoeff_gsv (czp): only vcode 5002 and 5005 implemented')
 
     end if if_calcHeightCoeff_gsv_vcodes
 
