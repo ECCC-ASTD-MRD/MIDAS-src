@@ -52,15 +52,15 @@ if [ "${UnitTest_run_debug}" = ddt ]; then
         RUN_PGM=./pgm
     else
         cat > run.sh <<EOF
-#!/bin/ksh
+#!/bin/bash
 
-/fs/home/fs1/ords/ssc/hpco/mib002/allinea/forge/bin/ddt-client --ddtsessionfile ${HOME}/.allinea/session/eccc1-ppp2-1 ./pgm
+$(which ddt-client) --ddtsessionfile $HOME/.allinea/session/${HOSTNAME}-[0-9]* ./pgm
 EOF
         RUN_PGM=./run.sh
     fi
 elif [ "${UnitTest_run_debug}" = gdb ]; then
     cat > run.sh <<EOF
-#!/bin/ksh
+#!/bin/bash
 gdb -ex run -ex where ./pgm
 EOF
     RUN_PGM=./run.sh
