@@ -17,10 +17,10 @@
 module calcHeightAndPressure_mod
   ! MODULE czp_calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
   !
-  ! :Purpose: Subroutines for computing height or pressure from TT, HU, P0 or
-  !           orography (ME).
-  !           Nonlinear, tangent-linear and adjoint versions of this
-  !           transformation are included in separate subroutines.
+  ! :Purpose: Subroutines for computing height and/or pressure depending on the 
+  !           vgrid kind.
+  !           Nonlinear, tangent-linear and adjoint versions of these
+  !           transformations are included in separate subroutines.
   !
   use codePrecision_mod
   use mpi_mod
@@ -2029,7 +2029,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl(column, beSilent_opt)
     !
-    ! :Purpose: Temperature to geopotential transformation on gridstatevector
+    ! :Purpose: Temperature to geopotential transformation on the column
     !
     implicit none
 
@@ -2046,7 +2046,8 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_tl(columnInc,columnIncRef, beSilent_opt)
     !
-    ! :Purpose: Temperature to geopotential transformation on gridstatevector
+    ! :Purpose: Temperature to geopotential tangent-linear transformation on 
+    !           the column
     !
     implicit none
 

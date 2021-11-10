@@ -53,6 +53,9 @@ CONTAINS
     
     select case(trim(transform))
 
+    case ('ZandP_nl')
+      call czp_calcZandP_nl(columnInc)
+
     case ('ZandP_tl')
       if (.not. present(columnRefOnIncLev_opt)) then
         call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
