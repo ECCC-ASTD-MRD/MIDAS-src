@@ -7,6 +7,6 @@ SRC_FILES="$SRC_FILES horizontalcoord_mod.f90 kdtree2_mod.f90 verticalcoord_mod.
 SRC_FILES="$SRC_FILES codeprecision_mod.ftn90 oceanMask_mod.f90 ramdisk_mod.f90 timecoord_mod.f90"
 SRC_FILES="$SRC_FILES analysisgrid_mod.f90 filenames_mod.f90 gridstatevector_mod.f90"
 SRC_FILES="$SRC_FILES columndata_mod.f90 ensemblestatevector_mod.f90"
-SRC_FILES="$SRC_FILES globalspectraltransform_mod.f90 humiditylimits_mod.f90 lamspectraltransform_mod.f90 localizationfunction_mod.f90 tt2phi_mod.f90"
+SRC_FILES="$SRC_FILES calcHeightAndPressure_mod.f90 globalspectraltransform_mod.f90 humiditylimits_mod.f90 lamspectraltransform_mod.f90 localizationfunction_mod.f90"
 SRC_FILES="$SRC_FILES gridBinning_mod.f90 gridVariableTransforms_mod.f90 menetrierdiag_mod.f90 spectralfilter_mod.f90"
 SRC_FILES="$SRC_FILES calcstatsglb_mod.f90 calcstatslam_mod.f90 version_mod.f90"

@@ -33,7 +33,6 @@ module stateToColumn_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsTimeInterp_mod
-  use tt2phi_mod
   use windRotation_mod
   use utilities_mod
   use gridVariableTransforms_mod
@@ -46,6 +45,7 @@ module stateToColumn_mod
   use codtyp_mod
   use getGridPosition_mod
   use kdtree2_mod
+  use calcHeightAndPressure_mod
 
   implicit none
   save
@@ -476,8 +476,8 @@ contains
 
     doSetup3dHeights = doSlantPath .and.  &
                        .not. stateVector_1Step%allocated .and. &
-                       stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-                       stateVector%varExistList(vnl_varListIndex('Z_M')) 
+                       gsv_varExist(stateVector,'Z_T') .and. &
+                       gsv_varExist(stateVector,'Z_M')
 
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSetup3dHeights ) then
@@ -587,8 +587,8 @@ contains
       lonColumn(:,:) = 0.0d0
 
       if ( doSlantPath .and. &
-           stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+           gsv_varExist(stateVector,'Z_T') .and. &
+           gsv_varExist(stateVector,'Z_M') ) then
 
         allocate(latLev_T(nlev_T))
         allocate(lonLev_T(nlev_T))
@@ -1153,19 +1153,8 @@ contains
     else
       stateVector => stateVector_in
 
-      ! calculate delP_T/delP_M on the grid
-      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('P_M')) ) then
-        call gvt_transform( statevector, &      ! INOUT
-                            'PsfcToP_tl' )      ! IN
-      end if
-
-      ! calculate del Z_T/Z_M on the grid
-      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        call gvt_transform( statevector, &      ! INOUT
-                            'TTHUtoHeight_tl' ) ! IN
-      end if
+      ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
+      call gvt_transform( statevector, 'ZandP_tl' )
     end if
 
     nullify(varNames)
@@ -1313,19 +1302,8 @@ contains
     end do k_loop
 
     if (calcHeightPressIncrOnColumn) then
-      ! calculate delP_T/delP_M on the columns
-      if ( statevector_in%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector_in%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'PsfcToP_tl')      ! IN
-      end if
-
-      ! calculate del Z_T/Z_M on the columns
-      if ( statevector_in%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector_in%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'TTHUtoHeight_tl') ! IN
-      end if
+      ! calculate delP_T/delP_M and  del Z_T/Z_M on the columns
+      call czp_calcZandP_tl(columnAnlInc, columnTrlOnAnlIncLev)
     end if
 
     deallocate(cols_hint)
@@ -1392,20 +1370,8 @@ contains
                          mpi_local_opt=.true., &
                          dataKind_opt=gsv_getDataKind(statevector_out), &
                          allocHeight_opt=.false., allocPressure_opt=.false. )
-      ! Adjoint of calculate del Z_T/Z_M on the columns
-      if ( statevector_out%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector_out%varExistList(vnl_varListIndex('Z_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'TTHUtoHeight_ad') ! IN
-      end if
-
-      ! Adjoint of calculate delP_T/delP_M on the columns
-      if ( statevector_out%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector_out%varExistList(vnl_varListIndex('P_M')) ) then
-        call cvt_transform( columnAnlInc, columnTrlOnAnlIncLev, & ! INOUT
-                            'PsfcToP_ad')      ! IN
-      end if
-
+      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the columns
+      call czp_calcZandP_ad(columnAnlInc, columnTrlOnAnlIncLev)
     else
       stateVector => stateVector_out
     end if
@@ -1559,19 +1525,8 @@ contains
       call gsv_zero(statevector_out)
       call gsv_copy(stateVector, stateVector_out, allowVarMismatch_opt=.true.)
     else
-      ! Adjoint of calculate del Z_T/Z_M on the grid
-      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-        call gvt_transform( statevector,  &    ! INOUT
-                            'TTHUtoHeight_ad') ! IN
-      end if
-
-      ! Adjoint of calculate delP_T/delP_M on the grid
-      if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('P_M')) ) then
-        call gvt_transform( statevector,  &    ! INOUT
-                            'PsfcToP_ad')      ! IN
-      end if
+      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the grid
+      call gvt_transform( statevector, 'ZandP_ad' )
     end if
 
     call gsv_deallocate( statevector_VarsLevs )
@@ -1651,19 +1606,10 @@ contains
     call checkColumnStatevectorMatch(column,statevector)
 
     call tmg_start(171,'s2c_nl_calcPandZ')
-    ! calculate P_T/P_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call gvt_transform( stateVector,  &     ! INOUT
-                          'PsfcToP_nl' )      ! IN
-    end if
 
-    ! calculate Z_T/Z_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call gvt_transform( stateVector, &     ! INOUT
-                          'TTHUtoHeight_nl') ! IN
-    end if
+    ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
+    call gvt_transform( statevector, 'ZandP_nl' )
+
     call tmg_stop(171)
 
     nullify(varNames)

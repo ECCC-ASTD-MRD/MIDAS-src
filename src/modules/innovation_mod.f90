@@ -37,7 +37,7 @@ module innovation_mod
   use varNameList_mod
   use verticalCoord_mod
   use gridStateVector_mod
-  use tt2phi_mod
+  use calcHeightAndPressure_mod
   use utilities_mod
   use obsFilter_mod  
   use gps_mod
@@ -50,6 +50,7 @@ module innovation_mod
   use bufr_mod
   use statetocolumn_mod
   use biascorrectionSat_mod
+  use columnVariableTransforms_mod
   implicit none
   save
   private
@@ -333,7 +334,7 @@ contains
     !- Calculate pressure profiles on analysis increment levels
     !
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      call col_calcPressure(columnTrlOnAnlIncLev)
+      call cvt_transform(columnTrlOnAnlIncLev, 'ZandP_nl')
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then

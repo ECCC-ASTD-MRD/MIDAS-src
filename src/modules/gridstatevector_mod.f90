@@ -248,23 +248,31 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_varExist
   !--------------------------------------------------------------------------
-  function gsv_varExist(statevector_opt,varName) result(varExist)
+  recursive function gsv_varExist(statevector_opt,varName) result(varExist)
     implicit none
     type(struct_gsv), optional   :: statevector_opt
     character(len=*), intent(in) :: varName
     logical                      :: varExist 
 
-    if ( present(statevector_opt) ) then
-      if ( statevector_opt%varExistList(vnl_varListIndex(varName)) ) then
-        varExist = .true.
-      else
-        varExist = .false.
-      end if
+    if (varName == 'Z_*') then
+      varExist =  gsv_varExist(statevector_opt, 'Z_T') .and. &
+                  gsv_varExist(statevector_opt, 'Z_M')
+    else if (varName == 'P_*') then
+      varExist =  gsv_varExist(statevector_opt, 'P_T') .and. &
+                  gsv_varExist(statevector_opt, 'P_M')
     else
-      if ( varExistList(vnl_varListIndex(varName)) ) then
-        varExist = .true.
+      if ( present(statevector_opt) ) then
+        if ( statevector_opt%varExistList(vnl_varListIndex(varName)) ) then
+          varExist = .true.
+        else
+          varExist = .false.
+        end if
       else
-        varExist = .false.
+        if ( varExistList(vnl_varListIndex(varName)) ) then
+          varExist = .true.
+        else
+          varExist = .false.
+        end if
       end if
     end if
 

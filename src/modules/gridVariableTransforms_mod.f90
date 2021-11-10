@@ -36,7 +36,7 @@ module gridVariableTransforms_mod
   use verticalCoord_mod
   use utilities_mod
   use varNameList_mod
-  use tt2phi_mod
+  use calcHeightAndPressure_mod
   use utilities_mod
   use humiditylimits_mod
   
@@ -48,7 +48,8 @@ module gridVariableTransforms_mod
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 
-  logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
+  logical :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
+
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_trl => null()
@@ -73,15 +74,12 @@ CONTAINS
     ! 
     ! :Purpose: To set up a variable transformation object
     !
-    ! :Arguments:
-    !           :hco_in: horizontal coordinate object input 
-    !           :vco_in: vertical   coordinate object input
-    !
     implicit none
 
-    type(struct_hco), pointer :: hco_in
-    type(struct_hco), pointer :: hco_core
-    type(struct_vco), pointer :: vco_in
+    ! Arguments
+    type(struct_hco), pointer, intent(inout) :: hco_in
+    type(struct_hco), pointer, intent(inout) :: hco_core
+    type(struct_vco), pointer, intent(inout) :: vco_in
     
     if ( gsv_containsNonZeroValues(stateVectorRefHU) ) return
     if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) return
@@ -102,14 +100,21 @@ CONTAINS
   ! gvt_setupRefFromTrialFiles
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromTrialFiles(varName, varKind_opt)
-
+    ! 
+    ! :Purpose: Initialise reference statevector from file 
+    !
+    ! :Arguments:
+    !   :varKind_opt: optional variable "kind" argument presently used to 
+    !                 initialise the reference state in a chemical assimilation
+    !                 context.
+    !
     implicit none
 
-    !Arguments:
-    character(len=*), intent(in) :: varName
-    character(len=*), optional   :: varKind_opt
+    ! Arguments
+    character(len=*), intent(in) :: varName ! reference variable/type used
+    character(len=*), optional, intent(in) :: varKind_opt ! additional variable/type information mandatory for some initialization
 
-    !Locals:
+    ! Locals
     type(struct_gsv) :: statevector_noZnoP
     integer :: varIndex
     
@@ -117,8 +122,9 @@ CONTAINS
     case ('HU')
       ! initialize stateVectorRefHU on analysis grid
       call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
@@ -127,17 +133,20 @@ CONTAINS
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
         ! initialize stateVectorRefHeight on analysis grid
-        call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                          varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
+        call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                          vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                          mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                          hInterpolateDegree_opt='LINEAR', &
+                          varNames_opt=&
+                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
         call gsv_zero(stateVectorRefHeight)
       end if
 
       ! initialize statevector_noZnoP on analysis grid
       call gsv_allocate(statevector_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'TT','HU','P0'/))
       write(*,*) 'gvt_setupRefFromTrialFiles: statevector_noZnoP allocated'
 
@@ -145,26 +154,29 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, stateVectorRefHeight, allowVarMismatch_opt=.true. )
+      call gsv_copy(statevector_noZnoP, stateVectorRefHeight, &
+                    allowVarMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( stateVectorRefHeight )
-      call tt2phi( stateVectorRefHeight )
+      call czp_calcZandP_nl( stateVectorRefHeight )
 
     case default
       if ( present(varKind_opt) ) then
-        if (varKind_opt == 'CH' .and. vnl_varKindFromVarname(varName) == varKind_opt ) then
+        if (varKind_opt == 'CH' .and. &
+            vnl_varKindFromVarname(varName) == varKind_opt ) then
         
           varIndex = vnl_varListIndex(varName)
           
           ! initialize stateVectorTrialvarKindCH(varIndex) on analysis grid
           
-          call gsv_allocate(stateVectorTrialvarKindCH(varIndex), tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/trim(varName),'P0'/) )
+          call gsv_allocate(stateVectorTrialvarKindCH(varIndex), &
+                            tim_nstepobsinc, hco_anl, vco_anl,   &
+                            dateStamp_opt=tim_getDateStamp(), &
+                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                            hInterpolateDegree_opt='LINEAR', &
+                            varNames_opt=(/trim(varName),'P0'/) )
 
           ! read trial files using default horizontal interpolation degree
           call gsv_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
@@ -185,16 +197,20 @@ CONTAINS
   ! gvt_transform_gsv
   !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
-                                stateVectorRef_opt, varName_opt, allowOverWrite_opt )
+                                stateVectorRef_opt, varName_opt, &
+                                allowOverWrite_opt )
+    ! 
+    ! :Purpose: Top-level switch routine for transformations on the grid.
+    !
     implicit none
    
     ! Arguments
-    type(struct_gsv)           :: statevector
-    character(len=*), intent(in) :: transform
-    type(struct_gsv), optional :: statevectorOut_opt
-    type(struct_gsv), optional :: statevectorRef_opt
-    logical, optional          :: allowOverWrite_opt
-    character(len=*), optional :: varName_opt
+    type(struct_gsv), intent(inout)           :: statevector ! statevector operand of the transformation
+    character(len=*), intent(in)              :: transform ! string identifying the requested transformation
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! reference statevector necessary for some transformation
+    logical, optional, intent(in)             :: allowOverWrite_opt
+    character(len=*), optional, intent(in)    :: varName_opt ! additional variable/type information mandatory for some transformation
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -225,7 +241,8 @@ CONTAINS
       call UVtoVortDiv_gsv(statevector)
 
     case ('VortDivToPsiChi')
-      if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
+      if (.not. gsv_varExist(statevector,'QR') .or. &
+          .not. gsv_varExist(statevector,'DD') ) then
         call utl_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -234,7 +251,8 @@ CONTAINS
       call VortDivToPsiChi_gsv(statevector)
 
     case ('UVtoPsiChi')
-      if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
+      if (.not. gsv_varExist(statevector,'PP') .or. &
+          .not. gsv_varExist(statevector,'CC') ) then
         call utl_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -319,119 +337,30 @@ CONTAINS
         end if
         call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt)
       else
-        if ( .not. gsv_varExist(statevector,'VIS') .or. .not. gsv_varExist(statevector,'LVIS') ) then
+        if (.not. gsv_varExist(statevector,'VIS') .or. &
+            .not. gsv_varExist(statevector,'LVIS') ) then
           call utl_abort('gvt_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
         end if
         call LVIStoVIS(statevector)
       end if
 
-    case ('TTHUtoHeight_nl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable Z_M must be allocated in gridstatevector')
-      end if
+    case ('ZandP_nl')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_nl, the option statevectorOut_opt is not yet available')
+        call utl_abort('gvt_transform: for ZandP_nl, the option statevectorOut_opt is not yet available')
       end if
-      call TTHUtoHeight_nl(stateVector)
+      call czp_calcZandP_nl(stateVector)
 
-    case ('TTHUtoHeight_tl')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in gridstatevector')
-      end if
+    case ('ZandP_tl')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_tl, the option statevectorOut_opt is not yet available')
+        call utl_abort('gvt_transform: for ZandP_tl, the option statevectorOut_opt is not yet available')
       end if
-      call TTHUtoHeight_tl(stateVector)
+      call ZandP_tl(stateVector)
 
-    case ('TTHUtoHeight_ad')
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in gridstatevector')
-      end if
+    case ('ZandP_ad')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for TTHUtoHeight_ad, the option statevectorOut_opt is not yet available')
+        call utl_abort('gvt_transform: for ZandP_ad, the option statevectorOut_opt is not yet available')
       end if
-      call TTHUtoHeight_ad(stateVector)
-
-    case ('PsfcToP_nl')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, the option statevectorOut_opt is not yet available')
-      end if
-      call PsfcToP_nl(stateVector)
-
-    case ('PsfcToP_tl')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, the option statevectorOut_opt is not yet available')
-      end if
-      call PsfcToP_tl(stateVector)
-
-    case ('PsfcToP_ad')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, the option statevectorOut_opt is not yet available')
-      end if
-      call PsfcToP_ad(stateVector)
+      call ZandP_ad(stateVector)
 
     case ('expCH_tlm')
       if ( .not. gsv_varKindExist('CH')  ) then
@@ -488,15 +417,20 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_ens
   !--------------------------------------------------------------------------
-  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt, huMinValue_opt)
+    subroutine gvt_transform_ens( ens,transform, allowOverWrite_opt, &
+                                  varName_opt, huMinValue_opt)
+    ! 
+    ! :Purpose: Top-level switch routine for ensemble transformations on the 
+    !           grid
+    !
     implicit none
    
     ! Arguments
-    type(struct_ens)             :: ens
-    character(len=*), intent(in) :: transform
-    logical, optional            :: allowOverWrite_opt
-    character(len=*), optional   :: varName_opt
-    real(8), optional            :: huMinValue_opt
+    type(struct_ens), intent(inout) :: ens ! operand (ensemble of statevector)
+    character(len=*), intent(in)    :: transform ! string identifying the requested transformation
+    logical, optional, intent(in)   :: allowOverWrite_opt
+    character(len=*), optional, intent(in)  :: varName_opt ! additional variable/type information mandatory for some transformation
+    real(8), optional, intent(in)   :: huMinValue_opt ! HU min value for 'HUtoLQ' transformation
 
     select case(trim(transform))
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
@@ -529,12 +463,15 @@ CONTAINS
   ! gvt_getStateVectorTrial
   !--------------------------------------------------------------------------
   function gvt_getStateVectorTrial(varName) result(statevector_ptr)
+    ! 
+    ! :Purpose: Returns a pointer to requested reference statevector 
+    !
     implicit none
 
-    ! arguments
-    character(len=*), intent(in) :: varName
+    ! Arguments
+    character(len=*), intent(in) :: varName ! reference variable/type requested 
 
-    ! local
+    ! Locals
     type(struct_gsv), pointer  :: statevector_ptr
 
     select case ( trim(varName) )
@@ -563,7 +500,7 @@ CONTAINS
                                           applyLimitOnHU_opt )
     !
     !:Purpose: computing the reference stateVector on the analysis grid at each 
-    !          outer-loop iterationt. The calculation is skipped if stateVectorRef* is 
+    !          outer-loop iteration. The calculation is skipped if stateVectorRef* is 
     !          initialized (gsv_containsNonZeroValue(stateVectorRef*)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
     !          statevector used for reading the trials and should contain 
@@ -572,8 +509,8 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid
-    character(len=*),  intent(in) :: varName
+    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector 
+    character(len=*),  intent(in) :: varName ! reference variable/type used
     logical, intent(in), optional :: applyLimitOnHU_opt
 
     ! Locals
@@ -596,9 +533,10 @@ CONTAINS
       end if
 
       if ( .not. stateVectorRefHU%allocated ) then
-        call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,   &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+        call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,&
+                          dateStamp_opt=tim_getDateStamp(), &
+                          mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                          hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=(/'HU','P0'/) )
       else
         call gsv_zero( stateVectorRefHU )
@@ -606,33 +544,35 @@ CONTAINS
 
       allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+      call gsv_allocate(stateVectorRefHUTT, tim_nstepobsinc, hco_anl, vco_anl,&
+                        dateStamp_opt=tim_getDateStamp(),&
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','TT','P0'/) )
 
       ! First, degrade the time steps
-      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorLowResTime, tim_nstepobsinc, hco_trl, &
+                        vco_trl, dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
+                        allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt='LINEAR', & 
+                        allocHeight_opt=.false., allocPressure_opt=.false. )
       call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, &
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
 
       ! Second, interpolate to the low-resolution spatial grid.
       nullify(varNames)
       call gsv_varNamesList(varNames, stateVectorLowResTime)
-      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                        dataKind_opt=pre_incrReal, &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=varNames)
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, &
+                        vco_anl, dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
+                        allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
       call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy only P0, HU, and TT to create reference stateVector.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHUTT, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHUTT, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
@@ -643,46 +583,48 @@ CONTAINS
         call qlim_rttovLimit(stateVectorRefHUTT)
       end if
 
-      call gsv_copy( stateVectorRefHUTT, stateVectorRefHU, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorRefHUTT, stateVectorRefHU, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorRefHUTT)
 
     case ('height')
       if ( .not. stateVectorRefHeight%allocated ) then
-        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
-                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                           varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt='LINEAR', &
+                           varNames_opt=&
+                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
       else
         call gsv_zero( stateVectorRefHeight )
       end if
 
       ! First, degrade the time steps
-      call gsv_allocate( stateVectorLowResTime, tim_nstepobsinc, hco_trl, vco_trl, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=(/'TT','HU','P0'/) )
-      call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, allowTimeMismatch_opt=.true., &
-                     allowVarMismatch_opt=.true. )
+      call gsv_allocate(stateVectorLowResTime, tim_nstepobsinc, hco_trl, &
+                        vco_trl, dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/) )
+      call gsv_copy(stateVectorOnTrlGrid, stateVectorLowResTime, &
+                    allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true.)
 
       ! Second, interpolate to the low-resolution spatial grid.
       nullify(varNames)
       call gsv_varNamesList(varNames, stateVectorLowResTime)
-      call gsv_allocate( stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl, vco_anl,   &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=varNames )
+      call gsv_allocate(stateVectorLowResTimeSpace, tim_nstepobsinc, hco_anl,&
+                        vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
       call gsv_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy to create final stateVector height.
-      call gsv_copy( stateVectorLowResTimeSpace, stateVectorRefHeight, &
-                     allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHeight, &
+                    allowTimeMismatch_opt=.false., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorLowResTimeSpace)
       call gsv_deallocate(stateVectorLowResTime)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( stateVectorRefHeight )
-      call tt2phi( stateVectorRefHeight )
+      call czp_calcZandP_nl(stateVectorRefHeight)
 
     end select
 
@@ -694,9 +636,15 @@ CONTAINS
   ! LQtoHU
   !--------------------------------------------------------------------------
   subroutine LQtoHU(statevector)
+    ! 
+    ! :Purpose: Specific humidity logarithm exponentiation. 
+    !
     implicit none
 
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
@@ -709,7 +657,8 @@ CONTAINS
       do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
           end do
         end do
       end do
@@ -722,9 +671,15 @@ CONTAINS
   ! HUtoLQ_gsv
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_gsv(statevector)
+    ! 
+    ! :Purpose: Logarithmic transformation of specific humidity 
+    !
     implicit none
 
-    type(struct_gsv)    :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
@@ -740,7 +695,9 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),gsv_rhumin))
+              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                  log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),&
+                          gsv_rhumin) )
             end do
           end do
         end do
@@ -757,7 +714,9 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),real(gsv_rhumin,4)))
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                  log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),&
+                          real(gsv_rhumin,4)) )
             end do
           end do
         end do
@@ -772,11 +731,16 @@ CONTAINS
   ! HUtoLQ_ens
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_ens(ens, huMinValue_opt)
+    ! 
+    ! :Purpose: Specific humidity logarithm exponentiation (ensemble processing) 
+    !
     implicit none
 
-    type(struct_ens)  :: ens
-    real(8), optional :: huMinValue_opt
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
+    real(8), optional, intent(in)   :: huMinValue_opt
 
+    ! Locals
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
     character(len=4) :: varName
@@ -803,7 +767,8 @@ CONTAINS
           do stepIndex = 1, ens_getNumStep(ens)
             do memberIndex = 1, ens_getNumMembers(ens)
               ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = &
-                   log( max( ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex), huMinValue ) )
+                   log(max( ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),&
+                            huMinValue) )
             end do
           end do
         end do
@@ -817,15 +782,20 @@ CONTAINS
   ! LQtoHU_tlm
   !--------------------------------------------------------------------------
   subroutine LQtoHU_tlm(statevector, stateVectorRef_opt)
+    ! 
+    ! :Purpose: Tangent linear of exponentiation transformation of specific 
+    !           humidity in logarithmic representation
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    type(struct_gsv), intent(inout)         :: statevector
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
+    real(8), pointer :: hu_trial(:,:,:,:)
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if ( present(statevectorRef_opt) ) then
@@ -848,7 +818,8 @@ CONTAINS
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R4)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R4)
             end do
           end do
         end do
@@ -865,7 +836,8 @@ CONTAINS
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
               hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)*  &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -879,16 +851,21 @@ CONTAINS
   ! HUtoLQ_tlm
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_tlm(statevector, stateVectorRef_opt)
+    ! 
+    ! :Purpose: Tangent linear of logarithmic transformation of specific 
+    !           humidity
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    type(struct_gsv), intent(inout)         :: statevector
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
     ! Locals
-    integer :: lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:), hu_trial(:,:,:,:)
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
+    integer           :: lonIndex,latIndex,levIndex,stepIndex
+    real(8), pointer  :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
+    real(8), pointer  :: hu_trial(:,:,:,:)
+    real(4), pointer  :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
 
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
@@ -905,12 +882,13 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do levIndex = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) / &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -922,12 +900,13 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do levIndex = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                    hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) / &
-                   max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
+                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -940,13 +919,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LPRtoPR_gsv
   !--------------------------------------------------------------------------
-  subroutine LPRtoPR_gsv(statevector_in, statevectorOut_opt, allowOverWrite_opt)
+  subroutine LPRtoPR_gsv(stateVector, statevectorOut_opt, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv)           :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
-    logical, optional          :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    logical, optional, intent(in)             :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -961,7 +943,7 @@ CONTAINS
         overWriteNeeded = .true.
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
+      if (.not. gsv_varExist(stateVector,'PR')) then
         overWriteNeeded = .true.
       end if
     end if
@@ -975,7 +957,7 @@ CONTAINS
       end if
     end if
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'PR')) then
@@ -984,25 +966,29 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,pr_ptr_r8,'LPR')
         end if
       else
-        if (gsv_varExist(stateVector_in,'PR')) then
-          call gsv_getField(statevector_in,pr_ptr_r8,'PR')
+        if (gsv_varExist(stateVector,'PR')) then
+          call gsv_getField(stateVector,pr_ptr_r8,'PR')
         else
-          call gsv_getField(statevector_in,pr_ptr_r8,'LPR')
+          call gsv_getField(stateVector,pr_ptr_r8,'LPR')
         end if
       end if
-      call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
+      call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
-              if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.99D0*MPC_missingValue_R8) then
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+              if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > &
+                  0.99D0*MPC_missingValue_R8) then
+
                 pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =   &
-                     max(0.0D0, exp(lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)) - &
-                                MPC_MINIMUM_PR_R8)
+                     max( 0.0D0, exp( lpr_ptr_r8(lonIndex,latIndex,levIndex,&
+                                      stepIndex)) - &
+                          MPC_MINIMUM_PR_R8)
               else
-                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R8
               end if
             end do
           end do
@@ -1019,25 +1005,29 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,pr_ptr_r4,'LPR')
         end if
       else
-        if (gsv_varExist(stateVector_in,'PR')) then
-          call gsv_getField(statevector_in,pr_ptr_r4,'PR')
+        if (gsv_varExist(stateVector,'PR')) then
+          call gsv_getField(stateVector,pr_ptr_r4,'PR')
         else
-          call gsv_getField(statevector_in,pr_ptr_r4,'LPR')
+          call gsv_getField(stateVector,pr_ptr_r4,'LPR')
         end if
       end if
-      call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
+      call gsv_getField(stateVector,lpr_ptr_r4,'LPR')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
-              if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > 0.99*MPC_missingValue_R4) then
+        do levIndex = 1,gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+              if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > &
+                  0.99*MPC_missingValue_R4) then
+
                 pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =   &
-                     max(0.0, exp(lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)) - &
-                              MPC_MINIMUM_PR_R4)
+                     max( 0.0, exp( lpr_ptr_r4(lonIndex,latIndex,levIndex,&
+                                    stepIndex)) - &
+                          MPC_MINIMUM_PR_R4)
               else
-                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R4
               end if
             end do
           end do
@@ -1053,8 +1043,8 @@ CONTAINS
         call gsv_modifyVarName(stateVectorOut_opt,'LPR','PR')
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
-        call gsv_modifyVarName(stateVector_in,'LPR','PR')
+      if (.not. gsv_varExist(stateVector,'PR')) then
+        call gsv_modifyVarName(stateVector,'LPR','PR')
       end if
     end if
 
@@ -1064,11 +1054,15 @@ CONTAINS
   ! LPRtoPR_ens
   !--------------------------------------------------------------------------
   subroutine LPRtoPR_ens(ens, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !           (ensemble processing)
+    !
     implicit none
 
     ! Arguments
-    type(struct_ens)  :: ens
-    logical, optional :: allowOverWrite_opt
+    type(struct_ens), intent(inout) :: ens
+    logical, optional, intent(in)   :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
@@ -1109,8 +1103,9 @@ CONTAINS
         do stepIndex = 1, ens_getNumStep(ens)
           do memberIndex = 1, ens_getNumMembers(ens)
               PR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
-                   max(0.0, exp(LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)) - &
-                              MPC_MINIMUM_PR_R4)
+                   max( 0.0, exp( LPR_ptr_r4(memberIndex,stepIndex,lonIndex,&
+                                  latIndex)) - &
+                        MPC_MINIMUM_PR_R4)
               ! maybe also impose minimum value of LPR
               !LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
               !     max(log(MPC_MINIMUM_PR_R4), LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex))
@@ -1129,37 +1124,43 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! PRtoLPR_gsv
   !--------------------------------------------------------------------------
-  subroutine PRtoLPR_gsv(statevector_in, statevectorOut_opt)
+  subroutine PRtoLPR_gsv(stateVector, statevectorOut_opt)
+    ! 
+    ! :Purpose: Logarithmic transformation of quantity of precipitation
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
     real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
     real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         call gsv_getField(statevectorOut_opt,lpr_ptr_r8,'LPR')
       else
-        call gsv_getField(statevector_in,lpr_ptr_r8,'LPR')
+        call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
       end if
-      call gsv_getField(statevector_in,pr_ptr_r8,'PR')
+      call gsv_getField(stateVector,pr_ptr_r8,'PR')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > -1.0D0) then
                 lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
-                     log(MPC_MINIMUM_PR_R8 + max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)))
+                     log( MPC_MINIMUM_PR_R8 + &
+                          max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,&
+                                              stepIndex)))
               else
-                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R8
               end if
             end do
           end do
@@ -1172,20 +1173,23 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call gsv_getField(statevectorOut_opt,lpr_ptr_r4,'LPR')
       else
-        call gsv_getField(statevector_in,lpr_ptr_r4,'LPR')
+        call gsv_getField(stateVector,lpr_ptr_r4,'LPR')
       end if
-      call gsv_getField(statevector_in,pr_ptr_r4,'PR')
+      call gsv_getField(stateVector,pr_ptr_r4,'PR')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+        do levIndex = 1,gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
               if (pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > -1.0) then
                 lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                     log(MPC_MINIMUM_PR_R4 + max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)))
+                     log( MPC_MINIMUM_PR_R4 + &
+                          max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,&
+                                            stepIndex)))
               else
-                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                    MPC_missingValue_R4
               end if
             end do
           end do
@@ -1200,13 +1204,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LVIStoVIS
   !--------------------------------------------------------------------------
-  subroutine LVIStoVIS(statevector_in, statevectorOut_opt, allowOverWrite_opt)
+  subroutine LVIStoVIS(stateVector, statevectorOut_opt, allowOverWrite_opt)
+    ! 
+    ! :Purpose: Visibility logarithm exponentiation 
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv), optional :: statevectorOut_opt
-    logical, optional          :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    logical, optional, intent(in)             :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1221,7 +1228,7 @@ CONTAINS
         overWriteNeeded = .true.
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'PR')) then
+      if (.not. gsv_varExist(stateVector,'PR')) then
         overWriteNeeded = .true.
       end if
     end if
@@ -1235,7 +1242,7 @@ CONTAINS
       end if
     end if
 
-    if ( gsv_getDataKind(statevector_in) == 8 ) then
+    if ( gsv_getDataKind(stateVector) == 8 ) then
 
       if (present(statevectorOut_opt)) then
         if (gsv_varExist(stateVectorOut_opt,'VIS')) then
@@ -1244,20 +1251,22 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,vis_ptr_r8,'LVIS')
         end if
       else
-        if (gsv_varExist(stateVector_in,'VIS')) then
-          call gsv_getField(statevector_in,vis_ptr_r8,'VIS')
+        if (gsv_varExist(stateVector,'VIS')) then
+          call gsv_getField(stateVector,vis_ptr_r8,'VIS')
         else
-          call gsv_getField(statevector_in,vis_ptr_r8,'LVIS')
+          call gsv_getField(stateVector,vis_ptr_r8,'LVIS')
         end if
       end if
-      call gsv_getField(statevector_in,lvis_ptr_r8,'LVIS')
+      call gsv_getField(stateVector,lvis_ptr_r8,'LVIS')
       
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
-              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
+        do levIndex = 1, gsv_getNumLev( stateVector,&
+                                        vnl_varLevelFromVarname('LVIS'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = &
+                  exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
@@ -1273,20 +1282,22 @@ CONTAINS
           call gsv_getField(statevectorOut_opt,vis_ptr_r4,'LVIS')
         end if
       else
-        if (gsv_varExist(stateVector_in,'VIS')) then
-          call gsv_getField(statevector_in,vis_ptr_r4,'VIS')
+        if (gsv_varExist(stateVector,'VIS')) then
+          call gsv_getField(stateVector,vis_ptr_r4,'VIS')
         else
-          call gsv_getField(statevector_in,vis_ptr_r4,'LVIS')
+          call gsv_getField(stateVector,vis_ptr_r4,'LVIS')
         end if
       end if
-      call gsv_getField(statevector_in,lvis_ptr_r4,'LVIS')
+      call gsv_getField(stateVector,lvis_ptr_r4,'LVIS')
 
-      do stepIndex = 1, statevector_in%numStep
+      do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
-              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
+        do levIndex = 1, gsv_getNumLev( stateVector,&
+                                        vnl_varLevelFromVarname('LVIS'))
+          do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+            do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                  exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
@@ -1301,118 +1312,67 @@ CONTAINS
         call gsv_modifyVarName(stateVectorOut_opt,'LVIS','VIS')
       end if
     else
-      if (.not. gsv_varExist(stateVector_in,'VIS')) then
-        call gsv_modifyVarName(stateVector_in,'LVIS','VIS')
+      if (.not. gsv_varExist(stateVector,'VIS')) then
+        call gsv_modifyVarName(stateVector,'LVIS','VIS')
       end if
     end if
 
   end subroutine LVIStoVIS
 
+
   !--------------------------------------------------------------------------
-  ! TTHUtoHeight_nl
+  ! ZandP_tl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_nl(statevector)
+  subroutine ZandP_tl(stateVector)
+    ! 
+    ! :Purpose: Tangeant linear of height and pressure computation.  
+    !           The computation order depends on the native model 
+    !           representation (height or pressure based).
+    !
     implicit none
 
-    type(struct_gsv)    :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector
 
-    call tt2phi(statevector)
+    call czp_calcZandP_tl(statevector, stateVectorRefHeight)
 
-  end subroutine TTHUtoHeight_nl
+  end subroutine ZandP_tl
 
   !--------------------------------------------------------------------------
-  ! TTHUtoHeight_tl
+  ! ZandP_ad
   !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_tl(stateVector)
+  subroutine ZandP_ad(stateVector)
+    ! 
+    ! :Purpose: Adjoint of the tangeant linear computation of both height and 
+    !           pressure. The computation order depends on the native model 
+    !           representation (height or pressure based).
+    !
     implicit none
 
-    type(struct_gsv)           :: stateVector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector
 
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('TTHUtoHeight_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
+    call czp_calcZandP_ad(statevector, stateVectorRefHeight)
 
-    call tt2phi_tl(stateVector, stateVectorRefHeight)
-
-  end subroutine TTHUtoHeight_tl
-
-  !--------------------------------------------------------------------------
-  ! TTHUtoHeight_ad
-  !--------------------------------------------------------------------------
-  subroutine TTHUtoHeight_ad(stateVector)
-    implicit none
-
-    type(struct_gsv)           :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('TTHUtoHeight_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call tt2phi_ad(stateVector, stateVectorRefHeight)
-
-  end subroutine TTHUtoHeight_ad
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_nl
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_nl(statevector)
-    implicit none
-
-    type(struct_gsv)    :: statevector
-
-    if ( gsv_getDataKind(statevector) == 4 ) then
-      call calcpressure_nl_r4(statevector)
-    else
-      call calcpressure_nl_r8(statevector)
-    end if
-
-  end subroutine PsfcToP_nl
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_tl
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(stateVector)
-    implicit none
-
-    type(struct_gsv)           :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('PsfcToP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call calcpressure_tl(stateVector, stateVectorRefHeight)
-
-  end subroutine PsfcToP_tl
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_ad
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(stateVector)
-    implicit none
-
-    type(struct_gsv)           :: stateVector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('PsfcToP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call calcpressure_ad(stateVector, stateVectorRefHeight)
-
-  end subroutine PsfcToP_ad
+  end subroutine ZandP_ad
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_gsv(statevector)
+    ! 
+    ! :Purpose: Wind components to relative vorticity and divergence transformation.
+    !
     implicit none
    
-    type(struct_gsv) :: statevector
-    integer :: stepIndex
- 
-    real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
-    real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    integer :: nlev_M
+    ! Locals
+    real(8), pointer  :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
+    real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    integer           :: stepIndex
+    integer           :: nlev_M
 
     call gsv_getField(statevector,uu_ptr,'UU')
     call gsv_getField(statevector,vv_ptr,'VV')
@@ -1443,15 +1403,20 @@ CONTAINS
   ! vortDivtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine vortDivToPsiChi_gsv(statevector)
+    ! 
+    ! :Purpose: Relative vorticity and divergence to stream function and 
+    !           velocity potential transformation.
+    !
     implicit none
-   
-    type(struct_gsv) :: statevector
-    integer :: stepIndex
 
-    logical, save :: firstTime = .true.
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
-    real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
+    ! Locals
+    integer           :: stepIndex
+    logical, save     :: firstTime = .true.
+    real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
+    real(8), pointer  :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
 
     type(struct_lst), save :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
     integer :: nlev_M
@@ -1515,17 +1480,23 @@ CONTAINS
   ! UVtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_gsv(statevector)
+    ! 
+    ! :Purpose: Wind components to stream function and velocity potential 
+    !           transformation.
+    !
     implicit none
    
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
 
-    integer :: stepIndex 
-    real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
-    real(8), pointer :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
-    real(8), allocatable :: gridState(:,:,:), spectralState(:,:,:)
-    real(8) :: dla2
-    integer :: nlev_M, levIndex
-    integer :: ila_mpiglobal, ila_mpilocal
+    ! Locals
+    integer               :: stepIndex 
+    real(8), pointer      :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
+    real(8), pointer      :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
+    real(8), allocatable  :: gridState(:,:,:), spectralState(:,:,:)
+    real(8)               :: dla2
+    integer               :: nlev_M, levIndex
+    integer               :: ila_mpiglobal, ila_mpilocal
 
     ! spectral transform configuration (saved)
     integer, save :: gstID = -1
@@ -1556,8 +1527,11 @@ CONTAINS
         gstID = gst_setup(statevector%ni,statevector%nj,ntrunc,2*nlev_M)
         call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
         call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
-        call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        call gst_ilaList_mpiglobal( ilaList_mpiglobal,nla_mpilocal,maxMyNla,&
+                                    gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,&
+                                    mynSkip)
+        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,&
+                                  mynBeg,mynEnd,mynSkip)
       end if
 
       dla2   = dble(ra)*dble(ra)
@@ -1603,14 +1577,19 @@ CONTAINS
   ! UVtoPsiChi_ens
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_ens(ens)
+    ! 
+    ! :Purpose: Wind components to stream function and velocity potential 
+    !           transformation (ensemble processing).
+    !
     implicit none
    
-    type(struct_ens) :: ens
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
 
+    ! Locals
     type(struct_hco), pointer :: hco_ens => null()
-    type(struct_gsv) :: gridStateVector_oneMember
-
-    integer :: memberIndex
+    type(struct_gsv)          :: gridStateVector_oneMember
+    integer                   :: memberIndex
 
     write(*,*)
     write(*,*) 'gvt_UVtoPsiChi_ens: starting'
@@ -1625,7 +1604,8 @@ CONTAINS
     !- 1.  Create a working stateVector
     !
     call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
-                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      varNames_opt=(/'UU','VV'/), &
+                      datestamp_opt=tim_getDatestamp(), &
                       mpi_local_opt=.true., dataKind_opt=8)
 
     !
@@ -1656,14 +1636,19 @@ CONTAINS
   ! UVtoVorDiv_ens
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_ens(ens)
+    ! 
+    ! :Purpose: Wind components to relative vorticity and divergence transformation
+    !           (ensemble processing)
+    !
     implicit none
    
-    type(struct_ens) :: ens
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
 
+    ! Locals
     type(struct_hco), pointer :: hco_ens => null()
-    type(struct_gsv) :: gridStateVector_oneMember
-
-    integer :: memberIndex
+    type(struct_gsv)          :: gridStateVector_oneMember
+    integer                   :: memberIndex
 
     write(*,*)
     write(*,*) 'gvt_UVtoVortDiv_ens: starting'
@@ -1678,7 +1663,8 @@ CONTAINS
     !- 1.  Create a working stateVector
     !
     call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
-                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      varNames_opt=(/'UU','VV'/), &
+                      datestamp_opt=tim_getDatestamp(), &
                       mpi_local_opt=.true., dataKind_opt=8)
 
     !
@@ -1706,464 +1692,25 @@ CONTAINS
   end subroutine UVtoVortDiv_ens
 
   !--------------------------------------------------------------------------
-  ! calcpressure_nl_r8
-  !--------------------------------------------------------------------------
-  subroutine calcPressure_nl_r8(statevector, beSilent_opt)
-    !
-    !:Purpose: double-precision calculation of the pressure on the grid.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
-    logical, optional               :: beSilent_opt
-
-    ! Locals:
-    real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: Pressure_out(:,:,:) 
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: status, stepIndex, numStep
-    logical                     :: beSilent
-    real(8), pointer            :: P_T(:,:,:,:)
-    real(8), pointer            :: P_M(:,:,:,:)
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r8: computing pressure on staggered or UNstaggered levels'
-
-    if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
-    end if
-
-    nullify(P_T)
-    nullify(P_M)
-
-    call gsv_getField(statevector,P_T,'P_T')
-    call gsv_getField(statevector,P_M,'P_M')
-
-    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-    call gsv_getField(statevector,field_Psfc,'P0')
-    numStep = statevector%numStep
-
-    do stepIndex = 1, numStep
-
-      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-
-      ! P_M
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_M, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r8: ERROR with vgd_levels')
-      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      ! P_T
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_T, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r8: ERROR with vgd_levels')
-      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',P_M='
-        write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',P_T='
-        write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
-
-    end do
-
-    deallocate(Psfc)
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r8: END'
-
-  end subroutine calcPressure_nl_r8
-
-  !--------------------------------------------------------------------------
-  ! calcpressure_nl_r4
-  !--------------------------------------------------------------------------
-  subroutine calcPressure_nl_r4(statevector, beSilent_opt)
-    !
-    !:Purpose: single-precision calculation of the pressure on the grid.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
-    logical, optional               :: beSilent_opt
-
-    ! Locals:
-    real(kind=4), allocatable   :: Psfc(:,:)
-    real(kind=4), pointer       :: Pressure_out(:,:,:) 
-    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: status, stepIndex, numStep
-    logical                     :: beSilent
-    real(4), pointer            :: P_T(:,:,:,:)
-    real(4), pointer            :: P_M(:,:,:,:)
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r4: computing pressure on staggered or UNstaggered levels'
-
-    if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
-    end if
-
-    nullify(P_T)
-    nullify(P_M)
-
-    call gsv_getField(statevector,P_T,'P_T')
-    call gsv_getField(statevector,P_M,'P_M')
-
-    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-    call gsv_getField(statevector,field_Psfc,'P0')
-    numStep = statevector%numStep
-
-    do stepIndex = 1, numStep
-      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-
-      ! P_T
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r4: ERROR with vgd_levels')
-      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      ! P_M
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_T, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r4: ERROR with vgd_levels')
-      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',P_M='
-        write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',P_T='
-        write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
-
-    end do
-
-    deallocate(Psfc)
-
-  end subroutine calcPressure_nl_r4
-
-  !--------------------------------------------------------------------------
-  ! calcpressure_tl
-  !--------------------------------------------------------------------------
-  subroutine calcPressure_tl(statevector, statevector_trial, beSilent_opt)
-    !
-    !:Purpose: calculation of the pressure increment on the grid.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
-    logical, optional               :: beSilent_opt
-
-    ! Locals:
-    real(8), allocatable  :: Psfc(:,:)
-    real(4), pointer      :: delPsfc_r4(:,:,:,:)
-    real(8), pointer      :: delPsfc_r8(:,:,:,:)
-    real(8), pointer      :: field_Psfc(:,:,:,:)
-    real(4), pointer      :: delP_T_r4(:,:,:,:)
-    real(8), pointer      :: delP_T_r8(:,:,:,:)
-    real(4), pointer      :: delP_M_r4(:,:,:,:)
-    real(8), pointer      :: delP_M_r8(:,:,:,:)
-    real(8), pointer      :: dP_dPsfc_T(:,:,:)
-    real(8), pointer      :: dP_dPsfc_M(:,:,:)
-    integer               :: status, stepIndex,lonIndex,latIndex
-    integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
-    logical               :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_tl: computing delP_T/delP_M on the gridstatevector'
-
-    nullify(dP_dPsfc_T)
-    nullify(dP_dPsfc_M)
-    nullify(delPsfc_r4,delPsfc_r8)
-    nullify(delP_T_r4,delP_T_r8)
-    nullify(delP_M_r4,delP_M_r8)
-
-    if (gsv_getDataKind(statevector) == 4) then
-      call gsv_getField(statevector,delP_T_r4,'P_T')
-      call gsv_getField(statevector,delP_M_r4,'P_M')
-      call gsv_getField(statevector,delPsfc_r4,'P0')
-    else
-      call gsv_getField(statevector,delP_T_r8,'P_T')
-      call gsv_getField(statevector,delP_M_r8,'P_M')
-      call gsv_getField(statevector,delPsfc_r8,'P0')
-    end if
-
-    nullify(field_Psfc)
-    call gsv_getField(statevector_trial,field_Psfc,'P0')
-
-    nlev_T = gsv_getNumLev(statevector,'TH')
-    nlev_M = gsv_getNumLev(statevector,'MM')
-    numStep = statevector%numstep
-
-    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-
-    do stepIndex = 1, numStep
-
-      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-
-      ! dP_dPsfc_M
-      nullify(dP_dPsfc_M)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_M, &
-                           dP_dPsfc_M, &
-                           Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
-      ! calculate delP_M
-      if (gsv_getDataKind(statevector) == 4) then
-        do lev_M = 1, nlev_M
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delP_M_r4(lonIndex,latIndex,lev_M,stepIndex) =  &
-                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
-                   delPsfc_r4(lonIndex,latIndex,1,stepIndex)
-            end do
-          end do
-        end do
-      else
-        do lev_M = 1, nlev_M
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delP_M_r8(lonIndex,latIndex,lev_M,stepIndex) =  &
-                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
-                   delPsfc_r8(lonIndex,latIndex,1,stepIndex)
-            end do
-          end do
-        end do
-      end if
-      deallocate(dP_dPsfc_M)
-
-      ! dP_dPsfc_T
-      nullify(dP_dPsfc_T)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_T, &
-                           dP_dPsfc_T, &
-                           Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
-      ! calculate delP_T
-      if (gsv_getDataKind(statevector) == 4) then
-        do lev_T = 1, nlev_T
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delP_T_r4(lonIndex,latIndex,lev_T,stepIndex) =  &
-                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
-                   delPsfc_r4(lonIndex,latIndex,1,stepIndex)
-            end do
-          end do
-        end do
-      else
-        do lev_T = 1, nlev_T
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delP_T_r8(lonIndex,latIndex,lev_T,stepIndex) =  &
-                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
-                   delPsfc_r8(lonIndex,latIndex,1,stepIndex)
-            end do
-          end do
-        end do
-      end if
-      deallocate(dP_dPsfc_T)
-
-    end do
-
-    deallocate(Psfc)
-
-  end subroutine calcPressure_tl
-
-  !--------------------------------------------------------------------------
-  ! calcpressure_ad
-  !--------------------------------------------------------------------------
-  subroutine calcPressure_ad(statevector, statevector_trial, beSilent_opt)
-    !
-    !:Purpose: adjoint of calculation of the pressure on the grid.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain ncrement of Psfc.
-    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
-    logical, optional               :: beSilent_opt
-
-    ! Locals:
-    real(8), allocatable     :: Psfc(:,:)
-    real(4), pointer         :: delPsfc_r4(:,:,:,:)
-    real(8), pointer         :: delPsfc_r8(:,:,:,:)
-    real(8), pointer         :: field_Psfc(:,:,:,:)
-    real(4), pointer         :: delP_T_r4(:,:,:,:)
-    real(8), pointer         :: delP_T_r8(:,:,:,:)
-    real(4), pointer         :: delP_M_r4(:,:,:,:)
-    real(8), pointer         :: delP_M_r8(:,:,:,:)
-    real(8), pointer         :: dP_dPsfc_T(:,:,:)
-    real(8), pointer         :: dP_dPsfc_M(:,:,:)
-    integer                  :: status, stepIndex,lonIndex,latIndex
-    integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
-    logical                  :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_ad: computing delP_T/delP_M on the gridstatevector'
-
-    nullify(delPsfc_r4, delPsfc_r8)
-    nullify(field_Psfc)
-    nullify(delP_T_r4, delP_T_r8)
-    nullify(delP_M_r4, delP_M_r8)
-    nullify(dP_dPsfc_T)
-    nullify(dP_dPsfc_M)
-
-    if (gsv_getDataKind(statevector) == 4) then
-      call gsv_getField(statevector,delP_T_r4,'P_T')
-      call gsv_getField(statevector,delP_M_r4,'P_M')
-      call gsv_getField(statevector,delPsfc_r4,'P0')
-    else
-      call gsv_getField(statevector,delP_T_r8,'P_T')
-      call gsv_getField(statevector,delP_M_r8,'P_M')
-      call gsv_getField(statevector,delPsfc_r8,'P0')
-    end if
-    call gsv_getField(statevector_trial,field_Psfc,'P0')
-
-    nlev_T = gsv_getNumLev(statevector,'TH')
-    nlev_M = gsv_getNumLev(statevector,'MM')
-    numStep = statevector%numstep
-
-    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-
-    do stepIndex = 1, numStep
-
-      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-
-      ! dP_dPsfc_M
-      nullify(dP_dPsfc_M)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_M, &
-                           dP_dPsfc_M, &
-                           Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
-      ! calculate delP_M
-      if (gsv_getDataKind(statevector) == 4) then
-        do lev_M = 1, nlev_M
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
-                   delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
-                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
-                   delP_M_r4(lonIndex,latIndex,lev_M,stepIndex)
-            end do
-          end do
-        end do
-      else
-        do lev_M = 1, nlev_M
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
-                   delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
-                   dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * &
-                   delP_M_r8(lonIndex,latIndex,lev_M,stepIndex)
-            end do
-          end do
-        end do
-      end if
-      deallocate(dP_dPsfc_M)
-
-      ! dP_dPsfc_T
-      nullify(dP_dPsfc_T)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_T, &
-                           dP_dPsfc_T, &
-                           Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
-      ! calculate delP_T
-      if (gsv_getDataKind(statevector) == 4) then
-        do lev_T = 1, nlev_T
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
-                   delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
-                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
-                   delP_T_r4(lonIndex,latIndex,lev_T,stepIndex)
-            end do
-          end do
-        end do
-      else
-        do lev_T = 1, nlev_T
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
-                   delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
-                   dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * &
-                   delP_T_r8(lonIndex,latIndex,lev_T,stepIndex)
-            end do
-          end do
-        end do
-      end if
-      deallocate(dP_dPsfc_T)
-
-    end do
-
-    deallocate(Psfc)
-
-  end subroutine calcPressure_ad
-
-  !--------------------------------------------------------------------------
   ! logCH_ens
   !--------------------------------------------------------------------------
   subroutine logCH_ens(ens,varName)
+    ! 
+    ! :Purpose: Logarithmic transformation of a chemical species concentration
+    !           (ensemble processing)
+    !
     implicit none
 
-    !Arguments:
-    type(struct_ens) :: ens
-    character(len=4) :: varName
+    ! Arguments
+    type(struct_ens), intent(inout) :: ens
+    character(len=4), intent(in)    :: varName
 
-    !Locals:
-    integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
-    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
-    character(len=4) :: varName_ens
-    real(4) :: minVal
-
-    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    ! Locals
+    integer           :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    integer           :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
+    character(len=4)  :: varName_ens
+    real(4)           :: minVal
+    real(4), pointer  :: ptr4d_r4(:,:,:,:)
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
@@ -2179,7 +1726,9 @@ CONTAINS
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, ens_getNumStep(ens)
             do memberIndex = 1, ens_getNumMembers(ens)
-              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),minVal))
+              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = &
+                  log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),&
+                          minVal))
             end do
           end do
         end do
@@ -2194,21 +1743,24 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine expCH_tlm(statevector, varName, stateVectorRef_opt)
     ! 
-    ! :Purpose: Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
+    ! :Purpose: Tangent linear of exponentiation of chemical species
+    !           concentration.
+    !           Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
     !           the input 'statevector' component is d[log(x)] and
     !           the output 'statevector' component is dx.
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: statevector
-    character(len=*) :: varName
-    type(struct_gsv), optional :: statevectorRef_opt
+    ! Arguments
+    type(struct_gsv), intent(inout)         :: statevector
+    character(len=*), intent(in)            :: varName
+    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
     
-    ! Locals:
-    integer :: lonIndex,latIndex,levIndex,stepIndex,varIndex
-    real(8), pointer :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:), var_trial(:,:,:,:)
-    real(8) :: minVal
+    ! Locals
+    integer           :: lonIndex,latIndex,levIndex,stepIndex,varIndex
+    real(8), pointer  :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:)
+    real(8), pointer  :: var_trial(:,:,:,:)
+    real(8)           :: minVal
 
     if ( present(statevectorRef_opt) ) then
        call gsv_getField(stateVectorRef_opt,var_trial,trim(varName))
@@ -2217,7 +1769,8 @@ CONTAINS
       if ( .not. varKindCHTrialsInitialized(varIndex) ) then
         call utl_abort('expCH_tlm: do trials to stateVectorRefChem transform at higher level')
       end if
-      call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,trim(varName))
+      call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,&
+                        trim(varName))
     end if
 
     call gsv_getField(statevector,var_ptr,trim(varName))
@@ -2227,11 +1780,13 @@ CONTAINS
 
     do stepIndex = 1, statevector%numStep
       !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+      do levIndex = 1, gsv_getNumLev( statevector,&
+                                      vnl_varLevelFromVarname(trim(varName)))
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
-            var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
-                     *max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
+            var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  &
+                logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
+                * max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
           end do
         end do
       end do
@@ -2249,14 +1804,14 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: statevector
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
     
-    ! Locals:
-    integer :: varIndex,lonIndex,latIndex,levIndex,stepIndex
-    real(8), pointer :: var_ptr(:,:,:,:)
-    real(8) :: minVal
-    character(len=4) :: varName
+    ! Locals
+    integer           :: varIndex,lonIndex,latIndex,levIndex,stepIndex
+    real(8), pointer  :: var_ptr(:,:,:,:)
+    real(8)           :: minVal
+    character(len=4)  :: varName
 
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
@@ -2269,10 +1824,12 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+        do levIndex = 1, gsv_getNumLev( statevector,&
+                                        vnl_varLevelFromVarname(trim(varName)))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
-              var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
+              var_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                  max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
             end do
           end do
         end do
@@ -2303,14 +1860,17 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv) :: stateVector, stateVectorRef
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(in)    :: stateVectorRef
 
-    ! Locals:
-    type(struct_gsv) :: statevector_analysis_1step_r8, statevector_trial_1step_r8
+    ! Locals
+    type(struct_gsv) :: statevector_analysis_1step_r8
+    type(struct_gsv) :: statevector_trial_1step_r8
 
-    real(8), pointer :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:), GL_ptr(:,:,:,:)
-    real(8) :: alpha, factor, correc, rms, maxAbsCorr, basic
+    real(8), pointer  :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:)
+    real(8), pointer  :: GL_ptr(:,:,:,:)
+    real(8)           :: alpha, factor, correc, rms, maxAbsCorr, basic
 
     integer :: lonIndex, latIndex, levIndex, stepIndex
     integer :: ipass, numPass, numCorrect
@@ -2324,12 +1884,12 @@ CONTAINS
 
     ! allocate statevector for single time steps
     if ( mpi_myid < stateVector%numStep ) then
-      call gsv_allocate( stateVector_analysis_1step_r8, 1, stateVector%hco, stateVector%vco, &
-                         mpi_local_opt=.false., dataKind_opt=8, &
-                         varNames_opt=(/'GL','LG'/) )
-      call gsv_allocate( stateVector_trial_1step_r8, 1, stateVectorRef%hco, stateVectorRef%vco, &
-                         mpi_local_opt=.false., dataKind_opt=8, &
-                         varNames_opt=(/'GL','LG'/) )
+      call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
+                        stateVector%vco, mpi_local_opt=.false., &
+                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
+      call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
+                        stateVectorRef%vco, mpi_local_opt=.false., &
+                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
     end if
 
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
@@ -2368,9 +1928,11 @@ CONTAINS
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
               if ( stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                    GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
               else
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
+                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                    LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
               end if
             end do
           end do
@@ -2383,12 +1945,15 @@ CONTAINS
             do latIndex = 2, stateVector%nj-1
               do lonIndex = 2, stateVector%ni-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
+                            ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2403,12 +1968,18 @@ CONTAINS
               lonIndex = 1
               do latIndex = 2, stateVector%nj-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,      latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni-2,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,        latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,        latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1, latIndex, levIndex,&
+                                        stepIndex) + &
+                            LGAnal_ptr( stateVector%ni-2, latIndex, levIndex,&
+                                        stepIndex) + &
+                            LGAnal_ptr( lonIndex, latIndex+1, levIndex, &
+                                        stepIndex) + &
+                            LGAnal_ptr( lonIndex, latIndex-1, levIndex, &
+                                        stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2419,12 +1990,15 @@ CONTAINS
               lonIndex = stateVector%ni
               do latIndex = 2, stateVector%nj-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(3,         latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex+1,levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex,  latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(3, latIndex,  levIndex,stepIndex) + &
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
+                            ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
@@ -2436,12 +2010,16 @@ CONTAINS
               latIndex = stateVector%nj
               do lonIndex = 2, stateVector%ni-1
                 if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,                latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,                latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-2,levIndex,stepIndex) + &
-                            LGAnal_ptr(stateVector%ni+2-lonIndex, latIndex-1,levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
+                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
+                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-2,&
+                                        levIndex,stepIndex) + &
+                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-1,&
+                                        levIndex,stepIndex) ) / 4.0d0
+                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex, &
+                                                      levIndex,stepIndex))
+                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
                   rms = rms + correc*correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) then
