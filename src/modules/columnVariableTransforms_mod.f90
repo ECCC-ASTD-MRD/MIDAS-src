@@ -65,39 +65,6 @@ CONTAINS
       end if
       call czp_calcZandP_ad(columnInc, columnRefOnIncLev_opt)
 
-    case ('PsfcToP_nl')
-      call czp_calcPressure_nl(columnInc)
-
-    case ('PsfcToP_tl')
-      if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
-      end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_T must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P_M must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_tl, variable P0 must be allocated in columnInc')
-      end if
-      call PsfcToP_tl(columnInc,columnRefOnIncLev_opt)
-
-    case ('PsfcToP_ad')
-      if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
-      end if
-      if ( .not. col_varExist(columnInc,'P_T')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_T must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P_M')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P_M must be allocated in columnInc')
-      end if
-      if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('cvt_transform: for PsfcToP_ad, variable P0 must be allocated in columnInc')
-      end if
-      call PsfcToP_ad(columnInc,columnRefOnIncLev_opt)
-
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -105,29 +72,5 @@ CONTAINS
     end select
 
   end subroutine cvt_transform
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_tl
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(columnInc,columnRefOnIncLev)
-    implicit none
-
-    type(struct_columnData)    :: columnInc, columnRefOnIncLev
-
-    call czp_calcPressure_tl(columnInc,columnRefOnIncLev)
-
-  end subroutine PsfcToP_tl
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_ad
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(columnInc,columnRefOnIncLev)
-    implicit none
-
-    type(struct_columnData)    :: columnInc, columnRefOnIncLev
-
-    call czp_calcPressure_ad(columnInc,columnRefOnIncLev)
-
-  end subroutine PsfcToP_ad
 
 end module columnVariableTransforms_mod

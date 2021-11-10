@@ -362,51 +362,6 @@ CONTAINS
       end if
       call ZandP_ad(stateVector)
 
-    case ('PsfcToP_nl')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_nl, the option statevectorOut_opt is not yet available')
-      end if
-      call czp_calcPressure_nl(statevector)
-
-    case ('PsfcToP_tl')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_tl, the option statevectorOut_opt is not yet available')
-      end if
-      call PsfcToP_tl(stateVector)
-
-    case ('PsfcToP_ad')
-      if ( .not. gsv_varExist(statevector,'P_T')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P_T must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P_M')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, variable P0 must be allocated in gridstatevector')
-      end if
-      if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for PsfcToP_ad, the option statevectorOut_opt is not yet available')
-      end if
-      call PsfcToP_ad(stateVector)
-
     case ('expCH_tlm')
       if ( .not. gsv_varKindExist('CH')  ) then
         call utl_abort('gvt_transform: for expCH_tlm, variables of CH kind must be allocated in gridstatevector')
@@ -1400,46 +1355,6 @@ CONTAINS
     call czp_calcZandP_ad(statevector, stateVectorRefHeight)
 
   end subroutine ZandP_ad
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_tl
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_tl(stateVector)
-    ! 
-    ! :Purpose: Tangent linear of pressure levels computation.
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('PsfcToP_tl: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call czp_calcPressure_tl(statevector,stateVectorRefHeight)
-
-  end subroutine PsfcToP_tl
-
-  !--------------------------------------------------------------------------
-  ! PsfcToP_ad
-  !--------------------------------------------------------------------------
-  subroutine PsfcToP_ad(stateVector)
-    ! 
-    ! :Purpose: Adjoint of tangent linear of pressure levels computation.
-    !
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-
-    if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-      call utl_abort('PsfcToP_ad: do trials/stateVectorRef to stateVectorRefHeight transform at higher level')
-    end if
-
-    call czp_calcPressure_ad(statevector,stateVectorRefHeight)
-
-  end subroutine PsfcToP_ad
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv_gsv

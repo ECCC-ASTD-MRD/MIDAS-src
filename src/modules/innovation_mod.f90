@@ -334,7 +334,7 @@ contains
     !- Calculate pressure profiles on analysis increment levels
     !
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      call cvt_transform(columnTrlOnAnlIncLev, 'PsfcToP_nl')
+      call cvt_transform(columnTrlOnAnlIncLev, 'ZandP_nl')
 
       ! Print pressure on thermo levels for the first original and destination column
       if ( mpi_myid == 0 ) then

@@ -43,6 +43,7 @@ module calcHeightAndPressure_mod
 
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
+    module procedure calcZandP_col_nl
   end interface czp_calcZandP_nl
   interface czp_calcZandP_tl
     module procedure calcZandP_gsv_tl
@@ -55,6 +56,7 @@ module calcHeightAndPressure_mod
 
   interface czp_calcHeight_nl
     module procedure calcHeight_gsv_nl
+    module procedure calcZandP_col_nl
   end interface czp_calcHeight_nl
   interface czp_calcHeight_tl
     module procedure calcHeight_gsv_tl
@@ -1901,6 +1903,44 @@ contains
   !---------------------------------------------------------------------
 
   !---------------------------------------------------------
+  ! calcZandP_col_nl
+  !---------------------------------------------------------
+  subroutine calcZandP_col_nl(column, beSilent_opt)
+    !
+    ! :Purpose: compute pressure and height in the column in proper order 
+    !           depending on the vgrid kind
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_*/P_* fields
+    logical, intent(in), optional          :: beSilent_opt
+
+    ! Locals
+    integer   :: Vcode
+
+    Vcode = column%vco%vcode
+    if (Vcode == 5002 .or. Vcode == 5005) then
+      ! if P_T, P_M not allocated : do nothing
+      if (col_varExist(column,'P_*')) then
+        call calcPressure_col_nl(column, beSilent_opt=beSilent_opt)
+        if (col_varExist(column,'Z_*')) then
+          call calcHeight_col_nl(column, beSilent_opt=beSilent_opt)
+        end if
+      end if
+    else if (Vcode == 21001) then
+      ! if Z_T, Z_M not allocated : do nothing
+      if (col_varExist(column,'Z_*')) then
+        call calcHeight_col_nl(column, beSilent_opt=beSilent_opt)
+        if (col_varExist(column,'P_*')) then
+          call calcPressure_col_nl(column, beSilent_opt=beSilent_opt)
+        end if
+      end if
+    end if
+  
+  end subroutine calcZandP_col_nl
+
+  !---------------------------------------------------------
   ! calcZandP_col_tl
   !---------------------------------------------------------
   subroutine calcZandP_col_tl(columnInc, columnIncRef, beSilent_opt)
@@ -1911,7 +1951,7 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
+    type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
     logical, intent(in), optional          :: beSilent_opt
 
@@ -1985,12 +2025,28 @@ contains
   end subroutine calcZandP_col_ad
 
   !---------------------------------------------------------
+  ! calcHeight_col_nl
+  !---------------------------------------------------------
+  subroutine calcHeight_col_nl(column, beSilent_opt)
+    !
+    ! :Purpose: Temperature to geopotential transformation on gridstatevector
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
+    logical, intent(in), optional          :: beSilent_opt
+
+    call utl_abort('calcHeight_col_nl (czp): Not implemented yet - will be in upcoming issue #466')
+
+  end subroutine calcHeight_col_nl
+
+  !---------------------------------------------------------
   ! calcHeight_col_tl
   !---------------------------------------------------------
   subroutine calcHeight_col_tl(columnInc,columnIncRef, beSilent_opt)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
-    !
     !
     implicit none
 

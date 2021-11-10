@@ -581,7 +581,7 @@ CONTAINS
 
        if (oneDVarMode) then
          call var1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
-         call cvt_transform(columnAnlInc_ptr, 'PsfcToP_tl', columnTrlOnAnlIncLev_ptr)
+         call cvt_transform(columnAnlInc_ptr, 'ZandP_tl', columnTrlOnAnlIncLev_ptr)
        else
          if (.not.statevector%allocated) then
            write(*,*) 'min-simvar: allocating increment stateVector'
@@ -663,7 +663,7 @@ CONTAINS
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
 
        if (oneDVarMOde) then
-         call cvt_transform( columnAnlInc_ptr, 'PsfcToP_ad', columnTrlOnAnlIncLev_ptr)      ! IN
+         call cvt_transform( columnAnlInc_ptr, 'ZandP_ad', columnTrlOnAnlIncLev_ptr)      ! IN
          call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
        else
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
