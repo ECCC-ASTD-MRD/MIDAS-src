@@ -56,7 +56,7 @@ module calcHeightAndPressure_mod
 
   interface czp_calcHeight_nl
     module procedure calcHeight_gsv_nl
-    module procedure calcZandP_col_nl
+    module procedure calcHeight_col_nl
   end interface czp_calcHeight_nl
   interface czp_calcHeight_tl
     module procedure calcHeight_gsv_tl
@@ -2037,7 +2037,8 @@ contains
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
     logical, intent(in), optional          :: beSilent_opt
 
-    call utl_abort('calcHeight_col_nl (czp): Not implemented yet - will be in upcoming issue #466')
+    !call utl_abort('calcHeight_col_nl (czp): Not implemented yet - will be in upcoming issue #466')
+    write(*,*) 'calcHeight_col_nl (czp): WARNING: Not implemented yet - will be in upcoming issue #466'
 
   end subroutine calcHeight_col_nl
 
