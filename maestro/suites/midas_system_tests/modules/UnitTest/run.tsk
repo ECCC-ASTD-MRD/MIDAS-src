@@ -4,17 +4,7 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
-if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
-    echo "Nothing special to do for platform ${ORDENV_PLAT"
-elif [[ "${ORDENV_PLAT}" = ubuntu-14.04* ]]; then
-    ## loading OpenMPI 1.6.5 (the binaries must be compiled with too)
-    . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
-    ## those variables are necessary on PPP
-    export OMPI_MCA_orte_tmpdir_base=/run/shm
-    export OMPI_MCA_btl_openib_if_include=mlx5_0
-elif [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
+if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
     module load craype-hugepages16M
     export FOR_DISABLE_KMP_MALLOC=0
