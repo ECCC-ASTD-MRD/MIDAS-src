@@ -205,12 +205,12 @@ CONTAINS
     implicit none
    
     ! Arguments
-    type(struct_gsv), intent(inout)         :: statevector ! statevector operand of the transformation
-    character(len=*), intent(in)            :: transform ! string identifying the requested transformation
-    type(struct_gsv), optional, intent(out) :: statevectorOut_opt
-    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt ! reference statevector necessary for some transformation 
-    logical, optional, intent(in)           :: allowOverWrite_opt 
-    character(len=*), optional, intent(in)  :: varName_opt ! additional variable/type information mandatory for some transformation
+    type(struct_gsv), intent(inout)           :: statevector ! statevector operand of the transformation
+    character(len=*), intent(in)              :: transform ! string identifying the requested transformation
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! reference statevector necessary for some transformation
+    logical, optional, intent(in)             :: allowOverWrite_opt
+    character(len=*), optional, intent(in)    :: varName_opt ! additional variable/type information mandatory for some transformation
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -241,8 +241,8 @@ CONTAINS
       call UVtoVortDiv_gsv(statevector)
 
     case ('VortDivToPsiChi')
-      if (.not. gsv_varExist(statevector,'QR') .or. .not. &
-          gsv_varExist(statevector,'DD') ) then
+      if (.not. gsv_varExist(statevector,'QR') .or. &
+          .not. gsv_varExist(statevector,'DD') ) then
         call utl_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -251,8 +251,8 @@ CONTAINS
       call VortDivToPsiChi_gsv(statevector)
 
     case ('UVtoPsiChi')
-      if (.not. gsv_varExist(statevector,'PP') .or. .not. &
-          gsv_varExist(statevector,'CC') ) then
+      if (.not. gsv_varExist(statevector,'PP') .or. &
+          .not. gsv_varExist(statevector,'CC') ) then
         call utl_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
@@ -337,8 +337,8 @@ CONTAINS
         end if
         call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt)
       else
-        if (.not. gsv_varExist(statevector,'VIS') .or. .not. &
-            gsv_varExist(statevector,'LVIS') ) then
+        if (.not. gsv_varExist(statevector,'VIS') .or. &
+            .not. gsv_varExist(statevector,'LVIS') ) then
           call utl_abort('gvt_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
         end if
         call LVIStoVIS(statevector)
@@ -1034,9 +1034,9 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout)         :: stateVector
-    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
-    logical, optional, intent(in)           :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    logical, optional, intent(in)             :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1239,8 +1239,8 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout)         :: stateVector
-    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1319,9 +1319,9 @@ CONTAINS
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout)         :: stateVector
-    type(struct_gsv), optional, intent(in)  :: statevectorOut_opt
-    logical, optional, intent(in)           :: allowOverWrite_opt
+    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
+    logical, optional, intent(in)             :: allowOverWrite_opt
 
     ! Locals
     integer :: lonIndex,latIndex,levIndex,stepIndex
