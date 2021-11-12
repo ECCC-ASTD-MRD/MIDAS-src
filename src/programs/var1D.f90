@@ -62,7 +62,7 @@ program midas_var1D
   type(struct_hco),       pointer :: hco_trl => null()
   type(struct_vco),       pointer :: vco_trl => null()
 
-  integer :: outerLoopIndex
+  integer :: numOuterLoopIterations
   logical :: allocHeightSfc
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
@@ -167,7 +167,9 @@ program midas_var1D
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupBackgroundColumns
-  call min_setup( cvm_nvadim, hco_anl, oneDVarMode_opt=.true. ) ! IN
+  numOuterLoopIterations = 1
+  call min_setup( cvm_nvadim, hco_anl,                           & ! IN
+                  numOuterLoopIterations, oneDVarMode_opt=.true. ) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var1D: Problem allocating memory for ''controlVectorIncr''',ierr
@@ -187,9 +189,8 @@ program midas_var1D
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
 
   ! Do minimization of cost function
-  outerLoopIndex = 1
   controlVectorIncr(:) = 0.0d0
-  call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+  call min_minimize( numOuterLoopIterations, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                      controlVectorIncr )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
