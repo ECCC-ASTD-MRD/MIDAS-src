@@ -113,12 +113,13 @@ module minimization_mod
 CONTAINS
 
   subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, &
-                        numOuterLoopIterations, oneDVarMode_opt )
+                        numOuterLoopIterations_in, oneDVarMode_opt )
     implicit none
 
     ! Arguments:
     integer, intent(in)                   :: nvadim_mpilocal_in
     type(struct_hco), pointer, intent(in) :: hco_anl_in
+    integer, intent(in)                   :: numOuterLoopIterations_in
     logical, intent(in), optional         :: oneDVarMode_opt
 
     ! Locals:
@@ -130,6 +131,7 @@ CONTAINS
       call utl_abort('min_setup: control vector dimension not consistent')
     endif
 
+    numOuterLoopIterations = numOuterLoopIterations_in
     if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
       call utl_abort('min_setup: numOuterLoopIterations is greater than max value')
     end if
