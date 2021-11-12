@@ -90,10 +90,13 @@ module minimization_mod
   logical :: deallocHessian
   logical :: isMinimizationFinalCall
 
+  integer :: numOuterLoopIterations
+  integer,parameter :: maxNumberOfOuterLoopIterations = 3
+
   ! namelist variables
-  integer,parameter   :: maxNumLevels = 200
   real(8) :: REPSG, rdf1fac
-  integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
+  integer :: NITERMAX(maxNumberOfOuterLoopIterations)
+  integer :: NVAMAJ, NSIMMAX, nwoqcv
   integer :: numAnalyses
   logical :: lxbar, lwrthess, lgrtest, lvazx
   logical :: lvarqc, writeAnalysis
@@ -109,7 +112,8 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt )
+  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, &
+                        numOuterLoopIterations, oneDVarMode_opt )
     implicit none
 
     ! Arguments:
@@ -126,6 +130,10 @@ CONTAINS
       call utl_abort('min_setup: control vector dimension not consistent')
     endif
 
+    if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
+      call utl_abort('min_setup: numOuterLoopIterations is greater than max value')
+    end if
+
     nvadim_mpilocal = nvadim_mpilocal_in
 
     if ( present(oneDVarMode_opt) ) then
@@ -138,7 +146,7 @@ CONTAINS
 
     ! set default values for namelist variables
     nvamaj = 6
-    nitermax = 0
+    nitermax(:) = 0
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
@@ -346,7 +354,7 @@ CONTAINS
 
       iterdone = 0
       isimdone = 0
-      itermax = nitermax
+      itermax = nitermax(outerLoopIndex)
       itermaxtodo = itermax
       isimmax = nsimmax
 
@@ -390,7 +398,7 @@ CONTAINS
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
       ! Begin the minimization
-      if(nitermax.gt.0) then
+      if ( nitermax(outerLoopIndex) > 0 ) then
 
         ! First do iterations without var-QC only at the beginning of first outer-loop.
         if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv .and. outerLoopIndex == 1 ) then
@@ -481,7 +489,7 @@ CONTAINS
         vazx(:) = 0.0d0
         min_niter = 0
 
-      endif ! if nitermax .gt. 0
+      endif ! if nitermax(outerLoopIndex) > 0
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(lvarqc) call vqc_listrej(obsSpaceData)
@@ -498,7 +506,7 @@ CONTAINS
 
     real(8) :: vazx(:)
 
-    if ( nitermax > 0 .and. lwrthess ) then
+    if ( nitermax(numOuterLoopIterations) > 0 .and. lwrthess ) then
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

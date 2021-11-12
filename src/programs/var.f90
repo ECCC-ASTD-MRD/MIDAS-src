@@ -205,7 +205,7 @@ program midas_var
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupColumnsOnTrlLev
-  call min_setup( cvm_nvadim, hco_anl ) ! IN
+  call min_setup( cvm_nvadim, hco_anl, numOuterLoopIterations ) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
