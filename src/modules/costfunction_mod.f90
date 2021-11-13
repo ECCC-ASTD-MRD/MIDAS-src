@@ -39,6 +39,9 @@ module costfunction_mod
 
   public :: cfn_calcJo, cfn_sumJo, cfn_computeNlTovsJo
 
+  integer,           allocatable :: channelNumberList(:,:)
+  character(len=15), allocatable :: sensorNameList(:)
+
 contains
 
   !--------------------------------------------------------------------------
@@ -88,13 +91,33 @@ contains
     real(8) :: pjo ! Total observation cost function
 
     ! Locals:
-    integer :: bodyIndex, itvs, isens, headerIndex, idata, idatend
+    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, idata, idatend, ierr
+    integer :: channelNumber, indexChannelNumberFound, channelIndex
+    integer :: sensorIndexInList, sensorIndexInListFound
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
+    real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
+    real(8) :: joSumMpiGlobal(tvs_maxNumberOfChannels)
+
+    character(len=15) :: lowerCaseName
+
+    logical, save :: ifCalculatePrintJoTovsPerChannelSensor = .false.
 
     call tmg_start(81,'SUMJO')
+
+    if ( .not. allocated(channelNumberList) ) then
+      allocate(channelNumberList(tvs_maxNumberOfChannels,tvs_nsensors))
+    end if
+    if ( .not. allocated(sensorNameList) ) then
+      allocate(sensorNameList(tvs_nsensors))
+    end if
+
+    call readNameList
+    if ( any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0) ) then
+      ifCalculatePrintJoTovsPerChannelSensor = .true.
+    end if
 
     dljogpsztd = 0.d0
     dljoraob = 0.d0
@@ -110,6 +133,7 @@ contains
     dljoaladin = 0.d0
     dljoice = 0.0d0
     dljotov_sensors(:) = 0.d0
+    joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
 
@@ -155,15 +179,42 @@ contains
       end select
     enddo
 
-    do itvs = 1, tvs_nobtov
-      headerIndex = tvs_headerIndex( itvs )
+    do tovsIndex = 1, tvs_nobtov
+      headerIndex = tvs_headerIndex( tovsIndex )
       if ( headerIndex > 0 ) then
-        idata   = obs_headElem_i( lobsSpaceData, OBS_RLN, headerIndex )
-        idatend = obs_headElem_i( lobsSpaceData, OBS_NLV, headerIndex ) + idata - 1
+        idata   = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
+        idatend = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + idata - 1
+        sensorIndex = tvs_lsensor (tovsIndex)
+
+        if ( ifCalculatePrintJoTovsPerChannelSensor ) then
+          sensorIndexInListFound = 0
+          loopSensor1: do sensorIndexInList = 1, tvs_nsensors
+            call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
+
+            if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
+              sensorIndexInListFound = sensorIndexInList
+              exit loopSensor1
+            end if
+
+          end do loopSensor1
+        end if
+
         do bodyIndex = idata, idatend
-          pjo_1 = obs_bodyElem_r( lobsSpaceData, OBS_JOBS, bodyIndex)
-          isens = tvs_lsensor (itvs)
-          dljotov_sensors(isens) =  dljotov_sensors(isens) + pjo_1
+          pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
+          dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
+
+          if ( ifCalculatePrintJoTovsPerChannelSensor .and. &
+               sensorIndexInListFound > 0 ) then
+            channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
+            channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
+            indexChannelNumberFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
+                                                  channelNumber)
+
+            if ( indexChannelNumberFound > 0 ) then
+              joTovsPerChannelSensor(channelNumber,sensorIndex) = joTovsPerChannelSensor(channelNumber,sensorIndex) + pjo_1
+            end if
+          end if
+
         end do
       end if
     end do
@@ -184,9 +235,19 @@ contains
     call mpi_allreduce_sumreal8scalar( dljoice, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
-    do isens = 1, tvs_nsensors
-       call mpi_allreduce_sumreal8scalar( dljotov_sensors(isens), "GRID" )
+    do sensorIndex = 1, tvs_nsensors
+      call mpi_allreduce_sumreal8scalar( dljotov_sensors(sensorIndex), "GRID" )
     end do
+    if ( ifCalculatePrintJoTovsPerChannelSensor ) then
+      loopSensor2: do sensorIndex = 1, tvs_nsensors
+        if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor2
+        joSumMpiGlobal(:) = 0.0d0
+        call rpn_comm_allreduce(joTovsPerChannelSensor(:,sensorIndex), joSumMpiGlobal, &
+                                tvs_maxNumberOfChannels, &
+                                'mpi_integer', 'mpi_sum', 'grid', ierr)
+        joTovsPerChannelSensor(:,sensorIndex) = joSumMpiGlobal(:)
+      end do loopSensor2
+    end if
 
     if ( mpi_myid == 0 ) then
       write(*,'(a15,f25.17)') 'Jo(UA)   = ', dljoraob
@@ -208,12 +269,35 @@ contains
       if ( tvs_nsensors > 0 ) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    Jo'
-        do isens = 1, tvs_nsensors
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens, inst_name(tvs_instruments(isens)), &
-               platform_name(tvs_platforms(isens)), tvs_satellites(isens), dljotov_sensors(isens)
+        do sensorIndex = 1, tvs_nsensors
+          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') sensorIndex, inst_name(tvs_instruments(sensorIndex)), &
+                                                    platform_name(tvs_platforms(sensorIndex)), &
+                                                    tvs_satellites(sensorIndex), &
+                                                    dljotov_sensors(sensorIndex)
         end do
         write(*,*) ' '
       end if
+
+      ! print per channel information
+      if ( tvs_nsensors > 0 .and. ifCalculatePrintJoTovsPerChannelSensor ) then
+        write(*,'(1x,a)') 'For TOVS decomposition by sensor/channel:'
+        write(*,'(1x,a)') '#  ins chan Jo'
+        loopSensor3: do sensorIndex = 1, tvs_nsensors
+        if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor3
+
+          loopChannel: do channelIndex = 1, tvs_maxNumberOfChannels
+            if ( channelNumberList(channelIndex,sensorIndex) == 0 ) cycle loopChannel
+
+            write(*,'(i2,1x,a,1x,i4,1x,f25.17)') sensorIndex, &
+                                                 sensorNameList(sensorIndex), &
+                                                 channelNumberList(channelIndex,sensorIndex), &
+                                                 joTovsPerChannelSensor(channelIndex,sensorIndex)
+          end do loopChannel
+
+        end do loopSensor3
+        write(*,*) ' '
+      end if
+
     end if
 
     call tmg_stop(81)
@@ -348,5 +432,43 @@ contains
 
   end subroutine cfn_computeNlTovsJo
 
+  !--------------------------------------------------------------------------
+  ! readNameList
+  !--------------------------------------------------------------------------
+  subroutine readNameList
+    !
+    ! :Purpose: Reading NAMCFN namelist by any subroutines in costfunction_mod module.
+    !
+    implicit none
+
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+    logical, save :: nmlAlreadyRead = .false.
+    NAMELIST /NAMCFN/ sensorNameList, channelNumberList
+
+    if ( .not. nmlAlreadyRead ) then
+      nmlAlreadyRead = .true.
+
+      !- Setting default values
+      sensorNameList(:) = ''
+      channelNumberList(:,:) = 0
+
+      if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'NAMCFN is missing in the namelist. The default values will be taken.'
+        end if
+
+      else
+        ! Reading the namelist
+        nulnam = 0
+        ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+        read(nulnam, nml=namcfn, iostat=ierr)
+        if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
+        ierr = fclos(nulnam)
+      end if
+      if ( mpi_myid == 0 ) write(*,nml=namcfn)
+    end if
+
+  end subroutine readNameList
 
 end module costfunction_mod
