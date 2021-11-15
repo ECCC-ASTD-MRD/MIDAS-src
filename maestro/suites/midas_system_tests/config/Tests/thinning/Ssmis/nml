@@ -1,6 +1,6 @@
  &THIN_TOVS
-   delta   = 100
-   deltrad = 150
+   delta   = 150
+   deltrad = 45
 /
  &NAMTIME
   DSTEPOBS = 0.25D0
@@ -279,8 +279,8 @@
   BBITOFF(3)=5,
   BBITOFF(4)=-5,
   BBITOFF(5)=-8,
-  NELEMS=2
-  BLISTELEMENTS=12163,20081
+  NELEMS=1
+  BLISTELEMENTS=12163
 /
  &NAMBURP_UPDATE
   BN_ITEMS=0,
