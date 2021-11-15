@@ -92,7 +92,7 @@ contains
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, idata, idatend, ierr
-    integer :: channelNumber, indexChannelNumberFound, channelIndex
+    integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
@@ -104,6 +104,7 @@ contains
     character(len=15) :: lowerCaseName
 
     logical, save :: ifCalculatePrintJoTovsPerChannelSensor = .false.
+    logical :: isFirstSimvarCall = .true.
 
     call tmg_start(81,'SUMJO')
 
@@ -207,12 +208,30 @@ contains
                sensorIndexInListFound > 0 ) then
             channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
-            indexChannelNumberFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
-                                                  channelNumber)
+            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+            channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
+                                                        channelNumber)
 
-            if ( indexChannelNumberFound > 0 ) then
-              joTovsPerChannelSensor(channelNumber,sensorIndex) = joTovsPerChannelSensor(channelNumber,sensorIndex) + pjo_1
+            if ( channelNumberIndexInListFound > 0 ) then
+              joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) = &
+                                        joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
+                                        pjo_1
             end if
+
+if ( isFirstSimvarCall .and. channelNumberIndexInListFound > 0 .and. mpi_myid == 0 .and. pjo_1 > 0.0d0 ) then
+  write(*,*) 'maziar: channelNumber=', channelNumber
+  write(*,*) 'maziar: channelNumberIndexInListFound=',channelNumberIndexInListFound
+
+  write(*,*) 'maziar: sensorIndex=', sensorIndex
+  write(*,*) 'maziar: sensorIndexInListFound=' , sensorIndexInListFound
+  write(*,*) 'maziar: inst_name(tvs_instruments(sensorIndex))=', inst_name(tvs_instruments(sensorIndex))
+
+  write(*,*) 'maziar: sensorNameList(sensorIndexInList)=',sensorNameList(sensorIndexInList)
+  write(*,*) 'maziar: channelNumberList(:,sensorIndexInListFound)=',channelNumberList(:,sensorIndexInListFound)
+  write(*,*) 'maziar: pjo_1=',pjo_1
+  write(*,*) 'maziar: JO=',joTovsPerChannelSensor(channelNumber,sensorIndexInListFound)
+  write(*,*)
+end if
           end if
 
         end do
@@ -244,8 +263,14 @@ contains
         joSumMpiGlobal(:) = 0.0d0
         call rpn_comm_allreduce(joTovsPerChannelSensor(:,sensorIndex), joSumMpiGlobal, &
                                 tvs_maxNumberOfChannels, &
-                                'mpi_integer', 'mpi_sum', 'grid', ierr)
+                                'mpi_double_precision', 'mpi_sum', 'grid', ierr)
         joTovsPerChannelSensor(:,sensorIndex) = joSumMpiGlobal(:)
+
+if ( isFirstSimvarCall .and. mpi_myid == 0 ) then
+  write(*,*) 'maziar: sensorIndex=', sensorIndex
+  write(*,*) 'maziar: sensorNameList(sensorIndex)=',sensorNameList(sensorIndex)
+  write(*,*) 'maziar: joTovsPerChannelSensor(:,sensorIndex)=', joTovsPerChannelSensor(:,sensorIndex)
+end if
       end do loopSensor2
     end if
 
@@ -299,6 +324,8 @@ contains
       end if
 
     end if
+
+    isFirstSimvarCall = .false.
 
     call tmg_stop(81)
 
