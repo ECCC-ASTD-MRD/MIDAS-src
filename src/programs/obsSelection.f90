@@ -43,6 +43,7 @@ program midas_obsSelection
   use bgckmicrowave_mod
   use bgckssmis_mod
   use bgckcsr_mod
+  
   implicit none
 
   integer :: datestamp, headerIndex, ierr, nulnam
@@ -116,15 +117,15 @@ program midas_obsSelection
   !
   !- Initialize the Analysis grid
   !
-  if(mpi_myid.eq.0) write(*,*)
-  if(mpi_myid.eq.0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
+  if( mpi_myid == 0 ) write(*,*)
+  if( mpi_myid == 0 ) write(*,*) 'var_setup: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for core grid'
+    if( mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -201,7 +202,7 @@ program midas_obsSelection
   !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
 
   ! Do the conventional data background check
-  call bgck_bgcheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
+  call bgck_bgCheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
 
   if (obs_famExist(obsSpaceData,'TO')) then
 
