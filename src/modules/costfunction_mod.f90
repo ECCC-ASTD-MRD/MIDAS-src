@@ -104,7 +104,6 @@ contains
     character(len=15) :: lowerCaseName
 
     logical, save :: ifCalculatePrintJoTovsPerChannelSensor = .false.
-    logical :: isFirstSimvarCall = .true.
 
     call tmg_start(81,'SUMJO')
 
@@ -218,25 +217,6 @@ contains
                                         pjo_1
             end if
 
-if ( isFirstSimvarCall .and. channelNumberIndexInListFound > 0 .and. mpi_myid == 0 .and. pjo_1 > 0.0d0 ) then
-  write(*,*) 'maziar: channelNumber=', channelNumber
-  write(*,*) 'maziar: channelNumberIndexInListFound=',channelNumberIndexInListFound
-
-  write(*,*) 'maziar: sensorIndex=', sensorIndex
-  write(*,*) 'maziar: sensorIndexInListFound=' , sensorIndexInListFound
-  write(*,*) 'maziar: inst_name(tvs_instruments(sensorIndex))=', inst_name(tvs_instruments(sensorIndex))
-
-  write(*,*) 'maziar: sensorNameList(sensorIndexInList)=',sensorNameList(sensorIndexInList)
-  write(*,*) 'maziar: channelNumberList(:,sensorIndexInListFound)='
-  do channelIndex = 1, tvs_maxNumberOfChannels
-    if ( channelNumberList(channelIndex,sensorIndex) /= 0 ) then
-      write(*,'(i8)',advance='no') channelNumberList(channelIndex,sensorIndexInListFound)
-    end if
-  end do
-  write(*,*) 'maziar: pjo_1=',pjo_1
-  write(*,*) 'maziar: JO=',joTovsPerChannelSensor(channelNumber,sensorIndexInListFound)
-  write(*,*)
-end if
           end if
 
         end do
@@ -271,16 +251,6 @@ end if
                                 'mpi_double_precision', 'mpi_sum', 'grid', ierr)
         joTovsPerChannelSensor(:,sensorIndex) = joSumMpiGlobal(:)
 
-if ( isFirstSimvarCall .and. mpi_myid == 0 ) then
-  write(*,*) 'maziar: sensorIndex=', sensorIndex
-  write(*,*) 'maziar: sensorNameList(sensorIndex)=',sensorNameList(sensorIndex)
-  write(*,*) 'maziar: joTovsPerChannelSensor(:,sensorIndex)='
-  do channelIndex = 1, tvs_maxNumberOfChannels
-    if ( channelNumberList(channelIndex,sensorIndex) /= 0 ) then
-      write(*,'(f25.17)', advance='no') joTovsPerChannelSensor(channelIndex,sensorIndex)
-    end if
-  end do
-end if
       end do loopSensor2
     end if
 
@@ -316,7 +286,7 @@ end if
       ! print per channel information
       if ( tvs_nsensors > 0 .and. ifCalculatePrintJoTovsPerChannelSensor ) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor/channel:'
-        write(*,'(1x,a)') '#  ins chan Jo'
+        write(*,'(1x,a)') 'index  sensorName  channel  Jo'
         loopSensor3: do sensorIndex = 1, tvs_nsensors
         if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor3
 
@@ -334,8 +304,6 @@ end if
       end if
 
     end if
-
-    isFirstSimvarCall = .false.
 
     call tmg_stop(81)
 
