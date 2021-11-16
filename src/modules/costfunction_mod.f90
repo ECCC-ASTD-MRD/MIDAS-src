@@ -227,7 +227,12 @@ if ( isFirstSimvarCall .and. channelNumberIndexInListFound > 0 .and. mpi_myid ==
   write(*,*) 'maziar: inst_name(tvs_instruments(sensorIndex))=', inst_name(tvs_instruments(sensorIndex))
 
   write(*,*) 'maziar: sensorNameList(sensorIndexInList)=',sensorNameList(sensorIndexInList)
-  write(*,*) 'maziar: channelNumberList(:,sensorIndexInListFound)=',channelNumberList(:,sensorIndexInListFound)
+  write(*,*) 'maziar: channelNumberList(:,sensorIndexInListFound)='
+  do channelIndex = 1, tvs_maxNumberOfChannels
+    if ( channelNumberList(channelIndex,sensorIndex) /= 0 ) then
+      write(*,'(i8)',advance='no') channelNumberList(channelIndex,sensorIndexInListFound)
+    end if
+  end do
   write(*,*) 'maziar: pjo_1=',pjo_1
   write(*,*) 'maziar: JO=',joTovsPerChannelSensor(channelNumber,sensorIndexInListFound)
   write(*,*)
@@ -269,7 +274,12 @@ end if
 if ( isFirstSimvarCall .and. mpi_myid == 0 ) then
   write(*,*) 'maziar: sensorIndex=', sensorIndex
   write(*,*) 'maziar: sensorNameList(sensorIndex)=',sensorNameList(sensorIndex)
-  write(*,*) 'maziar: joTovsPerChannelSensor(:,sensorIndex)=', joTovsPerChannelSensor(:,sensorIndex)
+  write(*,*) 'maziar: joTovsPerChannelSensor(:,sensorIndex)='
+  do channelIndex = 1, tvs_maxNumberOfChannels
+    if ( channelNumberList(channelIndex,sensorIndex) /= 0 ) then
+      write(*,'(f25.17)', advance='no') joTovsPerChannelSensor(channelIndex,sensorIndex)
+    end if
+  end do
 end if
       end do loopSensor2
     end if
@@ -492,10 +502,102 @@ end if
         read(nulnam, nml=namcfn, iostat=ierr)
         if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
         ierr = fclos(nulnam)
+
+        call sortChannelNumbersInNml
       end if
       if ( mpi_myid == 0 ) write(*,nml=namcfn)
     end if
 
   end subroutine readNameList
+
+  !--------------------------------------------------------------------------
+  ! sortChannelNumbersInNml
+  !--------------------------------------------------------------------------
+  subroutine sortChannelNumbersInNml
+    !
+    !:Purpose: Sort channelNumbers in NAMCFN namelist. This involves removing
+    !          the duplicates and combine channelNumbers of same sensor
+    !          prescribed on different lines.
+    !
+    implicit none
+
+    ! Arguments:
+
+    ! Locals:
+    integer :: channelNumber, channelNumberIndexInListFound, channelIndex
+    integer :: channelIndex1, channelIndex2
+    integer :: sensorIndexInList, sensorIndexInList1, sensorIndexInList2
+
+    character(len=15) :: sensorName1LowerCase, sensorName2LowerCase
+
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'sortChannelNumbersInNml: START'
+    end if
+
+    ! set duplicate channelNumber for each sensor to zero
+    loopSensor3: do sensorIndexInList = 1, tvs_nsensors
+      if ( trim(sensorNameList(sensorIndexInList)) == '' ) cycle loopSensor3
+
+      loopChannel2: do channelIndex = tvs_maxNumberOfChannels, 2, -1
+        if ( channelNumberList(channelIndex,sensorIndexInList) == 0 ) cycle loopChannel2
+
+        if ( any(channelNumberList(1:channelIndex-1,sensorIndexInList) == &
+                 channelNumberList(channelIndex    ,sensorIndexInList)) ) then
+          channelNumberList(channelIndex,sensorIndexInList) = 0
+        end if
+      end do loopChannel2
+    end do loopSensor3
+
+    ! remove later duplicates of sensor/channel pairs
+    loopSensor4: do sensorIndexInList1 = 1, tvs_nsensors-1
+      if ( trim(sensorNameList(sensorIndexInList1)) == '' ) cycle loopSensor4
+
+      call up2low(sensorNameList(sensorIndexInList1),sensorName1LowerCase)
+
+      loopSensor5: do sensorIndexInList2 = sensorIndexInList1+1, tvs_nsensors
+        if ( trim(sensorNameList(sensorIndexInList2)) == '' ) cycle loopSensor5
+
+        call up2low(sensorNameList(sensorIndexInList2),sensorName2LowerCase)
+
+        if ( trim(sensorName2LowerCase) == trim(sensorName1LowerCase) ) then
+          loopChannel3: do channelIndex2 = 1, tvs_maxNumberOfChannels
+            if ( channelNumberList(channelIndex2,sensorIndexInList2) == 0 ) cycle loopChannel3
+
+            if ( any(channelNumberList(:           ,sensorIndexInList1) == &
+                     channelNumberList(channelIndex2,sensorIndexInList2)) ) then
+              ! set second occurance of channelNumber to zero
+              channelNumberList(channelIndex2,sensorIndexInList2) = 0
+            else
+
+              ! replace the first zero channelNumber of first sensor with new non-zero channelNumber
+              do channelIndex1 = 1, tvs_maxNumberOfChannels
+                if ( channelNumberList(channelIndex1,sensorIndexInList1) == 0 ) then
+                  channelNumberList(channelIndex1,sensorIndexInList1) = &
+                        channelNumberList(channelIndex2,sensorIndexInList2)
+                  channelNumberList(channelIndex2,sensorIndexInList2) = 0
+                  exit
+                end if
+              end do
+
+            end if
+
+          end do loopChannel3
+        end if
+      end do loopSensor5
+    end do loopSensor4
+
+    ! if all entries for a sensor are zero, remove the sensor from namelist.
+    ! otherwise sort in ascending order
+    loopSensor6: do sensorIndexInList = 1, tvs_nsensors
+      if ( trim(sensorNameList(sensorIndexInList)) == '' ) cycle loopSensor6
+
+      if ( all(channelNumberList(:,sensorIndexInList) == 0) ) then
+        sensorNameList(sensorIndexInList) = ''
+      else
+        call isort(channelNumberList(:,sensorIndexInList),tvs_maxNumberOfChannels)
+      end if
+    end do loopSensor6
+
+  end subroutine sortChannelNumbersInNml
 
 end module costfunction_mod
