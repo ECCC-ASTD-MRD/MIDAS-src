@@ -12,8 +12,6 @@ echo
 echo "Will now generate src_files for the following list of programs:"
 echo "    $programlist "
 echo
-read -p "Press ENTER to continue"
-echo
 
 # switch to the main source directory
 ORIG_PWD=$PWD

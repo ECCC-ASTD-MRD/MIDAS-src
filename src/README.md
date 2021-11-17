@@ -10,6 +10,25 @@ change in the [environment variable naming convention](#new-environment-variable
 
 Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), we provide a fully automated build wrapper script that should be used in most use cases: **`midas_build`**.  It builds MIDAS executables on both front and backend using multicore compilation and does some error checking.
 
+## Before submitting a merge request
+
+Although this compilation solution is expected to produce equivalent binaries 
+as the official `compile_*.sh` scripts described in the 
+[main README.md](../README.md#compiling-a-single-program), it is still 
+**mandatory** to test the compilation using `compile_all_plat.sh` 
+**prior to submitting a merge request**.
+This implies that, if your contribution modifies dependencies or adds a
+new program, you have to modify the content of `src/programs/src_files`.
+The `src_files` files can be automatically updated by running the script 
+`make_src_files.sh` that is located in the same directory as the main programs.
+Running the script without argument defaults to running it sequentially for all 
+programs, but that can be too long for the PPPs and it often gets killed.
+As a workaround, one can either launch it only for the modified (or new) 
+programs or launch it in parallel for all programs, from `src/programs/`:
+```sh
+for pgm in $(ls *.f90); do ./make_src_files.sh $pgm & done
+```
+
 ### Configuring the compilation and linking process
 
 The compilation and linking is configured through some environment variables.
