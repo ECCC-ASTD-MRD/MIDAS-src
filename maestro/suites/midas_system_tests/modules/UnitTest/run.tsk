@@ -29,7 +29,8 @@ fi
 for __envvar__ in ${UnitTest_run_environment_variables}; do
     echo export ${__envvar__} >> load_env.sh
 done
-unset __envvar__
+
+echo ulimit -c unlimited >> load_env.sh
 
 cat << EOF > ptopo_nml
  &ptopo
@@ -42,23 +43,23 @@ if [ "${UnitTest_run_debug}" = ddt ]; then
     cat > run.sh <<EOF
 #!/bin/bash
 
-$(which ddt-client) --ddtsessionfile $HOME/.allinea/session/${HOSTNAME}-[0-9]* ./pgm
+$(which ddt-client) --ddtsessionfile $HOME/.allinea/session/${HOSTNAME}-[0-9]* \${RUN_PGM}
 EOF
-    RUN_PGM=./run.sh
+    chmod +x run.sh
+    LAUNCH_CMD=./run.sh
 elif [ "${UnitTest_run_debug}" = gdb ]; then
     cat > run.sh <<EOF
 #!/bin/bash
-gdb -ex run -ex where ./pgm
+gdb -ex run -ex where \${RUN_PGM}
 EOF
-    RUN_PGM=./run.sh
+    chmod +x run.sh
+    LAUNCH_CMD=./run.sh
 elif [ "${UnitTest_run_debug}" = no ]; then
-    RUN_PGM=./pgm
+    LAUNCH_CMD="\${RUN_PGM}"
 else
     echo "The value of 'UnitTest_run_debug=${UnitTest_run_debug}' is not 'ddt', 'gdb' or 'no' so we will use 'no'."
-    RUN_PGM=./pgm
+    LAUNCH_CMD="\${RUN_PGM}"
 fi
-
-[ ! -x "${RUN_PGM}" ] && chmod u+x ${RUN_PGM}
 
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
@@ -66,16 +67,15 @@ ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
 if [ -L ${TASK_BIN}/mpiscript ]; then
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
-    cmd=./mpiscript
-    export RUN_PGM
-else
-    cmd=${RUN_PGM}
+    LAUNCH_CMD=./mpiscript
 fi
-
-echo ulimit -c unlimited >> load_env.sh
 
 cat > launch_program.sh <<EOF
 #!/bin/bash
+
+run_pgm=\${1:?'You must provide a program to launch'}
+
+export RUN_PGM=\${run_pgm}
 
 [ ! -d obs ] && mkdir obs
 echo "Copy of observations starts at \$(date +%Y%m%d:%H:%M:%S.%N)"
@@ -83,10 +83,12 @@ echo "Copy of observations starts at \$(date +%Y%m%d:%H:%M:%S.%N)"
 /bin/cp sqlfiles_*/obs*_*_* ./obs || true
 /bin/cp obsfiles_*/obs*_*_* ./obs || true
 
+[ -d mpitmpdir ] && rm -r mpitmpdir
+
 echo "Launching ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
@@ -96,7 +98,7 @@ chmod +x launch_program.sh
 
 . ./load_env.sh
 
-./launch_program.sh
+./launch_program.sh ./pgm
 
 ## If we will not check the runtime, then issue the message now
 if [ -z "${UnitTest_maximum_execution_time}" ]; then
