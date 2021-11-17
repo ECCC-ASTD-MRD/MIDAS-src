@@ -73,23 +73,30 @@ else
 fi
 
 echo ulimit -c unlimited >> load_env.sh
-echo "RUN_IN_PARALLEL_CMD='$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}'" >> load_env.sh
+
+cat > launch_program.sh <<EOF
+#!/bin/bash
 
 [ ! -d obs ] && mkdir obs
-echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
+echo "Copy of observations starts at \$(date +%Y%m%d:%H:%M:%S.%N)"
 /bin/cp burpfiles_*/brp*_*_* ./obs || true
 /bin/cp sqlfiles_*/obs*_*_* ./obs || true
 /bin/cp obsfiles_*/obs*_*_* ./obs || true
 
-. ./load_env.sh
-
-echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
+echo "Launching ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
-${RUN_IN_PARALLEL_CMD}
-RUNTIME=${SECONDS}
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+RUNTIME=\${SECONDS}
 
-echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
+echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+
+EOF
+chmod +x launch_program.sh
+
+. ./load_env.sh
+
+./launch_program.sh
 
 ## If we will not check the runtime, then issue the message now
 if [ -z "${UnitTest_maximum_execution_time}" ]; then
@@ -110,6 +117,7 @@ done
 
 ## remove other files created by the execution
 rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
+rm -f load_env.sh launch_program.sh
 rm -r mpitmpdir
 [ -d obs ] && rm -r obs
 [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
