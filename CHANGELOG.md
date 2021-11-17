@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Changed the merge template to better guide the user when he/she is
+   updating the [`CHANGELOG`](CHANGELOG.md) (#539 and !513)
+   * A token must be included to show the impact on the results
  * Add error checks for BURP library calls in burpread_mod.f90 (#526 and !512)
  * Satellite SST data bias correction is added to `SSTbias` program (#494 and !511) 
  * SST bias estimation program (#461 and !502)
