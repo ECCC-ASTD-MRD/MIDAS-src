@@ -4,26 +4,30 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
+cat >> load_env.sh <<EOF
+export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
+EOF
+
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
-    module load craype-hugepages16M
-    export FOR_DISABLE_KMP_MALLOC=0
+    echo module load craype-hugepages16M >> load_env.sh
+    echo export FOR_DISABLE_KMP_MALLOC=0 >> load_env.sh
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
-    . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
-    . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
-    . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+    cat >> load_env.sh <<EOF
+. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+. ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+. ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+EOF
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
 
-export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
-export TMG_ON=YES
-export OMP_STACKSIZE=4G
-
 for __envvar__ in ${UnitTest_run_environment_variables}; do
-    eval "export ${__envvar__}"
+    echo export ${__envvar__} >> load_env.sh
 done
 unset __envvar__
 
@@ -35,17 +39,12 @@ cat << EOF > ptopo_nml
 EOF
 
 if [ "${UnitTest_run_debug}" = ddt ]; then
-    if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
-        run_in_parallel_extra_args=-ddt
-        RUN_PGM=./pgm
-    else
-        cat > run.sh <<EOF
+    cat > run.sh <<EOF
 #!/bin/bash
 
 $(which ddt-client) --ddtsessionfile $HOME/.allinea/session/${HOSTNAME}-[0-9]* ./pgm
 EOF
-        RUN_PGM=./run.sh
-    fi
+    RUN_PGM=./run.sh
 elif [ "${UnitTest_run_debug}" = gdb ]; then
     cat > run.sh <<EOF
 #!/bin/bash
@@ -60,7 +59,6 @@ else
 fi
 
 [ ! -x "${RUN_PGM}" ] && chmod u+x ${RUN_PGM}
-ulimit -c unlimited
 
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
@@ -74,16 +72,21 @@ else
     cmd=${RUN_PGM}
 fi
 
+echo ulimit -c unlimited >> load_env.sh
+echo "RUN_IN_PARALLEL_CMD='$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}'" >> load_env.sh
+
 [ ! -d obs ] && mkdir obs
 echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
 /bin/cp burpfiles_*/brp*_*_* ./obs || true
 /bin/cp sqlfiles_*/obs*_*_* ./obs || true
 /bin/cp obsfiles_*/obs*_*_* ./obs || true
 
+. ./load_env.sh
+
 echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
-${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+${RUN_IN_PARALLEL_CMD}
 RUNTIME=${SECONDS}
 
 echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
