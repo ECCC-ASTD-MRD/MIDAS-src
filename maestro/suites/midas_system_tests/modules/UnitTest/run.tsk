@@ -163,6 +163,12 @@ if [ -n "${UnitTest_maximum_execution_time}" ]; then
     fi
 fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
 
+if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use ${MIDAS_SRC_CODE}/maestro/suites/midas_system_tests/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
+    SEQ_XFER=stop
+fi
+
 if [ "${UnitTest_run_relaunch}" = run ]; then
     SEQ_XFER=stop
     maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
