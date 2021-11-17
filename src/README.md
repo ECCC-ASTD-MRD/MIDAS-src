@@ -13,18 +13,18 @@ Although the present build strategy is based on [GNU make](https://www.gnu.org/s
 ## Before submitting a merge request
 
 Although this compilation solution is expected to produce equivalent binaries 
-than the official `compile_*.sh` scripts described in the 
+as the official `compile_*.sh` scripts described in the 
 [main README.md](../README.md#compiling-a-single-program), it is still 
 **mandatory** to test the compilation using `compile_all_plat.sh` 
 **prior to submitting a merge request**.
-This imply for instance that if your contribution modify dependencies or add a
+This implies that, if your contribution modifies dependencies or adds a
 new program, you have to modify the content of `src/programs/src_files`.
-The `src_files`  files can be automatically updated by running the script 
+The `src_files` files can be automatically updated by running the script 
 `make_src_files.sh` that is located in the same directory as the main programs.
-Running the script without argument default to running it sequencially for all 
+Running the script without argument defaults to running it sequentially for all 
 programs, but that can be too long for the PPPs and it often gets killed.
 As a workaround, one can either launch it only for the modified (or new) 
-programs or launch it in parallel for every programs, from `src/programs/`:
+programs or launch it in parallel for all programs, from `src/programs/`:
 ```sh
 for pgm in $(ls *.f90); do ./make_src_files.sh $pgm & done
 ```
