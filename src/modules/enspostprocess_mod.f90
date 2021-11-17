@@ -73,10 +73,10 @@ contains
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
-    type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
+    type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanAnlRaw, stateVectorMeanTrl
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorAnalIncMask
-    type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
+    type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlRaw, stateVectorStdDevAnlPert, stateVectorStdDevTrl
     type(struct_gsv)          :: stateVectorMeanIncSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSfcPres
@@ -111,18 +111,20 @@ contains
     logical  :: useOptionTableRecenter ! use values in the optiontable file
     character(len=8)  :: etiket_anl, etiket_inc, etiket_trl ! etikets for ensemble output files (must limit to 8 characters because the member number will be appended
     character(len=12) :: etiket_anlmean, etiket_anlrms      ! etikets for mean and rms of analyses and mean of increments files
+    character(len=12) :: etiket_anlmean_raw, etiket_anlrms_raw ! etikets for mean and rms of raw analyses
     character(len=12) :: etiket_anlmeanpert, etiket_anlrmspert ! etikets for mean and rms of perturbed analyses
     character(len=12) :: etiket_trlmean, etiket_trlrms      ! etikets for mean and rms of trials
     integer  :: numBits ! number of bits when writing ensemble mean and spread
     logical  :: useAnalIncMask         ! mask out the increment on the pilot zone
+    logical  :: writeRawAnalStats    ! write mean and standard deviation of the raw analysis ensemble
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,   &
                                    weightRecenter, weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
-                                   etiket_anlmeanpert, etiket_anlrmspert, etiket_trlmean, etiket_trlrms, &
-                                   numBits, useAnalIncMask
+                                   etiket_anlmeanpert, etiket_anlrmspert, etiket_anlmean_raw, etiket_anlrms_raw,    &
+                                   etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask, writeRawAnalStats
 
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
@@ -171,10 +173,14 @@ contains
     etiket_anlrms = 'E27_0_0PRMS'  ! for file '${analdate}_000_analrms'
     etiket_anlmeanpert = 'E27_0_0PAVGP'  ! for file '${analdate}_000_analpertmean'
     etiket_anlrmspert = 'E27_0_0PRMSP'  ! for file '${analdate}_000_analpertrms'
+    etiket_anlmean_raw = 'E27_0_0PAVGR'  ! for file '${analdate}_000_analmean_raw'
+    etiket_anlrms_raw = 'E27_0_0PRMSR'  ! for file '${analdate}_000_analrms_raw'
     etiket_trlmean = 'E27_0_0PAVG' ! for file '${trialdate}_006_trialmean'
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
+    !
     numBits = 16
-    useAnalIncMask        = .false.
+    useAnalIncMask = .false.
+    writeRawAnalStats = .false.
 
     !- Read the namelist
     nulnam = 0
@@ -199,6 +205,12 @@ contains
     if (writeSubSampleUnPert) then
       if (.not.ens_allocated(ensembleAnl)) then
         call utl_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
+      end if
+    end if
+
+    if (writeRawAnalStats) then
+      if (.not.ens_allocated(ensembleAnl)) then
+        call utl_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
       end if
     end if
 
@@ -242,6 +254,21 @@ contains
       call gsv_zero(stateVectorStdDevAnl)
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+
+      !- Keep the mean and standard deviation of the raw analysis for outputs, if requested
+      if (writeRawAnalStats) then
+        call gsv_allocate( stateVectorMeanAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt = hInterpolationDegree, &
+                           allocHeight_opt=.false., allocPressure_opt=.false. )
+        call gsv_allocate( stateVectorStdDevAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           hInterpolateDegree_opt = hInterpolationDegree, &
+                           dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlRaw)
+        call gsv_copy(stateVectorStdDevAnl, stateVectorStdDevAnlRaw)
+      end if
 
       if (ens_allocated(ensembleTrl)) then
         !- Apply RTPP, if requested
@@ -640,6 +667,26 @@ contains
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
+
+      ! output analmean_raw and analrms_raw, if requested
+      if (writeRawAnalStats) then
+        call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
+        outFileName = trim(outFileName) // '_analmean_raw'
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnlRaw)
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
+                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
+                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+        end do
+        call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
+        outFileName = trim(outFileName) // '_analrms_raw'
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
+        call gsv_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
+                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
+                             stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+        outFileName = trim(outFileName) // '_ascii'
+        call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
+      end if  ! writeRawAnalStats
 
       if (alphaRandomPert > 0.0D0) then
         ! output analpertmean, analpertrms
