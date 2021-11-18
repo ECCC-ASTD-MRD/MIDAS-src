@@ -172,7 +172,7 @@ to prepare the working directory for interactive debugging.
 
 After setting this, launch the `/${pathToTest}/UnitTest/run` task
 itself and look at the log messages.  You will see something like
-this:
+this (if `pathToTest=Tests/thinning/IASI`):
 ```
 We stop here to let you continue to work interactively
 You can use ${HOME}/.suites/midas-493/modules/UnitTest/scripts/launch_interactive.sh -exp ${HOME}/.suites/midas-493 -node /Tests/thinning/IASI/UnitTest/run -date 2021111700
