@@ -130,6 +130,6 @@ Now you can log in the interactive job ${jobid} with
    sshj -j ${jobid}
    cd ${working_directory}
    . ./load_env.sh
-   ./launch_programs.sh \${path_to_program}
+   ./launch_program.sh \${path_to_program}
 
 EOF
