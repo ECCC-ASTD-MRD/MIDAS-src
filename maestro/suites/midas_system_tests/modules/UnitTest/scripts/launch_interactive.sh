@@ -37,13 +37,9 @@ if [ "${#date}" -lt "${date_number_of_characters}" ]; then
     date=${date}${padding}
 fi
 
-toplevel=$(cd $(readlink -f ${exp}); git rev-parse --show-toplevel)
 
 host=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.machine=' | cut -d= -f2)
-
 working_directory=${exp}/hub/${host}/work/${date}/${node}/work
-
-resource=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.resourcepath=' | cut -d= -f2 | sed 's|^${SEQ_EXP_HOME}|'"${exp}|")
 
 extract_from_XML() {
     set -e
@@ -59,27 +55,24 @@ extract_from_XML() {
     xmllint --xpath "string(/NODE_RESOURCES/BATCH/@${property})" ${xmlfile}
 }
 
+resource=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.resourcepath=' | cut -d= -f2 | sed 's|^${SEQ_EXP_HOME}|'"${exp}|")
+
+
 cpus=$(extract_from_XML cpu ${resource})
-mpi=$(extract_from_XML mpi ${resource})
-if [ "${mpi}" = 1 ]; then
+isMPI=$(extract_from_XML mpi ${resource})
+soumet_args=$(extract_from_XML soumet_args ${resource})
+memory=$(extract_from_XML memory ${resource})
+
+if [ "${isMPI}" = 1 ]; then
     mpi='-mpi'
 else
     mpi=
 fi
-soumet_args=$(extract_from_XML soumet_args ${resource})
-memory=$(extract_from_XML memory ${resource})
 
 #echo cpus=${cpus}
 #echo mpi=${mpi}
 #echo memory=${memory}
 #echo soumet_args=${soumet_args}
-
-cat > sleep_forever.sh <<EOF
-#!/bin/bash
-
-sleep $((360*60))
-
-EOF
 
 unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|')
 jobname=MIDAS.${unittestname}
@@ -87,19 +80,31 @@ jobname=MIDAS.${unittestname}
 #echo unittestname=${unittestname}
 #echo jobname=${jobname}
 
+sleep_job=${TMPDIR}/sleep_forever.sh
+if [ -f "${sleep_job}" ]; then
+    echo "The file ${sleep_job} exists"
+    echo "Erase it or move it if you want to keep it"
+    exit 1
+fi
+
+cat > ${sleep_job} <<EOF
+#!/bin/bash
+
+sleep $((360*60))
+
+EOF
+
 echo
 echo "Submitting job ${jobname} on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
 echo
 
-jobid=$(ord_soumet sleep_foreever.sh -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
+jobid=$(ord_soumet ${sleep_job} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
+rm ${sleep_job}
 
 wait_for_job () {
     set -e
 
     while true; do
-        echo
-        echo "Waiting job ${jobid} on ${host} to start ..."
-        echo
         jobstate=$(jobst -j ${jobid} -f | grep '^job_state=' | cut -d= -f2)
         if [ "${jobstate}" = R ]; then
             echo "Job ${jobid} just started"
@@ -109,14 +114,20 @@ wait_for_job () {
             echo "Did not find the job in the queue"
             exit 1
         fi
+        echo
+        echo "Waiting job ${jobid} on ${host} to start ..."
+        echo
         sleep 2
     done
 }
 
 wait_for_job
 
-echo "Now you can log in the interactive job ${jobid} with"
-echo "   sshj -j ${jobid}"
-echo "   cd ${working_directory}"
-echo "   . ./load_env.sh"
-echo "   ./launch_programs.sh ${path_to_program}"
+cat <<EOF
+Now you can log in the interactive job ${jobid} with
+   sshj -j ${jobid}
+   cd ${working_directory}
+   . ./load_env.sh
+   ./launch_programs.sh \${path_to_program}
+
+EOF
