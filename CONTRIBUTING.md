@@ -16,10 +16,15 @@
    - that button will create automatically a new branch at the same point as the `master` branch
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
 . setcentraldepot.dot unset  ## needed only if 'setcentraldepot.dot' has already been called
 clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
+
+For this to work, you need to create a file `~/.gitlab-private-token`
+like explained in the [Git documentation (see section "Interaction
+avec GitLab en utilisant des
+scripts")](https://wiki.cmc.ec.gc.ca/wiki/Git/Doc#Outil_de_partage_de_code:_gitlab.science.gc.ca).
 
 #### Make modifications to your local branch :
 
