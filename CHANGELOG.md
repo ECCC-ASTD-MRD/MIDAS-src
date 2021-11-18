@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Introduce a way to debug MIDAS programs in an interactive job to accelerate the developing process (#493 and !517)
+ * Introduce a way to debug MIDAS programs in an interactive job to accelerate the development process (#493 and !517)
  * Introducing support for random 64bit `id_data` and `id_obs` ; `sqlExtraDat` can no longer have "order by" statement (#536 and !515)
  * Mention to test `compile_all_plat.sh` prior to MR in `midas_build` doc (#542 and !514)
  * Changed the merge template to better guide the user when he/she is

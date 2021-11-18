@@ -158,8 +158,8 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
 
 ## Interactive debugging
 
-You can debug interactively the program by launching a job and login
-into it.  For that, you can set
+You can debug interactively a MIDAS program by launching a job and
+login into it.  For that, you can set
 ```bash
 UnitTest_stop_for_interactive_work=yes
 ```
@@ -168,16 +168,28 @@ in one of the following file:
  * `maestro/suites/midas_system_tests/abs.dot` (this one is ignored by Git)
  * `maestro/suites/midas_system_tests/config/Tests/${pathToTest}.cfg`
 
-After setting this, launch the test and look at the log messages in
-the task `/${pathToTest}/UnitTest/run` and you will see something like this:
+to prepare the working directory for interactive debugging.
+
+After setting this, launch the `/${pathToTest}/UnitTest/run` task
+itself and look at the log messages.  You will see something like
+this:
 ```
 We stop here to let you continue to work interactively
 You can use ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}
 ```
 
 The script `launch_interactive.sh` is launching an interactive job and
-it will give you the instructions to login the job and start working.
+it will give you the instructions to login to the job and start
+working.
 
+#### Preparing interactive mode without changing any configuration file
+
+You can prepare the interactive mode by using this command:
+```bash
+maestro -n /${pathToTest}/UnitTest/run -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
+```
+instead of modifying one of the files mentionned in the previous
+section.
 
 ## Updating the results
 
