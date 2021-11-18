@@ -175,11 +175,11 @@ itself and look at the log messages.  You will see something like
 this:
 ```
 We stop here to let you continue to work interactively
-You can use ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}
+You can use ${HOME}/.suites/midas-493/modules/UnitTest/scripts/launch_interactive.sh -exp ${HOME}/.suites/midas-493 -node /Tests/thinning/IASI/UnitTest/run -date 2021111700
 ```
 
 The script `launch_interactive.sh` is launching an interactive job and
-it will give you the instructions to login to the job and start
+it will give you the instructions on how to login to the job and start
 working.
 
 #### Preparing interactive mode without changing any configuration file
