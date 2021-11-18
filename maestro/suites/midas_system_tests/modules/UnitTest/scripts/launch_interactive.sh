@@ -118,3 +118,5 @@ wait_for_job
 echo "Now you can log in the interactive job ${jobid} with"
 echo "   sshj -j ${jobid}"
 echo "   cd ${working_directory}"
+echo "   . ./load_env.sh"
+echo "   ./launch_programs.sh ${path_to_program}"
