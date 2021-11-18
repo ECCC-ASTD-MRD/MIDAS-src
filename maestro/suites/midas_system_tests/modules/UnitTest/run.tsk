@@ -1,5 +1,17 @@
 #!/bin/ksh
 
+args=${*}
+
+## The user can specify arguments using
+##   maestro -n ${SEQ_NODE} -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
+if [ -n "${args}" ]; then
+    for arg in ${args}; do
+        if [[ "${arg}" = UnitTest_stop_for_interactive_work=* ]]; then
+            eval ${arg}
+        fi
+    done
+fi
+
 cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
