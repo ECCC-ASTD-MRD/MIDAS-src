@@ -129,62 +129,64 @@ for file in ${TASK_INPUT}/inputs/*; do
     rm -r ${bfile}
 done
 
-## remove other files created by the execution
-rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-rm -f load_env.sh launch_program.sh
-rm -r mpitmpdir
-[ -d obs ] && rm -r obs
-[ -d obsBeforeThinning ] && rm -r obsBeforeThinning
-
-## put all the rest in 'output'
-mv * ${TASK_OUTPUT}
-
 if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
     exit 1
 fi
 
-## Check runtime
-if [ -n "${UnitTest_maximum_execution_time}" ]; then
-    function parse_time {
-        set -e
-        __parse_time__=$1
-        if [[ "${__parse_time__}" == *:*:* ]]; then
-            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 3600*$1 + 60*$2 + $3}')
-        elif [[ "${__parse_time__}" == *:* ]]; then
-            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 60*$1 + $2}')
-        else
-            __parse_time_seconds__=${__parse_time__}
-        fi
-        unset __parse_time__
-
-        echo ${__parse_time_seconds__}
-        unset __parse_time_seconds__
-    }
-
-    max_seconds=$(parse_time ${UnitTest_maximum_execution_time})
-
-    if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
-        max_seconds=$(printf "%.2f" ${max_seconds})
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
-        if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
-            exit 1
-        fi
-    else
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
-    fi
-fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
-
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively"
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use ${MIDAS_SRC_CODE}/maestro/suites/midas_system_tests/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
     SEQ_XFER=stop
-fi
+else
 
-if [ "${UnitTest_run_relaunch}" = run ]; then
-    SEQ_XFER=stop
-    maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
-elif [ "${UnitTest_run_relaunch}" != check -a "${UnitTest_run_relaunch}" != no ]; then
-    echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
-    exit 1
-fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = run ]'
+    ## remove other files created by the execution
+    rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
+    rm -f load_env.sh launch_program.sh
+    rm -r mpitmpdir
+    [ -d obs ] && rm -r obs
+    [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
+
+    ## put all the rest in 'output'
+    mv * ${TASK_OUTPUT}
+
+    ## Check runtime
+    if [ -n "${UnitTest_maximum_execution_time}" ]; then
+        function parse_time {
+            set -e
+            __parse_time__=$1
+            if [[ "${__parse_time__}" == *:*:* ]]; then
+                __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 3600*$1 + 60*$2 + $3}')
+            elif [[ "${__parse_time__}" == *:* ]]; then
+                __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 60*$1 + $2}')
+            else
+                __parse_time_seconds__=${__parse_time__}
+            fi
+            unset __parse_time__
+
+            echo ${__parse_time_seconds__}
+            unset __parse_time_seconds__
+        }
+
+        max_seconds=$(parse_time ${UnitTest_maximum_execution_time})
+
+        if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
+            max_seconds=$(printf "%.2f" ${max_seconds})
+            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
+            if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
+                exit 1
+            fi
+        else
+            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
+        fi
+    fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
+
+    if [ "${UnitTest_run_relaunch}" = run ]; then
+        SEQ_XFER=stop
+        maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
+    elif [ "${UnitTest_run_relaunch}" != check -a "${UnitTest_run_relaunch}" != no ]; then
+        echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
+        exit 1
+    fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = run ]'
+
+fi ## Fin du 'else' associe au 'if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then'
