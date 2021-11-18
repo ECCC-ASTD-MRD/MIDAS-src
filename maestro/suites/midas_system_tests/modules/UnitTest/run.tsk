@@ -101,9 +101,9 @@ export RUN_PGM=\${run_pgm}
 
 [ ! -d obs ] && mkdir obs
 echo "Copy of observations starts at \$(date +%Y%m%d:%H:%M:%S.%N)"
-/bin/cp burpfiles_*/brp*_*_* ./obs || true
-/bin/cp sqlfiles_*/obs*_*_* ./obs 2> /dev/null || true
-/bin/cp obsfiles_*/obs*_*_* ./obs 2> /dev/null || true
+/bin/cp obsfiles_*/obs*_*_* ./obs || true
+/bin/cp burpfiles_*/brp*_*_* ./obs 2> /dev/null || true
+/bin/cp sqlfiles_*/obs*_*_*  ./obs 2> /dev/null || true
 
 [ -d mpitmpdir ] && rm -r mpitmpdir
 
