@@ -126,7 +126,11 @@ cd src/programs
 ```
 
 # Testing the new compilation using `make`
-All the information and instructions can be found in the [src](./src) directory, by clicking on that folder in gitlab and browsing down the files, you will see [`src/README.md`](./src/README.md) content appended there.
+
+All the information and instructions can be found in the [src](./src)
+directory, by clicking on that folder in gitlab and browsing down the
+files, you will see [`src/README.md`](./src/README.md) content
+appended there.
 
 # MIDAS test suite
 
@@ -151,6 +155,29 @@ hosts used, you can put the list of hosts in the environment variable
 ```bash
 MIDAS_MAKE_LINKS_MACHINE_LIST
 ```
+
+## Interactive debugging
+
+You can debug interactively the program by launching a job and login
+into it.  For that, you can set
+```bash
+UnitTest_stop_for_interactive_work=yes
+```
+in one of the following file:
+ * `maestro/suites/midas_system_tests/experiment.cfg`
+ * `maestro/suites/midas_system_tests/abs.dot` (this one is ignored by Git)
+ * `maestro/suites/midas_system_tests/config/Tests/${pathToTest}.cfg`
+
+After setting this, launch the test and look at the log messages in
+the task `/${pathToTest}/UnitTest/run` and you will see something like this:
+```
+We stop here to let you continue to work interactively
+You can use ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}
+```
+
+The script `launch_interactive.sh` is launching an interactive job and
+it will give you the instructions to login the job and start working.
+
 
 ## Updating the results
 
