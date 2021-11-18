@@ -183,7 +183,7 @@ to launch an interactive job.
 For example, if `pathToTest=Tests/thinning/IASI` and you are working
 on issue 493, then you will have something:
 ```
-We stop here to let you continue to work interactively
+We stop here to let you continue to work interactively.
 You can use:
     ${HOME}/.suites/midas-493/modules/UnitTest/scripts/launch_interactive.sh -exp ${HOME}/.suites/midas-493 -node /Tests/thinning/IASI/UnitTest/run -date 20211117000000
 to launch an interactive job.
