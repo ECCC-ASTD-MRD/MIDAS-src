@@ -306,6 +306,9 @@ contains
     integer :: Vcode
     logical :: beSilent
 
+    integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+    integer ::  numStep, stepIndex, latIndex,lonIndex
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -315,6 +318,8 @@ contains
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
+
+    numStep = statevector%numstep
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -336,7 +341,11 @@ contains
       call calcHeight_gsv_nl_vcode500x
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
-      call calcHeight_gsv_nl_vcode2100x
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        call calcHeight_gsv_nl_vcode2100x_r4
+      else
+        call calcHeight_gsv_nl_vcode2100x_r8
+      end if
     end if
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): END'
@@ -345,14 +354,148 @@ contains
 
     contains
       !---------------------------------------------------------
-      ! calcHeight_gsv_nl_vcode2100x
+      ! calcHeight_gsv_nl_vcode2100x_r4
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode2100x
+      subroutine calcHeight_gsv_nl_vcode2100x_r4
         implicit none
 
-        call utl_abort('calcHeight_gsv_nl (czp): vcode 21001 not implemented yet')
+        ! Locals
+        real(kind=4), allocatable   :: Hsfc(:,:)
+        real(kind=4), pointer       :: Height_out(:,:,:)
+        real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
-      end subroutine calcHeight_gsv_nl_vcode2100x
+        if ( .not. gsv_varExist(statevector,'Z_*')) then
+            ! DEBUG mad001 : probably other vars as well
+          call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+        end if
+
+
+        nullify(Z_T)
+        nullify(Z_M)
+
+        call gsv_getField(statevector,Z_T,'Z_T')
+        call gsv_getField(statevector,Z_M,'Z_M')
+
+        allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
+                      statevector%myLatBeg:statevector%myLatEnd))
+        Hsfc = gsv_getHeightSfc(statevector)
+        numStep = statevector%numStep
+
+        do stepIndex = 1, numStep
+
+          ! Z_M
+          nullify(Height_out)
+          status = vgd_levels(statevector%vco%vgrid, &
+                              ip1_list=statevector%vco%ip1_M, &
+                              levels=Height_out, &
+                              sfc_field=Hsfc, &
+                              in_log=.false.)
+          if( status .ne. VGD_OK ) then
+              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          end if
+          Z_M(:,:,:,stepIndex) = Height_out(:,:,:)
+          deallocate(Height_out)
+
+          ! Z_T
+          nullify(Height_out)
+          status = vgd_levels(statevector%vco%vgrid, &
+                              ip1_list=statevector%vco%ip1_T, &
+                              levels=Height_out, &
+                              sfc_field=Hsfc, &
+                              in_log=.false.)
+          if( status .ne. VGD_OK ) then
+              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          end if
+          Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
+          deallocate(Height_out)
+
+          beSilent = .false. ! DEBUG mad001 
+          if ( .not. beSilent .and. stepIndex == 1 ) then
+            write(*,*) 'stepIndex=',stepIndex, ',Z_M='
+            write(*,*) Z_M(&
+                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+            write(*,*) 'stepIndex=',stepIndex, ',Z_T='
+            write(*,*) Z_T(&
+                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+          end if
+
+        end do
+
+        deallocate(Hsfc)
+
+      end subroutine calcHeight_gsv_nl_vcode2100x_r4
+
+      !---------------------------------------------------------
+      ! calcHeight_gsv_nl_vcode2100x_r8
+      !---------------------------------------------------------
+      subroutine calcHeight_gsv_nl_vcode2100x_r8
+        ! DEBUG mad001 : the real(8) flow has to be tested
+        implicit none
+
+        ! Locals
+        real(kind=8), allocatable   :: Hsfc(:,:)
+        real(kind=8), pointer       :: Height_out(:,:,:)
+        real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+
+        if ( .not. gsv_varExist(statevector,'Z_*')) then
+            ! DEBUG mad001 : probably other vars as well
+          call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+        end if
+
+
+        nullify(Z_T)
+        nullify(Z_M)
+
+        call gsv_getField(statevector,Z_T,'Z_T')
+        call gsv_getField(statevector,Z_M,'Z_M')
+
+        allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
+                      statevector%myLatBeg:statevector%myLatEnd))
+        Hsfc = gsv_getHeightSfc(statevector)
+        numStep = statevector%numStep
+
+        do stepIndex = 1, numStep
+
+          ! Z_M
+          nullify(Height_out)
+          status = vgd_levels(statevector%vco%vgrid, &
+                              ip1_list=statevector%vco%ip1_M, &
+                              levels=Height_out, &
+                              sfc_field=Hsfc, &
+                              in_log=.false.)
+          if( status .ne. VGD_OK ) then
+              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          end if
+          Z_M(:,:,:,stepIndex) = Height_out(:,:,:)
+          deallocate(Height_out)
+
+          ! Z_T
+          nullify(Height_out)
+          status = vgd_levels(statevector%vco%vgrid, &
+                              ip1_list=statevector%vco%ip1_T, &
+                              levels=Height_out, &
+                              sfc_field=Hsfc, &
+                              in_log=.false.)
+          if( status .ne. VGD_OK ) then
+              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          end if
+          Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
+          deallocate(Height_out)
+
+          if ( .not. beSilent .and. stepIndex == 1 ) then
+            write(*,*) 'stepIndex=',stepIndex, ',Z_M='
+            write(*,*) Z_M(&
+                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+            write(*,*) 'stepIndex=',stepIndex, ',Z_T='
+            write(*,*) Z_T(&
+                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+          end if
+
+        end do
+
+        deallocate(Hsfc)
+
+      end subroutine calcHeight_gsv_nl_vcode2100x_r8
 
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode500x
@@ -361,32 +504,32 @@ contains
         implicit none
 
         ! Locals
-        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
-        integer ::  numStep, stepIndex, latIndex,lonIndex
-        real(8) ::  hu, tt, Pr, cmp, delThick, ratioP
+        real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
+        real(8) ::  delThick, ratioP
         real(8) ::  ScaleFactorBottom, ScaleFactorTop
+        real(8) ::  P_M, P_M1, P_Mm1, P_T
+        real(8) ::  hu, tt, Pr, cmp, h0, Rgh, P0, dh, rMt
+        real(8) ::  sLat, cLat, lat_8
+
         real(8), allocatable :: tv(:), height_T(:), height_M(:)
-        real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
-        real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P0_ptr_r8(:,:,:,:)
-        real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+
         real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
         real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
         real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
         real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
         real(4), pointer     :: P0_ptr_r4(:,:,:,:)
-        real(4)              :: heightSfcOffset_T_r4, heightSfcOffset_M_r4
-        real(4) :: lat_4
-        real(8) :: lat_8, rMT
-        real(8) :: h0, dh, Rgh, sLat, cLat
-
-        real(8) :: P_M, P_M1, P_Mm1, P_T, P0
+    
+        real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
+        real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
+        real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
+        real(8), pointer     :: P0_ptr_r8(:,:,:,:)
+        real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
+        real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
-        numStep = statevector%numstep
+
+        allocate(tv(nlev_T))
 
         if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
           call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M+1!')
@@ -415,7 +558,6 @@ contains
           end if
         end if
 
-        allocate(tv(nlev_T))
         allocate(height_T(nlev_T))
         allocate(height_M(nlev_M))
 
@@ -1452,8 +1594,8 @@ contains
 
         ! Locals
         real(kind=4), allocatable   :: Psfc(:,:)
-        real(kind=4), pointer       :: Pressure_out(:,:,:)
         real(kind=4), pointer       :: field_Psfc(:,:,:,:)
+        real(kind=4), pointer       :: Pressure_out(:,:,:)
         integer                     :: status, stepIndex, numStep
         real(4), pointer            :: P_T(:,:,:,:)
         real(4), pointer            :: P_M(:,:,:,:)
@@ -1477,7 +1619,7 @@ contains
         do stepIndex = 1, numStep
           Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
-          ! P_T
+          ! P_M
           nullify(Pressure_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_M, &
@@ -1490,7 +1632,7 @@ contains
           P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
           deallocate(Pressure_out)
 
-          ! P_M
+          ! P_T
           nullify(Pressure_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_T, &
