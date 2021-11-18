@@ -69,6 +69,7 @@ else
     mpi=
 fi
 
+# The following lines can be used for debugging:
 #echo cpus=${cpus}
 #echo mpi=${mpi}
 #echo memory=${memory}
@@ -77,6 +78,7 @@ fi
 unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|')
 jobname=MIDAS.${unittestname}
 
+# The following lines can be used for debugging:
 #echo unittestname=${unittestname}
 #echo jobname=${jobname}
 

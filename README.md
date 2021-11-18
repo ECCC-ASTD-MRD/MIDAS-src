@@ -172,10 +172,21 @@ to prepare the working directory for interactive debugging.
 
 After setting this, launch the `/${pathToTest}/UnitTest/run` task
 itself and look at the log messages.  You will see something like
-this (if `pathToTest=Tests/thinning/IASI`):
+this:
+```
+We stop here to let you continue to work interactively.
+You can use:
+    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}
+to launch an interactive job.
+```
+
+For example, if `pathToTest=Tests/thinning/IASI` and you are working
+on issue 493, then you will have something:
 ```
 We stop here to let you continue to work interactively
-You can use ${HOME}/.suites/midas-493/modules/UnitTest/scripts/launch_interactive.sh -exp ${HOME}/.suites/midas-493 -node /Tests/thinning/IASI/UnitTest/run -date 2021111700
+You can use:
+    ${HOME}/.suites/midas-493/modules/UnitTest/scripts/launch_interactive.sh -exp ${HOME}/.suites/midas-493 -node /Tests/thinning/IASI/UnitTest/run -date 20211117000000
+to launch an interactive job.
 ```
 
 The script `launch_interactive.sh` is launching an interactive job and
