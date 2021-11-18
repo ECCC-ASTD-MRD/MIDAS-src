@@ -74,7 +74,7 @@ memory=$(extract_from_XML memory ${resource})
 #echo memory=${memory}
 #echo soumet_args=${soumet_args}
 
-cat > sleep_foreever.sh <<EOF
+cat > sleep_forever.sh <<EOF
 #!/bin/bash
 
 sleep $((360*60))
@@ -91,7 +91,7 @@ echo
 echo "Submitting job ${jobname} on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
 echo
 
-jobid=$(ord_soumet sleep_foreever.sh -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${sourmet_args})
+jobid=$(ord_soumet sleep_foreever.sh -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
 
 wait_for_job () {
     set -e
