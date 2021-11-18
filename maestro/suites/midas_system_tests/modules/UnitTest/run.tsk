@@ -99,15 +99,17 @@ run_pgm=\${1:?'You must provide a program to launch'}
 
 export RUN_PGM=\${run_pgm}
 
-[ ! -d obs ] && mkdir obs
-echo "Copy of observations starts at \$(date +%Y%m%d:%H:%M:%S.%N)"
-/bin/cp obsfiles_*/obs*_*_* ./obs || true
-/bin/cp burpfiles_*/brp*_*_* ./obs 2> /dev/null || true
-/bin/cp sqlfiles_*/obs*_*_*  ./obs 2> /dev/null || true
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
+
+[ -d obs ] && rm -r obs
+mkdir obs
+for obsfile in obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_*; do
+    [ -f \${obsfile} ] && cp \${obsfile} ./obs
+done
+
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching ${pgmpath}"
 
 [ -d mpitmpdir ] && rm -r mpitmpdir
-
-echo "Launching ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
 $(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
