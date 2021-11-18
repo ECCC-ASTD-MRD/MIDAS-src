@@ -17,18 +17,24 @@ cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
 cat >> load_env.sh <<EOF
+
 export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
+
+export SEQ_NPEX=${SEQ_NPEX}
+export SEQ_NPEY=${SEQ_NPEY}
 EOF
 
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
+    echo >> load_env.sh
     echo module load craype-hugepages16M >> load_env.sh
     echo export FOR_DISABLE_KMP_MALLOC=0 >> load_env.sh
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
     cat >> load_env.sh <<EOF
+
 . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
 . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
 . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
@@ -38,10 +44,14 @@ else
     exit 1
 fi
 
-for __envvar__ in ${UnitTest_run_environment_variables}; do
-    echo export ${__envvar__} >> load_env.sh
-done
+if [ -n "${UnitTest_run_environment_variables}" ]; then
+    echo >> load_env.sh
+    for __envvar__ in ${UnitTest_run_environment_variables}; do
+        echo export ${__envvar__} >> load_env.sh
+    done
+fi
 
+echo >> load_env.sh
 echo ulimit -c unlimited >> load_env.sh
 
 cat << EOF > ptopo_nml
