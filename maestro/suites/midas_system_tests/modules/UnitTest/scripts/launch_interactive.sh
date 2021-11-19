@@ -86,20 +86,6 @@ jobname=MIDAS.${unittestname}
 #echo unittestname=${unittestname}
 #echo jobname=${jobname}
 
-sleep_job=${TMPDIR}/sleep_forever.sh
-if [ -f "${sleep_job}" ]; then
-    echo "The file ${sleep_job} exists"
-    echo "Erase it or move it if you want to keep it"
-    exit 1
-fi
-
-cat > ${sleep_job} <<EOF
-#!/bin/bash
-
-sleep $((360*60))
-
-EOF
-
 echo
 echo "Submitting an interactive job on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
 echo
@@ -108,8 +94,6 @@ if [ "${TRUE_HOST}" != "${host}" ]; then
     echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
     exit 1
 fi
-
-set -x
 
 if [[ "${cpus}" = *x*x* ]]; then
     npex=$(echo ${cpus} | cut -dx -f1)
@@ -151,6 +135,20 @@ EOF
 jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources}
 
 exit 0
+
+sleep_job=${TMPDIR}/sleep_forever.sh
+if [ -f "${sleep_job}" ]; then
+    echo "The file ${sleep_job} exists"
+    echo "Erase it or move it if you want to keep it"
+    exit 1
+fi
+
+cat > ${sleep_job} <<EOF
+#!/bin/bash
+
+sleep $((360*60))
+
+EOF
 
 jobid=$(ord_soumet ${sleep_job} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
 rm ${sleep_job}
