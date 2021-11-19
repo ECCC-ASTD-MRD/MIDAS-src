@@ -131,8 +131,9 @@ EOF
 
 which jobsubi 1> /dev/null 2>&1 || echo . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
+jobsubi_cmd="jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)"
 cat <<EOF
-   jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)
+   ${jobsubi_cmd}
 
 After the interactive has been launched, you must do
    cd ${working_directory}
@@ -141,11 +142,9 @@ After the interactive has been launched, you must do
 
 EOF
 
-exit 0
-
 which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
-jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)
+${jobsubi_cmd}
 
 exit 0
 
