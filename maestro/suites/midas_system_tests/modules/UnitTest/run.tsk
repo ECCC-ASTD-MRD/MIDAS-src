@@ -58,7 +58,7 @@ ulimit -c unlimited
 if [ -z "\${PBS_JOBNAME}" ]; then
     profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
     if [ -f "\${profile}" ]; then
-        echo "sourcing PBS setup in file \${profile}"
+        echo "Sourcing PBS setup in file \${profile}"
         source \${profile}
     else
         echo "Cannot find the PBS setup \${profile}"

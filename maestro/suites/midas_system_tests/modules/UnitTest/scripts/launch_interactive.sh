@@ -41,7 +41,7 @@ if [ "${#date}" -lt "${date_number_of_characters}" ]; then
     date=${date}${padding}
 fi
 
-which nodeinfo 2>/dev/null || . ssmuse-sh -d eccc/cmo/isst/maestro/1.7.1
+which nodeinfo 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.7.1
 
 host=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.machine=' | cut -d= -f2)
 working_directory=${exp}/hub/${host}/work/${date}/${node}/work
@@ -125,73 +125,31 @@ while [ $# -ne 0 ]; do
     fi
 done
 
-cat <<EOF
-To launch the interactive job:
+cat > rcfile <<EOF
+. /etc/profile
+. $HOME/.profile
+
+echo
+echo Changing directory for ${working_directory}
+cd ${working_directory}
+
+echo
+echo Loading execution environment in file load_env.sh
+. ./load_env.sh
+
+echo
+echo You can now run interactively your program with
+echo "   ./launch_program.sh \\\${path_to_program}"
+echo
 EOF
 
-which jobsubi 1> /dev/null 2>&1 || echo . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
-
-jobsubi_cmd="jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)"
-cat <<EOF
-   ${jobsubi_cmd}
-
-After the interactive has been launched, you must do
-   cd ${working_directory}
-   source ./load_env.sh
-   ./launch_program.sh \${path_to_program}
-
-EOF
+submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
 
 which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
+jobsubi_cmd="jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
+echo "Launching the interactive job with"
+echo "   ${jobsubi_cmd}"
+echo
+
 ${jobsubi_cmd}
-
-exit 0
-
-sleep_job=${TMPDIR}/sleep_forever.sh
-if [ -f "${sleep_job}" ]; then
-    echo "The file ${sleep_job} exists"
-    echo "Erase it or move it if you want to keep it"
-    exit 1
-fi
-
-cat > ${sleep_job} <<EOF
-#!/bin/bash
-
-sleep $((360*60))
-
-EOF
-
-jobid=$(ord_soumet ${sleep_job} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
-rm ${sleep_job}
-
-wait_for_job () {
-    set -e
-
-    while true; do
-        jobstate=$(jobst -j ${jobid} -f | grep '^job_state=' | cut -d= -f2)
-        if [ "${jobstate}" = R ]; then
-            echo "Job ${jobid} just started"
-            echo
-            break
-        elif [ -z "${jobstate}" ]; then
-            echo "Did not find the job in the queue"
-            exit 1
-        fi
-        echo
-        echo "Waiting job ${jobid} on ${host} to start ..."
-        echo
-        sleep 2
-    done
-}
-
-wait_for_job
-
-cat <<EOF
-Now you can log in the interactive job ${jobid} with
-   sshj -j ${jobid}
-   cd ${working_directory}
-   . ./load_env.sh
-   ./launch_program.sh \${path_to_program}
-
-EOF
