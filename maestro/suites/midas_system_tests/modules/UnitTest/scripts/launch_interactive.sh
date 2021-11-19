@@ -96,17 +96,38 @@ if [ "${TRUE_HOST}" != "${host}" ]; then
     exit 1
 fi
 
+find_memory_per_nodes () {
+    set -e
+    if [ $# -ne 1 ]; then
+        echo "find_memory_per_nodes: Only accepts one argument which is the number of cores per slots"
+        return 1
+    fi
+
+    __ncores__=${1}
+    __memory_units__=$(echo ${memory} | grep -Eo '[A-Z]+$')
+    __memory_value__=$(echo ${memory} | grep -Eo '^[0-9]+')
+
+    __ncores_per_nodes__=40
+
+    echo $((__ncores_per_nodes__/ncores*__memory_value__))${__memory_units__}
+
+    unset __memory_units__ __memory_value__
+}
+
 if [[ "${cpus}" = *x*x* ]]; then
     npex=$(echo ${cpus} | cut -dx -f1)
     npey=$(echo ${cpus} | cut -dx -f2)
     ncores=$(echo ${cpus} | cut -dx -f3)
     let nslots=npex*npey
+    memory_per_nodes=$(find_memory_per_nodes ${ncores})
 elif [[ "${cpus}" = *x* ]]; then
     nslots=$(echo ${cpus} | cut -dx -f1)
     ncores=$(echo ${cpus} | cut -dx -f2)
+    memory_per_nodes=$(find_memory_per_nodes ${ncores})
 else
     nslots=1
     ncores=${cpus}
+    memory_per_nodes=${memory}
 fi
 
 set -- ${soumet_args}
@@ -147,7 +168,7 @@ submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
 
 which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
-jobsubi_cmd="jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
+jobsubi_cmd="jobsubi -r memory=${memory_per_nodes} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
 echo "Launching the interactive job with"
 echo "   ${jobsubi_cmd}"
 echo
