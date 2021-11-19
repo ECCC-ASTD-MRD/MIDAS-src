@@ -123,11 +123,12 @@ export RUN_PGM=\${run_pgm}
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
 
-[ -d obs ] && rm -r obs
+[ -d obs ] && rm -rf obs
 mkdir obs
-for obsfile in obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_*; do
-    [ -f \${obsfile} ] && cp \${obsfile} ./obs
-done
+obsfiles=\$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null)
+if [ -n "\${obsfiles}" ]; then
+    sscp \${obsfiles} obs
+fi
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching ${pgmpath}"
 
