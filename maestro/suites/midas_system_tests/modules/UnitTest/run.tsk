@@ -56,15 +56,13 @@ cat >> load_env.sh <<EOF
 ulimit -c unlimited
 
 if [ -z "\${PBS_JOBNAME}" ]; then
-    profile=/var/tmp/pbs.*/profile.sh
-    echo "sourcing PBS setup in file \${profile}"
-    source \${profile}
-    ## if [ -f "\${profile}" ]; then
-    ##     echo "sourcing PBS setup in file \${profile}"
-    ##     source \${profile}
-    ## else
-    ##     echo "Cannot find the PBS setup \${profile}"
-    ## fi
+    profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
+    if [ -f "\${profile}" ]; then
+        echo "sourcing PBS setup in file \${profile}"
+        source \${profile}
+    else
+        echo "Cannot find the PBS setup \${profile}"
+    fi
 fi
 EOF
 
