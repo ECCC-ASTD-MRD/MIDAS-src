@@ -97,6 +97,16 @@ cat > launch_program.sh <<EOF
 
 run_pgm=\${1:?'You must provide a program to launch'}
 
+if [[ \${run_pgm} != */* ]]; then
+    status=0
+    which \${run_pgm} 1> /dev/null || status=1
+    if [ "\${status}" -ne 0 ]; then
+        if [ -x \${run_pgm} ]; then
+            run_pgm=./\${run_pgm}
+        fi
+    fi
+fi
+
 export RUN_PGM=\${run_pgm}
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
