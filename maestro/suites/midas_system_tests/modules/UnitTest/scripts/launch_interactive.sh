@@ -2,11 +2,15 @@
 
 set -e
 
+## 6 hours
+wallclock_default=$((6*60*60))
+
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
   -exp   "not defined" "not defined" "[base maestro experiment" \
   -node  "not defined" "not defined" "[test to launch interactively]" \
   -date  "not defined" "not defined" "[date of the working directory prepared with maestro]" \
+  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time for the interactive job (default: 6 hours)]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
@@ -97,8 +101,56 @@ sleep $((360*60))
 EOF
 
 echo
-echo "Submitting job ${jobname} on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
+echo "Submitting an interactive job on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
 echo
+
+if [ "${TRUE_HOST}" != "${host}" ]; then
+    echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
+    exit 1
+fi
+
+set -x
+
+if [[ "${cpus}" = *x*x* ]]; then
+    npex=$(echo ${cpus} | cut -dx -f1)
+    npey=$(echo ${cpus} | cut -dx -f2)
+    ncores=$(echo ${cpus} | cut -dx -f3)
+    let nslots=npex*npey
+elif [[ "${cpus}" = *x* ]]; then
+    nslots=$(echo ${cpus} | cut -dx -f1)
+    ncores=$(echo ${cpus} | cut -dx -f2)
+else
+    nslots=1
+    ncores=${cpus}
+fi
+
+set ${soumet_args}
+other_resources=
+while [ $# -ne 0 ]; do
+    if [ "${1}" = -tmpfs ]; then
+        if [ $# -lt 2]; then
+            echo "The argument '-tmpfs' under 'soumet_args' needs on argument" >&2
+            exit 1
+        else
+            other_resources="${other_resources} -r tmpfs=${2}"
+            shift 2
+        fi
+    else
+        shift
+    fi
+done
+
+cat <<EOF
+After the interactive has been launched, you must do
+   cd ${working_directory}
+   source ./load_env.sh
+   ./launch_program.sh \${path_to_program}
+
+EOF
+
+jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources}
+
+exit 0
 
 jobid=$(ord_soumet ${sleep_job} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args})
 rm ${sleep_job}

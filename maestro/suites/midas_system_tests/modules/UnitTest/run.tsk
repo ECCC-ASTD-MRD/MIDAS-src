@@ -51,8 +51,20 @@ if [ -n "${UnitTest_run_environment_variables}" ]; then
     done
 fi
 
-echo >> load_env.sh
-echo ulimit -c unlimited >> load_env.sh
+cat >> load_env.sh <<EOF
+
+ulimit -c unlimited
+
+if [ -z "\${PBS_JOBNAME}" ]; then
+    profile=/var/tmp/pbs.*/profile.sh
+    if [ ! -f "\${profile}" ]; then
+        echo "Cannot find the PBS setup"
+        exit 1
+    fi
+    echo "sourcing PBS setup in file \${profile}"
+    source \${profile}
+fi
+EOF
 
 cat << EOF > ptopo_nml
  &ptopo
