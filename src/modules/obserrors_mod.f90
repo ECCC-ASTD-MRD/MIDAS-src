@@ -1063,7 +1063,7 @@ contains
     type(struct_obs) :: obsSpaceData
 
     !  locals
-    integer :: jn, JI, bodyIndex, bodyIndex2, headerIndex, ityp, iass, idata, idatend, codeType
+    integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
     integer :: sensorIndex 
     integer :: isat, channelNumber, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
@@ -1076,7 +1076,7 @@ contains
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
 
-    logical :: ifirst, llok, surfTypeIsWater 
+    logical :: ifirst, surfTypeIsWater
 
     character(len=2)  :: cfam
     character(len=12) :: cstnid

@@ -720,7 +720,7 @@ contains
   !-----------------------------------------------------------------------
   ! bcs_dumpBiasToSqliteAfterThinning
   !-----------------------------------------------------------------------
-  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, columnTrlOnTrlLev)
+  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
     !
     ! :Purpose:  to dump bias correction coefficients and predictors in dedicated sqlite files 
     !
@@ -728,7 +728,6 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout)     :: obsSpaceData
-    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
 
     ! Locals:
     integer  :: headerIndex, bodyIndex,iobs, indxtovs, idatyp
@@ -751,7 +750,6 @@ contains
     character(len=20)  :: tovsFileNameList(30)
     character(len=20)  :: fileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(10)
-    integer :: flag
 
     if (.not. biasActive) return
     if (.not. dumpToSqliteAfterThinning) return
