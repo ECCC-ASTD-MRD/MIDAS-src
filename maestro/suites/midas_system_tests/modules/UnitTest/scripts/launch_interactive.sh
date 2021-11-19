@@ -108,11 +108,11 @@ else
     ncores=${cpus}
 fi
 
-set ${soumet_args}
+set -- ${soumet_args}
 other_resources=
 while [ $# -ne 0 ]; do
     if [ "${1}" = -tmpfs ]; then
-        if [ $# -lt 2]; then
+        if [ $# -lt 2 ]; then
             echo "The argument '-tmpfs' under 'soumet_args' needs on argument" >&2
             exit 1
         else
@@ -125,6 +125,14 @@ while [ $# -ne 0 ]; do
 done
 
 cat <<EOF
+To launch the interactive job:
+EOF
+
+which jobsubi 1> /dev/null 2>&1 || echo . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
+
+cat <<EOF
+   jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)
+
 After the interactive has been launched, you must do
    cd ${working_directory}
    source ./load_env.sh
@@ -132,7 +140,11 @@ After the interactive has been launched, you must do
 
 EOF
 
-jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources}
+exit 0
+
+which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
+
+jobsubi -r memory=${memory} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} $(echo ${host} | cut -d- -f2)
 
 exit 0
 
