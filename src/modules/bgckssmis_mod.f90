@@ -53,7 +53,7 @@ module bgckssmis_mod
   integer, parameter :: ipc=4
   ! Module variable
 
-  character(len=128), parameter :: fileGlmg='fstglmg'  ! glace de mer file
+  character(len=128), parameter :: fileMgLg='fstmglg'  ! glace de mer file
   character(len=128), parameter :: fileGlace='bicefil'  ! binaire 0.1degre ice file
   character(len=128), parameter :: fileWentz='wentz_surf.std'  ! surface wentz file
   character(len=128), parameter :: algOption = 'fwentz'
@@ -1151,7 +1151,7 @@ contains
     !--------------------------------------------------------------------
     ! Variable Definitions
     ! --------------------
-    ! fileGlmg         - input  -  name of file holding model MG and LG fields (external)
+    ! fileMgLg         - input  -  name of file holding model MG and LG fields (external)
     ! numObsToProcess  - input  -  number of input obs pts in record
     ! obsLatitude      - input  -  array holding lat values for all obs pts in record
     ! obsLongitude     - input  -  array holding lon values for all obs pts in record
@@ -1289,7 +1289,7 @@ contains
 
       ! Open FST file.
       iUnGeo = 0
-      ier = fnom( iUnGeo,fileGlmg,'STD+RND+R/O',0 )
+      ier = fnom( iUnGeo,fileMgLg,'STD+RND+R/O',0 )
       ier = fstouv( iUnGeo,'RND' )
 
       ! Read MG field.
