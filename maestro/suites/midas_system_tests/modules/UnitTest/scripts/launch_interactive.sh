@@ -41,6 +41,7 @@ if [ "${#date}" -lt "${date_number_of_characters}" ]; then
     date=${date}${padding}
 fi
 
+which nodeinfo 2>/dev/null || . ssmuse-sh -d eccc/cmo/isst/maestro/1.7.1
 
 host=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.machine=' | cut -d= -f2)
 working_directory=${exp}/hub/${host}/work/${date}/${node}/work
