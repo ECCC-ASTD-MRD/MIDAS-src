@@ -12,6 +12,7 @@
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
    useOptionTableRecenter   = .true.
+   writeRawAnalStats        = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
