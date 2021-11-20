@@ -16,6 +16,17 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
+mkdir obs.original
+if [ -L obs ]; then
+    sscp obs/* obs.original
+    rm obs
+else
+    obsfiles=$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null)
+    if [ -n "${obsfiles}" ]; then
+        sscp ${obsfiles} obs.original
+    fi
+fi
+
 cat >> load_env.sh <<EOF
 
 export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
@@ -107,6 +118,8 @@ fi
 cat > launch_program.sh <<EOF
 #!/bin/bash
 
+set -e
+
 run_pgm=\${1:?'You must provide a program to launch'}
 
 if [[ \${run_pgm} != */* ]]; then
@@ -124,11 +137,7 @@ export RUN_PGM=\${run_pgm}
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
 
 [ -d obs ] && rm -rf obs
-mkdir obs
-obsfiles=\$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null)
-if [ -n "\${obsfiles}" ]; then
-    sscp \${obsfiles} obs
-fi
+sscp -r obs.original obs
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching ${pgmpath}"
 
@@ -181,6 +190,7 @@ else
     rm -f load_env.sh launch_program.sh
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
+    [ -d obs.original ] && rm -r obs.original
     [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
 
     ## put all the rest in 'output'
