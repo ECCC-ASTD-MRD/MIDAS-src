@@ -16,16 +16,27 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
+localFilesNotToErase="flnml pgm obs.original"
+for target in ${TASK_INPUT}/inputs/*; do
+    localFilesNotToErase="${localFilesNotToErase} $(basename ${target})"
+done
+
 mkdir obs.original
-if [ -L obs ]; then
+if [ -L obs -o -d obs ]; then
     sscp obs/* obs.original
-    rm obs
+    if [ -L obs ]; then
+        rm obs
+    else
+        rm -r obs
+    fi
 else
-    obsfiles=$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null)
+    obsfiles=$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null || true)
     if [ -n "${obsfiles}" ]; then
         sscp ${obsfiles} obs.original
     fi
 fi
+
+localFilesNotToErase="${localFilesNotToErase} load_env.sh"
 
 cat >> load_env.sh <<EOF
 
@@ -77,6 +88,8 @@ if [ -z "\${PBS_JOBNAME}" ]; then
 fi
 EOF
 
+localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
+
 cat << EOF > ptopo_nml
  &ptopo
   npex=${SEQ_NPEX}
@@ -85,6 +98,7 @@ cat << EOF > ptopo_nml
 EOF
 
 if [ "${UnitTest_run_debug}" = ddt ]; then
+    localFilesNotToErase="${localFilesNotToErase} run.sh"
     cat > run.sh <<EOF
 #!/bin/bash
 
@@ -93,6 +107,7 @@ EOF
     chmod +x run.sh
     LAUNCH_CMD=./run.sh
 elif [ "${UnitTest_run_debug}" = gdb ]; then
+    localFilesNotToErase="${localFilesNotToErase} run.sh"
     cat > run.sh <<EOF
 #!/bin/bash
 gdb -ex run -ex where \${RUN_PGM}
@@ -110,10 +125,13 @@ pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
+    localFilesNotToErase="${localFilesNotToErase} mpiscript"
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
     LAUNCH_CMD=./mpiscript
 fi
+
+localFilesNotToErase="${localFilesNotToErase} launch_program.sh"
 
 cat > launch_program.sh <<EOF
 #!/bin/bash
@@ -135,13 +153,19 @@ fi
 export RUN_PGM=\${run_pgm}
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
-
 [ -d obs ] && rm -rf obs
 sscp -r obs.original obs
 
-echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching ${pgmpath}"
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
+for file in *; do
+    if $(which isFileInList.sh) \${file} not in obs ${localFilesNotToErase}; then
+        rm -rv \${file}
+    fi
+done
 
 [ -d mpitmpdir ] && rm -r mpitmpdir
+
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching ${pgmpath}"
 
 SECONDS=0
 $(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
