@@ -27,6 +27,9 @@ print_usage () {
     echo "         ${program_name} four not in one two three"
     echo "       will return 1 since 'four' is not contained in the list 'one two three'."
     echo
+    echo "optional arguments:"
+    echo "   -h, --help       show this help message and exit"
+    echo "   -u, --unittests  run the unit tests"
 }
 
 isFileInList () {
@@ -68,10 +71,12 @@ isFileInList () {
     unset __isFileInList_file__
 
     return ${__isFileInList_status__}
-}
+} ## End of function 'isFileInList'
 
 
-if [ $# -eq 1 -a "${1}" = --unittests ]; then
+unittests () {
+    set -e
+
     global_status=0
     status=0
     isFileInList allo in allo bonjour salut || status=1
@@ -119,6 +124,13 @@ if [ $# -eq 1 -a "${1}" = --unittests ]; then
         echo "Some of the tests do not pass!"
         exit 1
     fi
+} ## End of function 'unittests'
+
+
+if [ $# -eq 1 -a "${1}" = --unittests ]; then
+    unittests
+elif [ $# -eq 1 -a "${1}" = -u ]; then
+    unittests
 elif [ $# -eq 1 -a "${1}" = --help ]; then
     print_usage
 elif [ $# -eq 1 -a "${1}" = -h ]; then
