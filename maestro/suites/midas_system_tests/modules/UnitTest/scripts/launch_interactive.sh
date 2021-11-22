@@ -109,9 +109,9 @@ find_memory_per_nodes () {
 
     __ncores_per_nodes__=40
 
-    echo $((__ncores_per_nodes__/ncores*__memory_value__))${__memory_units__}
+    echo $((__ncores_per_nodes__/__ncores__*__memory_value__))${__memory_units__}
 
-    unset __memory_units__ __memory_value__
+    unset __ncores__ __memory_units__ __memory_value__ __ncores_per_nodes__
 }
 
 if [[ "${cpus}" = *x*x* ]]; then
@@ -135,7 +135,7 @@ other_resources=
 while [ $# -ne 0 ]; do
     if [ "${1}" = -tmpfs ]; then
         if [ $# -lt 2 ]; then
-            echo "The argument '-tmpfs' under 'soumet_args' needs on argument" >&2
+            echo "The argument '-tmpfs' under 'soumet_args' needs an argument" >&2
             exit 1
         else
             other_resources="${other_resources} -r tmpfs=${2}"
