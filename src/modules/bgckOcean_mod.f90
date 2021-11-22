@@ -15,31 +15,42 @@
 !-------------------------------------- LICENCE end --------------------------------------
 
 module bgckOcean_mod
-  ! MODULE bgckOcean_mod (prefix='sstbg' category='1. High-level functionality')
+  ! MODULE bgckOcean_mod (prefix='ocebg' category='1. High-level functionality')
   !
   ! :Purpose: to perform ocean data background Check
   !
   use mpi_mod
-  use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
-  use obsErrors_mod
   use columnData_mod
+  use codtyp_mod
+  use gridStateVector_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use statetocolumn_mod 
+  use bufr_mod
+  use mathPhysConstants_mod
 
   implicit none
+
+  integer, external :: fnom, fclos  
+  
   save
   private
 
   ! Public functions/subroutines
-  public :: sstbg_bgCheck
+  public :: ocebg_bgCheckSST
   
-  
+  character(len=20) :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
+  integer           :: numObsBatches           ! number of batches for calling interp setup
+  namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches
+
   contains
 
   !----------------------------------------------------------------------------------------
-  ! sstbg_bgCheck
+  ! ocebg_bgCheckSST
   !----------------------------------------------------------------------------------------
-  subroutine sstbg_bgCheck( column, obsData )
+  subroutine ocebg_bgCheckSST( obsData, columnTrlOnTrlLev, hco, vco )
     !
     !: Purpose: to compute SST data background Check  
     !           
@@ -47,14 +58,147 @@ module bgckOcean_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: column  ! column object on trial levels
-    type(struct_obs)       , intent(inout) :: obsData ! obsSpaceData object
+    type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData object
+    type(struct_columnData), intent(inout)       :: columnTrlOnTrlLev ! column data on trl levels
+    type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
+    type(struct_vco)       , intent(in), pointer :: vco               ! vertical trl grid
 
     ! Locals:
-    character(len=*), parameter :: myName = 'ose_compute_hbht_bdiff'
+    type(struct_gsv)            :: stateVector ! state vector containing std B estimation field
+    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                     :: numberObs, numberObsRejected  
+    real(8)                     :: OER, OmP, FGE, bgCheck
+    logical                     :: llok
+    type(struct_columnData)     :: columnFGE
+    character(len=*), parameter :: myName = 'ocebg_bgCheckSST'
     
-    write(*,*) myName//': coucou'
-  
-  end subroutine sstbg_bgCheck
+    write(*,*) myName//': performing background check for the SST data...'
+    
+    ! Setting default namelist variable values
+    timeInterpType_nl = 'NEAREST'
+    numObsBatches = 20
+
+    ! Read the namelist
+    nulnam = 0
+    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+    read( nulnam, nml = namOceanBGcheck, iostat = ierr )
+    if ( mpi_myid == 0 .and. ierr == 0) write(*, nml = namOceanBGcheck )
+    if ( ierr /= 0 ) write(*,*) myName//': no valid namelist namOceanBGcheck found, default values will be taken:'
+    ierr = fclos( nulnam )
+    write(*,*) myName//': interpolation type: ', timeInterpType_nl
+    write(*,*) myName//': number obs batches: ', numObsBatches
+
+    ! Read First Guess Error (FGE) and put it into stateVector
+    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 4, hInterpolateDegree_opt = 'NEAREST', &
+                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
+    call gsv_readFromFile( stateVector, './bgstddev', 'STDDEV', 'X', &
+                           unitConversion_opt=.false., containsFullField_opt=.true. )
+    
+    call col_setVco( columnFGE, col_getVco( columnTrlOnTrlLev ))
+    call col_allocate( columnFGE, col_getNumCol( columnTrlOnTrlLev ))
+   
+    ! Convert stateVector to column object
+    call s2c_nl( stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
+                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true. )
+
+    numberObs = 0
+    numberObsRejected = 0
+    do headerIndex = 1, obs_numheader( obsData )
+      
+      bodyIndex = obs_headElem_i( obsData, obs_rln, headerIndex )
+      obsVarno  = obs_bodyElem_i( obsData, obs_vnm, bodyIndex )
+      llok = ( obs_bodyElem_i( obsData, obs_ass, bodyIndex ) == obs_assimilated )
+      if ( llok ) then
+        if ( obsVarno == bufr_sst ) then
+       
+	  FGE        = col_getElem( columnFGE, 1, headerIndex, 'TM' )
+	  OmP        = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex )
+          OER        = obs_bodyElem_r(obsData, OBS_OER , bodyIndex )
+	    
+	  if ( FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8 ) then 
+	    
+	    numberObs = numberObs + 1
+	    call obs_bodySet_r( obsData, OBS_HPHT, bodyIndex, FGE )
+	    bgCheck = ( OmP )**2 / ( FGE**2 + OER**2 )
+	    obsFlag = ocebg_setFlag( obsVarno, bgCheck )
+	
+            if ( obsFlag >= 2 ) then
+              numberObsRejected = numberObsRejected + 1
+	      write(*,'(a,i7,a,i7)')'*********** ', numberObsRejected, ', header index: ', headerIndex
+	      write(*,'(a)') myName//': rejected '//obs_elem_c( obsData, 'STID' , headerIndex )//' data:'
+	      write(*,'(a,i5,a,4f10.4)') 'codtype: ', obs_headElem_i( obsData, obs_ity, headerIndex ), &
+              ', lon/lat/obs.value/OmP: ', &
+              obs_headElem_r( obsData, obs_lon, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8, &
+              obs_headElem_r( obsData, obs_lat, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8, &
+              obs_bodyElem_r( obsData, obs_var, bodyIndex ), OmP
+            end if
+	    	      
+	    ! update background check flags based on bgCheck
+            ! ( element flags + global header flags)  
+	    if ( obsFlag == 1 ) then
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 13 ))
+            else if ( obsFlag == 2 ) then
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 14 ))
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 16 ))
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 09 ))
+              call obs_headSet_i( obsData, obs_st1, headerIndex, ibset( obs_headElem_i( obsData, obs_st1, headerIndex ), 06 ))
+            else if ( obsFlag == 3 ) then
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 15 ))
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 16 ))
+              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 09 ))
+              call obs_headSet_i( obsData, obs_st1, headerIndex, ibset( obs_headElem_i( obsData, obs_st1, headerIndex ), 06 ))
+            end if
+	   
+          end if
+	end if
+      end if
+      
+    end do 
+
+    if ( numberObs > 0 ) then
+      write(*,*)' '
+      write(*,*) myName//': background check of TM data is computed'
+      write(*,'(a, i7,a,i7,a)') myName//':   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
+      write(*,*)' '
+    end if
+    
+    call gsv_deallocate( stateVector )
+    call col_deallocate( columnFGE )
+    
+  end subroutine ocebg_bgCheckSST
+
+  !--------------------------------------------------------------------------
+  ! ocebg_setFlag
+  !--------------------------------------------------------------------------
+  function ocebg_setFlag( obsVarno, bgCheck ) result( obsFlag )
+    !
+    !:Purpose: Set background-check flags according to values set in a table.
+    !          Original values in table come from ecmwf.
+    !
+
+    implicit none
+    
+    integer             :: obsFlag  ! obs flag 
+
+    ! Arguments:
+    integer, intent(in) :: obsVarno ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
+    real(8), intent(in) :: bgCheck  ! normalized background departure
+
+    ! Locals:      
+    real(8), parameter :: multipleSST(3) = (/  5.d0, 25.d0, 30.d0 /)
+
+    obsFlag = 0
+ 
+    if ( obsVarno == bufr_sst ) then
+      if ( bgCheck >= multipleSST(1) .and. bgCheck < multipleSST(2) ) then
+        obsFlag = 1
+      else if ( bgCheck >= multipleSST(2) .and. bgCheck < multipleSST(3) ) then
+        obsFlag = 2
+      else if ( bgCheck >= multipleSST(3) ) then
+        obsFlag = 3
+      end if
+    end if
+
+  end function ocebg_setFlag
   
 end module bgckOcean_mod  
