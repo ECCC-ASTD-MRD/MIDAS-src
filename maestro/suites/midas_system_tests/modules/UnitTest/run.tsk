@@ -163,8 +163,6 @@ for file in *; do
     fi
 done
 
-[ -d mpitmpdir ] && rm -r mpitmpdir
-
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
