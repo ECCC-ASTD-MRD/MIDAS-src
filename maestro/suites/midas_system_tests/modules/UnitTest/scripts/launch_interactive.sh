@@ -123,19 +123,22 @@ sleep $((360*60))
 EOF
     ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit
     rm ${__sleep_job__}
-    PBSressources=$(tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS -l select=')
-    ## The last command will output
+
+    ## The following command will output
     ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
+    __PBSresources__=$(tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS -l select=')
+
     rm ${__lajobtar__}
 
-    echo PBSressources=${PBSressources} >&2
+    # The following line can be used for debugging:
+    # echo __PBSresources__=${__PBSresources__} >&2
 
     ## extract the memory setting
-    echo ${PBSressources} | grep -oE "mem=[0-9]+[KMG]"
+    echo ${__PBSresources__} | grep -oE "mem=[0-9]+[KMG]"
     ## extract the select setting (nslots)
-    echo ${PBSressources} | grep -oE "select=[0-9]+"
+    echo ${__PBSresources__} | grep -oE "select=[0-9]+"
     ## extract the npus setting
-    echo ${PBSressources} | grep -oE "ncpus=[0-9]+"
+    echo ${__PBSresources__} | grep -oE "ncpus=[0-9]+"
 
     unset __sleep_job__ __lajobtar__
 } ## End of function 'find_resources'
@@ -161,22 +164,6 @@ ncores=$(extract_resource ncpus "${resources}")
 nslots=$(extract_resource select "${resources}")
 memory_per_node=$(extract_resource mem "${resources}")
 
-## if [[ "${cpus}" = *x*x* ]]; then
-##     npex=$(echo ${cpus} | cut -dx -f1)
-##     npey=$(echo ${cpus} | cut -dx -f2)
-##     ncores=$(echo ${cpus} | cut -dx -f3)
-##     let nslots=npex*npey
-##     memory_per_nodes=$(find_memory_per_nodes)
-## elif [[ "${cpus}" = *x* ]]; then
-##     nslots=$(echo ${cpus} | cut -dx -f1)
-##     ncores=$(echo ${cpus} | cut -dx -f2)
-##     memory_per_nodes=$(find_memory_per_nodes)
-## else
-##     nslots=1
-##     ncores=${cpus}
-##     memory_per_nodes=${memory}
-## fi
-
 set -- ${soumet_args}
 other_resources=
 while [ $# -ne 0 ]; do
@@ -193,7 +180,13 @@ while [ $# -ne 0 ]; do
     fi
 done
 
-cat > rcfile <<EOF
+rcfile=${PWD}/rcfile
+if [ -f "${rcfile}" ]; then
+    echo "The file ${rcfile} exists"
+    echo "Erase it or move it if you want to keep it"
+    exit 1
+fi
+cat > ${rcfile} <<EOF
 . /etc/profile
 . $HOME/.profile
 
@@ -215,7 +208,7 @@ submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
 
 which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
-jobsubi_cmd="jobsubi -r memory=${memory_per_node} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} --show-jobscript ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
+jobsubi_cmd="jobsubi -r memory=${memory_per_node} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${rcfile} -i"
 echo "Launching the interactive job with"
 echo "   ${jobsubi_cmd}"
 echo
