@@ -62,7 +62,6 @@ extract_from_XML() {
 
 resource=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.resourcepath=' | cut -d= -f2 | sed 's|^${SEQ_EXP_HOME}|'"${exp}|")
 
-
 cpus=$(extract_from_XML cpu ${resource})
 isMPI=$(extract_from_XML mpi ${resource})
 soumet_args=$(extract_from_XML soumet_args ${resource})
@@ -96,39 +95,87 @@ if [ "${TRUE_HOST}" != "${host}" ]; then
     exit 1
 fi
 
-find_memory_per_nodes () {
+find_resources () {
     set -e
-    if [ $# -ne 1 ]; then
-        echo "find_memory_per_nodes: Only accepts one argument which is the number of cores per slots"
+    if [ $# -ne 0 ]; then
+        echo "find_resources: does not accept any argument: $0 $*"
         return 1
     fi
 
-    __ncores__=${1}
-    __memory_units__=$(echo ${memory} | grep -Eo '[A-Z]+$')
-    __memory_value__=$(echo ${memory} | grep -Eo '^[0-9]+')
+    __sleep_job__=${TMPDIR}/sleep_forever.sh
+    if [ -f "${__sleep_job__}" ]; then
+        echo "The file ${sleep_job} exists"
+        echo "Erase it or move it if you want to keep it"
+        exit 1
+    fi
+    __lajobtar__=lajob.tar
+    if [ -f "${__lajobtar__}" ]; then
+        echo "The file ${__lajobtar__} exists"
+        echo "Erase it or move it if you want to keep it"
+        exit 1
+    fi
 
-    __ncores_per_nodes__=40
+    cat > ${__sleep_job__} <<EOF
+#!/bin/bash
 
-    echo $((__ncores_per_nodes__/__ncores__*__memory_value__))${__memory_units__}
+sleep $((360*60))
 
-    unset __ncores__ __memory_units__ __memory_value__ __ncores_per_nodes__
+EOF
+    ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit
+    rm ${__sleep_job__}
+    PBSressources=$(tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS -l select=')
+    ## The last command will output
+    ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
+    rm ${__lajobtar__}
+
+    echo PBSressources=${PBSressources} >&2
+
+    ## extract the memory setting
+    echo ${PBSressources} | grep -oE "mem=[0-9]+[KMG]"
+    ## extract the select setting (nslots)
+    echo ${PBSressources} | grep -oE "select=[0-9]+"
+    ## extract the npus setting
+    echo ${PBSressources} | grep -oE "ncpus=[0-9]+"
+
+    unset __sleep_job__ __lajobtar__
+} ## End of function 'find_resources'
+
+extract_resource() {
+    set -e
+    if [ $# -ne 2 ]; then
+        echo "extract_resource: accepts only two arguments: $0 $*"
+        return 1
+    fi
+    __element__=${1}
+    __resources__=${2}
+
+    printf "${__resources__}\n" | grep "^${__element__}=" | cut -d= -f2
+
+    unset __element__ __resources__
 }
 
-if [[ "${cpus}" = *x*x* ]]; then
-    npex=$(echo ${cpus} | cut -dx -f1)
-    npey=$(echo ${cpus} | cut -dx -f2)
-    ncores=$(echo ${cpus} | cut -dx -f3)
-    let nslots=npex*npey
-    memory_per_nodes=$(find_memory_per_nodes ${ncores})
-elif [[ "${cpus}" = *x* ]]; then
-    nslots=$(echo ${cpus} | cut -dx -f1)
-    ncores=$(echo ${cpus} | cut -dx -f2)
-    memory_per_nodes=$(find_memory_per_nodes ${ncores})
-else
-    nslots=1
-    ncores=${cpus}
-    memory_per_nodes=${memory}
-fi
+resources=$(find_resources)
+printf "resources=${resources}\n"
+
+ncores=$(extract_resource ncpus "${resources}")
+nslots=$(extract_resource select "${resources}")
+memory_per_node=$(extract_resource mem "${resources}")
+
+## if [[ "${cpus}" = *x*x* ]]; then
+##     npex=$(echo ${cpus} | cut -dx -f1)
+##     npey=$(echo ${cpus} | cut -dx -f2)
+##     ncores=$(echo ${cpus} | cut -dx -f3)
+##     let nslots=npex*npey
+##     memory_per_nodes=$(find_memory_per_nodes)
+## elif [[ "${cpus}" = *x* ]]; then
+##     nslots=$(echo ${cpus} | cut -dx -f1)
+##     ncores=$(echo ${cpus} | cut -dx -f2)
+##     memory_per_nodes=$(find_memory_per_nodes)
+## else
+##     nslots=1
+##     ncores=${cpus}
+##     memory_per_nodes=${memory}
+## fi
 
 set -- ${soumet_args}
 other_resources=
@@ -168,7 +215,7 @@ submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
 
 which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
-jobsubi_cmd="jobsubi -r memory=${memory_per_nodes} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
+jobsubi_cmd="jobsubi -r memory=${memory_per_node} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} --show-jobscript ${submit_host} -- bash --rcfile ${PWD}/rcfile -i"
 echo "Launching the interactive job with"
 echo "   ${jobsubi_cmd}"
 echo

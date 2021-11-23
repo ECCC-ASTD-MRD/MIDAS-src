@@ -43,6 +43,7 @@ cat >> load_env.sh <<EOF
 export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
+export OMP_NUM_THREADS=${OMP_NUM_THREADS}
 
 export SEQ_NPEX=${SEQ_NPEX}
 export SEQ_NPEY=${SEQ_NPEY}
