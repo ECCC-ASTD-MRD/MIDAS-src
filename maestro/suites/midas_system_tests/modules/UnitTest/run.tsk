@@ -101,8 +101,6 @@ fi
 
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd"
 
-load_ddt=". ssmuse-sh -x main/opt/forge/20.0.3"
-
 source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
 cat > launch_program.sh <<EOF
@@ -114,7 +112,7 @@ debugger_mode=
 while [ \$# -ne 0 ]; do
     if [ "\${1}" = --ddt ]; then
         debugger_mode=ddt
-        ${load_ddt}
+        . ssmuse-sh -x main/opt/forge/20.0.3
     elif [ "\${1}" = --gdb ]; then
         debugger_mode=gdb
     elif [ "\${1}" = -h -o "\${1}" = --help ]; then
@@ -132,10 +130,8 @@ if [ -z "\${run_pgm}" ]; then
 fi
 
 if [ "\${debugger_mode}" = ddt ]; then
-    echo "You must first launch"
-    echo "    ${load_ddt}"
-    echo "    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual  --source-dirs=${source_dirs} &"
-    echo ""
+    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
+
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
