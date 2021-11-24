@@ -1,4 +1,4 @@
-!--t------------------------------------- LICENCE BEGIN -----------------------------------
+!--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -77,7 +77,8 @@ contains
                               solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
                               headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
-                              obsrzam,  obsrele, obsrans, obsrane)
+                              obsrzam,  obsrele, obsrans, obsrane,                        &
+                              firstBodyIndexOfThisBatch, obsNlv)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
     !
@@ -103,6 +104,8 @@ contains
     integer          , intent(in)    :: instrument
     integer          , intent(in)    :: idProf
     integer          , intent(in)    :: trackCellNum
+    integer          , intent(in)    :: firstBodyIndexOfThisBatch
+    integer          , intent(in)    :: obsNlv
     real(pre_obsReal), intent(in)    :: geoidUndulation
     real(pre_obsReal), intent(in)    :: earthLocRadCurv
     real(pre_obsReal), intent(in)    :: elev
@@ -129,6 +132,8 @@ contains
     call obs_headSet_i( obsdat, OBS_ETM, headerIndex, obsTime       )
     call obs_headSet_i( obsdat, OBS_ST1, headerIndex, obsStatus     )
     call     obs_set_c( obsdat, 'STID' , headerIndex, trim(idStation) )
+    call obs_headSet_i( obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch )
+    call obs_headSet_i( obsdat, OBS_NLV, headerIndex, obsNlv )
 
     if ( trim(familyType) == 'TO' ) then
 
@@ -583,25 +588,9 @@ contains
     !ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
     sqlDataOrder = ' order by id_obs, varno, id_data' 
 
-    !TODO not sure we want to completely disable sqlExtraDat
-    !     An alternative would be to search for "order by" and stop here if it is found
-    !     doing this in fortran is unpleasant so I did not do it so far.
-    !Deprecation warning for sqlExtraDat
-    if ( trim(sqlExtraDat) /= '' ) then
-      write(*,*) ''
-      write(*,*) '-------------------------------'
-      write(*,*) 'WARNING:'
-      write(*,*) 'The "sqlExtraDat" parameter is deprecated.'
-      write(*,*) 'The options provided there will be ignored.'
-      write(*,*) 'queryData now gets systematically appended with: "'//trim(sqlDataOrder)//'"'
-      write(*,*) 'Please remove "sqlExtraDat" from your config file to make this message go away.'
-      write(*,*) '-------------------------------'
-      write(*,*) ''
-    end if
-
     selectIDs  = "select id_data, id_obs"
     selectData = "select "//trim(columnsData)
-    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)
+    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(sqlExtraDat)//trim(SQLNull)
     !it is very important that queryIDs and queryData be identical except for the column names being selected
     queryIDs  =  trim(selectIDs)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
     queryData = trim(selectData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
@@ -616,7 +605,11 @@ contains
     end if
 
     call fSQL_prepare( db, trim(queryData), stmt2, stat2 )
-    if ( fSQL_error(stat2) /= FSQL_OK ) call sqlr_handleError(stat2,'fSQL_prepare matdata fill statement: ')
+    if ( fSQL_error(stat2) /= FSQL_OK ) then
+      call sqlr_handleError(stat2,'fSQL_prepare has failed for queryData, &
+                                   this could be caused by an "order by"  &
+                                   statement in sqlExtraDat ')
+    end if
 
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
@@ -681,7 +674,7 @@ contains
         firstBodyIndexOfThisBatch = bodyIndex
 
         !we read the associated header
-        queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" where id_obs = ? "
+        queryHeader = "select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" where id_obs = ? "
         if ( rowIndex == 1 ) then
           write(*,'(4a)') myName//': ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
           write(*,*) myName//': =========================================='
@@ -885,7 +878,7 @@ contains
 
         if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
             .not. ovt_bufrCodeSkipped(obsVarno)) then
-          ! This observation will need to be converted to something else before being assimilated
+          
           ! Add an extra row in data table that will hold the converted variable
           call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
           call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
@@ -931,11 +924,8 @@ contains
              xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
              trackCellNum, modelWindSpeed,                                                  &
              real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-             real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal) )
-
-        ! TODO it would make sense to put this in sqlr_initHeader()
-        call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch )
-        call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv )
+             real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),                &
+             firstBodyIndexOfThisBatch, obsNlv)
 
         !reset level counter for next batch of data entries
         obsNlv = 0
