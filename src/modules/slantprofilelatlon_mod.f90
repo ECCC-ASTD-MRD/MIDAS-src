@@ -45,7 +45,8 @@ module slantprofilelatlon_mod
 
 contains 
 
-  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+  subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, &
+       latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S)
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radiance 
     !           observations, iteratively. To replace the vertical columns with 
@@ -58,20 +59,19 @@ contains
     type(struct_hco), intent(in) :: hco
     integer, intent(in)  :: headerIndex
     real(4), intent(in)  :: height3D_T_r4(:,:,:)
-    real(4), intent(in)  :: height3D_M_r4(:,:,:)
+    real(4), intent(in)  :: height3D_M_r4(:,:,:) 
     real(8), intent(out)  :: latSlantLev_T(:)
     real(8), intent(out)  :: lonSlantLev_T(:)
     real(8), intent(out)  :: latSlantLev_M(:)
     real(8), intent(out)  :: lonSlantLev_M(:)
+    real(8), intent(out)  :: latSlantLev_S
+    real(8), intent(out)  :: lonSlantLev_S
 
     ! Locals:
-    real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
-    real(8) :: lat, lon, latSlant, lonSlant, azimuthAngle
+    real(8) :: lat, lon, azimuthAngle
     integer :: idatyp
     integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
-    integer :: numIteration
-    logical :: doIteration
 
     namelist /namSlantPath/ toleranceHeightDiff, maxNumIteration
 
@@ -108,10 +108,32 @@ contains
 
     ! loop through all thermo levels
     do lev_T = 1, nlev_T
+      call solveIterativelyForLatLon(height3D_T_r4(:,:,lev_T), latSlantLev_T(lev_T), lonSlantLev_T(lev_T))
+    end do
+
+    ! loop through all momentum levels
+    do lev_M = 1, nlev_M
+      call solveIterativelyForLatLon(height3D_M_r4(:,:,lev_M), latSlantLev_M(lev_M), lonSlantLev_M(lev_M))
+    end do
+
+    ! then surface level (geoid in the case of radiances)
+    latSlantLev_S = latSlantLev_T(nlev_T)
+    lonSlantLev_S = lonSlantLev_T(nlev_T)
+
+  contains
+
+    subroutine solveIterativelyForLatLon(heightField2D, latSlant, lonSlant)
+      implicit none
+      real(4), intent(in)  :: heightField2D(:,:)
+      real(8), intent(out) :: latSlant, lonSlant
+
+      logical :: doIteration
+      integer :: numIteration
+      real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
-      call heightBilinearInterp(lat, lon, hco, height3D_T_r4(:,:,lev_T), heightInterp_r4)
+      call heightBilinearInterp(lat, lon, hco, heightField2D, heightInterp_r4)
       call tmg_stop(197)
 
       doIteration = .true.
@@ -126,7 +148,7 @@ contains
 
         ! find the interpolated height 
         call tmg_start(197,'heightBilinearInterp')
-        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_T_r4(:,:,lev_T), heightIntersect_r4)
+        call heightBilinearInterp(latSlant, lonSlant, hco, heightField2D, heightIntersect_r4)
         call tmg_stop(197)
 
         heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
@@ -135,42 +157,8 @@ contains
 
       end do while_doIteration
 
-      latSlantLev_T(lev_T) = latSlant
-      lonSlantLev_T(lev_T) = lonSlant
-    end do
+    end subroutine solveIterativelyForLatLon
 
-    ! loop through all momentum levels
-    do lev_M = 1, nlev_M
-
-      ! find the interpolated height 
-      call tmg_start(197,'heightBilinearInterp')
-      call heightBilinearInterp(lat, lon, hco, height3D_M_r4(:,:,lev_M), heightInterp_r4)
-      call tmg_stop(197)
-
-      doIteration = .true.
-      numIteration = 0
-      while_doIteration2: do while (doIteration)
-
-        numIteration = numIteration + 1
-
-        call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
-        call tmg_stop(196)
-
-        ! find the interpolated height 
-        call tmg_start(197,'heightBilinearInterp')
-        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_M_r4(:,:,lev_M), heightIntersect_r4)
-        call tmg_stop(197)
-
-        heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
-        if ( heightDiff_r4 < toleranceHeightDiff .or. &
-             numIteration >= maxNumIteration ) doIteration = .false.
-
-      end do while_doIteration2
-
-      latSlantLev_M(lev_M) = latSlant
-      lonSlantLev_M(lev_M) = lonSlant
-    end do
 
   end subroutine slp_calcLatLonTovs
 
@@ -463,7 +451,7 @@ contains
 
   subroutine slp_calcLatLonRO(obsSpaceData, hco, headerIndex, &
                               height3D_T_r4, height3D_M_r4, &
-                              latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M )
+                              latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S )
     !
     ! :Purpose: call the computation of lat/lon on the slant path for GPSRO
     !           observations, iteratively. To replace the vertical columns with 
@@ -481,6 +469,8 @@ contains
     real(8), intent(out) :: lonSlantLev_T(:)
     real(8), intent(out) :: latSlantLev_M(:)
     real(8), intent(out) :: lonSlantLev_M(:)
+    real(8), intent(out) :: latSlantLev_S
+    real(8), intent(out) :: lonSlantLev_S
 
     ! Locals:
     real(8) :: latr, lonr, height, rad, dH, hmin
@@ -560,13 +550,17 @@ contains
       latSlantLev_T(levIndex) = Lat_Obs(imin)
       lonSlantLev_T(levIndex) = Lon_Obs(imin)
     end do
+    !Josep: is it correct ?
+    latSlantLev_S = latSlantLev_T(nlev_T)
+    lonSlantLev_S = lonSlantLev_T(nlev_T)
 
     deallocate(H_T, H_M)
     deallocate(Lon_Obs, Lat_Obs, Hgt_Obs)
 
   end subroutine slp_calcLatLonRO
  
-  subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M)
+  subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, &
+       latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S)
     !
     ! :Purpose: call the computation of lat/lon on the slant path for radar 
     !           observations, iteratively. To replace the vertical columns with 
@@ -583,6 +577,8 @@ contains
     real(8), intent(out) :: lonSlantLev_T(:)
     real(8), intent(out) :: latSlantLev_M(:)
     real(8), intent(out) :: lonSlantLev_M(:)
+    real(8), intent(out) :: latSlantLev_S
+    real(8), intent(out) :: lonSlantLev_S
     ! Locals:
     real(8) :: lat, lon, latSlant, lonSlant, rele, rzam, ralt, rans, rane
     integer :: nlev_M,lev_M, nlev_T,lev_T
@@ -621,6 +617,10 @@ contains
       latSlantLev_M(lev_M) = latSlant
       lonSlantLev_M(lev_M) = lonSlant
     end do
+
+    !Dominik, Mark : Is it correct ?
+    latSlantLev_S = lat
+    lonSlantLev_S = lon
 
   end subroutine slp_calcLatLonRadar
 

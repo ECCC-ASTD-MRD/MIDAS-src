@@ -289,6 +289,7 @@ contains
     character(len=4)          :: varLevel
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
     real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
+    real(8) :: latLev_S, lonLev_S
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
@@ -625,7 +626,8 @@ contains
             call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,               & ! IN
                                      latLev_T, lonLev_T,                         & ! OUT
-                                     latLev_M, lonLev_M )                          ! OUT
+                                     latLev_M, lonLev_M,                         & ! OUT
+                                     latLev_S, lonLev_S             )              ! OUT
             call tmg_stop(199)
 
           else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
@@ -640,7 +642,8 @@ contains
             call slp_calcLatLonRO( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                    height3D_T_r4, height3D_M_r4,               & ! IN
                                    latLev_T, lonLev_T,                         & ! OUT
-                                   latLev_M, lonLev_M )                          ! OUT
+                                   latLev_M, lonLev_M,                         & ! OUT
+                                   latLev_S, lonLev_S                          ) ! OUT
             call tmg_stop(191)
           else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
@@ -653,16 +656,20 @@ contains
              call slp_calcLatLonRadar( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,                 & ! IN
                                      latLev_T, lonLev_T,                           & ! OUT
-                                     latLev_M, lonLev_M )                            ! OUT          
+                                     latLev_M, lonLev_M,                           & ! OUT
+                                     latLev_S, lonLev_S                           ) ! OUT
           else
 
             latLev_T(:) = real(lat_r4,8)
             lonLev_T(:) = real(lon_r4,8)
             latLev_M(:) = real(lat_r4,8)
             lonLev_M(:) = real(lon_r4,8)
+            latLev_S = real(lat_r4,8)
+            lonLev_S = real(lon_r4,8)
           end if
 
           ! check if the slanted lat/lon is inside the domain
+          ! in principle a check for latLev_S and lonLev_S should be added here 	
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
@@ -684,8 +691,8 @@ contains
               latColumn(headerUsedIndex,kIndex) = latLev_M(levIndex)
               lonColumn(headerUsedIndex,kIndex) = lonLev_M(levIndex)
             else if ( varLevel == 'SF' ) then
-              latColumn(headerUsedIndex,kIndex) = real(lat_r4,8)
-              lonColumn(headerUsedIndex,kIndex) = real(lon_r4,8)
+              latColumn(headerUsedIndex,kIndex) = latLev_S
+              lonColumn(headerUsedIndex,kIndex) = lonLev_S
             else
               call utl_abort('s2c_setupInterpInfo: unknown value of varLevel')
             end if
