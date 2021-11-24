@@ -89,30 +89,6 @@ cat << EOF > ptopo_nml
 /
 EOF
 
-if [ "${UnitTest_run_debug}" = ddt ]; then
-    localFilesNotToErase="${localFilesNotToErase} run.sh"
-    cat > run.sh <<EOF
-#!/bin/bash
-
-$(which ddt-client) --ddtsessionfile $HOME/.allinea/session/${HOSTNAME}-[0-9]* \${RUN_PGM}
-EOF
-    chmod +x run.sh
-    LAUNCH_CMD=./run.sh
-elif [ "${UnitTest_run_debug}" = gdb ]; then
-    localFilesNotToErase="${localFilesNotToErase} run.sh"
-    cat > run.sh <<EOF
-#!/bin/bash
-gdb -ex run -ex where \${RUN_PGM}
-EOF
-    chmod +x run.sh
-    LAUNCH_CMD=./run.sh
-elif [ "${UnitTest_run_debug}" = no ]; then
-    LAUNCH_CMD="\${RUN_PGM}"
-else
-    echo "The value of 'UnitTest_run_debug=${UnitTest_run_debug}' is not 'ddt', 'gdb' or 'no' so we will use 'no'."
-    LAUNCH_CMD="\${RUN_PGM}"
-fi
-
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
 
@@ -123,14 +99,73 @@ if [ -L ${TASK_BIN}/mpiscript ]; then
     LAUNCH_CMD=./mpiscript
 fi
 
-localFilesNotToErase="${localFilesNotToErase} launch_program.sh"
+localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd"
+
+load_ddt=". ssmuse-sh -x main/opt/forge/20.0.3"
 
 cat > launch_program.sh <<EOF
 #!/bin/bash
 
 set -e
 
-run_pgm=\${1:?'You must provide a program to launch'}
+debugger_mode=
+while [ \$# -ne 0 ]; do
+    if [ "\${1}" = --ddt ]; then
+        debugger_mode=ddt
+        ${load_ddt}
+    elif [ "\${1}" = --gdb ]; then
+        debugger_mode=gdb
+    elif [ "\${1}" = -h -o "\${1}" = --help ]; then
+        echo "\${0} [--ddt] [--gdb] \\\${path_to_program}"
+        exit
+    else
+        run_pgm=\${1}
+    fi
+    shift
+done
+
+if [ -z "\${run_pgm}" ]; then
+    echo 'You must provide a program to launch' >&2
+    exit 1
+fi
+
+if [ "\${debugger_mode}" = ddt ]; then
+    echo "You must first launch"
+    echo "    ${load_ddt}"
+    echo "    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual &"
+    echo ""
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -ex
+
+\$(which ddt-client) --ddtsessionfile \$HOME/.allinea/session/\${HOSTNAME}-[0-9]* \${run_pgm}
+
+EOFLAUNCH
+elif [ "\${debugger_mode}" = gdb ]; then
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -e
+
+gdb -ex run -ex where -ex quit \${run_pgm}
+
+EOFLAUNCH
+elif [ -z "\${debugger_mode}" ]; then
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -e
+
+${LAUNCH_CMD}
+
+EOFLAUNCH
+else
+    echo "The 'debugger_mode' can only be 'ddt', 'gdb' or '' and not '\${debugger_mode}'!" >&2
+    exit 1
+fi
+
+chmod +x launch_cmd
 
 if [[ \${run_pgm} != */* ]]; then
     status=0
@@ -142,6 +177,7 @@ if [[ \${run_pgm} != */* ]]; then
     fi
 fi
 
+## This may be needed for 'mpiscript'
 export RUN_PGM=\${run_pgm}
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
@@ -158,7 +194,7 @@ done
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ./launch_cmd -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
