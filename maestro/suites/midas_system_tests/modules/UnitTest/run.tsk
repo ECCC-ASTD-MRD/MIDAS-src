@@ -78,15 +78,6 @@ cat >> load_env.sh <<EOF
 
 ulimit -c unlimited
 
-if [ -z "\${PBS_JOBNAME}" ]; then
-    profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
-    if [ -f "\${profile}" ]; then
-        echo "Sourcing PBS setup in file \${profile}"
-        source \${profile}
-    else
-        echo "Cannot find the PBS setup \${profile}"
-    fi
-fi
 EOF
 
 localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
@@ -160,7 +151,7 @@ sscp -r obs.original obs
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
 for file in *; do
     if $(which isFileInList.sh) \${file} not in obs ${localFilesNotToErase}; then
-        rm -rv \${file}
+        rm -r \${file}
     fi
 done
 

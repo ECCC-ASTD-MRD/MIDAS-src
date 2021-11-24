@@ -121,7 +121,7 @@ find_resources () {
 sleep $((360*60))
 
 EOF
-    ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit
+    ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit 2>/dev/null
     rm ${__sleep_job__}
 
     ## The following command will output
@@ -158,7 +158,8 @@ extract_resource() {
 }
 
 resources=$(find_resources)
-printf "resources=${resources}\n"
+# The following line can be used for debugging:
+# printf "resources=${resources}\n"
 
 ncores=$(extract_resource ncpus "${resources}")
 nslots=$(extract_resource select "${resources}")
@@ -190,6 +191,16 @@ cat > ${rcfile} <<EOF
 . /etc/profile
 . $HOME/.profile
 
+if [ -z "\${PBS_JOBNAME}" ]; then
+    profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
+    if [ -f "\${profile}" ]; then
+        echo "Sourcing PBS setup in file \${profile}"
+        source \${profile}
+    else
+        echo "Cannot find the PBS setup \${profile}"
+    fi
+fi
+
 echo
 echo Changing directory for ${working_directory}
 cd ${working_directory}
@@ -214,3 +225,5 @@ echo "   ${jobsubi_cmd}"
 echo
 
 ${jobsubi_cmd}
+
+rm ${rcfile}
