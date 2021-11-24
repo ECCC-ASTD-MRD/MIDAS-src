@@ -193,7 +193,31 @@ The script `launch_interactive.sh` is launching an interactive job and
 it will give you the instructions on how to login to the job and start
 working.
 
-#### Preparing interactive mode without changing any configuration file
+#### Debugging tools
+
+This setup is building an interactive environment to launch again and
+again the program you are debugging.  This is the script
+`launch_program.sh`.  You launch the program with:
+```bash
+./launch_program.sh ${path_to_program}
+```
+
+Sometimes, it is very helpful to use some debugging tools.  So the
+script `launch_program.sh` is supporting two tools for debugging:
+ * [`gdb`](https://www.gnu.org/software/gdb) and
+ * [DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
+
+which can be activated by using respectively the options `--gdb` and
+`--ddt` when calling `launch_program.sh`.  For DDT, some instructions
+will show up to help you start debugging.
+
+When you use those tools, it is suggested to compile with debugging
+options enabled which are by using:
+```bash
+export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+```
+
+#### Preparing interactive mode without changing any configuration
 
 You can prepare the interactive mode by using this command:
 ```bash
