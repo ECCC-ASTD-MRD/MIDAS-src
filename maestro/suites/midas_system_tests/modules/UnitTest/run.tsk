@@ -103,6 +103,8 @@ localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd"
 
 load_ddt=". ssmuse-sh -x main/opt/forge/20.0.3"
 
+source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
+
 cat > launch_program.sh <<EOF
 #!/bin/bash
 
@@ -132,7 +134,7 @@ fi
 if [ "\${debugger_mode}" = ddt ]; then
     echo "You must first launch"
     echo "    ${load_ddt}"
-    echo "    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual &"
+    echo "    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual  --source-dirs=${source_dirs} &"
     echo ""
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
