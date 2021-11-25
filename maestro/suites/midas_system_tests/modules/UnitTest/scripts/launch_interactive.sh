@@ -50,7 +50,7 @@ extract_from_XML() {
     set -e
 
     if [ $# -ne 2 ]; then
-        echo "extract_from_XML: needs exactly two arguments"
+        echo "extract_from_XML: needs exactly two arguments" >&2
         exit 1
     fi
 
@@ -98,20 +98,20 @@ fi
 find_resources () {
     set -e
     if [ $# -ne 0 ]; then
-        echo "find_resources: does not accept any argument: $0 $*"
+        echo "find_resources: does not accept any argument: $0 $*" >&2
         return 1
     fi
 
     __sleep_job__=${TMPDIR}/sleep_forever.sh
     if [ -f "${__sleep_job__}" ]; then
-        echo "The file ${sleep_job} exists"
-        echo "Erase it or move it if you want to keep it"
+        echo "find_resources: The file ${__sleep_job__} exists" >&2
+        echo "find_resources: Erase it or move it if you want to keep it" >&2
         exit 1
     fi
     __lajobtar__=lajob.tar
     if [ -f "${__lajobtar__}" ]; then
-        echo "The file ${__lajobtar__} exists"
-        echo "Erase it or move it if you want to keep it"
+        echo "find_resources: The file ${__lajobtar__} exists" >&2
+        echo "find_resources: Erase it or move it if you want to keep it" >&2
         exit 1
     fi
 
@@ -146,7 +146,7 @@ EOF
 extract_resource() {
     set -e
     if [ $# -ne 2 ]; then
-        echo "extract_resource: accepts only two arguments: $0 $*"
+        echo "extract_resource: accepts only two arguments: $0 $*" >&2
         return 1
     fi
     __element__=${1}
