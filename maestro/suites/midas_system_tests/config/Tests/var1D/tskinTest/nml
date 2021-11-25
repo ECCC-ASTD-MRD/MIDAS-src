@@ -1,7 +1,6 @@
  &NAMSQLcsr
   numberElem=1 ,
   listElem='12163' ,
-  sqlExtraDat='' ,
   sqlExtraHeader='' ,
   sqlNull='' ,
   sqlLimit='' ,

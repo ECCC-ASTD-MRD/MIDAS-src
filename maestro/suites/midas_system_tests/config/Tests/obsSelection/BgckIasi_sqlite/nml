@@ -423,13 +423,13 @@
   &NAMSQLiasi
   listElem='12163'
   numberElem=1
-  sqlExtraDat=' and obsvalue is not null  '
+  sqlNull=" and obsvalue is not null "
   sqlExtraHeader="   "
 /
   &NAMSQLairs
   listElem='12163'
   numberElem=1
-  sqlExtraDat=' and obsvalue is not null '
+  sqlNull=' and obsvalue is not null '
 /
   &NAMSQLUPDATE
   numberUpdateItems=4

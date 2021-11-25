@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introducing support for random 64bit `id_data` and `id_obs` ; `sqlExtraDat` can no longer have "order by" statement (#536 and !515)
  * Mention to test `compile_all_plat.sh` prior to MR in `midas_build` doc (#542 and !514)
  * Changed the merge template to better guide the user when he/she is
    updating the [`CHANGELOG`](CHANGELOG.md) (#539 and !513)
@@ -66,6 +67,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug where scat wind observations would be ignored if read in the wrong order (#536 and !515)
  * Fix bug in BURP update of high resolution radiosondes (#529 and !512)
  * Fix near-surface extrapolation in GPSRO ObsOperator for bending, caused large erroneous values and an abort (#520 and !510)
  * Fix undefined reference error catching in `midas_build` (#537 and !509)

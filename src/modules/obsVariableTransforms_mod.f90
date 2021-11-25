@@ -544,7 +544,7 @@ contains
         vWind_present = .false.
 
         ! Check if u and v are present in obsSpaceData
-        do bodyIndex2 = bodyIndex, bodyIndexEnd
+        do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
           level3 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
 
@@ -568,7 +568,7 @@ contains
         end if
 
         ! Find the speed report and compute uWind and vWind
-        calcuv: do bodyIndex2 = bodyIndex, bodyIndexEnd
+        calcuv: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
           speed_missing     = .true.
           direction_missing = .true.
           level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
