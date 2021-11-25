@@ -99,7 +99,7 @@ if [ -L ${TASK_BIN}/mpiscript ]; then
     LAUNCH_CMD=./mpiscript
 fi
 
-localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd"
+localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
 
 source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
@@ -144,7 +144,7 @@ elif [ "\${debugger_mode}" = gdb ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
-set -e
+set -ex
 
 gdb -ex run -ex where -ex quit \${run_pgm}
 
@@ -193,7 +193,7 @@ echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
 $(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ./launch_cmd -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
-RUNTIME=\${SECONDS}
+echo RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
@@ -202,7 +202,16 @@ chmod +x launch_program.sh
 
 . ./load_env.sh
 
-./launch_program.sh ./pgm
+status=0
+./launch_program.sh ./pgm 1> listing 2>&1 || status=1
+cat listing
+
+if [ "${status}" -ne 0 ]; then
+    echo "launch_program.sh did end with an error!" >&2
+    exit 1
+fi
+
+RUNTIME=$(grep --text '^RUNTIME=[0-9.]\+$' listing | cut -d= -f2)
 
 ## If we will not check the runtime, then issue the message now
 if [ -z "${UnitTest_maximum_execution_time}" ]; then
@@ -235,7 +244,7 @@ else
 
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-    rm -f load_env.sh launch_program.sh
+    rm -f load_env.sh launch_program.sh listing
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
     [ -d obs.original ] && rm -r obs.original
