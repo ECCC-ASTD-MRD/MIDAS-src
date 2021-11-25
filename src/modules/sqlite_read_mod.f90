@@ -885,8 +885,8 @@ contains
         if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
             .not. ovt_bufrCodeSkipped(obsVarno)) then
           
-          ! Add an extra row in data table to hold the variable
-          ! later converted by ovt_transformObsValue
+          ! Add an extra row to the obsSpaceData body table
+          ! to contain quantity later calculated by ovt_transformObsValue
           call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
           call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                               obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
