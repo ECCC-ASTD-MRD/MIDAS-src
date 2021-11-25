@@ -131,6 +131,16 @@ if [ -z "\${run_pgm}" ]; then
     exit 1
 fi
 
+if [[ \${run_pgm} != */* ]]; then
+    status=0
+    which \${run_pgm} 1> /dev/null || status=1
+    if [ "\${status}" -ne 0 ]; then
+        if [ -x \${run_pgm} ]; then
+            run_pgm=./\${run_pgm}
+        fi
+    fi
+fi
+
 if [ "\${debugger_mode}" = ddt ]; then
     ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
 
@@ -166,16 +176,6 @@ else
 fi
 
 chmod +x launch_cmd
-
-if [[ \${run_pgm} != */* ]]; then
-    status=0
-    which \${run_pgm} 1> /dev/null || status=1
-    if [ "\${status}" -ne 0 ]; then
-        if [ -x \${run_pgm} ]; then
-            run_pgm=./\${run_pgm}
-        fi
-    fi
-fi
 
 ## This may be needed for 'mpiscript'
 export RUN_PGM=${PWD}/launch_cmd
