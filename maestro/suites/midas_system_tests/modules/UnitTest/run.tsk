@@ -143,6 +143,7 @@ fi
 
 if [ "\${debugger_mode}" = ddt ]; then
     ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
+    sleep 5
 
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
