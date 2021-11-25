@@ -97,6 +97,8 @@ if [ -L ${TASK_BIN}/mpiscript ]; then
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
     LAUNCH_CMD=./mpiscript
+else
+    LAUNCH_CMD=./launch_cmd
 fi
 
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
@@ -176,7 +178,7 @@ if [[ \${run_pgm} != */* ]]; then
 fi
 
 ## This may be needed for 'mpiscript'
-export RUN_PGM=\${run_pgm}
+export RUN_PGM=${PWD}/launch_cmd
 
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
 [ -d obs ] && rm -rf obs
@@ -192,7 +194,7 @@ done
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ./launch_cmd -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 echo RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
