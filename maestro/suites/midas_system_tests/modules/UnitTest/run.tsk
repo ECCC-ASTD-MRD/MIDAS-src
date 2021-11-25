@@ -209,30 +209,34 @@ status=0
 ./launch_program.sh ./pgm 1> listing 2>&1 || status=1
 cat listing
 
-if [ "${status}" -ne 0 ]; then
-    echo "launch_program.sh did end with an error!" >&2
-    exit 1
-fi
-
-RUNTIME=$(grep --text '^RUNTIME=[0-9.]\+$' listing | cut -d= -f2)
-
-## If we will not check the runtime, then issue the message now
-if [ -z "${UnitTest_maximum_execution_time}" ]; then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
-fi
-
-if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
-    exit 1
-fi
-
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively."
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use:"
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "to launch an interactive job."
+    if [ "${status}" -ne 0 ]; then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The program aborted!"
+        exit 1
+    fi
     SEQ_XFER=stop
 else
+    if [ "${status}" -ne 0 ]; then
+        echo "launch_program.sh did end with an error!" >&2
+        exit 1
+    fi
+
+    RUNTIME=$(grep --text '^RUNTIME=[0-9.]\+$' listing | cut -d= -f2)
+
+    ## If we will not check the runtime, then issue the message now
+    if [ -z "${UnitTest_maximum_execution_time}" ]; then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
+    fi
+
+    if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
+        exit 1
+    fi
+
     ## remove inputs
     for file in ${TASK_INPUT}/inputs/*; do
         bfile=$(basename ${file})
