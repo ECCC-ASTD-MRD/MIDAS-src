@@ -155,7 +155,7 @@ elif [ -z "\${debugger_mode}" ]; then
 
 set -e
 
-${LAUNCH_CMD}
+\${run_pgm}
 
 EOFLAUNCH
 else
