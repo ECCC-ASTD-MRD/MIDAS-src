@@ -244,7 +244,7 @@ else
 
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-    rm -f load_env.sh launch_program.sh listing
+    rm -f load_env.sh launch_program.sh launch_cmd listing
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
     [ -d obs.original ] && rm -r obs.original
