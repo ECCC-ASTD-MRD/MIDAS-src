@@ -677,7 +677,6 @@ contains
         queryHeader = "select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" where id_obs = ? "
         if ( rowIndex == 1 ) then
           write(*,'(4a)') myName//': ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
-          write(*,*) myName//': =========================================='
         end if
         call fSQL_prepare( db, queryHeader, stmt, stat )
         if ( fSQL_error(stat)  /= FSQL_OK ) then
@@ -719,12 +718,12 @@ contains
 
         FAMILYEXCEPTIONS: if ( trim(familyType) == 'TO' ) then
 
-          call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR   = obsStatus )
-          call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
-          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
-          call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument, INT_MISSING=MPC_missingValue_INT  )
-          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = zenithReal, REAL_MISSING=MPC_missingValue_R4  )
-          call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+          call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus )
+          call fSQL_get_column( stmt, COL_INDEX =  9,  INT_VAR = obsSat    )
+          call fSQL_get_column( stmt, COL_INDEX = 10,  INT_VAR = landSea        , INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 11,  INT_VAR = instrument     , INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR = zenithReal     , REAL_MISSING=MPC_missingValue_R4 )
+          call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
 
           if ( trim(rdbSchema) /= 'csr' ) then
 
@@ -769,6 +768,13 @@ contains
             call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
             modelWindSpeed = modelWindSpeed_R8
           end if
+
+      	else if ( trim(rdbSchema) == 'sst' ) then
+        	! satellite SST observations
+
+        	call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus                                         )
+        	call fSQL_get_column( stmt, COL_INDEX =  9, REAL_VAR = elev           , REAL_MISSING=MPC_missingValue_R4 )
+        	call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
 
         else if ( trim(familyType) == 'RA' ) then
           if ( trim(rdbSchema) == 'radvel') then
@@ -879,7 +885,8 @@ contains
         if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
             .not. ovt_bufrCodeSkipped(obsVarno)) then
           
-          ! Add an extra row in data table that will hold the converted variable
+          ! Add an extra row in data table to hold the variable
+          ! later converted by ovt_transformObsValue
           call obs_setBodyPrimaryKey( obsdat, bodyIndex+1, -1)
           call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                               obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
@@ -1133,9 +1140,9 @@ contains
 
         call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR = obsFlag )
         
-	ITEMS: do itemIndex = 1, numberUpdateItems
+				ITEMS: do itemIndex = 1, numberUpdateItems
           
-	  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+	  		  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue /= obs_missingValue_R ) then  
             romp = obs_bodyElem_r(obsdat, updateList( itemIndex ), bodyIndex )
             if ( romp == obs_missingValue_R ) then
@@ -1202,8 +1209,7 @@ contains
 
     call fSQL_commit(db, stat)
     if ( fSQL_error(stat)  /= FSQL_OK ) then
-      write(*,*) 'sqlr_updateSqlite: problem committing updates to file.'
-      call sqlr_handleError( stat, 'fSQL_commit')
+      call sqlr_handleError( stat, myName//'fSQL_commit')
     end if
     write(*,*) myName//': End ===================  ', trim(familyType)
 
