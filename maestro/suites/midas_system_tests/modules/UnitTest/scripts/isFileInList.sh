@@ -48,6 +48,7 @@ isFileInList () {
         shift 2
     elif [ "${2}" = "not" -a "${3}" = "in" ]; then
         shift 3
+        ## If call with  'not in', the we call with 'in' and inverse the result
         __isFileInList_status__=0
         isFileInList "${__isFileInList_file__}" in $* || __isFileInList_status__=1
         unset __isFileInList_file__

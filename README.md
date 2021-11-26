@@ -176,7 +176,7 @@ this:
 ```
 We stop here to let you continue to work interactively.
 You can use:
-    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}
+    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node /${pathToTest}/UnitTest/run -date ${SEQ_DATE}
 to launch an interactive job.
 ```
 
@@ -205,11 +205,14 @@ again the program you are debugging.  This is the script
 Sometimes, it is very helpful to use some debugging tools.  So the
 script `launch_program.sh` is supporting two tools for debugging:
  * [`gdb`](https://www.gnu.org/software/gdb) and
- * [DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
+ * [`DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
 
 which can be activated by using respectively the options `--gdb` and
-`--ddt` when calling `launch_program.sh`.  For DDT, some instructions
-will show up to help you start debugging.
+`--ddt` when calling `launch_program.sh` like this:
+```bash
+./launch_program.sh ${path_to_program} --ddt
+```
+For DDT, the GUI is automatically started for you.
 
 When you use those tools, it is suggested to compile with debugging
 options enabled which are by using:
