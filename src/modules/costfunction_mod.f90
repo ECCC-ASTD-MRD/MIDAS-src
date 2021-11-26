@@ -103,7 +103,7 @@ contains
 
     character(len=15) :: lowerCaseName
 
-    logical, save :: printJoTovsPerChannelSensor = .false.
+    logical :: printJoTovsPerChannelSensor
 
     call tmg_start(81,'SUMJO')
 
@@ -115,6 +115,7 @@ contains
     end if
 
     call readNameList
+    printJoTovsPerChannelSensor = .false.
     if ( any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0) ) then
       printJoTovsPerChannelSensor = .true.
     end if
