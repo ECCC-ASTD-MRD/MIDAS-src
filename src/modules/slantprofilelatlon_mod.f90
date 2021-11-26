@@ -550,7 +550,6 @@ contains
       latSlantLev_T(levIndex) = Lat_Obs(imin)
       lonSlantLev_T(levIndex) = Lon_Obs(imin)
     end do
-    !Josep: is it correct ?
     latSlantLev_S = latSlantLev_T(nlev_T)
     lonSlantLev_S = lonSlantLev_T(nlev_T)
 

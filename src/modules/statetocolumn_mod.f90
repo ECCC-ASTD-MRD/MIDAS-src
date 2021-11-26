@@ -668,12 +668,12 @@ contains
             lonLev_S = real(lon_r4,8)
           end if
 
-          ! check if the slanted lat/lon is inside the domain
-          ! in principle a check for latLev_S and lonLev_S should be added here 	
+          ! check if the slanted lat/lon is inside the domain 	
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
-                              latLev_M, lonLev_M )             ! IN/OUT 
+                              latLev_M, lonLev_M,            & ! IN/OUT
+                              latLev_S, lonLev_S )             ! IN/OUT 
 
           ! put the lat/lon from TH/MM levels to kIndex
           do kIndex = allkBeg(1), stateVector%nk
@@ -3451,7 +3451,8 @@ contains
   !--------------------------------------------------------------------------
   ! latlonChecks
   !--------------------------------------------------------------------------
-  subroutine latlonChecks( obsSpaceData, hco, headerIndex, rejectOutsideObs, latLev_T, lonLev_T, latLev_M, lonLev_M )
+  subroutine latlonChecks( obsSpaceData, hco, headerIndex, rejectOutsideObs, &
+    latLev_T, lonLev_T, latLev_M, lonLev_M, latLev_S, lonLev_S )
     !
     !:Purpose: To check if the obs are inside the domain.
     !
@@ -3466,6 +3467,8 @@ contains
     real(8),          intent(inout)  :: lonLev_T(:)
     real(8),          intent(inout)  :: latLev_M(:)
     real(8),          intent(inout)  :: lonLev_M(:)
+    real(8), intent(inout),optional  :: latLev_S
+    real(8), intent(inout),optional  :: lonLev_S
 
     ! Locals:
     integer :: ierr
@@ -3529,6 +3532,27 @@ contains
       end if
     end if
 
+    !  check if lat/lon of surface level is outside domain.
+    if ( present(latLev_S) .and. present(lonLev_S) .and. .not. rejectHeader ) then
+      lat_r4 = real(latLev_S,4)
+      lon_r4 = real(lonLev_S,4)
+
+      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ierr = gpos_getPositionXY( hco%EZscintID,   &
+                                xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
+
+      latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
+                            xpos_r4 > real(niP1) .or. &
+                            ypos_r4 < 1.0        .or. &
+                            ypos_r4 > real(hco%nj) )
+
+      if ( latlonOutsideGrid .and. rejectOutsideObs ) then
+        rejectHeader = .true.
+      end if
+    end if
+
     if ( rejectHeader ) then
       ! The observation is outside the domain.
       ! With a LAM trial field we must discard this observation
@@ -3558,6 +3582,10 @@ contains
       latLev_T(:) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       lonLev_M(:) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       latLev_M(:) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+      if (present(lonLev_S) .and. present(latLev_S)) then
+        lonLev_S    = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+        latLev_S    = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+      end if
 
     end if
 
