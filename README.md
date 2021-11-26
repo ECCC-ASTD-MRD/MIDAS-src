@@ -128,9 +128,9 @@ cd src/programs
 # Testing the new compilation using `make`
 
 All the information and instructions can be found in the [src](./src)
-directory, by clicking on that folder in gitlab and browsing down the
-files, you will see [`src/README.md`](./src/README.md) content
-appended there.
+directory, by clicking on that folder in GitLab and and scrolling down
+past the files, you will see [`src/README.md`](./src/README.md)
+content appended there.
 
 # MIDAS test suite
 
@@ -163,12 +163,13 @@ login into it.  For that, you can set
 ```bash
 UnitTest_stop_for_interactive_work=yes
 ```
-in one of the following file:
- * `maestro/suites/midas_system_tests/experiment.cfg`
- * `maestro/suites/midas_system_tests/abs.dot` (this one is ignored by Git)
- * `maestro/suites/midas_system_tests/config/Tests/${pathToTest}.cfg`
+in one of the following files:
+ 1. `maestro/suites/midas_system_tests/experiment.cfg`
+ 2. `maestro/suites/midas_system_tests/abs.dot` (this one is ignored by Git)
+ 3. `maestro/suites/midas_system_tests/config/Tests/${pathToTest}.cfg`
 
-to prepare the working directory for interactive debugging.
+to prepare the working directory for interactive debugging.  The first
+one is the suggested method.
 
 After setting this, launch the `/${pathToTest}/UnitTest/run` task
 itself and look at the log messages.  You will see something like
@@ -215,7 +216,7 @@ which can be activated by using respectively the options `--gdb` and
 For DDT, the GUI is automatically started for you.
 
 When you use those tools, it is suggested to compile with debugging
-options enabled which are by using:
+options enabled by using:
 ```bash
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
 ```
@@ -226,7 +227,7 @@ You can prepare the interactive mode by using this command:
 ```bash
 maestro -n /${pathToTest}/UnitTest/run -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
 ```
-instead of modifying one of the files mentionned in the previous
+instead of modifying one of the files mentioned in the previous
 section.
 
 ## Updating the results
