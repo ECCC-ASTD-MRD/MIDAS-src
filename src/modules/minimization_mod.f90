@@ -90,7 +90,6 @@ module minimization_mod
   logical :: deallocHessian
   logical :: isMinimizationFinalCall
 
-  integer :: numOuterLoopIterations
   integer,parameter :: maxNumberOfOuterLoopIterations = 3
 
   ! namelist variables
@@ -131,8 +130,7 @@ CONTAINS
       call utl_abort('min_setup: control vector dimension not consistent')
     endif
 
-    numOuterLoopIterations = numOuterLoopIterations_in
-    if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
+    if ( numOuterLoopIterations_in > maxNumberOfOuterLoopIterations ) then
       call utl_abort('min_setup: numOuterLoopIterations is greater than max value')
     end if
 
@@ -169,7 +167,7 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    if ( .not. all(nitermax(1:numOuterLoopIterations) > 0) ) then
+    if ( .not. all(nitermax(1:numOuterLoopIterations_in) > 0) ) then
       call utl_abort('min_setup: some nitermax(:) in namelist are negative or zero')
     end if
 
@@ -512,7 +510,7 @@ CONTAINS
 
     real(8) :: vazx(:)
 
-    if ( nitermax(numOuterLoopIterations) > 0 .and. lwrthess ) then
+    if ( lwrthess ) then
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
