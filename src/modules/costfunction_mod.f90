@@ -99,7 +99,6 @@ contains
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
     real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
-    real(8) :: joSumMpiGlobal(tvs_maxNumberOfChannels)
 
     character(len=15) :: lowerCaseName
 
@@ -246,12 +245,8 @@ contains
     if ( printJoTovsPerChannelSensor ) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor2
-        joSumMpiGlobal(:) = 0.0d0
-        call rpn_comm_allreduce(joTovsPerChannelSensor(:,sensorIndex), joSumMpiGlobal, &
-                                tvs_maxNumberOfChannels, &
-                                'mpi_double_precision', 'mpi_sum', 'grid', ierr)
-        joTovsPerChannelSensor(:,sensorIndex) = joSumMpiGlobal(:)
 
+        call mpi_allreduce_sumR8_1d( joTovsPerChannelSensor(:,sensorIndex), "GRID" )
       end do loopSensor2
     end if
 
