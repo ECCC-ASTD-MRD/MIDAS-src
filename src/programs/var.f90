@@ -62,8 +62,6 @@ program midas_var
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: stateVectorPsfcHighRes
   type(struct_gsv)                :: stateVectorPsfc
-  type(struct_gsv)                :: stateVectorLowResTime
-  type(struct_gsv)                :: stateVectorLowResTimeSpace
   type(struct_gsv)                :: stateVectorAnal
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
@@ -73,7 +71,6 @@ program midas_var
 
   integer :: outerLoopIndex, ip3ForWriteToFile
 
-  character(len=4), pointer :: varNames(:)
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
 

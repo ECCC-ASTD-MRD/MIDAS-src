@@ -120,8 +120,6 @@ CONTAINS
     ! Locals:
     integer :: ierr,nulnam
     integer,external :: fnom,fclos
-    character(len=32) :: envVariable
-    integer :: length_envVariable, status
 
     if ( nvadim_mpilocal_in /= cvm_nvadim ) then
       write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
