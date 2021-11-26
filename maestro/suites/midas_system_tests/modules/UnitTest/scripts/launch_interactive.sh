@@ -2,7 +2,7 @@
 
 set -e
 
-## 6 hours
+## 6 hours in seconds
 wallclock_default=$((6*60*60))
 
 arguments=$*
@@ -95,6 +95,28 @@ if [ "${TRUE_HOST}" != "${host}" ]; then
     exit 1
 fi
 
+check_file() {
+    set -e
+    if [ $# -ne 2 ]; then
+        echo "check_file does accept only two arguments which are:" >&2
+        echo "       function name" >&2
+        echo "       file name" >&2
+        echo "check_file has been called with $0 $*" >&2
+        echo "               $0 $*" >&2
+        return 1
+    fi
+
+    __check_file_function__=${1}
+    __check_file_file__=${2}
+    if [ -f "${__check_file_file__}" ]; then
+        echo "${__check_file_function__}: The file ${__check_file_file__} exists" >&2
+        echo "${__check_file_function__}: Erase it or move it if you want to keep it" >&2
+        return 1
+    fi
+
+    unset __check_file_file__ __check_file_function__
+}
+
 find_resources () {
     set -e
     if [ $# -ne 0 ]; then
@@ -102,18 +124,11 @@ find_resources () {
         return 1
     fi
 
-    __sleep_job__=${TMPDIR}/sleep_forever.sh
-    if [ -f "${__sleep_job__}" ]; then
-        echo "find_resources: The file ${__sleep_job__} exists" >&2
-        echo "find_resources: Erase it or move it if you want to keep it" >&2
-        exit 1
-    fi
+    __sleep_job__=sleep_forever.sh
+    check_file find_resources ${__sleep_job__}
+
     __lajobtar__=lajob.tar
-    if [ -f "${__lajobtar__}" ]; then
-        echo "find_resources: The file ${__lajobtar__} exists" >&2
-        echo "find_resources: Erase it or move it if you want to keep it" >&2
-        exit 1
-    fi
+    check_file find_resources ${__lajobtar__}
 
     cat > ${__sleep_job__} <<EOF
 #!/bin/bash
@@ -182,11 +197,8 @@ while [ $# -ne 0 ]; do
 done
 
 rcfile=${PWD}/rcfile
-if [ -f "${rcfile}" ]; then
-    echo "The file ${rcfile} exists"
-    echo "Erase it or move it if you want to keep it"
-    exit 1
-fi
+check_file launch_interactive ${rcfile}
+
 cat > ${rcfile} <<EOF
 . /etc/profile
 . $HOME/.profile
