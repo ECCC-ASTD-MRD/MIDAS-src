@@ -1,43 +1,86 @@
 #!/bin/ksh
 
+args=${*}
+
+## The user can specify arguments using
+##   maestro -n ${SEQ_NODE} -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
+if [ -n "${args}" ]; then
+    for arg in ${args}; do
+        if [[ "${arg}" = UnitTest_stop_for_interactive_work=* ]]; then
+            eval ${arg}
+        fi
+    done
+fi
+
 cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
-if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
-    export AFSISIO=/home/smco502/env_sles-11-broadwell-64-xc40
-elif [[ "${ORDENV_PLAT}" = ubuntu-14.04* ]]; then
-    export AFSISIO=/home/smco502/env_ubuntu-14.04-amd64-64
-    ## loading OpenMPI 1.6.5 (the binaries must be compiled with too)
-    . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
-    ## those variables are necessary on PPP
-    export OMPI_MCA_orte_tmpdir_base=/run/shm
-    export OMPI_MCA_btl_openib_if_include=mlx5_0
-elif [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
-    export AFSISIO=/home/smco502/env_sles-15-skylake-64-xc50
+localFilesNotToErase="flnml pgm obs.original"
+for target in ${TASK_INPUT}/inputs/*; do
+    localFilesNotToErase="${localFilesNotToErase} $(basename ${target})"
+done
+
+mkdir obs.original
+if [ -L obs -o -d obs ]; then
+    sscp obs/* obs.original
+    if [ -L obs ]; then
+        rm obs
+    else
+        rm -r obs
+    fi
+else
+    obsfiles=$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null || true)
+    if [ -n "${obsfiles}" ]; then
+        sscp ${obsfiles} obs.original
+    fi
+fi
+
+localFilesNotToErase="${localFilesNotToErase} load_env.sh"
+
+cat >> load_env.sh <<EOF
+
+export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
+export OMP_NUM_THREADS=${OMP_NUM_THREADS}
+
+export SEQ_NPEX=${SEQ_NPEX}
+export SEQ_NPEY=${SEQ_NPEY}
+EOF
+
+if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
-    module load craype-hugepages16M
-    export FOR_DISABLE_KMP_MALLOC=0
+    echo >> load_env.sh
+    echo module load craype-hugepages16M >> load_env.sh
+    echo export FOR_DISABLE_KMP_MALLOC=0 >> load_env.sh
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
-    export AFSISIO=/home/smco502/env_ubuntu-18.04-skylake-64
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
-    . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
-    . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
-    . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+    cat >> load_env.sh <<EOF
+
+. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+. ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+. ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+EOF
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
 
-export TMG_ON=YES
-export OMP_STACKSIZE=4G
+if [ -n "${UnitTest_run_environment_variables}" ]; then
+    echo >> load_env.sh
+    for __envvar__ in ${UnitTest_run_environment_variables}; do
+        echo export ${__envvar__} >> load_env.sh
+    done
+fi
 
-for __envvar__ in ${UnitTest_run_environment_variables}; do
-    eval "export ${__envvar__}"
-done
-unset __envvar__
+cat >> load_env.sh <<EOF
+
+ulimit -c unlimited
+
+EOF
+
+localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
 
 cat << EOF > ptopo_nml
  &ptopo
@@ -46,126 +89,219 @@ cat << EOF > ptopo_nml
 /
 EOF
 
-if [ "${UnitTest_run_debug}" = ddt ]; then
-    if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
-        run_in_parallel_extra_args=-ddt
-        RUN_PGM=./pgm
-    else
-        cat > run.sh <<EOF
-#!/bin/ksh
-
-/fs/home/fs1/ords/ssc/hpco/mib002/allinea/forge/bin/ddt-client --ddtsessionfile ${HOME}/.allinea/session/eccc1-ppp2-1 ./pgm
-EOF
-        RUN_PGM=./run.sh
-    fi
-elif [ "${UnitTest_run_debug}" = gdb ]; then
-    cat > run.sh <<EOF
-#!/bin/ksh
-gdb -ex run -ex where ./pgm
-EOF
-    RUN_PGM=./run.sh
-elif [ "${UnitTest_run_debug}" = no ]; then
-    RUN_PGM=./pgm
-else
-    echo "The value of 'UnitTest_run_debug=${UnitTest_run_debug}' is not 'ddt', 'gdb' or 'no' so we will use 'no'."
-    RUN_PGM=./pgm
-fi
-
-[ ! -x "${RUN_PGM}" ] && chmod u+x ${RUN_PGM}
-ulimit -c unlimited
-
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
+    localFilesNotToErase="${localFilesNotToErase} mpiscript"
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
-    cmd=./mpiscript
-    export RUN_PGM
+    LAUNCH_CMD=./mpiscript
 else
-    cmd=${RUN_PGM}
+    LAUNCH_CMD=./launch_cmd
 fi
 
-[ ! -d obs ] && mkdir obs
-echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
-/bin/cp burpfiles_*/brp*_*_* ./obs || true
-/bin/cp sqlfiles_*/obs*_*_* ./obs || true
-/bin/cp obsfiles_*/obs*_*_* ./obs || true
+localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
 
-echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
+source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
-SECONDS=0
-${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
-RUNTIME=${SECONDS}
+cat > launch_program.sh <<EOF
+#!/bin/bash
 
-echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
+set -e
 
-## If we will not check the runtime, then issue the message now
-if [ -z "${UnitTest_maximum_execution_time}" ]; then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
-fi
-
-## remove inputs
-for file in ${TASK_INPUT}/inputs/*; do
-    bfile=$(basename ${file})
-    ## habituellement, les fichiers 'brp', 'sql' ou 'sqlfiles' sont mis a jour alors on ne les efface pas pour les garder
-    if [[ "${bfile}" == brp* || "${bfile}" == sql* || "${bfile}" == obsfiles* ]]; then
-        if [ -f "${file}" ]; then
-            continue
-        fi
+debugger_mode=
+while [ \$# -ne 0 ]; do
+    if [ "\${1}" = --ddt ]; then
+        debugger_mode=ddt
+        . ssmuse-sh -x main/opt/forge/20.0.3
+    elif [ "\${1}" = --gdb ]; then
+        debugger_mode=gdb
+    elif [ "\${1}" = -h -o "\${1}" = --help ]; then
+        echo "\${0} [--ddt] [--gdb] \\\${path_to_program}"
+        exit
+    else
+        run_pgm=\${1}
     fi
-    rm -r ${bfile}
+    shift
 done
 
-## remove other files created by the execution
-rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-rm -r mpitmpdir
-[ -d obs ] && rm -r obs
-[ -d obsBeforeThinning ] && rm -r obsBeforeThinning
-
-## put all the rest in 'output'
-mv * ${TASK_OUTPUT}
-
-if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
+if [ -z "\${run_pgm}" ]; then
+    echo 'You must provide a program to launch' >&2
     exit 1
 fi
 
-## Check runtime
-if [ -n "${UnitTest_maximum_execution_time}" ]; then
-    function parse_time {
-        set -e
-        __parse_time__=$1
-        if [[ "${__parse_time__}" == *:*:* ]]; then
-            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 3600*$1 + 60*$2 + $3}')
-        elif [[ "${__parse_time__}" == *:* ]]; then
-            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 60*$1 + $2}')
-        else
-            __parse_time_seconds__=${__parse_time__}
+if [[ \${run_pgm} != */* ]]; then
+    status=0
+    which \${run_pgm} 1> /dev/null || status=1
+    if [ "\${status}" -ne 0 ]; then
+        if [ -x \${run_pgm} ]; then
+            run_pgm=./\${run_pgm}
         fi
-        unset __parse_time__
+    fi
+fi
 
-        echo ${__parse_time_seconds__}
-        unset __parse_time_seconds__
-    }
+if [ ! -f "\${run_pgm}" ]; then
+    echo "The program specified '\${run_pgm}' does not exist!" >&2
+    exit 1
+fi
 
-    max_seconds=$(parse_time ${UnitTest_maximum_execution_time})
+if [ "\${debugger_mode}" = ddt ]; then
+    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
+    sleep 5
 
-    if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
-        max_seconds=$(printf "%.2f" ${max_seconds})
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
-        if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
-            exit 1
-        fi
-    else
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -ex
+
+\$(which ddt-client) --ddtsessionfile \$HOME/.allinea/session/\${HOSTNAME}-[0-9]* \${run_pgm}
+
+EOFLAUNCH
+elif [ "\${debugger_mode}" = gdb ]; then
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -ex
+
+gdb -ex run -ex where -ex quit \${run_pgm}
+
+EOFLAUNCH
+elif [ -z "\${debugger_mode}" ]; then
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -e
+
+\${run_pgm}
+
+EOFLAUNCH
+else
+    echo "The 'debugger_mode' can only be 'ddt', 'gdb' or '' and not '\${debugger_mode}'!" >&2
+    exit 1
+fi
+
+chmod +x launch_cmd
+
+## This may be needed for 'mpiscript'
+export RUN_PGM=${PWD}/launch_cmd
+
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
+[ -d obs ] && rm -rf obs
+sscp -r obs.original obs
+
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
+for file in *; do
+    if $(which isFileInList.sh) \${file} not in obs ${localFilesNotToErase}; then
+        rm -r \${file}
+    fi
+done
+
+echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
+
+SECONDS=0
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+echo RUNTIME=\${SECONDS}
+
+echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+
+EOF
+chmod +x launch_program.sh
+
+. ./load_env.sh
+
+status=0
+./launch_program.sh ./pgm 1> listing 2>&1 || status=1
+cat listing
+
+if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively."
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use:"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "to launch an interactive job."
+    if [ "${status}" -ne 0 ]; then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The program aborted!"
+        exit 1
+    fi
+    SEQ_XFER=stop
+else
+    if [ "${status}" -ne 0 ]; then
+        echo "launch_program.sh did end with an error!" >&2
+        exit 1
+    fi
+
+    RUNTIME=$(grep --text '^RUNTIME=[0-9.]\+$' listing | cut -d= -f2)
+
+    ## If we will not check the runtime, then issue the message now
+    if [ -z "${UnitTest_maximum_execution_time}" ]; then
         ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
     fi
-fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
 
-if [ "${UnitTest_run_relaunch}" = run ]; then
-    SEQ_XFER=stop
-    maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
-elif [ "${UnitTest_run_relaunch}" != check -a "${UnitTest_run_relaunch}" != no ]; then
-    echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
-    exit 1
-fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = run ]'
+    if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
+        exit 1
+    fi
+
+    ## remove inputs
+    for file in ${TASK_INPUT}/inputs/*; do
+        bfile=$(basename ${file})
+        ## habituellement, les fichiers 'brp', 'sql' ou 'sqlfiles' sont mis a jour alors on ne les efface pas pour les garder
+        if [[ "${bfile}" == brp* || "${bfile}" == sql* || "${bfile}" == obsfiles* ]]; then
+            if [ -f "${file}" ]; then
+                continue
+            fi
+        fi
+        rm -r ${bfile}
+    done
+
+    ## remove other files created by the execution
+    rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
+    rm -f load_env.sh launch_program.sh launch_cmd listing
+    rm -r mpitmpdir
+    [ -d obs ] && rm -r obs
+    [ -d obs.original ] && rm -r obs.original
+    [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
+
+    ## put all the rest in 'output'
+    mv * ${TASK_OUTPUT}
+
+    ## Check runtime
+    if [ -n "${UnitTest_maximum_execution_time}" ]; then
+        function parse_time {
+            set -e
+            __parse_time__=$1
+            if [[ "${__parse_time__}" == *:*:* ]]; then
+                __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 3600*$1 + 60*$2 + $3}')
+            elif [[ "${__parse_time__}" == *:* ]]; then
+                __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 60*$1 + $2}')
+            else
+                __parse_time_seconds__=${__parse_time__}
+            fi
+            unset __parse_time__
+
+            echo ${__parse_time_seconds__}
+            unset __parse_time_seconds__
+        }
+
+        max_seconds=$(parse_time ${UnitTest_maximum_execution_time})
+
+        if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
+            max_seconds=$(printf "%.2f" ${max_seconds})
+            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
+            if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
+                exit 1
+            fi
+        else
+            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
+        fi
+    fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
+
+    if [ "${UnitTest_run_relaunch}" = run ]; then
+        SEQ_XFER=stop
+        maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
+    elif [ "${UnitTest_run_relaunch}" != check -a "${UnitTest_run_relaunch}" != no ]; then
+        echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
+        exit 1
+    fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = run ]'
+
+fi ## Fin du 'else' associe au 'if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then'

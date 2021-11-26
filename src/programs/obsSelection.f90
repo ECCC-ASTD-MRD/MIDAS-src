@@ -251,7 +251,7 @@ program midas_obsSelection
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
     ! if requested, dump the thinned predictors and coefficients to sqlite
-    call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData,columnTrlOnTrlLev)
+    call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
 
   end if
 

@@ -2397,8 +2397,7 @@ contains
     call check_stddev(obsChannels, ompTb, flagsInovQc, actualNumChannel, numObsToProcess, &
         &             sensorIndex, burpFileSatId, obsFlags)
 
-    call check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess,       &
-        &           sensorIndex)
+    call check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess)
 
   end subroutine ssbg_inovqcSsmis
 
@@ -2583,7 +2582,7 @@ contains
   !--------------------------------------------------------------------------
   ! check_topo
   !--------------------------------------------------------------------------
-  subroutine check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess, sensorIndex)
+  subroutine check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess)
     ! :Purpose: Perform rejection of observations for selected channels based
     !           on model surface height (for channels assimilated over land)
 
@@ -2626,7 +2625,6 @@ contains
     integer, intent(inout) :: flagsInovQc(:)     ! Flags for assimilation/rejection of obs
     integer, intent(in)    :: actualNumChannel   ! Number of channels
     integer, intent(in)    :: numObsToProcess    ! Number of obs points to process
-    integer, intent(in)    :: sensorIndex        ! Identification number of satellite
 
     !  Locals
     integer, parameter :: nChanCheck=4             ! number of channels to check

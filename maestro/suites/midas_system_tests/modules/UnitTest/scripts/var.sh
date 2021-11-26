@@ -15,6 +15,7 @@ ramdiskpath=${2:-/tmp/${USER}}
 
 if [ "${fasttmp}" = yes ]; then
     FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
+    [ -d "${FASTTMPDIR}" ] && /bin/rm -rf ${FASTTMPDIR}
     /bin/mkdir -p ${FASTTMPDIR}
     export MIDAS_RAMDISKDIR=${FASTTMPDIR}
     #echo "RAM disk space used on $(hostname) before pgm: $(/bin/df -hP ${FASTTMPDIR}) /bin/du -h ${FASTTMPDIR}"
@@ -62,7 +63,7 @@ obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
 obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
 obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
 
-if [ -d "obsBeforeThinning" ]; then
+if [ -d obsBeforeThinning ]; then
     for prefix in brp obs sql dia; do
         for file in ./obsBeforeThinning/${prefix}*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then

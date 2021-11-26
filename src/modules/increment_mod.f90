@@ -126,7 +126,6 @@ CONTAINS
     integer              :: stepIndex, numStep
     integer, allocatable :: dateStampList(:)
     integer              :: get_max_rss
-    character(len=4), pointer :: varNames(:)
 
     real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
     real(pre_incrReal), pointer :: PsfcIncrement(:,:,:,:)
@@ -699,7 +698,6 @@ CONTAINS
     type(struct_gsv) :: statevector_in_hvInterp
     type(struct_gsv) :: statevector_in_hvtInterp
 
-    real(pre_incrReal), pointer :: increment(:,:,:,:)
     real(4), allocatable        :: PsfcReference_r4(:,:,:)
     real(8), allocatable        :: PsfcReference_r8(:,:,:)
 

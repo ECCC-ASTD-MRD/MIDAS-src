@@ -5983,7 +5983,7 @@ CONTAINS
     !-------- cleanup -----
     subroutine cleanup()
       implicit none
-      integer :: errors(10)
+      integer :: errors(11)
 
       errors(:) = 0
       if (allocated(addresses))       deallocate(addresses, stat=errors(1))
