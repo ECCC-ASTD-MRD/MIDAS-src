@@ -91,7 +91,7 @@ contains
     real(8) :: pjo ! Total observation cost function
 
     ! Locals:
-    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, idata, idatend, ierr
+    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd, ierr
     integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
 
@@ -183,8 +183,8 @@ contains
     do tovsIndex = 1, tvs_nobtov
       headerIndex = tvs_headerIndex( tovsIndex )
       if ( headerIndex > 0 ) then
-        idata   = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
-        idatend = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + idata - 1
+        bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         sensorIndex = tvs_lsensor (tovsIndex)
 
         if ( printJoTovsPerChannelSensor ) then
@@ -200,7 +200,7 @@ contains
           end do loopSensor1
         end if
 
-        do bodyIndex = idata, idatend
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
           pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
           dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
 
