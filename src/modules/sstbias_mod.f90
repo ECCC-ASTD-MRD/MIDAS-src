@@ -83,17 +83,16 @@ module SSTbias_mod
     integer                , intent(in)             :: numObsBatches        ! number of batches for calling interp setup
     ! locals
     character(len=*), parameter :: myName = 'sstb_computeBias'
-    integer                     :: headerIndex, sensorIndex, productIndex
+    integer                     :: sensorIndex, productIndex
     real(8)                     :: insituGrid   ( hco % ni, hco % nj )
     real(8)                     :: satelliteGrid( hco % ni, hco % nj )
     logical                     :: mask( hco % ni, hco % nj ), openWater( hco % ni, hco % nj ) 
     type(struct_ocm)            :: oceanMask
-    integer                     :: numberOpenWaterPoints, lonIndex, latIndex, ierr
+    integer                     :: numberOpenWaterPoints, lonIndex, latIndex
     type(struct_gsv)            :: stateVector_ice, stateVector
     real(4), pointer            :: seaice_ptr( :, :, : )
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts( numberProducts )= (/ 'day', 'night' /)
-    integer                     :: nulnam
 
     write(*,*) 'Starting '//myName//'...'
     write(*,*) myName//': Current analysis date: ', dateStamp
@@ -135,7 +134,7 @@ module SSTbias_mod
     
     insituGrid( :, : ) = MPC_missingValue_R8
 
-    call sstb_getGriddedObs( obsData, insituGrid, hco, vco, searchRadius, openWater, 'insitu' )
+    call sstb_getGriddedObs( obsData, insituGrid, hco, searchRadius, openWater, 'insitu' )
 
     ! allocate state vector for bias estimation field
     call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 4, &
@@ -144,13 +143,13 @@ module SSTbias_mod
     do sensorIndex = 1, numberSensors 
       do productIndex = 1, numberProducts
         satelliteGrid( :, : ) = MPC_missingValue_R8
-        call sstb_getGriddedObs( obsData, satelliteGrid ( :, : ), hco, vco, searchRadius, &
+        call sstb_getGriddedObs( obsData, satelliteGrid ( :, : ), hco, searchRadius, &
                                  openWater, trim( sensorList( sensorIndex )), &
                                  dayOrNight_opt = trim( listProducts(productIndex)) )
         call sstb_getGriddedBias( satelliteGrid ( :, : ), insituGrid, hco, vco, mask, openWater, &
                                   maxBias, trim( sensorList( sensorIndex )), numberOpenWaterPoints, &
-                                  numberPointsBG, dateStamp, trim( listProducts(productIndex)), stateVector )
-        call sstb_getBiasCorrection( stateVector, column, obsData, hco, vco, trim( sensorList( sensorIndex )), &
+                                  numberPointsBG, trim( listProducts(productIndex)), stateVector )
+        call sstb_getBiasCorrection( stateVector, column, obsData, hco, trim( sensorList( sensorIndex )), &
                                      trim( listProducts( productIndex )), timeInterpType_nl, numObsBatches )
       end do
     end do
@@ -162,7 +161,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getGriddedObs
   !--------------------------------------------------------------------------
-  subroutine sstb_getGriddedObs( obsData, obsGrid, hco, vco, searchRadius, &
+  subroutine sstb_getGriddedObs( obsData, obsGrid, hco, searchRadius, &
                                  openWater, instrument, dayOrNight_opt )
     !
     ! :Purpose: put observations of a given family on the grid
@@ -173,7 +172,6 @@ module SSTbias_mod
     type(struct_obs), intent(inout)          :: obsData        ! obsSpaceData
     real(8)         , intent(inout)          :: obsGrid(:,:)   ! observations on the grid
     type(struct_hco), intent(in)   , pointer :: hco            ! horizontal grid structure
-    type(struct_vco), intent(in)   , pointer :: vco            ! vertical grid structure
     real(8)         , intent(in)             :: searchRadius   ! horizontal search radius where to search obs
     logical         , intent(in)             :: openWater(:,:) ! open water points (.true.)
     character(len=*), intent(in)             :: instrument     ! name of instrument
@@ -195,8 +193,6 @@ module SSTbias_mod
     real(kdkind)                :: searchRadiusSquared
     integer, allocatable        :: headerIndexes(:)
     real(8)                     :: currentObs
-    type(struct_gsv)            :: stateVector
-    real(4), pointer            :: obsGrid_r4_ptr( :, :, : )
     character(len=50)           :: instrumentString 
     character(len=*), parameter :: myName = 'sstb_getGriddedObs'
 
@@ -347,7 +343,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedBias( satelliteGrid, insituGrid, hco, vco,  mask, openWater, &
                                   maxBias, sensor, numberOpenWaterPoints, &
-                                  numberPointsBG, dateStamp, dayOrNight, stateVector )
+                                  numberPointsBG, dayOrNight, stateVector )
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -365,7 +361,6 @@ module SSTbias_mod
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points 
                                                                      ! used to compute the previous (background) bias estimation
-    integer         , intent(in)             :: dateStamp            ! date to put into output fst files
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
     type(struct_gsv), intent(inout)          :: stateVector          ! state vector containing bias estimation field    
     ! locals
@@ -376,13 +371,11 @@ module SSTbias_mod
     type(kdtree2_result)        :: searchResults( maxPointsSearch )
     real(kdkind)                :: refPosition(3)
     real(kdkind)                :: lon_grd, lat_grd
-    real(pre_obsReal)           :: lon_obs, lat_obs
     integer                     :: lonIndex, latIndex
-    integer                     :: bodyIndex, headerIndex, ierr, headerCounter, codtyp
+    integer                     :: ierr
     integer                     :: localIndex, indexCounter, localLonIndex, localLatIndex
     integer                     :: numPointsFound
     real(kdkind)                :: searchRadiusSquared
-    integer, allocatable        :: headerIndexes(:)
     type(struct_gsv)            :: stateVector_searchRadius, stateVector_previous
     real(4), pointer            :: griddedBias_r4_ptr( :, :, : ), searchRadius_ptr( :, :, : )
     real(4), pointer            :: griddedBias_r4_previous_ptr( :, :, : )
@@ -507,7 +500,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getBiasCorrection
   !--------------------------------------------------------------------------
-  subroutine sstb_getBiasCorrection( stateVector, column, obsData, hco, vco, &
+  subroutine sstb_getBiasCorrection( stateVector, column, obsData, hco, &
                                      sensor, dayOrNight, timeInterpType_nl, numObsBatches )
     !
     !:Purpose: To compute bias correction and put it into obsSpace data. 
@@ -520,7 +513,6 @@ module SSTbias_mod
     type(struct_columnData), intent(in)          :: column            ! column data
     type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal grid
-    type(struct_vco)       , intent(in), pointer :: vco               ! vertical grid
     character(len=*)       , intent(in)          :: sensor            ! current sensor name
     character(len=*)       , intent(in)          :: dayOrNight        ! look for daytime or nighttime obs
     character(len=20)      , intent(in)          :: timeInterpType_nl ! 'NEAREST' or 'LINEAR'
