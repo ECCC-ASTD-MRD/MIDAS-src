@@ -163,7 +163,7 @@ login into it.  For that, you can set
 ```bash
 UnitTest_stop_for_interactive_work=yes
 ```
-`maestro/suites/midas_system_tests/experiment.cfg`.
+in `maestro/suites/midas_system_tests/experiment.cfg`.
 
 to prepare the working directory for interactive debugging.  The first
 one is the suggested method.
