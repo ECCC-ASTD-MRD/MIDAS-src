@@ -169,6 +169,10 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
+    if ( .not. all(nitermax(1:numOuterLoopIterations) > 0) ) then
+      call utl_abort('min_setup: some nitermax(:) in namelist are negative or zero')
+    end if
+
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
