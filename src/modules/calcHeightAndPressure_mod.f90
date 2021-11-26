@@ -1460,6 +1460,8 @@ contains
         real(4), pointer            :: P_T(:,:,:,:)
         real(4), pointer            :: P_M(:,:,:,:)
 
+        beSilent = .true.
+
         if ( .not. gsv_varExist(statevector,'P_*') .or. &
             .not. gsv_varExist(statevector,'P0')) then
           call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
