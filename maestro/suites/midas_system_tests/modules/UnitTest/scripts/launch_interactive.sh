@@ -95,14 +95,16 @@ if [ "${TRUE_HOST}" != "${host}" ]; then
     exit 1
 fi
 
+## This function is checking if a file does already exist.
+## If it does, then the function returns 1.
 check_file() {
     set -e
     if [ $# -ne 2 ]; then
-        echo "check_file does accept only two arguments which are:" >&2
+        echo "The function 'check_file' does accept only two arguments which are:" >&2
         echo "       function name" >&2
         echo "       file name" >&2
-        echo "check_file has been called with $0 $*" >&2
-        echo "               $0 $*" >&2
+        echo "The function 'check_file' has been called with" >&2
+        echo "       check_file $*" >&2
         return 1
     fi
 
@@ -117,10 +119,15 @@ check_file() {
     unset __check_file_file__ __check_file_function__
 }
 
+## This function is using 'ord_soumet' called with '-nosubmit' to
+## extract the ressources computed by 'ord_soumet'.  We can then use
+## those resources when calling 'jobsubi'.
 find_resources () {
     set -e
     if [ $# -ne 0 ]; then
-        echo "find_resources: does not accept any argument: $0 $*" >&2
+        echo "The function 'find_resources' does not accept any argument" >&2
+        echo "The function 'find_resources' has been called with" >&2
+        echo "       find_resources $*" >&2
         return 1
     fi
 
@@ -161,7 +168,9 @@ EOF
 extract_resource() {
     set -e
     if [ $# -ne 2 ]; then
-        echo "extract_resource: accepts only two arguments: $0 $*" >&2
+        echo "The function 'extract_resource' accepts only two arguments." >&2
+        echo "    It has been called with:" >&2
+        echo "            $0 $*" >&2
         return 1
     fi
     __element__=${1}
@@ -180,6 +189,7 @@ ncores=$(extract_resource ncpus "${resources}")
 nslots=$(extract_resource select "${resources}")
 memory_per_node=$(extract_resource mem "${resources}")
 
+## Parsing 'soumet_args' to find the '-tmpfs ${TMPFSSIZE}'
 set -- ${soumet_args}
 other_resources=
 while [ $# -ne 0 ]; do
