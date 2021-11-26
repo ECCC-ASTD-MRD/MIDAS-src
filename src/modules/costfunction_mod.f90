@@ -214,8 +214,8 @@ contains
 
             if ( channelNumberIndexInListFound > 0 ) then
               joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) = &
-                                        joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
-                                        pjo_1
+                        joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
+                        pjo_1
             end if
 
           end if
