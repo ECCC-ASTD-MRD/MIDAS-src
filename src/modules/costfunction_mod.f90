@@ -103,7 +103,7 @@ contains
 
     character(len=15) :: lowerCaseName
 
-    logical, save :: ifCalculatePrintJoTovsPerChannelSensor = .false.
+    logical, save :: printJoTovsPerChannelSensor = .false.
 
     call tmg_start(81,'SUMJO')
 
@@ -116,7 +116,7 @@ contains
 
     call readNameList
     if ( any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0) ) then
-      ifCalculatePrintJoTovsPerChannelSensor = .true.
+      printJoTovsPerChannelSensor = .true.
     end if
 
     dljogpsztd = 0.d0
@@ -186,7 +186,7 @@ contains
         idatend = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + idata - 1
         sensorIndex = tvs_lsensor (tovsIndex)
 
-        if ( ifCalculatePrintJoTovsPerChannelSensor ) then
+        if ( printJoTovsPerChannelSensor ) then
           sensorIndexInListFound = 0
           loopSensor1: do sensorIndexInList = 1, tvs_nsensors
             call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
@@ -203,7 +203,7 @@ contains
           pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
           dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
 
-          if ( ifCalculatePrintJoTovsPerChannelSensor .and. &
+          if ( printJoTovsPerChannelSensor .and. &
                sensorIndexInListFound > 0 ) then
             channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
@@ -242,7 +242,7 @@ contains
     do sensorIndex = 1, tvs_nsensors
       call mpi_allreduce_sumreal8scalar( dljotov_sensors(sensorIndex), "GRID" )
     end do
-    if ( ifCalculatePrintJoTovsPerChannelSensor ) then
+    if ( printJoTovsPerChannelSensor ) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor2
         joSumMpiGlobal(:) = 0.0d0
@@ -284,7 +284,7 @@ contains
       end if
 
       ! print per channel information
-      if ( tvs_nsensors > 0 .and. ifCalculatePrintJoTovsPerChannelSensor ) then
+      if ( tvs_nsensors > 0 .and. printJoTovsPerChannelSensor ) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor/channel:'
         write(*,'(1x,a)') 'index  sensorName  channel  Jo'
         loopSensor3: do sensorIndex = 1, tvs_nsensors
