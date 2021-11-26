@@ -218,14 +218,20 @@ options enabled by using:
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
 ```
 
-#### Preparing interactive mode without changing any configuration
+#### Preparing interactive mode without changing any configuration (advanced)
 
 You can prepare the interactive mode by using this command:
 ```bash
 maestro -n /${pathToTest}/UnitTest/run -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
 ```
-instead of modifying one of the files mentioned in the previous
+instead of modifying `experiment.cfg` as mentioned in the previous
 section.
+
+You could also modify the file
+```
+maestro/suites/midas_system_tests/abs.dot
+```
+since it is ignored by Git.
 
 ## Updating the results
 
