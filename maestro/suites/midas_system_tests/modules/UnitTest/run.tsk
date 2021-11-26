@@ -141,6 +141,11 @@ if [[ \${run_pgm} != */* ]]; then
     fi
 fi
 
+if [ ! -f "\${run_pgm}" ]; then
+    echo "The program specified '\${run_pgm}' does not exist!" >&2
+    exit 1
+fi
+
 if [ "\${debugger_mode}" = ddt ]; then
     ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
     sleep 5
