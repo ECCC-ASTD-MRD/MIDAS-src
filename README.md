@@ -163,10 +163,7 @@ login into it.  For that, you can set
 ```bash
 UnitTest_stop_for_interactive_work=yes
 ```
-in one of the following files:
- 1. `maestro/suites/midas_system_tests/experiment.cfg`
- 2. `maestro/suites/midas_system_tests/abs.dot` (this one is ignored by Git)
- 3. `maestro/suites/midas_system_tests/config/Tests/${pathToTest}.cfg`
+`maestro/suites/midas_system_tests/experiment.cfg`.
 
 to prepare the working directory for interactive debugging.  The first
 one is the suggested method.
