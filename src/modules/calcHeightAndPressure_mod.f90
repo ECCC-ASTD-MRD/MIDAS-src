@@ -1456,11 +1456,8 @@ contains
         real(kind=4), pointer       :: Pressure_out(:,:,:)
         real(kind=4), pointer       :: field_Psfc(:,:,:,:)
         integer                     :: status, stepIndex, numStep
-        logical                     :: beSilent
         real(4), pointer            :: P_T(:,:,:,:)
         real(4), pointer            :: P_M(:,:,:,:)
-
-        beSilent = .true.
 
         if ( .not. gsv_varExist(statevector,'P_*') .or. &
             .not. gsv_varExist(statevector,'P0')) then
