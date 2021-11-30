@@ -832,7 +832,7 @@ contains
           fileNameExtension = ' '
         end if
 
-        fileName = 'bcr' // trim(tovsFileNameList(fileIndex)) &
+        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
              // '_' // trim(filenameExtension)
 
         call fSQL_open(db(fileIndex), fileName, stat)
