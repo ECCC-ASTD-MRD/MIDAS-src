@@ -76,9 +76,34 @@ function abs_path {
     abs_name=${1}
     platform=${2}
     typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}/midas-
-    echo ${__abs_prfx}${abs_name}_${platform}-${__revnum}.Abs
+    echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
 }
 
+function printHeader {
+    echo 
+    echo "+---| MIDAS BUILDER starts |--------+"
+    echo "| ${__dateLong} (${__date})"
+    echo "| code version : ${__revstring}"
+    echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
+    echo "| targets"
+    for __t in ${__target}; do
+      echo "| * ${__t}"
+    done
+    echo "+-----------------------------------+"
+    echo 
+}
+
+function printFooter {
+    __dateStampEnd=$(date +%s)
+    __dateDiff=$((${__dateStampEnd}-${__dateStampBeg}))
+    echo 
+    echo "+---| MIDAS BUILDER ends |----------+"
+    echo "| $(date)"
+    echo "| execution time : ${__dateDiff} s"
+    echo "+-----------------------------------+"
+    echo 
+
+}
 
 
 ##=========================================================
@@ -93,12 +118,16 @@ typeset __abs_all
 
 __here=$(pwd)
 __date=$(date +%Y%m%d%H%S)
+__dateLong=$(date)
+__dateStampBeg=$(date +%s)
 
 ##=========================================================
 ##  sourcing user configuration
 
 ## env. variable new naming convention + retrocompatibility
 __toplevel=$(git rev-parse --show-toplevel)
+__revstring=$(${__toplevel}/midas.version.sh)
+
 source ${__toplevel}/src/programs/commons/retroComp_warning.sh
 ##--------------------------------------------------------
 
@@ -129,6 +158,8 @@ fi
 
 __job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}"
 __job_test_target="make -n ${__target} ${__job_opt}"
+
+printHeader
 
 ##-- lauching dry-run to test target
 echo ${__job_test_target}
@@ -288,7 +319,7 @@ then
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
         typeset __abs_installed=$(abs_path ${__abs} ${__plat})
-        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}/${__plat}/
+        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${__plat}/
         find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \; 
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
@@ -355,3 +386,4 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
 fi
 
 rm -rf .compile_job
+printFooter
