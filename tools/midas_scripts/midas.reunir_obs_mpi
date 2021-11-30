@@ -207,15 +207,22 @@ PRAGMA journal_mode = OFF;
 PRAGMA  synchronous = OFF;
 EOF
     for file in ${files}; do
-        ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
-        COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
-        COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
+        if [[ "${file##*/}" = dia* || "${file##*/}" = bcr* ]]; then
+            COLUMNS_AFTER_DATA=
+            COLUMNS_AFTER_SELECT='*'
+        else
+            ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
+            COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
+            COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
+            COLUMNS_AFTER_DATA="( ${COLUMNS_ON_ONE_LINE} )"
+            COLUMNS_AFTER_SELECT=${COLUMNS_ON_ONE_LINE}
+        fi
 
         cat  << EOF >> TABLES_REUNIR
 
 attach '${file##*/}' as dbin;
 insert into header select * from dbin.header;
-insert into data ( ${COLUMNS_ON_ONE_LINE} ) select ${COLUMNS_ON_ONE_LINE} from dbin.data;
+insert into data ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.data;
 detach dbin;
 EOF
     done
