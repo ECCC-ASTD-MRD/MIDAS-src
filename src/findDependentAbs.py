@@ -2,6 +2,25 @@
 '''
 Analyse the dependency tree of modules and programs to determine which programs
 are impacted by a new external dependency in a given module.
+
+
+SYNOPSIS
+from /src directory of a MIDAS project
+
+```
+./findDependentAbs.py ${moduleNameWithout_mod_dot_o} ${buildDir}
+```
+
+ARGUMENTS
+    ${moduleNameWithout_mod_dot_o}  the module *name* (without '_mod.o') in
+                                    which new external dependencies have been 
+                                    added.
+    ${buildDir}                     the current build directory on the frontend
+
+EXAMPLE
+```
+./findDependentAbs.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
+```
 '''
 
 import re
@@ -57,6 +76,7 @@ if __name__ == '__main__':
     from glob import glob
     module = sys.argv[1]
     buildDir = sys.argv[2]
+    outputModules = False
     
     try:
         depFileObj = glob(buildDir+'/dep.obj.inc')[0]
@@ -68,9 +88,10 @@ if __name__ == '__main__':
                                                 verbose=False)
 
     if dependentModules : 
-        print(f'The following modules depends on {module}:')
-        for mod in dependentModules:
-            print(f'  * {mod}')    
+        if outputModules: 
+            print(f'The following modules depends on {module}:')
+            for mod in dependentModules:
+                print(f'  * {mod}')    
 
         setAbs = list()
         for mod in dependentModules:
