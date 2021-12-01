@@ -64,7 +64,7 @@ obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
 obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
 
 if [ -d obsBeforeThinning ]; then
-    for prefix in brp obs sql dia; do
+    for prefix in brp obs sql; do
         for file in ./obsBeforeThinning/${prefix}*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then
                 if [[ "${file}" = *.num_headers ]]; then
@@ -92,7 +92,7 @@ if [ -d obsBeforeThinning ]; then
 fi
 
 if [ "${fasttmp}" = yes ]; then
-    for prefix in brp obs sql dia; do
+    for prefix in brp obs sql dia bcr; do
         for file in ${FASTTMPDIR}/obs/${prefix}*; do
             if [ -f "${file}" ]; then
                 if [[ "${file}" = *.num_headers ]]; then
@@ -118,7 +118,7 @@ if [ "${fasttmp}" = yes ]; then
         done
     done
 else
-    for prefix in brp obs sql dia; do
+    for prefix in brp obs sql dia bcr; do
         for file in ./obs/${prefix}*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then
                 if [[ "${file}" = *.num_headers ]]; then
