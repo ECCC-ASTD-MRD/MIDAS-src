@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * script to analyze which absolutes are concerned with new module external dependency  (#549 and !520)
  * Introduce a way to debug MIDAS programs in an interactive job to accelerate the development process (#493 and !517)
  * Introducing support for random 64bit `id_data` and `id_obs` ; `sqlExtraDat` can no longer have "order by" statement (#536 and !515)
  * Mention to test `compile_all_plat.sh` prior to MR in `midas_build` doc (#542 and !514)
@@ -54,6 +55,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * midas_build provide more details on the compilation process (#549 and !520)
  * Renamed module `tt2phi_mod` to `calcHeightAndPressure_mod` and regrouped pressure calculation subroutines (#523 and !504)
  * Consistent application of bias corrections for all observation families (add the correction in OBS_BCOR) (#391 and !506)
  * Clarified code regarding obs and column surface height; new naming convention for columnData variables (#519 and !494)
