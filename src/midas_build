@@ -46,7 +46,7 @@ function are_jobs_completed {
         typeset __status=0
 
         if [ "${__front_done}" = 0 ]; then
-            if [ "${headnode_frontend}" == true ]; then
+            if [ "${headnode_frontend}" = true ]; then
                 [ $(ps ${job_or_pid_front} | wc -l) -le 1 ] && __status=1
                 __id_type="pid"
             else
@@ -61,13 +61,13 @@ function are_jobs_completed {
         fi; fi
 
         if [ "${__back_done}" = 0 ]; then
-        if [ $(ps ${pid_back} | wc -l) -le 1 ]; then
+        if [ "$(ps ${pid_back} | wc -l)" -le 1 ]; then
                 echo "Compilation on ${MIDAS_COMPILE_BACKEND} \
 (pid: ${pid_back}) has finished."
                 __back_done=1
         fi; fi
 
-        [ ${__front_done} == 1 -a ${__back_done} == 1 ] && break
+        [ "${__front_done}" = 1 -a "${__back_done}" = 1 ] && break
         sleep ${__sleep_interval}
     done
 }
@@ -90,10 +90,10 @@ function printHeader {
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
-    if [ ! -z "${__abs_exist_list}" ]; then
+    if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
-        if ${MIDAS_COMPILE_CLEAN}; then
+        if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo "|   (will be removed if installation is successful)"
         fi
         echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_abs"
@@ -198,7 +198,7 @@ __job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt}"
 ##=========================================================
 ##  Check prior existence of absolutes
 ##  - remove them first
-if [ ! -z "${__abs_exist_list}" ]; then
+if [ -n "${__abs_exist_list}" ]; then
     echo "Checking prior existence of target absolutes"
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
@@ -256,7 +256,7 @@ echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
 ##  Compilation on frontend
 echo "========================================================================"
 echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
-if ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
 then
     ## compile directly on head node
     echo "    > ${__listing_frontend}"
@@ -279,7 +279,7 @@ are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
     ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 
 ##-- renaming ord_soumet listing
-if [ ! -f ${__listing_frontend} ]; then
+if [ ! -f "${__listing_frontend}" ]; then
     __listing_frontend_search="^${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-.*-$(date +%Y%m%d).*\.out$"
     __listing_frontend_found=$(ls ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}")
     mv ${__listing_frontend_found} ${__listing_frontend}
@@ -303,25 +303,25 @@ typeset __err_regex='error #|(?<!-)undefined|make.*Circular'
 typeset __err_comp=0
 typeset __err_back=$(grep -Pn "${__err_regex}" ${__listing_frontend})
 typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_backend})
-if [ ! -z "${__err_front}" ]; then
+if [ -n "${__err_front}" ]; then
     echo
     echo "<!> some error found in ${__listing_frontend}"
     echo "${__err_front}"
     __err_comp=1
 fi
-if [ ! -z "${__err_back}" ]; then
+if [ -n  "${__err_back}" ]; then
     echo
     echo "<!> some error found in ${__listing_backend}"
     echo "${__err_back}"
     __err_comp=1
 fi
-if [ "${__err_comp}" == "1" ]; then
+if [ "${__err_comp}" = 1 ]; then
     exit 1
 fi
 
 ##========================================================
 ##  Installing (copying + renaming) target programs
-if [ ! -z "${__abs_exist_list}" -a  "${__install_always_midas}" == "true" ]
+if [ -n "${__abs_exist_list}" -a  "${__install_always_midas}" = true ]
 then
     ##  Copying target programs to the install directory
     echo
@@ -368,7 +368,7 @@ then
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}"
         echo
-        if ${MIDAS_COMPILE_CLEAN}
+        if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
