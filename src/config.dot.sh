@@ -1,6 +1,8 @@
 #! /bin/sh
 
 __toplevel=$(git rev-parse --show-toplevel)
+__revstring=$(${__toplevel}/midas.version.sh)
+__revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
 
 set -x
 ###########################################################
@@ -28,7 +30,7 @@ MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-
 MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER:-ervig.lapalme@canada.ca}
 MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
 MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
-MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-3.6.0}
+MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 
 
 ###########################################################
@@ -40,8 +42,7 @@ MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-3.6.0}
 __exec_leafdir_midas=midas_abs
 __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
-__revnum=$(${__toplevel}/midas.version.sh)
-__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revnum}
+__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
 __keep_jobsubmit_ofile=false
 __plat_super=sles-15-skylake-64-xc50
 

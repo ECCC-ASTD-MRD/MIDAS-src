@@ -185,16 +185,57 @@ In the previous solution, when a new program is added, two files needed to be ch
 * `src_files_${PGM}.sh`
 * `compile_setup_${PGM}.sh`
 
-The first contains dependencies information and this is dealt with automatically ([see this section](#automatic-dependencies)).
+The first contains dependencies information and this is dealt with automatically
+(consult the section [Automatic dependencies](#automatic-dependencies)).
 The second one contain external libraries that are needed at link time by the programs.
 The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
 
-So **when a new program is added** or when **external libraries change for an existing program**, edit the [`./programs/programs.mk`](programs/programs.mk) file and list all external libraries (previously in `compile_setup_${PGM}.sh`) as prerequisite of the absolute target, such as:
+So **when a new program is added** or when **external libraries change for an 
+existing program**, edit the [`./programs/programs.mk`](programs/programs.mk)
+file and list all external libraries (previously in `compile_setup_${PGM}.sh`)
+as prerequisite of the absolute target, such as:
 ```
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
          rttov_parallel rttov_main rttov_emis_atlas rttov_other\
          $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
- ```
+```
+
+### New external dependencies in a module
+When new external dependencies are added in a module, it will potentially impact
+multiple programs (for which the dependencies will have to be added as described
+above).
+You are refered to the section [Automatic dependencies](#automatic_dependencies)
+for a general discussion on the dependency tree processing.
+
+First you will need to have the dependency files (`dep.{obj,abs}.inc`) which are
+produced first thing when `make` (or `midas_build`) is called for any target 
+(or even just through [autocompletion attempt](#auto-completion)).
+Most probably they are already there in the build directory (at least on the
+frontend):
+`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
+(`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `../compiledir`).
+If they aren't, you can either launch `midas_build` or faster:
+```sh
+source config.dot.sh && make depend
+```
+
+The script [findDependentAbs.py](findDependentAbs.py) can be used to analyze the
+dependency tree to determine which absolutes are concerned by the
+introduction of new dependencies in a given module; those absolutes outputed are 
+the ones for which you need to add the new external dependencies in their
+respective sections of `./programs/programs.mk`.
+
+For example, say you add an external `newlib` through a `use` statement in
+`varqc_mod.f90`, then you will call `./findDependentAbs.py` to find which 
+programs will need it at link time:
+```sh
+$ ./findDependentAbs.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
+The following absolutes depends on varqc:
+  * var1D.Abs
+  * var.Abs
+```
+You would then add `newlib` in both `var1D.Abs` and `var.Abs` sections of 
+`./programs/programs.mk`.
 
 
 
