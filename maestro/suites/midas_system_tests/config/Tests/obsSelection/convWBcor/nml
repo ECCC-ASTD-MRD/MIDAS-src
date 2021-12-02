@@ -122,8 +122,40 @@
  &NAMBIASCONV
   aiBiasActive=.true.,
   gpBiasActive=.true.,
+  uaBiasActive=.true.,
   aiRevOnly=.false.,
-  gpRevOnly=.false.
+  gpRevOnly=.false.,
+  uaRevOnly=.false.,
+  uaRejUnBcor=.true.
+/
+ &NAMSONDETYPES
+  nlNbSondes=13,
+  nlSondeTypes(1) = 'RS41',
+  nlSondeCodes(1,1:5) = 23,24,25,41,42
+  nlSondeTypes(2) = 'RS92',
+  nlSondeCodes(2,1:7) = 13,14,52,79,80,81,83
+  nlSondeTypes(3) = 'LMS',
+  nlSondeCodes(3,1:8) = 10,11,49,51,82,85,86,87
+  nlSondeTypes(4) = 'Modem',
+  nlSondeCodes(4,1:6) = 56,57,59,63,64,77
+  nlSondeTypes(5) = 'Russian',
+  nlSondeCodes(5,1:14) = 19,27,28,29,53,58,60,62,68,69,73,75,88,89
+  nlSondeTypes(6) = 'China',
+  nlSondeCodes(6,1:4) = 31,32,33,45
+  nlSondeTypes(7) = 'China2',
+  nlSondeCodes(7,1:5) = 1,2,200,201,202
+  nlSondeTypes(8) = 'Meisei',
+  nlSondeCodes(8,1:5) = 22,30,35,47,55
+  nlSondeTypes(9) = 'JinYang',
+  nlSondeCodes(9,1:3) = 12,20,21
+  nlSondeTypes(10) = 'iMet',
+  nlSondeCodes(10,1:4) = 7,97,98,99
+  nlSondeTypes(11) = 'Graw',
+  nlSondeCodes(11,1:3) = 17,18,54
+  nlSondeTypes(12) = 'Others',
+  nlSondeCodes(12,1:8) = 15,16,26,50,72,78,92,96
+  nlSondeTypes(13) = 'None',
+  nlSondeCodes(13,1:7) = 0,9,34,40,84,90,255
 /
  &NAMBURP_UPDATE
   BN_ITEMS=2,

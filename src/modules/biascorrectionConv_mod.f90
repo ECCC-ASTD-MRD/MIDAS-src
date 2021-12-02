@@ -1323,7 +1323,7 @@ CONTAINS
 
     write(*,*) "bcc_applyUABcor: start"
     
-    debug = .false.
+    debug = .true.
     
     debug = debug .and. ( mpi_myid == 0 )
 
