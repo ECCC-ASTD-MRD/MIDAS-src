@@ -1178,8 +1178,8 @@ CONTAINS
           if ( TDbiasNight /= MPC_missingValue_R8 ) tdCorrections(istype,ilatband,jj,levelIndex)   = -1.0d0*TDbiasNight
           if ( TDbiasDay /= MPC_missingValue_R8 )   tdCorrections(istype,ilatband,jj+1,levelIndex) = -1.0d0*TDbiasDay
         end do
-        if ( ttCorrections(i,ilatband,jj,Index500mb)   /= MPC_missingValue_R8 ) BiasCorrPresentStype(istype,ilatband,jj)   = .true.
-        if ( ttCorrections(i,ilatband,jj+1,Index500mb) /= MPC_missingValue_R8 ) BiasCorrPresentStype(istype,ilatband,jj+1) = .true.
+        if ( ttCorrections(istype,ilatband,jj,Index500mb)   /= MPC_missingValue_R8 ) BiasCorrPresentStype(istype,ilatband,jj)   = .true.
+        if ( ttCorrections(istype,ilatband,jj+1,Index500mb) /= MPC_missingValue_R8 ) BiasCorrPresentStype(istype,ilatband,jj+1) = .true.
       end do
       
     end do main_loop
@@ -1211,8 +1211,8 @@ CONTAINS
     integer, intent(in)          :: nProfsMin, nGroups
 
     !Locals:
-    integer :: ierr, nulcoeff, iStn, iType, N
-    integer :: i, j, levelIndex, nProfs, jj, jmax
+    integer :: ierr, nulcoeff, iStn, iType
+    integer :: j, levelIndex, nProfs, jj, jmax
     real(8) :: TTbiasNight, TTbiasDay, TDbiasNight, TDbiasDay
     character(len=8) :: stype
     character(len=9) :: stn, stn_prev
@@ -1316,7 +1316,6 @@ CONTAINS
     real(8)  :: TimeOfDayX
     character(len=9)  :: stnid, stnid_prev
     character(len=8)  :: stype
-    character(len=10) :: TimeOfDay
     character(len=5)  :: sourceCorr
     logical  :: newStation, SondeTypeFound, debug, StationFound, RealRS41
 

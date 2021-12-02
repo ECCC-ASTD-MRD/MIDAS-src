@@ -1535,16 +1535,17 @@ CONTAINS
 
                   call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
                   
-                  if(HIPCS) then
-                     if(iele == 12001) then
+                  if (HIPCS) then
+                     if (iele == 12001) then
                         IND_ele = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12101, IOSTAT=error)
                         if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
                            Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
                      end if
-                     if(iele == 12192) then
+                     if (iele == 12192) then
                         IND_ele = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12239, IOSTAT=error)
-                        if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
+                        if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) then
                            Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
+                        end if
                      end if
                   end if
                   
@@ -5371,7 +5372,6 @@ CONTAINS
     type(burp_file)             :: inputFile
     type(burp_rpt)              :: inputReport, copyReport
     type(burp_block)            :: inputBlock
-    integer                     :: btyp10, btyp10Obs, btyp10Mrq
     integer                     :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable        :: address(:)
     integer                     :: nbele, nvale, nte
