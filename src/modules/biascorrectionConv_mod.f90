@@ -914,8 +914,8 @@ CONTAINS
     end do HEADER
     
     if ( countBulkCorrections + countTailCorrections /= 0 ) then
-      write (*, '(a50, i10)' ) "bcc_applyAIBcor: Number of obs with TT bulk correction  = ", countBulkCorrections
-      write (*, '(a50, i10)' ) "bcc_applyAIBcor: Number of obs with TT tail correction  = ", countTailCorrections
+      write (*, '(a58, i10)' ) "bcc_applyAIBcor: Number of obs with TT bulk correction  = ", countBulkCorrections
+      write (*, '(a58, i10)' ) "bcc_applyAIBcor: Number of obs with TT tail correction  = ", countTailCorrections
     else
       write(*,*) "bcc_applyAIBcor: No AI data found"
     end if
@@ -1317,13 +1317,13 @@ CONTAINS
     character(len=9)  :: stnid, stnid_prev
     character(len=8)  :: stype
     character(len=5)  :: sourceCorr
-    logical  :: newStation, SondeTypeFound, debug, StationFound, RealRS41
+    logical  :: newStation, debug, StationFound, RealRS41
 
     if ( .not. uaBiasActive ) return
 
     write(*,*) "bcc_applyUABcor: start"
     
-    debug = .true.
+    debug = .false.
     
     debug = debug .and. ( mpi_myid == 0 )
 
@@ -1401,14 +1401,14 @@ CONTAINS
             countCat2 = countCat2 + 1
          end if
          
-         !! Sonde type index in rs_types read from namelist
-         SondeTypeFound = .false.
+         !! Get the sonde type index in rs_types read from namelist
          stype_code  = obs_headElem_i(obsSpaceData, OBS_RTP, headerIndex)  ! sonde type BUFR code (WMO table)
          if (debug) then
-            write(*,*) ' '
+            write(*,*) 'stnid, stype_code, date, time, lat'
             write(*,*) stnid, stype_code, date, time, lat*MPC_DEGREES_PER_RADIAN_R8
          end if
-         if ( stype_code == 0 ) then
+         if ( stype_code == -999 ) then
+            stype_code = 0
             countMissingStype = countMissingStype + 1
             write (*,'(a60)') "bcc_applyUABcor: Missing sonde type at stn "//stnid
          end if
@@ -1416,10 +1416,8 @@ CONTAINS
          if ( stype_index == 0 ) then
             countUnknownStype = countUnknownStype + 1
             write (*,'(a70,i4)') "bcc_applyUABcor: Unknown sonde-type code at stn "//stnid//". Code = ", stype_code
-         else 
-            SondeTypeFound = .true.
-            if (debug) write(*,*) 'stype, index = ', stype, stype_index
          end if
+         if (debug) write(*,*) 'stype, stype_index = ', stype, stype_index
          
          RealRS41 = .false.
          if ( trim(stype) == "RS41" ) then
@@ -1429,7 +1427,7 @@ CONTAINS
              RealRS41 = .true.
            end if
          end if
-
+         
          !! Time-of-day x-value
          call bcc_GetSolarElevation(lat,lon,date,time,solar_elev)
          call bcc_GetTimeOfDay(solar_elev,TimeOfDayX)
@@ -1452,7 +1450,7 @@ CONTAINS
             end if
          end if
 
-         if (debug) write(*,*) solar_elev, TimeOfDayX, latband
+         if (debug) write(*,*) 'solar_elev, TimeOfDayX, latband = ',solar_elev, TimeOfDayX, latband
          
       end if
       
@@ -1488,7 +1486,7 @@ CONTAINS
          flag     = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
          oldCorr  = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
          corr     = MPC_missingValue_R8
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TT',TTbodyIndex,pressure,tt
+         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTin',TTbodyIndex,pressure,tt
          if ( tt /= MPC_missingValue_R8 ) then
             if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
                tt = tt - oldCorr
@@ -1501,14 +1499,18 @@ CONTAINS
               ! stype_index =  0 if sonde-type code is not associated with any of the types in
               !                namelist (rs_types) including stypes "Others" and "None" [code=0]
               countTTObs = countTTObs + 1
-              if ( RealRS41 ) countRS41 = countRS41 + 1
-              call bcc_GetUACorrection('TT',stn_index,stype_index,stype,jc,TimeOfDayX,latband,pressure,corr,sourceCorr)
-              if ( sourceCorr == 'stn' ) then
-                countTTCorrByStation = countTTCorrByStation + 1
-              elseif ( sourceCorr == 'stype' ) then
-                countTTCorrByStype = countTTCorrByStype + 1
+              if ( RealRS41 ) then
+                 corr = MPC_missingValue_R8
+                 countRS41 = countRS41 + 1
+              else
+                 call bcc_GetUACorrection('TT',stn_index,stype_index,stype,jc,TimeOfDayX,latband,pressure,corr,sourceCorr)
+                 if ( sourceCorr == 'stn' ) then
+                    countTTCorrByStation = countTTCorrByStation + 1
+                 elseif ( sourceCorr == 'stype' ) then
+                    countTTCorrByStype = countTTCorrByStype + 1
+                 end if
+                 if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTT, source, jc = ',corr, sourceCorr, jc
               end if
-              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TT corr, source, jc = ',corr, sourceCorr, jc
               if ( corr /= MPC_missingValue_R8 ) then
                  tt = tt + corr
                  flag = ibset(flag, 6)
@@ -1518,6 +1520,7 @@ CONTAINS
               end if
             end if
          end if
+         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTout, corr, flag = ', tt, corr, flag
          call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
          call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
          call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
@@ -1532,7 +1535,7 @@ CONTAINS
          flag     = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
          oldCorr  = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
          corr     = MPC_missingValue_R8
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ES',ESbodyIndex,pressure,es
+         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESin',ESbodyIndex,pressure,es
          if ( es /= MPC_missingValue_R8 ) then
             if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
                es = es - oldCorr
@@ -1540,8 +1543,12 @@ CONTAINS
             end if
             if ( uaRevOnly ) corr = 0.0d0
             if ( .not.uaRevOnly ) then
-              call bcc_GetUACorrection('TD',stn_index,stype_index,stype,jc,TimeOfDayX,latband,pressure,corr,sourceCorr)
-              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TD corr, source, jc = ',corr, sourceCorr, jc
+              if ( RealRS41 ) then
+                 corr = MPC_missingValue_R8
+              else
+                 call bcc_GetUACorrection('TD',stn_index,stype_index,stype,jc,TimeOfDayX,latband,pressure,corr,sourceCorr)
+                 if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTD, source, jc = ',corr, sourceCorr, jc
+              end if
               if ( corr /= MPC_missingValue_R8 ) then
                  td = (tt_orig - es) + corr
                  es = tt - td
@@ -1556,6 +1563,7 @@ CONTAINS
               end if
             end if
          end if
+         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESout, corr, flag = ', es, corr, flag
          call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
          call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, es   )
          call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
@@ -1575,7 +1583,7 @@ CONTAINS
          p1 = (float(countTTCorrByStation)/float(countTTObs))*100.d0
          p2 = (float(countTTCorrByStype)/float(countTTObs))*100.d0
          p3 = 100.d0 - (p1+p2)
-         p4 = (float(countRS41)/float(countTTObs))*100.d0
+         p4 = (float(countRS41)/float(countTTObs))*100.
          write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by STATION     = ", p1
          write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by SONDE-TYPE  = ", p2
          write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage uncorrected              = ", p3
