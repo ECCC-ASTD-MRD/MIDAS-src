@@ -219,7 +219,7 @@ insert into coeffs     select * from dbin.coeffs;
 EOF
              CREATE_INDEX=
          else
-             if [[ "${file##*/}" = dia* || "${file##*/}" = bcr* ]]; then
+             if [[ "${file##*/}" = dia* ]]; then
                  COLUMNS_AFTER_DATA=
                  COLUMNS_AFTER_SELECT='*'
              else
