@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Improve the documentation on how to start a branch associated to an
+   issue from the release branch (#553 and !523)
 
 ### Fixed
 
@@ -20,7 +21,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove any reference to release branch `v_3.4` in the documentation
+   (#553 and !523)
 
 ## [3.6.8]
 
