@@ -186,8 +186,8 @@ contains
         bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         sensorIndex = tvs_lsensor (tovsIndex)
 
+        sensorIndexInListFound = 0
         if ( printJoTovsPerChannelSensor ) then
-          sensorIndexInListFound = 0
           loopSensor1: do sensorIndexInList = 1, tvs_nsensors
             call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
 
