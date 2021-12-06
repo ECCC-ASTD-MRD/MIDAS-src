@@ -90,12 +90,10 @@ module minimization_mod
   logical :: deallocHessian
   logical :: isMinimizationFinalCall
 
-  integer,parameter :: maxNumberOfOuterLoopIterations = 3
-
   ! namelist variables
   real(8) :: REPSG, rdf1fac
-  integer :: NITERMAX(maxNumberOfOuterLoopIterations)
-  integer :: NVAMAJ, NSIMMAX, nwoqcv
+  integer, allocatable :: numIterMaxInnerLoopUsed(:)
+  integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
   integer :: numAnalyses
   logical :: lxbar, lwrthess, lgrtest, lvazx
   logical :: lvarqc, writeAnalysis
@@ -112,13 +110,13 @@ module minimization_mod
 CONTAINS
 
   subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, &
-                        numOuterLoopIterations_in, oneDVarMode_opt )
+                        numIterMaxInnerLoopUsed_opt, oneDVarMode_opt )
     implicit none
 
     ! Arguments:
     integer, intent(in)                   :: nvadim_mpilocal_in
     type(struct_hco), pointer, intent(in) :: hco_anl_in
-    integer, intent(in)                   :: numOuterLoopIterations_in
+    integer, intent(in), optional         :: numIterMaxInnerLoopUsed_opt(:)
     logical, intent(in), optional         :: oneDVarMode_opt
 
     ! Locals:
@@ -129,10 +127,6 @@ CONTAINS
       write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
       call utl_abort('min_setup: control vector dimension not consistent')
     endif
-
-    if ( numOuterLoopIterations_in > maxNumberOfOuterLoopIterations ) then
-      call utl_abort('min_setup: numOuterLoopIterations is greater than max value')
-    end if
 
     nvadim_mpilocal = nvadim_mpilocal_in
 
@@ -146,7 +140,7 @@ CONTAINS
 
     ! set default values for namelist variables
     nvamaj = 6
-    nitermax(:) = 0
+    nitermax = 0
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
@@ -167,8 +161,16 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    if ( .not. all(nitermax(1:numOuterLoopIterations_in) > 0) ) then
-      call utl_abort('min_setup: some nitermax(:) in namelist are negative or zero')
+    if ( present(numIterMaxInnerLoopUsed_opt) ) then
+      if ( nitermax > 0 ) then
+        call utl_abort('min_setup: nitermax should be zero when numOuterLoopIterations > 1')
+      end if
+
+      allocate(numIterMaxInnerLoopUsed(size(numIterMaxInnerLoopUsed_opt(:))))
+      numIterMaxInnerLoopUsed(:) = numIterMaxInnerLoopUsed_opt(:)
+    else
+      allocate(numIterMaxInnerLoopUsed(1))
+      numIterMaxInnerLoopUsed(1) = nitermax
     end if
 
     IF(N1GC == 3)THEN
@@ -358,7 +360,7 @@ CONTAINS
 
       iterdone = 0
       isimdone = 0
-      itermax = nitermax(outerLoopIndex)
+      itermax = numIterMaxInnerLoopUsed(outerLoopIndex)
       itermaxtodo = itermax
       isimmax = nsimmax
 
@@ -402,7 +404,7 @@ CONTAINS
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
       ! Begin the minimization
-      if ( nitermax(outerLoopIndex) > 0 ) then
+      if ( numIterMaxInnerLoopUsed(outerLoopIndex) > 0 ) then
 
         ! First do iterations without var-QC only at the beginning of first outer-loop.
         if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv .and. outerLoopIndex == 1 ) then
@@ -493,7 +495,7 @@ CONTAINS
         vazx(:) = 0.0d0
         min_niter = 0
 
-      endif ! if nitermax(outerLoopIndex) > 0
+      endif ! if numIterMaxInnerLoopUsed(outerLoopIndex) > 0
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(lvarqc) call vqc_listrej(obsSpaceData)
