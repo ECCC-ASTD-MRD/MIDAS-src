@@ -464,7 +464,7 @@ contains
         nulnam = 0
         ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
         read(nulnam, nml=namcfn, iostat=ierr)
-        if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
+        if ( ierr /= 0) call utl_abort('costfunction_mod: Error reading namelist')
         ierr = fclos(nulnam)
 
         call sortChannelNumbersInNml
@@ -495,7 +495,7 @@ contains
     character(len=15) :: sensorName1LowerCase, sensorName2LowerCase
 
     if ( mpi_myid == 0 ) then
-      write(*,*) 'sortChannelNumbersInNml: START'
+      write(*,*) 'costfunction_mod: sortChannelNumbersInNml START'
     end if
 
     ! set duplicate channelNumber for each sensor to zero
@@ -561,6 +561,10 @@ contains
         call isort(channelNumberList(:,sensorIndexInList),tvs_maxNumberOfChannels)
       end if
     end do loopSensor6
+
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'costfunction_mod: sortChannelNumbersInNml END'
+    end if
 
   end subroutine sortChannelNumbersInNml
 
