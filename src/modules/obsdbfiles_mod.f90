@@ -47,44 +47,46 @@ module obsdbFiles_mod
   integer, parameter :: obsColIndex   = 2
   integer, parameter :: varNoColIndex = 2
 
-  character(len=lenSqlName) :: headTableName  = 'Rapport'
+  character(len=lenSqlName) :: headTableName  = 'Report'
   character(len=lenSqlName) :: bodyTableName  = 'Observation'
   character(len=lenSqlName) :: midasTableName = 'midasOutput'
 
   ! ...for the header table
-  integer, parameter :: numHeadMatch = 14
-  character(len=lenSqlName) :: headKeySqlName  = 'ID_RAPPORT'
-  character(len=lenSqlName) :: headDateSqlName = 'DATE_VALIDITE'
+  integer, parameter :: numHeadMatch = 16
+  character(len=lenSqlName) :: headKeySqlName  = 'ID_REPORT'
+  character(len=lenSqlName) :: headDateSqlName = 'date_valid'
   character(len=lenSqlName) :: headMatchList(2,numHeadMatch) = (/ &
-       'ID_STN',              'STID', &
-       'TYPE',                'ITY',  &
-       'LAT',                 'LAT ', &
-       'LON',                 'LON ', &
-       'ID_SATELLITE',        'SAT ', &
-       'SATELLITEINSTRUMENT', 'INS ', &
-       'ZENITHANGLE',         'SZA ', &
-       'SOLARZENITHANGLE',    'SUN ', &
-       'AZIMUTH',             'AZA ', &
-       'SOLARAZIMUTH',        'SAZ ', &
-       'FIELDOFVIEW',         'FOV ',  &
-       'GEOLOCATIONQUALITY',  'AQF1', &
-       'GRANULELEVELQUALITY', 'AQF2', &
-       'SCANLEVELQUALITY',    'AQF3' /)
+       'STATION_ID',                   'STID', &
+       'RADIANCE_TYPE',                'ITY' , &
+       'LAT',                          'LAT ', &
+       'LON',                          'LON ', &
+       'SATELLITE_ID',                 'SAT ', &
+       'INSTRUMENT_ID',                'INS ', &
+       'SATELLITE_ZENITH_ANGLE',       'SZA ', &
+       'SOLAR_ZENITH_ANGLE',           'SUN ', &
+       'SATELLITE_AZIMUTH_ANGLE',      'AZA ', &
+       'SOLAR_AZIMUTH_ANGLE',          'SAZ ', &
+       'FIELD_OF_VIEW',                'FOV ', &
+       'ORBIT_NUMBER',                 'ORBI', & !Newly added
+       'GEO_LOCATION_QUALITY',         'AQF1', &
+       'GRANULE_LEVEL_QUALITY',        'AQF2', &
+       'SCAN_LEVEL_QUALITY',           'AQF3', &
+       'ORIGINATING_CENTER',           'ORI' /)  !Newly added
 
   ! ...for the body table
   integer, parameter :: numBodyMatch = 4
   character(len=lenSqlName) :: bodyKeySqlName = 'ID_OBSERVATION'
   character(len=lenSqlName) :: bodyMatchList(2,numBodyMatch) = (/ &
-       'CHANNEL',               'PPP ', &
-       'BRIGHTNESSTEMPERATURE', 'VAR ', &
-       'ANTENNATEMPERATURE',    'VAR ', &
-       'CHANQUALITYFLAG',       'QCFL' /)
+       'CHANNEL',                  'PPP ', &
+       'BRIGHTNESS_TEMPERATURE',   'VAR ', &
+       'ANTENNA_TEMPERATURE',      'VAR ', &
+       'CHANNEL_QUALITY_FLAG',     'QCFL' /)
 
   ! Dictionary of 'varno' value for each obsDB observation value column
   integer, parameter :: numVarNo = 2
   character(len=lenSqlName) :: varNoList(2,numVarNo) = (/ &
-       'BRIGHTNESSTEMPERATURE', '12163', &
-       'ANTENNATEMPERATURE',    '12999' /)
+       'BRIGHTNESS_TEMPERATURE', '12163', &
+       'ANTENNA_TEMPERATURE',    '12999' /)
 
   ! Column names for the MIDAS output table and corresponding obsSpace names
   character(len=lenSqlName) :: midasKeySqlName = 'ID_MIDAS'
@@ -1730,7 +1732,7 @@ contains
     ! locals:
     integer           :: matchIndex
     character(len=10) :: varNoStr
-    
+   
     matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
     if (matchIndex > 0) then
       varNoStr = varNoList(varNoColIndex,matchIndex)
