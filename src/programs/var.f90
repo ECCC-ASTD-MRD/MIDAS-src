@@ -217,14 +217,7 @@ program midas_var
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupColumnsOnTrlLev
-
-  ! Use numIterMaxInnerLoop from NAMVAR for numOuterLoopIterations > 1
-  if ( numOuterLoopIterations > 1 ) then
-    call min_setup( cvm_nvadim, hco_anl, & ! IN
-        numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoop(1:numOuterLoopIterations) ) ! IN
-  else
-    call min_setup( cvm_nvadim, hco_anl)   ! IN
-  end if
+  call min_setup( cvm_nvadim, hco_anl ) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
@@ -273,13 +266,21 @@ program midas_var
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
-    ! Do minimization of cost function
+    ! Do minimization of cost function. Use numIterMaxInnerLoop from NAMVAR, instead of
+    ! nitermax from NAMMIN, when numOuterLoopIterations > 1
     controlVectorIncr(:) = 0.0d0
     deallocHessian = ( numOuterLoopIterations == 1 )
     isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
-    call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr, deallocHessian_opt=deallocHessian, &
-                       isMinimizationFinalCall_opt=isMinimizationFinalCall )
+    if ( numOuterLoopIterations > 1 ) then
+      call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                         controlVectorIncr, deallocHessian_opt=deallocHessian, &
+                         isMinimizationFinalCall_opt=isMinimizationFinalCall, &
+                         numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoop(outerLoopIndex) )
+    else
+      call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                         controlVectorIncr, deallocHessian_opt=deallocHessian, &
+                         isMinimizationFinalCall_opt=isMinimizationFinalCall )
+    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
