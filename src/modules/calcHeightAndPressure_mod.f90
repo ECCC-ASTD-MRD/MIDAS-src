@@ -1512,7 +1512,7 @@ contains
 
         real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
         real(4) ::  lat_4
-        real(8) ::  hu, tt, cmp, Rgh, P0, dh, rMt, Z_T, Z_T1, Z_M, Z_Mm1
+        real(8) ::  hu, tt, cmp, Rgh, P0, dh, rMt, Z_T, Z_T1, Z_M, Z_M1
         real(8) ::  sLat, cLat, lat_8
         real(8) ::  ScaleFactorBottom
 
@@ -1627,6 +1627,7 @@ contains
 
               ! 1st estimation of tv based on P0
               ! mad001: why tv() : nlev_T-1 ?
+              ! ? thermo level just above momentum level being computed (see below)
               cmp = gpscompressibility(P0,tt,hu)
               tv(nlev_T-1) = fotvt8(tt,hu) * cmp
               pressure_T(nlev_T-1) = P0 * &
@@ -1665,27 +1666,41 @@ contains
               !   found in calcHeight_gsv_nl_vcode500x
               pressure_M(nlev_M) = pressure_T(nlev_T) ! =P0
 
-              do lev_M = nlev_M-1, 1, -1
-                lev_T = lev_M ! thermo level just above momentum level being computed
+              ! all the momentum level above 
+              if (nlev_M > 1) then
+                do lev_M = nlev_M-1, 1, -1
+                  lev_T = lev_M
+  
+                  if ( statevector%dataKind == 4 ) then
+                    Z_T1  = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex), 8)
+                    Z_M  = real(height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex), 8)
+                    Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex), 8)
+                  else
+                    Z_T1  = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+                    Z_M  = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+                    Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
+                  end if
+  
+                  scaleFactorBottom = -(Z_T1 - Z_M) / (Z_M1 - Z_M) 
+                  !write(*,*) 'DEBUG mad001:',lev_M
+                  !write(*,*) 'DEBUG mad001 P:',pressure_T(lev_T), pressure_M(lev_M+1)
+                  pressure_M(lev_M) = exp(&
+                       1/(1-scaleFactorBottom)*&
+                       (log(pressure_T(lev_T))-scaleFactorBottom*log(pressure_M(lev_M+1))))
+                  !write(*,*) 'DEBUG mad001:',pressure_M(lev_M) 
+                  !write(*,*) 'DEBUG mad001 --------------------------------' 
+                end do
+              end if
 
-                if ( statevector%dataKind == 4 ) then
-                  Z_T  = real(height_T_ptr_r4(&
-                                lonIndex,latIndex,lev_T,stepIndex), 8)
-                  Z_M  = real(height_M_ptr_r4(&
-                                lonIndex,latIndex,lev_M,stepIndex), 8)
-                  Z_Mm1 = real(height_M_ptr_r4(&
-                                lonIndex,latIndex,lev_M-11,stepIndex), 8)
-                else
-                  Z_T  = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Z_M  = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
-                  Z_Mm1 = height_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
-                end if
-
-                scaleFactorBottom = (Z_T - Z_Mm1) / (Z_M - Z_Mm1)
-                pressure_M(lev_M) = exp((log(pressure_T(lev_T)) &
-                    - scaleFactorBottom*log(pressure_M(lev_M+1))) &
-                    / (1-scaleFactorBottom))
+              ! DEBUG mad001 start
+              write(*,*) 'DEBUG mad001 nlev_M, nlev_T:',nlev_M, nlev_T
+              do lev_M = nlev_M, 1, -1
+                write(*,*) 'DEBUG mad001 P_M, P_T:',lev_M, pressure_T(lev_M), pressure_M(lev_M)
               end do
+              ! DEBUG mad001 end
+
+
+              call utl_abort('DEBUG mad001 ---END---')
 
               ! fill the height array
               if ( statevector%dataKind == 4 ) then
