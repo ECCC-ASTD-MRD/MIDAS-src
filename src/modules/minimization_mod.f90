@@ -175,9 +175,8 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx, deallocHessian_opt, &
-                           isMinimizationFinalCall_opt, &
-                           numIterMaxInnerLoopUsed_opt )
+                           vazx, numIterMaxInnerLoop, deallocHessian_opt, &
+                           isMinimizationFinalCall_opt )
     implicit none
 
     ! Arguments:
@@ -186,9 +185,9 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
+    integer                             :: numIterMaxInnerLoop
     logical,                   optional :: deallocHessian_opt
     logical,                   optional :: isMinimizationFinalCall_opt
-    integer, intent(in),       optional :: numIterMaxInnerLoopUsed_opt
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
@@ -214,14 +213,17 @@ CONTAINS
       isMinimizationFinalCall = .true.
     end if
 
-    if ( present(numIterMaxInnerLoopUsed_opt) ) then
-      if ( nitermax > 0 ) then
-        call utl_abort('min_minimize: nitermax should be zero when numOuterLoopIterations > 1')
-      end if
+    if ( (nitermax > 0 .and. numIterMaxInnerLoop > 0) .or. &
+         (nitermax == 0 .and. numIterMaxInnerLoop == 0) ) then
+      call utl_abort('min_minimize: one of nitermax or numIterMaxInnerLoop should be zero and the other positive')
+    end if
 
-      numIterMaxInnerLoopUsed = numIterMaxInnerLoopUsed_opt
-    else
+    if ( nitermax > 0 ) then
       numIterMaxInnerLoopUsed = nitermax
+    else if ( numIterMaxInnerLoop > 0 ) then
+      numIterMaxInnerLoopUsed = numIterMaxInnerLoop
+    else
+      call utl_abort('min_minimize: both nitermax and numIterMaxInnerLoop are negative values')
     end if
 
     controlVectorIncrSum_ptr => controlVectorIncrSum

@@ -271,16 +271,10 @@ program midas_var
     controlVectorIncr(:) = 0.0d0
     deallocHessian = ( numOuterLoopIterations == 1 )
     isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
-    if ( numOuterLoopIterations > 1 ) then
-      call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                         controlVectorIncr, deallocHessian_opt=deallocHessian, &
-                         isMinimizationFinalCall_opt=isMinimizationFinalCall, &
-                         numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoop(outerLoopIndex) )
-    else
-      call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                         controlVectorIncr, deallocHessian_opt=deallocHessian, &
-                         isMinimizationFinalCall_opt=isMinimizationFinalCall )
-    end if
+    call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
+                       controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
+                       deallocHessian_opt=deallocHessian, &
+                       isMinimizationFinalCall_opt=isMinimizationFinalCall )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations

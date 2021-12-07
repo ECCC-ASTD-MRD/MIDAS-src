@@ -62,7 +62,7 @@ program midas_var1D
   type(struct_hco),       pointer :: hco_trl => null()
   type(struct_vco),       pointer :: vco_trl => null()
 
-  integer :: outerLoopIndex
+  integer :: outerLoopIndex, numIterMaxInnerLoop
   logical :: allocHeightSfc
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
@@ -188,9 +188,10 @@ program midas_var1D
 
   ! Do minimization of cost function
   outerLoopIndex = 1
+  numIterMaxInnerLoop = 0
   controlVectorIncr(:) = 0.0d0
   call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                     controlVectorIncr )
+                     controlVectorIncr, numIterMaxInnerLoop )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute satellite bias correction increment and write to file
