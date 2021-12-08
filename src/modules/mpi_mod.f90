@@ -32,6 +32,7 @@ module mpi_mod
   ! public procedures
   public :: mpi_initialize,mpi_getptopo
   public :: mpi_allreduce_sumreal8scalar,mpi_allgather_string
+  public :: mpi_allreduce_sumR8_1d
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0
@@ -160,6 +161,51 @@ module mpi_mod
     call tmg_stop(16)
 
   end subroutine mpi_allreduce_sumreal8scalar
+
+
+  subroutine mpi_allreduce_sumR8_1d( sendRecvVector, comm )
+    !
+    ! :Purpose: Perform sum of 1d array over all MPI tasks.
+    !
+    implicit none
+
+    real(8)         , intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
+    character(len=*), intent(in)     :: comm              ! rpn_comm communicator
+
+    integer :: nsize, nprocs_mpi, numElements, ierr, root, rank
+    real(8), allocatable :: all_sendRecvVector(:,:)
+
+    ! do a barrier so that timing on reduce operation is accurate
+    call tmg_start(109,'MPI_SUMSCA_BARR')
+    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call tmg_stop(109)
+
+    call tmg_start(16,'allreduce_sum8')
+
+    numElements = size(sendRecvVector)
+
+    ! determine number of processors in the communicating group
+    call rpn_comm_size(comm,nprocs_mpi,ierr)
+
+    ! determine where to gather the values: first task in group
+    call rpn_comm_rank(comm,rank,ierr)
+    call rpn_comm_allreduce(rank,root,1,"mpi_integer","mpi_min",comm,ierr)
+
+    ! gather vectors to be added onto 1 processor
+    allocate(all_sendRecvVector(numElements,0:nprocs_mpi-1))
+    call rpn_comm_gather(sendRecvVector    , numElements, "mpi_double_precision", &
+                         all_sendRecvVector, numElements, "mpi_double_precision", &
+                         root, comm, ierr)
+
+    ! sum the values and broadcast to group
+    if ( rank == root ) sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    deallocate(all_sendRecvVector)
+    call rpn_comm_bcast(sendRecvVector, numElements, "mpi_double_precision", &
+                        root, comm, ierr)
+
+    call tmg_stop(16)
+
+  end subroutine mpi_allreduce_sumR8_1d
  
   
   subroutine mpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )

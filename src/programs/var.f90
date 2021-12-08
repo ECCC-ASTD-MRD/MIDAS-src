@@ -74,10 +74,12 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
 
+  integer, parameter :: maxNumberOfOuterLoopIterations = 3
+
   ! namelist variables
-  integer :: numOuterLoopIterations
+  integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
   logical :: limitHuInOuterLoop
-  NAMELIST /NAMVAR/ numOuterLoopIterations, limitHuInOuterLoop
+  NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -107,6 +109,7 @@ program midas_var
   ! Setting default namelist variable values
   numOuterLoopIterations = 1
   limitHuInOuterLoop = .false.
+  numIterMaxInnerLoop(:) = 0
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -123,6 +126,15 @@ program midas_var
     ierr = fclos(nulnam)
   end if
   if ( mpi_myid == 0 ) write(*,nml=namvar)
+
+  if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
+    call utl_abort('midas-var: numOuterLoopIterations is greater than max value')
+  end if
+
+  if ( numOuterLoopIterations > 1 .and. &
+       .not. all(numIterMaxInnerLoop(1:numOuterLoopIterations) > 0) ) then
+    call utl_abort('midas-var: some numIterMaxInnerLoop(:) in namelist are negative or zero')
+  end if
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
@@ -254,12 +266,14 @@ program midas_var
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
-    ! Do minimization of cost function
+    ! Do minimization of cost function. Use numIterMaxInnerLoop from NAMVAR, instead of
+    ! nitermax from NAMMIN, when numOuterLoopIterations > 1
     controlVectorIncr(:) = 0.0d0
     deallocHessian = ( numOuterLoopIterations == 1 )
     isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                       controlVectorIncr, deallocHessian_opt=deallocHessian, &
+                       controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
+                       deallocHessian_opt=deallocHessian, &
                        isMinimizationFinalCall_opt=isMinimizationFinalCall )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

@@ -91,8 +91,8 @@ module minimization_mod
   logical :: isMinimizationFinalCall
 
   ! namelist variables
-  integer,parameter   :: maxNumLevels = 200
   real(8) :: REPSG, rdf1fac
+  integer :: numIterMaxInnerLoopUsed
   integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
   integer :: numAnalyses
   logical :: lxbar, lwrthess, lgrtest, lvazx
@@ -175,7 +175,7 @@ CONTAINS
 
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
-                           vazx, deallocHessian_opt, &
+                           vazx, numIterMaxInnerLoop, deallocHessian_opt, &
                            isMinimizationFinalCall_opt )
     implicit none
 
@@ -185,6 +185,7 @@ CONTAINS
     type(struct_obs)                    :: obsSpaceData
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
+    integer                             :: numIterMaxInnerLoop
     logical,                   optional :: deallocHessian_opt
     logical,                   optional :: isMinimizationFinalCall_opt
 
@@ -210,6 +211,19 @@ CONTAINS
       isMinimizationFinalCall = isMinimizationFinalCall_opt
     else
       isMinimizationFinalCall = .true.
+    end if
+
+    if ( (nitermax > 0 .and. numIterMaxInnerLoop > 0) .or. &
+         (nitermax == 0 .and. numIterMaxInnerLoop == 0) ) then
+      call utl_abort('min_minimize: one of nitermax or numIterMaxInnerLoop should be zero and the other positive')
+    end if
+
+    if ( nitermax > 0 ) then
+      numIterMaxInnerLoopUsed = nitermax
+    else if ( numIterMaxInnerLoop > 0 ) then
+      numIterMaxInnerLoopUsed = numIterMaxInnerLoop
+    else
+      call utl_abort('min_minimize: both nitermax and numIterMaxInnerLoop are negative values')
     end if
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
@@ -346,7 +360,7 @@ CONTAINS
 
       iterdone = 0
       isimdone = 0
-      itermax = nitermax
+      itermax = numIterMaxInnerLoopUsed
       itermaxtodo = itermax
       isimmax = nsimmax
 
@@ -390,7 +404,7 @@ CONTAINS
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
       ! Begin the minimization
-      if(nitermax.gt.0) then
+      if ( numIterMaxInnerLoopUsed > 0 ) then
 
         ! First do iterations without var-QC only at the beginning of first outer-loop.
         if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv .and. outerLoopIndex == 1 ) then
@@ -481,7 +495,7 @@ CONTAINS
         vazx(:) = 0.0d0
         min_niter = 0
 
-      endif ! if nitermax .gt. 0
+      endif ! if numIterMaxInnerLoopUsed > 0
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(lvarqc) call vqc_listrej(obsSpaceData)
@@ -498,7 +512,7 @@ CONTAINS
 
     real(8) :: vazx(:)
 
-    if ( nitermax > 0 .and. lwrthess ) then
+    if ( lwrthess ) then
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
