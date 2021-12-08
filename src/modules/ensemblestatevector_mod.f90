@@ -49,7 +49,7 @@ module ensembleStateVector_mod
   public :: ens_copyMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
-  public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
+  public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
 
@@ -1466,6 +1466,23 @@ CONTAINS
     dataKind = ens%dataKind
 
   end function ens_getDataKind
+
+  !--------------------------------------------------------------------------
+  ! ens_getPathName
+  !--------------------------------------------------------------------------
+  function ens_getPathName(ens) result(pathName)
+    !
+    !:Purpose: Return the path name for the ensemble files.
+    !
+    implicit none
+    character(len=256)            :: pathName
+
+    ! Arguments:
+    type(struct_ens), intent(in)  :: ens
+
+    pathName = ens%ensPathName
+
+  end function ens_getPathName
 
   !--------------------------------------------------------------------------
   ! ens_getOffsetFromVarName

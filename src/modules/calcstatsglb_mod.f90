@@ -2923,23 +2923,29 @@ module calcStatsGlb_mod
     real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
     real(8) :: dnEns
     integer :: lonIndex, latIndex, varLevIndex1, varLevIndex2, memberIndex
-    integer :: levIndex1
+    integer :: levIndex1, dateStamp
     character(len=4), pointer :: varNamesList(:)
-    character(len=12) :: etiket
-    character(len=4)  :: varName
-    character(len=3)  :: levIndexStr
+    character(len=12)  :: etiket
+    character(len=4)   :: varName
+    character(len=3)   :: levIndexStr
+    character(len=256) :: ensFileName
 
+    ! Set the dateStamp using the first ensemble member
+    call fln_ensfileName(ensFileName, ens_getPathName(ensPerts), memberIndex_opt=1)
+    dateStamp = tim_getDatestampFromFile(ensFileName)
+
+    ! Get list of variable names in the ensemble
     nullify(varNamesList)
     call ens_varNamesList(varNamesList,ensPerts) 
 
-    call gsv_allocate(statevector_vertCorr, ens_getNumStep(ensPerts),                     &
+    call gsv_allocate(statevector_vertCorr, ens_getNumStep(ensPerts),                        &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      datestamp_opt=dateStamp, mpi_local_opt=.true.,                         &
                       mpi_distribution_opt='Tiles', dataKind_opt=8 )
 
-    call gsv_allocate(statevector_oneMember, ens_getNumStep(ensPerts),                  &
+    call gsv_allocate(statevector_oneMember, ens_getNumStep(ensPerts),                       &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      datestamp_opt=dateStamp, mpi_local_opt=.true.,                         &
                       mpi_distribution_opt='Tiles', dataKind_opt=8 )
 
     dnEns = 1.0d0/dble(nEns-1)
@@ -2972,7 +2978,8 @@ module calcStatsGlb_mod
       ! Write to file the correlation matrix 'row' for this value of varLev1
       write(levIndexStr,'(i3.3)') levIndex1
       etiket = 'VCOR_' // trim(varName) // levIndexStr
-      call gsv_writeToFile(statevector_vertCorr, './vertCorrMatrixLocal.fst', &
+      call gsv_writeToFile(statevector_vertCorr, &
+                           './vertCorr_' // trim(varName) // levIndexStr // '.fst', &
                            etiket_in = etiket, &
                            typvar_opt = 'E', numBits_opt = 32)
       write(*,*) 'calcLocalVertCorrMatrix: finished variable/level =', varName, levIndex1
