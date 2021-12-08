@@ -428,7 +428,8 @@ contains
         tvs_opts(sensorIndex) % rt_all % switchrad = .true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
         tvs_opts(sensorIndex) % rt_all % use_q2m = .false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
         tvs_opts(sensorIndex) % rt_all % addrefrac = .true.  ! to account for atmospheric refraction
-        tvs_opts(sensorIndex) % rt_all % dtau_test = .true.  ! for backward compatibility with RTTOV-12 should be changed later
+        tvs_opts(sensorIndex) % rt_all % dtau_test = .true.  ! for backward compatibility with RTTOV-12 may be changed later
+        tvs_opts(sensorIndex) % rt_all % use_t2m_opdep = .false. ! for backward compatibility with RTTOV-12 may be changed later
         !< VIS/IR RT options
         tvs_opts(sensorIndex) % rt_ir % addsolar = .false.  ! to model solar component in the near IR (2000 cm-1 et plus)
         tvs_opts(sensorIndex) % rt_ir % addaerosl = .false. ! to account for scattering due to aerosols
