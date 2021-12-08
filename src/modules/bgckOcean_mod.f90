@@ -33,14 +33,16 @@ module bgckOcean_mod
 
   implicit none
 
-  integer, external :: fnom, fclos  
   
   save
   private
 
   ! Public functions/subroutines
   public :: ocebg_bgCheckSST
-  
+ 
+  ! External functions
+  integer, external :: fnom, fclos  
+
   character(len=20) :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
   integer           :: numObsBatches           ! number of batches for calling interp setup
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches
@@ -50,7 +52,7 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   ! ocebg_bgCheckSST
   !----------------------------------------------------------------------------------------
-  subroutine ocebg_bgCheckSST( obsData, columnTrlOnTrlLev, hco, vco )
+  subroutine ocebg_bgCheckSST( obsData, columnTrlOnTrlLev, hco )
     !
     !: Purpose: to compute SST data background Check  
     !           
@@ -61,10 +63,9 @@ module bgckOcean_mod
     type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData object
     type(struct_columnData), intent(inout)       :: columnTrlOnTrlLev ! column data on trl levels
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
-    type(struct_vco)       , intent(in), pointer :: vco               ! vertical trl grid
 
     ! Locals:
-    type(struct_gsv)            :: stateVector ! state vector containing std B estimation field
+    type(struct_gsv)            :: stateVector   ! state vector containing std B estimation field
     integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected  
     real(8)                     :: OER, OmP, FGE, bgCheck
@@ -79,17 +80,25 @@ module bgckOcean_mod
     numObsBatches = 20
 
     ! Read the namelist
-    nulnam = 0
-    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-    read( nulnam, nml = namOceanBGcheck, iostat = ierr )
-    if ( mpi_myid == 0 .and. ierr == 0) write(*, nml = namOceanBGcheck )
-    if ( ierr /= 0 ) write(*,*) myName//': no valid namelist namOceanBGcheck found, default values will be taken:'
-    ierr = fclos( nulnam )
+    if ( .not. utl_isNamelistPresent('namOceanBGcheck','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) myName//': namOceanBGcheck is missing in the namelist.'
+        write(*,*) myName//'  The default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+      read( nulnam, nml = namOceanBGcheck, iostat = ierr )
+      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+      ierr = fclos( nulnam )
+    end if
     write(*,*) myName//': interpolation type: ', timeInterpType_nl
     write(*,*) myName//': number obs batches: ', numObsBatches
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate( stateVector, 1, hco, vco, dataKind_opt = 4, hInterpolateDegree_opt = 'NEAREST', &
+    call gsv_allocate( stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
+                       hInterpolateDegree_opt = 'NEAREST', &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
     call gsv_readFromFile( stateVector, './bgstddev', 'STDDEV', 'X', &
                            unitConversion_opt=.false., containsFullField_opt=.true. )
@@ -111,9 +120,9 @@ module bgckOcean_mod
       if ( llok ) then
         if ( obsVarno == bufr_sst ) then
        
-	  FGE        = col_getElem( columnFGE, 1, headerIndex, 'TM' )
-	  OmP        = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex )
-          OER        = obs_bodyElem_r(obsData, OBS_OER , bodyIndex )
+	  FGE = col_getElem( columnFGE, 1, headerIndex, 'TM' )
+	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex )
+          OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex )
 	    
 	  if ( FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8 ) then 
 	    
@@ -173,7 +182,7 @@ module bgckOcean_mod
   function ocebg_setFlag( obsVarno, bgCheck ) result( obsFlag )
     !
     !:Purpose: Set background-check flags according to values set in a table.
-    !          Original values in table come from ecmwf.
+    !          Original values in table come from ECMWF.
     !
 
     implicit none

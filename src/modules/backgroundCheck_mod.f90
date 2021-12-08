@@ -508,12 +508,8 @@ module backgroundCheck_mod
       integer :: NGPSLEV
       integer :: stat, iversion
 
-      logical :: LSTAG
-
-      LSTAG = .FALSE.
       vco_trl => col_getVco(columnTrlOnTrlLev)
       stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
-      if (iversion == 5002) LSTAG = .TRUE. 
       
       write(*,*)'ENTER BGCSGPSRO'
       
