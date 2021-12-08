@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve the documentation on how to start a branch associated to an
+   issue from the release branch (#553 and !523)
  * midas_build provide more details on the compilation process (#549 and !520)
  * Renamed module `tt2phi_mod` to `calcHeightAndPressure_mod` and regrouped pressure calculation subroutines (#523 and !504)
  * Consistent application of bias corrections for all observation families (add the correction in OBS_BCOR) (#391 and !506)
@@ -91,7 +93,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove any reference to release branch `v_3.4` in the documentation
+   (#553 and !523)
 
 ## [3.6.8]
 
