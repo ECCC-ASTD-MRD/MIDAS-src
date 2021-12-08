@@ -31,7 +31,6 @@ version of the profile which is
 The documentation for officially supported branches is available:
 * [`master` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
 * [`v_3.6` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.6) (IC-3)
-* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4) (IC-2)
 
 # Contributing
 
@@ -53,16 +52,23 @@ clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-as
 ```
 
 ## Getting code related to IC-3 system
+
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
 clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.6
 ```
 
-## Getting code related to IC-2 (operational) system
+If you created a new branch with the GitLab web UI, then the branch
+has been created using the default branch which is `master`.  One must
+reset it to the release branch.  One can simply do:
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
-clone_projet --no-central -c v_3.4 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.4
+clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
+cd midas-${ISSUE_NUMBER}
+git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
+git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force
 ```
+
 
 # Compiling a single program
 
