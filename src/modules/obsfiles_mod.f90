@@ -149,8 +149,12 @@ contains
         if ( obsFileType == 'BURP' )   then
           ! Add extra bias correction elements to conventional (except AI) and TO files
           ! Bias correction elements for AI are added at the derivate file stage
-          if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
-               call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+          if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
+            call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+          else if ( obsf_cfamtyp(fileIndex) /= 'AI' ) then
+            if ( bcc_biasActive(obsf_cfamtyp(fileIndex)) ) &
+            call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+          end if
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) then

@@ -32,6 +32,10 @@ MODULE biasCorrectionConv_mod
   private
   public               :: bcc_applyAIBcor, bcc_applyGPBcor, bcc_applyUABcor
   public               :: bcc_biasActive
+  
+  ! This variable is set to .true. when bcc_readConfig() [the routine that reads &NAMBIASCONV namelist]
+  ! is called for the first time to read/initialize the bias correction namelist variables.
+  logical            :: initialized = .false.
 
   integer, parameter :: nPhases=3, nLevels=5, nAircraftMax=100000
   integer, parameter :: nStationMaxGP = 10000
@@ -622,6 +626,11 @@ CONTAINS
     implicit none
     !Locals:
     integer  :: ierr, nulnam, i
+    
+    if ( initialized ) then
+      write(*,*) "bcc_readConfig has already been called. Returning..."
+      return
+    end if
   
     ! set default values for namelist variables
     aiBiasActive = .false.  ! bias correct AI data (TT)
@@ -677,6 +686,8 @@ CONTAINS
          rs_types(i)%codes(:) = nlSondeCodes(i,:)
       end do
     end if
+    
+    initialized = .true.
     
   end subroutine bcc_readConfig
 
@@ -1620,9 +1631,6 @@ CONTAINS
     !
     ! :Purpose: returns True if bias correction is active for the given conventional observation family
     !
-    ! Used in subroutine obsf_readFiles to see if bias correction element needs to be added to derialt files.
-    ! AI derialt files aleady have bias correction element added so AI family is not included here.
-    !
     implicit none
     character(len=*),intent(in) :: obsFam
 
@@ -1633,6 +1641,8 @@ CONTAINS
       bcc_biasActive = bcc_gpBiasActive
     case('UA')
       bcc_biasActive = bcc_uaBiasActive
+    case('AI')
+      bcc_biasActive = bcc_aiBiasActive
     case default
       bcc_biasActive = .false.
     end select
