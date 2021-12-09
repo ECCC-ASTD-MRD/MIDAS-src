@@ -135,9 +135,9 @@ module oMinusF_mod
       ! Apply optional bias corrections when namelist logicals {fam}BiasActive are TRUE
       ! (Only reverse existing corrections when namelist logicals {fam}RevOnly are TRUE)
       call bcc_readConfig()
-      if (bcc_biasActive('AI')) call bcc_applyAIBcor(obsSpaceData)    
-      if (bcc_biasActive('GP')) call bcc_applyGPBcor(obsSpaceData)
-      if (bcc_biasActive('UA')) call bcc_applyUABcor(obsSpaceData)
+      if ( bcc_biasActive('AI') .and. obs_famExist(obsSpaceData,'AI') ) call bcc_applyAIBcor(obsSpaceData)    
+      if ( bcc_biasActive('GP') .and. obs_famExist(obsSpaceData,'GP') ) call bcc_applyGPBcor(obsSpaceData)
+      if ( bcc_biasActive('UA') .and. obs_famExist(obsSpaceData,'UA') ) call bcc_applyUABcor(obsSpaceData)
       
       !- 1.11 Basic setup of columnData module
       call col_setup
