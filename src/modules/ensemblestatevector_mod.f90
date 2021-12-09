@@ -1066,7 +1066,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ens
+    type(struct_ens), intent(in) :: ens
     type(struct_gsv), intent(inout) :: statevector
     integer,          intent(in)    :: memberIndex
 
