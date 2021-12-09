@@ -31,6 +31,7 @@ module calcHeightAndPressure_mod
   use columnData_mod
   use utilities_mod
   use varnamelist_mod
+  use HorizontalCoord_mod ! DEBUG mad001
   implicit none
   save
   private
@@ -409,7 +410,6 @@ contains
           Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
           deallocate(Height_out)
 
-          beSilent = .false. ! DEBUG mad001 
           if ( .not. beSilent .and. stepIndex == 1 ) then
             write(*,*) 'stepIndex=',stepIndex, ',Z_M='
             write(*,*) Z_M(&
@@ -1530,6 +1530,20 @@ contains
         real(8), pointer     :: P0_ptr_r8(:,:,:,:)
         real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
         real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+
+        ! DEBUG mad001 starts
+        integer  :: fun 
+        character(len=50)                 :: fileDebug
+        integer, dimension(6)             :: locLatIdx, locLonIdx
+        character(len=5), dimension(6)    :: locLabels
+        integer :: locIdx 
+        real(8) :: locLat, locLon
+        type(struct_hco)  ::  locHco
+        locLabels = (/'Andes', 'Rocki', 'Tibet', 'AtlaN', 'PaciN', 'AtlaS'/)
+        locLatIdx = (/227,142,533,282,31,368/)
+        locLonIdx = (/138,256,244,243,243,240/)
+        ! DEBUG mad001 ends
+        
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
         numStep = statevector%numStep
@@ -1664,6 +1678,8 @@ contains
               ! compute pressure on momentum levels 
               !   we invert the ScaleFactorBottom relationships
               !   found in calcHeight_gsv_nl_vcode500x
+
+              ! both bottom levels put at P0
               pressure_M(nlev_M) = pressure_T(nlev_T) ! =P0
 
               ! all the momentum level above 
@@ -1682,25 +1698,14 @@ contains
                   end if
   
                   scaleFactorBottom = -(Z_T1 - Z_M) / (Z_M1 - Z_M) 
-                  !write(*,*) 'DEBUG mad001:',lev_M
-                  !write(*,*) 'DEBUG mad001 P:',pressure_T(lev_T), pressure_M(lev_M+1)
                   pressure_M(lev_M) = exp(&
                        1/(1-scaleFactorBottom)*&
                        (log(pressure_T(lev_T))-scaleFactorBottom*log(pressure_M(lev_M+1))))
-                  !write(*,*) 'DEBUG mad001:',pressure_M(lev_M) 
-                  !write(*,*) 'DEBUG mad001 --------------------------------' 
                 end do
               end if
 
-              ! DEBUG mad001 start
-              write(*,*) 'DEBUG mad001 nlev_M, nlev_T:',nlev_M, nlev_T
-              do lev_M = nlev_M, 1, -1
-                write(*,*) 'DEBUG mad001 P_M, P_T:',lev_M, pressure_T(lev_M), pressure_M(lev_M)
-              end do
-              ! DEBUG mad001 end
 
 
-              call utl_abort('DEBUG mad001 ---END---')
 
               ! fill the height array
               if ( statevector%dataKind == 4 ) then
@@ -1722,6 +1727,34 @@ contains
             end do ! lonIndex
           end do ! latIndex
         end do do_computePressure_gsv_nl
+
+
+        ! DEBUG mad001 start
+        if ( mpi_myid == 0 ) then
+          fileDebug='./debug.out'
+          write(*,*) 'opening '//trim(fileDebug)
+          call utl_open_asciifile(trim(fileDebug), fun)
+          
+          do locIdx = 1, 6
+            latIndex = locLatIdx(locIdx)
+            lonIndex = locLonIdx(locIdx)
+            locHco = gsv_getHco(statevector) 
+            locLat = locHco%lat(latIndex)
+            locLon = locHco%lon(lonIndex)
+            write(*,*) 'DEBUG mad001 loc,lat,lon:',locLabels(locIdx),latIndex,lonIndex,locLat,locLon
+            do lev_M = nlev_M, nlev_M-11, -1
+              write(*,*) 'DEBUG mad001 P_M, P_T:',lev_M, pressure_T(lev_M), pressure_M(lev_M)
+              write(fun,'(A5,2X,2(I3,2X),2(F20.10,2X),I3,2X,4(F20.10,2X))')&
+                   locLabels(locIdx),latIndex,lonIndex,locLat,locLon,lev_M,&
+                   P_T_ptr_r4(lonIndex,latIndex,lev_M,1),&
+                   P_M_ptr_r4(lonIndex,latIndex,lev_M,1),&
+                   height_T_ptr_r4(lonIndex,latIndex,lev_M,1),&
+                   height_M_ptr_r4(lonIndex,latIndex,lev_M,1)
+            end do
+          end do
+          close(fun)
+        end if
+        ! DEBUG mad001 end
 
         deallocate(pressure_T)
         deallocate(pressure_M)
@@ -1745,6 +1778,7 @@ contains
           end if
         end if
         write(*,*) 'DEBUG mad001: calcPressure_gsv_nl_vcode2100x END'
+        call utl_abort('DEBUG mad001 ---END---')
 
       end subroutine calcPressure_gsv_nl_vcode2100x
 
