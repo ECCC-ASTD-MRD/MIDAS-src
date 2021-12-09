@@ -41,10 +41,10 @@ module backgroundCheck_mod
   ! public procedures
   public :: bgck_bgcheck_conv
 
-  integer,          parameter :: numFamilyToProcess = 12
+  integer,          parameter :: numFamilyToProcess = 11
   character(len=2), parameter :: familyListToProcess(numFamilyToProcess)= (/ &
                                  'UA','AI','SF','SC','SW','PR','RO','GP','RA', &
-                                 'CH','AL', 'TM' /)
+                                 'CH','AL' /)
 
   contains
 

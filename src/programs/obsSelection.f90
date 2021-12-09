@@ -43,7 +43,8 @@ program midas_obsSelection
   use bgckmicrowave_mod
   use bgckssmis_mod
   use bgckcsr_mod
-  
+  use bgckOcean_mod 
+   
   implicit none
 
   integer :: datestamp, headerIndex, ierr, nulnam
@@ -219,6 +220,9 @@ program midas_obsSelection
 
   end if
 
+  ! Do the ocean data background check
+  if ( obs_famExist ( obsSpaceData, 'TM' )) call sstbg_bgCheck( columnTrlOnTrlLev, obsSpaceData )
+
   if (doThinning) then
 
     ! Copy original obs files into another directory
@@ -256,6 +260,7 @@ program midas_obsSelection
 
   end if
 
+  
   ! 3 Write the final results
 
   ! 3.1 Into the listings
