@@ -251,6 +251,15 @@ PRAGMA  synchronous = OFF;
 PRAGMA journal_mode = OFF;
 ${CREATE_INDEX}
 EOF
+
+    ## if we have 'bcr' files, then we must filter them to avoid duplicates
+    if [[ "${file##*/}" = bcr* ]]; then
+        ${sqlite3_cmd} ${rdbout} <<EOF
+create  temporary table  coefficients as select distinct  *  from coeffs;
+delete from coeffs;
+insert into coeffs select * from coefficients;
+EOF
+    fi
 else
     ${echo_cmd} "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
     exit 1
