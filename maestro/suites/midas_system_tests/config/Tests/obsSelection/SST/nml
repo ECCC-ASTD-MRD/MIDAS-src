@@ -1,0 +1,37 @@
+ &NAMTIME
+  DSTEPOBS    = 24.0d0
+  DSTEPOBSINC = 24.0d0
+  DWINDOWSIZE = 24.0d0
+  referenceTime="start"
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMDIMO
+   NMXOBS=1500000,
+   NDATAMX=1500000
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042,
+  NFLAGS=6,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &NAMSQLsfc
+   numberElem=1
+   listElem="22042, 7025"
+   sqlNull=" and obsvalue is not null "  
+/
+ &namSQLUpdate
+  numberUpdateItems=3
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='OER'
+  itemUpdateList(3)='FGE'
+/
+ &namSQLInsert
+/

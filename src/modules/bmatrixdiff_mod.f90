@@ -75,31 +75,27 @@ MODULE BmatrixDiff_mod
 
 CONTAINS
 
-  subroutine bdiff_setup ( hco_in, vco_in, CVDIM_OUT, mode_opt )
+  subroutine bdiff_setup ( hco_in, vco_in, cvDim_out, mode_opt )
+  
     implicit none
 
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
-    integer, intent(out)      :: cvDim_out
-    character(len=*), intent(in), optional :: mode_opt
-
-    character(len=15) :: bdiff_mode
-
-    integer :: nulnam, ierr, fnom, fclos
-    integer :: variableIndex
-
+    ! Arguments:
+    type(struct_hco), intent(inout), pointer  :: hco_in
+    type(struct_vco), intent(inout), pointer  :: vco_in
+    integer         , intent(out)             :: cvDim_out
+    character(len=*), intent(in)   , optional :: mode_opt
+    
+    ! locals:
+    character(len=15)         :: bdiff_mode
     type(struct_vco), pointer :: vco_anl
-
+    integer                   :: nulnam, ierr, fnom, fclos
+    integer                   :: variableIndex
     ! namelist variables
-    ! Horizontal correlation length scale (km)
-    real :: corr_len(maxNumVars)
-    ! Stability criteria (definitely < 0.5)
-    real :: stab(maxNumVars)
-    ! Number of samples in the estimation of the normalization factors by randomization.
-    integer :: nsamp(maxNumVars)
-    ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
-    ! the explicit version (.false.).
-    logical :: limplicit(maxNumVars)
+    real    :: corr_len( maxNumVars ) ! Horizontal correlation length scale (km)
+    real    :: stab( maxNumVars )     ! Stability criteria (definitely < 0.5)
+    integer :: nsamp(maxNumVars)      ! Number of samples in the estimation of the normalization factors by randomization.
+    logical :: limplicit(maxNumVars)  ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
+                                      ! the explicit version (.false.).
     character(len=*), parameter :: myName = 'bdiff_setup'
     
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, limplicit, scaleFactor, stddevMode, homogeneous_std
@@ -109,7 +105,7 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( present( mode_opt ) ) then
-      if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck') then
+      if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck' ) then
         bdiff_mode = trim( mode_opt )
         if( mpi_myid == 0 ) write(*,*)
         if( mpi_myid == 0 ) write(*,*) myName//': Mode activated = ', trim(bdiff_mode)

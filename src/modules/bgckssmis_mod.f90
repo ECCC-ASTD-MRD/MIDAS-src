@@ -2583,6 +2583,7 @@ contains
   ! check_topo
   !--------------------------------------------------------------------------
   subroutine check_topo(modelInterpTer, flagsInovQc, actualNumChannel, numObsToProcess)
+
     ! :Purpose: Perform rejection of observations for selected channels based
     !           on model surface height (for channels assimilated over land)
 
@@ -2615,7 +2616,6 @@ contains
     !                                 ==> individual channels may be rejected from each obs pt
     !   actualNumChannel  - input  -  number of residual channels
     !   numObsToProcess   - input  -  number of groups of NVAL*NELE
-    !   sensorIndex       - input  -  number of satellite (index # --> 1-nsat)
     !------------------------------------------------------------------
 
     implicit none

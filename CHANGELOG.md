@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * SST data background check added to `obsSelection` program (#543 and !519)
  * Added more outer loop flexibility and new NAMCFN namelist for detailed radiance diagnostics (#541 and !516)
  * Output the mean and standard deviation of the ensemble of raw analysis if requested (#548 and !518)
  * script to analyze which absolutes are concerned with new module external dependency  (#549 and !520)

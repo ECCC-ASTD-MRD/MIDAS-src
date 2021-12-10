@@ -172,7 +172,7 @@ module mpi_mod
     real(8)         , intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
     character(len=*), intent(in)     :: comm              ! rpn_comm communicator
 
-    integer :: nsize, nprocs_mpi, numElements, ierr, root, rank
+    integer :: nprocs_mpi, numElements, ierr, root, rank
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate

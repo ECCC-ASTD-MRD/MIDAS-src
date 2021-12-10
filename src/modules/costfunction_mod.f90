@@ -91,7 +91,7 @@ contains
     real(8) :: pjo ! Total observation cost function
 
     ! Locals:
-    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd, ierr
+    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
 
@@ -488,7 +488,7 @@ contains
     ! Arguments:
 
     ! Locals:
-    integer :: channelNumber, channelNumberIndexInListFound, channelIndex
+    integer :: channelIndex
     integer :: channelIndex1, channelIndex2
     integer :: sensorIndexInList, sensorIndexInList1, sensorIndexInList2
 
