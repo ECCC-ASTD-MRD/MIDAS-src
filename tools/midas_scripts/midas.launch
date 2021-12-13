@@ -401,6 +401,8 @@ doCreateDiagnostics=1
 grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
 doThinning=1
 grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
+dumpToSqliteAfterThinning=1
+grep -isq "^ *dumpToSqliteAfterThinning *= *.true. *$" flnml || dumpToSqliteAfterThinning=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
@@ -417,6 +419,9 @@ if [ -n "${observations}" ]; then
             else
                 mkdir diafiles_${fam}.updated
             fi
+        fi
+        if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
+            mkdir bcrfiles_${fam}.updated
         fi
         if [ "${doThinning}" -ne 0 ]; then
             mkdir obsfiles_${fam}.beforeThinning

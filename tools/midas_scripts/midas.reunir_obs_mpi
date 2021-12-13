@@ -207,17 +207,41 @@ PRAGMA journal_mode = OFF;
 PRAGMA  synchronous = OFF;
 EOF
     for file in ${files}; do
-        ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
-        COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
-        COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
-
-        cat  << EOF >> TABLES_REUNIR
+         cat  << EOF >> TABLES_REUNIR
 
 attach '${file##*/}' as dbin;
+EOF
+
+         if [[ "${file##*/}" = bcr* ]]; then
+             cat  << EOF >> TABLES_REUNIR
+insert into predictors select * from dbin.predictors;
+insert into coeffs     select * from dbin.coeffs;
+EOF
+             CREATE_INDEX=
+         else
+             if [[ "${file##*/}" = dia* ]]; then
+                 COLUMNS_AFTER_DATA=
+                 COLUMNS_AFTER_SELECT='*'
+             else
+                 ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
+                 COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
+                 COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
+                 COLUMNS_AFTER_DATA="( ${COLUMNS_ON_ONE_LINE} )"
+                 COLUMNS_AFTER_SELECT=${COLUMNS_ON_ONE_LINE}
+             fi
+
+             CREATE_INDEX="CREATE INDEX if not exists idx1 ON DATA(ID_OBS,VCOORD,VARNO);"
+
+             cat  << EOF >> TABLES_REUNIR
 insert into header select * from dbin.header;
-insert into data ( ${COLUMNS_ON_ONE_LINE} ) select ${COLUMNS_ON_ONE_LINE} from dbin.data;
+insert into data ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.data;
+EOF
+         fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
+
+         cat  << EOF >> TABLES_REUNIR
 detach dbin;
 EOF
+
     done
 
     ${sqlite3_cmd} ${rdbout} < TABLES_REUNIR
@@ -225,8 +249,17 @@ EOF
 PRAGMA cache_size=1000000;
 PRAGMA  synchronous = OFF;
 PRAGMA journal_mode = OFF;
-CREATE INDEX if not exists idx1 ON DATA(ID_OBS, VCOORD,VARNO);
+${CREATE_INDEX}
 EOF
+
+    ## if we have 'bcr' files, then we must filter them to avoid duplicates
+    if [[ "${file##*/}" = bcr* ]]; then
+        ${sqlite3_cmd} ${rdbout} <<EOF
+create  temporary table  coefficients as select distinct  *  from coeffs;
+delete from coeffs;
+insert into coeffs select * from coefficients;
+EOF
+    fi
 else
     ${echo_cmd} "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
     exit 1

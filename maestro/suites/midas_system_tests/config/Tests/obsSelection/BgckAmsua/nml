@@ -10,7 +10,7 @@
   cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
-  doThinning = .false.
+  doThinning = .true.
 /
  &NAMDIMO
    NMXOBS=120000,
@@ -335,6 +335,7 @@
     biasActive=.TRUE.,
     BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
     biasmode="apply",
+    dumpToSqliteAfterThinning=.true.
     removeBiasCorrection=.false.
     refreshBiasCorrection=.false.
     mimicsatbcor=.true.

@@ -736,19 +736,19 @@ contains
     real(8)  :: predictor(NumPredictors)
     real(8)  :: biasCor
     real(8)  :: sunzen, sunaz, satzen, sataz
-    type(fSQL_DATABASE), allocatable :: db(:) ! SQLIte  file handle    
-    type(fSQL_STATEMENT), allocatable   :: stmtPreds(:), stmtCoeffs(:) ! precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat                 ! SQLiteerror status
+    type(fSQL_DATABASE), allocatable  :: db(:) ! SQLIte  file handle
+    type(fSQL_STATEMENT), allocatable :: stmtPreds(:), stmtCoeffs(:) ! precompiled SQLite statements
+    type(fSQL_STATUS)    :: stat                 ! SQLiteerror status
     character(len=512)   :: queryCreate, queryPreds, queryCoeffs, queryTrim
-    logical, allocatable   :: first(:)
-    integer, allocatable   :: fileIndexes(:), obsOffset(:),  dataOffset(:)
+    logical, allocatable :: first(:)
+    integer, allocatable :: fileIndexes(:), obsOffset(:),  dataOffset(:)
     character(len=*), parameter :: myName = 'bcs_dumpBiasToSqliteAfterThinning::'
-    character(len=30)  :: fileNameExtention
+    character(len=30)  :: fileNameExtension
     character(len=4)   :: cmyidx, cmyidy
-    integer              :: tovsCodeTypeListSize, tovsCodeTypeList(10)
-    integer              :: tovsFileNameListSize
+    integer            :: tovsCodeTypeListSize, tovsCodeTypeList(10)
+    integer            :: tovsFileNameListSize
     character(len=20)  :: tovsFileNameList(30)
-    character(len=20)  :: fileName
+    character(len=256) :: fileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(10)
 
     if (.not. biasActive) return
@@ -827,14 +827,16 @@ contains
         if (obs_mpiLocal(obsSpaceData)) then
           write(cmyidy,'(i4.4)') (mpi_myidy + 1)
           write(cmyidx,'(i4.4)') (mpi_myidx + 1)
-          fileNameExtention = trim(cmyidx) // '_' // trim(cmyidy)
+          fileNameExtension = trim(cmyidx) // '_' // trim(cmyidy)
         else
-          fileNameExtention = ' '
+          fileNameExtension = ' '
         end if
-        call fSQL_open(db(fileIndex), 'sqliteBcor_' // trim(tovsFileNameList(fileIndex)) &
-             // '_' // trim(filenameExtention) //  '.db', stat)
-        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', 'sqliteBcor_' // &
-             trim(tovsFileNameList(fileIndex)) // '_' // trim(filenameExtention) //  '.db'
+
+        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
+             // '_' // trim(filenameExtension)
+
+        call fSQL_open(db(fileIndex), fileName, stat)
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')
 
         ! Create the tables
