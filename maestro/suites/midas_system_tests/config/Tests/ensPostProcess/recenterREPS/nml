@@ -10,6 +10,7 @@
    writeSubSample           = .false.
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
+   useMemberAsRefState      = .true.
 /
  &NAMBHI
    NTRUNC          = 42,

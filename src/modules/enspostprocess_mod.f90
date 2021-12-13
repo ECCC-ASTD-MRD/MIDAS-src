@@ -117,6 +117,7 @@ contains
     integer  :: numBits ! number of bits when writing ensemble mean and spread
     logical  :: useAnalIncMask         ! mask out the increment on the pilot zone
     logical  :: writeRawAnalStats    ! write mean and standard deviation of the raw analysis ensemble
+    logical  :: useMemberAsRefState    ! use each member as reference state for variable transforms 
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -124,7 +125,8 @@ contains
                                    weightRecenter, weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,  &
                                    etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
                                    etiket_anlmeanpert, etiket_anlrmspert, etiket_anlmean_raw, etiket_anlrms_raw,    &
-                                   etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask, writeRawAnalStats
+                                   etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask, writeRawAnalStats,  &
+                                   useMemberAsRefState
 
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
@@ -181,6 +183,7 @@ contains
     numBits = 16
     useAnalIncMask = .false.
     writeRawAnalStats = .false.
+    useMemberAsRefState = .false.
 
     !- Read the namelist
     nulnam = 0
@@ -391,10 +394,10 @@ contains
         call tmg_start(101,'LETKF-randomPert')
         if (ens_allocated(ensembleTrl)) then
           call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
-               randomSeedRandomPert)
+               randomSeedRandomPert, useMemberAsRefState)
         else
           call epp_addRandomPert(ensembleAnl, stateVectorMeanAnl, alphaRandomPert, &
-               randomSeedRandomPert)
+               randomSeedRandomPert, useMemberAsRefState)
         end if
         call tmg_stop(101)
       end if
@@ -435,7 +438,8 @@ contains
                randomSeedRandomPert
           call tmg_start(101,'LETKF-randomPert')
           call epp_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
-                                 alphaRandomPertSubSample, randomSeedRandomPert)
+                                 alphaRandomPertSubSample, randomSeedRandomPert, &
+                                 useMemberAsRefState)
           call tmg_stop(101)
         end if
 
@@ -1014,7 +1018,8 @@ contains
   !--------------------------------------------------------------------------
   ! epp_addRandomPert
   !--------------------------------------------------------------------------
-  subroutine epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeed)
+  subroutine epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
+                               randomSeed, useMemberAsRefState)
     ! :Purpose: Apply additive inflation using random perturbations from sampling
     !           the B matrix as defined by the regular namelist block NAMBHI, NAMBEN, etc.
     !           The scale factor alphaRandomPert (usually between 0 and 1) defines is used
@@ -1023,10 +1028,11 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_ens) :: ensembleAnl
-    type(struct_gsv) :: stateVectorMeanTrl
-    real(8)          :: alphaRandomPert
-    integer          :: randomSeed
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_gsv), intent(in)    :: stateVectorMeanTrl
+    real(8)         , intent(in)    :: alphaRandomPert
+    integer         , intent(in)    :: randomSeed
+    logical         , intent(in)    :: useMemberAsRefState
 
     ! Locals
     type(struct_gsv)         :: stateVectorPerturbation
@@ -1042,8 +1048,14 @@ contains
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
     integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
-    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd, varIndex
+    integer :: middleStepIndex
     logical, save :: firstCall = .true.
+    character(len=4), pointer :: varNamesWithLQ(:)
+    character(len=4) :: varName
+
+    ! Determine middle timestep
+    middleStepIndex = (tim_nstepobsinc + 1) / 2
 
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensembleAnl)
@@ -1071,7 +1083,17 @@ contains
       write(*,*)
       vco_randomPert%nlev_Other(:) = vco_ens%nlev_Other(:)
     end if
-    
+
+    ! Get list of variable names in ensemble and modify if necessary
+    nullify(varNamesWithLQ)
+    call ens_varNamesList(varNamesWithLQ,ensembleAnl)
+    if (useMemberAsRefState .and. ens_varExist(ensembleAnl,'HU')) then
+      do varIndex = 1, size(varNamesWithLQ)
+        if (varNamesWithLQ(varIndex) == 'HU') varNamesWithLQ(varIndex) = 'LQ'
+      end do
+      if (mpi_myid == 0) write(*,*) 'epp_addRandomPert: varNamesWithLQ = ', varNamesWithLQ(:)
+    end if
+
     hco_core => hco_randomPert
     if (firstCall) then
       call bmat_setup(hco_randomPert, hco_core, vco_randomPert)
@@ -1088,12 +1110,12 @@ contains
 
     call gsv_allocate(stateVectorPerturbation, 1, hco_randomPert, vco_randomPert, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeight_opt=.false., allocPressure_opt=.false.,  &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=varNamesWithLQ)
     call gsv_allocate(stateVectorPerturbationInterp, 1, hco_ens, vco_ens, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeight_opt=.false., allocPressure_opt=.false.,  &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=varNamesWithLQ)
     call gsv_getField(stateVectorPerturbationInterp,perturbation_ptr)
     allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1))
     PsfcReference(:,:,:) = 100000.0D0
@@ -1139,16 +1161,28 @@ contains
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
       do varLevIndex = 1, numVarLev
+        varName = ens_getVarNameFromK(ensembleAnl,varLevIndex)
         memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
+
+            ! If desired, use member itself as reference state for LQ to HU conversion
+            if (useMemberAsRefState .and. trim(varName) == 'HU') then
+              perturbation_ptr(lonIndex, latIndex, varLevIndex) =  &
+                   memberAnl_ptr_r4(memberIndex,middleStepIndex,lonIndex,latIndex) * &
+                   perturbation_ptr(lonIndex, latIndex, varLevIndex)
+            end if
+
             perturbationMean(lonIndex, latIndex, varLevIndex) =   &
                  perturbationMean(lonIndex, latIndex, varLevIndex) +  &
                  perturbation_ptr(lonIndex, latIndex, varLevIndex) / real(nEns, 8)
+
+            ! Add perturbation to member
             do stepIndex = 1, tim_nstepobsinc
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                    memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) + perturbation_ptr(lonIndex, latIndex, varLevIndex)
             end do ! stepIndex
+
           end do ! lonIndex
         end do ! latIndex
       end do ! varLevIndex
