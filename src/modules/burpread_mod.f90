@@ -1545,7 +1545,6 @@ CONTAINS
                         IND_ele = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12239, IOSTAT=error)
                         if (IND_ele==-1)call handle_error(IND_ele, "brpr_updateBurp: element not found in Block_OBS_MUL_CP")
                         Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
-                        end if
                      end if
                   end if
                   
