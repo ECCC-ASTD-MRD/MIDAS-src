@@ -25,7 +25,7 @@ MODULE advection_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use timeCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
@@ -658,11 +658,11 @@ CONTAINS
     do latIndex = 1, hco%nj
       latAdvect = hco%lat(latIndex)
       if (abs(latAdvect) < latitudePatch*MPC_RADIANS_PER_DEGREE_R8) then
-        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) /(RA*cos(latAdvect)))) ! in rad/s
-        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) /(ec_ra*cos(latAdvect)))) ! in rad/s
+        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / ec_ra)) ! in rad/s
       else
-        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
-        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) / ec_ra)) ! in rad/s
+        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / ec_ra)) ! in rad/s
       end if
       numSubStep(latIndex) = max( 1,  &
            nint( (steeringFlowDelTsec * steeringFlowFactor(levIndex) * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
@@ -742,10 +742,10 @@ CONTAINS
           ! determine wind at current location (now at BL point)
           uu = (  alfa *uu_steeringFlow_mpiGlobal(stepIndexSF  ,lonIndex,latIndex) + &
                (1-alfa)*uu_steeringFlow_mpiGlobal(stepIndexSF+1,lonIndex,latIndex) ) &
-               /(RA*cos(hco%lat(latIndex))) ! in rad/s
+               /(ec_ra*cos(hco%lat(latIndex))) ! in rad/s
           vv = (   alfa*vv_steeringFlow_mpiGlobal(stepIndexSF  ,lonIndex,latIndex) + &
                (1-alfa)*vv_steeringFlow_mpiGlobal(stepIndexSF+1,lonIndex,latIndex) ) &
-               /RA
+               /ec_ra
           ! apply user-specified scale factor to advecting winds
           uu = steeringFlowFactor(levIndex) * uu
           vv = steeringFlowFactor(levIndex) * vv
@@ -780,8 +780,8 @@ CONTAINS
           vv_p = steeringFlowFactor(levIndex) * vv_p
 
           ! compute next position (in rotated coord system)
-          lonAdvect_p = lonAdvect_p + real(stepIndex_direction,8)*subDelT*uu_p/(RA*cos(latAdvect_p))  ! in radians
-          latAdvect_p = latAdvect_p + real(stepIndex_direction,8)*subDelT*vv_p/RA
+          lonAdvect_p = lonAdvect_p + real(stepIndex_direction,8)*subDelT*uu_p/(ec_ra*cos(latAdvect_p))  ! in radians
+          latAdvect_p = latAdvect_p + real(stepIndex_direction,8)*subDelT*vv_p/ec_ra
 
           if (verbose) then
             write(*,*) '    near pole, uu_p,vv_p,Gcoef,Scoef=', &

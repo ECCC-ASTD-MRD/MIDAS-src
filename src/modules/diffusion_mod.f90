@@ -34,7 +34,7 @@ module diffusion_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
-  use EarthConstants_mod, only : rayt
+  use earthConstants_mod
   use randomNumber_mod
   use utilities_mod
   use gridStateVector_mod
@@ -294,7 +294,7 @@ contains
 
    end if
 
-    Lcorr(:,:) =  Lcorr(:,:) / ( rayt / 1000.0 )     ! lengthscale in radians
+    Lcorr(:,:) =  Lcorr(:,:) / ( ec_rayt / 1000.0 )     ! lengthscale in radians
     maxL = maxval( Lcorr( 2 : ni - 1, 2 : nj - 1 ) ) ! maximum lengthscale over domain
 
     ! set main parameters for diffusion operator

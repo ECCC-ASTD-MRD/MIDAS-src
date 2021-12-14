@@ -1534,7 +1534,7 @@ CONTAINS
                                   mynBeg,mynEnd,mynSkip)
       end if
 
-      dla2   = dble(ra)*dble(ra)
+      dla2   = ec_ra * ec_ra
       allocate(gridState(statevector%lonPerPE,statevector%latPerPE,2*nlev_M))
       allocate(spectralState(nla_mpilocal,2,2*nlev_M))
 

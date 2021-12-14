@@ -26,7 +26,7 @@ use bufr_mod
 use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod
-use earthconstants_mod
+use earthConstants_mod
 use utilities_mod
 use obsUtil_mod
 use obsVariableTransforms_mod
@@ -1389,7 +1389,7 @@ CONTAINS
                   if ( STID /= stnid ) cycle
 
                   convfact=1.
-                  if (iele == 10194) convfact=1./RG
+                  if (iele == 10194) convfact=1./ec_rg
 
                   if (INLV > 0) then
                     refPosition(1) = vcoord

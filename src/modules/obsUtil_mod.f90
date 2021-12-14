@@ -24,7 +24,6 @@ module obsUtil_mod
   use bufr_mod
   use mathPhysConstants_mod
   use codePrecision_mod
-  use earthConstants_mod, only:  grav
   use codtyp_mod
   use obsVariableTransforms_mod
   use utilities_mod

@@ -25,7 +25,7 @@ module obsSpaceErrorStdDev_mod
   use columnData_mod
   use bufr_mod
   use utilities_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use stateToColumn_mod
   use gridStateVector_mod
@@ -491,7 +491,7 @@ module obsSpaceErrorStdDev_mod
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*RG*10.d0
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*ec_rg*10.d0
             end do
          end do
       end do
@@ -1440,7 +1440,7 @@ module obsSpaceErrorStdDev_mod
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zMT  = zMT * ec_rg / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
                   ! approximation for dPdPs               

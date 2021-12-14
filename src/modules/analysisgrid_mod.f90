@@ -21,7 +21,7 @@ module analysisGrid_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
-  use earthconstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -304,13 +304,13 @@ contains
     call symmetrize_coef(r1mmu2h) ! INOUT
 
     !- 4.3 Compute global factors
-    glmf%dx  = 1.d0 / (RA * glmf%rdlon)
+    glmf%dx  = 1.d0 / (ec_ra * glmf%rdlon)
 
     allocate(glmf%cos2   ( 0:nj_ext+1))
     allocate(glmf%cos2h  ( 0:nj_ext+1))
     do j = 0, nj_ext+1
-      glmf%cos2 (j) = r1mmu2 (j) / (RA * rdmuh(j-1))
-      glmf%cos2h(j) = r1mmu2h(j) / (RA * rdmu (j  ))
+      glmf%cos2 (j) = r1mmu2 (j) / (ec_ra * rdmuh(j-1))
+      glmf%cos2h(j) = r1mmu2h(j) / (ec_ra * rdmu (j  ))
     end do
 
     allocate(glmf%idmuh  (0:nj_ext-1))
@@ -975,12 +975,12 @@ contains
        do j = myLatBeg, myLatEnd
          do i = myLonBeg, myLonEnd
            vorticity (i,j,k) = &
-                glmf%cos2hvd(j)  *  glmf%dx * (vimg_sym(i+1,j,k)-vimg_sym(i,j,k)) - &
-                (1.d0 / RA)  *   glmf%idmu(j) * (uimg_sym(i,j+1,k)-uimg_sym(i,j,k))
+                glmf%cos2hvd(j) * glmf%dx       * (vimg_sym(i+1,j,k)-vimg_sym(i,j,k)) - &
+                       ec_r1sa  * glmf%idmu(j)  * (uimg_sym(i,j+1,k)-uimg_sym(i,j,k))
 
            divergence(i,j,k) = &
-                glmf%cos2vd(j)   *  glmf%dx * (uimg_sym(i,j,k)-uimg_sym(i-1,j,k)) + &
-                (1.d0 / RA) * glmf%idmuh(j-1) * (vimg_sym(i,j,k)-vimg_sym(i,j-1,k))
+                glmf%cos2vd(j) * glmf%dx        * (uimg_sym(i,j,k)-uimg_sym(i-1,j,k)) + &
+                       ec_r1sa * glmf%idmuh(j-1)* (vimg_sym(i,j,k)-vimg_sym(i,j-1,k))
          end do
        end do
      end do

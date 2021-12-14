@@ -21,6 +21,8 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use MathPhysConstants_mod
+  use earthConstants_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
   use analysisGrid_mod
@@ -987,8 +989,6 @@ contains
   ! calcHorizScale
   !--------------------------------------------------------------------------
   subroutine calcHorizScale(HorizScale,SpCovariance)
-    use MathPhysConstants_mod, only: MPC_PI_R8
-    use EarthConstants_mod, only: RA
     implicit none
 
     real(8), intent(out) :: HorizScale(bhi%nVarLev)
@@ -1006,7 +1006,7 @@ contains
     !
 
     ! Grid spacing in meters
-    dx = hco_bhi%dlon * RA
+    dx = hco_bhi%dlon * ec_ra
     write(*,*)
     write(*,*) 'grid spacing (m) =', dx
 

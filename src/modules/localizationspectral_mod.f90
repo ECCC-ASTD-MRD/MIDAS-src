@@ -353,7 +353,7 @@ CONTAINS
         ! Calculate 5th Order Correlation Functions in Physical Space
         zlc = 1000.0d0*local_length(levIndex)
         do latIndex = lsp%myLatBeg, lsp%myLatEnd
-          zr = ra * acos(gst_getrmu(latIndex,gstID2))
+          zr = ec_ra * acos(gst_getrmu(latIndex,gstID2))
           zcorr = lfn_response(zr,zlc)
           do lonIndex = lsp%myLonBeg, lsp%myLonEnd
             zgd_gst(lonIndex,latIndex,levIndex) = zcorr

@@ -22,7 +22,7 @@ module varqc_mod
   !           weight begins to be reduced
   !
   use MathPhysConstants_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use codtyp_mod
   use bufr_mod
   use obsSpaceData_mod
@@ -726,9 +726,9 @@ module varqc_mod
                    !
                    ! CONVERT FROM GEOPOTENTIAL TO GEOPOTENTIAL HEIGHT
                    !
-                   ZVAR = ZVAR/RG
-                   ZFCST = ZFCST/RG
-                   ZANA  = ZANA/RG
+                   ZVAR = ZVAR/ec_rg
+                   ZFCST = ZFCST/ec_rg
+                   ZANA  = ZANA/ec_rg
                  else if (ityp == BUFR_NETT) then
                    CLDESC = CLITM(4)
                    ICOUNT(4,JFAM) = ICOUNT(4,JFAM) + 1

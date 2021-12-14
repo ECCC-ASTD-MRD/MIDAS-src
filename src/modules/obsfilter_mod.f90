@@ -23,7 +23,7 @@ module obsFilter_mod
   use codePrecision_mod
   use mpi_mod
   use mpivar_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -599,7 +599,7 @@ contains
         call phf_height2geopotential(height,lat,geopotential)
 
         zval = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-        altitudeDiff = ( zval - geopotential(1) )/RG
+        altitudeDiff = ( zval - geopotential(1) )/ec_rg
         ! obs is above surface, so it is ok, lets jump to the next obs
         if(altitudeDiff >= 0.0d0) cycle BODY
 

@@ -441,7 +441,7 @@ module kdtree2_mod
   use utilities_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
-  use earthconstants_mod
+  use earthConstants_mod
   ! K-D tree routines in Fortran 90 by Matt Kennel.
   ! Original program was written in Sather by Steve Omohundro and
   ! Matt Kennel.  Only the Euclidean metric is supported. 
@@ -1924,9 +1924,9 @@ contains
     real(kdkind) :: positionArray(3)  ! returned values of function
     real(8), intent(in) :: lon_rad, lat_rad
     
-    positionArray(1) = RA * sin(lon_rad) * cos(lat_rad)
-    positionArray(2) = RA * cos(lon_rad) * cos(lat_rad)
-    positionArray(3) = RA * sin(lat_rad)
+    positionArray(1) = ec_ra * sin(lon_rad) * cos(lat_rad)
+    positionArray(2) = ec_ra * cos(lon_rad) * cos(lat_rad)
+    positionArray(3) = ec_ra * sin(lat_rad)
 
   end function kdtree2_3dPosition
 

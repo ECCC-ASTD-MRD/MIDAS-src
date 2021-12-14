@@ -21,7 +21,7 @@ module menetrierDiag_mod
   !           developed by Benjamin Menetrier (Meteo-France) and reported
   !           in Menetrier, Michel, Montmerle and Berre, 2015, Parts 1 and 2.
   !
-  use earthConstants_mod, only: RA
+  use earthConstants_mod
   use utilities_mod
   use localizationFunction_mod
   use varNameList_mod
@@ -686,7 +686,7 @@ contains
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
-    distanceInM = RA * c
+    distanceInM = ec_ra * c
 
   end function calcDistance
 

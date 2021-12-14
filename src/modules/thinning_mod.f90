@@ -5386,9 +5386,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
 
       ! 3D location array for kdtree
-      obsPosition3d(1,headerIndex) = RA * sin(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(2,headerIndex) = RA * cos(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(3,headerIndex) = RA *                    sin(obsLatInRad)
+      obsPosition3d(1,headerIndex) = ec_ra * sin(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(2,headerIndex) = ec_ra * cos(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(3,headerIndex) = ec_ra *                    sin(obsLatInRad)
     end do
 
     nsize = 3 * numHeaderMaxMpi

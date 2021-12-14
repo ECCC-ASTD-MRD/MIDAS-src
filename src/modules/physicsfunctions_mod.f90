@@ -21,7 +21,7 @@ module physicsFunctions_mod
   !           (e.g. computing saturation vapour pressure)
   !
   use MathPhysConstants_mod
-  use earthconstants_mod
+  use earthConstants_mod
   use utilities_mod
   
   implicit none
@@ -716,7 +716,7 @@ module physicsFunctions_mod
     integer, intent(in) :: nlev           ! number of levels
     real(8) :: rgz(nlev)                  ! geopotential heights (m)
 
-    rgz = (RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * RA*altitude/(RA+altitude)
+    rgz = (ec_rg/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * ec_ra*altitude/(ec_ra+altitude)
 
   end function phf_convert_z_to_gz
 
@@ -963,7 +963,7 @@ module physicsFunctions_mod
               uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0-vs)**2, 1.D-8 ) 
            end if
          
-           RiB2 = grav * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
+           RiB2 = ec_rg * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
            if (RiBmax.lt.RiB2.and.RiB2.ge.reduced*RiB_threshold) then
               RiBmax=RiB2
               iRiBmax=i
@@ -1074,7 +1074,7 @@ module physicsFunctions_mod
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
-    distanceInM = RA * c
+    distanceInM = ec_ra * c
 
   end function phf_calcDistance
 
@@ -1099,7 +1099,7 @@ module physicsFunctions_mod
     dlon = (lon2 - lon1)*cos(lat1)
     dlat = lat2 - lat1
 
-    distanceInM = RA * sqrt(dlon*dlon + dlat*dlat)
+    distanceInM = ec_ra * sqrt(dlon*dlon + dlat*dlat)
 
   end function phf_calcDistanceFast
 
@@ -1117,9 +1117,9 @@ module physicsFunctions_mod
     real(8)              :: ks2
     real(8)              :: e2s
 
-    ks2 = WGS_TNGk * sLat*sLat
-    e2s = 1.D0 - WGS_e2 * sLat*sLat
-    phf_gravitysrf = WGS_GammaE * (1.D0 + ks2) / sqrt(e2s)
+    ks2 = ec_wgs_TNGk * sLat*sLat
+    e2s = 1.D0 - ec_wgs_e2 * sLat*sLat
+    phf_gravitysrf = ec_wgs_GammaE * (1.D0 + ks2) / sqrt(e2s)
   end function phf_gravitysrf
 
   !--------------------------------------------------------------------------
@@ -1137,8 +1137,8 @@ module physicsFunctions_mod
     real(8)              :: C1
     real(8)              :: C2
 
-    C1 =-2.D0/WGS_a*(1.D0+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
-    C2 = 3.D0/WGS_a**2
+    C1 =-2.D0/ec_wgs_a*(1.D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*sLat*sLat)
+    C2 = 3.D0/ec_wgs_a**2
     phf_gravityalt = phf_gravitysrf(sLat)*                                   &
          (1.D0 + C1 * Altitude + C2 * Altitude**2)
   end function phf_gravityalt

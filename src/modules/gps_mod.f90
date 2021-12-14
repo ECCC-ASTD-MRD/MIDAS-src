@@ -24,6 +24,7 @@ module gps_mod
   use mpi_mod
   use utilities_mod
   use mathPhysConstants_mod
+  use earthConstants_mod
   implicit none
   save
   private
@@ -43,7 +44,6 @@ module gps_mod
   public :: gps_setupro, gps_iprofile_from_index
   public :: gps_setupgb, gps_i_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
-
 
 !modgps00base
   
@@ -65,7 +65,6 @@ module gps_mod
   ! Associated maximum number of control variables:
   integer(i4), parameter :: ngpscvmx  = 4*ngpssize
 
-  
 !modgps01ctphys
   
   ! Avogadro constant:
@@ -86,122 +85,6 @@ module gps_mod
 
   ! Units and scales:
   real(dp), parameter           :: p_TC    = 273.15_dp
-
-  ! Standard GEM gravity:
-  real(dp), parameter           :: p_g_GEM = 9.80616_dp              ! m/s2
-
-
-!modgps02wgs84const
-
-  ! Earth's Gravitational Constant (GM) (m3/s2).       [*Defining constant*]
-  ! This is the GM value with Earth's atmosphere included.
-  real(dp), parameter :: WGS_GM         = 3986004.418e8_dp
-  
-  ! Angular velocity of the Earth (omega) (radians/s). [*Defining constant*]
-  ! Standard Earth, rotating with a constant angular velocity.
-  real(dp), parameter :: WGS_Omega      = 7292115.e-11_dp
-  
-  !  ***********************************************************
-  !  Parameter values for special applications:
-  !  ***********************************************************
-  
-  ! Earth's Gravitational Constant (GM_KEP) (m3/s2).
-  !
-  ! This is the old GM value with Earth's atmosphere included,
-  ! but still used for consistency in the transformations
-  ! instantaneous keplerian <-> cartesian state vector.
-  real(dp), parameter :: WGS_GM_KEP     = 3986005.0e8_dp
-  
-  ! Earth's Atmosphere Gravitational Constant (GMA) (m3/s2).
-  ! This is the GM value of the Earth's atmosphere alone.
-  real(dp), parameter :: WGS_GMA        = 3.5e8_dp
-  
-  ! Earth's Gravitational Constant (GMPrime) (m3/s2).
-  ! This is the GM value with Earth's atmosphere excluded.
-  real(dp), parameter :: WGS_GMPrime    = 3986000.9e8_dp
-  
-  ! Angular velocity of the Earth (omegaPrime) (radians/s).
-  ! Standard Earth, rotating with a constant angular velocity (IAU, GRS67).
-  real(dp), parameter :: WGS_OmegaPrime = 7292115.1467e-11_dp
-  
-  ! Angular velocity of the Earth (omegaStar) (radians/s).
-  ! Standard Earth, in a precessing frame (TU: Julian centuries since J2000.0)
-  ! OmegaStar = OmegaStar0 + OmegaStar1 * TU
-  real(dp), parameter :: WGS_OmegaStar0 = 7292115.8553e-11_dp
-  real(dp), parameter :: WGS_OmegaStar1 = 4.3e-15_dp
-  
-  
-  !  ***********************************************************
-  !  Derived geometric constants:
-  !  ***********************************************************
-  
-  ! Inverse flattening: 1/f = WGS_1f
-  real(dp), parameter :: WGS_1f         = 298.257223563_dp
-  
-  ! Second degree zonal coefficient:
-  real(dp), parameter :: WGS_C20        = -0.484166774985e-3_dp
-  
-  ! Semiminor axis:
-  real(dp), parameter :: WGS_b          = 6356752.3142_dp
-  
-  ! First eccentricity:
-  real(dp), parameter :: WGS_e          = 8.1819190842622e-2_dp
-  
-  ! Second eccentricity:
-  real(dp), parameter :: WGS_ePrime     = 8.2094437949696e-2_dp
-  
-  ! Second eccentricity squared:
-  real(dp), parameter :: WGS_ePrime2    = 6.73949674228e-3_dp
-  
-  ! Linear eccentricity:
-  real(dp), parameter :: WGS_ELinear    = 5.2185400842339e5_dp
-  
-  ! Polar radius of curvature:
-  real(dp), parameter :: WGS_c          = 6399593.6258_dp
-  
-  ! Focal length:
-  real(dp), parameter :: WGS_EFocal     = 521854.00897_dp
-  
-  ! Axis ratio:
-  real(dp), parameter :: WGS_ba         = 0.996647189335_dp
-  
-  ! Mean radius of semiaxes:
-  real(dp), parameter :: WGS_R1         = 6371008.7714_dp
-  
-  ! Radius of sphere of equal area:
-  real(dp), parameter :: WGS_R2         = 6371007.1809_dp
-  
-  ! Radius of sphere of equal volume:
-  real(dp), parameter :: WGS_R3         = 6371000.7900_dp
-  
-  
-  !  ***********************************************************
-  !  Derived physical constants:
-  !  ***********************************************************
-  
-  ! Theoretical (Normal) Gravity potential of the ellipsoid (m2/s2):
-  real(dp), parameter :: WGS_U0         = 62636860.8497_dp
-  
-  ! Theoretical (Normal) Gravity at the pole (m/s2):
-  real(dp), parameter :: WGS_GammaP     = 9.8321849378_dp
-  
-  ! Mean Value of the Theoretical (Normal) Gravity (m/s2):
-  real(dp), parameter :: WGS_GammaM     = 9.7976432222_dp
-  
-  ! Mass of the Earth (Atmosphere Included):
-  real(dp), parameter :: WGS_Mass       = 5.9733328e24_dp
-  
-  ! Dynamical Ellipticity H:
-  real(dp), parameter :: WGS_H          = 1._dp / 305.4413_dp
-  
-  ! Universal Constant of Gravitation (value used in WGS) (m3/kg*s2):
-  real(dp), parameter :: WGS_G          = 6.673e-11_dp
-  
-  ! Earth's principal moments of inertia (A, B, C) (kg m2):
-  real(dp), parameter :: WGS_PMI_A      = 8.0091029e37_dp
-  real(dp), parameter :: WGS_PMI_B      = 8.0092559e37_dp
-  real(dp), parameter :: WGS_PMI_C      = 8.0354872e37_dp
-
 
 !modgps03diff
 
@@ -269,50 +152,48 @@ module gps_mod
 !modgps04profile
 
   type gps_profile
-     integer(i4)                                     :: ngpslev
-     real(dp)                                        :: rLat
-     real(dp)                                        :: rLon
-     real(dp)                                        :: rAzm
-     real(dp)                                        :: rMT
-     real(dp)                                        :: Rad
-     real(dp)                                        :: geoid
-     real(dp)                                        :: RadN
-     real(dp)                                        :: RadM
+     integer(i4)                                  :: ngpslev
+     real(dp)                                     :: rLat
+     real(dp)                                     :: rLon
+     real(dp)                                     :: rAzm
+     real(dp)                                     :: rMT
+     real(dp)                                     :: Rad
+     real(dp)                                     :: geoid
+     real(dp)                                     :: RadN
+     real(dp)                                     :: RadM
 
-     type(gps_diff)                                   :: P0
+     type(gps_diff)                               :: P0
 
-     type(gps_diff)    , dimension(ngpssize)          :: pst
-     type(gps_diff)    , dimension(ngpssize)          :: tst
-     type(gps_diff)    , dimension(ngpssize)          :: qst
-     type(gps_diff)    , dimension(ngpssize)          :: rst
-     type(gps_diff)    , dimension(ngpssize)          :: gst
+     type(gps_diff), dimension(ngpssize)          :: pst
+     type(gps_diff), dimension(ngpssize)          :: tst
+     type(gps_diff), dimension(ngpssize)          :: qst
+     type(gps_diff), dimension(ngpssize)          :: rst
+     type(gps_diff), dimension(ngpssize)          :: gst
 
-     logical                                         :: bbst
-     type(gps_diff)    , dimension(ngpssize)          :: dst
-     type(gps_diff)    , dimension(ngpssize+ngpsxlow) :: ast
-     type(gps_diff)    , dimension(ngpssize+ngpsxlow) :: bst
+     logical                                      :: bbst
+     type(gps_diff), dimension(ngpssize)          :: dst
+     type(gps_diff), dimension(ngpssize+ngpsxlow) :: ast
+     type(gps_diff), dimension(ngpssize+ngpsxlow) :: bst
   end type gps_profile
-
 
 !modgps04profilezd
   
   type gps_profilezd
-     integer(i4)                                     :: ngpslev
-     real(dp)                                        :: rLat
-     real(dp)                                        :: rLon
-     real(dp)                                        :: rMT
+     integer(i4)                                  :: ngpslev
+     real(dp)                                     :: rLat
+     real(dp)                                     :: rLon
+     real(dp)                                     :: rMT
 
-     type(gps_diff)                                   :: P0
+     type(gps_diff)                               :: P0
      
-     type(gps_diff)    , dimension(ngpssize)          :: pst
-     type(gps_diff)    , dimension(ngpssize)          :: tst
-     type(gps_diff)    , dimension(ngpssize)          :: qst
-     type(gps_diff)    , dimension(ngpssize)          :: rst
-     type(gps_diff)    , dimension(ngpssize)          :: gst
-     type(gps_diff)    , dimension(ngpssize)          :: ztd
-     logical                                         :: bpst
+     type(gps_diff), dimension(ngpssize)          :: pst
+     type(gps_diff), dimension(ngpssize)          :: tst
+     type(gps_diff), dimension(ngpssize)          :: qst
+     type(gps_diff), dimension(ngpssize)          :: rst
+     type(gps_diff), dimension(ngpssize)          :: gst
+     type(gps_diff), dimension(ngpssize)          :: ztd
+     logical                                      :: bpst
   end type gps_profilezd
-
 
 !modgpsro_mod
 
@@ -403,9 +284,7 @@ module gps_mod
   NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
        LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
 
-
 contains
-
 
 !modgps02wgs84grav
 
@@ -424,9 +303,9 @@ contains
     real(dp)              :: ks2
     real(dp)              :: e2s
 
-    ks2 = WGS_TNGk * sLat*sLat
-    e2s = 1._dp - WGS_e2 * sLat*sLat
-    gpsgravitysrf = WGS_GammaE * (1._dp + ks2) / sqrt(e2s)
+    ks2 = ec_wgs_TNGk * sLat*sLat
+    e2s = 1._dp - ec_wgs_e2 * sLat*sLat
+    gpsgravitysrf = ec_wgs_GammaE * (1._dp + ks2) / sqrt(e2s)
   end function gpsgravitysrf
 
   pure function gpsgravityalt(sLat, Altitude)
@@ -444,8 +323,8 @@ contains
     real(dp)              :: C1
     real(dp)              :: C2
 
-    C1 =-2._dp/WGS_a*(1._dp+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
-    C2 = 3._dp/WGS_a**2
+    C1 =-2._dp/ec_wgs_a*(1._dp+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*sLat*sLat)
+    C2 = 3._dp/ec_wgs_a**2
     gpsgravityalt = gpsgravitysrf(sLat)*                                   &
          (1._dp + C1 * Altitude + C2 * Altitude**2)
   end function gpsgravityalt
@@ -506,9 +385,9 @@ contains
     real(dp)              :: sLat, e2s
 
     sLat = sin(Latitude)
-    e2s = 1._dp - WGS_e2 * sLat * sLat
-    RadN = WGS_a / sqrt(e2s)
-    RadM = WGS_a * (1._dp - WGS_e2) / (e2s*sqrt(e2s))
+    e2s = 1._dp - ec_wgs_e2 * sLat * sLat
+    RadN = ec_wgs_a / sqrt(e2s)
+    RadM = ec_wgs_a * (1._dp - ec_wgs_e2) / (e2s*sqrt(e2s))
   end subroutine gpsRadii
 
 
@@ -958,7 +837,7 @@ contains
     type(gps_diff), intent(in)  :: gd1
 
     ! Locals:
-    real(dp) , parameter :: pi = 4*ATAN(1.0) 
+    real(dp) , parameter :: pi = MPC_PI_R8
     ! real(dp)                   ::m_sqrtpi
     gpsdifferf%Var  = erf(gd1%Var)
     gpsdifferf%DVar = ((2._dp/sqrt(pi)) * exp(-gd1%Var**2)) * gd1%DVar
@@ -991,7 +870,6 @@ contains
 
     ! Locals:
     integer(i4)                    :: i
-
 
     real(dp) , parameter           :: delta = 0.6077686814144_dp
 
@@ -1095,8 +973,8 @@ contains
        ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
-       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
+       Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
        Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
        Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
@@ -1483,7 +1361,6 @@ contains
 
   end subroutine gps_structztd
 
-
   subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rTT,rHU,rALT,&
                               lbevis,refopt,prf)
     !
@@ -1693,7 +1570,6 @@ contains
     end do
 
   end subroutine gps_structztd_v2
-
 
 !modgps05refstruct
 
@@ -2267,7 +2143,7 @@ contains
        zfph = (1.0_dp - 2.66e-03_dp*cos(2.0*lat) - 2.8e-07_dp*h)
 
 !  Pressure at obs height (CMC hydrostatic extrapolation from Psfc)
-       x      = p_g_GEM/(p_Rd*gamma)
+       x      = ec_rg/(p_Rd*gamma)
        tvsfc  = prf%tst(ngpslev)*(1._dp+delta*prf%qst(ngpslev))
        Pobs   = prf%pst(ngpslev)*(((tvsfc-gamma*dh)/tvsfc)**x)
 !  Dry delay ZHD (m) at obs height
@@ -2326,7 +2202,7 @@ contains
           ZTDopv = prf%ztd(jloc)
           Pobs   = prf%pst(jloc)
         else ! otherwise do extrapolation from lowest level values
-          x      = p_g_GEM/(p_Rd*gamma)
+          x      = ec_rg/(p_Rd*gamma)
           tvsfc  = prf%tst(jloc)*(1._dp+delta*prf%qst(jloc))
           Pobs   = prf%pst(jloc)*(((tvsfc-gamma*dh)/tvsfc)**x)
           if ( abs(dh) <= dzmax ) then
@@ -3281,6 +3157,5 @@ contains
     end do
     return
   end function gps_i_from_index
-
 
 end module gps_mod

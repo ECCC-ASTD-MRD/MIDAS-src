@@ -24,7 +24,7 @@ module lamSpectralTransform_mod
   use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
-  use earthconstants_mod, only: RA
+  use earthConstants_mod
   use utilities_mod
   implicit none
   save
@@ -201,7 +201,7 @@ contains
     lst%mmax = lst%ni/2
     lst%nmax = lst%nj/2
 
-    write(*,'(A,f8.1)') ' lst_Setup: Your grid spacing (in km) = ', RA*dlon_in/1000.0
+    write(*,'(A,f8.1)') ' lst_Setup: Your grid spacing (in km) = ', ec_ra*dlon_in/1000.0
     write(*,*) '           Max wavenumbers in x-axis = ', lst%mmax            
     write(*,*) '           Max wavenumbers in y-axis = ', lst%nmax
 
@@ -480,20 +480,20 @@ contains
          write(*,*) 'lst_Setup: Warning: Truncation is larger than mmax only'
          write(*,*) '           TRUNCATION will be applied only above nmax'
          write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
-                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
+                     (lst%nj*ec_ra*dlon_in/1000.0)/lst%ktrunc
       else
          write(*,*) 'lst_Setup: Warning: Truncation is larger than nmax only'
          write(*,*) '           TRUNCATION will be applied only above mmax'
          write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
-                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
+                     (lst%ni*ec_ra*dlon_in/1000.0)/lst%ktrunc
       end if
     else
       write(*,*)
       write(*,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst%ktrunc
       write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
-                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
+                     (lst%ni*ec_ra*dlon_in/1000.0)/lst%ktrunc
       write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
-                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
+                     (lst%nj*ec_ra*dlon_in/1000.0)/lst%ktrunc
     end if
 
     ila = 0
@@ -687,7 +687,7 @@ contains
     allocate(lst%ilapxy(lst%nla))
 
     dlon = dlon_in
-    dx2  = (RA*dlon)**2
+    dx2  = (ec_ra*dlon)**2
     fac  = 2.d0/dx2
 
     do ila = 1,lst%nla
