@@ -595,7 +595,7 @@ CONTAINS
          call var1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
          call cvt_transform(columnAnlInc_ptr, 'ZandP_tl', columnTrlOnAnlIncLev_ptr)
        else
-         if (.not.statevector%allocated) then
+         if (.not.gsv_isAllocated(statevector)) then
            write(*,*) 'min-simvar: allocating increment stateVector'
            vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
            call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &

@@ -917,7 +917,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. statevector%allocated) then
+    if (.not. gsv_isAllocated(statevector)) then
       nullify(varNamesInEns)
       call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
@@ -979,7 +979,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. statevector%allocated) then
+    if (.not. gsv_isAllocated(statevector)) then
       call utl_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
     end if
 
@@ -1026,7 +1026,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. statevector%allocated) then
+    if (.not. gsv_isAllocated(statevector)) then
       nullify(varNamesInEns)
       call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
@@ -1085,7 +1085,7 @@ CONTAINS
     nullify(varNamesInEns)
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
-    if (.not. statevector%allocated) then
+    if (.not. gsv_isAllocated(statevector)) then
       call gsv_allocate( statevector, numStep,  &
                          ens%statevector_work%hco, ens%statevector_work%vco,  &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
@@ -1205,7 +1205,7 @@ CONTAINS
     character(len=4) :: varName
     logical          :: sameVariables
 
-    if (.not. ens%statevector_work%allocated) then
+    if (.not. gsv_isAllocated(ens%statevector_work)) then
       call utl_abort('ens_insertMember: ens not allocated')
     end if
 
@@ -2527,7 +2527,7 @@ CONTAINS
           ! determine which tasks have something to send and let everyone know
           do procIndex = 1, mpi_nprocs
             thisProcIsAsender(procIndex) = .false.
-            if ( mpi_myid == (procIndex-1) .and. stateVector_member_r4%allocated ) then
+            if ( mpi_myid == (procIndex-1) .and. gsv_isAllocated(stateVector_member_r4) ) then
               thisProcIsAsender(procIndex) = .true.
             end if
             call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
@@ -2543,7 +2543,7 @@ CONTAINS
 
             ! only send the data from tasks with data, same amount to all
             sendsizes(:) = 0
-            if ( stateVector_member_r4%allocated ) then
+            if ( gsv_isAllocated(stateVector_member_r4) ) then
               do procIndex = 1, mpi_nprocs
                 sendsizes(procIndex) = nsize
               end do
@@ -2565,7 +2565,7 @@ CONTAINS
               recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
             end do
 
-            if (statevector_member_r4%allocated) then
+            if (gsv_isAllocated(statevector_member_r4)) then
               allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,mpi_nprocs))
               gd_send_r4(:,:,:,:) = 0.0
               call gsv_getField(statevector_member_r4,ptr3d_r4)
@@ -2615,13 +2615,13 @@ CONTAINS
           call tmg_stop(13)
 
           ! deallocate the needed statevector objects
-          if (statevector_member_r4%allocated) then
+          if (gsv_isAllocated(statevector_member_r4)) then
             call gsv_deallocate(statevector_member_r4)
           end if
-          if (statevector_file_r4%allocated) then
+          if (gsv_isAllocated(statevector_file_r4)) then
             call gsv_deallocate(statevector_file_r4)
           end if
-          if (statevector_hint_r4%allocated) then
+          if (gsv_isAllocated(statevector_hint_r4)) then
             call gsv_deallocate(statevector_hint_r4)
           end if
 
@@ -2937,8 +2937,8 @@ CONTAINS
 
     write(*,*) 'ens_applyMaskLAM: starting'
 
-    if (.not.(ens_allocated(ensIncrement).and.(stateVectorAnalIncMask%allocated))) then
-      call utl_abort('epp_applyMasLAM: increment and mask must be avaliable.')
+    if (.not.(ens_allocated(ensIncrement).and.(gsv_isAllocated(stateVectorAnalIncMask)))) then
+      call utl_abort('epp_applyMaskLAM: increment and mask must be avaliable.')
     end if
 
     call gsv_getField(stateVectorAnalIncMask, analIncMask_ptr)
