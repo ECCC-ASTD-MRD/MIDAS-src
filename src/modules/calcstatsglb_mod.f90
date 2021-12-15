@@ -83,6 +83,9 @@ module calcStatsGlb_mod
   ! CSG_SETUP
   !--------------------------------------------------------------------------
   subroutine csg_setup(nens_in, hco_in, vco_in)
+    !
+    !:Purpose: Main setup routine for this module
+    !
     implicit none
     ! arguments:
     integer, intent(in)                     :: nens_in
@@ -245,6 +248,9 @@ module calcStatsGlb_mod
   ! CSG_COMPUTESTATS
   !--------------------------------------------------------------------------
   subroutine csg_computeStats
+    !
+    !:Purpose: High-level routine to compute the global statistics
+    !
     implicit none
     real(4), pointer :: ensPerturbations(:,:,:,:), ens_ptr(:,:,:,:)
     real(4), pointer :: ensBalPerturbations(:,:,:,:)
@@ -365,6 +371,10 @@ module calcStatsGlb_mod
   ! CSG_COMPUTESTATSLATBANDS
   !--------------------------------------------------------------------------
   subroutine csg_computeStatsLatBands
+    !
+    !:Purpose: High-level routine to compute the statistics on a set of latitude
+    !          bands
+    !
     implicit none
     
     integer :: variableType, latIndex, jlatband, lat1, lat2, lat3
@@ -465,6 +475,10 @@ module calcStatsGlb_mod
   ! CSG_TOOLBOOX
   !--------------------------------------------------------------------------
   subroutine csg_toolbox
+    !
+    !:Purpose: High-level routine to do a variety of diagnostic operations
+    !          on the ensemble of error samples
+    !
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
@@ -487,10 +501,11 @@ module calcStatsGlb_mod
 
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
+    logical :: doSpectralFilter
     
     character(len=60) :: tool
 
-    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter
 
     write(*,*)
     write(*,*) 'csg_toolbox'
@@ -501,6 +516,7 @@ module calcStatsGlb_mod
     !
     variableType = modelSpace     ! hardwired
     ensContainsFullField = .true. ! default value
+    doSpectralFilter     = .true.
     
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -578,6 +594,20 @@ module calcStatsGlb_mod
       call ens_normalize(ensPerts_ptr)
       call calcLocalCorrelations(ensPerts_ptr) ! IN
 
+     case ('VCORRMATRIX')
+      write(*,*)
+      write(*,*) 'Computing Local Correlation'
+
+      if (doSpectralFilter) then
+        call ens_removeGlobalMean(ensPerts)
+        call spectralFilter2(ensPerts,          & ! IN
+                             ensPerts_ptr,      & ! OUT
+                             waveBandIndex_opt=1) ! IN
+      end if
+      call ens_computeStdDev(ensPerts_ptr)
+      call ens_normalize(ensPerts_ptr)
+      call calcLocalVertCorrMatrix(ensPerts_ptr) ! IN
+
     case ('LOCALIZATIONRADII')
        write(*,*)
        write(*,*) 'Estimating the optimal covariance localization radii'
@@ -630,6 +660,9 @@ module calcStatsGlb_mod
   ! CSG_POWERSPEC
   !--------------------------------------------------------------------------
   subroutine csg_powerspec
+    !
+    !:Purpose: High-level routine to calculate the power spectrum and write to file
+    !
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
@@ -665,6 +698,9 @@ module calcStatsGlb_mod
   ! CSG_STDDEV
   !--------------------------------------------------------------------------
   subroutine csg_stddev
+    !
+    !:Purpose: High-level routine to calculate stddev and write to file
+    !
     implicit none
     integer :: ierr
     real(4), pointer :: ensPerturbations(:,:,:,:)
@@ -703,6 +739,9 @@ module calcStatsGlb_mod
   ! WRITESPSTATS
   !--------------------------------------------------------------------------
   subroutine writeSpStats(ptot,theta)
+    !
+    !:Purpose: Write the spectral representation of PtoT and THETA to files
+    !
     implicit none
     real(8) :: PtoT(:,:,:),theta(:,:)
     integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
@@ -782,6 +821,10 @@ module calcStatsGlb_mod
   ! REMOVEBALANCEDCHI
   !--------------------------------------------------------------------------
   subroutine removeBalancedChi(ensPerturbations,theta)
+    !
+    !:Purpose: Subtract the balanced components of velocity potential
+    !          from the full variable
+    !
     implicit none
     real(4), pointer :: ensPerturbations(:,:,:,:)
     real(8) :: theta(:,:)
@@ -811,6 +854,10 @@ module calcStatsGlb_mod
   ! REMOVEBALANCEDT_PS
   !--------------------------------------------------------------------------
   subroutine removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
+    !
+    !:Purpose: Subtract the balanced components of temperature and surface
+    !          pressure from the full variables
+    !
     implicit none
     real(4),pointer :: ensPerturbations(:,:,:,:)
     real(4),pointer :: ensBalPerturbations(:,:,:,:)
@@ -867,6 +914,9 @@ module calcStatsGlb_mod
   ! CALCCORRELATIONS
   !--------------------------------------------------------------------------
   subroutine calcCorrelations(ensPerturbations,corns,rstddev,latMask_opt)
+    !
+    !:Purpose: Calculate the homogeneous and isotropic correlations in spectral space
+    !
     implicit none
     real(4),pointer :: ensPerturbations(:,:,:,:)
     real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc),corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
@@ -977,6 +1027,9 @@ module calcStatsGlb_mod
   ! CALCCORRELATIONS2
   !--------------------------------------------------------------------------
   subroutine calcCorrelations2(ensPerts,corns,rstddev,latMask_opt)
+    !
+    !:Purpose: Calculate the homogeneous and isotropic correlations in spectral space
+    !
     implicit none
 
     type(struct_ens) :: ensPerts
@@ -1097,6 +1150,10 @@ module calcStatsGlb_mod
   ! CALCPOWERSPEC
   !--------------------------------------------------------------------------
   subroutine calcPowerSpec(ensPerturbations,powerSpec)
+    !
+    !:Purpose: Calculate the horizontal power spectrum of the ensemble
+    !          of error samples
+    !
     implicit none
     real(4),pointer, intent(in)  :: ensPerturbations(:,:,:,:)
     real(8),         intent(out) :: powerSpec(nkgdimEns,0:ntrunc)
@@ -1149,6 +1206,9 @@ module calcStatsGlb_mod
   ! WRITESTATS
   !--------------------------------------------------------------------------
   subroutine writeStats(corns, rstddev, ptot_opt, theta_opt, waveBandIndex_opt, latBand_opt)
+    !
+    !:Purpose: Write several components of the BHI matrix to a file
+    !
     implicit none
 
     real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
@@ -1247,6 +1307,9 @@ module calcStatsGlb_mod
   ! WRITEPRESSUREPROFILES
   !--------------------------------------------------------------------------
   subroutine writePressureProfiles
+    !
+    !:Purpose: Write the profiles of pressure to ascii files
+    !
     implicit none
 
     character(len=128) :: outfilename
@@ -1277,6 +1340,9 @@ module calcStatsGlb_mod
   ! WRITESTDDEV
   !--------------------------------------------------------------------------
   subroutine writeStddev(stddevZonAvg,stddev3d,stddevZonAvgUnbal_opt,stddev3dUnbal_opt)
+    !
+    !:Purpose: Write the stddev to a file
+    !
     implicit none
 
     ! arguments:
@@ -1417,6 +1483,9 @@ module calcStatsGlb_mod
   ! WRITESTDDEVBAL
   !--------------------------------------------------------------------------
   subroutine writeStddevBal(stddevZonAvgBal,stddev3dBal)
+    !
+    !:Purpose: Write the stddev of the balanced variables to a file
+    !
     implicit none
 
     ! arguments:
@@ -1512,6 +1581,9 @@ module calcStatsGlb_mod
   ! SPECTRALFILTER
   !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex_opt)
+    !
+    !:Purpose: Apply a spectral filter
+    !
     implicit none
 
     real(4),pointer :: ensPerturbations(:,:,:,:)
@@ -1594,6 +1666,9 @@ module calcStatsGlb_mod
   ! SPECTRALFILTER2
   !--------------------------------------------------------------------------
   subroutine spectralFilter2(ensPerts_in,ensPerts_out,waveBandIndex_opt)
+    !
+    !:Purpose: Apply a spectral filter
+    !
     implicit none
 
     type(struct_ens)  :: ensPerts_in
@@ -1730,6 +1805,9 @@ module calcStatsGlb_mod
   ! CALCTHETA
   !--------------------------------------------------------------------------
   subroutine calcTheta(ensPerturbations,theta)
+    !
+    !:Purpose: Calculate the Theta turning angle according to Ekman balance
+    !
     implicit none
     real(4),pointer :: ensPerturbations(:,:,:,:)
     real(8) :: theta(:,:)
@@ -1781,6 +1859,10 @@ module calcStatsGlb_mod
   ! CALCPTOT
   !--------------------------------------------------------------------------
   subroutine calcPtoT(ensPerturbations,PtoT)
+    !
+    !:Purpose: Calculate the "P" to Temperature transform matrix using
+    !          a regression analysis of the "P" and temperature samples
+    !
     implicit none
     real(4), pointer :: ensPerturbations(:,:,:,:)
     real(8)  :: PtoT(:,:,:)
@@ -1952,6 +2034,10 @@ module calcStatsGlb_mod
   ! REMOVEGLOBALMEAN
   !--------------------------------------------------------------------------
   subroutine removeGlobalMean(ensPerturbations)
+    !
+    !:Purpose: Calculate and subtract the horizontal mean value from the ensemble
+    !          of samples for each member, vertical level and variable
+    !
     implicit none
     integer :: lonIndex,latIndex,levIndex,ensIndex,ierr
     real(4), pointer :: ensPerturbations(:,:,:,:)
@@ -1984,6 +2070,9 @@ module calcStatsGlb_mod
   ! CALCZONAVG
   !--------------------------------------------------------------------------
   subroutine calcZonAvg(fieldsZonAvg_mpiglobal,fields3D,nlev)
+    !
+    !:Purpose: Calculate the zonal average of the supplied 3D fields
+    !
     implicit none
 
     ! arguments:
@@ -2024,6 +2113,9 @@ module calcStatsGlb_mod
   ! CALCSTDDEV3D
   !--------------------------------------------------------------------------
   subroutine calcStddev3d(ensPerturbations,stddev3d,nlev)
+    !
+    !:Purpose: Calculate the 3d stddev field
+    !
     implicit none
 
     integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
@@ -2065,6 +2157,9 @@ module calcStatsGlb_mod
   ! CALCBALANCEDP
   !--------------------------------------------------------------------------
   subroutine calcBalancedP(sppsi,spgz)
+    !
+    !:Purpose: Calculate the balanced "P" variable using geostrophy
+    !
     implicit none
 
     real(8) :: sppsi(:,:,:),spgz(:,:,:)
@@ -2155,6 +2250,9 @@ module calcStatsGlb_mod
   ! NORMALIZED3D
   !--------------------------------------------------------------------------
   subroutine normalize3d(ensPerturbations,stddev3d)
+    !
+    !:Purpose: Divide the ensemble perturbations by the supplied 3d stddev field
+    !
     implicit none
 
     integer :: lonIndex,latIndex,levIndex,ensIndex
@@ -2187,6 +2285,9 @@ module calcStatsGlb_mod
   ! MULTIPLY3D
   !--------------------------------------------------------------------------
   subroutine multiply3d(ensPerturbations,stddev3d,nlev)
+    !
+    !:Purpose: Multiply the ensemble perturbations by the supplied 3d stddev field
+    !
     implicit none
 
     integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
@@ -2213,6 +2314,9 @@ module calcStatsGlb_mod
   ! READENSEMBLE
   !--------------------------------------------------------------------------
   subroutine readEnsemble(ensPerturbations)
+    !
+    !:Purpose: Read the ensemble of error samples from files
+    !
     implicit none
 
     ! arguments:
@@ -2304,6 +2408,9 @@ module calcStatsGlb_mod
   ! UV_TO_PSICHI
   !--------------------------------------------------------------------------
   subroutine uv_to_psichi(ensPerturbations)
+    !
+    !:Purpose: Transform wind components to Psi and Chi
+    !
     implicit none
 
     integer :: ensIndex, levIndex, jla_mpilocal, ila_mpiglobal
@@ -2342,6 +2449,9 @@ module calcStatsGlb_mod
   ! REMOVEMEAN
   !--------------------------------------------------------------------------
   subroutine removeMean(ensPerturbations)
+    !
+    !:Purpose: Compute and subtract the ensemble mean 
+    !
     implicit none
 
     integer :: ensIndex, levIndex, latIndex, lonIndex
@@ -2384,6 +2494,10 @@ module calcStatsGlb_mod
   ! HORIZCORRELFUNCTION
   !--------------------------------------------------------------------------
   subroutine horizCorrelFunction(rstddev,variableType, waveBandIndex_opt)
+    !
+    !:Purpose: Compute homogeneous-isotropic horizontal correlation
+    !          function from spectral variances
+    !
     implicit none
 
     real(8),  intent(in) :: rstddev(nkgdimEns,0:ntrunc)
@@ -2523,6 +2637,9 @@ module calcStatsGlb_mod
   ! WRITE3D
   !--------------------------------------------------------------------------
   subroutine write3d(gridpoint3d,filename,etiket_in,variableType)
+    !
+    !:Purpose: Write the 3D stddev fields for all variables
+    !
     implicit none
 
     real(8), intent(in) :: gridpoint3d(:,:,:)
@@ -2602,6 +2719,9 @@ module calcStatsGlb_mod
   ! CALCHORIZSCALE
   !--------------------------------------------------------------------------
   subroutine CalcHorizScale(rstddev,variableType,waveBandIndex_opt)
+    !
+    !:Purpose: Calculate the horizontal correlation length scale
+    !
     implicit none
     
     ! Based on subroutine corrlength.ftn in the "old" var code
@@ -2705,6 +2825,9 @@ module calcStatsGlb_mod
   ! WRITEPOWERSPEC
   !--------------------------------------------------------------------------
   subroutine writePowerSpec(powerSpec,variableType)
+    !
+    !:Purpose: Write the computed power spectrum to an ascii file
+    !
     implicit none
 
     real(8),intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
@@ -2770,6 +2893,9 @@ module calcStatsGlb_mod
   ! calcLocalCorrelations (identical to the routine with the same name in calcstatslam)
   !--------------------------------------------------------------------------
   subroutine calcLocalCorrelations(ensPerts)
+    !
+    !:Purpose: Compute local horizontal correlations
+    !
     implicit none
     type(struct_ens) :: ensPerts
 
@@ -2880,4 +3006,93 @@ module calcStatsGlb_mod
 
   end subroutine calcLocalCorrelations
   
+  !--------------------------------------------------------------------------
+  ! calcLocalVertCorrMatrix
+  !--------------------------------------------------------------------------
+  subroutine calcLocalVertCorrMatrix(ensPerts)
+    !
+    !:Purpose: Compute all vertical and between-variable local correlations
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(in) :: ensPerts
+
+    ! Locals:
+    type(struct_gsv) :: statevector_vertCorr
+    type(struct_gsv) :: statevector_oneMember
+    real(8), pointer :: ptr3d_r8(:,:,:)
+    real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
+    real(8) :: dnEns
+    integer :: lonIndex, latIndex, varLevIndex1, varLevIndex2, memberIndex
+    integer :: levIndex1, dateStamp
+    character(len=4), pointer :: varNamesList(:)
+    character(len=12)  :: etiket
+    character(len=4)   :: varName
+    character(len=3)   :: levIndexStr
+    character(len=256) :: ensFileName, outFileName
+
+    ! Set the dateStamp using the first ensemble member
+    call fln_ensfileName(ensFileName, ens_getPathName(ensPerts), memberIndex_opt=1)
+    dateStamp = tim_getDatestampFromFile(ensFileName)
+
+    ! Get list of variable names in the ensemble
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts) 
+
+    call gsv_allocate(statevector_vertCorr, ens_getNumStep(ensPerts),                        &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=dateStamp, mpi_local_opt=.true.,                         &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
+
+    call gsv_allocate(statevector_oneMember, ens_getNumStep(ensPerts),                       &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=dateStamp, mpi_local_opt=.true.,                         &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
+
+    dnEns = 1.0d0/dble(nEns-1)
+
+    call gsv_getField(statevector_vertCorr,ptr3d_r8)
+
+    ! Loop over all vertical levels and variables
+    varLev1: do varLevIndex1 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+
+      varName = ens_getVarNameFromK(ensPerts,varLevIndex1)
+      levIndex1 = ens_getLevFromK(ensPerts,varLevIndex1)
+
+      ! Compute vertical correlations relative to varLev1
+      call gsv_zero(statevector_vertCorr)
+      member: do memberIndex = 1, nEns
+        call ens_copyMember(ensPerts, statevector_oneMember, memberIndex)
+        call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
+        varLev2: do varLevIndex2 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+          do latIndex = statevector_vertCorr%myLatBeg, statevector_vertCorr%myLatEnd
+            do lonIndex = statevector_vertCorr%myLonBeg, statevector_vertCorr%myLonEnd
+              ptr3d_r8(lonIndex,latIndex,varLevIndex2) = &
+                     ptr3d_r8(lonIndex,latIndex,varLevIndex2) + &
+                     ptr3d_r8_oneMember(lonIndex,latIndex,varLevIndex1)* &
+                     ptr3d_r8_oneMember(lonIndex,latIndex,varLevIndex2)
+            end do
+          end do
+        end do varLev2
+      end do member
+      call gsv_scale(statevector_vertCorr,dnEns)
+
+      ! Write to file the correlation matrix 'row' for this value of varLev1
+      write(levIndexStr,'(i3.3)') levIndex1
+      etiket = 'VCOR_' // trim(varName) // levIndexStr
+      outFileName = './vertCorr_' // trim(varName) // levIndexStr // '.fst'
+      call gsv_writeToFile(statevector_vertCorr, &
+                           trim(outFileName), etiket_in = etiket, &
+                           typvar_opt = 'E', numBits_opt = 32)
+      write(*,*) 'calcLocalVertCorrMatrix: finished variable/level =', varName, levIndex1
+    end do varLev1
+
+    write(*,*) 'calcLocalVertCorrMatrix: finished computing the local vertical correlation matrix...'
+
+    call gsv_deallocate(statevector_vertCorr)
+    call gsv_deallocate(statevector_oneMember)
+
+  end subroutine calcLocalVertCorrMatrix
+
 end module calcStatsGlb_mod
