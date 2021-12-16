@@ -208,7 +208,7 @@ CONTAINS
 
       ! Time interpolation to get high-res Psfc analysis increment
       if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
-      if ( .not. gsv_isAllocated(stateVectorPsfcHighRes) ) then
+      if ( .not. gsv_allocated(stateVectorPsfcHighRes) ) then
         call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
                            dataKind_opt=pre_incrReal, &
                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
@@ -258,8 +258,8 @@ CONTAINS
                    allowVarMismatch_opt=.true.)
     call gsv_deallocate(stateVectorHighRes)
 
-    if ( gsv_isAllocated(statevectorPsfc) ) call gsv_deallocate(statevectorPsfc)
-    if ( gsv_isAllocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
+    if ( gsv_allocated(statevectorPsfc) ) call gsv_deallocate(statevectorPsfc)
+    if ( gsv_allocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
 
@@ -608,7 +608,7 @@ CONTAINS
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
-      if (gsv_isAllocated(statevector_incr)) then
+      if (gsv_allocated(statevector_incr)) then
         dateStamp = gsv_getDateStamp(stateVector_incr,stepIndex)
         if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: writing increment for time step: ', &
                                          stepIndex, dateStamp
@@ -657,7 +657,7 @@ CONTAINS
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
-      if (gsv_isAllocated(statevector_anal)) then
+      if (gsv_allocated(statevector_anal)) then
         dateStamp = gsv_getDateStamp(statevector_anal,stepIndex)
         if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: writing analysis for time step: ',stepIndex, dateStamp
 
@@ -706,10 +706,10 @@ CONTAINS
     write(*,*) 'inc_interpolateAndAdd: STARTING'
 
     ! Error traps
-    if ( .not. gsv_isAllocated(statevector_in) ) then
+    if ( .not. gsv_allocated(statevector_in) ) then
       call utl_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
     end if
-    if ( .not. gsv_isAllocated(statevector_inout) ) then
+    if ( .not. gsv_allocated(statevector_inout) ) then
       call utl_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
     end if
     if ( present(PsfcReference_opt) ) then

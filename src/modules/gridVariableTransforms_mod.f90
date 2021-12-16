@@ -131,7 +131,7 @@ CONTAINS
       call gsv_readTrials( stateVectorRefHU )  ! IN/OUT
 
     case ('height')
-      if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
+      if ( .not. gsv_allocated(stateVectorRefHeight) ) then
         ! initialize stateVectorRefHeight on analysis grid
         call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
@@ -532,7 +532,7 @@ CONTAINS
         call utl_abort('gvt_setupRefFromStateVector: applyLimitOnHU_opt for RefHU missing')
       end if
 
-      if ( .not. gsv_isAllocated(stateVectorRefHU) ) then
+      if ( .not. gsv_allocated(stateVectorRefHU) ) then
         call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,&
                           dateStamp_opt=tim_getDateStamp(), &
                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
@@ -588,7 +588,7 @@ CONTAINS
       call gsv_deallocate(stateVectorRefHUTT)
 
     case ('height')
-      if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
+      if ( .not. gsv_allocated(stateVectorRefHeight) ) then
         call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
                            vco_anl, dateStamp_opt=tim_getDateStamp(), &
                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
@@ -1895,7 +1895,7 @@ CONTAINS
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
     call gsv_transposeTilesToStep(stateVector_trial_1step_r8, stateVectorRef, 1)
 
-    if ( gsv_isAllocated(stateVector_analysis_1step_r8) ) then
+    if ( gsv_allocated(stateVector_analysis_1step_r8) ) then
 
       call gsv_getField(stateVector_analysis_1step_r8,     GL_ptr,'GL')
       call gsv_getField(stateVector_analysis_1step_r8, LGAnal_ptr,'LG')

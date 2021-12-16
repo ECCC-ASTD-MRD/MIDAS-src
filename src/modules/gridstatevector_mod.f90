@@ -62,7 +62,7 @@ module gridStateVector_mod
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
-  public :: gsv_isAllocated
+  public :: gsv_allocated
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -547,7 +547,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_isInitialized
   !--------------------------------------------------------------------------
-  function gsv_isAllocated(stateVector) result(isAllocated)
+  function gsv_allocated(stateVector) result(isAllocated)
     !
     ! :Purpose: To verify if a stateVector is allocated.
     !
@@ -559,7 +559,7 @@ module gridStateVector_mod
 
     isAllocated = stateVector%allocated
 
-  end function gsv_isAllocated
+  end function gsv_allocated
 
   !--------------------------------------------------------------------------
   ! gsv_allocate

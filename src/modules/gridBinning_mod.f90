@@ -95,7 +95,7 @@ contains
     !- 1.  Allocate a 2D statevector that will contains the bin category for each 
     !      grid point
     !
-    if (.not. gsv_isAllocated(statevector_template)) then
+    if (.not. gsv_allocated(statevector_template)) then
       call utl_abort('gbi_setup: the input template statevector was not allocated')
     end if
 
@@ -383,7 +383,7 @@ contains
       write(*,*) 'gbi_stdDev_ens: Starting...'
     end if
 
-    if (.not. gsv_isAllocated(statevector)) then
+    if (.not. gsv_allocated(statevector)) then
       nullify(varNamesList)
       call ens_varNamesList(varNamesList,ens) 
       call gsv_allocate(statevector, ens_getNumStep(ens),               &

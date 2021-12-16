@@ -642,7 +642,7 @@ contains
     if (ens_allocated(ensembleAnl)) then
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
-      if (gsv_isAllocated(stateVectorHeightSfc)) then
+      if (gsv_allocated(stateVectorHeightSfc)) then
         call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                            dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -731,7 +731,7 @@ contains
           call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
+          if (gsv_allocated(stateVectorMeanAnlSfcPres)) then
             call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
@@ -744,7 +744,7 @@ contains
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
+          if (gsv_allocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             ! Also write the reference (analysis) surface pressure to increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
                                        etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
@@ -786,7 +786,7 @@ contains
           call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
+          if (gsv_allocated(stateVectorMeanAnlSfcPres)) then
             call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
@@ -819,7 +819,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           ! Also write the reference (analysis) surface pressure to increment files
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
+          if (gsv_allocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                        ens_getNumMembers(ensembleAnlSubSample),  &
                                        etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
@@ -1159,7 +1159,7 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
-      if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
+      if (gsv_allocated(stateVectorHuRefStateInterp)) then
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
                         stateVectorRef_opt=stateVectorHuRefStateInterp) ! IN
@@ -1228,7 +1228,7 @@ contains
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
     deallocate(PsfcReference)
-    if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
+    if (gsv_allocated(stateVectorHuRefStateInterp)) then
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if
 
