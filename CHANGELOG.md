@@ -78,6 +78,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix sqlite read time back to what they were before #536 (#555 and !530)
  * Fix bug where scat wind observations would be ignored if read in the wrong order (#536 and !515)
  * Fix bug in BURP update of high resolution radiosondes (#529 and !512)
  * Fix near-surface extrapolation in GPSRO ObsOperator for bending, caused large erroneous values and an abort (#520 and !510)
