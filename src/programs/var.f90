@@ -44,6 +44,7 @@ program midas_var
   use increment_mod
   use biasCorrectionSat_mod
   use varqc_mod
+  use tovs_nl_mod
 
   implicit none
 
@@ -303,6 +304,8 @@ program midas_var
     if ( outerLoopIndex == numOuterLoopIterations ) then
       call bcs_writebias(controlVectorIncr)
     end if
+
+    call tvs_cleanupProfilesNlTlAd
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &

@@ -107,6 +107,7 @@ module tovs_nl_mod
   public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_mwAllskyAssim
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
+  public :: tvs_cleanupProfilesNlTlAd
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
   public :: tvs_isInstrumGeostationary,  tvs_isNameHyperSpectral
   public :: tvs_isNameGeostationary
@@ -785,6 +786,30 @@ contains
     Write(*,*) "Exiting tvs_cleanup"
 
   end subroutine tvs_cleanup
+
+  !--------------------------------------------------------------------------
+  ! tvs_cleanupProfilesNlTlAd
+  !--------------------------------------------------------------------------
+  subroutine tvs_cleanupProfilesNlTlAd
+    !
+    ! :Purpose: release memory used by RTTOV-12.
+    !
+    implicit none
+    integer :: allocStatus(8)
+
+    Write(*,*) "Entering tvs_cleanupProfilesNlTlAd"
+
+    allocStatus(:) = 0
+
+    if ( radiativeTransferCode == 'RTTOV' ) then
+      deallocate(tvs_profiles_nl, stat=allocStatus(1))
+      deallocate(tvs_profiles_tlad, stat=allocStatus(2))
+      call utl_checkAllocationStatus(allocStatus(1:2), " tvs_profiles_nl tvs_profiles_tlad", .false.)
+    end if
+
+    Write(*,*) "Exiting tvs_cleanupProfilesNlTlAd"
+
+  end subroutine tvs_cleanupProfilesNlTlAd
 
   !--------------------------------------------------------------------------
   ! sensors
@@ -1971,6 +1996,8 @@ contains
       write(*,*) "Invalid  profileType ", profileType
       call utl_abort('tvs_fillProfiles')
     end if
+
+    write(*,*) 'you are in tvs_fillProfiles for profileType=', profileType
 
     call tvs_getProfile(profiles, profileType)
 
