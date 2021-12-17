@@ -475,7 +475,7 @@ contains
     nlev_M = gsv_getNumLev(stateVector,'MM')
 
     doSetup3dHeights = doSlantPath .and.  &
-                       .not. gsv_allocated(stateVector_1Step) .and. &
+                       .not. gsv_isAllocated(stateVector_1Step) .and. &
                        gsv_varExist(stateVector,'Z_T') .and. &
                        gsv_varExist(stateVector,'Z_M')
 
@@ -848,7 +848,7 @@ contains
 
     end do step_loop2
 
-    if ( gsv_allocated(stateVector_1Step) .and. lastCall ) then
+    if ( gsv_isAllocated(stateVector_1Step) .and. lastCall ) then
       write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
       call gsv_deallocate(stateVector_1Step)
     end if
@@ -1134,7 +1134,7 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(160)
 
-    if ( .not. gsv_allocated(stateVector_in) ) then 
+    if ( .not. gsv_isAllocated(stateVector_in) ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
@@ -1358,7 +1358,7 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(160)
 
-    if ( .not. gsv_allocated(stateVector_out) ) then 
+    if ( .not. gsv_isAllocated(stateVector_out) ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
@@ -1582,7 +1582,7 @@ contains
     write(*,*) 's2c_nl: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( .not. gsv_allocated(stateVector) ) then 
+    if ( .not. gsv_isAllocated(stateVector) ) then 
       call utl_abort('s2c_nl: stateVector must be allocated')
     end if
 

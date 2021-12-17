@@ -131,7 +131,7 @@ CONTAINS
       call gsv_readTrials( stateVectorRefHU )  ! IN/OUT
 
     case ('height')
-      if ( .not. gsv_allocated(stateVectorRefHeight) ) then
+      if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
         ! initialize stateVectorRefHeight on analysis grid
         call gsv_allocate(stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
@@ -279,8 +279,13 @@ CONTAINS
       call HUtoLQ_gsv(statevector)
 
     case ('LQtoHU_tlm')
-      if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for LQtoHU_tlm, variable HU must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'HU') .and. &
+           .not. gsv_varExist(statevector,'LQ') ) then
+        call utl_abort('gvt_transform: for LQtoHU_tlm, variable HU or LQ must be allocated in gridstatevector')
+      end if
+      if ( gsv_varExist(statevector,'HU') .and. &
+           gsv_varExist(statevector,'LQ') ) then
+        call utl_abort('gvt_transform: for LQtoHU_tlm, only one of HU and LQ must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
         call utl_abort('gvt_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
@@ -532,7 +537,7 @@ CONTAINS
         call utl_abort('gvt_setupRefFromStateVector: applyLimitOnHU_opt for RefHU missing')
       end if
 
-      if ( .not. gsv_allocated(stateVectorRefHU) ) then
+      if ( .not. gsv_isAllocated(stateVectorRefHU) ) then
         call gsv_allocate(stateVectorRefHU, tim_nstepobsinc, hco_anl, vco_anl,&
                           dateStamp_opt=tim_getDateStamp(), &
                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
@@ -588,7 +593,7 @@ CONTAINS
       call gsv_deallocate(stateVectorRefHUTT)
 
     case ('height')
-      if ( .not. gsv_allocated(stateVectorRefHeight) ) then
+      if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
         call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
                            vco_anl, dateStamp_opt=tim_getDateStamp(), &
                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
@@ -797,6 +802,15 @@ CONTAINS
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
     real(8), pointer :: hu_trial(:,:,:,:)
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
+    character(len=4) :: varName
+
+    if ( gsv_varExist(statevector,'HU') ) then
+      varName = 'HU'
+    else if ( gsv_varExist(statevector,'LQ') ) then
+      varName = 'LQ'
+    else
+      call utl_abort('LQtoHU_tlm: either HU or LQ must be part of stateVector')
+    end if
 
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
@@ -808,8 +822,8 @@ CONTAINS
     end if
 
     if ( gsv_getDataKind(statevector) == 4 ) then
-      call gsv_getField(statevector,hu_ptr_r4,'HU')
-      call gsv_getField(statevector,lq_ptr_r4,'HU')
+      call gsv_getField(statevector,hu_ptr_r4,varName)
+      call gsv_getField(statevector,lq_ptr_r4,varName)
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -826,8 +840,8 @@ CONTAINS
         !$OMP END PARALLEL DO
       end do
     else
-      call gsv_getField(statevector,hu_ptr_r8,'HU')
-      call gsv_getField(statevector,lq_ptr_r8,'HU')
+      call gsv_getField(statevector,hu_ptr_r8,varName)
+      call gsv_getField(statevector,lq_ptr_r8,varName)
 
       do stepIndex = 1, statevector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
@@ -1895,7 +1909,7 @@ CONTAINS
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
     call gsv_transposeTilesToStep(stateVector_trial_1step_r8, stateVectorRef, 1)
 
-    if ( gsv_allocated(stateVector_analysis_1step_r8) ) then
+    if ( gsv_isAllocated(stateVector_analysis_1step_r8) ) then
 
       call gsv_getField(stateVector_analysis_1step_r8,     GL_ptr,'GL')
       call gsv_getField(stateVector_analysis_1step_r8, LGAnal_ptr,'LG')

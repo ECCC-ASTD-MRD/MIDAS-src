@@ -39,7 +39,7 @@ module ensembleStateVector_mod
   private
 
   ! public procedures
-  public :: struct_ens, ens_allocated, ens_allocate, ens_deallocate, ens_zero
+  public :: struct_ens, ens_isAllocated, ens_allocate, ens_deallocate, ens_zero
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
@@ -85,9 +85,9 @@ module ensembleStateVector_mod
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! ens_allocated
+  ! ens_isAllocated
   !--------------------------------------------------------------------------
-  function ens_allocated(ens) result(allocated)
+  function ens_isAllocated(ens) result(isAllocated)
     !
     !:Purpose: Return true if object has been allocated
     !
@@ -95,10 +95,10 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    logical                      :: allocated
+    logical                      :: isAllocated
 
-    allocated = ens%allocated
-  end function ens_allocated
+    isAllocated = ens%allocated
+  end function ens_isAllocated
   
   !--------------------------------------------------------------------------
   ! ens_allocate
@@ -917,7 +917,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. gsv_allocated(statevector)) then
+    if (.not. gsv_isAllocated(statevector)) then
       nullify(varNamesInEns)
       call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
@@ -979,7 +979,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. gsv_allocated(statevector)) then
+    if (.not. gsv_isAllocated(statevector)) then
       call utl_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
     end if
 
@@ -1026,7 +1026,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (.not. gsv_allocated(statevector)) then
+    if (.not. gsv_isAllocated(statevector)) then
       nullify(varNamesInEns)
       call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
@@ -1085,7 +1085,7 @@ CONTAINS
     nullify(varNamesInEns)
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
-    if (.not. gsv_allocated(statevector)) then
+    if (.not. gsv_isAllocated(statevector)) then
       call gsv_allocate( statevector, numStep,  &
                          ens%statevector_work%hco, ens%statevector_work%vco,  &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
@@ -1205,7 +1205,7 @@ CONTAINS
     character(len=4) :: varName
     logical          :: sameVariables
 
-    if (.not. gsv_allocated(ens%statevector_work)) then
+    if (.not. gsv_isAllocated(ens%statevector_work)) then
       call utl_abort('ens_insertMember: ens not allocated')
     end if
 
@@ -2527,7 +2527,7 @@ CONTAINS
           ! determine which tasks have something to send and let everyone know
           do procIndex = 1, mpi_nprocs
             thisProcIsAsender(procIndex) = .false.
-            if ( mpi_myid == (procIndex-1) .and. gsv_allocated(stateVector_member_r4) ) then
+            if ( mpi_myid == (procIndex-1) .and. gsv_isAllocated(stateVector_member_r4) ) then
               thisProcIsAsender(procIndex) = .true.
             end if
             call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
@@ -2543,7 +2543,7 @@ CONTAINS
 
             ! only send the data from tasks with data, same amount to all
             sendsizes(:) = 0
-            if ( gsv_allocated(stateVector_member_r4) ) then
+            if ( gsv_isAllocated(stateVector_member_r4) ) then
               do procIndex = 1, mpi_nprocs
                 sendsizes(procIndex) = nsize
               end do
@@ -2565,7 +2565,7 @@ CONTAINS
               recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
             end do
 
-            if (gsv_allocated(statevector_member_r4)) then
+            if (gsv_isAllocated(statevector_member_r4)) then
               allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,mpi_nprocs))
               gd_send_r4(:,:,:,:) = 0.0
               call gsv_getField(statevector_member_r4,ptr3d_r4)
@@ -2615,13 +2615,13 @@ CONTAINS
           call tmg_stop(13)
 
           ! deallocate the needed statevector objects
-          if (gsv_allocated(statevector_member_r4)) then
+          if (gsv_isAllocated(statevector_member_r4)) then
             call gsv_deallocate(statevector_member_r4)
           end if
-          if (gsv_allocated(statevector_file_r4)) then
+          if (gsv_isAllocated(statevector_file_r4)) then
             call gsv_deallocate(statevector_file_r4)
           end if
-          if (gsv_allocated(statevector_hint_r4)) then
+          if (gsv_isAllocated(statevector_hint_r4)) then
             call gsv_deallocate(statevector_hint_r4)
           end if
 
@@ -2937,7 +2937,7 @@ CONTAINS
 
     write(*,*) 'ens_applyMaskLAM: starting'
 
-    if (.not.(ens_allocated(ensIncrement).and.(gsv_allocated(stateVectorAnalIncMask)))) then
+    if (.not.(ens_isAllocated(ensIncrement).and.(gsv_isAllocated(stateVectorAnalIncMask)))) then
       call utl_abort('epp_applyMaskLAM: increment and mask must be avaliable.')
     end if
 

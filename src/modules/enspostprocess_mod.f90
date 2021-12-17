@@ -143,7 +143,7 @@ contains
     end if
 
     !- Extract the grid definitions and ensemble size
-    if (ens_allocated(ensembleTrl)) then
+    if (ens_isAllocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
       vco_ens => ens_getVco(ensembleTrl)
       nEns = ens_getNumMembers(ensembleTrl)
@@ -208,24 +208,24 @@ contains
     if (numMembersToRecenter == -1) numMembersToRecenter = nEns ! default behaviour
 
     if (writeSubSample) then
-      if (.not.(ens_allocated(ensembleTrl).and.ens_allocated(ensembleAnl))) then
+      if (.not.(ens_isAllocated(ensembleTrl).and.ens_isAllocated(ensembleAnl))) then
         call utl_abort('epp_postProc: subSample can only be produced if both Anl and Trl ensembles available')
       end if
     end if
 
     if (writeSubSampleUnPert) then
-      if (.not.ens_allocated(ensembleAnl)) then
+      if (.not.ens_isAllocated(ensembleAnl)) then
         call utl_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
       end if
     end if
 
     if (writeRawAnalStats) then
-      if (.not.ens_allocated(ensembleAnl)) then
+      if (.not.ens_isAllocated(ensembleAnl)) then
         call utl_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
       end if
     end if
 
-    if (ens_allocated(ensembleTrl)) then
+    if (ens_isAllocated(ensembleTrl)) then
       !- Allocate and compute ensemble mean Trl
       call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -246,7 +246,7 @@ contains
       call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
     end if
 
-    if (ens_allocated(ensembleAnl)) then
+    if (ens_isAllocated(ensembleAnl)) then
       !- Allocate and compute ensemble mean Anl
       call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -281,7 +281,7 @@ contains
         call gsv_copy(stateVectorStdDevAnl, stateVectorStdDevAnlRaw)
       end if
 
-      if (ens_allocated(ensembleTrl)) then
+      if (ens_isAllocated(ensembleTrl)) then
         !- Apply RTPP, if requested
         if (alphaRTPP > 0.0D0) then
           call epp_RTPP(ensembleAnl, ensembleTrl, stateVectorMeanAnl, &
@@ -400,7 +400,7 @@ contains
         write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
              randomSeedRandomPert
         call tmg_start(101,'LETKF-randomPert')
-        if (ens_allocated(ensembleTrl)) then
+        if (ens_isAllocated(ensembleTrl)) then
           call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
                randomSeedRandomPert, useMemberAsHuRefState)
         else
@@ -476,12 +476,12 @@ contains
 
       end if
 
-    end if ! ens_allocated(ensembleAnl)
+    end if ! ens_isAllocated(ensembleAnl)
 
     !
     !- Transform data before computing the increments and writing to files.
     !
-    if (ens_allocated(ensembleAnl)) then
+    if (ens_isAllocated(ensembleAnl)) then
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       if (writeSubSample) then
@@ -494,7 +494,7 @@ contains
     end if
 
     ! When we read ensemble trials we always need to transform them either for incremnets or for writing
-    if (ens_allocated(ensembleTrl)) then
+    if (ens_isAllocated(ensembleTrl)) then
       call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -506,7 +506,7 @@ contains
     !
     !- Compute increments
     !
-    if (ens_allocated(ensembleAnl).and.ens_allocated(ensembleTrl)) then
+    if (ens_isAllocated(ensembleAnl).and.ens_isAllocated(ensembleTrl)) then
 
       !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
       if (.not. hco_ens%global .and. useAnalIncMask) then
@@ -607,7 +607,7 @@ contains
     ! determine middle timestep for output of these files
     middleStepIndex = (tim_nstepobsinc + 1) / 2
 
-    if (ens_allocated(ensembleTrl)) then
+    if (ens_isAllocated(ensembleTrl)) then
       ! output trialmean, trialrms
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
@@ -639,10 +639,10 @@ contains
     end if
 
     ! all outputs related to analysis ensemble
-    if (ens_allocated(ensembleAnl)) then
+    if (ens_isAllocated(ensembleAnl)) then
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
-      if (gsv_allocated(stateVectorHeightSfc)) then
+      if (gsv_isAllocated(stateVectorHeightSfc)) then
         call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                            dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -721,7 +721,7 @@ contains
       end if
 
       !- Output the ensemble mean increment (include MeanAnl Psfc) and ensemble increments
-      if (ens_allocated(ensembleTrl)) then
+      if (ens_isAllocated(ensembleTrl)) then
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -731,7 +731,7 @@ contains
           call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_allocated(stateVectorMeanAnlSfcPres)) then
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
             call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
@@ -744,7 +744,7 @@ contains
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
-          if (gsv_allocated(stateVectorMeanAnlSfcPresMpiGlb)) then
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             ! Also write the reference (analysis) surface pressure to increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
                                        etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
@@ -786,7 +786,7 @@ contains
           call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_allocated(stateVectorMeanAnlSfcPres)) then
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
             call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
@@ -819,7 +819,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           ! Also write the reference (analysis) surface pressure to increment files
-          if (gsv_allocated(stateVectorMeanAnlSfcPresMpiGlb)) then
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                        ens_getNumMembers(ensembleAnlSubSample),  &
                                        etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
@@ -844,7 +844,7 @@ contains
 
       end if
 
-    end if ! ens_allocated(ensembleAnl)
+    end if ! ens_isAllocated(ensembleAnl)
 
     call tmg_stop(4)
 
@@ -1117,6 +1117,11 @@ contains
     allocate(perturbationMean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev))
     perturbationMean(:,:,:) = 0.0d0
 
+    ! NOTE: The following stateVectors will include LQ instead of HU when
+    !       useMemberAsHuRefState=true. This results in the perturbations
+    !       being provided by bmat_sqrtB in terms of LQ, allowing the conversion
+    !       from LQ to HU to be done within this subroutine using the HU field
+    !       of each ensemble member.
     call gsv_allocate(stateVectorPerturbation, 1, hco_randomPert, vco_randomPert, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR', &
@@ -1129,21 +1134,24 @@ contains
     allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1))
     PsfcReference(:,:,:) = 100000.0D0
 
-    if (.not. useMemberAsHuRefState .and. ens_varExist(ensembleAnl,'HU')) then
-      ! prepare the ensemble mean HU field for transforming LQ to HU perturbations
+    ! prepare the reference state HU field for transforming LQ to HU perturbations
+    if (ens_varExist(ensembleAnl,'HU')) then
       call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         hExtrapolateDegree_opt='MINIMUM', &
                         varNames_opt=(/'HU','P0'/) )
-      call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
-      call gsv_allocate(stateVectorHuRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        hExtrapolateDegree_opt='MINIMUM', &
-                        varNames_opt=(/'HU','P0'/) )
-      call gsv_interpolate(stateVectorHuRefState, stateVectorHuRefStateInterp)
-      call gsv_deallocate(stateVectorHuRefState)
+      if (.not. useMemberAsHuRefState) then
+        ! use the single provided state as the reference state and interpolate to perturbation grid
+        call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
+        call gsv_allocate(stateVectorHuRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
+                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                          allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                          hExtrapolateDegree_opt='MINIMUM', &
+                          varNames_opt=(/'HU','P0'/) )
+        call gsv_interpolate(stateVectorHuRefState, stateVectorHuRefStateInterp)
+        call gsv_deallocate(stateVectorHuRefState)
+      end if
     end if
 
     do memberIndex = 1, nEns
@@ -1159,16 +1167,26 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
-      if (gsv_allocated(stateVectorHuRefStateInterp)) then
+      if (ens_varExist(ensembleAnl,'HU') .and. .not.useMemberAsHuRefState) then
+        ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
                         stateVectorRef_opt=stateVectorHuRefStateInterp) ! IN
       else
+        ! No conversion from LQ to HU done in bmat_sqrtB
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
                         stateVectorPerturbation)       ! OUT
       end if
       call gsv_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
                            PsfcReference_opt=PsfcReference)
+
+      ! If desired, use member itself as reference state for LQ to HU conversion
+      if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then
+        call ens_copyMember(ensembleAnl, stateVectorHuRefState, memberIndex)
+        call gvt_transform( stateVectorPerturbationInterp,  &          ! INOUT
+                            'LQtoHU_tlm', &                            ! IN
+                            stateVectorRef_opt=stateVectorHuRefState ) ! IN
+      end if
 
       ! scale the perturbation by the specified factor
       call gsv_scale(stateVectorPerturbationInterp, alphaRandomPert)
@@ -1181,13 +1199,6 @@ contains
         memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-
-            ! If desired, use member itself as reference state for LQ to HU conversion
-            if (useMemberAsHuRefState .and. trim(varName) == 'HU') then
-              perturbation_ptr(lonIndex, latIndex, varLevIndex) =  &
-                   memberAnl_ptr_r4(memberIndex,middleStepIndex,lonIndex,latIndex) * &
-                   perturbation_ptr(lonIndex, latIndex, varLevIndex)
-            end if
 
             perturbationMean(lonIndex, latIndex, varLevIndex) =   &
                  perturbationMean(lonIndex, latIndex, varLevIndex) +  &
@@ -1228,7 +1239,7 @@ contains
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
     deallocate(PsfcReference)
-    if (gsv_allocated(stateVectorHuRefStateInterp)) then
+    if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if
 
