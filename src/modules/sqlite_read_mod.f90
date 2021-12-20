@@ -659,6 +659,7 @@ contains
     if ( numBodyKeys /= numberRows ) then
       call utl_abort( 'sqlr_readSqlite: number of body keys not equal to number of rows in matdata' )
     end if 
+    call fSQL_begin(db)
     BODY: do rowIndex = 1, numBodyKeys
 
       !"id_data" and "id_obs" values for this entry
@@ -940,6 +941,7 @@ contains
       end if WRITEHEADER
 
     end do BODY
+    call fSQL_commit( db )
 
     deallocate(matdata)
     numHeader = obs_numHeader(obsdat)
