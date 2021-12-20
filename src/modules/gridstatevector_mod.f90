@@ -62,6 +62,7 @@ module gridStateVector_mod
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_getMaskLAM, gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
+  public :: gsv_isAllocated
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -84,19 +85,22 @@ module gridStateVector_mod
     ! This is the derived type of the statevector object
 
     ! These are the main data storage arrays
-    real(8), pointer    :: gd_r8(:,:,:,:) => null()
-    real(8), pointer    :: gd3d_r8(:,:,:) => null()
-    real(4), pointer    :: gd_r4(:,:,:,:) => null()
-    real(4), pointer    :: gd3d_r4(:,:,:) => null()
+    logical, private          :: allocated=.false.
+    real(8), pointer, private :: gd_r8(:,:,:,:) => null()
+    real(8), pointer, private :: gd3d_r8(:,:,:) => null()
+    real(4), pointer, private :: gd_r4(:,:,:,:) => null()
+    real(4), pointer, private :: gd3d_r4(:,:,:) => null()
     type(struct_ocm)    :: oceanMask
     logical             :: heightSfcPresent = .false.
-    real(8), pointer    :: HeightSfc(:,:) => null()  ! surface height, if VarsLevs then only on proc 0
+    real(8), pointer, private :: heightSfc(:,:) => null()  ! for VarsLevs, heightSfc only on proc 0
+
     ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
-    logical             :: UVComponentPresent = .false.  ! a wind component is present on this mpi task
-    logical             :: extraUVallocated = .false.    ! extra winds  (gdUV) are actually allocated
+    logical             :: UVComponentPresent = .false.  ! wind component present on this mpi task
+    logical             :: extraUVallocated = .false.    ! extra winds (gdUV) are allocated
     integer             :: myUVkBeg, myUVkEnd, myUVkCount
-    type(struct_gdUV), pointer :: gdUV(:) => null()
+    type(struct_gdUV), pointer, private :: gdUV(:) => null()
+
     ! All the remaining extra information
     integer             :: dataKind = 8 ! default value
     integer             :: ni, nj, nk, numStep, anltime
@@ -113,7 +117,6 @@ module gridStateVector_mod
     integer, pointer    :: npasList(:), ip2List(:)
     integer             :: deet
     character(len=12)   :: etiket
-    logical             :: allocated=.false.
     type(struct_vco), pointer :: vco => null()
     type(struct_hco), pointer :: hco => null()
     type(struct_hco), pointer :: hco_physics => null()
@@ -540,6 +543,23 @@ module gridStateVector_mod
     if ( initialized ) gsvInitialized = .true.
 
   end function gsv_isInitialized
+
+  !--------------------------------------------------------------------------
+  ! gsv_isAllocated
+  !--------------------------------------------------------------------------
+  function gsv_isAllocated(stateVector) result(isAllocated)
+    !
+    ! :Purpose: To verify if a stateVector is allocated.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: stateVector
+    logical :: isAllocated
+
+    isAllocated = stateVector%allocated
+
+  end function gsv_isAllocated
 
   !--------------------------------------------------------------------------
   ! gsv_allocate

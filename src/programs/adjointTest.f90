@@ -159,6 +159,7 @@ contains
     implicit none
 
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, cvIndex
+    real(8), pointer :: field4d_r8(:,:,:,:), field3d_Ly_r8(:,:,:), field3d_x_r8(:,:,:)
 
     if (hco_anl%global) then
       call bhi_Setup( hco_anl, vco_anl, & ! IN
@@ -180,13 +181,14 @@ contains
     
     ! x
     !statevector_x%gd3d_r8(:,:,:) = 13.3d0
+    call gsv_getField(statevector_x,field4d_r8)
     seed=1
     call rng_setup(abs(seed+mpi_myid))
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
-            statevector_x%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+            field4d_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
           end do
         end do
       end do
@@ -220,9 +222,11 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
+    call gsv_getField3d(statevector_Ly,field3d_Ly_r8)
+    call gsv_getField3d(statevector_x, field3d_x_r8 )
     call euclid(innerProduct1_local, &
-         statevector_x %gd3d_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
-         statevector_Ly%gd3d_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
+         field3d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
+         field3d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, 1)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -266,6 +270,7 @@ contains
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex
 
     integer, allocatable :: cvDimPerInstance(:)
+    real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
 
     call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                     cvdimPerInstance )  ! OUT
@@ -283,11 +288,12 @@ contains
     ! x
     seed=1
     call rng_setup(abs(seed+mpi_myid))
+    call gsv_getField(statevector_x,field4d_x_r8)
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
-            statevector_x%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+            field4d_x_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
           end do
         end do
       end do
@@ -304,9 +310,11 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
+    call gsv_getField(statevector_Ly,field4d_Ly_r8)
+    call gsv_getField(statevector_x, field4d_x_r8 )
     call euclid(innerProduct1_local, &
-         statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-         statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -351,6 +359,7 @@ contains
     type(struct_loc), pointer :: loc => null()
 
     real(8), pointer     :: ens_oneLev(:,:,:,:)
+    real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
 
     character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
     character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
@@ -431,12 +440,14 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
+    call gsv_getField(statevector_Ly,field4d_Ly_r8)
+    call gsv_getField(statevector_x, field4d_x_r8 )
     do memberIndex = 1, loc%nEnsOverDimension
       call ens_copyMember(ensAmplitude_x , statevector_x , memberIndex)
       call ens_copyMember(ensAmplitude_Ly, statevector_Ly, memberIndex)
       call euclid(innerProduct1_local, &
-           statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-           statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
            statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
@@ -629,6 +640,8 @@ contains
     character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
 
     real(8), pointer     :: ens_oneLev(:,:,:,:)
+    real(8), pointer     :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
+    real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
 
     real(8) :: delT_hour
 
@@ -711,12 +724,14 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
+    call gsv_getField(statevector_Ly,field4d_Ly_r8)
+    call gsv_getField(statevector_x, field4d_x_r8 )
     do memberIndex = 1, nEns
       call ens_copyMember(ens_x , statevector_x , memberIndex)
       call ens_copyMember(ens_Ly, statevector_Ly, memberIndex)
       call euclid(innerProduct1_local, &
-           statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-           statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
            statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
@@ -731,12 +746,14 @@ contains
     
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
+    call gsv_getField(statevector_LTx,field4d_LTx_r8)
+    call gsv_getField(statevector_y,  field4d_y_r8 )
     do memberIndex = 1, nEns
       call ens_copyMember(ens_LTx, statevector_LTx, memberIndex)
       call ens_copyMember(ens_y  , statevector_y  , memberIndex)
       call euclid(innerProduct2_local, &
-           statevector_LTx %gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
-           statevector_y%gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+           field4d_LTx_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+           field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
            statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
     end do
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
@@ -773,6 +790,8 @@ contains
     real(8) :: delT_hour
 
     real(8), allocatable :: advectFactor(:)
+    real(8), pointer     :: field4d_x_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
+    real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_Ly_r8(:,:,:,:)
 
     integer :: numStepAdvect, numStepReferenceFlow
 
@@ -813,22 +832,24 @@ contains
     ! x
     seed=1
     call rng_setup(abs(seed+mpi_myid))
+    call gsv_getField(statevector_x,  field4d_x_r8 )
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
-            statevector_x%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+            field4d_x_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
           end do
         end do
       end do
     end do
 
     ! y
+    call gsv_getField(statevector_y,  field4d_y_r8 )
     do kIndex = statevector_y%mykBeg, statevector_y%mykEnd
       do stepIndex = 1, statevector_y%numStep
         do latIndex = statevector_y%myLatBeg, statevector_y%myLatEnd
           do lonIndex = statevector_y%myLonBeg, statevector_y%myLonEnd
-            statevector_y%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+            field4d_y_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
           end do
         end do
       end do
@@ -842,9 +863,11 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
+    call gsv_getField(statevector_x,  field4d_x_r8 )
+    call gsv_getField(statevector_Ly, field4d_Ly_r8 )
     call euclid(innerProduct1_local, &
-         statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-         statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -858,9 +881,11 @@ contains
     
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
+    call gsv_getField(statevector_LTx, field4d_LTx_r8 )
+    call gsv_getField(statevector_y,   field4d_y_r8 )
     call euclid(innerProduct2_local, &
-         statevector_LTx %gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
-         statevector_y%gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+         field4d_LTx_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+         field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
          statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
 !    call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
