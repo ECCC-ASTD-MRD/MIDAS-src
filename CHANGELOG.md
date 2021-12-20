@@ -79,6 +79,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug in BURP update of high precision radiosonde temperature and dew-point depression observations (#554 and !529)
+   * Minor impact on results
  * Fix sqlite read time back to what they were before #536 (#555 and !530)
  * Fix bug where scat wind observations would be ignored if read in the wrong order (#536 and !515)
  * Fix bug in BURP update of high resolution radiosondes (#529 and !512)
