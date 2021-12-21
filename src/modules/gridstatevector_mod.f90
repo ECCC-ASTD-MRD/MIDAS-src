@@ -2571,6 +2571,8 @@ module gridStateVector_mod
     deallocate(statevector%varOffset)
     deallocate(statevector%varNumLev)
 
+    call ocm_deallocate(statevector%oceanMask)
+
   end subroutine gsv_deallocate
 
   !--------------------------------------------------------------------------
