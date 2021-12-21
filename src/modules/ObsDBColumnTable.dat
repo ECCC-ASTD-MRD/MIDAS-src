@@ -1,12 +1,17 @@
-!ObsDB Sqlite Summary Table
-!Summary of the ObsDB columns in the header and body table for radiance observations
-!Last updated: 2021/12/18
+! ObsDB Sqlite Summary Table
+! Summary of the ObsDB columns in the header and body table for observations
+! Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations in future implementations 
+!
+! Note: The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
+! Note: The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in ObsSpaceData.
+! 
+! Last updated: 2021/12/18
 !
 !ObsDB Columns               MIDAS ObsSpaceData     BUFR ID           Unit             Description
 |-----HEADER TABLE INFO BEGINS------------------------------------------------------------------------------------------------------|
-Report                       headTableName          (-)               (-)              Header table name
-ID_REPORT                    headPrimaryKey         (-)               (-)              Unique row ID for report table
-DATE_VALID                   DAT;ETM                (-)               Date             Valid Date of Observation
+Report                       [headTableName]        (-)               (-)              Header table name
+ID_REPORT                    [headPrimaryKey]       (-)               (-)              Unique row ID for report table
+DATE_VALID                   [DAT;ETM]              (-)               Date             Valid Date of Observation
 STATION_ID                   STID                   (-)               Code_Table       Station ID (For radiance: satellite platform)
 RADIANCE_TYPE                ITY                    2166              Code_Table       Radiance Type
 LAT                          LAT                    (-)               Degrees          Latitude
@@ -26,8 +31,8 @@ ORIGINATING_CENTER           ORI                    1033              Code_Table
 |-----HEADER TABLE INFO ENDS-------------------------------------------------------------------------------------------------------|
 !
 |-----BODY TABLE INFO BEGINS-------------------------------------------------------------------------------------------------------|
-Observation                 bodyTableName          (-)                (-)              Body table name
-ID_OBSERVATION              bodyPrimaryKey         (-)                (-)              Unique row ID for observation table
+Observation                 [bodyTableName]        (-)                (-)              Body table name
+ID_OBSERVATION              [bodyPrimaryKey]       (-)                (-)              Unique row ID for observation table
 CHANNEL                     PPP                    2150/5042          (-)              Channel
 BRIGHTNESS_TEMPERATURE      VAR                    12163              K                Observed Brightness Temperature
 CHANNEL_QUALITY_FLAG        QCFL                   33032/33081        Flag Table       Channel Quality Flags for ATOVS
