@@ -54,6 +54,7 @@ module calcStatsLam_mod
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
   integer, parameter :: nMaxControlVar = 10
+  integer, parameter :: maxNumLevels   = 200
   
   type  :: struct_cv
     character(len=4)     :: NomVar(2)
@@ -79,7 +80,7 @@ module calcStatsLam_mod
 
   logical :: initialized = .false.
   logical :: NormByStdDev, SetTGtoZero, writeEnsPert
-  logical :: vertLoc, horizLoc
+  logical :: vertLoc, horizLoc, stdDevScaling
   logical :: ensContainsFullField
 
   character(len=12) :: WindTransform
@@ -94,6 +95,9 @@ module calcStatsLam_mod
   real(8) :: vLocalize_wind, vlocalize_mass, vlocalize_humidity, vlocalize_other ! vertical length scale (in units of ln(Pressure))
   real(8) :: hlocalize_wind, hlocalize_mass, hlocalize_humidity, hlocalize_other ! vertical length scale (in km)
 
+  real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
+  real(8)             :: scaleFactor_SF
+  
 contains
   
   !--------------------------------------------------------------------------
@@ -111,11 +115,12 @@ contains
     integer :: nulnam, ier, status
     integer :: fclos, fnom
     integer :: grd_ext_x, grd_ext_y
-    integer :: varIndex, k
+    integer :: varIndex, levIndex, k
 
     integer :: numStep
     integer, allocatable :: dateStampList(:)
 
+    real(8) :: scaleFactor(maxNumLevels)
     real(8) :: SurfacePressure
 
     character(len=256)  :: enspathname
@@ -128,7 +133,7 @@ contains
                                vLocalize_wind,vlocalize_mass,vlocalize_humidity,      &
                                hLocalize_wind,hlocalize_mass,hlocalize_humidity,      &
                                hLocalize_other,vlocalize_other,                       &
-                               correlatedVariables
+                               correlatedVariables,scaleFactor
 
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
@@ -172,6 +177,7 @@ contains
     hLocalize_mass      = -1.0d0 ! Default value (no hloc)
     hLocalize_humidity  = -1.0d0 ! Default value (no hloc)
     hLocalize_other     = -1.0d0 ! Default value (no hloc)
+    scaleFactor(:)      =  1.0d0 ! Default value (no scaling)
     
     nulnam = 0
 
@@ -415,7 +421,34 @@ contains
     end if
 
     !
-    !- 10.  Ending
+    !- 10.  Setup the scaling
+    !
+    if ( all(scaleFactor(:) == 1.d0) ) then
+      write(*,*) 
+      write(*,*) 'csl_setup: NO scaling of the StdDev will be performed'
+      stdDevScaling=.false.
+
+    else
+      write(*,*) 
+      write(*,*) 'csl_setup: scaling of the StdDev WILL BE performed'
+      stdDevScaling=.true.
+
+      allocate(scaleFactor_M(vco_bhi%nlev_M))
+      allocate(scaleFactor_T(vco_bhi%nlev_T))
+      do levIndex = 1, vco_bhi%nlev_T
+        if (scaleFactor(levIndex) > 0.0d0) then 
+          scaleFactor_T(levIndex) = sqrt(scaleFactor(levIndex))
+        else
+          scaleFactor_T(levIndex) = 0.0d0
+        end if
+      end do
+      scaleFactor_M(1:vco_bhi%nlev_M) = scaleFactor_T(1:vco_bhi%nlev_M)
+      scaleFactor_SF = scaleFactor_T(vco_bhi%nlev_T)
+
+    end if
+
+    !
+    !- 11.  Ending
     !
     initialized = .true.
 
@@ -505,6 +538,11 @@ contains
                       NormB   )    ! IN
      end if
 
+     !- 3.6 Apply scaling
+     if (stdDevScaling) then
+       call scaleStdDev(statevector_stdDev) ! INOUT
+     end if
+     
      call rpn_comm_barrier("GRID",ier)
 
     !
@@ -1645,6 +1683,46 @@ contains
     write(*,*) 'applyVertLoc: Done!'
 
   end subroutine applyVertLoc
+
+  !--------------------------------------------------------------------------
+  ! scaleStdDev
+  !--------------------------------------------------------------------------
+  subroutine scaleStdDev(statevector_stdDev)
+    implicit none
+
+    type(struct_gsv), intent(inout) :: statevector_stdDev
+
+    real(8), pointer :: ptr3d_r8(:,:,:)
+    real(8) :: multFactor
+    integer :: nVarLev, varLevIndex, levIndex
+    character(len=4) :: varName
+
+    write(*,*)
+    write(*,*) 'scaleStdDev: Starting...'
+    
+    nVarLev = gsv_getNumK(statevector_stdDev)
+ 
+    call gsv_getField(statevector_stdDev,ptr3d_r8)
+
+    do varLevIndex = 1, nVarLev
+      varName = gsv_getVarNameFromK(statevector_stdDev,varLevIndex)
+      levIndex = gsv_getLevFromK(statevector_stdDev,varLevIndex)
+
+      if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
+        multFactor = scaleFactor_M(levIndex)
+      else if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
+        multFactor = scaleFactor_T(levIndex)
+      else ! SF
+        multFactor = scaleFactor_SF
+      end if
+
+      ptr3d_r8(:,:,varLevIndex) = multFactor * ptr3d_r8(:,:,varLevIndex)
+    end do
+
+    write(*,*)
+    write(*,*) 'scaleStdDev: Done...'
+
+  end subroutine scaleStdDev
 
   !--------------------------------------------------------------------------
   ! writeVarStats
