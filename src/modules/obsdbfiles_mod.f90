@@ -75,7 +75,7 @@ module obsdbFiles_mod
   character(len=lenSqlName) :: midasKeySqlName
   integer :: numColMidasTable
   character(len=lenSqlName), allocatable :: midasOutputNamesList(:,:)  
-  integer, parameter :: numColMidasTableRequired = 3
+  integer :: numColMidasTableRequired
     
   ! Other constants
   logical, parameter :: setObsFlagZero = .true.
@@ -101,7 +101,7 @@ contains
     
     integer            :: nulfile, ierr
     integer, external  :: fnom, fclos
-    logical, save      :: AlreadyRead = .false.
+    logical, save      :: alreadyRead = .false.
     
     !  to be changed - used for testing only
     character(len=lenSqlName) :: obsdb_column_file                              ! Temporary Directory to 
@@ -114,8 +114,8 @@ contains
     integer            :: headerTableRow, bodyTableRow, midasTableRow    ! Counters to determine the size of 
                                                                          ! header and body table
     
-    integer            :: countRow, countMatchRow                        
-    integer            :: obsSpaceColIndexSource
+    integer            :: countRow, countMatchRow, countVarRow                        
+    integer            :: stringFoundIndex
     logical            :: obsColumnIsValid
                                                                        
     namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
@@ -181,10 +181,9 @@ contains
             numHeadMatch = numHeadMatch + 1
           end if
         end do
-
+        
       !Search for start of the body table
-      else if(index(trim(readline),'BODY TABLE INFO BEGINS')>0)then
-  
+      else if(index(trim(readline),'BODY TABLE INFO BEGINS')>0)then   
         !read the body table 
         do while(ierr==0)
           read(nulfile,'(A)' ,iostat=ierr) readline
@@ -274,6 +273,7 @@ contains
       else if(index(trim(readline),'BODY TABLE INFO BEGINS')>0)then
 
         countMatchRow = 0
+        countVarRow = 0 
         !Read all body table rows
         do countRow = 1, bodyTableRow
           read(nulfile,*,iostat=ierr) readDBColumn, readObsSpaceColumn, readBufrColumn      
@@ -295,14 +295,16 @@ contains
 
               !Assign varNoList if appropriate
               if(bodyMatchList(2,countMatchRow)=='VAR') then
-                varNoList(1, 1) = bodyMatchList(1,countMatchRow) 
-                varNoList(2, 1) = bodyBufrList(countMatchRow)
+                countVarRow = countVarRow + 1 
+                varNoList(1, countVarRow) = bodyMatchList(1,countMatchRow) 
+                varNoList(2, countVarRow) = bodyBufrList(countMatchRow)
               end if
           end select
         end do
 
       else if(index(trim(readline),'MIDAS TABLE INFO BEGINS')>0)then
 
+        numColMidasTableRequired = 0
         countMatchRow = 0
         !Read all body table rows
         do countRow = 1, midasTableRow
@@ -319,8 +321,15 @@ contains
               midasKeySqlName = midasKeySqlName(1:len(midasKeySqlName)-1)
             case default
               countMatchRow = countMatchRow +1
-              midasOutputNamesList(1,countMatchRow) = trim(readDBColumn)
+              midasOutputNamesList(1,countMatchRow) = trim(readDBColumn)              
               midasOutputNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
+             
+              !Check if the ObsSpaceData column name is mandatory 
+              stringFoundIndex = index(midasOutputNamesList(2,countMatchRow),'*')
+              if(stringFoundIndex > 0)then
+                midasOutputNamesList(2,countMatchRow) = trim(midasOutputNamesList(2,countMatchRow)(1:stringFoundIndex-1))
+                numColMidasTableRequired = numColMidasTableRequired + 1
+              end if
           end select
         end do
  
@@ -329,7 +338,7 @@ contains
 
     ierr = fclos(nulfile)
  
-    ! Check if the header and body table column names are read correctly 
+    ! Check if the header, body and MIDAS table column names are read correctly 
     if(len(trim(headTableName))==0) call utl_abort("odbf_setup: headTableName is incorrectly defined or missing")
 
     if(len(trim(headKeySqlName))==0) call utl_abort("odbf_setup: headKeySqlName is incorrectly defined or missing")
@@ -339,7 +348,6 @@ contains
     if(len(trim(bodyTableName))==0) call utl_abort("odbf_setup: bodyTableName is incorrectly defined or missing")
 
     if(len(trim(bodyKeySqlName))==0) call utl_abort("odbf_setup: bodyKeySqlName is incorrectly defined or missing")
-
 
     do countRow = 1, numHeadMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(headMatchList(2,countRow)))
@@ -353,7 +361,6 @@ contains
 
       if(obsColumnIsValid ==.false.) call utl_abort("odbf_setup: Column in Body Table does not exist in ObsSpaceData: "&
              //trim(bodyMatchList(2,countRow)))
-
     end do
 
     do countRow = 1, numColMidasTable 
@@ -362,9 +369,6 @@ contains
       if(obsColumnIsValid ==.false.) call utl_abort("odbf_setup: Column in MIDAS Table does not exist in ObsSpaceData: "&
              //trim(midasOutputNamesList(2,countRow)))
     end do
-
-
-  
 
   end subroutine odbf_setup
 
