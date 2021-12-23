@@ -1368,6 +1368,7 @@ module ObsSpaceData_mod
    public obs_columnActive_IH !                 "
    public obs_columnActive_RB !                 "
    public obs_columnActive_RH !                 "
+   public obs_isColumnNameValid      ! Check if column name is a valid obsSpaceData name
    public obs_columnIndexFromName    ! get the index from the name (any flavour)
    public obs_columnIndexFromName_IB ! get the index from the name
    public obs_columnIndexFromName_IH !         "
@@ -2350,6 +2351,66 @@ contains
       call obs_abort(message); return
 
    end function obs_columnIndexFromName
+
+   function obs_isColumnNameValid(column_name) result(isValid)  
+      !
+      ! :Purpose:
+      !      Check if the obsSpaceData column name is valid.
+      !      
+      implicit none
+      character(len=*)        , intent(in)  :: column_name
+      logical            :: isValid
+      integer            :: column_index
+
+      isValid = .false.
+
+
+      ! check "STID" 
+      if(trim(column_name) == "STID") isValid=.true.
+ 
+      if (isValid) return
+
+      ! check integer-header
+      do column_index=odc_flavour_IH%ncol_beg, odc_flavour_IH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IH%columnNameList(column_index)))then
+            isValid=.true.
+            exit
+         endif
+      enddo
+      if (isValid) return
+
+      ! check real-header
+      do column_index=odc_flavour_RH%ncol_beg, odc_flavour_RH%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RH%columnNameList(column_index)))then
+            isValid=.true.
+            exit
+         endif
+      enddo
+      if (isValid) return
+  
+      ! check integer-body
+      do column_index=odc_flavour_IB%ncol_beg, odc_flavour_IB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_IB%columnNameList(column_index)))then
+            isValid=.true.
+            exit
+         endif
+      enddo
+      if (isValid) return
+
+      ! check real-body
+      do column_index=odc_flavour_RB%ncol_beg, odc_flavour_RB%ncol_end
+         if(trim(column_name) == &
+            trim(odc_flavour_RB%columnNameList(column_index)))then
+            isValid=.true.
+            exit
+         endif
+      enddo
+      if (isValid) return
+   
+   end function obs_isColumnNameValid
 
 
    function obs_columnIndexFromNameForFlavour(odc_flavour, column_name) &

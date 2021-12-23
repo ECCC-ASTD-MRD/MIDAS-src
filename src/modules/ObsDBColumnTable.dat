@@ -1,17 +1,21 @@
-! ObsDB Sqlite Summary Table
-! Summary of the ObsDB columns in the header and body table for observations
-! Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations in future implementations 
-!
-! Note: The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
-! Note: The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in ObsSpaceData.
+! ObsDB SQLite Summary Table
+! Summary of the ObsDB columns in the header, body and MIDAS output table for observations
+! This table relates the SQLite column names with the corresponding MIDAS ObsSpaceData variabe and BUFR ID
 ! 
-! Last updated: 2021/12/18
+! Note:
+!        -  Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations 
+!           in future implementations 
+!        -  The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
+!        -  The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in 
+!           ObsSpaceData. 
+! 
+! Last updated: 2021/12/22
 !
 !ObsDB Columns               MIDAS ObsSpaceData     BUFR ID           Unit             Description
 |-----HEADER TABLE INFO BEGINS------------------------------------------------------------------------------------------------------|
 Report                       [headTableName]        (-)               (-)              Header table name
 ID_REPORT                    [headPrimaryKey]       (-)               (-)              Unique row ID for report table
-DATE_VALID                   [DAT;ETM]              (-)               Date             Valid Date of Observation
+DATE_VALID                   [headDateSqlName]      (-)               Date             Valid Date of Observation
 STATION_ID                   STID                   (-)               Code_Table       Station ID (For radiance: satellite platform)
 RADIANCE_TYPE                ITY                    2166              Code_Table       Radiance Type
 LAT                          LAT                    (-)               Degrees          Latitude
@@ -37,3 +41,19 @@ CHANNEL                     PPP                    2150/5042          (-)       
 BRIGHTNESS_TEMPERATURE      VAR                    12163              K                Observed Brightness Temperature
 CHANNEL_QUALITY_FLAG        QCFL                   33032/33081        Flag Table       Channel Quality Flags for ATOVS
 |-----BODY TABLE INFO ENDS---------------------------------------------------------------------------------------------------------|
+!
+|-----MIDAS TABLE INFO BEGINS------------------------------------------------------------------------------------------------------|
+MIDAS_OUTPUT                [midasTableName]       (-)                (-)              MIDAS table name
+ID_MIDAS                    [midasPrimaryKey]      (-)                (-)              Unique row ID for MIDAS table
+VCOORD                      PPP                    (-)                (-)              Vertical coordinate parameter
+VARNO                       VNM                    (-)                (-)              Variable Number
+OBS_VALUE                   VAR                    (-)                (-)              Observation Value
+FLAG                        FLG                    (-)                (-)              Flag
+OBS_MINUS_BACKGROUND        OMP                    (-)                (-)              Observation Minus Background
+OBS_MINUS_ANALYSIS          OMA                    (-)                (-)              Observation Minus Analysis
+OBS_ERROR                   OER                    (-)                (-)              Observation Error
+BACKGROUND_ERROR            HPHT                   (-)                (-)              Background Error
+FSO                         FSO                    (-)                (-)              Forecast Sensitivity to Observation
+BIAS_CORRECTION             BCOR                   (-)                (-)              Observation Bias Correction
+SFC_EMISSIVITY              SEM                    (-)                (-)              Surface Emissivity for Radiance Observation
+|-----MIDAS TABLE INFO ENDS------------------------------------------------------------------------------------------------------|
