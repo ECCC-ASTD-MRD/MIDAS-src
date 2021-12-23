@@ -54,6 +54,7 @@ module calcStatsLam_mod
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
   integer, parameter :: nMaxControlVar = 10
+  integer, parameter :: maxNumLevels   = 200
   
   type  :: struct_cv
     character(len=4)     :: NomVar(2)
@@ -79,7 +80,7 @@ module calcStatsLam_mod
 
   logical :: initialized = .false.
   logical :: NormByStdDev, SetTGtoZero, writeEnsPert
-  logical :: vertLoc, horizLoc
+  logical :: vertLoc, horizLoc, stdDevScaling
   logical :: ensContainsFullField
 
   character(len=12) :: WindTransform
@@ -94,28 +95,37 @@ module calcStatsLam_mod
   real(8) :: vLocalize_wind, vlocalize_mass, vlocalize_humidity, vlocalize_other ! vertical length scale (in units of ln(Pressure))
   real(8) :: hlocalize_wind, hlocalize_mass, hlocalize_humidity, hlocalize_other ! vertical length scale (in km)
 
+  real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
+  real(8)             :: scaleFactor_SF
+  
 contains
   
   !--------------------------------------------------------------------------
   ! csl_setup
   !--------------------------------------------------------------------------
   subroutine csl_setup(nEns_in, hco_ens_in, vco_ens_in, ip2_in)
+    !
+    ! :Purpose: To initialize this module
+    !
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
+    ! arguments
     integer,                   intent(in)   :: nEns_in
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
     integer,                   intent(in)   :: ip2_in
 
+    ! locals
     integer :: nulnam, ier, status
     integer :: fclos, fnom
     integer :: grd_ext_x, grd_ext_y
-    integer :: varIndex, k
+    integer :: varIndex, levIndex, k
 
     integer :: numStep
     integer, allocatable :: dateStampList(:)
 
+    real(8) :: scaleFactor(maxNumLevels)
     real(8) :: SurfacePressure
 
     character(len=256)  :: enspathname
@@ -128,7 +138,7 @@ contains
                                vLocalize_wind,vlocalize_mass,vlocalize_humidity,      &
                                hLocalize_wind,hlocalize_mass,hlocalize_humidity,      &
                                hLocalize_other,vlocalize_other,                       &
-                               correlatedVariables
+                               correlatedVariables,scaleFactor
 
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
@@ -172,6 +182,7 @@ contains
     hLocalize_mass      = -1.0d0 ! Default value (no hloc)
     hLocalize_humidity  = -1.0d0 ! Default value (no hloc)
     hLocalize_other     = -1.0d0 ! Default value (no hloc)
+    scaleFactor(:)      =  1.0d0 ! Default value (no scaling)
     
     nulnam = 0
 
@@ -415,7 +426,34 @@ contains
     end if
 
     !
-    !- 10.  Ending
+    !- 10.  Setup the scaling
+    !
+    if ( all(scaleFactor(:) == 1.d0) ) then
+      write(*,*) 
+      write(*,*) 'csl_setup: NO scaling of the StdDev will be performed'
+      stdDevScaling=.false.
+
+    else
+      write(*,*) 
+      write(*,*) 'csl_setup: scaling of the StdDev WILL BE performed'
+      stdDevScaling=.true.
+
+      allocate(scaleFactor_M(vco_bhi%nlev_M))
+      allocate(scaleFactor_T(vco_bhi%nlev_T))
+      do levIndex = 1, vco_bhi%nlev_T
+        if (scaleFactor(levIndex) > 0.0d0) then 
+          scaleFactor_T(levIndex) = sqrt(scaleFactor(levIndex))
+        else
+          scaleFactor_T(levIndex) = 0.0d0
+        end if
+      end do
+      scaleFactor_M(1:vco_bhi%nlev_M) = scaleFactor_T(1:vco_bhi%nlev_M)
+      scaleFactor_SF = scaleFactor_T(vco_bhi%nlev_T)
+
+    end if
+
+    !
+    !- 11.  Ending
     !
     initialized = .true.
 
@@ -429,8 +467,12 @@ contains
   ! csl_computeBhi
   !--------------------------------------------------------------------------
   subroutine csl_computeBhi
+    !
+    ! :Purpose: To compute an homogeneous and isotopic B matrix
+    !
     implicit none
 
+    ! locals
     real(8),allocatable :: SpVertCorrel(:,:,:)
     real(8),allocatable :: TotVertCorrel(:,:)
     real(8),allocatable :: NormB(:,:,:)
@@ -505,6 +547,11 @@ contains
                       NormB   )    ! IN
      end if
 
+     !- 3.6 Apply scaling
+     if (stdDevScaling) then
+       call scaleStdDev(statevector_stdDev) ! INOUT
+     end if
+     
      call rpn_comm_barrier("GRID",ier)
 
     !
@@ -546,8 +593,12 @@ contains
   ! csl_toolbox
   !--------------------------------------------------------------------------
   subroutine csl_toolbox
+    !
+    ! :Purpose: High-level control of various diagnostic tools
+    !
     implicit none
 
+    ! locals
     real(8),allocatable :: SpVertCorrel(:,:,:)
     real(8),allocatable :: NormB(:,:,:)
     real(8),allocatable :: PowerSpectrum(:,:)
@@ -668,13 +719,19 @@ contains
   !--------------------------------------------------------------------------
   subroutine calcSpectralStats(ensPerts,SpVertCorrel,PowerSpectrum, &
                                NormB)
+    !
+    ! :Purpose: To compute background-error covariances in spectral space
+    !           from an ensemble of gridded data
+    !
     implicit none
 
+    ! arguments
     type(struct_ens)        :: ensPerts
     real(8), intent(out)    :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(out)    :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
     real(8), intent(out)    :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable    :: NormPowerSpectrum(:,:)
     real(8), allocatable    :: SpectralStateVar(:,:,:)
     real(8), allocatable    :: SpVertCorrel_local(:,:,:)
@@ -874,11 +931,16 @@ contains
   ! normalizePowerSpectrum
   !--------------------------------------------------------------------------
   subroutine normalizePowerSpectrum(PowerSpectrum, NormPowerSpectrum)
+    !
+    ! :Purpose: To convert spectral variances into spectral correlations 
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in)    :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
     real(8), intent(out)   :: NormPowerSpectrum(bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
 
@@ -983,17 +1045,22 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'NormalizePowerSpectrum: Done!'
 
-  end subroutine NormalizePowerSpectrum
+  end subroutine normalizePowerSpectrum
 
   !--------------------------------------------------------------------------
   ! calcHorizScale
   !--------------------------------------------------------------------------
   subroutine calcHorizScale(HorizScale,SpCovariance)
+    !
+    ! :Purpose: To compute horizontal lenght scales based on the power spectra
+    !
     implicit none
 
+    ! arguments
     real(8), intent(out) :: HorizScale(bhi%nVarLev)
     real(8), intent(in)  :: SpCovariance(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8) :: a, b, beta, dx, dist
 
     integer :: totwvnb, k, var
@@ -1047,12 +1114,17 @@ contains
   ! calcTotVertCorrel
   !--------------------------------------------------------------------------
   subroutine calcTotVertCorrel(TotVertCorrel, SpVertCorrel, PowerSpectrum)
+    !
+    ! :Purpose: To compute the total vertical correlations (i.e. gridpoint equivalent)
+    !
     implicit none
 
+    ! arguments
     real(8), intent(out)    :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
     real(8), intent(in)     :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in)     :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable    :: TotVertCov(:,:)
 
     integer           :: k1, k2, totwvnb
@@ -1104,10 +1176,16 @@ contains
   ! calcBsqrt
   !--------------------------------------------------------------------------
   subroutine calcBsqrt(Bsqrt,B)
+    !
+    ! :Purpose: To compute the sqare-root of B
+    !
     implicit none
+
+    ! arguments
     real(8), intent(out)   :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in)    :: B    (bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     integer :: totwvnb
 
     !
@@ -1125,10 +1203,15 @@ contains
   ! setSpVertCorrel
   !--------------------------------------------------------------------------
   subroutine setSpVertCorrel(SpVertCorrel)
+    !
+    ! :Purpose: To discard some user-defined cross-correlations
+    !
     implicit none
 
+    ! arguments
     real(8), intent(inout) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable :: KeepOrDiscard(:,:)
 
     integer :: totwvnb, var1, var2, k1, k2 
@@ -1194,9 +1277,15 @@ contains
   ! calcVertCorrel
   !--------------------------------------------------------------------------
   subroutine calcVertCorrel(ensPerts)
+    !
+    ! :Purpose: To compute vertical correlations from an ensemble of gridded data
+    !
     implicit none
 
+    ! arguments
     type(struct_ens)     :: ensPerts
+
+    ! locals
     real(8), allocatable :: vertCorrel(:,:)
 
     real(4), pointer  :: ptr4d_k1_r4(:,:,:,:)
@@ -1283,10 +1372,17 @@ contains
   ! horizCorrelFunction
   !--------------------------------------------------------------------------
   subroutine horizCorrelFunction(NormB)
+    !
+    ! :Purpose: To compute and write the horizontal correlation function of
+    !           every variables and levels in the correlation formulation of
+    !           the B matrix (i.e. C matrix)
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in)    :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
 
@@ -1368,10 +1464,15 @@ contains
   ! applyHorizLoc
   !--------------------------------------------------------------------------
   subroutine applyHorizLoc(NormPowerSpectrum)
+    !
+    ! :Purpose: To apply horizontal localization to the  spectral correlations
+    !
     implicit none
 
+    ! arguments
     real(8), intent(inout) :: NormPowerSpectrum(bhi%nVarLev,0:nTrunc)
 
+    ! locals
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
     real(8), allocatable   :: GridStateLoc(:,:,:)
@@ -1516,8 +1617,8 @@ contains
     deallocate(SumWeight)
 
     !- 3.3 Normalize
-    call NormalizePowerSpectrum(PowerSpectrum,     & ! IN
-         NormPowerSpectrum)   ! OUT
+    call normalizePowerSpectrum(PowerSpectrum,     & ! IN
+                                NormPowerSpectrum)   ! OUT
 
     deallocate(SpectralStateVar)
     deallocate(GridState)
@@ -1532,10 +1633,15 @@ contains
   ! applyVertLoc
   !--------------------------------------------------------------------------
   subroutine applyVertLoc(SpVertCorrel)
+    !
+    ! :Purpose: To apply vertical localization to the spectral correlations
+    !
     implicit none
 
+    ! arguments
     real(8), intent(inout) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
+    ! locals
     integer :: totwvnb, var1, var2, k1, k2, lev1, lev2
 
     real(8)  :: dist, fact, vLocalize, pres1, pres2, vLocalize1, vLocalize2
@@ -1647,14 +1753,64 @@ contains
   end subroutine applyVertLoc
 
   !--------------------------------------------------------------------------
+  ! scaleStdDev
+  !--------------------------------------------------------------------------
+  subroutine scaleStdDev(statevector_stdDev)
+    !
+    ! :Purpose: To scale the gridpoint background-error standard deviations
+    !
+    implicit none
+    
+    ! arguments
+    type(struct_gsv), intent(inout) :: statevector_stdDev
+
+    ! locals
+    real(8), pointer :: ptr3d_r8(:,:,:)
+    real(8) :: multFactor
+    integer :: nVarLev, varLevIndex, levIndex
+    character(len=4) :: varName
+
+    write(*,*)
+    write(*,*) 'scaleStdDev: Starting...'
+    
+    nVarLev = gsv_getNumK(statevector_stdDev)
+ 
+    call gsv_getField(statevector_stdDev,ptr3d_r8)
+
+    do varLevIndex = 1, nVarLev
+      varName = gsv_getVarNameFromK(statevector_stdDev,varLevIndex)
+      levIndex = gsv_getLevFromK(statevector_stdDev,varLevIndex)
+
+      if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
+        multFactor = scaleFactor_M(levIndex)
+      else if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
+        multFactor = scaleFactor_T(levIndex)
+      else ! SF
+        multFactor = scaleFactor_SF
+      end if
+
+      ptr3d_r8(:,:,varLevIndex) = multFactor * ptr3d_r8(:,:,varLevIndex)
+    end do
+
+    write(*,*)
+    write(*,*) 'scaleStdDev: Done...'
+
+  end subroutine scaleStdDev
+
+  !--------------------------------------------------------------------------
   ! writeVarStats
   !--------------------------------------------------------------------------
   subroutine writeVarStats(Bsqrt,statevector_stdDev)
+    !
+    ! :Purpose: To write data needed for VAR applications, i.e C^1/2 and stdDev
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in) :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     type(struct_gsv)    :: statevector_stdDev
 
+    ! locals
     integer   :: ier, fstouv, fnom, fstfrm, fclos
     integer   :: iunstats
 
@@ -1696,8 +1852,13 @@ contains
   !--------------------------------------------------------------------------
   subroutine writeDiagStats(NormB,SpVertCorrel,TotVertCorrel,statevector_mean, &
                             statevector_stdDevGridPoint,PowerSpectrum,HorizScale)
+    !
+    ! :Purpose: To write other relevant data computed during the
+    !           calculation of Bhi that are not needed for VAR applications
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in) :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
@@ -1706,6 +1867,7 @@ contains
     real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
     real(8), intent(in) :: HorizScale(bhi%nVarLev)
 
+    ! locals
     integer   :: ier, fstouv, fnom, fstfrm, fclos
     integer   :: iunstats
 
@@ -1757,13 +1919,18 @@ contains
   ! writeSpVertCorrel
   !--------------------------------------------------------------------------
   subroutine writeSpVertCorrel(SpVertCorrel,iun,nomvar_in,etiket_in)
+    !
+    ! :Purpose: To write vertical correlations in spectral space
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     integer, intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
+    ! locals
     real(4), allocatable :: work2d(:,:)
 
     real(4) :: work
@@ -1822,13 +1989,19 @@ contains
   ! writeTotVertCorrel
   !--------------------------------------------------------------------------
   subroutine writeTotVertCorrel(TotVertCorrel,iun,nomvar_in,etiket_in)
+    !
+    ! :Purpose: To write the total vertical correlations
+    !           (i.e. gridpoint equivalent)
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
     integer, intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
+    ! locals
     real(4), allocatable :: workecr(:,:)
 
     real(4)   :: work
@@ -1882,13 +2055,18 @@ contains
   ! writePowerSpectrum
   !--------------------------------------------------------------------------
   subroutine writePowerSpectrum(PowerSpectrum,iun,etiket_in,cv_type)
+    !
+    ! :Purpose: To write the power spectrum 
+    !
     implicit none
 
+    ! arguments
     real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
     integer, intent(in) :: iun
     integer, intent(in) :: cv_type
     character(len=*), intent(in) :: Etiket_in
 
+    ! locals
     real(4), allocatable :: workecr(:,:)
 
     real(4)   :: work
@@ -1954,6 +2132,9 @@ contains
   ! writeHorizScale
   !--------------------------------------------------------------------------
   subroutine writeHorizScale(HorizScale,iun,etiket_in,cv_type)
+    !
+    ! :Purpose: To write the horizontal lenght scales
+    !
     implicit none
 
     real(8), intent(in) :: HorizScale(bhi%nVarLev)
@@ -2019,10 +2200,15 @@ contains
   ! writeControlVarInfo
   !--------------------------------------------------------------------------
   subroutine writeControlVarInfo(iun)
+    !
+    ! :Purpose: To write the control variable related info
+    !
     implicit none
 
+    ! arguments
     integer, intent(in) :: iun
 
+    ! locals
     integer :: ier, fstecr, fstecr_s
 
     real(8) :: work
@@ -2110,8 +2296,12 @@ contains
   ! writePressureProfiles
   !--------------------------------------------------------------------------
   subroutine writePressureProfiles
+    !
+    ! :Purpose: To write the MM and TH pressure profiles used for vertical localization
+    !
     implicit none
 
+    ! locals
     character(len=128) :: outfilename
 
     integer :: jk
@@ -2139,9 +2329,15 @@ contains
   ! calcLocalCorrelations
   !--------------------------------------------------------------------------
   subroutine calcLocalCorrelations(ensPerts)
+    !
+    ! :Purpose: To compute the local horizontal correlation for some 'reference' grid points
+    !
     implicit none
+
+    ! arguments
     type(struct_ens) :: ensPerts
 
+    ! locals
     type(struct_gsv) :: statevector_locHorizCor
     type(struct_gsv) :: statevector_oneMember
     type(struct_gsv) :: statevector_oneMemberTiles
