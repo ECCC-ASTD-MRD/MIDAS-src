@@ -45,11 +45,10 @@ module var1D_mod
 
   type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
-  integer             :: nlev_M, nlev_T, nkgdim
+  integer             :: nkgdim
   integer             :: cvDim_mpilocal
-  type(struct_vco), pointer :: vco_anl
   integer, parameter   :: maxNumLevels=200
-  integer              :: nulbgst=0
+ 
   real(8), allocatable :: bMatrix(:,:)
   real(8), allocatable :: bSqrtLand(:,:,:), bSqrtSea(:,:,:)
   real(4), allocatable :: latLand(:), lonLand(:), latSea(:), lonSea(:)
@@ -58,7 +57,6 @@ module var1D_mod
   integer, external    :: get_max_rss
   integer, allocatable :: var1D_validHeaderIndex(:)    ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
   integer              :: var1D_validHeaderCount !taille effective de  var1D_validHeaderIndex
-  type(struct_vco), target  :: vco_1Dvar
   integer,          parameter :: numMasterBmat = 1
   character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'   /)
   character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI' /)
@@ -71,36 +69,38 @@ module var1D_mod
   logical          :: bmatIs3dList  (numBmatMax)
   logical          :: bmatActive    (numBmatMax)
   !Namelist variables
-  real(8)             :: scaleFactor(maxNumLevels)    ! scaling factors for variances (no
-  real(8)             :: scaleFactorLQ(maxNumLevels)  ! scaling factors for LQ variances
-
+  real(8)          :: scaleFactor(maxNumLevels)    ! scaling factors for variances (no
+  real(8)          :: scaleFactorLQ(maxNumLevels)  ! scaling factors for LQ variances
 
 contains
 
   !--------------------------------------------------------------------------
   !  var1D_setup
   !--------------------------------------------------------------------------
-  subroutine var1D_setup(vco_in, obsdat, CVDIM_OUT)
+  subroutine var1D_setup(vco_in, obsSpaceData, cvDim_out)
     !
     ! :Purpose: to setup var1D module
     !
     implicit none
     ! arguments:
     type(struct_vco), pointer, intent(in):: vco_in
-    type (struct_obs), intent(in)        :: obsdat
+    type (struct_obs), intent(in)        :: obsSpaceData
     integer, intent(out)                 :: cvDim_out
     ! locals:
     integer :: levelIndex, nulnam, ierr
     integer, external ::  fnom, fclos
     integer :: status, Vcode_anl
     logical :: fileExists
+    integer :: nulbgst=0
     type(struct_vco), pointer :: vco_file => null()
-    character(len=24) :: oneDBmatLand = './Bmatrix_land.bin'
-    character(len=24) :: oneDBmatSea = './Bmatrix_sea.bin'
+    type(struct_vco), target  :: vco_1Dvar
+    type(struct_vco), pointer :: vco_anl
+    character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
+    character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     integer :: extractDate, locationIndex, countGood, headerIndex
     integer :: bodyStart, bodyEnd, bodyIndex
- 
-    NAMELIST /NAMVAR1D/ scaleFactor, scaleFactorLQ
+    
+    namelist /NAMVAR1D/ scaleFactor, scaleFactorLQ
 
     call tmg_start(15,'BHI1D_SETUP')
     if(mpi_myid == 0) write(*,*) 'var1D_setup: Starting'
@@ -125,7 +125,7 @@ contains
     end do
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'var1D_setup: scaleFactor=0, skipping rest of setup'
-      cvdim_out = 0
+      cvDim_out = 0
       call tmg_stop(15)
       return
     end if
@@ -136,10 +136,6 @@ contains
         scaleFactorLQ(levelIndex) = 0.0d0
       end if
     end do
-    vco_anl => vco_in
-    nLev_M = vco_anl%nlev_M
-    nLev_T = vco_anl%nlev_T
-    if (mpi_myid == 0) write(*,*) 'var1D_setup: nLev_M, nLev_T=',nLev_M, nLev_T
 
     if (mpi_myid == 0) write(*,*) 'var1D_setup: Read 1DVar background statistics'
     inquire(file=trim(oneDBmatLand), exist=fileExists)
@@ -150,7 +146,7 @@ contains
     end if
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
          vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, var1D_varCount, nkgdim, nLonLatPosLand
-    allocate( vco_1Dvar%ip1_T(nLev_T), vco_1Dvar%ip1_M(nLev_M) )
+    allocate( vco_1Dvar%ip1_T(vco_1Dvar%nLev_T), vco_1Dvar%ip1_M(vco_1Dvar%nLev_M) )
     allocate( var1D_varList(var1D_varCount) )
     allocate( bMatrix(nkgdim,nkgdim) )
     allocate( latLand(nLonLatPosLand), lonLand(nLonLatPosLand))       
@@ -184,10 +180,12 @@ contains
     vco_1Dvar%initialized = .true.
     vco_1Dvar%vGridPresent = .false.
     vco_file => vco_1Dvar
+    vco_anl => vco_in
     if (.not. vco_equal(vco_anl,vco_file)) then
       call utl_abort('var1D_setup: vco from analysisgrid and cov file do not match')
     end if
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if (mpi_myid == 0) write(*,*) 'var1D_setup: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
+    status = vgd_get(vco_anl%vgrid, key='ig_1 - vertical coord code', value=Vcode_anl)
     if(Vcode_anl /= 5002 .and. Vcode_anl /= 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('var1D_setup: unknown vertical coordinate type!')
@@ -208,13 +206,13 @@ contains
 
     !we want to count how many obs are really assimilable to minimize controlvector size
     var1D_validHeaderCount = 0
-    allocate(  var1D_validHeaderIndex(obs_numHeader(obsdat)) )
-    do headerIndex = 1, obs_numHeader(obsdat)
-      bodyStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
-      bodyEnd = obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyStart - 1
+    allocate(  var1D_validHeaderIndex(obs_numHeader(obsSpaceData)) )
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      bodyStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyStart - 1
       countGood = 0
       do bodyIndex = bodyStart, bodyEnd
-        if (obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex) == obs_assimilated) countGood = countGood + 1
+        if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) countGood = countGood + 1
       end do
       if (countGood > 0)  then
         var1D_validHeaderCount = var1D_validHeaderCount + 1
@@ -222,7 +220,7 @@ contains
         if (var1D_validHeaderCount == 1) write(*,*) 'first OBS', headerIndex
       end if
     end do
-    write(*,*) 'var1D_setup: var1D_validHeaderCount, obs_numHeader(obsdat)', var1D_validHeaderCount, obs_numHeader(obsdat)
+    write(*,*) 'var1D_setup: var1D_validHeaderCount, obs_numHeader(obsSpaceData)', var1D_validHeaderCount, obs_numHeader(obsSpaceData)
     cvDim_out = nkgdim * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
     initialized = .true.
@@ -232,7 +230,7 @@ contains
   !--------------------------------------------------------------------------
   ! var1D_bSqrtHi
   !--------------------------------------------------------------------------
-  subroutine var1D_bSqrtHi(controlVector_in, column, dataObs)
+  subroutine var1D_bSqrtHi(controlVector_in, column, obsSpaceData)
     !
     ! :Purpose: HI component of B square root in 1DVar mode
     !
@@ -240,7 +238,7 @@ contains
     ! arguments:
     real(8), intent(in)                    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: dataObs
+    type(struct_obs), intent(in)           :: obsSpaceData
     ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -258,8 +256,8 @@ contains
     allocate(oneDProfile(nkgdim))
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian 
-      surfaceType = tvs_ChangedStypValue(dataObs, headerIndex)
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
+      surfaceType = tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
         oneDProfile(:) = matmul(bSqrtSea(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
@@ -288,7 +286,7 @@ contains
   !--------------------------------------------------------------------------
   ! var1D_bSqrtHiAd
   !--------------------------------------------------------------------------
-  subroutine var1D_bSqrtHiAd(controlVector_in, column, dataObs)
+  subroutine var1D_bSqrtHiAd(controlVector_in, column, obsSpaceData)
     !
     ! :Purpose: HI component of B square root adjoint in 1DVar mode
     !
@@ -296,7 +294,7 @@ contains
     ! arguments:
     real(8), intent(inout)                 :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type (struct_obs), intent(in)          :: dataObs
+    type (struct_obs), intent(in)          :: obsSpaceData
     ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -323,8 +321,8 @@ contains
         write(*,*) 'var1D_bSqrtHiAd: offset, nkgdim', offset, nkgdim
         call utl_abort('var1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
-      latitude = obs_headElem_r(dataObs, OBS_LAT, headerIndex) !radian
-      surfaceType =  tvs_ChangedStypValue(dataObs, headerIndex)
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian
+      surfaceType =  tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
         controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
@@ -494,7 +492,7 @@ contains
 
     end do
 
-    call rpn_comm_barrier("GRID",ierr)
+    call rpn_comm_barrier("GRID", ierr)
     deallocate( obsOffset )
     deallocate( var1D_validHeaderCountAllTasks )
     
@@ -525,13 +523,13 @@ contains
   !--------------------------------------------------------------------------
   ! var1D_bsetup
   !--------------------------------------------------------------------------
-  subroutine var1D_bsetup(vco_anl, obsdat)
+  subroutine var1D_bsetup(vco_in, obsdat)
     !
     !:Purpose: To initialize the 1Dvar analysis Background term.
     !
     implicit none
     ! arguments:
-    type(struct_vco), pointer, intent(in) :: vco_anl
+    type(struct_vco), pointer, intent(in) :: vco_in
     type (struct_obs), intent(in)         :: obsdat
     ! locals:
     integer, allocatable :: cvDimPerInstance(:)
@@ -551,7 +549,7 @@ contains
         nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
         write(*,*) 'var1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
-        call var1D_Setup(vco_anl, obsdat, cvdim)
+        call var1D_Setup(vco_in, obsdat, cvdim)
         write(*,*) " var1D_bsetup: cvdim= ", cvdim
         cvdimPerInstance(1) = cvdim
       case default
@@ -578,7 +576,7 @@ contains
     !- 2. Print a summary and set the active B matrices array
     !
     write(*,*)
-    write(*,*) "var1D_setup SUMMARY, number of B matrices found = ", numBmat
+    write(*,*) "var1D_bsetup SUMMARY, number of B matrices found = ", numBmat
     do bmatIndex = 1, numBmat
       write(*,*) "  B matrix #", bmatIndex
       active = cvm_subVectorExists(bmatLabelList(bmatIndex))
