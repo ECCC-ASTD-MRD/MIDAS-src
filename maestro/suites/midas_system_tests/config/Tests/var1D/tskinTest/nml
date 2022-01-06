@@ -7,7 +7,7 @@
   numberBitsOff=0 ,
   numberBitsOn=0 ,
 /
- &NAMVAR1D
+ &NAMBMAT1D
 /
 
  &NAMS2C
