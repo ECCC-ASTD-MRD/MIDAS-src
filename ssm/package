@@ -140,75 +140,68 @@ whichPlatforms () {
 
 } ## End of function 'whichPlatforms'
 
-echo BHSCRIPTS=${BHSCRIPTS}
-for bhscript in ${BHSCRIPTS}; do
+echo Executing the script ${bhscript} to create the package ${pkgname}.ssm
+for platform in ${platforms}; do
+    ssmbuildhost=host:
+    ssmhost=
+    case "${platform}" in
+	all)
+	    compiler=
+	    ;;
+	ubuntu-18.04-skylake-64)
+	    compiler=intel-19.0.3.199
+	    ssmhost=${frontend}
+	    ;;
+	sles-15-skylake-64-xc50)
+	    compiler=PrgEnv-intel-6.0.5
+	    ssmhost=${backend}
+	    ;;
+    esac
 
-    whichPlatforms ${bhscript}
+    echo -n Working with ${pkgname} for platform ${platform}
 
-    echo Executing the script ${bhscript} to create the package ${pkgname}.ssm
-    for platform in ${platforms}; do
-	ssmbuildhost=host:
-	ssmhost=
-	case "${platform}" in
-	    all)
-		compiler=
-		;;
-	    ubuntu-18.04-skylake-64)
-		compiler=intel-19.0.3.199
-		ssmhost=${frontend}
-		;;
-	    sles-15-skylake-64-xc50)
-		compiler=PrgEnv-intel-6.0.5
-		ssmhost=${backend}
-		;;
-	esac
+    if [ -n "${compiler}" ]; then
+	echo " with compiler ${compiler}"
+	compiler_string=-${compiler}
+    else
+	compiler_string=
+    fi
 
-	echo -n Working with ${pkgname} for platform ${platform}
-
-	if [ -n "${compiler}" ]; then
-	    echo " with compiler ${compiler}"
-	    compiler_string=-${compiler}
+    other_bh_args=
+    if [ -n "${ssmhost}" ]; then
+	if [ "${ssmhost}" = local ]; then
+	    other_bh_args="${other_bh_args} --local"
 	else
-	    compiler_string=
+	    other_bh_args="${other_bh_args} --host ${ssmhost}"
 	fi
+    fi
 
-	other_bh_args=
-	if [ -n "${ssmhost}" ]; then
-	    if [ "${ssmhost}" = local ]; then
-		other_bh_args="${other_bh_args} --local"
-	    else
-		other_bh_args="${other_bh_args} --host ${ssmhost}"
-	    fi
-	fi
+    if [ "${pkgname}" = midas ]; then
+	other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
+    fi
+    ## Un package SSM ne peut contenir de caractere '_' dans le nom
+    ## puisque cela interfere avec la separation des plateformes.
+    BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
+    set -x
+    ./${bhscript} -w ${workdir}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
+      -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
+      -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
+      -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
+      -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
+      ${other_bh_args}
+    set +x
+    rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
 
-        if [ "${pkgname}" = midas ]; then
-	    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
-        fi
-	## Un package SSM ne peut contenir de caractere '_' dans le nom
-	## puisque cela interfere avec la separation des plateformes.
-	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
-	set -x
-	./${bhscript} -w ${workdir}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
-            -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
-            -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
-            -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
-            -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
-            ${other_bh_args}
-	set +x
-	rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
+    ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
 
-	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
+    ## check if the package contains a 'post-install' script
+    postinstall_exists=true
+    tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
+    if [ "${postinstall_exists}" = true ]; then
+        echo "ssm/package: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
+    fi
 
-        ## check if the package contains a 'post-install' script
-        postinstall_exists=true
-        tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
-        if [ "${postinstall_exists}" = true ]; then
-            echo "ssm/package: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
-        fi
-
-	mv ${ssmpkgname}.ssm ${packages}
-    done
-
+    mv ${ssmpkgname}.ssm ${packages}
 done
 
 echo "ssm/package: L'execution de ce script a pris ${SECONDS} secondes."
