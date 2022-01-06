@@ -104,43 +104,8 @@ export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
 . ssmuse-sh -x hpco/exp/bh-test/bh-1.2
 export BH_PROFILE=eccc
 
-whichPlatforms () {
-    ## this function returns:
-    ##    pkgname: name of the package
-    ##    platforms: platforms supported for each package
-    ##    BH_PULL_SOURCE_GIT_BRANCH: version of the package
-    ##    BH_PULL_SOURCE: path to the git depot for this package
+platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
 
-    set -e
-
-    __whichPlatforms_bhscript__=${1}
-    pkgname=$(basename ${__whichPlatforms_bhscript__} .py | cut -c4-)
-    unset __whichPlatforms_bhscript__
-
-    case "${pkgname}" in
-	midas)
-	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
-	    ;;
-	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte." >&2
-            return 1
-	    ;;
-    esac
-
-    case "${pkgname}" in
-	midas)
-	    BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION}
-	    BH_PULL_SOURCE=${MIDAS_SOURCE}
-	    ;;
-	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte." >&2
-            return 1
-	    ;;
-    esac
-
-} ## End of function 'whichPlatforms'
-
-echo Executing the script ${bhscript} to create the package ${pkgname}.ssm
 for platform in ${platforms}; do
     ssmbuildhost=host:
     ssmhost=
@@ -158,7 +123,7 @@ for platform in ${platforms}; do
 	    ;;
     esac
 
-    echo -n Working with ${pkgname} for platform ${platform}
+    echo -n Working with MIDAS for platform ${platform}
 
     if [ -n "${compiler}" ]; then
 	echo " with compiler ${compiler}"
@@ -167,7 +132,7 @@ for platform in ${platforms}; do
 	compiler_string=
     fi
 
-    other_bh_args=
+    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel)"
     if [ -n "${ssmhost}" ]; then
 	if [ "${ssmhost}" = local ]; then
 	    other_bh_args="${other_bh_args} --local"
@@ -176,23 +141,19 @@ for platform in ${platforms}; do
 	fi
     fi
 
-    if [ "${pkgname}" = midas ]; then
-	other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
-    fi
     ## Un package SSM ne peut contenir de caractere '_' dans le nom
     ## puisque cela interfere avec la separation des plateformes.
-    BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
+    ssmpackage_version=$(echo ${MIDAS_REVISION} | sed 's/_//g')
+    ssmpkgname=midas${compiler_string}_${ssmpackage_version}_${platform}
     set -x
-    ./${bhscript} -w ${workdir}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
-      -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
-      -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
-      -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
-      -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
+    ./${bhscript} -w ${workdir}/bh-midas-${platform}-$$ -p ${ssmbuildhost}${platform} \
+      -v BH_PACKAGE_VERSION=${ssmpackage_version} \
+      -v BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION} \
+      -v BH_PULL_SOURCE=${MIDAS_SOURCE} \
+      -v BH_PACKAGE_NAMES=midas${compiler_string} \
       ${other_bh_args}
     set +x
-    rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
-
-    ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
+    rm -rf ${workdir}/bh-midas-${platform}-$$
 
     ## check if the package contains a 'post-install' script
     postinstall_exists=true
