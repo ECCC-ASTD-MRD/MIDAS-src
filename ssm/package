@@ -1,0 +1,166 @@
+#!/bin/bash
+
+set -e
+
+SECONDS=0
+
+getArg () {
+    set -e
+    if [ $# -le 1 ]; then
+        echo "ssm/package: The option '$1' expects an argument" >&2
+        exit 1
+    fi
+    if [[ "$2" == -* ]]; then
+        echo "ssm/package: The option '$1' expects an argument but have '$2'" >&2
+        exit 1
+    fi
+    echo $2
+} ## End of function 'getArg'
+
+args=
+while [ $# -gt 0 ]; do
+    if [ "${1}" = --midasabs ]; then
+        midasabs=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --pkgname ]; then
+        pkgname=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --platform ]; then
+        platform=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --src ]; then
+        src=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --midastoplevel ]; then
+        midastoplevel=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --version ]; then
+        version=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --ssmpkgdestination ]; then
+        ssmpkgdestination=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --workdir ]; then
+        workdir=$(getArg $1 $2)
+        shift
+    else
+        args="${args} ${1}"
+    fi
+    shift
+done
+
+if [ -n "${args}" ]; then
+    echo "ssm/package: Those arguments '${args}' have not been digested by the option parser" >&2
+    exit 1
+fi
+
+for optionarg in midasabs pkgname platform src midastoplevel version ssmpkgdestination workdir; do
+    eval optionvalue="\${${optionarg}}"
+    if [ -z "${optionvalue}" ]; then
+        echo "ssm/package: The option '--${optionarg}' should be specified and non-empty" >&2
+        exit 1
+    fi
+done
+
+
+build_control_file() {
+    set -e
+
+    __build_control_file_srcinfo__="git clone -b ${version} ${src}"
+    if [ "${platform}" = all ]; then
+        __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; cd midas; cp tools/findTrials/midas.findTrials tools/midas_scripts/midas.* ...; cd tools/monitor; make"
+    else
+        __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; cd midas; cd src/programs; ./compile_all.sh"
+    fi
+
+    cat <<EOF
+{
+    "package": "${pkgname}",
+    "version": "${version}",
+    "platform": "${platform}",
+    "maintainer": "RPN-AD",
+    "summary": "Modular and Integrated Data Assimilation System (MIDAS)",
+    "build_info": "${__build_control_file_buildinfo__}"
+}
+EOF
+
+    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__
+} ## End of function 'build_control_file'
+
+install_midasabs() {
+    set -e
+
+    __install_builddir__=${1}
+
+    ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
+    for prog in ${midastoplevel}/src/programs/*.f90; do
+        progname=$(basename ${prog} .f90)
+        absname=midas-${progname}_${platform}-${version}.Abs
+        cp ${midasabs}/${absname} ${__install_builddir__}
+        ln -sf ${absname} ${__install_builddir__}/midas-${progname}.Abs
+    done
+
+    ## install MIDAS tools with prefix 'midas.'
+    progname=midas.splitobs
+    cp ${midasabs}/${progname}_${platform}-${MIDAS_VERSION}.Abs ${__install_builddir__}
+    ln -s ${progname}_${platform}-${MIDAS_VERSION}.Abs ${__install_builddir__}/${progname}.Abs
+
+    unset __install_builddir__
+} ## End of function 'install_midasabs'
+
+install_scripts() {
+    set -e
+
+    __install_builddir__=${1}
+
+    ## install scripts to be published for 'all' platform
+    for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
+                  ${midastoplevel}/tools/midas_scripts/midas.*; do
+        bscript=$(basename ${script})
+        cp ${script} ${__install_builddir__}/${bscript}_${MIDAS_VERSION}
+        ln -s ${bscript}_${MIDAS_VERSION} ${__install_builddir__}/${bscript}
+    done
+
+    ## The program 'midas.monitor' does not need to be compiled on a specific platform
+    progname=midas.monitor
+    absname=${progname}_${MIDAS_VERSION}.Abs
+    cp ${midasabs}/${absname} ${INSTALL_DIR}
+    ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
+
+    unset __install_builddir__
+} ## End of function 'install_scripts'
+
+build_ssm_package() {
+    set -e
+
+    __build_ssmpkg_dir__=${1}
+    __build_pkgname__=${2}
+    __build_ssmpkg_destination__=${3}
+
+    mkdir -p ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d
+    build_control_file > ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d/control.json
+
+    echo ">>> building the SSM tarball in ${}/.."
+    cd ${__build_ssmpkg_dir__}
+    tar cvfzh ${__build_pkgname__}.ssm ${__build_pkgname__}
+
+    cp ${__build_pkgname__}.ssm ${__build_ssmpkg_destination__}
+
+    unset __build_ssmpkg_dir__ __build_pkgname__ __build_ssmpkg_destination__
+} ## End of function 'build_ssm_package'
+
+build_control_file
+
+INSTALL_DIR=${workdir}/${pkgname}/bin
+mkdir -p ${INSTALL_DIR}
+
+if [ "${platform}" = all ]; then
+    install_scripts ${INSTALL_DIR}
+else
+    install_midasabs ${INSTALL_DIR}
+fi
+
+build_ssm_package ${workdir}/${pkgname} ${pkgname} ${ssmpkgdestination}
+
+cd
+rm -r ${workdir}
