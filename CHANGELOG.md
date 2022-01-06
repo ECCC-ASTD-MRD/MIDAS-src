@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Implement the SSM packaging using shell scripts (#561 and !532)
  * Improve the documentation on how to start a branch associated to an
    issue from the release branch (#553 and !523)
 
