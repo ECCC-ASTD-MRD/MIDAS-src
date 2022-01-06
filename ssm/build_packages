@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 ## Ce script sert a publier les packages SSM crees par les script 'bh-*.py'
 ## On se base sur la documentation presente sur le wiki
@@ -11,11 +11,11 @@ SECONDS=0
 getArg () {
     set -e
     if [ $# -le 1 ]; then
-        echo "ssm/package: The option '$1' expects an argument" >&2
+        echo "ssm/build_packages: The option '$1' expects an argument" >&2
         exit 1
     fi
     if [[ "$2" == -* ]]; then
-        echo "ssm/package: The option '$1' expects an argument but have '$2'" >&2
+        echo "ssm/build_packages: The option '$1' expects an argument but have '$2'" >&2
         exit 1
     fi
     echo $2
@@ -52,19 +52,19 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "${midasabs}" ]; then
-    echo "ssm/package: You must provide a path for the MIDAS programs with '--midas-abs'" >&2
+    echo "ssm/build_packages: You must provide a path for the MIDAS programs with '--midas-abs'" >&2
     exit 1
 fi
 if [ -z "${packages}" ]; then
-    echo "ssm/package: You must provide a path to put the SSM packages with '--packages'" >&2
+    echo "ssm/build_packages: You must provide a path to put the SSM packages with '--packages'" >&2
     exit 1
 fi
 if [ -z "${frontend}" ]; then
-    echo "ssm/package: You must provide a frontend machine with '--frontend'" >&2
+    echo "ssm/build_packages: You must provide a frontend machine with '--frontend'" >&2
     exit 1
 fi
 if [ -z "${backend}" ]; then
-    echo "ssm/package: You must provide a backend machine with '--backend'" >&2
+    echo "ssm/build_packages: You must provide a backend machine with '--backend'" >&2
     exit 1
 fi
 
@@ -79,10 +79,10 @@ else
 fi
 
 if [ -d "${packages}" ]; then
-    echo "ssm/package: The destination path '${packages}' already exists!" >&2
+    echo "ssm/build_packages: The destination path '${packages}' already exists!" >&2
     exit 1
 else
-    echo "ssm/package: Creating destination path '${packages}'"
+    echo "ssm/build_packages: Creating destination path '${packages}'"
     mkdir -p ${packages}
 fi
 
@@ -159,10 +159,10 @@ for platform in ${platforms}; do
     postinstall_exists=true
     tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
     if [ "${postinstall_exists}" = true ]; then
-        echo "ssm/package: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
+        echo "ssm/build_packages: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
     fi
 
     mv ${ssmpkgname}.ssm ${packages}
 done
 
-echo "ssm/package: L'execution de ce script a pris ${SECONDS} secondes."
+echo "ssm/build_packages: L'execution de ce script a pris ${SECONDS} secondes."

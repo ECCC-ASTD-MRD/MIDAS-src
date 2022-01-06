@@ -15,7 +15,7 @@ VERSION=$(./midas.version.sh | cut -c3-)
 ## to set variables 'MACHINE_PPP' and 'MACHINE_SUPER'
 . maestro/suites/midas_system_tests/set_machine_list.dot
 cd ssm
-./package --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+./build_packages --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
 cd ..
 
 cd ssm
