@@ -73,18 +73,28 @@ build_control_file() {
         __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; cd midas; cd src/programs; ./compile_all.sh"
     fi
 
+    if [ "${platform}" = all ]; then
+        __build_control_file_buildplatform__=${ORDENV_PLAT}
+    else
+        __build_control_file_buildplatform__=${platform}
+    fi
+
     cat <<EOF
 {
+    "name": "$(echo ${pkgname} | cut -d_ -f1)",
     "package": "${pkgname}",
     "version": "${version}",
     "platform": "${platform}",
     "maintainer": "RPN-AD",
+    "x-build-user": "${USER}",
+    "x-build-platform": "${__build_control_file_buildplatform__}",
+    "x-buildinfo": "${__build_control_file_buildinfo__}",
     "summary": "Modular and Integrated Data Assimilation System (MIDAS)",
     "build_info": "${__build_control_file_buildinfo__}"
 }
 EOF
 
-    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__
+    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__ __build_control_file_buildplatform__
 } ## End of function 'build_control_file'
 
 install_midasabs() {
