@@ -141,7 +141,7 @@ ssm:
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
     - VERSION=$(./midas.version.sh | cut -c3-)
     - cd ssm
-    - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+    - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION}
     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
     ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}

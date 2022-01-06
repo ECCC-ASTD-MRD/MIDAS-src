@@ -15,11 +15,11 @@ VERSION=$(./midas.version.sh | cut -c3-)
 ## to set variables 'MACHINE_PPP' and 'MACHINE_SUPER'
 . maestro/suites/midas_system_tests/set_machine_list.dot
 cd ssm
-./build_packages --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+./build_packages --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --workdir ${PWD}/midas-packages-workdir-$$
 cd ..
 
 cd ssm
-./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/publish-workdir-$$ --domainpath ${DOMAIN_BASE}/${VERSION}
+./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/midas-publish-workdir-$$ --domainpath ${DOMAIN_BASE}/${VERSION}
 
 echo "You can use the SSM domain published with:"
 echo "   . ssmuse-sh -d ${DOMAIN_BASE}/${VERSION}"

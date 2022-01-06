@@ -35,12 +35,6 @@ while [ $# -gt 0 ]; do
     elif [ "${1}" = --workdir ]; then
         workdir=$(getArg $1 $2)
         shift
-    elif [ "${1}" = --frontend ]; then
-        frontend=$(getArg $1 $2)
-        shift
-    elif [ "${1}" = --backend ]; then
-        backend=$(getArg $1 $2)
-        shift
     else
         args="${args} ${1}"
     fi
@@ -53,14 +47,6 @@ if [ -z "${midasabs}" ]; then
 fi
 if [ -z "${packages}" ]; then
     echo "ssm/build_packages: You must provide a path to put the SSM packages with '--packages'" >&2
-    exit 1
-fi
-if [ -z "${frontend}" ]; then
-    echo "ssm/build_packages: You must provide a frontend machine with '--frontend'" >&2
-    exit 1
-fi
-if [ -z "${backend}" ]; then
-    echo "ssm/build_packages: You must provide a backend machine with '--backend'" >&2
     exit 1
 fi
 
@@ -106,17 +92,16 @@ for platform in ${platforms}; do
     ssmpackage_version=$(echo ${MIDAS_REVISION} | sed 's/_//g')
     ssmpkgname=midas${compiler}_${ssmpackage_version}_${platform}
 
-    ./package --midas-abs ${midasabs} --pkgname ${ssmpkgname}     --platform ${platform}       \
-              --src ${MIDAS_SOURCE}   --midastoplevel ${toplevel} --version ${MIDAS_REVISION} \
+    ./package --midasabs ${midasabs} --pkgname ${ssmpkgname}     --platform ${platform}      \
+              --src ${MIDAS_SOURCE}  --midastoplevel ${toplevel} --version ${MIDAS_REVISION} \
               --ssmpkgdestination ${packages} --workdir ${workdir}/ssm-midas-${platform}-$$
 
     ## check if the package contains a 'post-install' script
     postinstall_exists=true
-    tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
+    tar tf ${packages}/${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
     if [ "${postinstall_exists}" = true ]; then
-        echo "ssm/build_packages: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
+        echo "ssm/build_packages: Warning! The SSM package ${packages}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
     fi
-
 done
 
 echo "ssm/build_packages: L'execution de ce script a pris ${SECONDS} secondes."

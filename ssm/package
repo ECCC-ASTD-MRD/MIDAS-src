@@ -102,8 +102,8 @@ install_midasabs() {
 
     ## install MIDAS tools with prefix 'midas.'
     progname=midas.splitobs
-    cp ${midasabs}/${progname}_${platform}-${MIDAS_VERSION}.Abs ${__install_builddir__}
-    ln -s ${progname}_${platform}-${MIDAS_VERSION}.Abs ${__install_builddir__}/${progname}.Abs
+    cp ${midasabs}/${progname}_${platform}-${version}.Abs ${__install_builddir__}
+    ln -s ${progname}_${platform}-${version}.Abs ${__install_builddir__}/${progname}.Abs
 
     unset __install_builddir__
 } ## End of function 'install_midasabs'
@@ -117,13 +117,13 @@ install_scripts() {
     for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
                   ${midastoplevel}/tools/midas_scripts/midas.*; do
         bscript=$(basename ${script})
-        cp ${script} ${__install_builddir__}/${bscript}_${MIDAS_VERSION}
-        ln -s ${bscript}_${MIDAS_VERSION} ${__install_builddir__}/${bscript}
+        cp ${script} ${__install_builddir__}/${bscript}_${version}
+        ln -s ${bscript}_${version} ${__install_builddir__}/${bscript}
     done
 
     ## The program 'midas.monitor' does not need to be compiled on a specific platform
     progname=midas.monitor
-    absname=${progname}_${MIDAS_VERSION}.Abs
+    absname=${progname}_${version}.Abs
     cp ${midasabs}/${absname} ${INSTALL_DIR}
     ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
 
@@ -140,7 +140,8 @@ build_ssm_package() {
     mkdir -p ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d
     build_control_file > ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d/control.json
 
-    echo ">>> building the SSM tarball in ${}/.."
+    echo ">>> building the SSM tarball in ${__build_ssmpkg_dir__}"
+
     cd ${__build_ssmpkg_dir__}
     tar cvfzh ${__build_pkgname__}.ssm ${__build_pkgname__}
 
@@ -148,8 +149,6 @@ build_ssm_package() {
 
     unset __build_ssmpkg_dir__ __build_pkgname__ __build_ssmpkg_destination__
 } ## End of function 'build_ssm_package'
-
-build_control_file
 
 INSTALL_DIR=${workdir}/${pkgname}/bin
 mkdir -p ${INSTALL_DIR}
@@ -160,7 +159,7 @@ else
     install_midasabs ${INSTALL_DIR}
 fi
 
-build_ssm_package ${workdir}/${pkgname} ${pkgname} ${ssmpkgdestination}
+build_ssm_package ${workdir} ${pkgname} ${ssmpkgdestination}
 
 cd
 rm -r ${workdir}
