@@ -35,7 +35,7 @@ unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
-if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
+if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 -o "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
     for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
 	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
@@ -49,7 +49,7 @@ elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     module load craype-hugepages16M
     export FOR_DISABLE_KMP_MALLOC=0
 else
-    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' are)"
+    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'ubuntu-18.04-skylake-64', 'rhel-8-icelake-64' and 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' are)"
     exit 1
 fi
 
