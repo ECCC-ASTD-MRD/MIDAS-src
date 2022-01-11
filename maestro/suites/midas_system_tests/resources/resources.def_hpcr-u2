@@ -1,0 +1,34 @@
+# Machine stuff
+FRONTEND=ppp6
+BACKEND=robert
+
+REFERENCE_MACHINE=ppp6
+REFERENCE_UPDATE_MACHINE=ppp6
+
+BACKEND_DEFAULT_Q=development
+FRONTEND_DEFAULT_Q=development
+
+BACKEND_XFER_Q=xfer
+FRONTEND_XFER_Q=xfer
+
+SEQ_JOBNAME_PREFIX=midas-
+
+# Define the number of openMP threads for various jobs
+NUMTHREAD_maxPerNode_ppp=40
+
+NUMTHREAD_var_EnVar_24mem_xc40=5
+MEMORY_var_EnVar_24mem_xc40=17500M
+NUMTHREAD_var_EnVar_gdps=4
+NUMTHREAD_var_EnVar_geps=4
+NUMTHREAD_var_EnVar_rdps=4
+NUMTHREAD_var_EnVar_96mem_ppp_sqlite=4
+NUMTHREAD_var_EnVar_biFourier_xc40=5
+
+NUMTHREAD_var_Var3D_aladin_assim=2
+MEMORY_var_Var3D_aladin_assim=8G
+NUMTHREAD_var_Var3D_gbc=10
+NUMTHREAD_var_Var3D_splitobs_xc40=4
+
+NUMTHREAD_var_vbc=5
+
+MPITOPO_ensembleH=10x4x1
