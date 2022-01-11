@@ -14,20 +14,8 @@ if [ -n "${COMPILE_MIDAS_COMPF_GLOBAL}" ];then
      echo "..."
 fi
 
-if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
-    echo "... Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
-    . r.env.dot --arch sles-11-broadwell-64-xc40
-    echo "... ORDENV_PLAT=${ORDENV_PLAT}"
-fi
-
 # Set the optimization level
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    FOPTMIZ=2
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
-    FOPTMIZ=4
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 ];then
-    FOPTMIZ=4
-elif [ "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
     FOPTMIZ=4
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
@@ -82,25 +70,13 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
-    ## for s.compile, s.f90
-    echo "... loading hpco/tmp/eccc/201402/07/base"
-    . ssmuse-sh -d hpco/tmp/eccc/201402/07/base
-    echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
-    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     check_ec_atomic_profile_version
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
     LIBIRC=irc
     echo "... loading code tools rpn/code-tools/1.5.0"
     . ssmuse-sh -d eccc/mrd/rpn/code-tools/1.5.0
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
-    ## for s.compile, s.f90
-    echo "... loading hpco/tmp/eccc/201402/07/base"
-    . ssmuse-sh -d hpco/tmp/eccc/201402/07/base
-    echo "... loading compiler PrgEnv-intel-5.2.82"
-    module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     check_ec_atomic_profile_version
     echo "... loading Intel compiler"
@@ -116,16 +92,7 @@ fi
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/16.2"
-    . ssmuse-sh -d eccc/mrd/rpn/libs/16.2
-    ## for openmpi
-    echo "... loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
-    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
-    echo "... loading hdf5"
-    . ssmuse-sh -x comm/eccc/cmdd/rttov/rttov-1.0/serial/disable-shared/intelcomp-2016.1.156
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for rmn, rpncomm
     echo "... loading eccc/mrd/rpn/libs/19.6.0"
     . r.load.dot eccc/mrd/rpn/libs/19.6.0
@@ -134,12 +101,6 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     echo "... loading hdf5"
     . ssmuse-sh -x hpco/exp/hdf5-netcdf4/serial/static/intel-19.0.3.199/01
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
-    ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/16.2"
-    . ssmuse-sh -d eccc/mrd/rpn/libs/16.2
-    echo "... loading cray-hdf5"
-    module load cray-hdf5
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for rmn, rpncomm
     echo "... loading eccc/mrd/rpn/libs/19.6.0"
@@ -152,27 +113,7 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     . ssmuse-sh -d hpco/exp/sqlite/3.29.0
 fi
 
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
-    ## for 'vgrid'
-    echo "... loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
-    VGRID_LIBNAME="descrip"
-
-    ## for 'burplib'
-    echo "... loading eccc/cmd/cmda/libs/16.2-6/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/16.2-6/${COMP_ARCH}
-
-    ## For hpcoperf needed for TMG timings
-    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-    . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
-
-    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.2"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
-
-    ## for 'random_tools'
-    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
     echo "... loading eccc/mrd/rpn/vgrid/6.5.0"
     . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.0
@@ -200,9 +141,9 @@ fi
 
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ] ;then
     OPTF="-mkl ${OPTF}"
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
+elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     OPTF="${OPTF}"
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
