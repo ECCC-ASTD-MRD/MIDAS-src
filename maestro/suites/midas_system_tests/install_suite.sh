@@ -10,9 +10,17 @@ MIDAS_SUITE_LAUNCH_DIRECTORY=${toplevel}/maestro/suites/midas_system_tests
 ${toplevel}/set_resources_def.sh
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
-which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/19.6.0
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.4
+    which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.7.1
+elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+    which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
+    which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.6.0
+else
+    echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'ubuntu-18.04-skylake-64' and 'rhel-8-icelake-64' are!" >&2
+    exit 1
+fi
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 
