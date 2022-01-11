@@ -1,8 +1,4 @@
-#!/bin/ksh
-
-## Ce script sert a publier les packages SSM crees par les script 'bh-*.py'
-## On se base sur la documentation presente sur le wiki
-##    https://wiki.cmc.ec.gc.ca/wiki/Assimilation/SSM
+#!/bin/bash
 
 set -e
 
@@ -21,29 +17,31 @@ getArg () {
     echo $2
 } ## End of function 'getArg'
 
-compiled_programs=
-ssmuser=
-workdir=${PWD}
-
 args=
 while [ $# -gt 0 ]; do
-    if [ "${1}" = --midas-abs ]; then
+    if [ "${1}" = --midasabs ]; then
         midasabs=$(getArg $1 $2)
         shift
-    elif [ "${1}" = --packages ]; then
-        packages=$(getArg $1 $2)
+    elif [ "${1}" = --pkgname ]; then
+        pkgname=$(getArg $1 $2)
         shift
-    elif [ "${1}" = --user ]; then
-        ssmuser=$(getArg $1 $2)
+    elif [ "${1}" = --platform ]; then
+        platform=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --src ]; then
+        src=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --midastoplevel ]; then
+        midastoplevel=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --version ]; then
+        version=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --ssmpkgdestination ]; then
+        ssmpkgdestination=$(getArg $1 $2)
         shift
     elif [ "${1}" = --workdir ]; then
         workdir=$(getArg $1 $2)
-        shift
-    elif [ "${1}" = --frontend ]; then
-        frontend=$(getArg $1 $2)
-        shift
-    elif [ "${1}" = --backend ]; then
-        backend=$(getArg $1 $2)
         shift
     else
         args="${args} ${1}"
@@ -51,164 +49,132 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ -z "${midasabs}" ]; then
-    echo "ssm/package: You must provide a path for the MIDAS programs with '--midas-abs'" >&2
-    exit 1
-fi
-if [ -z "${packages}" ]; then
-    echo "ssm/package: You must provide a path to put the SSM packages with '--packages'" >&2
-    exit 1
-fi
-if [ -z "${frontend}" ]; then
-    echo "ssm/package: You must provide a frontend machine with '--frontend'" >&2
-    exit 1
-fi
-if [ -z "${backend}" ]; then
-    echo "ssm/package: You must provide a backend machine with '--backend'" >&2
-    exit 1
-fi
-
 if [ -n "${args}" ]; then
-    set ${args}
-fi
-
-if [ $# -ge 1 ]; then
-    BHSCRIPTS=$@
-else
-    BHSCRIPTS=$(/bin/ls bh-*.py)
-fi
-
-if [ -d "${packages}" ]; then
-    echo "ssm/package: The destination path '${packages}' already exists!" >&2
+    echo "ssm/package: Those arguments '${args}' have not been digested by the option parser" >&2
     exit 1
-else
-    echo "ssm/package: Creating destination path '${packages}'"
-    mkdir -p ${packages}
 fi
 
-toplevel=$(git rev-parse --show-toplevel)
-MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
-
-## If MIDAS_SOURCE is not yet defined we use the git repository itself.
-## If this script is run from elsewhere, then we use the path to the GitLab project
-if [ -z "${MIDAS_SOURCE}" ]; then
-    MIDAS_SOURCE=$(${toplevel}/midas.version.sh) || true
-    if [ -z "${MIDAS_SOURCE}" ]; then
-        MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+for optionarg in midasabs pkgname platform src midastoplevel version ssmpkgdestination workdir; do
+    eval optionvalue="\${${optionarg}}"
+    if [ -z "${optionvalue}" ]; then
+        echo "ssm/package: The option '--${optionarg}' should be specified and non-empty" >&2
+        exit 1
     fi
-fi
-
-export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
-
-## loading the BH scripts
-. ssmuse-sh -x hpco/exp/bh-test/bh-1.2
-export BH_PROFILE=eccc
-
-whichPlatforms () {
-    ## this function returns:
-    ##    pkgname: name of the package
-    ##    platforms: platforms supported for each package
-    ##    BH_PULL_SOURCE_GIT_BRANCH: version of the package
-    ##    BH_PULL_SOURCE: path to the git depot for this package
-
-    set -e
-
-    __whichPlatforms_bhscript__=${1}
-    pkgname=$(basename ${__whichPlatforms_bhscript__} .py | cut -c4-)
-    unset __whichPlatforms_bhscript__
-
-    case "${pkgname}" in
-	midas)
-	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
-	    ;;
-	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte." >&2
-            return 1
-	    ;;
-    esac
-
-    case "${pkgname}" in
-	midas)
-	    BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION}
-	    BH_PULL_SOURCE=${MIDAS_SOURCE}
-	    ;;
-	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte." >&2
-            return 1
-	    ;;
-    esac
-
-} ## End of function 'whichPlatforms'
-
-echo BHSCRIPTS=${BHSCRIPTS}
-for bhscript in ${BHSCRIPTS}; do
-
-    whichPlatforms ${bhscript}
-
-    echo Executing the script ${bhscript} to create the package ${pkgname}.ssm
-    for platform in ${platforms}; do
-	ssmbuildhost=host:
-	ssmhost=
-	case "${platform}" in
-	    all)
-		compiler=
-		;;
-	    ubuntu-18.04-skylake-64)
-		compiler=intel-19.0.3.199
-		ssmhost=${frontend}
-		;;
-	    sles-15-skylake-64-xc50)
-		compiler=PrgEnv-intel-6.0.5
-		ssmhost=${backend}
-		;;
-	esac
-
-	echo -n Working with ${pkgname} for platform ${platform}
-
-	if [ -n "${compiler}" ]; then
-	    echo " with compiler ${compiler}"
-	    compiler_string=-${compiler}
-	else
-	    compiler_string=
-	fi
-
-	other_bh_args=
-	if [ -n "${ssmhost}" ]; then
-	    if [ "${ssmhost}" = local ]; then
-		other_bh_args="${other_bh_args} --local"
-	    else
-		other_bh_args="${other_bh_args} --host ${ssmhost}"
-	    fi
-	fi
-
-        if [ "${pkgname}" = midas ]; then
-	    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
-        fi
-	## Un package SSM ne peut contenir de caractere '_' dans le nom
-	## puisque cela interfere avec la separation des plateformes.
-	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
-	set -x
-	./${bhscript} -w ${workdir}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
-            -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
-            -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
-            -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
-            -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
-            ${other_bh_args}
-	set +x
-	rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
-
-	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
-
-        ## check if the package contains a 'post-install' script
-        postinstall_exists=true
-        tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
-        if [ "${postinstall_exists}" = true ]; then
-            echo "ssm/package: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
-        fi
-
-	mv ${ssmpkgname}.ssm ${packages}
-    done
-
 done
 
-echo "ssm/package: L'execution de ce script a pris ${SECONDS} secondes."
+
+build_control_file() {
+    set -e
+
+    __build_control_file_srcinfo__="git clone -b ${version} ${src}"
+    if [ "${platform}" = all ]; then
+        __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; cd midas; cp tools/findTrials/midas.findTrials tools/midas_scripts/midas.* ...; cd tools/monitor; make"
+    else
+        __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; cd midas; cd src/programs; ./compile_all.sh"
+    fi
+
+    if [ "${platform}" = all ]; then
+        __build_control_file_buildplatform__=${ORDENV_PLAT}
+    else
+        __build_control_file_buildplatform__=${platform}
+    fi
+
+    cat <<EOF
+{
+    "name": "$(echo ${pkgname} | cut -d_ -f1)",
+    "package": "${pkgname}",
+    "version": "${version}",
+    "platform": "${platform}",
+    "maintainer": "RPN-AD",
+    "x-build-user": "${USER}",
+    "x-build-platform": "${__build_control_file_buildplatform__}",
+    "x-buildinfo": "${__build_control_file_buildinfo__}",
+    "summary": "Modular and Integrated Data Assimilation System (MIDAS)",
+    "build_info": "${__build_control_file_buildinfo__}"
+}
+EOF
+
+    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__ __build_control_file_buildplatform__
+} ## End of function 'build_control_file'
+
+install_midasabs() {
+    set -e
+
+    __install_builddir__=${1}
+
+    echo ">>> building the install directory for programs on platform ${platform} in ${__install_builddir__}"
+
+    ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
+    for prog in ${midastoplevel}/src/programs/*.f90; do
+        progname=$(basename ${prog} .f90)
+        absname=midas-${progname}_${platform}-${version}.Abs
+        cp ${midasabs}/${absname} ${__install_builddir__}
+        ln -sf ${absname} ${__install_builddir__}/midas-${progname}.Abs
+    done
+
+    ## install MIDAS tools with prefix 'midas.'
+    progname=midas.splitobs
+    cp ${midasabs}/${progname}_${platform}-${version}.Abs ${__install_builddir__}
+    ln -s ${progname}_${platform}-${version}.Abs ${__install_builddir__}/${progname}.Abs
+
+    unset __install_builddir__
+} ## End of function 'install_midasabs'
+
+install_scripts() {
+    set -e
+
+    __install_builddir__=${1}
+
+    echo ">>> building the install directory for scripts in ${__install_builddir__}"
+
+    ## install scripts to be published for 'all' platform
+    for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
+                  ${midastoplevel}/tools/midas_scripts/midas.*; do
+        bscript=$(basename ${script})
+        cp ${script} ${__install_builddir__}/${bscript}_${version}
+        ln -s ${bscript}_${version} ${__install_builddir__}/${bscript}
+    done
+
+    ## The program 'midas.monitor' does not need to be compiled on a specific platform
+    progname=midas.monitor
+    absname=${progname}_${version}.Abs
+    cp ${midasabs}/${absname} ${INSTALL_DIR}
+    ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
+
+    unset __install_builddir__
+} ## End of function 'install_scripts'
+
+build_ssm_package() {
+    set -e
+
+    __build_ssmpkg_dir__=${1}
+    __build_pkgname__=${2}
+    __build_ssmpkg_destination__=${3}
+
+    mkdir -p ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d
+    echo ">>> building the SSM control file"
+    build_control_file > ${__build_ssmpkg_dir__}/${__build_pkgname__}/.ssm.d/control.json
+
+    echo ">>> building the SSM tarball in ${__build_ssmpkg_dir__}"
+
+    cd ${__build_ssmpkg_dir__}
+    tar cvfzh ${__build_pkgname__}.ssm ${__build_pkgname__}
+
+    cp ${__build_pkgname__}.ssm ${__build_ssmpkg_destination__}
+
+    unset __build_ssmpkg_dir__ __build_pkgname__ __build_ssmpkg_destination__
+} ## End of function 'build_ssm_package'
+
+INSTALL_DIR=${workdir}/${pkgname}/bin
+mkdir -p ${INSTALL_DIR}
+
+if [ "${platform}" = all ]; then
+    install_scripts ${INSTALL_DIR}
+else
+    install_midasabs ${INSTALL_DIR}
+fi
+
+build_ssm_package ${workdir} ${pkgname} ${ssmpkgdestination}
+
+cd
+rm -r ${workdir}

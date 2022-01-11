@@ -9,4 +9,4 @@ log-*
 report-*
 *.ssm
 /bh-*/
-/publish-workdir*
+/midas-*-workdir-*

@@ -1,0 +1,107 @@
+#!/bin/bash
+
+set -e
+
+SECONDS=0
+
+getArg () {
+    set -e
+    if [ $# -le 1 ]; then
+        echo "ssm/build_packages: The option '$1' expects an argument" >&2
+        exit 1
+    fi
+    if [[ "$2" == -* ]]; then
+        echo "ssm/build_packages: The option '$1' expects an argument but have '$2'" >&2
+        exit 1
+    fi
+    echo $2
+} ## End of function 'getArg'
+
+compiled_programs=
+ssmuser=
+workdir=${PWD}
+
+args=
+while [ $# -gt 0 ]; do
+    if [ "${1}" = --midas-abs ]; then
+        midasabs=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --packages ]; then
+        packages=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --user ]; then
+        ssmuser=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --workdir ]; then
+        workdir=$(getArg $1 $2)
+        shift
+    else
+        args="${args} ${1}"
+    fi
+    shift
+done
+
+if [ -z "${midasabs}" ]; then
+    echo "ssm/build_packages: You must provide a path for the MIDAS programs with '--midas-abs'" >&2
+    exit 1
+fi
+if [ -z "${packages}" ]; then
+    echo "ssm/build_packages: You must provide a path to put the SSM packages with '--packages'" >&2
+    exit 1
+fi
+
+if [ -n "${args}" ]; then
+    set ${args}
+fi
+
+if [ -d "${packages}" ]; then
+    echo "ssm/build_packages: The destination path '${packages}' already exists!" >&2
+    exit 1
+else
+    echo "ssm/build_packages: Creating destination path '${packages}'"
+    mkdir -p ${packages}
+fi
+
+toplevel=$(git rev-parse --show-toplevel)
+MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
+
+## If MIDAS_SOURCE is not yet defined then we use the path to the GitLab project
+if [ -z "${MIDAS_SOURCE}" ]; then
+    MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+fi
+
+platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
+
+for platform in ${platforms}; do
+    case "${platform}" in
+	all)
+	    compiler=
+	    ;;
+	ubuntu-18.04-skylake-64)
+	    compiler=-intel-19.0.3.199
+	    ;;
+	sles-15-skylake-64-xc50)
+	    compiler=-PrgEnv-intel-6.0.5
+	    ;;
+    esac
+
+    echo Working with MIDAS for platform ${platform}
+
+    ## Un package SSM ne peut contenir de caractere '_' dans le nom
+    ## puisque cela interfere avec la separation des plateformes.
+    ssmpackage_version=$(echo ${MIDAS_REVISION} | sed 's/_//g')
+    ssmpkgname=midas${compiler}_${ssmpackage_version}_${platform}
+
+    ./package --midasabs ${midasabs} --pkgname ${ssmpkgname}     --platform ${platform}      \
+              --src ${MIDAS_SOURCE}  --midastoplevel ${toplevel} --version ${MIDAS_REVISION} \
+              --ssmpkgdestination ${packages} --workdir ${workdir}/ssm-midas-${platform}-$$
+
+    ## check if the package contains a 'post-install' script
+    postinstall_exists=true
+    tar tf ${packages}/${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
+    if [ "${postinstall_exists}" = true ]; then
+        echo "ssm/build_packages: Warning! The SSM package ${packages}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
+    fi
+done
+
+echo "ssm/build_packages: L'execution de ce script a pris ${SECONDS} secondes."
