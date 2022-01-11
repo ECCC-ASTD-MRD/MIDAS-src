@@ -12,6 +12,15 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    . r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0
+    ## essential variables
+    export UCX_NET_DEVICES=mlx5_0:1
+    export I_MPI_HYDRA_BOOTSTRAP=ssh
+    ## suggested for improved performance
+    export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement directives
+    export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
+    export KMP_AFFINITY=compact # Allows pinning the threads
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
