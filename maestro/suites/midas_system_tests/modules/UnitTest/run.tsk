@@ -4,24 +4,10 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
-if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
-    export AFSISIO=/home/smco502/env_sles-11-broadwell-64-xc40
-elif [[ "${ORDENV_PLAT}" = ubuntu-14.04* ]]; then
-    export AFSISIO=/home/smco502/env_ubuntu-14.04-amd64-64
-    ## loading OpenMPI 1.6.5 (the binaries must be compiled with too)
-    . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
-    ## those variables are necessary on PPP
-    export OMPI_MCA_orte_tmpdir_base=/run/shm
-    export OMPI_MCA_btl_openib_if_include=mlx5_0
-elif [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
-    export AFSISIO=/home/smco502/env_sles-15-skylake-64-xc50
-    #export TBB_MALLOC_USE_HUGE_PAGES=1
+if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     module load craype-hugepages16M
     export FOR_DISABLE_KMP_MALLOC=0
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
-    export AFSISIO=/home/smco502/env_ubuntu-18.04-skylake-64
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
@@ -31,6 +17,7 @@ else
     exit 1
 fi
 
+export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
 
