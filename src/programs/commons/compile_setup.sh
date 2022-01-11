@@ -15,7 +15,7 @@ if [ -n "${COMPILE_MIDAS_COMPF_GLOBAL}" ];then
 fi
 
 # Set the optimization level
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 -o "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
     FOPTMIZ=4
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
