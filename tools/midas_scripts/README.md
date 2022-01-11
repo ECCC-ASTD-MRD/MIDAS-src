@@ -7,6 +7,7 @@ et à manipuler les fichiers d'input ou bien d'output.
 Les variables d'environnement suivantes sont possibles:
  * `MIDAS_RAMDISKPATH`: Cette variable définit le path vers le RAMDisk
    Par defaut, elle est égale à `${TMPDIR}`.
+
  * `MIDAS_SAVE_SPLITOBS`: Si cette variable est égale à `yes`, on
    copie les observations qui ont été splittés mais conservés en
    RAMDisk dans le répertoire de travail de `midas.Abs`.  Par défaut,
@@ -29,26 +30,6 @@ Les variables d'environnement suivantes sont possibles:
  * `MIDAS_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
    alors un `set -x` sera effectué dans le script `midas.mpi_barrier`.
 
- * `MIDAS_INTERPENSTRIALS_THREADS_PER_MEMBER`: Cette variable définit
-   le nombre de threads utilisés pour traiter en parallèle chacun des
-   trials d'ensemble dans le script `midas.interpEnsTrials.ksh`.  La
-   parallélisation est faite sur les dates contenues dans chacun des
-   trials d'ensemble.  Par défaut, cette variable est égale à 1.
-
- * `MIDAS_INTERPENSTRIALS_VARS_THERMO`: Argument `-var` donné à
-   `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
-   verticaux thermodynamiques dans le script
-   `midas.interpEnsTrials.ksh`.  Par défaut, elle est égale à `CUB_TT
-   LIN_HU`.
-
- * `MIDAS_INTERPENSTRIALS_VARS_MOMENTUM`: Argument `-var` donné à
-   `d.pxs2pxt` lorsqu'on manipule les champs vers les niveaux
-   verticaux momentum dans le script `midas.interpEnsTrials.ksh`.  Par
-   défaut, on utilise soit `CUB_UV` ou `CUB_UU CUB_VV` dépendemment
-   des inputs.  Pour plus de détails, veuillez consulter le script
-   [`tools/midas_scripts/interpEnsTrials.ksh`](tools/midas_scripts/interpEnsTrials.ksh)
-   dans la partie `Prepare px_target`.
-
 ## midas.launch
 
 Le script `midas.launch` est le script principal qui lance les
@@ -62,9 +43,6 @@ qualité.  Ce script appelle les scripts suivants:
    * `midas.mpi_barrier`
  * `midas.reunir_obs`
    * `midas.reunir_obs_mpi`
- * `midas.interpEnsTrials_driver.ksh`
-   * `midas.interpEnsTrials.ksh`
- * `midas.combineFstd`
 
 ### midas.check_ensemble
 
@@ -120,19 +98,3 @@ fam=al
 rm -f obsfiles_${fam}.updated/{obs${fam},TABLES_REUNIR} obs${fam}
 midas.reunir_obs_mpi -obsin $PWD -obsout $PWD -families2process ${fam}
 ```
-
-## midas.interpEnsTrials_driver.ksh
-
-Ce script gère l'interpolation des ensembles sur la grille horizontale
-et verticale de l'analyse.  Ce script appelle
-`midas.interpEnsTrials.ksh`.
-
-### midas.interpEnsTrials.ksh
-
-Ce script fait l'interpolation pour un membre d'ensemble en
-particulier.  On y utilise amplement l'outil `pxs2pxt`.
-
-## midas.combineFstd
-
-Ce script rassemble plusieurs fichiers standard RPN en un seul.  Ce
-script n'est pas utilisé mais on le laisse dans la librairie.
