@@ -84,6 +84,9 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loaded compiler ${COMP_ARCH}"
     echo "... loading craype-hugepages16M"
     module load craype-hugepages16M
+elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
+    echo "... loading rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0"
+    . r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
@@ -111,6 +114,12 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     module load cray-netcdf
     echo "... loading hpco/exp/sqlite/3.29.0"
     . ssmuse-sh -d hpco/exp/sqlite/3.29.0
+elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
+    ## for rmn, rpncomm
+    echo "... loading eccc/mrd/rpn/libs/19.7.1"
+    . r.load.dot eccc/mrd/rpn/libs/19.7.1
+    echo "... loading hdf5"
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/inteloneapi-2021.3.0/01
 fi
 
 if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
@@ -137,11 +146,29 @@ if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-sk
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
+elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
+    ## for 'vgrid'
+    echo "... loading eccc/mrd/rpn/vgrid/6.6.0"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.6.0
+    VGRID_LIBNAME="vgrid"
+
+    echo "... loading eccc/cmd/cmda/libs/19.7.1/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/19.7.1/${COMP_ARCH}
+
+    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+    . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+
+    echo "... /home/erv000/SSM/rttov/12v1.6"
+    . r.load.dot /home/erv000/SSM/rttov/12v1.6
+
+    ## for 'random_tools'
+    echo "... loading /home/erv000/SSM/randomtools/hpcr-u2"
+    . ssmuse-sh -d /home/erv000/SSM/randomtools/hpcr-u2
 fi
 
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ] ;then
+if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     OPTF="${OPTF}"
