@@ -17,8 +17,12 @@
 module diffusion_mod
   ! MODULE diffusion_mod (prefix='diff' category='3. High-level transformations')
   !
-  ! :Purpose: Storage for data required by the diffusion operator used to model
-  !           background-error horizontal correlations.
+  ! :Purpose: Diffusion operator and storage of related diffusion configuration used to model
+  !           background-error horizontal correlations. Both explicit and implicit
+  !           formulations are included, with implicit being preferred when using large
+  !           correlation length scales relative to the grid spacing. For implicit the
+  !           MPI topology must have npex=1, i.e. 1xNPEYxNUMTHREADS. A 2D MPI topology
+  !           can be used for the explicit formulation.
   !
   ! :Reference: Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
   !             the sphere using a generalized diffusion equation.
@@ -26,8 +30,6 @@ module diffusion_mod
   !
   ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
   !                   stab    = k*dt/dx^2     (2)
-  !
-  ! :Origin: diffus_mod.f from the envar experiments by Anna Shlyaeva
   !
   use mpi_mod
   use mpivar_mod
@@ -102,7 +104,7 @@ contains
     real(8), allocatable :: kappa(:,:)
     real(8), allocatable :: W(:,:)
     real(8), allocatable :: m(:,:)
-    real(8), allocatable :: xin(:,:)
+    real(8), allocatable :: xin(:,:), xin_transpose(:,:)
     real(8), allocatable :: lambdaLocal(:,:) ! auxiliary variable to to MPI_ALLREDUCE of diff % Lambda
 
     ! diff_norm_fact is the name of the RPN format file for the normalization factors.
@@ -161,6 +163,10 @@ contains
          diff(diffID) % latPerPEmax, diff(diffID) % myLatBeg, diff(diffID) % myLatEnd)
     call mpivar_setup_lonbands(diff(diffID) % ni, diff(diffID) % lonPerPE,  &
          diff(diffID) % lonPerPEmax, diff(diffID) % myLonBeg, diff(diffID) % myLonEnd)
+
+    ! also, determine lonIndex begin and end for when array is transposed (for implicit diffusion only)
+    call mpivar_setup_latbands(diff(diffID) % ni, diff(diffID) % lonPerPE_transpose,  &
+         diff(diffID) % lonPerPEmax_transpose, diff(diffID) % myLonBeg_transpose, diff(diffID) % myLonEnd_transpose)
 	 
     myLonBeg = diff(diffID) % myLonBeg
     myLonEnd = diff(diffID) % myLonEnd
@@ -458,25 +464,30 @@ contains
         end do
 
         if ( limplicit ) then
-       
+
+          allocate(xin_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
           do timeStep = 1, diff(diffID) % numt
 	    
             call diffusion1x_implicit( diffID, xin, xin )
-            call diffusion1y_implicit( diffID, xin, xin )
-	      
+
+            call transposeLatToLonBands( diffID, xin, xin_transpose )
+            call diffusion1y_implicit( diffID, xin_transpose, xin_transpose )
+            call transposeLonToLatBands( diffID, xin_transpose, xin )
+
           end do
-       
+          deallocate(xin_transpose)
+
         else
-	  
+
           call diffusion_explicit( diffID, xin, xin )
-	    
+
         end if
-       
+
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-	    
+
             diff(diffID) % Lambda( lonIndex, latIndex ) = diff(diffID) % Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
-	      
+
 	  end do
 	end do
 
@@ -499,7 +510,7 @@ contains
       call rpn_comm_allreduce( lambdaLocal, diff(diffID) % Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr )
 
       if ( mpi_myid == 0 ) then
-       
+
 	write(*,*)  myName//': Save normalization coefficient on proc ', mpi_myid, ' into the file: ', trim(diff_norm_fact)
         npak = 0
         dateo = 0
@@ -522,14 +533,14 @@ contains
         else
           write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
         end if
-       
+
         ierr = fnom( std_unit, diff_norm_fact, 'RND', 0 )
         nmax = fstouv( std_unit, 'RND')
 
         ierr = fstecr( real(diff(diffID) % Lambda ), dumwrk, npak, std_unit,          &
                        dateo, deet, npas, NI, NJ, 1, ip1, ip2, ip3,                     &
                        typvar, 'LAMB', etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit )
- 
+
         ierr = fstfrm( std_unit )
         ierr = fclos( std_unit )
 
@@ -548,7 +559,7 @@ contains
     diff_setup = diffID
 
     write(*,*) myName//' ***** END *****'
-    
+
   end function diff_setup
 
 
@@ -784,10 +795,6 @@ contains
                 diff(diffID) % Winvsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                           diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     if ( diff(diffID) % limplicit ) then
-      ! Determine lonIndex begin and end when array is transposed
-      call mpivar_setup_latbands(diff(diffID) % ni, diff(diffID) % lonPerPE_transpose,  &
-           diff(diffID) % lonPerPEmax_transpose, diff(diffID) % myLonBeg_transpose, diff(diffID) % myLonEnd_transpose)
-      write(*,*) 'diff_Csqrt: myLonBeg/End_transpose = ', diff(diffID) % myLonBeg_transpose, diff(diffID) % myLonEnd_transpose
       allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
       do tIndex = 1, diff(diffID) % numt
 
@@ -831,10 +838,6 @@ contains
     xout(:,:) = xout(:,:) * diff(diffID) %   Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                                     diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
     if ( diff(diffID) % limplicit ) then
-      ! Determine lonIndex begin and end when array is transposed
-      call mpivar_setup_latbands(diff(diffID) % ni, diff(diffID) % lonPerPE_transpose,  &
-           diff(diffID) % lonPerPEmax_transpose, diff(diffID) % myLonBeg_transpose, diff(diffID) % myLonEnd_transpose)
-      write(*,*) 'diff_Csqrt: myLonBeg/End_transpose = ', diff(diffID) % myLonBeg_transpose, diff(diffID) % myLonEnd_transpose
       allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
       do tIndex = 1, diff(diffID) % numt
 
@@ -991,8 +994,8 @@ contains
   subroutine diffusion1x_implicit(diffID, xin, xout)
     !
     !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
-    !          timesteps is external to the subroutine), and to specify initial
-    !          conditions
+    !          timesteps is external to the subroutine).
+    !
     implicit none
 
     ! Arguments:
@@ -1046,8 +1049,8 @@ contains
   subroutine diffusion1y_implicit(diffID, xin, xout)
     !
     !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over 
-    !          timesteps is external to the subroutine), and to specify initial
-    !          conditions
+    !          timesteps is external to the subroutine).
+    !
     implicit none
 
     ! Arguments:
