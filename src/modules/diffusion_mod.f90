@@ -868,21 +868,12 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj )
 
     ! Locals:
-    integer :: yourid, ierr, nsize
+    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
     integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
     call tmg_start(188,'diff-transposeLatToLon')
-
-    ! Abort if grid cannot be evenly divided over the mpi tasks
-    if (diff(diffID)%lonPerPE_transpose /= diff(diffID)%lonPerPEmax_transpose .or. &
-        diff(diffID)%latPerPE           /= diff(diffID)%latPerPEmax ) then
-      call utl_abort('diffusion_mod-transposeLatToLonBands: grid cannot be evenly distributed over mpi tasks')
-    end if
-
-    allocate(xsend(diff(diffID)%lonPerPE_transpose,diff(diffID)%latPerPE, mpi_nprocs))
-    allocate(xrecv(diff(diffID)%lonPerPE_transpose,diff(diffID)%latPerPE, mpi_nprocs))
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
@@ -893,17 +884,22 @@ contains
     call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
                             allLatEnd            ,1,'mpi_integer','GRID',ierr)
 
-    xout(:,:) = 0.0d0
-!    xout(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) = &
-!     xin(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
 
-    !$OMP PARALLEL DO PRIVATE(yourid)
+    xout(:,:) = 0.0d0
+    xsend(:,:,:) = 0.0d0
+    xrecv(:,:,:) = 0.0d0
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
     do yourid = 1, mpi_nprocs
-      xsend(:,:,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:) 
+      numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
+      numLatPoints = size(xin,2)
+      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:) 
     end do
     !$OMP END PARALLEL DO
 
-    nsize = diff(diffID)%lonPerPE_transpose * diff(diffID)%latPerPE
+    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mpi_nprocs > 1) then
       call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
                              xrecv, nsize, 'mpi_real8', 'grid', ierr)
@@ -911,9 +907,11 @@ contains
       xrecv(:,:,1) = xsend(:,:,1)
     end if
 
-    !$OMP PARALLEL DO PRIVATE(yourid)
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
     do yourid = 1, mpi_nprocs
-      xout(:,allLatBeg(yourid):allLatEnd(yourid)) = xrecv(:,:,yourid)
+      numLonPoints = size(xout,1)
+      numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
+      xout(:,allLatBeg(yourid):allLatEnd(yourid)) = xrecv(1:numLonPoints,1:numLatPoints,yourid)
     end do
     !$OMP END PARALLEL DO
 
@@ -934,21 +932,12 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: yourid, ierr, nsize
+    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
     integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
     call tmg_start(189,'diff-transposeLonToLat')
-
-    ! Abort if grid cannot be evenly divided over the mpi tasks
-    if (diff(diffID)%lonPerPE_transpose /= diff(diffID)%lonPerPEmax_transpose .or. &
-        diff(diffID)%latPerPE           /= diff(diffID)%latPerPEmax ) then
-      call utl_abort('diffusion_mod-transposeLonToLatBands: grid cannot be evenly distributed over mpi tasks')
-    end if
-
-    allocate(xsend(diff(diffID)%lonPerPE_transpose,diff(diffID)%latPerPE, mpi_nprocs))
-    allocate(xrecv(diff(diffID)%lonPerPE_transpose,diff(diffID)%latPerPE, mpi_nprocs))
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
@@ -959,17 +948,22 @@ contains
     call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
                             allLatEnd            ,1,'mpi_integer','GRID',ierr)
 
-    xout(:,:) = 0.0d0
-!    xout(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) = &
-!     xin(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
 
-    !$OMP PARALLEL DO PRIVATE(yourid)
+    xout(:,:) = 0.0d0
+    xsend(:,:,:) = 0.0d0
+    xrecv(:,:,:) = 0.0d0
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
     do yourid = 1, mpi_nprocs
-      xsend(:,:,yourid) = xin(:,allLatBeg(yourid):allLatEnd(yourid))
+      numLonPoints = size(xin,1)
+      numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
+      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(:,allLatBeg(yourid):allLatEnd(yourid))
     end do
     !$OMP END PARALLEL DO
 
-    nsize = diff(diffID)%lonPerPE_transpose * diff(diffID)%latPerPE
+    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mpi_nprocs > 1) then
       call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
                              xrecv, nsize, 'mpi_real8', 'grid', ierr)
@@ -977,9 +971,11 @@ contains
       xrecv(:,:,1) = xsend(:,:,1)
     end if
 
-    !$OMP PARALLEL DO PRIVATE(yourid)
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
     do yourid = 1, mpi_nprocs
-      xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(:,:,yourid) 
+      numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
+      numLatPoints = size(xout,2)
+      xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(1:numLonPoints,1:numLatPoints,yourid) 
     end do
     !$OMP END PARALLEL DO
 
