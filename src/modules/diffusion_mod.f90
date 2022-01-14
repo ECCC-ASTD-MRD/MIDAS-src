@@ -1009,7 +1009,6 @@ contains
     real(8) :: dp( diff(diffID)%ni )
 
     call tmg_start(186,'diffusion_implicitx')
-    write(*,*) 'diffusion1x_implicit: starting'
 
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
     do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
@@ -1040,7 +1039,6 @@ contains
       xout ( diff(diffID)%ni, latIndex ) = xin ( diff(diffID)%ni, latIndex )
     end do
 
-    write(*,*) 'diffusion1x_implicit: finished'
     call tmg_stop(186)
 
   end subroutine diffusion1x_implicit
@@ -1068,7 +1066,6 @@ contains
     !      NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code!
 
     call tmg_start(187,'diffusion_implicity')
-    write(*,*) 'diffusion1y_implicit: starting'
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff (diffID) % nj
@@ -1099,7 +1096,6 @@ contains
       xout( lonIndex, diff (diffID) % nj ) = xin ( lonIndex, diff (diffID) % nj )
     end do
 
-    write(*,*) 'diffusion1y_implicit: finished'
     call tmg_stop(187)
 
   end subroutine diffusion1y_implicit
