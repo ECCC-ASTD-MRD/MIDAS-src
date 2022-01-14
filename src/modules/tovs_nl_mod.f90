@@ -802,8 +802,8 @@ contains
     allocStatus(:) = 0
 
     if ( radiativeTransferCode == 'RTTOV' ) then
-      deallocate(tvs_profiles_nl, stat=allocStatus(1))
-      deallocate(tvs_profiles_tlad, stat=allocStatus(2))
+      if ( allocated(tvs_profiles_nl) ) deallocate(tvs_profiles_nl, stat=allocStatus(1))
+      if ( allocated(tvs_profiles_tlad) ) deallocate(tvs_profiles_tlad, stat=allocStatus(2))
       call utl_checkAllocationStatus(allocStatus(1:2), " tvs_profiles_nl tvs_profiles_tlad", .false.)
     end if
 
