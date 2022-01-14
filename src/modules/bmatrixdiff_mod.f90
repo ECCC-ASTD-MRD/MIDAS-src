@@ -414,18 +414,15 @@ CONTAINS
     end if
 
     if(mpi_myid == 0) write(*,*) myName//': starting'
-    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bdiff_cain( controlVector_in, gd_in )
 
     do variableIndex = 1, numvar2d
 
       ! Apply square root of the diffusion operator.
-      write(*,*) myName//': applying square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
       call diff_Csqrt( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex ) )
 
       ! Multiply by the diagonal matrix of background error standard deviations.
-      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
       gd_out( :, :, variableIndex ) = gd_out( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
     end do
@@ -457,18 +454,15 @@ CONTAINS
     end if
 
     if(mpi_myid == 0) write(*,*)  myName//': starting'
-    if(mpi_myid == 0) write(*,*)  myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bdiff_copyFromStatevector( statevector, gd_in )
 
     do variableIndex = 1, numvar2d
 
       ! Multiply by the diagonal matrix of background-error standard deviations.
-      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
       gd_in( :, :, variableIndex ) = gd_in( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
       ! Apply the adjoint of the square root of the diffusion operator.
-      write(*,*) myName//': applying the adjoint of the square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
       call diff_Csqrtadj( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex) )
 
     end do
