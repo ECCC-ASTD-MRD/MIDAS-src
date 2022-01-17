@@ -303,7 +303,7 @@ contains
       
       Lcorr(:,:) = corr_len
 
-   end if
+    end if
 
     Lcorr(:,:) =  Lcorr(:,:) / ( ec_rayt / 1000.0 )     ! lengthscale in radians
     maxL = maxval( Lcorr( 2 : ni - 1, 2 : nj - 1 ) ) ! maximum lengthscale over domain
@@ -312,8 +312,8 @@ contains
     kappa(:,:) = Lcorr(:,:)**2                                              ! arbitrarily set k to L^2 (in radians)
     if ( limplicit ) then
       ! specify number of timesteps and timestep length for implicit 1D diffusion
-      diff(diffID) % numIterImp = 5
-      diff(diffID) % numt = 10
+      diff(diffID) % numIterImp = 10
+      diff(diffID) % numt = 5
       diff(diffID) % dt   = 1.0d0 / ( 2.0d0 * dble( 2 * diff(diffID) % numIterImp ) - 3.0d0 )
       diff(diffID) % dt   = diff(diffID) % dt / dble(diff(diffID) % numt)
     else
@@ -446,7 +446,6 @@ contains
       call rng_setup( abs( seed + mpi_myid ))
 
       write(*,*) myName//': Number of samples, ni * nj: ', numberSamples, ni * nj
-
 
       ! compute normalization:  Lambda = inverse stddev of (Diffuse * W^-1/2)
       write(*,*)  myName//': Estimate normalization factors for diffusion using randomization method...'
