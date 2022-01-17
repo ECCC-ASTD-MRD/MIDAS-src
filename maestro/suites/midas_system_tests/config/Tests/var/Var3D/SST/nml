@@ -30,17 +30,8 @@
   limplicit = 200*.true.
 /
  &NAMBHI
-   NTRUNC  = 180,
-   SCALEFACTOR = 200*0.0D0
-/
- &NAMBLB
-   NTRUNC  = 180,
-   SCALEFACTOR = 200*0.0D0
-   stddevMode = 'GD3D'
-   filterStddev = 5
 /
  &NAMBEN
-   SCALEFACTOR = 200*0.0D0
 /
  &NAMSQLsfc
    numberElem=1
