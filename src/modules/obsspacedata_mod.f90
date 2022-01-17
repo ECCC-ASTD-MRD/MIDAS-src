@@ -2359,57 +2359,57 @@ contains
     implicit none
 
     ! arguements:
-    character(len=*)        , intent(in)  :: column_name
-    logical            :: isValid
+    character(len=*), intent(in)  :: column_name
+    logical                       :: isValid
 
     ! locals: 
-    integer            :: column_index
+    integer                       :: column_index
 
     isValid = .false.
 
     ! check "STID" 
-    if(trim(column_name) == "STID") isValid=.true.
+    if (trim(column_name) == "STID") isValid=.true.
  
     if (isValid) return
 
     ! check integer-header
     do column_index=odc_flavour_IH%ncol_beg, odc_flavour_IH%ncol_end
-      if(trim(column_name) == &
-        trim(odc_flavour_IH%columnNameList(column_index)))then
+      if (trim(column_name) == &
+           trim(odc_flavour_IH%columnNameList(column_index))) then
         isValid=.true.
         exit
-      endif
-    enddo
+      end if
+    end do
     if (isValid) return
 
     ! check real-header
     do column_index=odc_flavour_RH%ncol_beg, odc_flavour_RH%ncol_end
-      if(trim(column_name) == &
-        trim(odc_flavour_RH%columnNameList(column_index)))then
+      if (trim(column_name) == &
+           trim(odc_flavour_RH%columnNameList(column_index))) then
         isValid=.true.
         exit
-      endif
-    enddo
+      end if
+    end do
     if (isValid) return
   
     ! check integer-body
     do column_index=odc_flavour_IB%ncol_beg, odc_flavour_IB%ncol_end
-      if(trim(column_name) == &
-        trim(odc_flavour_IB%columnNameList(column_index)))then
+      if (trim(column_name) == &
+           trim(odc_flavour_IB%columnNameList(column_index))) then
         isValid=.true.
         exit
-      endif
-    enddo
+      end if
+    end do
     if (isValid) return
 
     ! check real-body
     do column_index=odc_flavour_RB%ncol_beg, odc_flavour_RB%ncol_end
-      if(trim(column_name) == &
-        trim(odc_flavour_RB%columnNameList(column_index)))then
+      if (trim(column_name) == &
+           trim(odc_flavour_RB%columnNameList(column_index))) then
         isValid=.true.
         exit
-      endif
-    enddo
+      end if
+    end do
     if (isValid) return
    
   end function obs_isColumnNameValid

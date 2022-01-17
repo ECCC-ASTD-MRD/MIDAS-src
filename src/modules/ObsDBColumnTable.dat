@@ -1,20 +1,20 @@
-! ObsDB SQLite Summary Table
-! Summary of the ObsDB columns in the header, body and MIDAS output table for observations
-! This table relates the SQLite column names with the corresponding MIDAS ObsSpaceData variabe and BUFR ID
-! 
-! Note:
-!        -  Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations 
-!           in future implementations 
-!        -  The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
-!        -  The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in 
-!           ObsSpaceData. 
-!        -  The asterisk symbol "*" after the MIDAS ObsSpaceData column names in the MIDAS Table indicates the column names are 
-!           mandatory  
-! 
-! Last updated: 2021/12/22
-!
-!ObsDB Columns               MIDAS ObsSpaceData     BUFR ID           Unit             Description
-|-----HEADER TABLE INFO BEGINS------------------------------------------------------------------------------------------------------|
+ ObsDB SQLite Summary Table
+ Summary of the ObsDB columns in the header, body and MIDAS output table for observations
+ This table relates the SQLite column names with the corresponding MIDAS ObsSpaceData variabe and BUFR ID
+ 
+ Note:
+        -  Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations 
+           in future implementations 
+        -  The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
+        -  The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in 
+           ObsSpaceData. 
+        -  The asterisk symbol "*" after the MIDAS ObsSpaceData column names in the MIDAS Table indicates the column names are 
+           mandatory  
+ 
+ Last updated: 2022/01/17
+
+ ObsDB Columns               MIDAS ObsSpaceData     BUFR ID           Unit             Description
+-----HEADER TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------
 Report                       [headTableName]        (-)               (-)              Header table name
 ID_REPORT                    [headPrimaryKey]       (-)               (-)              Unique row ID for report table
 DATE_VALID                   [headDateSqlName]      (-)               Date             Valid Date of Observation
@@ -34,17 +34,17 @@ GEO_LOCATION_QUALITY         AQF1                   33078             Flag_Table
 GRANULE_LEVEL_QUALITY        AQF2                   33079             Flag_Table       Granule Level Quality Flags
 SCAN_LEVEL_QUALITY           AQF3                   33080             Flag_Table       Scan Level Quality Flags
 ORIGINATING_CENTER           ORI                    1033              Code_Table       Identification of Originating/Generating Center
-|-----HEADER TABLE INFO ENDS-------------------------------------------------------------------------------------------------------|
-!
-|-----BODY TABLE INFO BEGINS-------------------------------------------------------------------------------------------------------|
+-----HEADER TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------
+
+-----BODY TABLE INFO BEGINS-----------------------------------------------------------------------------------------------------------
 Observation                 [bodyTableName]        (-)                (-)              Body table name
 ID_OBSERVATION              [bodyPrimaryKey]       (-)                (-)              Unique row ID for observation table
 CHANNEL                     PPP                    2150/5042          (-)              Channel
 BRIGHTNESS_TEMPERATURE      VAR                    12163              K                Observed Brightness Temperature
 CHANNEL_QUALITY_FLAG        QCFL                   33032/33081        Flag Table       Channel Quality Flags for ATOVS
-|-----BODY TABLE INFO ENDS---------------------------------------------------------------------------------------------------------|
-!
-|-----MIDAS TABLE INFO BEGINS------------------------------------------------------------------------------------------------------|
+-----BODY TABLE INFO ENDS-------------------------------------------------------------------------------------------------------------
+
+-----MIDAS TABLE INFO BEGINS----------------------------------------------------------------------------------------------------------
 MIDAS_OUTPUT                [midasTableName]       (-)                (-)              MIDAS table name
 ID_MIDAS                    [midasPrimaryKey]      (-)                (-)              Unique row ID for MIDAS table
 VCOORD                      PPP*                   (-)                (-)              Vertical coordinate parameter
@@ -58,4 +58,4 @@ BACKGROUND_ERROR            HPHT                   (-)                (-)       
 FSO                         FSO                    (-)                (-)              Forecast Sensitivity to Observation
 BIAS_CORRECTION             BCOR                   (-)                (-)              Observation Bias Correction
 SFC_EMISSIVITY              SEM                    (-)                (-)              Surface Emissivity for Radiance Observation
-|-----MIDAS TABLE INFO ENDS------------------------------------------------------------------------------------------------------|
+-----MIDAS TABLE INFO ENDS------------------------------------------------------------------------------------------------------------
