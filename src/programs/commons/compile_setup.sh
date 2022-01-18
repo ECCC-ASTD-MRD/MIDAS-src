@@ -162,8 +162,8 @@ elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}
 
     ## for 'random_tools'
-    echo "... loading /home/erv000/SSM/randomtools/hpcr-u2"
-    . ssmuse-sh -d /home/erv000/SSM/randomtools/hpcr-u2
+    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2"
+    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2
 fi
 
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
