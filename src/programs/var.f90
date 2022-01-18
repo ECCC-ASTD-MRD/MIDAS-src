@@ -80,7 +80,7 @@ program midas_var
   logical :: varqcActive, applyVarqcOnNlJo
   logical :: filterObsAndInitOer
 
-  integer, parameter :: maxNumberOfOuterLoopIterations = 3
+  integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
