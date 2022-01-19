@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Add MPI support over lat-bands for implicit diffusion solver (#436 and !533)
+   * Minor impact on results (only when using implicit diffusion solver)
  * Support to read updated ObsDB SQLite observation tables and columns by use new ascii dictionary ObsDB - ObsSpaceData file (#528 and !524)
  * WGS (World Geodetic System) functions moved to EarthConstants module. Other Earth constants simplified, renamed (#524 and (!522).
  * Keep `ID_DATA` when the `dia*` files are grouped with `midas.reunir_obs_mpi` (#552 and !521)
