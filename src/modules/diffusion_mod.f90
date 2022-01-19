@@ -856,6 +856,10 @@ contains
 
 
   subroutine transposeLatToLonBands(diffID, xin, xout)
+    !
+    !:Purpose: Perform an MPI transposition for a 2D array between latitude
+    !          bands and longitude bands.
+    !
     implicit none
 
     ! Arguments:
@@ -920,6 +924,10 @@ contains
 
   
   subroutine transposeLonToLatBands(diffID, xin, xout)
+    !
+    !:Purpose: Perform an MPI transposition for a 2D array between longitude
+    !          bands and latitude bands.
+    !
     implicit none
 
     ! Arguments:
