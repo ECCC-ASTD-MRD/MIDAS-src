@@ -324,6 +324,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
 
@@ -1729,7 +1730,7 @@ contains
               else
                 hu = hu_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
                 tt = tt_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
-                Z_T = height_M_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
+                Z_T = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
               end if
 
               ! offset from the ground where the pressure is P0
@@ -1753,13 +1754,13 @@ contains
                 if ( statevector%dataKind == 4 ) then
                   hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
                   tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  Z_T = real(height_M_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  Z_T1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_T+1,stepIndex),8)
+                  Z_T = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+                  Z_T1 = real(height_T_ptr_r4(lonIndex,latIndex,lev_T+1,stepIndex),8)
                 else
                   hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
                   tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Z_T = height_M_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Z_T1 = height_M_ptr_r8(lonIndex,latIndex,lev_T+1,stepIndex)
+                  Z_T = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+                  Z_T1 = height_T_ptr_r8(lonIndex,latIndex,lev_T+1,stepIndex)
                 end if
                 dh = Z_T1 - Z_T
                 Rgh = phf_gravityalt(sLat, Z_T+0.5D0*dh) 
