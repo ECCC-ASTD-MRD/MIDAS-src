@@ -1,0 +1,61 @@
+ ObsDB SQLite Summary Table
+ Summary of the ObsDB columns in the header, body and MIDAS output table for observations
+ This table relates the SQLite column names with the corresponding MIDAS ObsSpaceData variabe and BUFR ID
+ 
+ Note:
+        -  Only ObsDB columns for radiance observations are tested in the current implementation, but aims include all observations 
+           in future implementations 
+        -  The BUFR ID column is only read by MIDAS for the "VAR" MIDAS ObsSpaceData variable and assign into the VarNo variable
+        -  The MIDAS ObsSpaceData column names with the square brackets (e.g "[]") does not directly reflect the column names in 
+           ObsSpaceData. 
+        -  The asterisk symbol "*" after the MIDAS ObsSpaceData column names in the MIDAS Table indicates the column names are 
+           mandatory  
+ 
+ Last updated: 2022/01/17
+
+ ObsDB Columns               MIDAS ObsSpaceData     BUFR ID           Unit             Description
+-----HEADER TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------
+Report                       [headTableName]        (-)               (-)              Header table name
+ID_REPORT                    [headPrimaryKey]       (-)               (-)              Unique row ID for report table
+DATE_VALID                   [headDateSqlName]      (-)               Date             Valid Date of Observation
+STATION_ID                   STID                   (-)               Code_Table       Station ID (For radiance: satellite platform)
+RADIANCE_TYPE                ITY                    2166              Code_Table       Radiance Type
+LAT                          LAT                    (-)               Degrees          Latitude
+LON                          LON                    (-)               Degrees          Longitude
+SATELLITE_ID                 SAT                    1007              Code_Table       Satellite ID
+INSTRUMENT_ID                INS                    2019              Code_Table       Instrument ID
+SATELLITE_ZENITH_ANGLE       SZA                    7024              Degrees          Zenith angle of the satellite instrument
+SOLAR_ZENITH_ANGLE           SUN                    7025              Degrees          Solar Zenith Angle
+SATELLITE_AZIMUTH_ANGLE      AZA                    5021              Degrees          Satelllite Azimuth Angle
+SOLAR_AZIMUTH_ANGLE          SAZ                    5022              Degrees          Solar Azimuth Angle
+FIELD_OF_VIEW                FOV                    5043              (-)              Field of View
+ORBIT_NUMBER                 ORBI                   5040              (-)              Orbit Number
+GEO_LOCATION_QUALITY         AQF1                   33078             Flag_Table       Geolocation Quality Flags
+GRANULE_LEVEL_QUALITY        AQF2                   33079             Flag_Table       Granule Level Quality Flags
+SCAN_LEVEL_QUALITY           AQF3                   33080             Flag_Table       Scan Level Quality Flags
+ORIGINATING_CENTER           ORI                    1033              Code_Table       Identification of Originating/Generating Center
+-----HEADER TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------
+
+-----BODY TABLE INFO BEGINS-----------------------------------------------------------------------------------------------------------
+Observation                 [bodyTableName]        (-)                (-)              Body table name
+ID_OBSERVATION              [bodyPrimaryKey]       (-)                (-)              Unique row ID for observation table
+CHANNEL                     PPP                    2150/5042          (-)              Channel
+BRIGHTNESS_TEMPERATURE      VAR                    12163              K                Observed Brightness Temperature
+CHANNEL_QUALITY_FLAG        QCFL                   33032/33081        Flag Table       Channel Quality Flags for ATOVS
+-----BODY TABLE INFO ENDS-------------------------------------------------------------------------------------------------------------
+
+-----MIDAS TABLE INFO BEGINS----------------------------------------------------------------------------------------------------------
+MIDAS_OUTPUT                [midasTableName]       (-)                (-)              MIDAS table name
+ID_MIDAS                    [midasPrimaryKey]      (-)                (-)              Unique row ID for MIDAS table
+VCOORD                      PPP*                   (-)                (-)              Vertical coordinate parameter
+VARNO                       VNM*                   (-)                (-)              Variable Number
+OBS_VALUE                   VAR*                   (-)                (-)              Observation Value
+FLAG                        FLG                    (-)                (-)              Observation Flag
+OBS_MINUS_BACKGROUND        OMP                    (-)                (-)              Observation Minus Background
+OBS_MINUS_ANALYSIS          OMA                    (-)                (-)              Observation Minus Analysis
+OBS_ERROR                   OER                    (-)                (-)              Observation Error
+BACKGROUND_ERROR            HPHT                   (-)                (-)              Background Error
+FSO                         FSO                    (-)                (-)              Forecast Sensitivity to Observation
+BIAS_CORRECTION             BCOR                   (-)                (-)              Observation Bias Correction
+SFC_EMISSIVITY              SEM                    (-)                (-)              Surface Emissivity for Radiance Observation
+-----MIDAS TABLE INFO ENDS------------------------------------------------------------------------------------------------------------
