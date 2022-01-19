@@ -148,10 +148,9 @@ contains
     end if
 
     ! initialize obsDb columns names to be consistent with MIDAS obsSpaceData Report column names
-    nulfile = 0
-   
     if (.not. obsDbActive) return
- 
+
+    nulfile = 0 
     ierr = fnom(nulfile,trim(obsDbColumnFile),'FTN+SEQ+R/O',0)
     if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading ObsDBColumnTable file') 
   
