@@ -78,15 +78,15 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
-  logical :: filterObsAndInitOer
+  logical :: filterObsAndInitOer, writeIncToFile
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop, computeFinalNlJo
+  logical :: limitHuInOuterLoop, computeFinalNlJo, writeIncOnlyAtLastOuterLoop
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ computeFinalNlJo
+  NAMELIST /NAMVAR/ computeFinalNlJo, writeIncOnlyAtLastOuterLoop
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -118,6 +118,7 @@ program midas_var
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
   computeFinalNlJo = .false.
+  writeIncOnlyAtLastOuterLoop = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -336,8 +337,16 @@ program midas_var
     else
       ip3ForWriteToFile = outerLoopIndex
     end if
-    call inc_writeIncrement( stateVectorIncr, &                        ! IN
-                             ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+
+    writeIncToFile = .true.
+    if ( writeIncOnlyAtLastOuterLoop .and. &
+         outerLoopIndex /= numOuterLoopIterations ) then
+      writeIncToFile = .false.
+    end if
+    if ( writeIncToFile ) then
+      call inc_writeIncrement( stateVectorIncr, &                        ! IN
+                               ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
