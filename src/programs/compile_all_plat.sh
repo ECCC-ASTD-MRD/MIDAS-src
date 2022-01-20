@@ -85,7 +85,11 @@ rm compile_job
 
 ## if previous compilation aborted, then kill the compilation job
 if [ "${status}" -ne 0 ]; then
-    jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        echo qdel ${jobid} | ssh ${COMPILING_MACHINE_PPP} bash --login
+    else
+        jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    fi
     echo "Compilation aborted!"
     exit 1
 fi
