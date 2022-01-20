@@ -91,14 +91,14 @@ CONTAINS
     integer                   :: nulnam, ierr, fnom, fclos
     integer                   :: variableIndex
     ! namelist variables
-    real    :: corr_len( maxNumVars ) ! Horizontal correlation length scale (km)
-    real    :: stab( maxNumVars )     ! Stability criteria (definitely < 0.5)
-    integer :: nsamp(maxNumVars)      ! Number of samples in the estimation of the normalization factors by randomization.
-    logical :: limplicit(maxNumVars)  ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
-                                      ! the explicit version (.false.).
+    real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
+    real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
+    integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization.
+    logical :: useImplicit(maxNumVars) ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
+                                       ! the explicit version (.false.).
     character(len=*), parameter :: myName = 'bdiff_setup'
     
-    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, limplicit, scaleFactor, stddevMode, homogeneous_std
+    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std
 
     call tmg_start(17,'BDIFF_SETUP')
     if(mpi_myid == 0) write(*,*) myName//': starting'
@@ -171,7 +171,7 @@ CONTAINS
     corr_len(:) = 10.0
     stab(:)     = 0.2
     nsamp(:)    = 10000
-    limplicit(:) = .false.
+    useImplicit(:) = .false.
     scaleFactor(:) = 0.0d0
     stddevMode  = 'GD2D'
     homogeneous_std(:) = -1.0d0
@@ -214,7 +214,7 @@ CONTAINS
     do variableIndex = 1, numvar2d
       write(*,*) myName//': setup the diffusion operator for the variable ', bdiff_varNameList( variableIndex ) 
       diffID( variableIndex ) = diff_setup ( variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, corr_len( variableIndex ), &
-                                             stab( variableIndex ), nsamp( variableIndex ), limplicit( variableIndex ) )
+                                             stab( variableIndex ), nsamp( variableIndex ), useImplicit( variableIndex ) )
     end do
 
     call mpivar_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
@@ -414,18 +414,15 @@ CONTAINS
     end if
 
     if(mpi_myid == 0) write(*,*) myName//': starting'
-    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bdiff_cain( controlVector_in, gd_in )
 
     do variableIndex = 1, numvar2d
 
       ! Apply square root of the diffusion operator.
-      write(*,*) myName//': applying square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
       call diff_Csqrt( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex ) )
 
       ! Multiply by the diagonal matrix of background error standard deviations.
-      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
       gd_out( :, :, variableIndex ) = gd_out( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
     end do
@@ -457,18 +454,15 @@ CONTAINS
     end if
 
     if(mpi_myid == 0) write(*,*)  myName//': starting'
-    if(mpi_myid == 0) write(*,*)  myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bdiff_copyFromStatevector( statevector, gd_in )
 
     do variableIndex = 1, numvar2d
 
       ! Multiply by the diagonal matrix of background-error standard deviations.
-      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
       gd_in( :, :, variableIndex ) = gd_in( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
       ! Apply the adjoint of the square root of the diffusion operator.
-      write(*,*) myName//': applying the adjoint of the square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
       call diff_Csqrtadj( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex) )
 
     end do

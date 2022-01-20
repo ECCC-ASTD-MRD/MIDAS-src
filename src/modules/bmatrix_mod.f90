@@ -235,6 +235,13 @@ contains
       bmatActive(bmatIndex) = active
     end do
 
+    !
+    !- 4. Check if the control vector has zero length (i.e. no B matrix is active)
+    !
+    if (cvm_nvadim_mpiglobal == 0) then
+      call utl_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
+    end if
+
   end subroutine bmat_setup
 
   !--------------------------------------------------------------------------

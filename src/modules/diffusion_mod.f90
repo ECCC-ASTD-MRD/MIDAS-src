@@ -17,8 +17,12 @@
 module diffusion_mod
   ! MODULE diffusion_mod (prefix='diff' category='3. High-level transformations')
   !
-  ! :Purpose: Storage for data required by the diffusion operator used to model
-  !           background-error horizontal correlations.
+  ! :Purpose: Diffusion operator and storage of related diffusion configuration used to model
+  !           background-error horizontal correlations. Both explicit and implicit
+  !           formulations are included, with implicit being preferred when using large
+  !           correlation length scales relative to the grid spacing. For implicit the
+  !           MPI topology must have npex=1, i.e. 1xNPEYxNUMTHREADS. A 2D MPI topology
+  !           can be used for the explicit formulation.
   !
   ! :Reference: Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
   !             the sphere using a generalized diffusion equation.
@@ -26,8 +30,6 @@ module diffusion_mod
   !
   ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
   !                   stab    = k*dt/dx^2     (2)
-  !
-  ! :Origin: diffus_mod.f from the envar experiments by Anna Shlyaeva
   !
   use mpi_mod
   use mpivar_mod
@@ -51,7 +53,10 @@ module diffusion_mod
     integer :: ni, nj
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax
+    integer :: myLonBeg_transpose, myLonEnd_transpose
+    integer :: lonPerPE_transpose, lonPerPEmax_transpose
     integer :: numt
+    integer :: numIterImp
     real(8) :: dt
     real(8), allocatable :: cosyhalf(:), cosyinv(:), cosyinvsq(:)
     real(8), allocatable :: mhalfx(:,:), mhalfy(:,:)
@@ -64,7 +69,7 @@ module diffusion_mod
     real(8), allocatable :: diff1x_c(:,:)
     real(8), allocatable :: diff1y_ap(:,:),diff1y_bp_inv(:,:)
     real(8), allocatable :: diff1y_c(:,:)
-    logical :: limplicit
+    logical :: useImplicit
   end type struct_diff
 
   integer, parameter :: nMaxDiff = 10
@@ -75,7 +80,8 @@ module diffusion_mod
 
 contains
 
-  integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, corr_len, stab, numberSamples, limplicit)
+  integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, &
+                               corr_len, stab, numberSamples, useImplicit)
 
     implicit none
 
@@ -88,7 +94,7 @@ contains
                                                                      ! if it is equal to -1, a 2D field of it is read from a file
     real,                      intent(in)    :: stab                 ! Stability criteria (definitely < 0.5)
     integer,                   intent(in)    :: numberSamples        ! Number of samples to estimate normalization factors by randomization.
-    logical,                   intent(in)    :: limplicit            ! Indicate to use the implicit formulation
+    logical,                   intent(in)    :: useImplicit          ! Indicate to use the implicit formulation
 
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
@@ -100,8 +106,8 @@ contains
     real(8), allocatable :: kappa(:,:)
     real(8), allocatable :: W(:,:)
     real(8), allocatable :: m(:,:)
-    real(8), allocatable :: xin(:,:)
-    real(8), allocatable :: lambdaLocal(:,:) ! auxiliary variable to to MPI_ALLREDUCE of diff % Lambda
+    real(8), allocatable :: xin(:,:), xin_transpose(:,:)
+    real(8), allocatable :: lambdaLocal(:,:) ! auxiliary variable to to MPI_ALLREDUCE of diff%Lambda
 
     ! diff_norm_fact is the name of the RPN format file for the normalization factors.
     character(len=*), parameter :: diff_norm_fact = './diffusmod.std'
@@ -146,43 +152,49 @@ contains
     nDiffAlreadyAllocated = nDiffAlreadyAllocated + 1
     diffID = nDiffAlreadyAllocated
 
-    ni = hco % ni
-    nj = hco % nj
-    diff( diffID ) % dlon = hco % dlon
-    diff( diffID ) % dlat = hco % dlat
-    diff( diffID ) % limplicit = limplicit
+    ni = hco%ni
+    nj = hco%nj
+    diff(diffID)%dlon = hco%dlon
+    diff(diffID)%dlat = hco%dlat
+    diff(diffID)%useImplicit = useImplicit
 
     ! domain partionning
-    diff( diffID ) % ni = ni
-    diff( diffID ) % nj = nj
-    call mpivar_setup_latbands(diff( diffID ) % nj, diff( diffID ) % latPerPE,  &
-         diff( diffID ) % latPerPEmax, diff( diffID ) % myLatBeg, diff( diffID ) % myLatEnd)
-    call mpivar_setup_lonbands(diff( diffID ) % ni, diff( diffID ) % lonPerPE,  &
-         diff( diffID ) % lonPerPEmax, diff( diffID ) % myLonBeg, diff( diffID ) % myLonEnd)
+    diff(diffID)%ni = ni
+    diff(diffID)%nj = nj
+    call mpivar_setup_latbands(diff(diffID)%nj, diff(diffID)%latPerPE,  &
+         diff(diffID)%latPerPEmax, diff(diffID)%myLatBeg, diff(diffID)%myLatEnd)
+    call mpivar_setup_lonbands(diff(diffID)%ni, diff(diffID)%lonPerPE,  &
+         diff(diffID)%lonPerPEmax, diff(diffID)%myLonBeg, diff(diffID)%myLonEnd)
+
+    ! also, determine lonIndex begin and end for when array is transposed (for implicit diffusion only)
+    call mpivar_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
+         diff(diffID)%lonPerPEmax_transpose, diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose)
 	 
-    myLonBeg = diff( diffID ) % myLonBeg
-    myLonEnd = diff( diffID ) % myLonEnd
-    myLatBeg = diff( diffID ) % myLatBeg
-    myLatEnd = diff( diffID ) % myLatEnd
+    myLonBeg = diff(diffID)%myLonBeg
+    myLonEnd = diff(diffID)%myLonEnd
+    myLatBeg = diff(diffID)%myLatBeg
+    myLatEnd = diff(diffID)%myLatEnd
     
     write(*,*) myName//' ***** Starting using the following parameters: *****'
     write(*,*) myName//' Variable : ', bdiff_varNameList( variableIndex ) 
     write(*,*) myName//' Horizontal correlation length scale (km): ', corr_len 
     write(*,*) myName//' Stability criteria: ', stab
-    write(*,*) myName//' Indicate to use the implicit formulation of the diffusion operator (.true.) or the explicit version (.false.).: ', limplicit
+    write(*,*) myName//' Indicate implicit diffusion operator (.true.) or explicit version (.false.).: ', useImplicit
     write(*,*) myName//' ni/nj: ', ni, nj   
     write(*,*) myName//' ### MPI domain partitionning ###:'
     write(*,*) myName//' [ myLonBeg, myLonEnd ]: [ ', myLonBeg, ' ', myLonEnd, ' ]'  
     write(*,*) myName//' [ myLatBeg, myLatEnd ]: [ ', myLatBeg, ' ', myLatEnd, ' ]'
+
+    ! For implicit diffusion we only allow decomposition by latitude bands
+    if ( useImplicit .and.  mpi_npex > 1 ) then
+      call utl_abort( myName//' Error: for implicit diffusion NPEX must be 1 (i.e. 1xNPEYxNUMTHREADS)' )
+    end if
     
-    if ( limplicit .and.  mpi_nprocs > 1 ) &
-    call utl_abort( myName//' Error: the code of the implicit formulation of the diffusion operator cannot be run using MPI! Restart MIDAS on ONE processor.' )
-    
-    allocate( diff( diffID ) % cosyhalf ( nj         ), diff( diffID ) % cosyinv ( nj )       , diff( diffID ) % cosyinvsq ( nj )    )
-    allocate( diff( diffID ) % Winv     ( ni    , nj ), diff( diffID ) % Wsqrt   ( ni, nj )   , diff( diffID ) % Winvsqrt  ( ni, nj ))
-    allocate( diff( diffID ) % khalfx   ( ni - 1, nj ), diff( diffID ) % khalfy  ( ni, nj -1 ) )
-    allocate( diff( diffID ) % mhalfx   ( ni - 1, nj ), diff( diffID ) % mhalfy  ( ni, nj -1 ) )
-    allocate( diff( diffID ) % Lambda   ( ni    , nj ) )
+    allocate( diff(diffID)%cosyhalf ( nj         ), diff(diffID)%cosyinv ( nj )       , diff(diffID)%cosyinvsq ( nj )    )
+    allocate( diff(diffID)%Winv     ( ni    , nj ), diff(diffID)%Wsqrt   ( ni, nj )   , diff(diffID)%Winvsqrt  ( ni, nj ))
+    allocate( diff(diffID)%khalfx   ( ni - 1, nj ), diff(diffID)%khalfy  ( ni, nj -1 ) )
+    allocate( diff(diffID)%mhalfx   ( ni - 1, nj ), diff(diffID)%mhalfy  ( ni, nj -1 ) )
+    allocate( diff(diffID)%Lambda   ( ni    , nj ) )
     allocate( lambdaLocal               ( ni    , nj ) )
 
     allocate( latr( nj )      )
@@ -192,20 +204,20 @@ contains
     allocate(     m( ni, nj ) )
     allocate(   xin( myLonBeg : myLonEnd, myLatBeg : myLatEnd ) )
 
-    allocate( diff( diffID ) % diff1x_ap     ( ni, nj ) )
-    allocate( diff( diffID ) % diff1x_bp_inv ( ni, nj ) )
-    allocate( diff( diffID ) % diff1x_c      ( ni, nj ) )
-    allocate( diff( diffID ) % diff1y_ap     ( nj, ni ) )
-    allocate( diff( diffID ) % diff1y_bp_inv ( nj, ni ) )
-    allocate( diff( diffID ) % diff1y_c      ( nj, ni ) )
+    allocate( diff(diffID)%diff1x_ap     ( ni, nj ) )
+    allocate( diff(diffID)%diff1x_bp_inv ( ni, nj ) )
+    allocate( diff(diffID)%diff1x_c      ( ni, nj ) )
+    allocate( diff(diffID)%diff1y_ap     ( nj, ni ) )
+    allocate( diff(diffID)%diff1y_bp_inv ( nj, ni ) )
+    allocate( diff(diffID)%diff1y_c      ( nj, ni ) )
 
-    latr(:) = hco % lat(:)
+    latr(:) = hco%lat(:)
 
-    diff( diffID ) % cosyinv(:)   = 1.0d0 / cos( latr(:) )
-    diff( diffID ) % cosyinvsq(:) = diff( diffID ) % cosyinv(:) * diff( diffID ) % cosyinv(:)
+    diff(diffID)%cosyinv(:)   = 1.0d0 / cos( latr(:) )
+    diff(diffID)%cosyinvsq(:) = diff(diffID)%cosyinv(:) * diff(diffID)%cosyinv(:)
 
     ! cosinus of latitudes on staggered grid
-    diff( diffID ) % cosyhalf(:) = cos( latr(:) + 0.5d0 * diff( diffID ) % dlat )
+    diff(diffID)%cosyhalf(:) = cos( latr(:) + 0.5d0 * diff(diffID)%dlat )
 
     ! Get mask from analysisgrid file
     call ocm_readMaskFromFile(oceanMask, hco, vco, './analysisgrid')
@@ -233,9 +245,9 @@ contains
     do latIndex = 1, nj
       do lonIndex = 1, ni - 1
         if ( sum ( m ( lonIndex : lonIndex + 1, latIndex ) ) < 2.0d0 ) then
-          diff ( diffID ) % mhalfx( lonIndex, latIndex ) = 0.0d0
+          diff (diffID)%mhalfx( lonIndex, latIndex ) = 0.0d0
         else
-          diff ( diffID ) % mhalfx( lonIndex, latIndex ) = 1.0d0
+          diff (diffID)%mhalfx( lonIndex, latIndex ) = 1.0d0
         end if
       end do
     end do
@@ -243,9 +255,9 @@ contains
     do latIndex = 1, nj - 1
       do lonIndex = 1, ni
         if ( sum( m ( lonIndex, latIndex : latIndex + 1 ) ) < 2.0d0 ) then
-          diff ( diffID ) % mhalfy ( lonIndex, latIndex ) = 0.0d0
+          diff (diffID)%mhalfy ( lonIndex, latIndex ) = 0.0d0
         else
-          diff ( diffID ) % mhalfy ( lonIndex, latIndex ) = 1.0d0
+          diff (diffID)%mhalfy ( lonIndex, latIndex ) = 1.0d0
         end if
       end do
     end do
@@ -255,10 +267,10 @@ contains
     do latIndex = 1, nj - 1
       do lonIndex = 1, ni - 1
 
-        if ( ( diff ( diffID ) % mhalfy ( lonIndex, latIndex ) == 1.0d0 ) .and. ( diff ( diffID ) % mhalfx ( lonIndex, latIndex ) == 1.0d0 ) ) then
+        if ( ( diff (diffID)%mhalfy ( lonIndex, latIndex ) == 1.0d0 ) .and. ( diff (diffID)%mhalfx ( lonIndex, latIndex ) == 1.0d0 ) ) then
 
-          currentLonSpacing = cos( latr( latIndex ) ) * diff( diffID ) % dlon
-          currentLatSpacing =                           diff( diffID ) % dlat
+          currentLonSpacing = cos( latr( latIndex ) ) * diff(diffID)%dlon
+          currentLatSpacing =                           diff(diffID)%dlat
           currentMin = min ( currentLatSpacing, currentLonSpacing )  
 
           if ( currentMin < mindxy ) then
@@ -270,7 +282,7 @@ contains
       end do
     end do
 
-    mindxy = min( mindxy, diff( diffID ) % dlat )
+    mindxy = min( mindxy, diff(diffID)%dlat )
     write(*,*) myName//': Minimim grid spacing: mindxy = ', mindxy
 
     if ( corr_len == -1 ) then
@@ -292,37 +304,44 @@ contains
       
       Lcorr(:,:) = corr_len
 
-   end if
+    end if
 
     Lcorr(:,:) =  Lcorr(:,:) / ( ec_rayt / 1000.0 )     ! lengthscale in radians
     maxL = maxval( Lcorr( 2 : ni - 1, 2 : nj - 1 ) ) ! maximum lengthscale over domain
 
     ! set main parameters for diffusion operator
     kappa(:,:) = Lcorr(:,:)**2                                              ! arbitrarily set k to L^2 (in radians)
-    diff( diffID ) % dt = stab * ( mindxy**2 ) / ( maxL**2 )                ! determine dt from stability criteria (2)
-    ! diff(diffID)%numt = 1.0d0/(2.0d0*diff(diffID)%dt)                     ! determine number of timesteps from (1)
-    diff( diffID ) % numt = ceiling(1.0d0/(4.0d0*diff(diffID)%dt))*2        ! make sure it is an even integer
-    diff( diffID ) % dt = 1.0d0 / ( 2.0d0 * dble( diff( diffID ) % numt ) ) ! recompute dt
+    if ( useImplicit ) then
+      ! specify number of timesteps and timestep length for implicit 1D diffusion
+      diff(diffID)%numIterImp = 10
+      diff(diffID)%numt = 5
+      diff(diffID)%dt   = 1.0d0 / ( 2.0d0 * dble( 2 * diff(diffID)%numIterImp ) - 3.0d0 )
+      diff(diffID)%dt   = diff(diffID)%dt / dble(diff(diffID)%numt)
+    else
+      ! specify number of timesteps and timestep length for explicit 2D diffusion
+      diff(diffID)%dt = stab * ( mindxy**2 ) / ( maxL**2 )                ! determine dt from stability criteria (2)
+      ! diff(diffID)%numt = 1.0d0/(2.0d0*diff(diffID)%dt)                     ! determine number of timesteps from (1)
+      diff(diffID)%numt = ceiling(1.0d0/(4.0d0*diff(diffID)%dt))*2        ! make sure it is an even integer
+      diff(diffID)%dt = 1.0d0 / ( 2.0d0 * dble( diff(diffID)%numt ) ) ! recompute dt
+    end if
 
     ! interpolate diffusion coefficient onto 2 staggered lat-lon grids
     do latIndex = 1, nj
       do lonIndex = 1, ni - 1
-        diff( diffID ) % khalfx( lonIndex, latIndex ) = ( kappa( lonIndex, latIndex ) + kappa( lonIndex + 1, latIndex ) ) / 2.0d0
+        diff(diffID)%khalfx( lonIndex, latIndex ) = ( kappa( lonIndex, latIndex ) + kappa( lonIndex + 1, latIndex ) ) / 2.0d0
       end do
     end do
     do latIndex = 1, nj - 1
       do lonIndex = 1, ni
-        diff( diffID ) % khalfy( lonIndex, latIndex ) = ( kappa( lonIndex, latIndex ) + kappa( lonIndex, latIndex + 1 ) ) / 2.0d0
+        diff(diffID)%khalfy( lonIndex, latIndex ) = ( kappa( lonIndex, latIndex ) + kappa( lonIndex, latIndex + 1 ) ) / 2.0d0
       end do
     end do
 
     ! print this stuff in listing file for user information:
-    if ( .not. limplicit ) then
-      write(*,*)
-      write(*,*) myName//': Number of timesteps = ', diff( diffID ) % numt 
-      write(*,*) myName//': Stability           = ', maxval( kappa ) * diff( diffID ) % dt / ( mindxy**2 )
-      write(*,*)
-    end if
+    write(*,*)
+    write(*,*) myName//': Number of timesteps = ', diff(diffID)%numt 
+    if ( .not. useImplicit ) write(*,*) myName//': Stability           = ', maxval( kappa ) * diff(diffID)%dt / ( mindxy**2 )
+    write(*,*)
 
     ! this is the matrix necessary for defining the inner product: for lat-lon grid, only cos(y)
     ! Actually, only the diagonal of the matrix is stored in the array W, since the matrix is diagonal.
@@ -330,41 +349,35 @@ contains
     do lonIndex = 2, ni
       W( lonIndex, : ) = W( 1, : )
     end do
-    diff( diffID ) % Winv(:,:)     = 1.0d0 / W(:,:)
-    diff( diffID ) % Wsqrt(:,:)    = sqrt( W(:,:) )
-    diff( diffID ) % Winvsqrt(:,:) = 1.0d0 / diff( diffID ) % Wsqrt(:,:)
-
-    ! specify number of timesteps and timestep length for implicit 1D diffusion
-    if ( limplicit ) then
-      diff( diffID ) % numt = 5
-      diff( diffID ) % dt   = 1.0d0 / ( 2.0d0 * dble( 2 * diff( diffID ) % numt ) - 3.0d0 )
-    end if
+    diff(diffID)%Winv(:,:)     = 1.0d0 / W(:,:)
+    diff(diffID)%Wsqrt(:,:)    = sqrt( W(:,:) )
+    diff(diffID)%Winvsqrt(:,:) = 1.0d0 / diff(diffID)%Wsqrt(:,:)
 
     ! compute the LU decomposition for the implicit 1D diffusion
-    diff( diffID ) % diff1x_ap(:,:) = 0.0d0
-    diff( diffID ) % diff1x_bp_inv(:,:) = 0.0d0      
-    diff( diffID ) % diff1x_c(:,:) = 0.0d0
-    diff( diffID ) % diff1y_ap(:,:) = 0.0d0
-    diff( diffID ) % diff1y_bp_inv(:,:) = 0.0d0      
-    diff( diffID ) % diff1y_c(:,:) = 0.0d0
+    diff(diffID)%diff1x_ap(:,:) = 0.0d0
+    diff(diffID)%diff1x_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1x_c(:,:) = 0.0d0
+    diff(diffID)%diff1y_ap(:,:) = 0.0d0
+    diff(diffID)%diff1y_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1y_c(:,:) = 0.0d0
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,a,b)
     do latIndex = 2, nj - 1
       lonIndex = 2
-      diff( diffID ) % diff1x_bp_inv( lonIndex, latIndex ) = 1.0d0 / ( 1.0d0 + &
-          diff( diffID ) % dt * diff( diffID ) % cosyinvsq( latIndex ) * ( diff( diffID ) % mhalfx( lonIndex, latIndex ) * diff( diffID ) % khalfx( lonIndex, latIndex ) + &
-          diff( diffID ) % mhalfx( lonIndex - 1, latIndex ) * diff( diffID ) % khalfx( lonIndex - 1, latIndex ) ) / ( diff( diffID ) % dlon * diff( diffID ) % dlon ))
+      diff(diffID)%diff1x_bp_inv( lonIndex, latIndex ) = 1.0d0 / ( 1.0d0 + &
+          diff(diffID)%dt * diff(diffID)%cosyinvsq( latIndex ) * ( diff(diffID)%mhalfx( lonIndex, latIndex ) * diff(diffID)%khalfx( lonIndex, latIndex ) + &
+          diff(diffID)%mhalfx( lonIndex - 1, latIndex ) * diff(diffID)%khalfx( lonIndex - 1, latIndex ) ) / ( diff(diffID)%dlon * diff(diffID)%dlon ))
       do lonIndex = 3, ni - 1
         ! elements of the tri-diagonal coefficient matrix
-        a = - diff( diffID ) % dt * diff( diffID ) % cosyinvsq( latIndex ) * diff( diffID ) % mhalfx( lonIndex - 1, latIndex ) * diff( diffID ) % khalfx( lonIndex - 1, latIndex ) / &
-            ( diff( diffID ) % dlon *diff( diffID ) % dlon )
-        b = 1 + diff( diffID ) % dt * diff( diffID ) % cosyinvsq( latIndex ) * ( diff( diffID ) % mhalfx( lonIndex, latIndex ) * diff( diffID ) % khalfx( lonIndex, latIndex ) + &
-            diff( diffID ) % mhalfx( lonIndex - 1, latIndex ) * diff( diffID ) % khalfx( lonIndex - 1, latIndex ) ) / ( diff( diffID ) % dlon * diff( diffID ) % dlon )
-        diff( diffID ) % diff1x_c( lonIndex, latIndex ) = - diff( diffID ) % dt * diff( diffID ) % cosyinvsq( latIndex ) * diff( diffID ) % mhalfx( lonIndex, latIndex ) * &
-            diff( diffID ) % khalfx( lonIndex, latIndex ) / ( diff( diffID ) % dlon * diff( diffID ) % dlon )
-        diff( diffID ) % diff1x_ap( lonIndex, latIndex ) = a * diff( diffID ) % diff1x_bp_inv( lonIndex - 1, latIndex )
-        diff( diffID ) % diff1x_bp_inv( lonIndex, latIndex ) = 1.0d0/(b-a*diff(diffID)%diff1x_c(lonIndex-1,latIndex) * &
-            diff( diffID ) % diff1x_bp_inv( lonIndex - 1, latIndex ))
+        a = - diff(diffID)%dt * diff(diffID)%cosyinvsq( latIndex ) * diff(diffID)%mhalfx( lonIndex - 1, latIndex ) * diff(diffID)%khalfx( lonIndex - 1, latIndex ) / &
+            ( diff(diffID)%dlon *diff(diffID)%dlon )
+        b = 1 + diff(diffID)%dt * diff(diffID)%cosyinvsq( latIndex ) * ( diff(diffID)%mhalfx( lonIndex, latIndex ) * diff(diffID)%khalfx( lonIndex, latIndex ) + &
+            diff(diffID)%mhalfx( lonIndex - 1, latIndex ) * diff(diffID)%khalfx( lonIndex - 1, latIndex ) ) / ( diff(diffID)%dlon * diff(diffID)%dlon )
+        diff(diffID)%diff1x_c( lonIndex, latIndex ) = - diff(diffID)%dt * diff(diffID)%cosyinvsq( latIndex ) * diff(diffID)%mhalfx( lonIndex, latIndex ) * &
+            diff(diffID)%khalfx( lonIndex, latIndex ) / ( diff(diffID)%dlon * diff(diffID)%dlon )
+        diff(diffID)%diff1x_ap( lonIndex, latIndex ) = a * diff(diffID)%diff1x_bp_inv( lonIndex - 1, latIndex )
+        diff(diffID)%diff1x_bp_inv( lonIndex, latIndex ) = 1.0d0/(b-a*diff(diffID)%diff1x_c(lonIndex-1,latIndex) * &
+            diff(diffID)%diff1x_bp_inv( lonIndex - 1, latIndex ))
       end do
     end do
     !$OMP END PARALLEL DO
@@ -372,24 +385,24 @@ contains
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,a,b)
     do lonIndex = 2, ni - 1
       latIndex = 2
-      diff( diffID ) % diff1y_bp_inv( latIndex, lonIndex ) = 1.0d0 / ( 1.0d0 + &
-           diff( diffID ) % dt * diff( diffID ) % cosyinvsq( latIndex ) * ( diff( diffID ) % cosyhalf( latIndex ) * diff( diffID ) % mhalfy( lonIndex, latIndex ) * &
-           diff( diffID ) % khalfy( lonIndex, latIndex ) + &
-           diff( diffID ) % cosyhalf( latIndex - 1 ) * diff( diffID ) % mhalfy( lonIndex, latIndex - 1 ) * diff( diffID ) % khalfy( lonIndex, latIndex - 1 ) ) / &
-           ( diff( diffID ) % dlat * diff( diffID ) % dlat ) )
+      diff(diffID)%diff1y_bp_inv( latIndex, lonIndex ) = 1.0d0 / ( 1.0d0 + &
+           diff(diffID)%dt * diff(diffID)%cosyinvsq( latIndex ) * ( diff(diffID)%cosyhalf( latIndex ) * diff(diffID)%mhalfy( lonIndex, latIndex ) * &
+           diff(diffID)%khalfy( lonIndex, latIndex ) + &
+           diff(diffID)%cosyhalf( latIndex - 1 ) * diff(diffID)%mhalfy( lonIndex, latIndex - 1 ) * diff(diffID)%khalfy( lonIndex, latIndex - 1 ) ) / &
+           ( diff(diffID)%dlat * diff(diffID)%dlat ) )
       do latIndex = 3, nj-1
         ! elements of the tri-diagonal coefficient matrix
         a = - diff(diffID)%dt*diff(diffID)%cosyinv(latIndex)*diff(diffID)%cosyhalf(latIndex-1)* &
             diff(diffID)%mhalfy(lonIndex,latIndex-1)*diff(diffID)%khalfy(lonIndex,latIndex-1)/(diff(diffID)%dlat*diff(diffID)%dlat)
         b = 1 + diff(diffID)%dt*diff(diffID)%cosyinv(latIndex)*(diff(diffID)%cosyhalf(latIndex)*diff(diffID)%mhalfy(lonIndex,latIndex)* &
             diff(diffID)%khalfy(lonIndex,latIndex) + &
-            diff( diffID ) % cosyhalf( latIndex - 1 ) * diff( diffID ) % mhalfy( lonIndex, latIndex - 1 ) * diff( diffID ) % khalfy( lonIndex, latIndex - 1 ) ) &
-            / ( diff( diffID ) % dlat * diff( diffID ) % dlat )
-        diff( diffID ) % diff1y_c( latIndex, lonIndex ) = - diff( diffID ) % dt * diff( diffID ) % cosyinv( latIndex ) * diff( diffID ) % cosyhalf( latIndex ) * &
-            diff( diffID ) % mhalfy( lonIndex, latIndex ) * diff( diffID ) % khalfy( lonIndex, latIndex ) / ( diff( diffID ) % dlat * diff( diffID ) % dlat )
-        diff(diffID)%diff1y_ap(latIndex,lonIndex) = a*diff( diffID ) % diff1y_bp_inv( latIndex - 1, lonIndex )
-        diff(diffID) % diff1y_bp_inv( latIndex, lonIndex ) = 1.0d0 / ( b - a * diff( diffID ) % diff1y_c( latIndex - 1, lonIndex ) &
-            *diff( diffID ) % diff1y_bp_inv( latIndex - 1, lonIndex ))
+            diff(diffID)%cosyhalf( latIndex - 1 ) * diff(diffID)%mhalfy( lonIndex, latIndex - 1 ) * diff(diffID)%khalfy( lonIndex, latIndex - 1 ) ) &
+            / ( diff(diffID)%dlat * diff(diffID)%dlat )
+        diff(diffID)%diff1y_c( latIndex, lonIndex ) = - diff(diffID)%dt * diff(diffID)%cosyinv( latIndex ) * diff(diffID)%cosyhalf( latIndex ) * &
+            diff(diffID)%mhalfy( lonIndex, latIndex ) * diff(diffID)%khalfy( lonIndex, latIndex ) / ( diff(diffID)%dlat * diff(diffID)%dlat )
+        diff(diffID)%diff1y_ap(latIndex,lonIndex) = a*diff(diffID)%diff1y_bp_inv( latIndex - 1, lonIndex )
+        diff(diffID)%diff1y_bp_inv( latIndex, lonIndex ) = 1.0d0 / ( b - a * diff(diffID)%diff1y_c( latIndex - 1, lonIndex ) &
+            *diff(diffID)%diff1y_bp_inv( latIndex - 1, lonIndex ))
       end do
     end do
     !$OMP END PARALLEL DO
@@ -420,7 +433,7 @@ contains
       ierr = fstfrm(std_unit)
       ierr = fclos(std_unit)
 
-      diff( diffID ) % Lambda = dble( buf2d )
+      diff(diffID)%Lambda = dble( buf2d )
 
       deallocate( buf2d )
 
@@ -435,12 +448,11 @@ contains
 
       write(*,*) myName//': Number of samples, ni * nj: ', numberSamples, ni * nj
 
-
       ! compute normalization:  Lambda = inverse stddev of (Diffuse * W^-1/2)
       write(*,*)  myName//': Estimate normalization factors for diffusion using randomization method...'
       write(*,*)  myName//': will use ', numberSamples,' samples.',' ni and nj: ', ni, nj
       call flush(6)
-      diff( diffID ) % Lambda = 0.0d0
+      diff(diffID)%Lambda = 0.0d0
       lambdaLocal             = 0.0d0
 
       SAMPLE: do sampleIndex = 1, numberSamples
@@ -449,30 +461,33 @@ contains
 
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            xin( lonIndex, latIndex ) = diff( diffID ) % Winvsqrt( lonIndex, latIndex ) * rng_gaussian()
+            xin( lonIndex, latIndex ) = diff(diffID)%Winvsqrt( lonIndex, latIndex ) * rng_gaussian()
           end do
         end do
 
-        if ( limplicit ) then
-       
-          do timeStep = 1, diff( diffID ) % numt
-	    
+        if ( useImplicit ) then
+
+          allocate(xin_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+          do timeStep = 1, diff(diffID)%numt
             call diffusion1x_implicit( diffID, xin, xin )
-            call diffusion1y_implicit( diffID, xin, xin )
-	      
+
+            call transposeLatToLonBands( diffID, xin, xin_transpose )
+            call diffusion1y_implicit( diffID, xin_transpose, xin_transpose )
+            call transposeLonToLatBands( diffID, xin_transpose, xin )
           end do
-       
+          deallocate(xin_transpose)
+
         else
-	  
+
           call diffusion_explicit( diffID, xin, xin )
-	    
+
         end if
-       
+
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-	    
-            diff( diffID ) % Lambda( lonIndex, latIndex ) = diff( diffID ) % Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
-	      
+
+            diff(diffID)%Lambda( lonIndex, latIndex ) = diff(diffID)%Lambda( lonIndex, latIndex ) + xin( lonIndex, latIndex ) * xin( lonIndex, latIndex )
+
 	  end do
 	end do
 
@@ -481,21 +496,21 @@ contains
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
 
-          diff( diffID ) % Lambda( lonIndex, latIndex ) = sqrt( diff( diffID ) % Lambda( lonIndex, latIndex ) / dble( numberSamples - 1 ) ) ! normalization: inverse of rms of ens
+          diff(diffID)%Lambda( lonIndex, latIndex ) = sqrt( diff(diffID)%Lambda( lonIndex, latIndex ) / dble( numberSamples - 1 ) ) ! normalization: inverse of rms of ens
 
-          if ( diff( diffID ) % Lambda( lonIndex, latIndex ) > 0.0d0 ) then
-            diff( diffID ) % Lambda( lonIndex, latIndex ) = 1.0d0 / diff( diffID ) % Lambda( lonIndex, latIndex )
+          if ( diff(diffID)%Lambda( lonIndex, latIndex ) > 0.0d0 ) then
+            diff(diffID)%Lambda( lonIndex, latIndex ) = 1.0d0 / diff(diffID)%Lambda( lonIndex, latIndex )
           end if
 
         end do
       end do
 
-      lambdaLocal( myLonBeg : myLonEnd, myLatBeg : myLatEnd ) = diff( diffID ) % Lambda( myLonBeg : myLonEnd, myLatBeg : myLatEnd )    
+      lambdaLocal( myLonBeg : myLonEnd, myLatBeg : myLatEnd ) = diff(diffID)%Lambda( myLonBeg : myLonEnd, myLatBeg : myLatEnd )    
       nsize = ni * nj
-      call rpn_comm_allreduce( lambdaLocal, diff( diffID ) % Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr )
+      call rpn_comm_allreduce( lambdaLocal, diff(diffID)%Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr )
 
       if ( mpi_myid == 0 ) then
-       
+
 	write(*,*)  myName//': Save normalization coefficient on proc ', mpi_myid, ' into the file: ', trim(diff_norm_fact)
         npak = 0
         dateo = 0
@@ -513,19 +528,19 @@ contains
         datyp = 1
         rewrit = .FALSE.
 
-        if ( limplicit ) then
+        if ( useImplicit ) then
           write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
         else
           write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
         end if
-       
+
         ierr = fnom( std_unit, diff_norm_fact, 'RND', 0 )
         nmax = fstouv( std_unit, 'RND')
 
-        ierr = fstecr( real(diff( diffID ) % Lambda ), dumwrk, npak, std_unit,          &
+        ierr = fstecr( real(diff(diffID)%Lambda ), dumwrk, npak, std_unit,          &
                        dateo, deet, npas, NI, NJ, 1, ip1, ip2, ip3,                     &
                        typvar, 'LAMB', etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit )
- 
+
         ierr = fstfrm( std_unit )
         ierr = fclos( std_unit )
 
@@ -544,7 +559,7 @@ contains
     diff_setup = diffID
 
     write(*,*) myName//' ***** END *****'
-    
+
   end function diff_setup
 
 
@@ -557,20 +572,20 @@ contains
     ! Arguments:
     integer, intent(in)  :: diffID
 
-    write(*,*) 'diff_finalize: deallocating arrays for diffID = ', diffID
+    write(*,*) 'diff_finalize: deallocating arrays fordiffID= ', diffID
 
-    deallocate( diff( diffID ) % diff1y_c      )
-    deallocate( diff( diffID ) % diff1y_bp_inv )
-    deallocate( diff( diffID ) % diff1y_ap     )
-    deallocate( diff( diffID ) % diff1x_c      )
-    deallocate( diff( diffID ) % diff1x_bp_inv )
-    deallocate( diff( diffID ) % diff1x_ap     )
+    deallocate( diff(diffID)%diff1y_c      )
+    deallocate( diff(diffID)%diff1y_bp_inv )
+    deallocate( diff(diffID)%diff1y_ap     )
+    deallocate( diff(diffID)%diff1x_c      )
+    deallocate( diff(diffID)%diff1x_bp_inv )
+    deallocate( diff(diffID)%diff1x_ap     )
 
-    deallocate( diff( diffID ) % Lambda )
-    deallocate( diff( diffID ) % mhalfy, diff( diffID ) % mhalfx )
-    deallocate( diff( diffID ) % khalfy, diff( diffID ) % khalfx )
-    deallocate( diff( diffID ) % Winvsqrt, diff( diffID ) % Wsqrt, diff( diffID )%Winv )
-    deallocate( diff( diffID ) % cosyinvsq, diff( diffID ) % cosyinv, diff( diffID ) % cosyhalf )
+    deallocate( diff(diffID)%Lambda )
+    deallocate( diff(diffID)%mhalfy, diff(diffID)%mhalfx )
+    deallocate( diff(diffID)%khalfy, diff(diffID)%khalfx )
+    deallocate( diff(diffID)%Winvsqrt, diff(diffID)%Wsqrt, diff(diffID)%Winv )
+    deallocate( diff(diffID)%cosyinvsq, diff(diffID)%cosyinv, diff(diffID)%cosyhalf )
 
   end subroutine diff_finalize
 
@@ -596,15 +611,15 @@ contains
     real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8), allocatable :: sendBufLon(:), recvBufLon(:), sendBufLat(:), recvBufLat(:)
 
-    call tmg_start(200, 'diffusion_explicit' )
+    call tmg_start(185, 'diffusion_explicit' )
 
-    lonPerPE = diff( diffID ) % lonPerPE
-    latPerPE = diff( diffID ) % latPerPE
+    lonPerPE = diff(diffID)%lonPerPE
+    latPerPE = diff(diffID)%latPerPE
 
-    myLonBeg = diff( diffID ) % myLonBeg
-    myLonEnd = diff( diffID ) % myLonEnd
-    myLatBeg = diff( diffID ) % myLatBeg
-    myLatEnd = diff( diffID ) % myLatEnd
+    myLonBeg = diff(diffID)%myLonBeg
+    myLonEnd = diff(diffID)%myLonEnd
+    myLatBeg = diff(diffID)%myLatBeg
+    myLatEnd = diff(diffID)%myLatEnd
 
     ! remove global border from range of grid points where output is calculated
     myLonBegNoB = max(myLonBeg, 2)
@@ -623,7 +638,7 @@ contains
     xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd ) = xin(:,:)
     
     ! iterate difference equations
-    TIME: do timeIndex = 1, diff( diffID ) % numt / 2
+    TIME: do timeIndex = 1, diff(diffID)%numt / 2
 
       ! exchange 4 arrays of halo information between mpi tasks
 
@@ -755,7 +770,7 @@ contains
     deallocate(sendBufLat)
     deallocate(recvBufLat)
 
-    call tmg_stop(200)
+    call tmg_stop(185)
 
   end subroutine diffusion_explicit
 
@@ -770,26 +785,32 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: tIndex
+    integer              :: timeStep
+    real(8), allocatable :: xout_transpose(:,:)
 
     ! compute Csqrt
 
     ! this is the C^1/2 required for the forward model: Csqrt = Lambda * Diffuse * W^-1/2
     xout(:,:) = xin(:,:) *  &
-                diff( diffID ) % Winvsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                diff(diffID)%Winvsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                           diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
-    if ( diff( diffID ) % limplicit ) then
-      do tIndex = 1, diff( diffID ) % numt
+    if ( diff(diffID)%useImplicit ) then
+      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      do timeStep = 1, diff(diffID)%numt
         call diffusion1x_implicit( diffID, xout, xout )
-        call diffusion1y_implicit( diffID, xout, xout )
+
+        call transposeLatToLonBands( diffID, xout, xout_transpose )
+        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
+        call transposeLonToLatBands( diffID, xout_transpose, xout )
       end do
+      deallocate(xout_transpose)
     else
       call diffusion_explicit ( diffID, xout, xout )
     end if
 
     xout(:,:) = xout(:,:) *  &
-                diff( diffID ) % Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                        diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+                diff(diffID)%Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                      diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrt
 
@@ -804,75 +825,234 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: t
+    integer              :: timeStep
+    real(8), allocatable :: xout_transpose(:,:)
 
     ! compute Csqrtadj
 
     ! this is the (C^1/2)^T required for the adjoint: Csqrt^T = W^1/2 * Diffuse * W^-1 * Lambda
-    xout(:,:) = xin (:,:) * diff( diffID ) % Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
-    xout(:,:) = xout(:,:) * diff( diffID ) %   Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
-    if ( diff( diffID ) % limplicit ) then
-      do t = 1, diff( diffID ) % numt
-        call diffusion1y_implicit( diffID, xout, xout )
+    xout(:,:) = xin (:,:) * diff(diffID)%Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                                diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
+    xout(:,:) = xout(:,:) * diff(diffID)%Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                              diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
+    if ( diff(diffID)%useImplicit ) then
+      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      do timeStep = 1, diff(diffID)%numt
+        call transposeLatToLonBands( diffID, xout, xout_transpose )
+        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
+        call transposeLonToLatBands( diffID, xout_transpose, xout )
+
         call diffusion1x_implicit( diffID, xout, xout )
       end do
+      deallocate(xout_transpose)
     else
       call diffusion_explicit( diffID, xout, xout )
     end if
-    xout(:,:) = xout(:,:) * diff( diffID ) % Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                                   diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+
+    xout(:,:) = xout(:,:) * &
+                diff(diffID)%Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
+                                     diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrtadj
 
 
-  subroutine diffusion1x_implicit(diffID, xin, xout)
+  subroutine transposeLatToLonBands(diffID, xin, xout)
     !
-    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
-    !          timesteps is external to the subroutine), and to specify initial
-    !          conditions
+    !:Purpose: Perform an MPI transposition for a 2D array between latitude
+    !          bands and longitude bands.
+    !
     implicit none
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
-    real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(in)  :: xin ( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj )
 
     ! Locals:
-    integer :: latIndex, lonIndex
+    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
+    integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
+    integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
+    real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    real(8) :: xlast ( diff( diffID ) % ni, diff( diffID ) % nj )
-    real(8) :: dp ( diff ( diffID ) % ni )
+    call tmg_start(188,'diff-transposeLatToLon')
+
+    call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
+                            allLonBeg                      ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLonEnd_transpose,1,'mpi_integer',       &
+                            allLonEnd                      ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLatBeg,1,'mpi_integer',       &
+                            allLatBeg            ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
+                            allLatEnd            ,1,'mpi_integer','GRID',ierr)
+
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+
+    xout(:,:) = 0.0d0
+    xsend(:,:,:) = 0.0d0
+    xrecv(:,:,:) = 0.0d0
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
+    do yourid = 1, mpi_nprocs
+      numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
+      numLatPoints = size(xin,2)
+      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:) 
+    end do
+    !$OMP END PARALLEL DO
+
+    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
+    if (mpi_nprocs > 1) then
+      call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
+                             xrecv, nsize, 'mpi_real8', 'grid', ierr)
+    else
+      xrecv(:,:,1) = xsend(:,:,1)
+    end if
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
+    do yourid = 1, mpi_nprocs
+      numLonPoints = size(xout,1)
+      numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
+      xout(:,allLatBeg(yourid):allLatEnd(yourid)) = xrecv(1:numLonPoints,1:numLatPoints,yourid)
+    end do
+    !$OMP END PARALLEL DO
+
+    deallocate(xsend)
+    deallocate(xrecv)
+
+    call tmg_stop(188)
+
+  end subroutine transposeLatToLonBands
+
+  
+  subroutine transposeLonToLatBands(diffID, xin, xout)
+    !
+    !:Purpose: Perform an MPI transposition for a 2D array between longitude
+    !          bands and latitude bands.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin ( diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj )
+    real(8), intent(out) :: xout( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+
+    ! Locals:
+    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
+    integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
+    integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
+    real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
+
+    call tmg_start(189,'diff-transposeLonToLat')
+
+    call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
+                            allLonBeg                      ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLonEnd_transpose,1,'mpi_integer',       &
+                            allLonEnd                      ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLatBeg,1,'mpi_integer',       &
+                            allLatBeg            ,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
+                            allLatEnd            ,1,'mpi_integer','GRID',ierr)
+
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+
+    xout(:,:) = 0.0d0
+    xsend(:,:,:) = 0.0d0
+    xrecv(:,:,:) = 0.0d0
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
+    do yourid = 1, mpi_nprocs
+      numLonPoints = size(xin,1)
+      numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
+      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(:,allLatBeg(yourid):allLatEnd(yourid))
+    end do
+    !$OMP END PARALLEL DO
+
+    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
+    if (mpi_nprocs > 1) then
+      call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
+                             xrecv, nsize, 'mpi_real8', 'grid', ierr)
+    else
+      xrecv(:,:,1) = xsend(:,:,1)
+    end if
+
+    !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
+    do yourid = 1, mpi_nprocs
+      numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
+      numLatPoints = size(xout,2)
+      xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(1:numLonPoints,1:numLatPoints,yourid) 
+    end do
+    !$OMP END PARALLEL DO
+
+    deallocate(xsend)
+    deallocate(xrecv)
+
+    call tmg_stop(189)
+
+  end subroutine transposeLonToLatBands
+
+  
+  subroutine diffusion1x_implicit(diffID, xin, xout)
+    !
+    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
+    !          timesteps is external to the subroutine).
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin ( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8), intent(out) :: xout( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+
+    ! Locals:
+    integer :: latIndex, lonIndex, iterIndex
+    real(8) :: xlast( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
+    real(8) :: dp( diff(diffID)%ni )
+
+    call tmg_start(186,'diffusion_implicitx')
 
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
-    do latIndex = 1, diff ( diffID ) % nj
-      do lonIndex = 1, diff ( diffID ) % ni
+    do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
+      do lonIndex = 1, diff (diffID)%ni
         xlast ( lonIndex, latIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
     !$OMP END PARALLEL DO
 
-    !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
-    do latIndex = 2, diff( diffID ) % nj - 1
-      lonIndex = 2
-      dp( lonIndex ) = xlast ( lonIndex, latIndex )
-      do lonIndex = 3, diff ( diffID ) % ni - 1
-        dp( lonIndex ) = xlast( lonIndex, latIndex ) - diff( diffID ) % diff1x_ap( lonIndex, latIndex ) * dp( lonIndex - 1 )
+    do iterIndex = 1, diff(diffID)%numIterImp
+      
+      !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
+      do latIndex =  max(2, diff(diffID)%myLatBeg), min(diff(diffID)%nj-1, diff(diffID)%myLatEnd)
+        lonIndex = 2
+        dp( lonIndex ) = xlast ( lonIndex, latIndex )
+        do lonIndex = 3, diff (diffID)%ni - 1
+          dp( lonIndex ) = xlast( lonIndex, latIndex ) - diff(diffID)%diff1x_ap( lonIndex, latIndex ) * dp( lonIndex - 1 )
+        end do
+        lonIndex = diff(diffID)%ni - 1
+        xout( lonIndex, latIndex ) = dp( lonIndex ) * diff(diffID)%diff1x_bp_inv( lonIndex, latIndex )
+        do lonIndex = diff(diffID)%ni - 2, 2, -1
+          xout( lonIndex, latIndex ) = ( dp( lonIndex ) - diff(diffID)%diff1x_c( lonIndex, latIndex ) * xout( lonIndex + 1, latIndex ) ) * &
+                                       diff(diffID)%diff1x_bp_inv( lonIndex, latIndex )
+        end do
       end do
-      lonIndex = diff( diffID ) % ni - 1
-      xout( lonIndex, latIndex ) = dp( lonIndex ) * diff( diffID ) % diff1x_bp_inv( lonIndex, latIndex )
-      do lonIndex = diff( diffID ) % ni - 2, 2, -1
-        xout( lonIndex, latIndex ) = ( dp( lonIndex ) - diff( diffID ) % diff1x_c( lonIndex, latIndex ) * xout( lonIndex + 1, latIndex ) ) &
-                                   * diff( diffID ) % diff1x_bp_inv( lonIndex, latIndex )
-      end do
-    end do
-    !$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
-    do latIndex = 1, diff ( diffID ) % nj
-      xout ( 1, latIndex )                   = xin ( 1, latIndex )
-      xout ( diff( diffID ) % ni, latIndex ) = xin ( diff ( diffID ) % ni, latIndex )
+      !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
+      do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
+        do lonIndex = 1, diff (diffID)%ni
+          xlast ( lonIndex, latIndex ) = xout ( lonIndex, latIndex )
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
     end do
+
+    do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
+      xout ( 1, latIndex )               = xin ( 1, latIndex )
+      xout ( diff(diffID)%ni, latIndex ) = xin ( diff(diffID)%ni, latIndex )
+    end do
+
+    call tmg_stop(186)
 
   end subroutine diffusion1x_implicit
 
@@ -880,53 +1060,68 @@ contains
   subroutine diffusion1y_implicit(diffID, xin, xout)
     !
     !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over 
-    !          timesteps is external to the subroutine), and to specify initial
-    !          conditions
+    !          timesteps is external to the subroutine).
+    !
     implicit none
 
     ! Arguments:
     integer, intent(in)  :: diffID
-    real(8), intent(in)  :: xin(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
-    real(8), intent(out) :: xout(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+    real(8), intent(in)  :: xin (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj)
+    real(8), intent(out) :: xout(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj)
 
     ! Locals:
-    integer :: latIndex, lonIndex
-
-    real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
+    integer :: latIndex, lonIndex, iterIndex
+    real(8) :: xlast(diff(diffID)%nj, diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose)
     real(8) :: dp(diff(diffID)%nj)
 
     ! NOTE:for improved efficiency, the 2D fields used internally are
     !      ordered (diff(diffID)%nj,diff(diffID)%ni) and
     !      NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code!
 
+    call tmg_start(187,'diffusion_implicity')
+
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
-    do latIndex = 1, diff ( diffID ) % nj
-      do lonIndex = 1, diff ( diffID ) % ni
+    do latIndex = 1, diff (diffID)%nj
+      do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
         xlast ( latIndex, lonIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
     !$OMP END PARALLEL DO
 
-    !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
-    do lonIndex = 2, diff ( diffID ) % ni - 1
-      latIndex = 2
-      dp ( latIndex ) = xlast ( latIndex, lonIndex )
-      do latIndex = 3, diff ( diffID ) % nj - 1
-        dp ( latIndex ) = xlast ( latIndex, lonIndex ) - diff ( diffID ) % diff1y_ap ( latIndex, lonIndex ) * dp ( latIndex - 1 )
-      end do
-      latIndex = diff ( diffID ) % nj - 1
-      xout ( lonIndex, latIndex ) = dp ( latIndex ) * diff ( diffID ) % diff1y_bp_inv ( latIndex, lonIndex )
-      do latIndex = diff( diffID ) % nj - 2, 2, -1
-        xout ( lonIndex, latIndex ) = ( dp ( latIndex ) - diff( diffID ) % diff1y_c ( latIndex, lonIndex ) * xout ( lonIndex, latIndex + 1 ) ) &
-                                    * diff ( diffID ) % diff1y_bp_inv ( latIndex, lonIndex )
-      end do
-    end do
-    !$OMP END PARALLEL DO
+    do iterIndex = 1, diff(diffID)%numIterImp
 
-    do lonIndex = 1, diff ( diffID ) % ni
-      xout( lonIndex, 1 )                    = xin ( lonIndex, 1 )
-      xout( lonIndex, diff ( diffID ) % nj ) = xin ( lonIndex, diff ( diffID ) % nj )
+      !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
+      do lonIndex = max(2, diff(diffID)%myLonBeg_transpose), min(diff(diffID)%ni-1, diff(diffID)%myLonEnd_transpose)
+        latIndex = 2
+        dp ( latIndex ) = xlast ( latIndex, lonIndex )
+        do latIndex = 3, diff (diffID)%nj - 1
+          dp ( latIndex ) = xlast ( latIndex, lonIndex ) - diff (diffID)%diff1y_ap ( latIndex, lonIndex ) * dp ( latIndex - 1 )
+        end do
+        latIndex = diff (diffID)%nj - 1
+        xout ( lonIndex, latIndex ) = dp ( latIndex ) * diff (diffID)%diff1y_bp_inv ( latIndex, lonIndex )
+        do latIndex = diff(diffID)%nj - 2, 2, -1
+          xout ( lonIndex, latIndex ) = ( dp ( latIndex ) - diff(diffID)%diff1y_c ( latIndex, lonIndex ) * xout ( lonIndex, latIndex + 1 ) ) * &
+                                        diff (diffID)%diff1y_bp_inv ( latIndex, lonIndex )
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+      !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
+      do latIndex = 1, diff (diffID)%nj
+        do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
+          xlast ( latIndex, lonIndex ) = xout ( lonIndex, latIndex )
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
     end do
+
+    do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
+      xout( lonIndex, 1 )                    = xin ( lonIndex, 1 )
+      xout( lonIndex, diff (diffID)%nj ) = xin ( lonIndex, diff (diffID)%nj )
+    end do
+
+    call tmg_stop(187)
 
   end subroutine diffusion1y_implicit
 

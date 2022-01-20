@@ -123,7 +123,7 @@ contains
     !- 0.  Read namelist options
     !
     ntrunc         = 75     ! default values
-    scaleFactor(:) =  1.0d0 ! default values
+    scaleFactor(:) =  0.0d0 ! default values
 
     ier = fnom(iu_flnml,'./flnml','FTN+SEQ+R/O',0)
     write(*,*)

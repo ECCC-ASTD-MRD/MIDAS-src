@@ -451,6 +451,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="Bcolumns-ImplicitDiff"/>
+    <FAMILY  name="Bcolumns-ImplicitDiff">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="extractBmatrixFor1Dvar">

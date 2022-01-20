@@ -2196,13 +2196,11 @@ contains
 
       call obs_set_current_body_list( obsSpaceData, 'TM' )
 
-      BODY: do
-        bodyIndex = obs_getBodyIndex( obsSpaceData )
-        if (bodyIndex < 0) exit BODY
+      !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, anlIncValueBot)
+      BODY: do bodyIndex = 1, obs_numBody( obsSpaceData )
+        if ( obs_getFamily(obsSpaceData, bodyIndex=bodyIndex) /= 'TM' ) cycle BODY
 
-        ! Process all data within the domain of the model
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
-
         if ( bufrCode /= bufr_sst ) cycle BODY
 
         if ( col_varExist(columnAnlInc,'TM') ) then
@@ -2219,6 +2217,7 @@ contains
         end if
 
       end do BODY
+      !$OMP END PARALLEL DO
 
     end subroutine oop_Hsst
 
@@ -2943,14 +2942,11 @@ contains
 
       call obs_set_current_body_list( obsSpaceData, 'TM' )
 
-      BODY: do
+      !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, residual, columnTG)
+      BODY: do bodyIndex = 1, obs_numBody( obsSpaceData )
+        if ( obs_getFamily(obsSpaceData, bodyIndex=bodyIndex) /= 'TM' ) cycle BODY
 
-        bodyIndex = obs_getBodyIndex( obsSpaceData )
-        if (bodyIndex < 0) exit BODY
-
-        ! Process all data within the domain of the model
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
-
         if ( bufrCode /= bufr_sst ) cycle BODY
 
         if ( col_varExist(columnAnlInc,'TM') ) then
@@ -2969,6 +2965,7 @@ contains
         end if
 
       end do BODY
+      !$OMP END PARALLEL DO
 
     end subroutine oop_HTsst
 
