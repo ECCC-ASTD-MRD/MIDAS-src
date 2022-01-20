@@ -434,29 +434,29 @@ contains
           end if
           Z_M(:,:,:,stepIndex) = Height_out(:,:,:)
           ! DEBUG mad001 start
-          write(*,*) 'DEBUG mad001 ip1_M', statevector%vco%ip1_M
-          write(*,*) 'DEBUG mad001 Height_out (Z_M) bounds', lbound(Height_out), ubound(Height_out)
-          write(*,*) 'DEBUG mad001 Z_M bounds', lbound(Z_M), ubound(Z_M)
-          do locIdx = 1, 8
-            lonIndex = locNi(locIdx)
-            latIndex = locNj(locIdx)
-            locHco = gsv_getHco(statevector) 
-            locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
-            locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
-            if (locLon >= 180) locLon = locLon - 360
-            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-              do locLvl = locNLvl, locNLvl-10, -1
-                write(*,*) 'DEBUG mad001 Height_out (Z_M): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
-              end do
-              write(*,*) 'DEBUG mad001 Z_M='
-              write(*,*) Z_M(lonIndex,latIndex,:,1)
-              do locLvl = locNLvl, locNLvl-10, -1
-                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_M(lonIndex,latIndex,locLvl,1)
-              end do
-            end if
-          end do
-          write(*,*) 'DEBUG mad001 --------'
+!          write(*,*) 'DEBUG mad001 ip1_M', statevector%vco%ip1_M
+!          write(*,*) 'DEBUG mad001 Height_out (Z_M) bounds', lbound(Height_out), ubound(Height_out)
+!          write(*,*) 'DEBUG mad001 Z_M bounds', lbound(Z_M), ubound(Z_M)
+!          do locIdx = 1, 8
+!            lonIndex = locNi(locIdx)
+!            latIndex = locNj(locIdx)
+!            locHco = gsv_getHco(statevector) 
+!            locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
+!            locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
+!            if (locLon >= 180) locLon = locLon - 360
+!            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
+!                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
+!              do locLvl = locNLvl, locNLvl-10, -1
+!                write(*,*) 'DEBUG mad001 Height_out (Z_M): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
+!              end do
+!              write(*,*) 'DEBUG mad001 Z_M='
+!              write(*,*) Z_M(lonIndex,latIndex,:,1)
+!              do locLvl = locNLvl, locNLvl-10, -1
+!                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_M(lonIndex,latIndex,locLvl,1)
+!              end do
+!            end if
+!          end do
+!          write(*,*) 'DEBUG mad001 --------'
           !call utl_abort('DEBUG mad001 ---END---')
           ! DEBUG mad001 ends
           deallocate(Height_out)
@@ -473,29 +473,29 @@ contains
           end if
           Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
           ! DEBUG mad001 start
-          write(*,*) 'DEBUG mad001 ip1_T', statevector%vco%ip1_T
-          write(*,*) 'DEBUG mad001 Height_out (Z_T) bounds', lbound(Height_out), ubound(Height_out)
-          write(*,*) 'DEBUG mad001 Z_T bounds', lbound(Z_T), ubound(Z_T)
-          do locIdx = 1, 8
-            lonIndex = locNi(locIdx)
-            latIndex = locNj(locIdx)
-            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-              locHco = gsv_getHco(statevector) 
-              locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
-              locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
-              if (locLon >= 180) locLon = locLon - 360
-              do locLvl = locNLvl, locNLvl-10, -1
-                write(*,*) 'DEBUG mad001 Height_out (Z_T): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
-              end do
-              write(*,*) 'DEBUG mad001 Z_T='
-              write(*,*) Z_T(lonIndex,latIndex,:,1)
-              do locLvl = locNLvl, locNLvl-10, -1
-                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_T(lonIndex,latIndex,locLvl,1)
-              end do
-            end if
-          end do
-          write(*,*) 'DEBUG mad001 --------'
+!          write(*,*) 'DEBUG mad001 ip1_T', statevector%vco%ip1_T
+!          write(*,*) 'DEBUG mad001 Height_out (Z_T) bounds', lbound(Height_out), ubound(Height_out)
+!          write(*,*) 'DEBUG mad001 Z_T bounds', lbound(Z_T), ubound(Z_T)
+!          do locIdx = 1, 8
+!            lonIndex = locNi(locIdx)
+!            latIndex = locNj(locIdx)
+!            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
+!                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
+!              locHco = gsv_getHco(statevector) 
+!              locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
+!              locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
+!              if (locLon >= 180) locLon = locLon - 360
+!              do locLvl = locNLvl, locNLvl-10, -1
+!                write(*,*) 'DEBUG mad001 Height_out (Z_T): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
+!              end do
+!              write(*,*) 'DEBUG mad001 Z_T='
+!              write(*,*) Z_T(lonIndex,latIndex,:,1)
+!              do locLvl = locNLvl, locNLvl-10, -1
+!                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_T(lonIndex,latIndex,locLvl,1)
+!              end do
+!            end if
+!          end do
+!          write(*,*) 'DEBUG mad001 --------'
           !call utl_abort('DEBUG mad001 ---END---')
           ! DEBUG mad001 ends
           deallocate(Height_out)
@@ -511,24 +511,24 @@ contains
         deallocate(Hsfc4)
 
         ! DEBUG mad001 start
-        locNLvl = gsv_getNumLev(statevector,'MM')
-        do locIdx = 1, 8
-          lonIndex = locNi(locIdx)
-          latIndex = locNj(locIdx)
-          if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-              .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-            locHco = gsv_getHco(statevector) 
-            locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
-            locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
-            if (locLon >= 180) locLon = locLon - 360
-            do locLvl = locNLvl, locNLvl-10, -1
-              write(100+mpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,4(F20.10,2X))')&
-                  locLabels(locIdx),locLon,locLat,locLvl,&
-                  Z_M(lonIndex,latIndex,locLvl,1),&
-                  Z_T(lonIndex,latIndex,locLvl,1)
-            end do
-          end if
-        end do
+!        locNLvl = gsv_getNumLev(statevector,'MM')
+!        do locIdx = 1, 8
+!          lonIndex = locNi(locIdx)
+!          latIndex = locNj(locIdx)
+!          if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
+!              .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
+!            locHco = gsv_getHco(statevector) 
+!            locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
+!            locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
+!            if (locLon >= 180) locLon = locLon - 360
+!            do locLvl = locNLvl, locNLvl-10, -1
+!              write(100+mpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,4(F20.10,2X))')&
+!                  locLabels(locIdx),locLon,locLat,locLvl,&
+!                  Z_M(lonIndex,latIndex,locLvl,1),&
+!                  Z_T(lonIndex,latIndex,locLvl,1)
+!            end do
+!          end if
+!        end do
         !call utl_abort('DEBUG mad001 ---END---')
         ! DEBUG mad001 end
 
@@ -1585,6 +1585,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): computing Pressure on staggered or UNstaggered levels'
 
@@ -1621,8 +1622,8 @@ contains
 
         real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
         real(4) ::  lat_4
-        real(8) ::  hu, tt, cmp, Rgh, P0, dh, rMt, Z_T, Z_T1, Z_M, Z_M1
-        real(8) ::  sLat, cLat, lat_8, Z_SfcOffset
+        real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1
+        real(8) ::  sLat, cLat, lat_8
         real(8) ::  ScaleFactorBottom
 
         real(8), allocatable :: tv(:),  pressure_T(:), pressure_M(:)
@@ -1699,7 +1700,6 @@ contains
         end if
         HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
-        ! compute virtual temperature on thermo levels (corrected of compressibility)
         do_computePressure_gsv_nl: do stepIndex = 1, numStep
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -1719,104 +1719,108 @@ contains
                 P0 = P0_ptr_r8(lonIndex,latIndex,1, stepIndex)
               end if
 
-              Z_SfcOffset = real(heightSfcOffset_T_r4,8)
               rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
 
-              ! compute pressure on the bottom thermo level
+              ! compute pressure on diagnostic levels
               if ( statevector%dataKind == 4 ) then
                 hu = real(hu_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
                 tt = real(tt_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
-                Z_T = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
               else
                 hu = hu_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
                 tt = tt_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
+              end if
+              tv0 = fotvt8(tt,hu)
+
+              ! thermo diagnostic level
+              if ( statevector%dataKind == 4 ) then
+                Z_T = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
+              else
                 Z_T = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
               end if
+              cmp = gpscompressibility(P0,tt,hu) 
+              tv(nlev_T) = tv0*cmp
+              dh = Z_T - rMT
+              Rgh = phf_gravityalt(sLat, Z_T)
+              pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
-              ! offset from the ground where the pressure is P0
-              dh = Z_SfcOffset 
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh) 
+              ! momentum diagnostic level
+              ! DEBUG mad001 : validate that boundary condition implementation
+              if ( statevector%dataKind == 4 ) then
+                Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+              else
+                Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+              end if
+              Rgh = phf_gravityalt(sLat, Z_M)
+              dh = Z_M - rMT
+              pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
-              ! 1st estimation of tv based on P0
-              cmp = gpscompressibility(P0,tt,hu)
-              tv(nlev_T) = fotvt8(tt,hu) * cmp
-              pressure_T(nlev_T) = P0 * &
-                   exp(-Rgh * dh / MPC_RGAS_DRY_AIR_R8 / tv(nlev_T) )
+              ! DEBUG mad001 start
+              if ( latIndex == statevector%myLatBeg &
+                   .and. lonIndex == statevector%myLonBeg &
+                   .and. stepIndex == 1) then
+                write(*,*) 'DEBUG mad001 P0                ', P0
+                write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, pressure_T(nlev_T)
+                write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, pressure_M(nlev_M)
+              end if
+              ! DEBUG mad001 stop
 
-              ! refined estimation of tv
-              cmp = gpscompressibility(pressure_T(nlev_T),tt,hu)
-              tv(nlev_T) = fotvt8(tt,hu) * cmp
-              pressure_T(nlev_T) = P0 * &
-                   exp(-Rgh * dh / MPC_RGAS_DRY_AIR_R8 / tv(nlev_T) )
-
-              ! compute pressure on rest of thermo levels
-              do lev_T = nlev_T-1, 1, -1
+              ! compute pressure on all levels above except the last 
+              do lev_M = nlev_M-1, 1, -1
+                lev_T = lev_M ! thermo level just below
                 if ( statevector%dataKind == 4 ) then
                   hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
                   tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+                  Z_M = real(height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+                  Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
                   Z_T = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  Z_T1 = real(height_T_ptr_r4(lonIndex,latIndex,lev_T+1,stepIndex),8)
                 else
                   hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
                   tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+                  Z_M = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+                  Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
                   Z_T = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Z_T1 = height_T_ptr_r8(lonIndex,latIndex,lev_T+1,stepIndex)
                 end if
-                dh = Z_T1 - Z_T
-                Rgh = phf_gravityalt(sLat, Z_T+0.5D0*dh) 
+                tv0 = fotvt8(tt,hu)
+                dh = Z_M - Z_M1
+                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
 
-                ! first estimate of P with tv(lev_T+1)
-                pressure_T(lev_T) = pressure_T(lev_T+1) * &
-                   exp(Rgh * dh / MPC_RGAS_DRY_AIR_R8 / tv(lev_T+1) )
+                ! approximation of tv from pressure on previous momentum level
+                cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu) 
+                tv(lev_T) = tv0*cmp
+                pressure_M(lev_M) = pressure_M(lev_M+1) * &
+                                    exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+                ! interpolating thermo pressure in between
+                scaleFactorBottom = -1.0D0*(Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
+                pressure_T(lev_T-1) = scaleFactorBottom*pressure_M(lev_M+1) + &
+                                      (1.0D0-scaleFactorBottom)*pressure_M(lev_M)
+
+                ! second iteration on tv
                 cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
+                tv(lev_T) = tv0*cmp
+                pressure_M(lev_M) = pressure_M(lev_M+1) * &
+                                    exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
 
-                ! refined estimation of tv
-                tv(lev_T) = fotvt8(tt,hu) * cmp
-                pressure_T(lev_T) = pressure_T(lev_T+1) * &
-                   exp(Rgh * dh / MPC_RGAS_DRY_AIR_R8 / tv(lev_T) )
-
+                if ( latIndex == statevector%myLatBeg &
+                     .and. lonIndex == statevector%myLonBeg &
+                     .and. stepIndex == 1) then
+                  write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, pressure_T(lev_T)
+                  write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, pressure_M(lev_M)
+                end if
               end do
 
-              ! compute pressure on momentum levels 
-              !   we invert the ScaleFactorBottom relationships
-              !   found in calcHeight_gsv_nl_vcode500x
-
-              ! momentum bottom levels 
+              ! interpolating missing nlev_T-1 thermo level
               if ( statevector%dataKind == 4 ) then
-                Z_T  = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex), 8)
-                Z_M  = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex), 8)
+                Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+                Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M-1,stepIndex),8)
+                Z_T1 = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T-1,stepIndex),8)
               else
-                Z_T  = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
-                Z_M  = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+                Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+                Z_M1 = height_M_ptr_r8(lonIndex,latIndex,nlev_M-1,stepIndex)
+                Z_T1 = height_T_ptr_r8(lonIndex,latIndex,nlev_T-1,stepIndex)
               end if
-  
-              scaleFactorBottom = -(Z_T - rMT) / (Z_M - rMT) 
-              pressure_M(nlev_M) = exp(&
-                   1/(1-scaleFactorBottom)*&
-                   (log(pressure_T(nlev_T))-scaleFactorBottom*log(P0)))
-
-
-              ! all the momentum level above 
-              if (nlev_M > 1) then
-                do lev_M = nlev_M-1, 1, -1
-                  lev_T = lev_M
-  
-                  if ( statevector%dataKind == 4 ) then
-                    Z_T  = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex), 8)
-                    Z_M  = real(height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex), 8)
-                    Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex), 8)
-                  else
-                    Z_T  = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                    Z_M  = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
-                    Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
-                  end if
-
-                  scaleFactorBottom = -(Z_T - Z_M) / (Z_M1 - Z_M) 
-                  pressure_M(lev_M) = exp(&
-                       1/(1-scaleFactorBottom)*&
-                       (log(pressure_T(lev_T))-scaleFactorBottom*log(pressure_M(lev_M+1))))
-                end do
-              end if
+              scaleFactorBottom = -1.0D0*(Z_T1-Z_M)/(Z_M1-Z_M)  ! DEBUG mad001 : validate this!
+              pressure_T(nlev_T-1) = scaleFactorBottom*pressure_M(nlev_M) + &
+                                      (1.0D0-scaleFactorBottom)*pressure_M(nlev_M-1)
 
               ! fill the height array
               if ( statevector%dataKind == 4 ) then
