@@ -158,7 +158,7 @@ elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}"
+    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}"
     . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}
 
     ## for 'random_tools'
