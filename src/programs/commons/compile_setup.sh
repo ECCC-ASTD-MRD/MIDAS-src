@@ -169,11 +169,11 @@ fi
 COMPF_GLOBAL="-openmp -mpi ${COMPILE_MIDAS_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    OPTF="-mkl ${OPTF} -warn all -warn errors"
+    OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    OPTF="-qmkl ${OPTF} -warn all,noexternal -warn errors"
+    OPTF="-qmkl ${OPTF} -warn noexternal"
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    OPTF="${OPTF} -warn all -warn errors"
+    OPTF="${OPTF}"
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
