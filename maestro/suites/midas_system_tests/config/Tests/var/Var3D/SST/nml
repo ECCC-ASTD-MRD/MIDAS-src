@@ -27,7 +27,7 @@
   nsamp    = 200*5000
   SCALEFACTOR = 200*1.0
   stddevMode = 'GD2D'
-  limplicit = 200*.true.
+  useImplicit = 200*.true.
 /
  &NAMBHI
 /
