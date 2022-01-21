@@ -1,0 +1,83 @@
+ &NAMTIME
+  dstepobs      =  24.0d0
+  dstepobsinc   =  24.0d0
+  dwindowsize   = 168.0d0
+  referencetime = 'start'
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMDIMO
+   NMXOBS=3500000,
+   NDATAMX=3500000
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042,
+  NFLAGS=6,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &NAMBDIFF
+  corr_len = 200*-1
+  stab     = 200*0.2
+  nsamp    = 200*5000
+  SCALEFACTOR = 200*1.0
+  stddevMode = 'GD2D'
+/
+ &NAMBHI
+   NTRUNC  = 180,
+   SCALEFACTOR = 200*0.0D0
+/
+ &NAMBLB
+   NTRUNC  = 180,
+   SCALEFACTOR = 200*0.0D0
+   stddevMode = 'GD3D'
+   filterStddev = 5
+/
+ &NAMBEN
+   SCALEFACTOR = 200*0.0D0
+/
+ &pseudoSSTobs
+   iceFractionThreshold = 0.01
+   outputSST = 271.4
+   outputFreshWaterST = 273.2
+   seaiceThinning = 2
+   outputFileName = 'obssst_pseudo'
+   etiket = 'MIDAS'
+   useSeaWaterFraction = .true.
+   numberExceptRegions = 0
+!#                           name,   SST, lonMin,  lonMax,  latMin, latMax      
+   exceptRegion(1) = 'GreatLakes', 273.2,  -92.2,   -75.9,    41.3,   49.1
+/      
+ &NAMSQLsfc
+   numberElem=1
+   listElem="22042, 7025"
+   sqlNull=" and obsvalue is not null "  
+/
+ &namSQLUpdate
+  numberUpdateItems=1
+  itemUpdateList(1)='COR'
+/
+ &namSQLInsert
+/
+ &NAMMIN
+   NVAMAJ   = 30,
+   NITERMAX = 50,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC   = .FALSE.,
+   NWOQCV   = 5
+/
+ &NAMINC
+   hInterpolationDegree = 'CUBIC'
+   etiket_rebm ='XXXXXX'
+/
+ &NAMCODTYP
+/

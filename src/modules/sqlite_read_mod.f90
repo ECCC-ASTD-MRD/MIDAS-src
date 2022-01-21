@@ -45,7 +45,7 @@ private
 
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
 public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
-
+public :: sqlr_writeSqlDiagFile
 contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData )
@@ -251,7 +251,7 @@ contains
     write(*,*) myName//': obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
       obsIdo = obs_headPrimaryKey( obsdat, headerIndex )
-      call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
+      call fSQL_bind_param(stmt, param_index = 1, int_var  =  obsIdo )
       call fSQL_exec_stmt (stmt)
       call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
       allocate( matdata(numberRows, numberColumns) )
@@ -685,7 +685,7 @@ contains
           call sqlr_handleError( stat, 'fSQL_prepare')
         end if
          
-        call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey )
+        call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey )
 
         call fSQL_get_row( stmt, finished )
         if ( finished ) then
@@ -709,45 +709,45 @@ contains
         obsrans = MPC_missingValue_R4
         obsrane = MPC_missingValue_R4
 
-        call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
-        call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon    )
-        call fSQL_get_column( stmt, COL_INDEX = 4, INT_VAR   = codeType  )
-        call fSQL_get_column( stmt, COL_INDEX = 5, INT_VAR   = obsDate   )
-        call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime   )
-        call fSQL_get_column( stmt, COL_INDEX = 7, CHAR_VAR  = idStation )
+        call fSQL_get_column( stmt, COL_INDEX = 2, real_var  = obsLat    )
+        call fSQL_get_column( stmt, COL_INDEX = 3, real_var  = obsLon    )
+        call fSQL_get_column( stmt, COL_INDEX = 4, int_var   = codeType  )
+        call fSQL_get_column( stmt, COL_INDEX = 5, int_var   = obsDate   )
+        call fSQL_get_column( stmt, COL_INDEX = 6, int_var   = obsTime   )
+        call fSQL_get_column( stmt, COL_INDEX = 7, char_var  = idStation )
 
 
         FAMILYEXCEPTIONS: if ( trim(familyType) == 'TO' ) then
 
-          call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus )
-          call fSQL_get_column( stmt, COL_INDEX =  9,  INT_VAR = obsSat    )
-          call fSQL_get_column( stmt, COL_INDEX = 10,  INT_VAR = landSea        , INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 11,  INT_VAR = instrument     , INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR = zenithReal     , REAL_MISSING=MPC_missingValue_R4 )
-          call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+          call fSQL_get_column( stmt, COL_INDEX =  8,  int_var = obsStatus )
+          call fSQL_get_column( stmt, COL_INDEX =  9,  int_var = obsSat    )
+          call fSQL_get_column( stmt, COL_INDEX = 10,  int_var = landSea        , INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 11,  int_var = instrument     , INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 12, real_var = zenithReal     , REAL_MISSING=MPC_missingValue_R4 )
+          call fSQL_get_column( stmt, COL_INDEX = 13, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
 
           if ( trim(rdbSchema) /= 'csr' ) then
 
-            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
+            call fSQL_get_column( stmt, COL_INDEX = 14, real8_var  = azimuthReal_R8 )
            
-            call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 15, int_var   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
           end if
 
           if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
 
-            call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4   )
-            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+            call fSQL_get_column( stmt, COL_INDEX = 16, real_var = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4   )
+            call fSQL_get_column( stmt, COL_INDEX = 17, real_var = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
 
           else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then
 
-            call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
-            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+            call fSQL_get_column( stmt, COL_INDEX = 16, int_var  = sensor, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 17, real_var = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
 
           end if
           if ( trim(rdbSchema) == 'iasi'  ) then
-            call fSQL_get_column( stmt, COL_INDEX = 18, INT_VAR  = iasiGeneralQualityFlag,    INT_MISSING=MPC_missingValue_INT )
-            call fSQL_get_column( stmt, COL_INDEX = 19, INT_VAR  = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 18, int_var  = iasiGeneralQualityFlag,    INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 19, int_var  = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT )
           end if
 
           if ( instrument == 420 ) obsSat  = 784
@@ -764,47 +764,47 @@ contains
           ! It does not have the obsStatus column.
 
           if ( idStation(1:6) == 'METOP-') then
-            call fSQL_get_column( stmt, COL_INDEX = 8, INT_VAR  = trackCellNum )
+            call fSQL_get_column( stmt, COL_INDEX = 8, int_var  = trackCellNum )
             if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
-            call fSQL_get_column( stmt, COL_INDEX = 9, REAL8_VAR  = modelWindSpeed_R8 )
+            call fSQL_get_column( stmt, COL_INDEX = 9, real8_var  = modelWindSpeed_R8 )
             modelWindSpeed = modelWindSpeed_R8
           end if
 
       	else if ( trim(rdbSchema) == 'sst' ) then
         	! satellite SST observations
 
-        	call fSQL_get_column( stmt, COL_INDEX =  8,  INT_VAR = obsStatus                                         )
-        	call fSQL_get_column( stmt, COL_INDEX =  9, REAL_VAR = elev           , REAL_MISSING=MPC_missingValue_R4 )
-        	call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+        	call fSQL_get_column( stmt, COL_INDEX =  8,  int_var = obsStatus                                         )
+        	call fSQL_get_column( stmt, COL_INDEX =  9, real_var = elev           , REAL_MISSING=MPC_missingValue_R4 )
+        	call fSQL_get_column( stmt, COL_INDEX = 10, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
 
         else if ( trim(familyType) == 'RA' ) then
           if ( trim(rdbSchema) == 'radvel') then
-            call fSQL_get_column( stmt, COL_INDEX = 8, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+            call fSQL_get_column( stmt, COL_INDEX = 8, real_var  = elev, REAL_MISSING=MPC_missingValue_R4 )
             elevReal=elev
-            call fSQL_get_column( stmt, COL_INDEX = 9,  REAL_VAR  = obsrzam)
-            call fSQL_get_column( stmt, COL_INDEX = 10, REAL_VAR  = obsrele)
-            call fSQL_get_column( stmt, COL_INDEX = 11, REAL_VAR  = obsrans)
-            call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = obsrane)
+            call fSQL_get_column( stmt, COL_INDEX = 9,  real_var  = obsrzam)
+            call fSQL_get_column( stmt, COL_INDEX = 10, real_var  = obsrele)
+            call fSQL_get_column( stmt, COL_INDEX = 11, real_var  = obsrans)
+            call fSQL_get_column( stmt, COL_INDEX = 12, real_var  = obsrane)
           end if
 
         else  ! remaining families
 
-          call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
-          call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+          call fSQL_get_column( stmt, COL_INDEX = 8,  int_var  = obsStatus )
+          call fSQL_get_column( stmt, COL_INDEX = 9, real_var  = elev, REAL_MISSING=MPC_missingValue_R4 )
           elevReal=elev
 
           if ( trim(rdbSchema)=='ro' ) then
 
-            call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
-            call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation_R8 )
+            call fSQL_get_column( stmt, COL_INDEX = 10, int_var   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 11, real8_var = geoidUndulation_R8 )
             geoidUndulation = geoidUndulation_R8
-            call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv_R8 )
+            call fSQL_get_column( stmt, COL_INDEX = 12, real8_var = earthLocRadCurv_R8 )
             earthLocRadCurv = earthLocRadCurv_R8
-            call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
-            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
+            call fSQL_get_column( stmt, COL_INDEX = 13, int_var   = obsSat, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 14, real8_var = azimuthReal_R8 )
 
           else if ( trim(rdbSchema)=='al' ) then
-            call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
+            call fSQL_get_column( stmt, COL_INDEX = 10, int_var   = idProf )
           end if
 
         end if FAMILYEXCEPTIONS
@@ -983,7 +983,7 @@ contains
     call fSQL_get_row( stmt, finished )
 
     ! Put result of query into variable
-    call fSQL_get_column( stmt, COL_INDEX = 1, CHAR_VAR = result )
+    call fSQL_get_column( stmt, COL_INDEX = 1, char_var = result )
     call fSQL_get_row( stmt, finished )
     if ( .not. finished ) write(*,*) ' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
     call fSQL_finalize( stmt )
@@ -1140,7 +1140,7 @@ contains
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
         bodyPrimaryKey  = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
-        call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR = obsFlag )
+        call fSQL_bind_param(stmt, param_index = 1, int_var = obsFlag )
         
 				ITEMS: do itemIndex = 1, numberUpdateItems
           
@@ -1148,19 +1148,19 @@ contains
           if ( obsValue /= obs_missingValue_R ) then  
             romp = obs_bodyElem_r(obsdat, updateList( itemIndex ), bodyIndex )
             if ( romp == obs_missingValue_R ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1 ) ! sql null values
+              call fSQL_bind_param(stmt, param_index = itemIndex + 1 ) ! sql null values
             else
               scaleFactor=1.0
               if ( updateList( itemIndex ) == OBS_SEM ) scaleFactor=100.0
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1, REAL_VAR = romp*scaleFactor )
+              call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor )
             end if
           else
-            call fSQL_bind_param(stmt, PARAM_INDEX = itemIndex + 1)  ! sql null values
+            call fSQL_bind_param(stmt, param_index = itemIndex + 1)  ! sql null values
           end if
 
         end do ITEMS
 
-        call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT8_VAR  = bodyPrimaryKey )
+        call fSQL_bind_param(stmt, param_index = numberUpdateItems + 2, int8_var  = bodyPrimaryKey )
         call fSQL_exec_stmt (stmt)
 
       end do BODY
@@ -1193,12 +1193,12 @@ contains
         headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
         obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
         landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex )
-        call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
+        call fSQL_bind_param( stmt, param_index = 1, int_var  = obsStatus )
         ! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined above and
         ! they must be coherent with the query designed above
-        call fSQL_bind_param( stmt, PARAM_INDEX = headPrimaryKeyIndex, INT8_VAR = headPrimaryKey )
+        call fSQL_bind_param( stmt, param_index = headPrimaryKeyIndex, int8_var = headPrimaryKey )
         if ( trim( familyType ) == 'TO' ) then
-          call fSQL_bind_param( stmt, PARAM_INDEX = landSeaIndex, INT_VAR  = landSea )
+          call fSQL_bind_param( stmt, param_index = landSeaIndex, int_var  = landSea )
         end if
 
         call fSQL_exec_stmt ( stmt)
@@ -1271,18 +1271,18 @@ contains
       ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
       ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
 
-      call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = ECF    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = VCF    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = HE     )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = ZTSR   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 8, INT_VAR  = NCO2   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = ZTM    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
+      call fSQL_bind_param( stmt, param_index = 1, int_var  = obsIdo )
+      call fSQL_bind_param( stmt, param_index = 2, real_var = ETOP   )
+      call fSQL_bind_param( stmt, param_index = 3, real_var = VTOP   )
+      call fSQL_bind_param( stmt, param_index = 4, real_var = ECF    )
+      call fSQL_bind_param( stmt, param_index = 5, real_var = VCF    )
+      call fSQL_bind_param( stmt, param_index = 6, real_var = HE     )
+      call fSQL_bind_param( stmt, param_index = 7, real_var = ZTSR   )
+      call fSQL_bind_param( stmt, param_index = 8, int_var  = NCO2   )
+      call fSQL_bind_param( stmt, param_index = 9, real_var = ZTM    )
+      call fSQL_bind_param( stmt, param_index = 10,real_var = ZTGM   )
+      call fSQL_bind_param( stmt, param_index = 11,real_var = ZLQM   )
+      call fSQL_bind_param( stmt, param_index = 12,real_var = ZPS    )
 
       call fSQL_exec_stmt ( stmt )
       numberInsert=numberInsert +1
@@ -1388,65 +1388,65 @@ contains
           if ( llok ) then
             select case(trim(familyType))
               case( 'SF', 'SC', 'GP' )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey)
-                call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      )
+                call fSQL_bind_param( stmt, param_index = 1, int8_var = headPrimaryKey)
+                call fSQL_bind_param( stmt, param_index = 2, int_var  = obsVarno )
+                call fSQL_bind_param( stmt, param_index = 3, real_var = PPP      )
                 if ( obsValue == obs_missingValue_R ) then          ! sql null values
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 4                      )
+                  call fSQL_bind_param( stmt, param_index = 4                      )
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = obsValue )
+                  call fSQL_bind_param( stmt, param_index = 4, real_var = obsValue )
                 end if
-                call fSQL_bind_param( stmt, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
+                call fSQL_bind_param( stmt, param_index = 5, int_var  = obsFlag  )
                 if ( OMA == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 6                    ) 
+                  call fSQL_bind_param( stmt, param_index = 6                    ) 
                 else 
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = OMA    ) 
+                  call fSQL_bind_param( stmt, param_index = 6, real_var = OMA    ) 
                 end if
                 if ( OMP == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 7                    ) 
+                  call fSQL_bind_param( stmt, param_index = 7                    ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMP    ) 
+                  call fSQL_bind_param( stmt, param_index = 7, real_var = OMP    ) 
                 end if
                 if ( FGE == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 8                    ) 
+                  call fSQL_bind_param( stmt, param_index = 8                    ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE    )
+                  call fSQL_bind_param( stmt, param_index = 8, real_var = FGE    )
                 end if
                 if ( OER == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 9                    ) 
+                  call fSQL_bind_param( stmt, param_index = 9                    ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER    ) 
+                  call fSQL_bind_param( stmt, param_index = 9, real_var = OER    ) 
                 end if
               case DEFAULT
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT8_VAR = headPrimaryKey)
-                call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType )
+                call fSQL_bind_param( stmt, param_index = 1, int8_var = headPrimaryKey)
+                call fSQL_bind_param( stmt, param_index = 2, int_var  = obsVarno      )
+                call fSQL_bind_param( stmt, param_index = 3, real_var = PPP           ) 
+                call fSQL_bind_param( stmt, param_index = 4, int_var  = vertCoordType )
                 if ( obsValue == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 5                         )
+                  call fSQL_bind_param( stmt, param_index = 5                         )
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = obsValue    )
+                  call fSQL_bind_param( stmt, param_index = 5, real_var = obsValue    )
                 end if 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+                call fSQL_bind_param( stmt, param_index = 6, int_var  = obsFlag       )
                 if ( OMA == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 7                         ) 
+                  call fSQL_bind_param( stmt, param_index = 7                         ) 
                 else 
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA         )
+                  call fSQL_bind_param( stmt, param_index = 7, real_var = OMA         )
                 end if
                 if ( OMP == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 8                         ) 
+                  call fSQL_bind_param( stmt, param_index = 8                         ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = OMP         ) 
+                  call fSQL_bind_param( stmt, param_index = 8, real_var = OMP         ) 
                 end if
                 if ( FGE == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 9                         ) 
+                  call fSQL_bind_param( stmt, param_index = 9                         ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = FGE         ) 
+                  call fSQL_bind_param( stmt, param_index = 9, real_var = FGE         ) 
                 end if
                 if ( OER == obs_missingValue_R ) then
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 10                        ) 
+                  call fSQL_bind_param( stmt, param_index = 10                        ) 
                 else
-                  call fSQL_bind_param( stmt, PARAM_INDEX = 10, REAL_VAR = OER        )
+                  call fSQL_bind_param( stmt, param_index = 10, real_var = OER        )
                 end if 
             end select
             call fSQL_exec_stmt ( stmt )
@@ -1742,29 +1742,35 @@ contains
   ! sqlr_writeSqlDiagFile
   !--------------------------------------------------------------------------
   subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, onlyAssimObs, addFSOdiag, &
-                                    instrumentFileName, codeTypeList_opt )
+                                    instrumentFileName, codeTypeList_opt, pseudoObs_opt, etiket_opt, datePrint_opt, timePrint_opt)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
     implicit none
 
     ! arguments
-    type(struct_obs)  :: obsdat
-    character(len=*)  :: obsFamily
-    logical           :: onlyAssimObs
-    logical           :: addFSOdiag
-    character(len=*)  :: instrumentFileName
-    integer, optional :: codeTypeList_opt(:)
-
+    type(struct_obs)           , intent(inout) :: obsdat
+    character(len=*)           , intent(in)    :: obsFamily
+    logical                    , intent(in)    :: onlyAssimObs
+    logical                    , intent(in)    :: addFSOdiag
+    character(len=*)           , intent(in)    :: instrumentFileName
+    integer          , optional, intent(in)    :: codeTypeList_opt(:)
+    logical          , optional, intent(in)    :: pseudoObs_opt       ! present if this subroutine is called for pseudo SST obs.
+    character(len=20), optional, intent(in)    :: etiket_opt          ! etiket to put into the table "resume" of output SQLite file 
+    integer          , optional, intent(in)    :: datePrint_opt       ! date to put into the table "resume" of output SQLite file 
+    integer          , optional, intent(in)    :: timePrint_opt       ! hour to put into the table "resume" of output SQLite file
+            
     ! locals
-    type(fSQL_DATABASE)    :: db                   ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat                 ! type for error status
-    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData 
+    type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
+    type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
+    type(fSQL_STATEMENT)   :: stmtRDBSchema, stmtResume ! type for precompiled SQLite statements
+    type(fSQL_STATUS)      :: stat                      ! type for error status
+    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData
+    integer, parameter     :: obsStatus = 3072 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate 
+    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateAdd, queryResume, queryRDBSchema 
     character(len = 12 )   :: idStation
     character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
     character(len=*), parameter :: myError = myName //': ERROR: '
@@ -1773,6 +1779,7 @@ contains
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
     logical                :: writeHeader
+        
 
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
@@ -1807,8 +1814,12 @@ contains
       if ( mpi_myid > 0 ) return
       fileNameExtention = ' '
     end if
-
-    fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
+    
+    if ( present( pseudoObs_opt )) then
+      fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
+    else
+      fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
+    end if
 
     write(*,*) myName//': Creating file: ', trim(fileName)
     call fSQL_open( db, fileName, stat )
@@ -1822,15 +1833,31 @@ contains
                    &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, fso real);'
     else
-       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
-                   &codtyp integer, date integer, time integer, elev real); &
-                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
-                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                   &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+      
+      if ( present( pseudoObs_opt )) then
+        queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+                      &codtyp integer, date integer, time integer, elev real, status integer); &
+                      &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
+                      &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
+                      &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+        queryCreateAdd = 'create table resume(date integer , time integer , run varchar(9)); &
+                         &create table rdb4_schema(schema varchar(9));'
+      else
+        queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+                      &codtyp integer, date integer, time integer, elev real); &
+                      &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
+                      &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
+                      &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+      end if		      
     end if
+    
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
-
+    if ( present( pseudoObs_opt )) then
+      call fSQL_do_many( db, queryCreateAdd, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreateAdd) )
+    end if
+    
     if (addFSOdiag) then
        queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
     obs_error, sigi, sigo, zhad, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -1838,7 +1865,12 @@ contains
        queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
     obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     end if
-    queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
+    
+    if ( present( pseudoObs_opt )) then
+      queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status ) values(?,?,?,?,?,?,?,?,?); '
+    else
+      queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
+    end if
 
     write(*,*) myName//': Insert query Data   = ', trim( queryData )
     write(*,*) myName//': Insert query Header = ', trim( queryHeader )
@@ -1848,7 +1880,18 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_prepare( db, queryHeader, stmtHeader, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
-
+    if ( present( pseudoObs_opt )) then
+      queryRDBSchema = ' insert into rdb4_schema values(?); '
+      queryResume = ' insert into resume (date, time, run) values(?,?,?); '
+      write(*,*) myName//': Insert query rdb4_schema: ', trim( queryRDBSchema )
+      write(*,*) myName//': Insert query resume: ', trim( queryResume )
+     
+      call fSQL_prepare( db, queryRDBSchema, stmtRDBSchema, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+      call fSQL_prepare( db, queryResume, stmtResume, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    end if
+    
     numberInsertions = 0
 
     call obs_set_current_header_list( obsdat, obsFamily )
@@ -1887,14 +1930,15 @@ contains
       end if
 
       idObs = idObs + 1
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = idObs     )
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 3, REAL_VAR = lat       ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 4, REAL_VAR = lon       ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 5, INT_VAR  = date      ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 6, INT_VAR  = time      ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 7, INT_VAR  = codeType  ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, REAL_VAR = altitude  ) 
+      call fSQL_bind_param( stmtHeader, param_index = 1, int_var  = idObs     )
+      call fSQL_bind_param( stmtHeader, param_index = 2, char_var = idStation )
+      call fSQL_bind_param( stmtHeader, param_index = 3, real_var = lat       ) 
+      call fSQL_bind_param( stmtHeader, param_index = 4, real_var = lon       ) 
+      call fSQL_bind_param( stmtHeader, param_index = 5, int_var  = date      ) 
+      call fSQL_bind_param( stmtHeader, param_index = 6, int_var  = time      ) 
+      call fSQL_bind_param( stmtHeader, param_index = 7, int_var  = codeType  ) 
+      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, real_var = altitude  )
+      if ( present( pseudoObs_opt )) call fSQL_bind_param( stmtHeader, param_index = 9, int_var = obsStatus )
       call fSQL_exec_stmt ( stmtHeader )
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
@@ -1950,66 +1994,68 @@ contains
             PPP = PPP - altitude
           case ( 'TO' )
             vertCoordType = 5042
-            if( codeType == 164 .or. codeType == 181 .or. codeType == 182 ) vertCoordType = 2150
+            if( codeType == codtyp_get_codtyp( 'amsua' ) .or. &
+                codeType == codtyp_get_codtyp( 'amsub' ) .or. &
+                codeType == codtyp_get_codtyp( 'mhs'   )      ) vertCoordType = 2150
           case ( 'SF', 'SC', 'GP' )
             vertCoordType = MPC_missingValue_INT 
         end select
 
         ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error,sigi,sigo
         idData = idData + 1
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idData        )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = idObs         )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, INT_VAR  = obsVarno      )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = PPP           )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, int_var  = idData        )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, int_var  = idObs         )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, int_var  = obsVarno      )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 4, real_var = PPP           )
         if ( vertCoordType == MPC_missingValue_INT ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 5                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = vertCoordType ) 
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 5, int_var  = vertCoordType ) 
         end if
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = obsValue      ) 
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 7, INT_VAR  = obsFlag       )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, real_var = obsValue      ) 
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 7, int_var  = obsFlag       )
         if ( OMA == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMA         )
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OMA         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, real_var = OMA         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, real_var = OMA         )
         end if
         if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OMP         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, real_var = OMP         )
         end if
         if ( FGE == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 11                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = FGE         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, real_var = FGE         )
         end if
         if ( OER == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = OER        )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, real_var = OER        )
         end if 
         if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = ensInnovStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, real_var = ensInnovStdDev )
         end if 
         if ( ensObsErrStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 14                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, REAL_VAR = ensObsErrStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, real_var = ensObsErrStdDev )
         end if 
         if ( zhad == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 15, REAL_VAR = zhad )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 15, real_var = zhad )
         end if 
         if (addFSOdiag) then
           if ( fso == obs_missingValue_R ) then
             call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        )
           else
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 16, REAL_VAR = fso )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 16, real_var = fso )
           end if
         end if
 
@@ -2020,9 +2066,22 @@ contains
       end do BODY
      
     end do HEADER
+    
+    call fSQL_finalize( stmtData )
 
     write(*,*) myName// ': Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
-    call fSQL_finalize( stmtData )
+
+    if ( present( pseudoObs_opt )) then
+      call fSQL_bind_param( stmtRDBSchema, param_index = 1, char_var  = 'sf'       )
+      call fSQL_exec_stmt ( stmtRDBSchema )
+      call fSQL_finalize( stmtRDBSchema )
+      call fSQL_bind_param( stmtResume, param_index = 1,  int_var  = datePrint_opt /100 )
+      call fSQL_bind_param( stmtResume, param_index = 2,  int_var  = timePrint_opt )
+      call fSQL_bind_param( stmtResume, param_index = 3, char_var  = etiket_opt    )
+      call fSQL_exec_stmt ( stmtResume )
+      call fSQL_finalize( stmtResume )
+    end if
+    
     call fSQL_commit(db)
     call fSQL_close( db, stat )
 
