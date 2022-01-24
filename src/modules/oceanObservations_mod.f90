@@ -126,10 +126,11 @@ module oceanObservations_mod
     call ocm_readMaskFromFile( oceanMask, hco, vco, './analysisgrid' )
 
     allocate( seaiceDomainIndexesTemp( ( myLonEnd - myLonBeg + 1 ) * ( myLatEnd - myLatBeg + 1 ) ))
-    if ( useSeaWaterFraction ) &
-      allocate( seaWaterFractionTemp( ( myLonEnd - myLonBeg + 1 ) * ( myLatEnd - myLatBeg + 1 ) ))
     allocate( seaiceLonsTemp( ( myLonEnd - myLonBeg + 1 ) * ( myLatEnd - myLatBeg + 1 ) ))
     allocate( seaiceLatsTemp( ( myLonEnd - myLonBeg + 1 ) * ( myLatEnd - myLatBeg + 1 ) ))
+    if ( useSeaWaterFraction ) then
+      allocate( seaWaterFractionTemp( ( myLonEnd - myLonBeg + 1 ) * ( myLatEnd - myLatBeg + 1 ) ))
+    end if  
     
     numberIceCoveredPoints = 0
     do lonIndex = myLonBeg, myLonEnd 
@@ -138,8 +139,7 @@ module oceanObservations_mod
           if ( seaice_ptr( lonIndex, latIndex, 1 ) > iceFractionThreshold ) then
             numberIceCoveredPoints = numberIceCoveredPoints + 1
 	    seaiceDomainIndexesTemp( numberIceCoveredPoints ) = numberIceCoveredPoints
-	    if ( useSeaWaterFraction ) &
-	      seaWaterFractionTemp( numberIceCoveredPoints ) = salinity_ptr( lonIndex, latIndex, 1 )
+	    if ( useSeaWaterFraction ) seaWaterFractionTemp( numberIceCoveredPoints ) = salinity_ptr( lonIndex, latIndex, 1 )
 	    seaiceLonsTemp( numberIceCoveredPoints ) = hco % lon2d_4 ( lonIndex, latIndex )
 	    seaiceLatsTemp( numberIceCoveredPoints ) = hco % lat2d_4 ( lonIndex, latIndex )	
           end if
@@ -150,7 +150,7 @@ module oceanObservations_mod
     call gsv_deallocate( stateVector_ice )
     if ( useSeaWaterFraction ) call gsv_deallocate( stateVector_salinity )
     write(*,*) myName//': ', numberIceCoveredPoints, ' ice-covered points found'
-    
+
     allocate( seaiceDomainIndexes( numberIceCoveredPoints ))
     if ( useSeaWaterFraction ) allocate( seaWaterFraction( numberIceCoveredPoints ))
     allocate( seaiceLons( numberIceCoveredPoints ))
@@ -165,7 +165,6 @@ module oceanObservations_mod
     if ( useSeaWaterFraction ) deallocate( seaWaterFractionTemp )
     deallocate( seaiceLonsTemp )
     deallocate( seaiceLatsTemp )
-    
         
     dateStamp = tim_getDatestampFromFile( './seaice_analysis' )
     write(*,*) myName//': datestamp: ', dateStamp 
