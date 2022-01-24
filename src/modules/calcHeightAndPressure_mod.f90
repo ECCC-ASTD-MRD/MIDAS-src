@@ -1740,7 +1740,7 @@ contains
               cmp = gpscompressibility(P0,tt,hu) 
               tv(nlev_T) = tv0*cmp
               dh = Z_T - rMT
-              Rgh = phf_gravityalt(sLat, Z_T)
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
               pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
               ! momentum diagnostic level
@@ -1750,17 +1750,17 @@ contains
               else
                 Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
               end if
-              Rgh = phf_gravityalt(sLat, Z_M)
               dh = Z_M - rMT
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
               pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
               ! DEBUG mad001 start
               if ( latIndex == statevector%myLatBeg &
                    .and. lonIndex == statevector%myLonBeg &
                    .and. stepIndex == 1) then
-                write(*,*) 'DEBUG mad001 P0                ', P0
-                write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, pressure_T(nlev_T)
-                write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, pressure_M(nlev_M)
+                write(*,*) 'DEBUG mad001 P0                ', '', '',P0
+                write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, Z_T, pressure_T(nlev_T)
+                write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, Z_M, pressure_M(nlev_M)
               end if
               ! DEBUG mad001 stop
 
@@ -1790,8 +1790,8 @@ contains
                 pressure_M(lev_M) = pressure_M(lev_M+1) * &
                                     exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
                 ! interpolating thermo pressure in between
-                scaleFactorBottom = -1.0D0*(Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
-                pressure_T(lev_T-1) = scaleFactorBottom*pressure_M(lev_M+1) + &
+                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
+                pressure_T(lev_T) = scaleFactorBottom*pressure_M(lev_M+1) + &
                                       (1.0D0-scaleFactorBottom)*pressure_M(lev_M)
 
                 ! second iteration on tv
@@ -1803,24 +1803,10 @@ contains
                 if ( latIndex == statevector%myLatBeg &
                      .and. lonIndex == statevector%myLonBeg &
                      .and. stepIndex == 1) then
-                  write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, pressure_T(lev_T)
-                  write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, pressure_M(lev_M)
+                  write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, Z_T, pressure_T(lev_T)
+                  write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, Z_M, pressure_M(lev_M)
                 end if
               end do
-
-              ! interpolating missing nlev_T-1 thermo level
-              if ( statevector%dataKind == 4 ) then
-                Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
-                Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M-1,stepIndex),8)
-                Z_T1 = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T-1,stepIndex),8)
-              else
-                Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
-                Z_M1 = height_M_ptr_r8(lonIndex,latIndex,nlev_M-1,stepIndex)
-                Z_T1 = height_T_ptr_r8(lonIndex,latIndex,nlev_T-1,stepIndex)
-              end if
-              scaleFactorBottom = -1.0D0*(Z_T1-Z_M)/(Z_M1-Z_M)  ! DEBUG mad001 : validate this!
-              pressure_T(nlev_T-1) = scaleFactorBottom*pressure_M(nlev_M) + &
-                                      (1.0D0-scaleFactorBottom)*pressure_M(nlev_M-1)
 
               ! fill the height array
               if ( statevector%dataKind == 4 ) then
