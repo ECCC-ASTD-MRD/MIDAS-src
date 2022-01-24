@@ -1937,7 +1937,7 @@ contains
       call fSQL_bind_param( stmtHeader, param_index = 5, int_var  = date      ) 
       call fSQL_bind_param( stmtHeader, param_index = 6, int_var  = time      ) 
       call fSQL_bind_param( stmtHeader, param_index = 7, int_var  = codeType  ) 
-      call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, real_var = altitude  )
+      call fSQL_bind_param( stmtHeader, param_index = 8, real_var = altitude  )
       if ( present( pseudoObs_opt )) call fSQL_bind_param( stmtHeader, param_index = 9, int_var = obsStatus )
       call fSQL_exec_stmt ( stmtHeader )
 
@@ -2003,59 +2003,59 @@ contains
 
         ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error,sigi,sigo
         idData = idData + 1
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, int_var  = idData        )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, int_var  = idObs         )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, int_var  = obsVarno      )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 4, real_var = PPP           )
+        call fSQL_bind_param( stmtData, param_index = 1, int_var  = idData        )
+        call fSQL_bind_param( stmtData, param_index = 2, int_var  = idObs         )
+        call fSQL_bind_param( stmtData, param_index = 3, int_var  = obsVarno      )
+        call fSQL_bind_param( stmtData, param_index = 4, real_var = PPP           )
         if ( vertCoordType == MPC_missingValue_INT ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 5                         ) 
+          call fSQL_bind_param( stmtData, param_index = 5                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 5, int_var  = vertCoordType ) 
+          call fSQL_bind_param( stmtData, param_index = 5, int_var  = vertCoordType ) 
         end if
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, real_var = obsValue      ) 
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 7, int_var  = obsFlag       )
+        call fSQL_bind_param( stmtData, param_index = 6, real_var = obsValue      ) 
+        call fSQL_bind_param( stmtData, param_index = 7, int_var  = obsFlag       )
         if ( OMA == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
+          call fSQL_bind_param( stmtData, param_index = 8                         ) 
+          call fSQL_bind_param( stmtData, param_index = 9                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, real_var = OMA         )
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, real_var = OMA         )
+          call fSQL_bind_param( stmtData, param_index = 8, real_var = OMA         )
+          call fSQL_bind_param( stmtData, param_index = 9, real_var = OMA         )
         end if
         if ( OMP == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                         ) 
+          call fSQL_bind_param( stmtData, param_index = 10                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, real_var = OMP         )
+          call fSQL_bind_param( stmtData, param_index = 10, real_var = OMP         )
         end if
         if ( FGE == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11                         ) 
+          call fSQL_bind_param( stmtData, param_index = 11                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, real_var = FGE         )
+          call fSQL_bind_param( stmtData, param_index = 11, real_var = FGE         )
         end if
         if ( OER == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
+          call fSQL_bind_param( stmtData, param_index = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, real_var = OER        )
+          call fSQL_bind_param( stmtData, param_index = 12, real_var = OER        )
         end if 
         if ( ensInnovStdDev == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
+          call fSQL_bind_param( stmtData, param_index = 13                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, real_var = ensInnovStdDev )
+          call fSQL_bind_param( stmtData, param_index = 13, real_var = ensInnovStdDev )
         end if 
         if ( ensObsErrStdDev == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 14                        ) 
+          call fSQL_bind_param( stmtData, param_index = 14                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, real_var = ensObsErrStdDev )
+          call fSQL_bind_param( stmtData, param_index = 14, real_var = ensObsErrStdDev )
         end if 
         if ( zhad == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
+          call fSQL_bind_param( stmtData, param_index = 15                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 15, real_var = zhad )
+          call fSQL_bind_param( stmtData, param_index = 15, real_var = zhad )
         end if 
         if (addFSOdiag) then
           if ( fso == obs_missingValue_R ) then
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 16                        )
+            call fSQL_bind_param( stmtData, param_index = 16                        )
           else
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 16, real_var = fso )
+            call fSQL_bind_param( stmtData, param_index = 16, real_var = fso )
           end if
         end if
 
