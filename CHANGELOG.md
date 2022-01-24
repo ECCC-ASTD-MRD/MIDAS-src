@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added a program to generate pseudo SST observatons (#565 and !534)
  * Added ability to scale (e.g. taper) the LAM Bnmc StdDev in calcStats (#557 and !531)
  * Added ability to use each member for converting LQ to HU for HIP (#551 and !528)
  * SST data background check added to `obsSelection` program (#543 and !519)
