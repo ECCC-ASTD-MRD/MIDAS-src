@@ -559,11 +559,11 @@ contains
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSF, 'SF', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcUA, 'UA', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSC, 'SC', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGP, 'GP', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcRA, 'RA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SF', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SC', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GP', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! RADAR Doppler velocity
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent,JoRadVel,'RA', destObsColumn)  

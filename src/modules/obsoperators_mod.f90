@@ -579,21 +579,16 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sfc_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sfc_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, cdfam,  &
+  subroutine oop_sfc_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam,  &
                          destObsColumn )
-    ! :Purpose:  Computation of Jo and the residuals to the observations
+    ! :Purpose:  Computation of the residuals to the observations
     !            FOR SURFACE DATA (except ground-based GPS zenith delay).
-    !
-    ! :Arguments:
-    !           :Jobs:  contribution to Jo
-    !           :cdfam: family of observation
     implicit none
 
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
-    real(8)                 :: Jobs
-    character(len=*)        :: cdfam
+    character(len=*)        :: cdfam ! family of observation
     integer                 :: destObsColumn
 
     integer :: columnLevelIndex, bufrCode, headerIndex, bodyIndex
@@ -611,8 +606,6 @@ contains
     namelist /namSurfaceObs/adjustTemperature
 
     if (.not.beSilent) write(*,*) "Entering subroutine oop_sfc_nl"
-
-    Jobs = 0.d0
 
     ! Read in the namelist namSurfaceObs
     adjustTemperature = .true. ! default value
@@ -739,15 +732,9 @@ contains
 
           end if
 
-          ! Contribution to Jobs
-          Jobs = Jobs + ( obs_bodyElem_r(obsSpaceData,destObsColumn,bodyIndex)**2 &
-                         / obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2 )
-
        end do BODY
 
     end do HEADER
-
-    Jobs = 0.5d0 * Jobs
 
   end subroutine oop_sfc_nl
 
