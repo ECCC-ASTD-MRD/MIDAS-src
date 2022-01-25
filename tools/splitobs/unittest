@@ -735,11 +735,11 @@ test_rdb_obsdb () {
     echo "test_rdb_obsdb() begins"
 
     test_rdb_obsdb_ndigits=4
-    test_rdb_obsdb_npex=3
-    test_rdb_obsdb_npey=5
+    test_rdb_obsdb_npex=1
+    test_rdb_obsdb_npey=3
 
     typeset -Z${test_rdb_obsdb_ndigits} procx procy
-    procx=2
+    procx=1
     procy=3
 
     status=0
