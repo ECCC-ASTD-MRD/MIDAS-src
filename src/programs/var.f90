@@ -80,8 +80,9 @@ program midas_var
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop
+  logical :: limitHuInOuterLoop, allowVarqcForNl
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
+  NAMELIST /NAMVAR/ allowVarqcForNl
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -112,6 +113,7 @@ program midas_var
   numOuterLoopIterations = 1
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
+  allowVarqcForNl = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -258,7 +260,8 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Determine if to apply varqc to Jo of non-linear operator
-    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
+    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc .and. &
+                         allowVarqcForNl )
     if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
