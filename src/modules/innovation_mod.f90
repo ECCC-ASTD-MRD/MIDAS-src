@@ -464,7 +464,8 @@ contains
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt, &
-                                    destObsColumn_opt, beSilent_opt)
+                                    applyVarqcOnNlJo_opt, destObsColumn_opt, &
+                                    beSilent_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
@@ -473,6 +474,7 @@ contains
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     integer, optional       :: outerLoopIndex_opt
+    logical, optional       :: applyVarqcOnNlJo_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
 
@@ -481,7 +483,7 @@ contains
     real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
     integer :: destObsColumn, get_max_rss, outerloopIndex
-    logical :: lgpdata, beSilent
+    logical :: lgpdata, applyVarqcOnNlJo, beSilent
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
@@ -491,6 +493,12 @@ contains
       outerLoopIndex = outerLoopIndex_opt
     else
       outerLoopIndex = 1
+    end if
+
+    if ( present(applyVarqcOnNlJo_opt) ) then
+      applyVarqcOnNlJo = applyVarqcOnNlJo_opt
+    else
+      applyVarqcOnNlJo = .false.
     end if
 
     if ( present(destObsColumn_opt) ) then

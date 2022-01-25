@@ -267,7 +267,8 @@ program midas_var
     if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex )
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex, &
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
