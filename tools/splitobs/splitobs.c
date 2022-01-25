@@ -961,7 +961,7 @@ int f77name(splitobs)(int argc, char** argv) {
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
             status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
-            if( status != SQLITE_OK ){
+            if( status != SQLITE_OK ) {
               fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
               if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
                 fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
@@ -974,11 +974,11 @@ int f77name(splitobs)(int argc, char** argv) {
 
           /* On doit fabriquer la requete sql pour faire le splitting */
           sprintf(requete_sql,"drop index if exists idx1;\n"
-"PRAGMA journal_mode = OFF;\n"
-"PRAGMA  synchronous = OFF;\n"
-"attach '%s' as dbin; \n"
-"insert into %s select * from dbin.%s where %s %% %d = %d;\n"
-"insert into %s select * from dbin.%s where %s %% %d = %d;%s\n",
+                              "PRAGMA journal_mode = OFF;\n"
+                              "PRAGMA  synchronous = OFF;\n"
+                              "attach '%s' as dbin; \n"
+                              "insert into %s select * from dbin.%s where %s %% %d = %d;\n"
+                              "insert into %s select * from dbin.%s where %s %% %d = %d;%s\n",
                   opt.obsin,
                   opt.rdb_header_table,opt.rdb_header_table,opt.rdb_primarykey,
                   nsplit,id,
@@ -986,10 +986,10 @@ int f77name(splitobs)(int argc, char** argv) {
                   nsplit,id,
                   sqlreq_resume);
           append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,opt.rdb_header_table);
-          {
-            char tmpsqlrequest[MAXSTR];
-            sprintf(tmpsqlrequest,"create index idx1 on %s(%s,vcoord,varno);", opt.rdb_data_table, opt.rdb_primarykey);
-            strcat(requete_sql,tmpsqlrequest);
+          if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
+               strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
+               strcasecmp(opt.rdb_primarykey,RDB_PRIMARYKEY_DEFAUT) == 0 ) {
+            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);");
           }
           strcat(requete_sql,"detach dbin;");
 
@@ -998,7 +998,7 @@ int f77name(splitobs)(int argc, char** argv) {
 
           /* Execution de la requete SQL sur la base de donnees finale */
           status = sqlite3_exec(sqldb, requete_sql, (void*) NULL, (void*) NULL, &ErrMsg);
-          if( status != SQLITE_OK ){
+          if( status != SQLITE_OK ) {
             fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
             if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
               fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
@@ -2549,6 +2549,7 @@ int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* prim
   /*   request, we must not process them again when adding tables which */
   /*   contains a column 'primary_key'. */
   sprintf(sqlrequest, "select * from sqlite_master where lower(name) not in (lower('%s'),lower('%s'));", header_table, data_table);
+
   callback_arg.table_list = table_list;
   callback_arg.primary_key = primary_key;
 
@@ -2594,6 +2595,8 @@ static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg
   }
 
   if (isTypeTable == 0) return 0;
+
+  /* printf("sqlite_check_tables_with_primary_key_callback: primary_key name: '%s'\n", callback_arg->primary_key); */
 
   strcpy(table_name,"");
   found_primary_key=0;
@@ -2659,6 +2662,7 @@ static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg
         strcat(callback_arg->table_list, " ");
       }
       strcat(callback_arg->table_list, table_name);
+      /* printf("sqlite_check_tables_with_primary_key_callback: found table: '%s'\n", callback_arg->table_list); */
     }
     else {
       fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: found_primary_key = %d but table_name is empty", found_primary_key);
