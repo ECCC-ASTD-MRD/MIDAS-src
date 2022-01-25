@@ -1622,7 +1622,7 @@ contains
 
         real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
         real(4) ::  lat_4
-        real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1
+        real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1, logP
         real(8) ::  sLat, cLat, lat_8
         real(8) ::  ScaleFactorBottom
 
@@ -1791,8 +1791,9 @@ contains
                                     exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
                 ! interpolating thermo pressure in between
                 scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
-                pressure_T(lev_T) = (1.0D0-scaleFactorBottom)*pressure_M(lev_M+1) + &
-                                      scaleFactorBottom*pressure_M(lev_M)
+                logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
+                                      scaleFactorBottom*log(pressure_M(lev_M))
+                pressure_T(lev_T) = exp(logP) 
 
                 ! second iteration on tv
                 cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
