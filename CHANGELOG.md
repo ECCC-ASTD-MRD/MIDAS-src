@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Generalize the input table names and primary key for program `midas.splitobs.Abs` (#570 and !536)
  * Added ability to scale (e.g. taper) the LAM Bnmc StdDev in calcStats (#557 and !531)
  * Added ability to use each member for converting LQ to HU for HIP (#551 and !528)
  * SST data background check added to `obsSelection` program (#543 and !519)
