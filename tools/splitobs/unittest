@@ -89,6 +89,7 @@ unittest () {
     fi
 
     if [ "${TESTS2RUN}" = rdb -o "${TESTS2RUN}" = all ]; then
+        test_rdb_obsdb || return 1
         test_rdb_avhrr || return 1
         test_rdb_resume_schema_SAR || return 1
         test_rdb_resume_schema_AL || return 1
@@ -726,6 +727,60 @@ test_rdb_resume_schema_AL () {
     echo "test_rdb_resume_schema_AL() ends"
 } ## End of function 'test_rdb_resume_schema_AL'
 
+
+test_rdb_obsdb () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_obsdb() begins"
+
+    test_rdb_obsdb_ndigits=4
+    test_rdb_obsdb_npex=3
+    test_rdb_obsdb_npey=5
+
+    typeset -Z${test_rdb_obsdb_ndigits} procx procy
+    procx=2
+    procy=3
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                -obsin ${INPUTS}/rdb/obsdb/obsatms -obsout obsatms -header Report -data Observation -primarykey id_report 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_obsdb splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    [ "${status}" -ne 0 ] && return 1
+
+    assert "test_rdb_obsdb splitting procx=${procx} procy=${procy} 'schema')" \
+        [ -n "$(echo '.schema' | sqlite3 obsatms_${procx}_${procy} | grep -i 'CREATE TABLE obsdb')" ] || status=1
+    check_status=0
+    check_result ${REFERENCE}/rdb/obsdb/obsatms_${procx}_${procy} obsatms_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_obsdb splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=1
+    [ "${status}" -ne 0 ] && return 1
+    rm obsatms_${procx}_${procy}
+
+    status=0
+    program_status=0
+    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                -obsin ${INPUTS}/rdb/obsdb/obsatms -obsout obsatms -header Report -data Observation -primarykey id_report 1>> check_result.listing 2>&1 || program_status=$?
+    assert "test_rdb_obsdb splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    [ "${status}" -ne 0 ] && return 1
+
+    procx=1
+    procy=1
+    while [ "${procx}" -le "${test_rdb_obsdb_npex}" ]; do
+        while [ "${procy}" -le "${test_rdb_obsdb_npey}" ]; do
+            check_status=0
+            check_result ${REFERENCE}/rdb/obsdb/obsatms_${procx}_${procy} obsatms_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            assert "test_rdb_obsdb splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            let procy=procy+1
+        done
+        let procx=procx+1
+    done
+
+    [ "${status}" -ne 0 ] && return 1
+    rm obsatms_*_*
+
+    echo "test_rdb_obsdb() ends"
+} ## End of function 'test_rdb_obsdb'
 
 test_rdb_avhrr () {
     set -e
