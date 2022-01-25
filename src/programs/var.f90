@@ -43,6 +43,7 @@ program midas_var
   use gridVariableTransforms_mod
   use increment_mod
   use biasCorrectionSat_mod
+  use varqc_mod
 
   implicit none
 
@@ -338,6 +339,9 @@ program midas_var
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
+
+  ! Set the QC flags to be consistent with VAR-QC if control analysis
+  if ( varqcActive ) call vqc_listrej(obsSpaceData)
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()

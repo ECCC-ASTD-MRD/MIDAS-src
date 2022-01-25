@@ -505,9 +505,6 @@ CONTAINS
 
       endif ! if numIterMaxInnerLoopUsed > 0
 
-      ! Set the QC flags to be consistent with VAR-QC if control analysis
-      if(lvarqc) call vqc_listrej(obsSpaceData)
-
       ! deallocate the gradient
       deallocate(vazg)
       if ( deallocHessian .and. .not. lwrthess ) deallocate(vatra)
