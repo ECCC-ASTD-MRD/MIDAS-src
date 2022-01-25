@@ -802,7 +802,7 @@ test_rdb_avhrr () {
     assert "test_rdb_avhrr splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
-    assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} 'schema')" \
+    assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} 'schema'" \
         [ -n "$(echo '.schema' | sqlite3 obsiasi_${procx}_${procy} | grep -i 'CREATE TABLE avhrr')" ] || status=1
     check_status=0
     check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx}_${procy} obsiasi_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?

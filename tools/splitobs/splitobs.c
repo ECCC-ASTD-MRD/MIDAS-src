@@ -2548,7 +2548,7 @@ int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* prim
   /* Since the table 'header' and 'data' are already processed in the main */
   /*   request, we must not process them again when adding tables which */
   /*   contains a column 'primary_key'. */
-  sprintf(sqlrequest, "select * from sqlite_master where lower(name) not in ('%s','%s');", header_table, data_table);
+  sprintf(sqlrequest, "select * from sqlite_master where lower(name) not in (lower('%s'),lower('%s'));", header_table, data_table);
   callback_arg.table_list = table_list;
   callback_arg.primary_key = primary_key;
 
