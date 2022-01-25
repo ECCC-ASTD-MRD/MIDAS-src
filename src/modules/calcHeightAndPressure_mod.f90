@@ -1789,17 +1789,22 @@ contains
                 tv(lev_T) = tv0*cmp
                 pressure_M(lev_M) = pressure_M(lev_M+1) * &
                                     exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
-                ! interpolating thermo pressure in between
-                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
+                ! first interpolation of thermo pressure
+                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
                 logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
                                       scaleFactorBottom*log(pressure_M(lev_M))
-                pressure_T(lev_T) = exp(logP) 
+                pressure_T(lev_T) = exp(logP)
 
                 ! second iteration on tv
                 cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
                 tv(lev_T) = tv0*cmp
                 pressure_M(lev_M) = pressure_M(lev_M+1) * &
                                     exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+
+                ! second iteration interpolation of thermo pressure
+                logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
+                                      scaleFactorBottom*log(pressure_M(lev_M))
+                pressure_T(lev_T) = exp(logP)
 
                 if ( latIndex == statevector%myLatBeg &
                      .and. lonIndex == statevector%myLonBeg &
