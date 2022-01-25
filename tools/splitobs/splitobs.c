@@ -49,7 +49,10 @@
 #define NPEY_DEFAUT        1
 #define NDIGITS_DEFAUT     4
 #define RECTANGLE_DEFAUT   {-1,-1,-1,-1,0,0,0,0}
-#define optionsDEFAUT      {"","","","","",INOUT_DEFAUT,PILOT_DEFAUT,RECTANGLE_DEFAUT,fstparam_DEFAUT,IP1_VIDE,IP1_VIDE,1,NPEX_DEFAUT,NPEY_DEFAUT,NDIGITS_DEFAUT,0,0,-1,-1}
+#define RDB_HEADER_DEFAUT     "header"
+#define RDB_DATA_DEFAUT       "data"
+#define RDB_PRIMARYKEY_DEFAUT "header"
+#define optionsDEFAUT      {"","","","","",INOUT_DEFAUT,PILOT_DEFAUT,RECTANGLE_DEFAUT,fstparam_DEFAUT,IP1_VIDE,IP1_VIDE,1,NPEX_DEFAUT,NPEY_DEFAUT,NDIGITS_DEFAUT,0,0,-1,-1,RDB_HEADER_DEFAUT,RDB_DATA_DEFAUT,RDB_PRIMARYKEY_DEFAUT}
 
 /* differentes options du programme */
 #define FSTIN_OPTION       "-fstin"
@@ -61,6 +64,9 @@
 #define BURPOUT_OPTION     "-burpout" /* Remplacee par '-obsout' */
 #define ASCII_OPTION       "-ascii"   /* Remplacee par '-obsin'  */
 #define OUT_OPTION         "-out"     /* Remplacee par '-obsout' */
+#define RDB_HEADER_OPTION      "-header"
+#define RDB_DATA_OPTION        "-data"
+#define RDB_PRIMARYKEY_OPTION  "-primarykey"
 #define GZ_OPTION          "-gz"
 #define NIVEAU_MIN_OPTION  "-niveau_min"
 #define NIVEAU_MAX_OPTION  "-niveau_max"
@@ -116,6 +122,7 @@ typedef struct {
   int check_ua4d;
   int roundrobin;
   int cherrypick_x, cherrypick_y;
+  char rdb_header_table[MAXSTR], rdb_data_table[MAXSTR], rdb_primarykey[MAXSTR];
 } options, *optionsptr;
 
 
@@ -5071,6 +5078,27 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	optptr->roundrobin = 1;
       }
+      else if (!strcmp(argv[i],RDB_HEADER_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'header' */
+	if (i+1>=argc || argv[i+1][0]=='-') {
+	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	}
+	strcpy(optptr->rdb_header_table,argv[++i]);
+      }
+      else if (!strcmp(argv[i],RDB_DATA_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'data' */
+	if (i+1>=argc || argv[i+1][0]=='-') {
+	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	}
+	strcpy(optptr->rdb_data_table,argv[++i]);
+      }
+      else if (!strcmp(argv[i],RDB_PRIMARYKEY_OPTION)) { /* Cette option enregistrera le nom de la cle primaire qui lie 'header' et 'data' */
+	if (i+1>=argc || argv[i+1][0]=='-') {
+	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	}
+	strcpy(optptr->rdb_primarykey,argv[++i]);
+      }
       else if (!strcmp(argv[i],GZ_OPTION)) { /* Fichier standard dans lequel on lira le GZ au niveau voulu */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
@@ -5350,8 +5378,13 @@ void aide(void) {
   printf("  %s   [active la verification a chaque enregistrement si on est en presence d'un UA multi-niveaux (ua4d)]\n\n", CHECK_UA4D_OPTION);
 
   printf("Attention, les options '%s' et '%s' puis '%s' et '%s' viennent en couple"
-	 " et sont mutuellement exclusives\n", RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
+	 " et sont mutuellement exclusives\n\n", RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
   
+  printf("On specifie les tables et la cle primaire qui lie les tables ensemble a l'aide des options suivantes\n");
+  printf("  %s     [table qui joue le role du 'header' (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
+  printf("  %s       [table qui joue le role du 'data' (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
+  printf("  %s [cle primaire qui lie les tables 'header' et 'data' (par defaut '%s')]\n\n", RDB_PRIMARYKEY_OPTION, RDB_PRIMARYKEY_DEFAUT);
+
   printf("Les options suivantes servent a identifier le champ qui definit la grille (fonction fstinf):\n\n");
 
   printf("  %s    [nomvar du champ qu'on veut lire] (par defaut, PN)\n", NOMVAR_OPTION);
