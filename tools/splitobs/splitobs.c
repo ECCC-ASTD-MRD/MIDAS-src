@@ -125,17 +125,20 @@ typedef struct {
   char rdb_header_table[MAXSTR], rdb_data_table[MAXSTR], rdb_primarykey[MAXSTR];
 } options, *optionsptr;
 
+typedef struct { // to be used as the argument in a callback
+  char *table_list, *primary_key;
+} sqlite_get_tables_with_primary_key_callback_arg;
 
 /*****************************************************/
 /******* Prototype des fonctions definies ************/
 /*****************************************************/
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
-static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns);
-void append_id_obs_table_list_requests(char* requete_sql, char* table_list);
+static int sqlite_check_tables_with_primary_key_callback(void *callback_args, int count, char **data, char **columns);
+void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, char* header_table);
 
 int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
-int sqlite_get_tables_with_id_obs(char* obsin, char* table_list);
+int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* primary_key, char* header_table, char* data_table);
 
 int    getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 
@@ -478,9 +481,9 @@ int f77name(splitobs)(int argc, char** argv) {
      **********************************************************/
 
     strcpy(table_list,"");
-    status = sqlite_get_tables_with_id_obs(opt.obsin, table_list);
+    status = sqlite_get_tables_with_primary_key(opt.obsin, table_list, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_data_table);
     if( status != OK ) {
-      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_id_obs pour le fichier '%s'\n", status, opt.obsin);
+      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_primary_key pour le fichier '%s'\n", status, opt.obsin);
 
       exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
     }
@@ -848,7 +851,7 @@ int f77name(splitobs)(int argc, char** argv) {
       // On ajoute la requete SQL pour copier les tables 'rdb4_schema' et 'resume'.
       strcat(requete_sql,sqlreq_resume);
 
-      append_id_obs_table_list_requests(requete_sql,table_list);
+      append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,opt.rdb_header_table);
 
       strcat(requete_sql,"\ndetach dbin;");
 
@@ -976,19 +979,13 @@ int f77name(splitobs)(int argc, char** argv) {
 "attach '%s' as dbin; \n"
 "insert into %s select * from dbin.%s where %s %% %d = %d;\n"
 "insert into %s select * from dbin.%s where %s %% %d = %d;%s\n",
-/* "insert into header select * from dbin.header where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
-/* "insert into data   select * from dbin.data   where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
-/* "CREATE TABLE rdb4_schema( schema  varchar(9) );\n" */
-/* "insert into rdb4_schema values('${TYPE}');\n" */
-/* "create table resume(date integer , time integer , run varchar(9)) ;\n" */
-/* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
                   opt.obsin,
                   opt.rdb_header_table,opt.rdb_header_table,opt.rdb_primarykey,
                   nsplit,id,
                   opt.rdb_data_table,opt.rdb_data_table,opt.rdb_primarykey,
                   nsplit,id,
                   sqlreq_resume);
-          append_id_obs_table_list_requests(requete_sql,table_list);
+          append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,opt.rdb_header_table);
           {
             char tmpsqlrequest[MAXSTR];
             sprintf(tmpsqlrequest,"create index idx1 on %s(%s,vcoord,varno);", opt.rdb_data_table, opt.rdb_primarykey);
@@ -2520,25 +2517,27 @@ static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_
 
 
   /***************************************************************************
-   * fonction: sqlite_get_tables_with_id_obs
+   * fonction: sqlite_get_tables_with_primary_key
    *
-   * Trouve les tables qui contiennent une colonne 'id_obs'
+   * Trouve les tables qui contiennent une colonne 'primary_key'
    *
    ***************************************************************************/
-int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
+int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* primary_key, char* header_table, char* data_table) {
   int status;
   char *ErrMsg;
   sqlite3 *sqldbin;
+  char sqlrequest[MAXSTR];
+  sqlite_get_tables_with_primary_key_callback_arg callback_arg;
 
   /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
   /* On ouvre le fichier d'input */
   status = sqlite3_open(obsin,&sqldbin);
   if ( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
+    fprintf(stderr, "Fonction sqlite_get_tables_with_primary_key: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
 
     status = sqlite3_close(sqldbin);
     if( status != SQLITE_OK )
-      fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+      fprintf(stderr,"Fonction sqlite_get_tables_with_primary_key: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -2548,10 +2547,14 @@ int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
   /* Execution de la requete SQL sur la base de donnees */
   /* Since the table 'header' and 'data' are already processed in the main */
   /*   request, we must not process them again when adding tables which */
-  /*   contains a column 'id_obs'. */
-  status = sqlite3_exec(sqldbin, "select * from sqlite_master where lower(name) not in ('header','data');", sqlite_check_tables_with_id_obs_callback, table_list, &ErrMsg);
+  /*   contains a column 'primary_key'. */
+  sprintf(sqlrequest, "select * from sqlite_master where lower(name) not in ('%s','%s');", header_table, data_table);
+  callback_arg.table_list = table_list;
+  callback_arg.primary_key = primary_key;
+
+  status = sqlite3_exec(sqldbin,sqlrequest, sqlite_check_tables_with_primary_key_callback, &callback_arg, &ErrMsg);
   if( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables_with_id_obs: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+    fprintf(stderr, "Fonction sqlite_get_tables_with_primary_key: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
     sqlite3_free(ErrMsg);
 
     return NOT_OK;
@@ -2560,7 +2563,7 @@ int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
 
   status = sqlite3_close(sqldbin);
   if( status != SQLITE_OK ) {
-    fprintf(stderr,"Fonction sqlite_get_tables_with_id_obs: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+    fprintf(stderr,"Fonction sqlite_get_tables_with_primary_key: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   }
@@ -2570,15 +2573,18 @@ int sqlite_get_tables_with_id_obs(char* obsin, char* table_list) {
 
 
   /***************************************************************************
-   * fonction: sqlite_check_tables_with_id_obs_callback
+   * fonction: sqlite_check_tables_with_primary_key_callback
    *
    * Cette fonction sert de 'callback' pour la requete executee par 'sqlite3_exec'.
    *    On veut savoir si elle contient les tables 'rdb4_schema' et 'resume'
    *
    ***************************************************************************/
-static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count, char **data, char **columns) {
-  int idx, isTypeTable, foundID_OBS;
+static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg, int count, char **data, char **columns) {
+  int idx, isTypeTable, found_primary_key;
+  sqlite_get_tables_with_primary_key_callback_arg *callback_arg;
   char table_name[MAXSTR];
+
+  callback_arg = (sqlite_get_tables_with_primary_key_callback_arg*) void_callback_arg;
 
   isTypeTable = 0;
   for (idx = 0; idx < count; idx++) {
@@ -2590,7 +2596,7 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
   if (isTypeTable == 0) return 0;
 
   strcpy(table_name,"");
-  foundID_OBS=0;
+  found_primary_key=0;
   for (idx = 0; idx < count; idx++) {
     if (strcasecmp(columns[idx],"tbl_name")==0)
       strcpy(table_name,data[idx]);
@@ -2621,24 +2627,25 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
       char regex_errbuf[MAXSTR];
       int regex_err;
 
-      regex_err = regcomp(&regex, "id_obs", REG_ICASE);
+      regex_err = regcomp(&regex, callback_arg->primary_key, REG_ICASE);
       if (regex_err!=0) {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-        fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: cannot compile regular expression '%s': error '%s'", "id_obs", regex_errbuf);
+        fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: cannot compile regular expression '%s': error '%s'",
+                callback_arg->primary_key, regex_errbuf);
         return 1;
       }
       regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
       if (regex_err == 0) {
         // This means that there was a match
-        foundID_OBS=1;
+        found_primary_key=1;
       }
       else if (regex_err == REG_NOMATCH) {
-        foundID_OBS=0;
+        found_primary_key=0;
       }
       else {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
         regfree(&regex);
-	fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
+	fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
         return 1;
       }
 
@@ -2646,32 +2653,32 @@ static int sqlite_check_tables_with_id_obs_callback(void *table_list, int count,
     }
   }
 
-  if (foundID_OBS) {
+  if (found_primary_key) {
     if (strlen(table_name)>0) {
-      if (strlen((char*) table_list)>0) {
-        strcat((char*) table_list, " ");
+      if (strlen(callback_arg->table_list)>0) {
+        strcat(callback_arg->table_list, " ");
       }
-      strcat((char*) table_list, table_name);
+      strcat(callback_arg->table_list, table_name);
     }
     else {
-      fprintf(stderr,"sqlite_check_tables_with_id_obs_callback: foundID_OBS = %d but table_name is empty", foundID_OBS);
+      fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: found_primary_key = %d but table_name is empty", found_primary_key);
       return 1;
     }
   }
 
   return 0;
-} /* End of function 'sqlite_check_tables_with_id_obs_callback' */
+} /* End of function 'sqlite_check_tables_with_primary_key_callback' */
 
 
   /***************************************************************************
-   * fonction: append_id_obs_table_list_requests
+   * fonction: append_primary_key_table_list_requests
    *
    * Cette fonction sert a ajouter des requetes SQL pour inclure les
-   * tables supplementaires autres que 'header' et 'data' mais qui ont
-   * 'id_obs' comme colonne.
+   * tables supplementaires autres que 'header' mais qui ont
+   * 'primary_key' comme colonne.
    *
    ***************************************************************************/
-void append_id_obs_table_list_requests(char* requete_sql, char* table_list) {
+void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, char* header_table) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
@@ -2682,12 +2689,13 @@ void append_id_obs_table_list_requests(char* requete_sql, char* table_list) {
   token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
-    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.id_obs in (select id_obs from header);\n",token,token,token);
+    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
+            token,token,token,primary_key,primary_key,header_table);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
   // On a termine d'ajouter les requetes pour les autres tables
-}
+} /* End of function 'append_primary_key_table_list_requests' */
 
 
 /***************************************************************************
