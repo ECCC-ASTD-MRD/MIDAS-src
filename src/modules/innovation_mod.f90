@@ -582,7 +582,7 @@ contains
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
 
     ! Hydrology
-    call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSFCHY, 'HY', destObsColumn)
+    call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'HY', destObsColumn)
 
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
