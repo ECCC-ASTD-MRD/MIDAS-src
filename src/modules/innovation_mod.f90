@@ -569,7 +569,7 @@ contains
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! Sea surface temperature
-    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
+    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
 
     ! Sea ice concentration
     if ( outerLoopIndex == 1 ) then

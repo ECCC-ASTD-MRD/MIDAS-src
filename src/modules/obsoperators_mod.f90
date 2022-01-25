@@ -746,7 +746,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sst_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sst_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, cdfam,  &
+  subroutine oop_sst_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam,  &
                          destObsColumn )
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for Sea Surface Temperature (SST) data.
@@ -756,7 +756,6 @@ contains
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
-    real(8)                 :: Jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
     integer                 :: destObsColumn
 
@@ -766,8 +765,6 @@ contains
     character(len=4) :: varName
 
     if (.not.beSilent) write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
-
-    Jobs = 0.d0
 
     ! loop over all header indices of the specified family with surface obs
     call obs_set_current_header_list( obsSpaceData, cdfam )
@@ -802,16 +799,9 @@ contains
         call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, &
                             obsValue - ( col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName ) ))
 
-        ! contribution to Jobs
-        Jobs = Jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) ) / &
-                      ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
       end do BODY
 
     end do HEADER
-
-    Jobs = 0.5d0 * Jobs
 
   end subroutine oop_sst_nl
 
