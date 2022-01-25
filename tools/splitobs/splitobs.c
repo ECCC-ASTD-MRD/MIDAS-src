@@ -51,7 +51,7 @@
 #define RECTANGLE_DEFAUT   {-1,-1,-1,-1,0,0,0,0}
 #define RDB_HEADER_DEFAUT     "header"
 #define RDB_DATA_DEFAUT       "data"
-#define RDB_PRIMARYKEY_DEFAUT "header"
+#define RDB_PRIMARYKEY_DEFAUT "id_obs"
 #define optionsDEFAUT      {"", /* fstin */ "", /* obsin*/ "", /* obsout*/ "", /* gz*/"", /* channels */ INOUT_DEFAUT, /* inout */ PILOT_DEFAUT, /* pilot */ RECTANGLE_DEFAUT, /* rect */ fstparam_DEFAUT, /* fst */ IP1_VIDE, /* niveau_min */ IP1_VIDE, /* niveau_max */ 1, /* channels_voulus */ NPEX_DEFAUT, /* npex */ NPEY_DEFAUT, /* npey */ NDIGITS_DEFAUT, /* ndigits */ 0, /* check_ua4d */ 0, /* roundrobin */ -1, /* cherrypick_x */ -1, /* cherrypick_y */ RDB_HEADER_DEFAUT, /* rdb_header_table */ RDB_DATA_DEFAUT, /* rdb_data_table */ RDB_PRIMARYKEY_DEFAUT} /* rdb_primarykey
 
 /* differentes options du programme */
@@ -761,51 +761,65 @@ int f77name(splitobs)(int argc, char** argv) {
       if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
         /* Aucun filtrage vertical n'est fait */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
-                "insert into header select * from dbin.header where %s(dbin.header.lat,dbin.header.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into data   select * from dbin.data   where dbin.data.id_obs in (select id_obs from header);",
-                opt.obsin, SQLFUNCTION_NAME, grid.gridid, grid.ni, grid.nj,
+                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);",
+                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+                grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout);
+                opt.inout,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table);
       else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
-                "insert into header select * from dbin.header where %s(dbin.header.lat,dbin.header.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into data   select * from dbin.data   where dbin.data.id_obs in (select id_obs from header) and \n"
-                "  %s(dbin.data.id_obs,dbin.data.vcoord,%d,%d)=1;",
-                opt.obsin, SQLFUNCTION_NAME, grid.gridid, grid.ni, grid.nj,
+                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;",
+                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+                grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout, SQL_VERTICAL_NAME, opt.niveau_min, opt.niveau_max);
+                opt.inout,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
+                SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
       else if (strlen(opt.channels)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
-                "insert into header select * from dbin.header where %s(dbin.header.lat,dbin.header.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into data   select data.* from dbin.data,header where dbin.data.id_obs = header.id_obs and \n"
-                "  %s(dbin.data.id_obs,header.lat,header.lon,dbin.data.vcoord+header.elev,%d,%d,%d,%d,%d)=1;",
-                opt.obsin, SQLFUNCTION_NAME, grid.gridid, grid.ni, grid.nj,
+                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+                "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
+                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;",
+                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+                grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout, SQL_VERTICAL_GZ_NAME, grid_gz.gridid, grid_gz.ni,
-                grid_gz.nj, opt.niveau_min, opt.niveau_max);
+                opt.inout,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_primarykey,
+                SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
+                grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
       else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
-                "insert into header select * from dbin.header where %s(dbin.header.lat,dbin.header.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into data   select * from dbin.data   where dbin.data.id_obs in (select id_obs from header) and \n"
-                "  dbin.data.vcoord in (%s);",
-                opt.obsin, SQLFUNCTION_NAME, grid.gridid, grid.ni, grid.nj,
+                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+                "  dbin.%s.vcoord in (%s);",
+                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+                grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout, opt.channels);
+                opt.inout,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
+                opt.rdb_data_table, opt.channels);
       else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
-                "insert into header select * from dbin.header where %s(dbin.header.lat,dbin.header.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into data   select * from dbin.data   where dbin.data.id_obs in (select id_obs from header) and \n"
-                "  dbin.data.vcoord not in (%s);",
-                opt.obsin, SQLFUNCTION_NAME, grid.gridid, grid.ni, grid.nj,
+                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+                "  dbin.%s.vcoord not in (%s);",
+                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+                grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout, opt.channels);
+                opt.inout,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
+                opt.rdb_data_table, opt.channels);
       else {
         fprintf(stderr, "Fonction main: Incapable de creer la requete SQL\n");
 
@@ -960,17 +974,26 @@ int f77name(splitobs)(int argc, char** argv) {
 "PRAGMA journal_mode = OFF;\n"
 "PRAGMA  synchronous = OFF;\n"
 "attach '%s' as dbin; \n"
-"insert into header select * from dbin.header where id_obs %% %d = %d;\n"
-"insert into data   select * from dbin.data   where id_obs %% %d = %d;%s\n",
+"insert into %s select * from dbin.%s where %s %% %d = %d;\n"
+"insert into %s select * from dbin.%s where %s %% %d = %d;%s\n",
 /* "insert into header select * from dbin.header where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "insert into data   select * from dbin.data   where min (  id_obs/(${maxid}/%d),%d)  = %d;\n" */
 /* "CREATE TABLE rdb4_schema( schema  varchar(9) );\n" */
 /* "insert into rdb4_schema values('${TYPE}');\n" */
 /* "create table resume(date integer , time integer , run varchar(9)) ;\n" */
 /* "insert into resume values(\"$DATE\",\"$HEURE\",\"$RUN\") ;\n" */
-                  opt.obsin,nsplit,id,nsplit,id,sqlreq_resume);
+                  opt.obsin,
+                  opt.rdb_header_table,opt.rdb_header_table,opt.rdb_primarykey,
+                  nsplit,id,
+                  opt.rdb_data_table,opt.rdb_data_table,opt.rdb_primarykey,
+                  nsplit,id,
+                  sqlreq_resume);
           append_id_obs_table_list_requests(requete_sql,table_list);
-          strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);");
+          {
+            char tmpsqlrequest[MAXSTR];
+            sprintf(tmpsqlrequest,"create index idx1 on %s(%s,vcoord,varno);", opt.rdb_data_table, opt.rdb_primarykey);
+            strcat(requete_sql,tmpsqlrequest);
+          }
           strcat(requete_sql,"detach dbin;");
 
           printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
