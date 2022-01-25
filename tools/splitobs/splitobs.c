@@ -52,7 +52,7 @@
 #define RDB_HEADER_DEFAUT     "header"
 #define RDB_DATA_DEFAUT       "data"
 #define RDB_PRIMARYKEY_DEFAUT "id_obs"
-#define optionsDEFAUT      {"", /* fstin */ "", /* obsin*/ "", /* obsout*/ "", /* gz*/"", /* channels */ INOUT_DEFAUT, /* inout */ PILOT_DEFAUT, /* pilot */ RECTANGLE_DEFAUT, /* rect */ fstparam_DEFAUT, /* fst */ IP1_VIDE, /* niveau_min */ IP1_VIDE, /* niveau_max */ 1, /* channels_voulus */ NPEX_DEFAUT, /* npex */ NPEY_DEFAUT, /* npey */ NDIGITS_DEFAUT, /* ndigits */ 0, /* check_ua4d */ 0, /* roundrobin */ -1, /* cherrypick_x */ -1, /* cherrypick_y */ RDB_HEADER_DEFAUT, /* rdb_header_table */ RDB_DATA_DEFAUT, /* rdb_data_table */ RDB_PRIMARYKEY_DEFAUT} /* rdb_primarykey
+#define optionsDEFAUT      {"" /* fstin */, "" /* obsin*/, "" /* obsout*/, "" /* gz*/, "" /* channels */, INOUT_DEFAUT /* inout */, PILOT_DEFAUT /* pilot */, RECTANGLE_DEFAUT /* rect */, fstparam_DEFAUT /* fst */, IP1_VIDE /* niveau_min */, IP1_VIDE /* niveau_max */, 1 /* channels_voulus */, NPEX_DEFAUT /* npex */, NPEY_DEFAUT /* npey */, NDIGITS_DEFAUT /* ndigits */, 0 /* check_ua4d */, 0 /* roundrobin */, -1 /* cherrypick_x */, -1 /* cherrypick_y */, RDB_HEADER_DEFAUT /* rdb_header_table */, RDB_DATA_DEFAUT /* rdb_data_table */, RDB_PRIMARYKEY_DEFAUT /* rdb_primarykey */ }
 
 /* differentes options du programme */
 #define FSTIN_OPTION       "-fstin"
