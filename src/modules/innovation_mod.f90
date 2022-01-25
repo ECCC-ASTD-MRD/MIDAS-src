@@ -566,7 +566,7 @@ contains
     call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! RADAR Doppler velocity
-    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent,JoRadVel,'RA', destObsColumn)  
+    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! Sea surface temperature
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)

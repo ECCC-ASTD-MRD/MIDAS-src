@@ -265,12 +265,15 @@ contains
     !           A linear interpolation in ln(p) is performed.
     !
     implicit none
+
+    ! arguments
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam ! family of obsservation
     integer                 :: destObsColumn
 
+    ! locals
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,bufrCode,nlev_T
     real(8) :: zvar,zwb,zwt,zexp
@@ -585,12 +588,14 @@ contains
     !            FOR SURFACE DATA (except ground-based GPS zenith delay).
     implicit none
 
+    ! arguments
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam ! family of observation
     integer                 :: destObsColumn
 
+    ! locals
     integer :: columnLevelIndex, bufrCode, headerIndex, bodyIndex
     integer :: ierr, nulnam, fnom, fclos
     real(8) :: obsValue, trlVirtTemp
@@ -957,8 +962,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_raDvel_nl
   !--------------------------------------------------------------------------
-  subroutine oop_raDvel_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, &
-                           cdfam, destObsColumn)
+  subroutine oop_raDvel_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam, &
+                           destObsColumn)
     ! :Purpose: Computation of Jo and OMP for Radar Doppler velocity observations 
     implicit none
 
@@ -966,7 +971,6 @@ contains
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
-    real(8)                , intent(out)   :: Jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
@@ -977,7 +981,7 @@ contains
     real(8) :: levelAltLow, levelAltHigh
     real(8) :: radarAltitude, beamAzimuth, beamElevation, obsRange, obsAltitude
     real(8) :: uuLow, uuHigh, vvLow, vvHigh, uuInterpolated, vvInterpolated
-    real(8) :: interpWeight, zinc, zoer, maxRangeInterp
+    real(8) :: interpWeight, maxRangeInterp
 
     namelist /namradvel/ maxRangeInterp
     
@@ -1000,7 +1004,6 @@ contains
       write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
     end if
     
-    Jobs = 0.d0
     !
     ! Loop over all header indices of the 'RA' family with schema 'radvel':
     !
@@ -1072,12 +1075,6 @@ contains
         observedDoppler = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)     
 
         call obs_bodySet_r(obsSpaceData, destObsColumn, bodyIndex, observedDoppler-simulatedDoppler)
-        ! Observation error
-        zoer = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
-        ! Normalized increment
-        zinc = (simulatedDoppler - observedDoppler) / zoer
-        ! Total Jobs
-        Jobs = Jobs + 0.5d0 * zinc * zinc 
 
       end do BODY
     end do HEADER
