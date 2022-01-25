@@ -874,7 +874,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ice_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ice_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, cdfam,  &
+  subroutine oop_ice_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam,  &
                          destObsColumn )
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
@@ -884,7 +884,6 @@ contains
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
-    real(8)                , intent(  out) :: Jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
@@ -898,8 +897,6 @@ contains
     character(len=8) :: ccyymmdd
 
     if (.not. beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
-
-    Jobs = 0.d0
 
     ! loop over all body indices
     call obs_set_current_body_list( obsSpaceData, cdfam )
@@ -937,15 +934,7 @@ contains
       obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
       call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, obsValue - backValue )
 
-      ! contribution to Jobs
-      Jobs = Jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
-                      obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) ) / &
-                    ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
-                      obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
-
     end do BODY
-
-    Jobs = 0.5d0 * Jobs
 
   end subroutine oop_ice_nl
 

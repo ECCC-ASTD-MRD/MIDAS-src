@@ -579,7 +579,7 @@ contains
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for outer-loop index=', outerLoopIndex
     end if
-    call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
+    call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
 
     ! Hydrology
     call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSFCHY, 'HY', destObsColumn)
