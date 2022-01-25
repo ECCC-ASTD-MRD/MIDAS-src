@@ -109,13 +109,16 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt )
+  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt, &
+                        varqc_opt, nwoqcv_opt )
     implicit none
 
     ! Arguments:
     integer, intent(in)                   :: nvadim_mpilocal_in
     type(struct_hco), pointer, intent(in) :: hco_anl_in
     logical, intent(in), optional         :: oneDVarMode_opt
+    logical, intent(out), optional        :: varqc_opt
+    integer, intent(out), optional        :: nwoqcv_opt
 
     ! Locals:
     integer :: ierr,nulnam
@@ -166,6 +169,9 @@ CONTAINS
     END IF
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
+
+    if ( present(varqc_opt) ) varqc_opt = lvarqc
+    if ( present(nwoqcv_opt) ) nwoqcv_opt = nwoqcv
 
     if(LVARQC .and. mpi_myid == 0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
