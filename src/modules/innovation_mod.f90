@@ -545,10 +545,10 @@ contains
     call tmg_start(48,'NL_OBS_OPER')
     
     ! Radiosondes
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoRaob, 'UA', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
 
     ! Aircrafts
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AI', destObsColumn)
 
     ! SatWinds
     if ( outerLoopIndex == 1 ) then
@@ -556,7 +556,7 @@ contains
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for outer-loop index=', outerLoopIndex
     end if
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
     call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSF, 'SF', destObsColumn)

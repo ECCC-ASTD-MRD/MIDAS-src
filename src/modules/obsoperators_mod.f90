@@ -257,28 +257,23 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ppp_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ppp_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, cdfam, destObsColumn )
-    ! :Purpose: Computation of Jobs and y - H(x)
+  subroutine oop_ppp_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam, destObsColumn )
+    ! :Purpose: Computation of y - H(x)
     !           for pressure-level observations.
     !           Interpolate vertically columnTrlOnTrlLev to
-    !           the pressure levels of the observations. Then compute Jobs.
+    !           the pressure levels of the observations.
     !           A linear interpolation in ln(p) is performed.
     !
-    ! :Arguments:
-    !           :Jobs:  contribution to Jobs
-    !           :cdfam: family of obsservation
     implicit none
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
-    real(8)                 :: Jobs
-    character(len=*)        :: cdfam
+    character(len=*)        :: cdfam ! family of obsservation
     integer                 :: destObsColumn
 
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,bufrCode,nlev_T
-    real(8) :: zvar,zoer
-    real(8) :: zwb,zwt,zexp
+    real(8) :: zvar,zwb,zwt,zexp
     real(8) :: zlev,zpt,zpb,zomp,ztvg
     real(8) :: trlValueBot,trlValueTop,lat
     character(len=4) :: varName
@@ -294,8 +289,6 @@ contains
     nlev_T = col_getNumLev(columnTrlOnTrlLev,'TH')
     allocate(geopotential(nlev_T))
 
-    Jobs = 0.d0
-
     call obs_set_current_body_list(obsSpaceData, cdfam)
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -310,7 +303,6 @@ contains
        bufrCode=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
        zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
        zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-       zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
        headerIndex=obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
        if ( ixtr == 0 ) then
@@ -342,7 +334,6 @@ contains
            end if
          end if
          zomp = zvar-(zwb*trlValueBot+zwt*trlValueTop)
-         Jobs = Jobs + zomp*zomp/(zoer*zoer)
          call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
        else if (ixtr == 2) then
@@ -360,7 +351,6 @@ contains
 
            zomp = (  zvar - geopotentialSfc(1) -  &
                 ztvg/(temperatureLapseRate/ec_rg)*(1.D0-(zlev/col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0'))**zexp))
-           Jobs = Jobs + zomp*zomp/(zoer*zoer)
            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
          end if
 
@@ -369,8 +359,6 @@ contains
     end do body
 
     deallocate(geopotential)
-
-    Jobs = 0.5d0 * Jobs
 
   end subroutine oop_ppp_nl
 
