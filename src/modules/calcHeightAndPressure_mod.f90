@@ -1791,8 +1791,8 @@ contains
                                     exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
                 ! interpolating thermo pressure in between
                 scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)  ! DEBUG mad001 : validate this!
-                pressure_T(lev_T) = scaleFactorBottom*pressure_M(lev_M+1) + &
-                                      (1.0D0-scaleFactorBottom)*pressure_M(lev_M)
+                pressure_T(lev_T) = (1.0D0-scaleFactorBottom)*pressure_M(lev_M+1) + &
+                                      scaleFactorBottom*pressure_M(lev_M)
 
                 ! second iteration on tv
                 cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
