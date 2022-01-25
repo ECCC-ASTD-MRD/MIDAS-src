@@ -977,8 +977,8 @@ int f77name(splitobs)(int argc, char** argv) {
                               "PRAGMA journal_mode = OFF;\n"
                               "PRAGMA  synchronous = OFF;\n"
                               "attach '%s' as dbin; \n"
-                              "insert into %s select * from dbin.%s where %s %% %d = %d;\n"
-                              "insert into %s select * from dbin.%s where %s %% %d = %d;%s\n",
+                              "insert into %s select * from dbin.%s where abs(%s) %% %d = %d;\n"
+                              "insert into %s select * from dbin.%s where abs(%s) %% %d = %d;%s\n",
                   opt.obsin,
                   opt.rdb_header_table,opt.rdb_header_table,opt.rdb_primarykey,
                   nsplit,id,
