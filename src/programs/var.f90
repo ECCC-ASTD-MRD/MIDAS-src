@@ -70,11 +70,11 @@ program midas_var
   type(struct_hco)      , pointer :: hco_core => null()
 
   integer :: outerLoopIndex, ip3ForWriteToFile
-  integer :: numIterWithoutVarqc
+  integer :: numIterWithoutVarqc, numInnerLoopIterDone
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
-  logical :: varqcActive
+  logical :: varqcActive, applyVarqcOnNlJo
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 3
 
@@ -230,6 +230,8 @@ program midas_var
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(2)
 
+  numInnerLoopIterDone = 0
+
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
@@ -255,6 +257,10 @@ program midas_var
     call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    ! Determine if to apply varqc to Jo of non-linear operator
+    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
+    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -278,6 +284,7 @@ program midas_var
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
                        isMinimizationFinalCall_opt=isMinimizationFinalCall )
+    numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoop(outerLoopIndex)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
