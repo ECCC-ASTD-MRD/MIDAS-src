@@ -182,7 +182,7 @@ CONTAINS
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, numIterMaxInnerLoop, deallocHessian_opt, &
-                           isMinimizationFinalCall_opt )
+                           isMinimizationFinalCall_opt, numIterMaxInnerLoopUsed_opt )
     implicit none
 
     ! Arguments:
@@ -192,6 +192,7 @@ CONTAINS
     real(8)                   , target  :: controlVectorIncrSum(:)
     real(8)                             :: vazx(:)
     integer                             :: numIterMaxInnerLoop
+    integer,                   optional :: numIterMaxInnerLoopUsed_opt
     logical,                   optional :: deallocHessian_opt
     logical,                   optional :: isMinimizationFinalCall_opt
 
@@ -231,6 +232,7 @@ CONTAINS
     else
       call utl_abort('min_minimize: both nitermax and numIterMaxInnerLoop are negative values')
     end if
+    if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 

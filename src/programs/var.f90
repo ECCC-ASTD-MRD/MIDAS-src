@@ -71,6 +71,7 @@ program midas_var
 
   integer :: outerLoopIndex, ip3ForWriteToFile
   integer :: numIterWithoutVarqc, numInnerLoopIterDone
+  integer :: numIterMaxInnerLoopUsed
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
@@ -286,8 +287,9 @@ program midas_var
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
-                       isMinimizationFinalCall_opt=isMinimizationFinalCall )
-    numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoop(outerLoopIndex)
+                       isMinimizationFinalCall_opt=isMinimizationFinalCall, &
+                       numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoopUsed )
+    numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoopUsed
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
