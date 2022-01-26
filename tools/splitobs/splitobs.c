@@ -135,7 +135,7 @@ typedef struct { // to be used as the argument in a callback
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
 static int sqlite_check_tables_with_primary_key_callback(void *callback_args, int count, char **data, char **columns);
-void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id);
+void append_primary_key_table_list_requests_nsplit(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id);
 void append_primary_key_table_list_requests_using_header(char* requete_sql, char* table_list, char* primary_key, char* header_table, char* data_table);
 
 int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
@@ -979,7 +979,7 @@ int f77name(splitobs)(int argc, char** argv) {
                               "PRAGMA  synchronous = OFF;\n"
                               "attach '%s' as dbin; \n"
                               "%s\n", opt.obsin, sqlreq_resume);
-          append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,nsplit,id);
+          append_primary_key_table_list_requests_nsplit(requete_sql,table_list,opt.rdb_primarykey,nsplit,id);
           if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
                strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
                strcasecmp(opt.rdb_primarykey,RDB_PRIMARYKEY_DEFAUT) == 0 ) {
@@ -2663,13 +2663,14 @@ static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg
 
 
   /***************************************************************************
-   * fonction: append_primary_key_table_list_requests
+   * fonction: append_primary_key_table_list_requests_nsplit
    *
-   * Cette fonction sert a ajouter des requetes SQL pour inclure les
-   * tables qui ont 'primary_key' comme colonne.
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les rangees des
+   * tables qui ont 'primary_key' comme colonne en se basant sur le critere
+   *                 abs(primary_key) % nsplit == id
    *
    ***************************************************************************/
-void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id) {
+void append_primary_key_table_list_requests_nsplit(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
@@ -2685,14 +2686,14 @@ void append_primary_key_table_list_requests(char* requete_sql, char* table_list,
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
-  // On a termine d'ajouter les requetes pour les autres tables
-} /* End of function 'append_primary_key_table_list_requests' */
+} /* End of function 'append_primary_key_table_list_requests_nsplit' */
 
   /***************************************************************************
-   * fonction: append_primary_key_table_list_requests
+   * fonction: append_primary_key_table_list_requests_using_header
    *
-   * Cette fonction sert a ajouter des requetes SQL pour inclure les
-   * tables qui ont 'primary_key' comme colonne.
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les rangees des
+   * tables qui ont 'primary_key' comme colonne et qui ont un 'primary_key' qui
+   * est dans le 'header_table'.
    *
    ***************************************************************************/
 void append_primary_key_table_list_requests_using_header(char* requete_sql, char* table_list, char* primary_key, char* header_table, char* data_table) {
@@ -2713,8 +2714,7 @@ void append_primary_key_table_list_requests_using_header(char* requete_sql, char
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
-  // On a termine d'ajouter les requetes pour les autres tables
-} /* End of function 'append_primary_key_table_list_requests' */
+} /* End of function 'append_primary_key_table_list_requests_using_header' */
 
 
 /***************************************************************************
