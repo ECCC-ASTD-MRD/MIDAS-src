@@ -1682,36 +1682,31 @@ contains
   ! oop_tovs_nl
   !--------------------------------------------------------------------------
   subroutine oop_tovs_nl( columnTrl, obsSpaceData, datestamp, beSilent,  &
-                          Jobs, bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
-    ! :Purpose: Computation of Jobs and the residuals to the tovs observations
-    !
-    ! :Arguments:
-    !     :option_opt: defines input state:
-    !
+                          bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
+    ! :Purpose: Computation of the residuals to the tovs observations
+    !           option_opt: defines input state:
     !              - 'HR': High Resolution background state,
     !              - 'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
     !              - 'MO': Model state. (CURRENTLY NOT SUPPORTED)
-    !     :Jobs: total value of Jobs for tovs
     implicit none
 
+    ! Arguments
     type(struct_columnData) :: columnTrl
     type(struct_obs) :: obsSpaceData
     integer :: datestamp
     logical :: beSilent
-    real(8) :: Jobs
     logical, optional :: bgckMode_opt
     character(len=*), optional :: option_opt       ! only valid value is HR
     integer, optional, intent(in) :: sourceObs_opt ! usually set to OBS_VAR
     integer, optional, intent(in) :: destObs_opt   ! usually set to OBS_OMP
 
+    ! locals
     integer :: jdata, sourceObs, destObs
     logical :: llprint,bgckMode
     character(len=2) :: option
+    real(8) :: Jobs
 
-    if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) then
-       Jobs=0.0d0
-       return
-    end if
+    if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
     ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
@@ -1754,7 +1749,7 @@ contains
     call tvs_rttov(obsSpaceData,bgckMode,beSilent)
     if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! 3.   Compute Jobs and the residuals
+    ! 3.   Compute the residuals
     ! .    ----------------------------
     if ( option == 'HR' .or. option == 'LR' ) then
        do jdata=1,obs_numbody(obsSpaceData)

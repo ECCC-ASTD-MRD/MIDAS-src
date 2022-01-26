@@ -587,10 +587,10 @@ contains
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, JoTov, bgckMode_opt=.true., destObs_opt=destObsColumn)
+                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, JoTov, bgckMode_opt=.false., destObs_opt=destObsColumn)
+                       beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
 
     ! Profilers
