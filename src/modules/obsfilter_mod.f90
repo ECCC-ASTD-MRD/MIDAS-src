@@ -1408,7 +1408,7 @@ end subroutine filt_topoAISW
     logical                 :: beSilent
     !
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER :: JL, ISAT, IQLF, iProfile, IFLG
+    INTEGER :: JL, ISAT, IQLF, iProfile, iVarCode, IFLG
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL
@@ -1441,7 +1441,6 @@ end subroutine filt_topoAISW
         Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,INDEX_HEADER)
         LNOM = .NOT.BTEST(IQLF,16-1)
         LAZM = .TRUE.
-        if (LEVELGPSRO == 1) LAZM = (-0.1d0 < AZM .AND. AZM < 360.1)
         !
         ! Check if the satellite is within the accepted set:
         !
@@ -1471,11 +1470,13 @@ end subroutine filt_topoAISW
           ! Altitude and reference order of magnitude value:
           !
           HNH1= obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-          if (LEVELGPSRO == 1) then
+          if (HNH1 > 6000000) then
             HNH1=HNH1-Rad
             ZREF = 0.025d0*exp(-HNH1/6500.d0)
+            LAZM = (-0.1d0 < AZM .AND. AZM < 360.1)
           else
             ZREF = 300.d0*exp(-HNH1/6500.d0)
+            LAZM = .TRUE.
           end if
           !
           ! Observation:
@@ -1506,6 +1507,7 @@ end subroutine filt_topoAISW
     !
     if (gps_numROProfiles > 0) then
       if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
+      if(.not.allocated(gps_vRO_iVarCode)) allocate(gps_vRO_iVarCode(gps_numROProfiles))
       iProfile=0
       !
       ! Loop over all header indices of the 'RO' family:
@@ -1521,6 +1523,19 @@ end subroutine filt_topoAISW
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
           gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
+          iVarCode = -1
+          call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
+          !
+          ! Loop over all body indices
+          ! For storing iVarCode of each profile for the 'RO' family
+          !
+          BODY2: do 
+            index_body = obs_getBodyIndex(obsSpaceData)
+            if (index_body < 0) exit BODY2
+            iVarCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+            if (iVarCode > 0) exit BODY2
+          end do BODY2
+          gps_vRO_iVarCode(iProfile) = iVarCode
         end if
       end do HEADER2
     end if

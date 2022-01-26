@@ -1034,7 +1034,7 @@ contains
     integer headerIndex, idatyp, bodyIndex
     integer jl, ngpslev, nwndlev
     logical  assim, firstheader, ldsc
-    integer :: nh, nh1
+    integer :: nh, nh1, iProfile, iVarCode
     type(gps_profile)           :: prf
     real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
@@ -1093,6 +1093,9 @@ contains
        ! If no assimilations are requested, skip to next header
        !
        if (.not.assim) cycle HEADER
+       ! iVarCode=15036 or iVarcode=15037 for GPS-RO
+       iProfile = gps_iprofile_from_index(headerIndex)
+       iVarCode = gps_vRO_iVarCode(iProfile)
        !
        ! Basic geometric variables of the profile:
        !
@@ -1167,7 +1170,7 @@ contains
        !
        ! Apply the observation operator:
        !
-       if (levelgpsro == 1) then
+       if (iVarCode==15037) then
           call gps_bndopv1(h, azmv, nh, prf, rstv)
        else
           call gps_refopv (h,       nh, prf, rstv)
@@ -1191,7 +1194,7 @@ contains
              ! Altitude:
              !
              hnh1= obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-             if (levelgpsro == 1) hnh1=hnh1-rad
+             if (iVarCode==15037) hnh1=hnh1-rad
              !
              ! Observation operator H(x)
              !
