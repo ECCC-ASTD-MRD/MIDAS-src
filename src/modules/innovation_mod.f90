@@ -648,7 +648,7 @@ contains
     call cfn_calcJo(obsSpaceData)
 
     ! applying varqc, if asked for
-    if ( applyVarqcOnNlJo ) call vqc_tl(obsSpaceData)
+    if ( applyVarqcOnNlJo ) call vqc_NlTl(obsSpaceData)
 
     ! Compute Jo components and print
     call cfn_sumJo(obsSpaceData,Jo)

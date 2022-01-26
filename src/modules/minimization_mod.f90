@@ -635,7 +635,7 @@ CONTAINS
 
        ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        IF ( LVARQC ) THEN
-         call vqc_tl(obsSpaceData_ptr) 
+         call vqc_NlTl(obsSpaceData_ptr)
        endif
 
        dl_Jo = 0.d0

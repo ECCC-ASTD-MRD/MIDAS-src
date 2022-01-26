@@ -36,7 +36,7 @@ module varqc_mod
   private
 
   ! public procedures
-  public :: vqc_setup, vqc_tl, vqc_ad, vqc_listrej
+  public :: vqc_setup, vqc_NlTl, vqc_ad, vqc_listrej
 
 
   contains
@@ -317,7 +317,7 @@ module varqc_mod
   end subroutine vqc_setup
 
 
-  subroutine vqc_tl(obsSpaceData)
+  subroutine vqc_NlTl(obsSpaceData)
     !
     ! :Purpose: 1) Modify Jo [OBS_JOBS] according to
     !              Andersson and Jarvinen 1999, Variational quality control,
@@ -408,14 +408,14 @@ module varqc_mod
 
     enddo BODY
 
-  end subroutine vqc_tl
+  end subroutine vqc_NlTl
 
 
   subroutine vqc_ad(obsSpaceData)
     !
     ! :Purpose: Factorizes Grad(Jo) according to Andersson and Jarvinen
     !           1999, Variational quality control, Q.J.R., 125, pp. 697-722.
-    !           It uses the value of (1-Wqc) saved in OBS_QCV in vqc_tl
+    !           It uses the value of (1-Wqc) saved in OBS_QCV in vqc_NlTl
     implicit none
 
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
