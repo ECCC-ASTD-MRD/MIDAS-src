@@ -2708,10 +2708,11 @@ void append_primary_key_table_list_requests_using_header(char* requete_sql, char
   /* walk through other tokens */
   while( token != (char*) NULL ) {
     // If the table is 'header' or 'data', then ignore it since they already have been considered in the request
-    if ( strcmp(token,header_table) == 0 || strcmp(token,data_table) == 0) continue;
-    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
-            token,token,token,primary_key,primary_key,header_table);
-    strcat(requete_sql,sqlreqtmp);
+    if ( strcasecmp(token,header_table) != 0 && strcasecmp(token,data_table) != 0) {
+      sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
+              token,token,token,primary_key,primary_key,header_table);
+      strcat(requete_sql,sqlreqtmp);
+    }
     token = strtok((char*) NULL, separator_char);
   }
 } /* End of function 'append_primary_key_table_list_requests_using_header' */
