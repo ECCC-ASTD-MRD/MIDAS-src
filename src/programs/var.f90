@@ -77,6 +77,7 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
+  logical :: computeFinalNlJo
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 3
 
@@ -343,6 +344,26 @@ program midas_var
 
   ! Set the QC flags to be consistent with VAR-QC if control analysis
   if ( varqcActive ) call vqc_listrej(obsSpaceData)
+
+  computeFinalNlJo = .false.
+  if ( computeFinalNlJo ) then
+    ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+    call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorUpdateHighRes )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Determine if to apply varqc to Jo of non-linear operator
+    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc .and. &
+                         allowVarqcForNl )
+    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
+                                destObsColumn_opt=OBS_OMA, &
+                                computeFinalNlJo_opt=.true., &
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  end if
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()
