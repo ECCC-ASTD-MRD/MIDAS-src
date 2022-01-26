@@ -1060,8 +1060,8 @@ contains
 
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_PRM,&
-              OBS_BCOR,OBS_ROLO,OBS_ROLA, (0,ii=18,100) /)
+              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_WORK, OBS_PRM,&
+              OBS_JOBS, OBS_BCOR,OBS_ROLO,OBS_ROLA, (0,ii=20,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
