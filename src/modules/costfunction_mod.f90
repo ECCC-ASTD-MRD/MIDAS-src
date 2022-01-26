@@ -37,7 +37,7 @@ module costfunction_mod
 
   ! public procedures
 
-  public :: cfn_calcJo, cfn_sumJo, cfn_computeNlTovsJo
+  public :: cfn_calcJo, cfn_sumJo
 
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
@@ -309,9 +309,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  !  cfn_computeNlTovsJo
+  !  computeNlTovsJo
   !--------------------------------------------------------------------------
-  subroutine cfn_computeNlTovsJo(pjo, obsSpaceData, dest_obs)
+  subroutine computeNlTovsJo(pjo, obsSpaceData, dest_obs)
     !
     ! *Purpose*: Computation of Jo for TOVS observations and transfer O-F
     !                     to obsSpaceData data column dest_obs
@@ -378,8 +378,8 @@ contains
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
         channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
         if ( channelIndex == 0 ) then
-          write(*,'(A)') ' cfn_computeNlTovsJo: error with channel number'
-          call utl_abort('cfn_computeNlTovsJo')
+          write(*,'(A)') ' computeNlTovsJo: error with channel number'
+          call utl_abort('computeNlTovsJo')
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
@@ -433,7 +433,7 @@ contains
 
     pjo = dlsum
 
-  end subroutine cfn_computeNlTovsJo
+  end subroutine computeNlTovsJo
 
   !--------------------------------------------------------------------------
   ! readNameList

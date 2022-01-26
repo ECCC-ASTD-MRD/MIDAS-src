@@ -1768,10 +1768,7 @@ contains
         ichobs_a = channelNumber
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
         channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
-        if ( channelIndex == 0 ) then
-          write(*,'(A)') ' cfn_computeNlTovsJo: error with channel number'
-          call utl_abort('cfn_computeNlTovsJo')
-        end if
+        if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance (tovsIndex) % bt(channelIndex)
