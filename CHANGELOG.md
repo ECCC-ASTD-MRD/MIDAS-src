@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Remove reference to any table name when splitting in round-robin mode using `splitobs` (#573 and !538)
  * Generalize the input table names and primary key for program `midas.splitobs.Abs` (#570 and !536)
  * Add MPI support over lat-bands for implicit diffusion solver (#436 and !533)
    * Minor impact on results (only when using implicit diffusion solver)
