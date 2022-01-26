@@ -594,10 +594,10 @@ contains
     end if
 
     ! Profilers
-    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoProf, 'PR', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'PR', destObsColumn)
 
     ! Aladin winds
-    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAladin, 'AL', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AL', destObsColumn)
 
     ! GPS radio occultation
     JoGpsRO=0.0D0

@@ -368,17 +368,12 @@ contains
   !--------------------------------------------------------------------------
   ! oop_zzz_nl
   !--------------------------------------------------------------------------
-  subroutine oop_zzz_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, JobsOut, cdfam,  &
+  subroutine oop_zzz_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam,  &
                          destObsColumn )
-    ! :Purpose: Computation of Jobs and y - H(x) for geometric-height observations
+    ! :Purpose: Computation of y - H(x) for geometric-height observations
     !           Interpolate vertically columnTrlOnTrlLev to the geometric heights (in
     !           meters) of the observations.
-    !           Then compute Jobs.
     !           A linear interpolation in z is performed.
-    !
-    ! :Arguments:
-    !           :JobsOut: contribution to Jobs
-    !           :cdfam:   family of observation
     !
     ! :Notes:
     !     As a first approximation, use the geopotential height.  Once this is
@@ -392,19 +387,19 @@ contains
     !     the result will be a corrected P.
     implicit none
 
+    ! Arguments
     type(struct_columnData),    intent(in)    :: columnTrlOnTrlLev
     type(struct_obs),           intent(inout) :: obsSpaceData
     logical,                    intent(in)    :: beSilent
-    real(8),          optional, intent(out)   :: JobsOut
-    character(len=*), optional, intent(in)    :: cdfam
+    character(len=*), optional, intent(in)    :: cdfam ! family of observation
     integer,                    intent(in)    :: destObsColumn
 
+    ! locals
     integer :: headerIndex,bodyIndex,ilyr,bufrCode,levIndexTop,levIndexBot
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     integer :: found  ! a group of bit flags
     integer :: ierr, nulnam, fnom,fclos
-    real(8) :: zvar,zoer,Jobs
-    real(8) :: zwb,zwt
+    real(8) :: zvar,zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: trlValueBot,trlValueTop
     character(len=4) :: varLevel
@@ -435,8 +430,6 @@ contains
       call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
     endif
 
-    if (present(JobsOut)) JobsOut=0.d0
-
     if (list_is_empty)then
       return
     end if
@@ -449,8 +442,6 @@ contains
     if (ierr.ne.0) call utl_abort('oop_zzz_nl: Error reading namelist')
     if (.not.beSilent) write(*,nml=namaladin_obs)
     ierr=fclos(nulnam)
-
-    Jobs=0.d0
 
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -466,7 +457,6 @@ contains
       bufrCode=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
       zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
       zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-      zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
       headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
 
       ilyr = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
@@ -570,12 +560,9 @@ contains
       end select
 
       zomp = zvar-(zwb*trlValueBot+zwt*trlValueTop)
-      Jobs = Jobs + zomp*zomp/(zoer*zoer)
       call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
     enddo BODY
-
-    if (present(JobsOut)) JobsOut=0.5d0*Jobs
 
   end subroutine oop_zzz_nl
 
