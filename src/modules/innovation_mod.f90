@@ -53,6 +53,7 @@ module innovation_mod
   use columnVariableTransforms_mod
   use rmatrix_mod
   use costFunction_mod
+  use varqc_mod
   implicit none
   save
   private
@@ -645,6 +646,9 @@ contains
 
     ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d)**2
     call cfn_calcJo(obsSpaceData)
+
+    ! applying varqc, if asked for
+    if ( applyVarqcOnNlJo ) call vqc_tl(obsSpaceData)
 
     ! Compute Jo components and print
     call cfn_sumJo(obsSpaceData,Jo)
