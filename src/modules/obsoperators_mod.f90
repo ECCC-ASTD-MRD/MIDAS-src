@@ -1678,7 +1678,11 @@ contains
     integer :: jdata, sourceObs, destObs
     logical :: llprint,bgckMode
     character(len=2) :: option
-    real(8) :: Jobs
+
+    integer :: sensorIndex, channelIndex, tovsIndex
+    real(pre_obsReal) :: zdtb, obsPRM
+    integer :: idatyp, channelNumber, ichobs_a
+    integer :: headerIndex, bodyIndex
 
     if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
@@ -1731,16 +1735,68 @@ contains
        end do
     end if
 
-    if (option == 'HR') then
-       llprint = .true.
-    else
-       llprint = .false.
-    end if
-    Jobs = 0.0d0
+    ! loop over all header indices of the 'TO' family
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
 
-    call cfn_computeNlTovsJo(Jobs, obsSpaceData, destObs)
+      ! Extract general information for this observation point
+      !      ------------------------------------------------------
+
+      ! process only radiance data to be assimilated?
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      if ( tovsIndex == -1 ) cycle HEADER
+
+      sensorIndex = tvs_lsensor(tovsIndex)
+
+      ! Set the body list
+      ! (& start at the beginning of the list)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
+
+        ! Only consider if flagged for assimilation
+        if ( obs_bodyElem_i(obsSpaceData,obs_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
+
+        channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
+        ichobs_a = channelNumber
+        channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
+        if ( channelIndex == 0 ) then
+          write(*,'(A)') ' cfn_computeNlTovsJo: error with channel number'
+          call utl_abort('cfn_computeNlTovsJo')
+        end if
+
+        zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
+             tvs_radiance (tovsIndex) % bt(channelIndex)
+        if ( tvs_debug ) then
+          obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
+          write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
+               channelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
+               obsPRM, -zdtb
+        end if
+        call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
+
+        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+                                        sensorIndex, destObs, beSilent_opt=.true.)
+
+      end do BODY
+
+    end do HEADER
+
+    if (option == 'HR') then
+      llprint = .true.
+    else
+      llprint = .false.
+    end if
     if ( beSilent ) llprint = .false.
-    if (llprint) call tvs_printDetailledOmfStatistics(obsSpaceData)
+    if ( llprint ) call tvs_printDetailledOmfStatistics(obsSpaceData)
 
   end subroutine oop_tovs_nl
 
