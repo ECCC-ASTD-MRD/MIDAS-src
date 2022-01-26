@@ -608,7 +608,7 @@ contains
       else
         if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for outer-loop index=', outerLoopIndex
       end if
-      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
+      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     end if
 
     ! Chemical constituents

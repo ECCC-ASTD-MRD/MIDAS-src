@@ -1040,7 +1040,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_gpsro_nl
   !--------------------------------------------------------------------------
-  subroutine oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs, destObsColumn)
+  subroutine oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     ! :Purpose: Computation of Jo and the residuals to the GPSRO observations
     !
     ! :Note: gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
@@ -1053,7 +1053,6 @@ contains
     type(struct_obs)        :: obsSpaceData
     type(struct_vco), pointer :: vco_hr
     logical                 :: beSilent
-    real(8)                 :: Jobs         ! total value of Jobs for GPSRO
     integer                 :: destObsColumn
 
     ! Locals
@@ -1100,8 +1099,6 @@ contains
     allocate( h    (gpsro_maxprfsize) )
     allocate( azmv (gpsro_maxprfsize) )
     allocate( rstv (gpsro_maxprfsize) )
-
-    Jobs = 0.0d0
 
     !
     ! Loop over all header indices of the 'RO' family:
@@ -1255,9 +1252,8 @@ contains
              !
              pjo1 = 0.5d0 * zinc * zinc
              !
-             ! Total (PJO) and per profile (PJOB) cumulatives:
+             ! Per profile (PJOB) cumulatives:
              !
-             Jobs = Jobs + pjo1
              pjob= pjob+ pjo1
              !
              if (firstheader .and. .not.beSilent) then
