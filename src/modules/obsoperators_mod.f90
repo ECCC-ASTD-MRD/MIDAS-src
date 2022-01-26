@@ -1289,19 +1289,15 @@ contains
   !--------------------------------------------------------------------------
   ! oop_gpsgb_nl
   !--------------------------------------------------------------------------
-  subroutine oop_gpsgb_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, Jobs,  &
+  subroutine oop_gpsgb_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, &
                            destObsColumn, analysisMode_opt )
-    ! :Purpose: Computation of Jo and the residuals to the GB-GPS ZTD observations
-    !
-    ! :Arguments:
-    !          :Jobs: total value of Jo for all GB-GPS (ZTD) observations
+    ! :Purpose: Computation of the residuals to the GB-GPS ZTD observations
     implicit none
 
     ! Arguments
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical           :: beSilent
-    real(8)           :: Jobs
     integer           :: destObsColumn
     logical, optional :: analysisMode_opt
 
@@ -1358,7 +1354,6 @@ contains
 
     zdzmin = dzmin      
     nobs2p = 50
-    Jobs = 0.d0
 
     nlev_T = col_getNumLev(columnTrlOnTrlLev,'TH')
     if (ltestop .and. .not.beSilent) write(*,*) '  col_getNumLev[columnTrlOnTrlLev,TH] = ',nlev_T
@@ -1376,7 +1371,7 @@ contains
       write(*, *) ' '
       write(*,'(A11,A9,3A8,A9,4A8,2A9,A7,A10,A11)')  &
            'OOP_GPSGB_NL','CSTNID','ZLAT','ZLON','ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P',  &
-           'ZPOMPS','ZPOMP','ZPWMOD','Jobs','ZINC2'
+           'ZPOMPS','ZPOMP','ZPWMOD','ZINC2'
     end if
 
     icount  = 0
@@ -1524,7 +1519,6 @@ contains
              zinc  = (zhx - zobs) / zoer
              call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, zobs - zhx)
 
-             Jobs = Jobs + 0.5d0 * zinc * zinc
              !
              ! Apply data selection criteria for 1-OBS Mode
              !
@@ -1542,7 +1536,7 @@ contains
                 write(*,  &
                      '(A14,A9,3(1x,f7.2),1x,f8.2,4(1x,f8.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
                      'OOP_GPSGB_NL: ',cstnid,zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
-                     zpomps/100.d0,zpomp/100.d0,zpwmod,Jobs,zinc/zoer
+                     zpomps/100.d0,zpomp/100.d0,zpwmod,zinc/zoer
              end if
 
           end if
@@ -1613,9 +1607,6 @@ contains
        write(*,*) '       PERCENT   REJECTED                                    = ',   &
             (real(icount1+icount2+icount3,8) / real(icount,8))*100.0d0
        write(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', icountp
-       if ( icountp > 0 ) then
-          write(*, *) 'MEAN Jo = (Jobs/numGPSZTD)*YZDERRWGT**2 = ',(Jobs/real(icountp,8))*yzderrwgt**2
-       end if
        write(*,*) ' '
     end if
 

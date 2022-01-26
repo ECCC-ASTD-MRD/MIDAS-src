@@ -623,7 +623,7 @@ contains
         else
           if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
         end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.true.)
       else
         if ( outerLoopIndex == 1 ) then
@@ -631,7 +631,7 @@ contains
         else
           if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
         end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.false.)
       end if
     end if
