@@ -77,15 +77,14 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
-  logical :: computeFinalNlJo
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 3
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop, allowVarqcForNl
+  logical :: limitHuInOuterLoop, allowVarqcForNl, computeFinalNlJo
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ allowVarqcForNl
+  NAMELIST /NAMVAR/ allowVarqcForNl, computeFinalNlJo
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -117,6 +116,7 @@ program midas_var
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
   allowVarqcForNl = .false.
+  computeFinalNlJo = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -345,7 +345,6 @@ program midas_var
   ! Set the QC flags to be consistent with VAR-QC if control analysis
   if ( varqcActive ) call vqc_listrej(obsSpaceData)
 
-  computeFinalNlJo = .false.
   if ( computeFinalNlJo ) then
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
