@@ -60,7 +60,7 @@ while true; do
         if [ -f "${listing}" ]; then
             let oldLines=linesListed+1
             tail -n +${oldLines} ${listing}
-            rm ${listing}
+            rm ${listing} ${listing}.o
             logLine
             logLine "End of listing of '${jobname}'"
             logLine ======================================
