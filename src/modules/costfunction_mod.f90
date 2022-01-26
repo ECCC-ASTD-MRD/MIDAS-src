@@ -88,7 +88,7 @@ contains
 
     ! Arguments:
     type(struct_obs) :: lobsSpaceData
-    real(8) :: pjo ! Total observation cost function
+    real(8), intent(out) :: pjo ! Total observation cost function
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
@@ -136,6 +136,8 @@ contains
     joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
+
+    pjo = 0.0d0
 
     do bodyIndex = 1, obs_numbody( lobsSpaceData )
 

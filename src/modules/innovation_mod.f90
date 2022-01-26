@@ -51,6 +51,8 @@ module innovation_mod
   use statetocolumn_mod
   use biascorrectionSat_mod
   use columnVariableTransforms_mod
+  use rmatrix_mod
+  use costFunction_mod
   implicit none
   save
   private
@@ -638,79 +640,15 @@ contains
 
     call tmg_stop(48)
 
-    ! Combine surface contributions
-    JoSurfc = JoSfcUA + JoSfcSF + JoSfcSC + JoSfcGP + JoSfcRA + JoSfcTM + JoSfcGL + JoSFCHY
+    ! Save as OBS_WORK : R**-1/2 (d)
+    call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
 
-    ! Compute total Jo
-    Jo = JoRaob  + JoAirep + JoSatWind + JoSurfc + JoTov + JoProf + JoAladin + &
-         JoGpsRO + JoGpsGB + JoChm     + JoRadVel
+    ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d)**2
+    call cfn_calcJo(obsSpaceData)
 
-    ! Print Jo components
-    if ( .not.beSilent ) then
-      write(*,*) 'Cost function values for this MPI task:'
-      write(*,'(a15,f30.16)') 'JoRaob   = ',JoRaob
-      write(*,'(a15,f30.16)') 'JoAirep  = ',JoAirep
-      write(*,'(a15,f30.16)') 'JoSurfc  = ',JoSurfc
-      write(*,'(a15,f30.16)') 'JoSfcTM  = ',JoSfcTM
-      write(*,'(a15,f30.16)') 'JoSfcGL  = ',JoSfcGL
-      write(*,'(a15,f30.16)') 'JoSfcSF  = ',JoSfcSF
-      write(*,'(a15,f30.16)') 'JoSfcUA  = ',JoSfcUA
-      write(*,'(a15,f30.16)') 'JoSfcSC  = ',JoSfcSC
-      write(*,'(a15,f30.16)') 'JoSfcGP  = ',JoSfcGP
-      write(*,'(a15,f30.16)') 'JoSfcRA  = ',JoSfcRA
-      write(*,'(a15,f30.16)') 'JoTov    = ',JoTov
-      write(*,'(a15,f30.16)') 'JoSatWind= ',JoSatWind
-      write(*,'(a15,f30.16)') 'JoProf   = ',JoProf
-      write(*,'(a15,f30.16)') 'JoAladin = ',JoAladin
-      write(*,'(a15,f30.16)') 'JoGpsRO  = ',JoGpsRO
-      write(*,'(a15,f30.16)') 'JoGpsGB  = ',JoGpsGB
-      write(*,'(a15,f30.16)') 'JoChm    = ',JoChm
-      write(*,'(a15,f30.16)') 'JoRadVel = ',JoRadVel
-      write(*,'(a15,f30.16)') 'Total Jo = ',Jo
-
-      call mpi_allreduce_sumreal8scalar(JoRaob,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoAirep,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSurfc,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcSF,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcUA,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcSC,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcGP,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcRA,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoTov,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSatWind,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoProf,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoAladin,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoGpsRO,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoGpsGB,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoChm,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcTM,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcGL,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoRadVel,'GRID')
-
-      write(*,*) 'Cost function values summed for all MPI tasks:'
-      write(*,'(a15,f30.16)') 'JoRaob   = ',JoRaob
-      write(*,'(a15,f30.16)') 'JoAirep  = ',JoAirep
-      write(*,'(a15,f30.16)') 'JoSurfc  = ',JoSurfc
-      write(*,'(a15,f30.16)') 'JoSfcTM  = ',JoSfcTM
-      write(*,'(a15,f30.16)') 'JoSfcGL  = ',JoSfcGL
-      write(*,'(a15,f30.16)') 'JoSfcSF  = ',JoSfcSF
-      write(*,'(a15,f30.16)') 'JoSfcUA  = ',JoSfcUA
-      write(*,'(a15,f30.16)') 'JoSfcSC  = ',JoSfcSC
-      write(*,'(a15,f30.16)') 'JoSfcGP  = ',JoSfcGP
-      write(*,'(a15,f30.16)') 'JoSfcRA  = ',JoSfcRA
-      write(*,'(a15,f30.16)') 'JoTov    = ',JoTov
-      write(*,'(a15,f30.16)') 'JoSatWind= ',JoSatWind
-      write(*,'(a15,f30.16)') 'JoProf   = ',JoProf
-      write(*,'(a15,f30.16)') 'JoAladin = ',JoAladin
-      write(*,'(a15,f30.16)') 'JoGpsRO  = ',JoGpsRO
-      write(*,'(a15,f30.16)') 'JoGpsGB  = ',JoGpsGB
-      write(*,'(a15,f30.16)') 'JoChm    = ',JoChm
-      write(*,'(a15,f30.16)') 'JoRadVel = ',JoRadVel
-    end if ! beSilent
-
-    ! Sum Jo over all MPI tasks
-    call mpi_allreduce_sumreal8scalar(Jo,'GRID')
-    write(*,'(a15,f30.16)') 'Total Jo = ',Jo
+    ! Compute Jo components and print
+    call cfn_sumJo(obsSpaceData,Jo)
+    if ( mpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
