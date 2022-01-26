@@ -766,7 +766,7 @@ int f77name(splitobs)(int argc, char** argv) {
         /* Aucun filtrage vertical n'est fait */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);",
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
@@ -778,7 +778,7 @@ int f77name(splitobs)(int argc, char** argv) {
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;",
+                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
@@ -791,7 +791,7 @@ int f77name(splitobs)(int argc, char** argv) {
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
-                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;",
+                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
@@ -804,7 +804,7 @@ int f77name(splitobs)(int argc, char** argv) {
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord in (%s);",
+                "  dbin.%s.vcoord in (%s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
@@ -816,7 +816,7 @@ int f77name(splitobs)(int argc, char** argv) {
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord not in (%s);",
+                "  dbin.%s.vcoord not in (%s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
@@ -983,7 +983,7 @@ int f77name(splitobs)(int argc, char** argv) {
           if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
                strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
                strcasecmp(opt.rdb_primarykey,RDB_PRIMARYKEY_DEFAUT) == 0 ) {
-            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);");
+            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);\n");
           }
           strcat(requete_sql,"detach dbin;");
 
@@ -2452,14 +2452,14 @@ int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_
   /* Si cette variable est egale a 1 ou 11, alors on a trouve une table 'resume' */
   if ( is_resume_and_rdb4_schema_present_in_DB == 1 || is_resume_and_rdb4_schema_present_in_DB == 11 ) {
     /* La table resume existe alors on fait la commande */
-    sprintf(sqlreqtmp,"\ninsert into rdb4_schema select * from %s.rdb4_schema;", attached_db_name);
+    sprintf(sqlreqtmp,"insert into rdb4_schema select * from %s.rdb4_schema;\n", attached_db_name);
     strcat(requete_sql,sqlreqtmp);
   }
 
   /* Si cette variable est egale a 10 ou 11, alors on a trouve une table 'rdb4_schema' */
   if ( is_resume_and_rdb4_schema_present_in_DB == 10 || is_resume_and_rdb4_schema_present_in_DB == 11 ) {
     /* La table resume existe alors on fait la commande */
-    sprintf(sqlreqtmp,"\ninsert into resume select * from %s.resume;", attached_db_name);
+    sprintf(sqlreqtmp,"insert into resume select * from %s.resume;\n", attached_db_name);
     strcat(requete_sql,sqlreqtmp);
   }
 
