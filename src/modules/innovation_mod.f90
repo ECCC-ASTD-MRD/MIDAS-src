@@ -612,7 +612,7 @@ contains
     end if
 
     ! Chemical constituents
-    call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, JoChm, destObsColumn)
+    call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, destObsColumn)
 
     ! GPS ground-based zenith delay
     JoGpsGB=0.0D0

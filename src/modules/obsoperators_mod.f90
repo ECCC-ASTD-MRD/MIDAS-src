@@ -1756,33 +1756,25 @@ contains
   !--------------------------------------------------------------------------
   ! oop_chm_nl
   !--------------------------------------------------------------------------
-  subroutine oop_chm_nl( columnTrlOnTrlLev, obsSpaceData, Jobs, destObsColumn )
-    ! :Purpose: Computation of Jo and the residuals to the observations
+  subroutine oop_chm_nl( columnTrlOnTrlLev, obsSpaceData, destObsColumn )
+    ! :Purpose: Computation of the residuals to the observations
     !           for all observations of the CH (chemical constituents) family.
     !           The array columnTrlOnTrlLev contains the input model array.
     !           Stores OmP in OBS_OMP in obsSpaceData.
-    !
-    ! :Arguments:
-    !     :columnTrlOnTrlLev:     Columnar arrays from model fields
-    !     :obsSpaceData: Obs space data structure
-    !     :Jobs:         contribution to Jo
     implicit none
-    
+
+    ! Arguments
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
-    real(8)                 :: Jobs
     integer                 :: destObsColumn
     
-    if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) then
-       Jobs = 0.0d0
-       return
-    end if
+    if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
 
     if (destObsColumn /= obs_omp) then
       call utl_abort('oop_chm_nl: the ability to store results in an obs column other than OBS_OMP is not yet implemented.')
     end if
 
-    call oopc_CHobsoperators(columnTrlOnTrlLev,obsSpaceData,kmode=0,Jobs_opt=Jobs) ! kmode=0 for general operator
+    call oopc_CHobsoperators(columnTrlOnTrlLev,obsSpaceData,kmode=0) ! kmode=0 for general operator
 
   end subroutine oop_chm_nl
 
