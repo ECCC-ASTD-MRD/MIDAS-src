@@ -2467,6 +2467,9 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
   sqlite_get_tables_callback_arg *callback_arg;
   char table_name[MAXSTR];
   char* table_list;
+  regex_t regex;
+  char regex_errbuf[MAXSTR];
+  int regex_err;
 
   callback_arg = (sqlite_get_tables_callback_arg*) void_callback_arg;
 
@@ -2479,13 +2482,29 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
 
   if (isTypeTable == 0) return 0;
 
-  /* printf("sqlite_get_tables_callback: primary_key name: '%s'\n", callback_arg->primary_key); */
+  // printf("BEGIN sqlite_get_tables_callback: primary_key name: '%s'\n", callback_arg->primary_key);
+
+  regex_err = regcomp(&regex, callback_arg->primary_key, REG_ICASE);
+  if (regex_err!=0) {
+    regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+    fprintf(stderr,"sqlite_get_tables_callback: cannot compile regular expression '%s': error '%s'",
+            callback_arg->primary_key, regex_errbuf);
+    return 1;
+  }
 
   strcpy(table_name,"");
   found_primary_key=0;
   for (idx = 0; idx < count; idx++) {
-    if (strcasecmp(columns[idx],"tbl_name")==0)
+    // printf("sqlite_get_tables_callback: columns[idx]='%s'\n", columns[idx]);
+    // printf("sqlite_get_tables_callback: data[idx]='%s'\n", data[idx]);
+    if (strcasecmp(columns[idx],"tbl_name")==0) {
+      if(strcasecmp(data[idx],"sqlite_stat1")==0) {
+        // printf("sqlite_get_tables_callback: ignore this table: '%s'\n", data[idx]);
+        regfree(&regex);
+        return 0;
+      }
       strcpy(table_name,data[idx]);
+    }
     else if(strcasecmp(columns[idx],"sql")==0) {
       // Ici, on regarde si 'id_obs' est contenu dans 'data[idx]' qui est de la forme:
       //       CREATE TABLE DATA (
@@ -2509,17 +2528,6 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
       //       FSO real
       //       )
 
-      regex_t regex;
-      char regex_errbuf[MAXSTR];
-      int regex_err;
-
-      regex_err = regcomp(&regex, callback_arg->primary_key, REG_ICASE);
-      if (regex_err!=0) {
-	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-        fprintf(stderr,"sqlite_get_tables_callback: cannot compile regular expression '%s': error '%s'",
-                callback_arg->primary_key, regex_errbuf);
-        return 1;
-      }
       regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
       if (regex_err == 0) {
         // This means that there was a match
@@ -2534,10 +2542,10 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
 	fprintf(stderr,"sqlite_get_tables_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
         return 1;
       }
+    } // End of 'for (idx = 0; idx < count; idx++)'
+  } // End of 'for (idx = 0; idx < count; idx++)'
 
-      regfree(&regex);
-    }
-  }
+  regfree(&regex);
 
   if (strlen(table_name)>0) {
     if (found_primary_key) {
@@ -2557,6 +2565,8 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
     fprintf(stderr,"sqlite_get_tables_callback: found_primary_key = %d but table_name is empty", found_primary_key);
     return 1;
   }
+
+  // printf("END sqlite_get_tables_callback: primary_key name: '%s'\n\n\n", callback_arg->primary_key);
 
   return 0;
 } /* End of function 'sqlite_get_tables_callback' */
@@ -2630,6 +2640,7 @@ void append_table_list_without_primary_key_requests(char* requete_sql, char* att
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
 
+  strcpy(requete_sql,"");
   // Make a copy of 'table_list' input string because 'strtok' is changing in place that string
   strcpy(table_list_tmp,table_list);
   /* get the first token */

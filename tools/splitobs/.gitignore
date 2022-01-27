@@ -13,3 +13,4 @@ version.h
 /abs
 /.nfs*
 /status*
+/.vscode
