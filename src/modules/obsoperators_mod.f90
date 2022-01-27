@@ -3457,7 +3457,7 @@ contains
     real(8) :: rad, geo, zp0
     real(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
     real(8) :: zmt
-    integer :: IDATYP
+    integer :: IDATYP,iVarCode
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
@@ -3525,6 +3525,8 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
+          ! iVarCode=15036 or iVarcode=15037 for GPS-RO
+          iVarCode = gps_vRO_iVarCode(iProfile)
 
           ! Profile at the observation location:
           ! Basic geometric variables of the profile:
@@ -3583,7 +3585,7 @@ contains
           enddo BODY_2
 
           ! Apply the observation operator:
-          if (levelgpsro == 1) then
+          if (iVarCode == 15037) then
             call gps_bndopv1(h, azmv, nh, prf, rstv)
           else
             call gps_refopv (h, nh, prf, rstv)
