@@ -137,9 +137,9 @@ typedef struct { // to be used as the argument in a callback
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_get_tables_callback(void *callback_args, int count, char **data, char **columns);
 
-void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id);
-void append_table_list_primary_key_requests_using_header(char* requete_sql, char* table_list, char* primary_key, char* header_table, char* data_table);
-void append_table_list_without_primary_key_requests(char* requete_sql, char* table_list, char* attached_db_name);
+void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* primary_key, int nsplit, int id);
+void append_table_list_primary_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* primary_key, char* header_table, char* data_table);
+void append_table_list_without_primary_key_requests(char* requete_sql, char* attached_db_name, char* table_list);
 
 int sqlite_get_tables(char* obsin, char* primary_key, char* table_list_with_primary_key, char* table_list_without_primary_key);
 
@@ -488,12 +488,12 @@ int f77name(splitobs)(int argc, char** argv) {
     strcpy(table_list_without_primary_key,"");
     status = sqlite_get_tables(opt.obsin, opt.rdb_primarykey, table_list_with_primary_key, table_list_without_primary_key);
     if( status != OK ) {
-      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_primary_key pour le fichier '%s'\n", status, opt.obsin);
+      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
 
       exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
     }
 
-    append_table_list_without_primary_key_requests(sqlreq_tables_without_primary_key,table_list_without_primary_key,"dbin");
+    append_table_list_without_primary_key_requests(sqlreq_tables_without_primary_key,"dbin",table_list_without_primary_key);
 
     /* Si on n'est pas en mode round-robin, alors les fichiers 'grid*.gridid' ont ete ouverts */
     if ( opt.roundrobin == 0 ) {
@@ -851,7 +851,7 @@ int f77name(splitobs)(int argc, char** argv) {
       // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'primary key'.
       strcat(requete_sql,sqlreq_tables_without_primary_key);
 
-      append_table_list_primary_key_requests_using_header(requete_sql,table_list_with_primary_key,opt.rdb_primarykey,opt.rdb_header_table,opt.rdb_data_table);
+      append_table_list_primary_key_requests_using_header(requete_sql,"dbin",table_list_with_primary_key,opt.rdb_primarykey,opt.rdb_header_table,opt.rdb_data_table);
 
       strcat(requete_sql,"\ndetach dbin;");
 
@@ -978,7 +978,7 @@ int f77name(splitobs)(int argc, char** argv) {
                               "PRAGMA  synchronous = OFF;\n"
                               "attach '%s' as dbin; \n"
                               "%s\n", opt.obsin, sqlreq_tables_without_primary_key);
-          append_table_list_primary_key_requests_nsplit(requete_sql,table_list_with_primary_key,opt.rdb_primarykey,nsplit,id);
+          append_table_list_primary_key_requests_nsplit(requete_sql,"dbin",table_list_with_primary_key,opt.rdb_primarykey,nsplit,id);
           if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
                strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
                strcasecmp(opt.rdb_primarykey,RDB_PRIMARYKEY_DEFAUT) == 0 ) {
@@ -2570,7 +2570,7 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
    *                 abs(primary_key) % nsplit == id
    *
    ***************************************************************************/
-void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* table_list, char* primary_key, int nsplit, int id) {
+void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* primary_key, int nsplit, int id) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
@@ -2581,8 +2581,8 @@ void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* tabl
   token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
-    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where abs(%s) %% %d = %d;\n",
-            token,token,primary_key,nsplit,id);
+    sprintf(sqlreqtmp,"insert into %s select * from %s.%s where abs(%s) %% %d = %d;\n",
+            token,attached_db_name,token,primary_key,nsplit,id);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
@@ -2597,7 +2597,7 @@ void append_table_list_primary_key_requests_nsplit(char* requete_sql, char* tabl
    * est dans le 'header_table'.
    *
    ***************************************************************************/
-void append_table_list_primary_key_requests_using_header(char* requete_sql, char* table_list, char* primary_key, char* header_table, char* data_table) {
+void append_table_list_primary_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* primary_key, char* header_table, char* data_table) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
@@ -2610,8 +2610,8 @@ void append_table_list_primary_key_requests_using_header(char* requete_sql, char
   while( token != (char*) NULL ) {
     // If the table is 'header' or 'data', then ignore it since they already have been considered in the request
     if ( strcasecmp(token,header_table) != 0 && strcasecmp(token,data_table) != 0) {
-      sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
-              token,token,token,primary_key,primary_key,header_table);
+      sprintf(sqlreqtmp,"insert into %s select * from %s.%s where %s.%s.%s in (select %s from %s);\n",
+              token,attached_db_name,token,attached_db_name,token,primary_key,primary_key,header_table);
       strcat(requete_sql,sqlreqtmp);
     }
     token = strtok((char*) NULL, separator_char);
@@ -2625,7 +2625,7 @@ void append_table_list_primary_key_requests_using_header(char* requete_sql, char
    * Genere une requete SQL pour copier les tables qui n'ont pas la colonne 'primary_key'.
    *
    ***************************************************************************/
-void append_table_list_without_primary_key_requests(char* requete_sql, char* table_list, char* attached_db_name) {
+void append_table_list_without_primary_key_requests(char* requete_sql, char* attached_db_name, char* table_list) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
