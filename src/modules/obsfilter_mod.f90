@@ -1408,7 +1408,7 @@ end subroutine filt_topoAISW
     logical                 :: beSilent
     !
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER :: JL, ISAT, IQLF, iProfile, iVarCode, IFLG
+    INTEGER :: JL, ISAT, IQLF, iProfile, varNum, IFLG
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL
@@ -1507,7 +1507,7 @@ end subroutine filt_topoAISW
     !
     if (gps_numROProfiles > 0) then
       if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
-      if(.not.allocated(gps_vRO_iVarCode)) allocate(gps_vRO_iVarCode(gps_numROProfiles))
+      if(.not.allocated(gps_vRO_varNum)) allocate(gps_vRO_varNum(gps_numROProfiles))
       iProfile=0
       !
       ! Loop over all header indices of the 'RO' family:
@@ -1523,19 +1523,19 @@ end subroutine filt_topoAISW
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
           gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
-          iVarCode = -1
+          varNum = -1
           call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
           !
           ! Loop over all body indices
-          ! For storing iVarCode of each profile for the 'RO' family
+          ! For storing varNum of each profile for the 'RO' family
           !
           BODY2: do 
             index_body = obs_getBodyIndex(obsSpaceData)
             if (index_body < 0) exit BODY2
-            iVarCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
-            if (iVarCode > 0) exit BODY2
+            varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+            if (varNum > 0) exit BODY2
           end do BODY2
-          gps_vRO_iVarCode(iProfile) = iVarCode
+          gps_vRO_varNum(iProfile) = varNum
         end if
       end do HEADER2
     end if
