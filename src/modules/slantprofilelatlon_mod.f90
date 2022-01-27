@@ -59,7 +59,7 @@ contains
     type(struct_hco), intent(in) :: hco
     integer, intent(in)  :: headerIndex
     real(4), intent(in)  :: height3D_T_r4(:,:,:)
-    real(4), intent(in)  :: height3D_M_r4(:,:,:) 
+    real(4), intent(in)  :: height3D_M_r4(:,:,:)
     real(8), intent(out)  :: latSlantLev_T(:)
     real(8), intent(out)  :: lonSlantLev_T(:)
     real(8), intent(out)  :: latSlantLev_M(:)
@@ -617,7 +617,6 @@ contains
       lonSlantLev_M(lev_M) = lonSlant
     end do
 
-    !Dominik, Mark : Is it correct ?
     latSlantLev_S = lat
     lonSlantLev_S = lon
 

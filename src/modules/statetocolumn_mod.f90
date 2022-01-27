@@ -668,7 +668,7 @@ contains
             lonLev_S = real(lon_r4,8)
           end if
 
-          ! check if the slanted lat/lon is inside the domain 	
+          ! check if the slanted lat/lon is inside the domain
           call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
