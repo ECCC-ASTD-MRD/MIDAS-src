@@ -3165,6 +3165,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag, nsize
     integer :: bgckCount, bgckCountMpi, blackListCount, blackListCountMpi
     integer :: unCorrectCount, unCorrectCountMpi, badTimeCount, badTimeCountMpi
+    integer :: ztdScoreCount, ztdScoreCountMpi
     integer :: numSelected, middleStep
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd
@@ -3253,6 +3254,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     bgckCount = 0
     blackListCount = 0
     unCorrectCount = 0
+    ztdScoreCount = 0
 
     ! First pass through observations
     call obs_set_current_header_list(obsdat,'GP')
@@ -3359,6 +3361,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           quality(headerIndex) = 9999
         end if
       end if
+      ! ZTD quality is unknown (missing ztd score)
+      if (ztdScore == 999.0) then
+        ztdScoreCount = ztdScoreCount + 1
+        quality(headerIndex) = 9999
+      end if
 
     end do HEADER1
 
@@ -3464,6 +3471,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                             'mpi_sum','grid',ierr)
     call rpn_comm_allReduce(bgckCount, bgckCountMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
+    call rpn_comm_allReduce(ztdScoreCount, ztdScoreCountMpi, 1, 'mpi_integer', &
+                            'mpi_sum','grid',ierr)
 
     write(*,*)
     write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
@@ -3473,10 +3482,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*)
     write(*,'(a50,i10)') 'Number of blacklisted obs            = ', blackListCountMpi
     write(*,'(a50,i10)') 'Number of obs without bias correction= ', unCorrectCountMpi
+    write(*,'(a50,i10)') 'Number of obs with no ztdScore       = ', ztdScoreCountMpi
     write(*,'(a60,4i10)') 'Number of rejects outside time window, BGCK, thinning ', &
          badTimeCountMpi, bgckCountMpi, &
          countObsInMpi - countObsOutMpi - &
-         bgckCountMpi - badTimeCountMpi - blackListCountMpi - unCorrectCountMpi
+         bgckCountMpi - badTimeCountMpi - blackListCountMpi - unCorrectCountMpi - ztdScoreCountMpi
 
     write(*,*)
     write(*,*) 'thn_gbGpsByDistance: Finished'
