@@ -83,6 +83,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the interpolation of surface pressure in slantpath mode (#525 and !535)
+   * Minor impact for radiances and GPS-RO
  * Fix bug in BURP update of high precision radiosonde temperature and dew-point depression observations (#554 and !529)
    * Minor impact on results
  * Fix sqlite read time back to what they were before #536 (#555 and !530)
