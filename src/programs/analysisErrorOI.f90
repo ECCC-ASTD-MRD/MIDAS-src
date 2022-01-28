@@ -37,6 +37,7 @@ program midas_analysisErrorOI
   use obsFiles_mod
   use innovation_mod
   use obsErrors_mod
+  use obsFilter_mod  
   use analysisErrorOI_mod
 
   implicit none
@@ -151,13 +152,20 @@ program midas_analysisErrorOI
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  ! Initialize list of analyzed variables.
+  !- Initialize list of analyzed variables.
   !
   call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! Sea ice concentration
+  call filt_iceConcentration(obsSpaceData, beSilent=.false.)
+  call filt_backScatAnisIce(obsSpaceData, beSilent=.false.)
+
   ! Compute the analysis-error
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)
+
+  ! Update the Days Since Last Obs
+  call aer_daysSinceLastObs(obsSpaceData, hco_anl, vco_anl, trlmFileName)
 
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then 
