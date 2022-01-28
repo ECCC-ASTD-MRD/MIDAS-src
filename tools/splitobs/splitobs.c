@@ -5365,13 +5365,13 @@ void aide(void) {
 
   printf("  %s   [active la verification a chaque enregistrement si on est en presence d'un UA multi-niveaux (ua4d)]\n\n", CHECK_UA4D_OPTION);
 
-  printf("Attention, les options '%s' et '%s' puis '%s' et '%s' viennent en couple"
-	 " et sont mutuellement exclusives\n\n", RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
-  
-  printf("On specifie les tables et la cle primaire qui lie les tables ensemble a l'aide des options suivantes\n");
-  printf("  %s     [table qui joue le role du 'header' (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
-  printf("  %s       [table qui joue le role du 'data' (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
-  printf("  %s [cle primaire qui lie les tables 'header' et 'data' (par defaut '%s')]\n\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
+  printf("Attention, les options '%s' et '%s', '%s' et '%s' puis '%s' et '%s' viennent en couple"
+	 " et sont mutuellement exclusives\n\n", OBSIN_OPTION, OBSOUT_OPTION, RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
+
+  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n");
+  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
+  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
+  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
 
   printf("Les options suivantes servent a identifier le champ qui definit la grille (fonction fstinf):\n\n");
 
