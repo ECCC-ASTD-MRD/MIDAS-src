@@ -85,7 +85,7 @@ contains
     logical :: fullyUseExtremeTimeBins
     NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, referencetime, fullyUseExtremeTimeBins
 
-    if ( initialized ) then
+    if (initialized) then
       write(*,*) 'tim_setup: already initialized, just return'
       return
     end if
@@ -113,7 +113,7 @@ contains
     tim_referencetime = referenceTime
     tim_fullyUseExtremeTimeBins = fullyUseExtremeTimeBins
 
-    if ( tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle"  ) then
+    if (tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle") then
       write(*,*) "Warning: tim_fullyUseExtremeTimeBins==.true. and tim_referencetime=='middle' is a non-standard combination"
       write(*,*) "Is it really what you want ?"
     end if
@@ -126,19 +126,19 @@ contains
       if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
     end if 
-    if ( tim_referencetime == "middle" ) then
+    if (tim_referencetime == "middle") then
       tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
       tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
     end if
 
-    if ( trim(tim_referencetime) == "start" ) then
+    if (trim(tim_referencetime) == "start") then
       tim_nstepobs = max(nint(tim_windowsize/tim_dstepobs), 1)
       tim_nstepobsinc = max(nint(tim_windowsize/tim_dstepobsinc), 1)
     end if
 
 
     ! Possibly set the datestamp (except when set later from burp files)
-    if ( present(fileNameForDate_opt) ) then
+    if (present(fileNameForDate_opt)) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
       write(*,*) 'tim_setup: ====================================================='
@@ -148,7 +148,7 @@ contains
       write(*,*) 'tim_setup: printdate = ',prntdate
       write(*,*) 'tim_setup: printtime = ',prnttime
       write(*,*) 'tim_setup: datestamp = ',datestamp
-    else if ( date /= 0 ) then
+    else if (date /= 0) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in namelist'
       write(*,*) 'tim_setup: ====================================================='
@@ -208,11 +208,11 @@ contains
     character(len=12) :: etiket
     character(len=1)  :: grtyp
 
-    if ( mpi_myid == 0 ) then
+    if (mpi_myid == 0) then
 
       ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)
-      if ( .not.fileExists ) then
+      if (.not.fileExists) then
         call utl_abort('tim_getDateStampFromFile: File not found')
       end if
 
@@ -220,17 +220,17 @@ contains
       varNameForDate = 'P0'
 
       ! If P0 not present, look for another suitable variable in the file
-      if ( .not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName)) ) then
+      if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) then
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varNameForDate = vnl_varNameList(varIndex)
           ! check if variable is in the file
-          if ( .not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName)) ) cycle
+          if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) cycle
           foundVarNameInFile = .true.
           exit      
         end do
 
-        if ( .not. foundVarNameInFile) then
+        if (.not. foundVarNameInFile) then
           call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
         end if
       end if
@@ -242,7 +242,7 @@ contains
       ierr = fstouv(nulFile,'RND+OLD')
       ierr = fstinl(nulFile,ini,inj,ink,-1,' ',-1,-1,-1,' ', &
                     trim(varNameForDate),ikeys,numdates,maxnumdates)
-      if ( ikeys(1) <= 0 ) then
+      if (ikeys(1) <= 0) then
         call utl_abort('tim_getDateStampFromFile: Could not find variable ' //  &
                        trim(varNameForDate) // ' in the supplied file')
       end if
@@ -261,7 +261,7 @@ contains
 
     call rpn_comm_bcast(dateStamp_out, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-    if ( tim_referenceTime == 'middle' ) then
+    if (tim_referenceTime == 'middle') then
       ! Modify date to ensure that it corresponds to the middle of the window
       ! Note: For this, we have to assume that the date in the file
       !       does NOT correspond to the final time of the window
@@ -273,20 +273,20 @@ contains
       window_loop: do windowIndex = 0, windowsPerDay
         windowBegHour = (real(windowIndex,8) * tim_windowsize) - (tim_windowsize/2.0d0)
         windowEndHour = (real(windowIndex,8) * tim_windowsize) + (tim_windowsize/2.0d0)
-        if ( fileHour >= windowBegHour .and. fileHour < windowEndHour ) then
+        if (fileHour >= windowBegHour .and. fileHour < windowEndHour) then
           foundWindow = .true.
           middleHour = real(windowIndex,8) * tim_windowsize
           exit window_loop
         end if
       end do window_loop
 
-      if ( .not. foundWindow ) then
+      if (.not. foundWindow) then
         write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour
         call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
       end if
 
       ! handle special case when window centered on hour 24
-      if ( nint(middleHour) == 24 ) then
+      if (nint(middleHour) == 24) then
         ! add 24h to dateStamp and recompute prntdate
         dateStamp_tmp = dateStamp_out
         call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
@@ -314,7 +314,7 @@ contains
     implicit none
     integer, intent(in) :: datestamp_in
 
-    if ( .not.initialized ) call utl_abort('tim_setDateStamp: module not initialized')
+    if (.not.initialized) call utl_abort('tim_setDateStamp: module not initialized')
 
     datestamp = datestamp_in
 
@@ -329,7 +329,7 @@ contains
     implicit none
     integer :: datestamp_out
 
-    if ( .not.initialized ) call utl_abort('tim_getDateStamp: module not initialized')
+    if (.not.initialized) call utl_abort('tim_getDateStamp: module not initialized')
 
     datestamp_out = datestamp
 
@@ -369,7 +369,7 @@ contains
 
     if (trim(tim_referencetime) == "start") then
      
-      dtstep = tim_windowsize/( real(numStep,8) )
+      dtstep = tim_windowsize/(real(numStep,8))
      
       do stepIndex = 1, numStep
         dldelt = (stepIndex - 1) * dtstep

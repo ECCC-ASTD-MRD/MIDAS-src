@@ -62,21 +62,21 @@ module sqliteFiles_mod
     ivals = 8
     kdate = MPC_missingValue_INT 
     ktime = MPC_missingValue_INT 
-    inquire(file = trim(sqliteFileName), exist = fileExists )
+    inquire(file = trim(sqliteFileName), exist = fileExists)
 
-    if ( fileExists ) then
+    if (fileExists) then
       write(*,*)' Open File : ', trim(sqliteFileName)
-      call fSQL_open( db, trim(sqliteFileName), statusSqlite )
+      call fSQL_open(db, trim(sqliteFileName), statusSqlite)
       querySqlite = "select date from resume;"
-      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite) )
+      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
       read(datetimeSqliteCharacter(1:8),*)  dateSqlite
       kdate = dateSqlite
       querySqlite = "select time from resume;"
-      datetimeSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
-      read( datetimeSqliteCharacter, * ) timeSqlite 
+      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
+      read(datetimeSqliteCharacter, *) timeSqlite 
       ktime = timeSqlite
       write(*,*) ' DATE and TIME in Sqlite file = ', dateSqlite, timeSqlite, ' (kdate, ktime) (',kdate,ktime,')'
-      call fSQL_close( db, statusSqlite )
+      call fSQL_close(db, statusSqlite)
     end if
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
@@ -100,7 +100,7 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   ! sqlf_readFile
   !--------------------------------------------------------------------------
-  subroutine sqlf_readFile(obsdat, fileName, familyType, fileIndex )
+  subroutine sqlf_readFile(obsdat, fileName, familyType, fileIndex)
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
@@ -124,17 +124,17 @@ module sqliteFiles_mod
 
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
+    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName))
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
-    if ( trim(familyType) == 'TO' ) then
-      call sqlr_readSqlite_avhrr(obsdat, trim(fileName), headerIndexBegin, headerIndexEnd )
+    if (trim(familyType) == 'TO') then
+      call sqlr_readSqlite_avhrr(obsdat, trim(fileName), headerIndexBegin, headerIndexEnd)
     end if
 
-    if ( trim(familyType) /= 'TO' ) then
-      call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
-      call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
-      call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
+    if (trim(familyType) /= 'TO') then
+      call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd)
+      call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd)
+      call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd)
     end if
 
     do headerIndex = headerIndexBegin, headerIndexEnd
@@ -144,25 +144,25 @@ module sqliteFiles_mod
     end do
 
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
-      if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_BCOR) ) call obs_bodySet_r(obsdat, OBS_BCOR ,bodyIndex, missingValue )
+      if (obs_columnActive_RB(obsdat, OBS_OMA))  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP))  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OER))  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR ,bodyIndex, missingValue)
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD data (element 15031)
-    if ( trim(familyType) == 'GP') then
+    if (trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
-      call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd)
     end if
 
     numHeader = obs_numHeader(obsdat)
@@ -178,7 +178,7 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   ! sqlf_updateFile
   !--------------------------------------------------------------------------
-  subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex )
+  subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex)
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
@@ -195,17 +195,17 @@ module sqliteFiles_mod
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
 
-    call fSQL_open( db, fileName, statusSqlite )
-    if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
-      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
-      write(*,*) myError, fSQL_errmsg(statusSqlite )
+    call fSQL_open(db, fileName, statusSqlite)
+    if (fSQL_error(statusSqlite) /= FSQL_OK) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite)
+      write(*,*) myError, fSQL_errmsg(statusSqlite)
     end if
 
-    call sqlr_updateSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
-    call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    call sqlr_updateSqlite(db, obsSpaceData, familyType, fileName, fileIndex)
+    call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex)
 
     write(*,*)'  closed database -->', trim(FileName)
-    call fSQL_close( db, statusSqlite )
+    call fSQL_close(db, statusSqlite)
     write(*,*)' '
     write(*,*)'================================================='
     write(*,*)'                '//trim(myName)//'    END               '
@@ -260,19 +260,19 @@ module sqliteFiles_mod
     character(len=*), parameter :: myName  = 'sqlf_addCloudParametersandEmissivity'
     character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
 
-    call fSQL_open( db, fileName, statusSqlite )
-    if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
-      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
-      write(*,*) myError, fSQL_errmsg(statusSqlite )
+    call fSQL_open(db, fileName, statusSqlite)
+    if (fSQL_error(statusSqlite) /= FSQL_OK) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite)
+      write(*,*) myError, fSQL_errmsg(statusSqlite)
     end if
-    call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
-    call fSQL_close( db, statusSqlite )
+    call sqlr_addCloudParametersandEmissivity(db, obsSpaceData,fileIndex)
+    call fSQL_close(db, statusSqlite)
   end subroutine sqlf_addCloudParametersandEmissivity
 
   !--------------------------------------------------------------------------
   ! sqlf_writeSqlDiagFiles
   !--------------------------------------------------------------------------
-  subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+  subroutine sqlf_writeSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
@@ -281,7 +281,7 @@ module sqliteFiles_mod
 
     call tmg_start(99,'sqlf_writeSqlDiagFiles: TOTAL: ')
     
-    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+    call sqlr_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
     
     call tmg_stop(99)
 

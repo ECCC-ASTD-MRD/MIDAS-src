@@ -28,7 +28,8 @@ program midas_pseudoSSTobs
   use mpi_mod
   use oceanObservations_mod
   use gridStateVector_mod
-    
+  use obsSpaceData_mod
+   
   implicit none
 
   integer, external :: exdb, exfin, fnom, fclos, get_max_rss
@@ -44,12 +45,9 @@ program midas_pseudoSSTobs
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
   character(len=20)           :: outputFileName
   character(len=20)           :: etiket
-  logical                     :: useSeaWaterFraction     ! to distinguish the sea water from fresh water 
-  integer                     :: numberExceptRegions
-  integer, parameter          :: maxNumberExceptRegions = 1
-  type( exceptRegion_type )   :: exceptRegion( maxNumberExceptRegions )  ! 
+  real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water  
 
-  namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, outputFileName, etiket, useSeaWaterFraction, numberExceptRegions, exceptRegion
+  namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, outputFileName, etiket, seaWaterThreshold
   
   istamp = exdb('pseudoSSTobs','DEBUT','NON')
 
@@ -58,7 +56,7 @@ program midas_pseudoSSTobs
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_pseudoSSTobs' )
+  call tmg_init(mpi_myid, 'TMG_pseudoSSTobs')
 
   call tmg_start(1,'MAIN')
  
@@ -71,9 +69,8 @@ program midas_pseudoSSTobs
   call pseudoSSTobs_setup()
   call tmg_stop(2)
 
-  call oceobs_pseudoSST( hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                         seaiceThinning, outputFileName, etiket, useSeaWaterFraction, &
-                         numberExceptRegions, exceptRegion(1:numberExceptRegions) )
+  call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
+                      seaiceThinning, outputFileName, etiket, seaWaterThreshold)
 
   ! 3. Job termination
 
@@ -81,7 +78,7 @@ program midas_pseudoSSTobs
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_pseudoSSTobs' )
+  call tmg_terminate(mpi_myid, 'TMG_pseudoSSTobs')
 
   call rpn_comm_finalize(ierr) 
 
@@ -110,23 +107,22 @@ program midas_pseudoSSTobs
     outputFreshWaterST     = 271.4
     outputFileName         = ''
     etiket                 = ''
-    numberExceptRegions    = 0
     seaiceThinning         = 5
-    useSeaWaterFraction    = .true.
+    seaWaterThreshold      = 0.0
     
     ! Read the namelist
     nulnam = 0
-    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-    read( nulnam, nml = pseudoSSTobs, iostat = ierr )
-    if ( ierr /= 0) call utl_abort( myName//': Error reading namelist')
-    if ( mpi_myid == 0 ) write(*, nml = pseudoSSTobs )
-    ierr = fclos( nulnam )
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml = pseudoSSTobs, iostat = ierr)
+    if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+    if (mpi_myid == 0) write(*, nml = pseudoSSTobs)
+    ierr = fclos(nulnam)
 
     write(*,*)''
     write(*,*) myName//': output SST globally: ', outputSST
     write(*,*) myName//': output fresh water surface temperature  globally: ', outputFreshWaterST
     write(*,*) myName//': sea-ice fraction threshold: ', iceFractionThreshold
-    write(*,*) myName//': use sea water fraction data: ', useSeaWaterFraction     
+    write(*,*) myName//': sea water fraction threshold: ', seaWaterThreshold
     write(*,*) myName//': pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'    
     write(*,*) myName//': output file name: ', outputFileName
     write(*,*) myName//': etiket for output SQLite files: ', etiket   
@@ -135,27 +131,29 @@ program midas_pseudoSSTobs
     !
     if(mpi_myid == 0) write(*,*)''
     if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
-    call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS' ) ! IN
+    call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
 
-    if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
+    if (hco_anl % global) then
+      call agd_SetupFromHCO(hco_anl) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
       if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
-      call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
+      call hco_SetupFromFile(hco_core, gridFile, 'COREGRID', 'AnalysisCore') ! IN
       !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+      call agd_SetupFromHCO(hco_anl, hco_core) ! IN
     end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    call vco_SetupFromFile( vco_anl, & ! OUT
-                            gridFile ) ! IN
+    call vco_SetupFromFile(vco_anl, & ! OUT
+                           gridFile) ! IN
 
     !- Initialize variables of the model states
     !
     call gsv_setup
+
+    call obs_class_initialize('VAR')
 
     if(mpi_myid == 0) write(*,*) myName//': done.'
     
