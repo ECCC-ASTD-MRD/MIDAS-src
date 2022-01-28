@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * New subroutine to update the `Days Since Last Obs` in program `midas-analysisErrorOI` (#563 and !540)
+   * minor impact only for midas-analysisErrorOI
  * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
    * minor impact on results
  * Added a program to generate pseudo SST observatons (#565 and !534)
