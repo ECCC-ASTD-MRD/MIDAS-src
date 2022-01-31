@@ -185,7 +185,7 @@ module oceanObservations_mod
     else 
     
       call obs_initialize(obsData, numHeader_max = 0, numBody_max = 0, mpi_local= .true.)
-      call sqlr_writeEmptyPseudoSSTobsFile( obsData, 'SF', outputFileName, etiket, datePrint, timePrint)   
+      call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'SF', outputFileName, etiket, datePrint, timePrint)   
 
     end if
 
