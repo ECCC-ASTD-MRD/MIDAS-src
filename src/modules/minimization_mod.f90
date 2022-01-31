@@ -183,6 +183,14 @@ CONTAINS
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, numIterMaxInnerLoop, deallocHessian_opt, &
                            isMinimizationFinalCall_opt, numIterMaxInnerLoopUsed_opt )
+    !
+    ! :Purpose: Minimizing cost function to get the increments.
+    !           The maximum number of inner-loop iterations is set to nitermax if the
+    !           namelist variable nitermax is provided. Otherwise, it is set to the
+    !           numIterMaxInnerLoop supplied by the calling subroutine/program.
+    !           numIterMaxInnerLoopUsed_opt is passing the maximum number of inner-loop
+    !           iterations to the calling subroutine/program.
+    !
     implicit none
 
     ! Arguments:
