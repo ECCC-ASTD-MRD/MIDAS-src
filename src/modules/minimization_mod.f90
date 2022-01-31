@@ -111,6 +111,9 @@ CONTAINS
 
   subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt, &
                         varqc_opt, nwoqcv_opt )
+    !
+    ! :Purpose: Reading NAMMIN namelist to setup variables for minimization.
+    !
     implicit none
 
     ! Arguments:
