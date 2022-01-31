@@ -18,6 +18,7 @@
   <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
   <SUBMITS sub_name="var1D"/>
   <SUBMITS sub_name="analysisErrorOI"/>
+  <SUBMITS sub_name="pseudoSSTobs"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -475,6 +476,11 @@
   </FAMILY>
 
   <FAMILY  name="analysisErrorOI">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+ 
+  <FAMILY  name="pseudoSSTobs">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

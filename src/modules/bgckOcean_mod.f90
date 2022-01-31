@@ -52,7 +52,7 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   ! ocebg_bgCheckSST
   !----------------------------------------------------------------------------------------
-  subroutine ocebg_bgCheckSST( obsData, columnTrlOnTrlLev, hco )
+  subroutine ocebg_bgCheckSST(obsData, columnTrlOnTrlLev, hco)
     !
     !: Purpose: to compute SST data background Check  
     !           
@@ -80,82 +80,82 @@ module bgckOcean_mod
     numObsBatches = 20
 
     ! Read the namelist
-    if ( .not. utl_isNamelistPresent('namOceanBGcheck','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+    if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
+      if (mpi_myid == 0) then
         write(*,*) myName//': namOceanBGcheck is missing in the namelist.'
         write(*,*) myName//'  The default values will be taken.'
       end if
     else
       ! reading namelist variables
       nulnam = 0
-      ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-      read( nulnam, nml = namOceanBGcheck, iostat = ierr )
-      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
-      ierr = fclos( nulnam )
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml = namOceanBGcheck, iostat = ierr)
+      if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+      ierr = fclos(nulnam)
     end if
     write(*,*) myName//': interpolation type: ', timeInterpType_nl
     write(*,*) myName//': number obs batches: ', numObsBatches
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate( stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
                        hInterpolateDegree_opt = 'NEAREST', &
-                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/) )
-    call gsv_readFromFile( stateVector, './bgstddev', 'STDDEV', 'X', &
-                           unitConversion_opt=.false., containsFullField_opt=.true. )
+                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+    call gsv_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
+                           unitConversion_opt=.false., containsFullField_opt=.true.)
     
-    call col_setVco( columnFGE, col_getVco( columnTrlOnTrlLev ))
-    call col_allocate( columnFGE, col_getNumCol( columnTrlOnTrlLev ))
+    call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
+    call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
    
     ! Convert stateVector to column object
-    call s2c_nl( stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
-                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true. )
+    call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
+                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
     numberObs = 0
     numberObsRejected = 0
-    do headerIndex = 1, obs_numheader( obsData )
+    do headerIndex = 1, obs_numheader(obsData)
       
-      bodyIndex = obs_headElem_i( obsData, obs_rln, headerIndex )
-      obsVarno  = obs_bodyElem_i( obsData, obs_vnm, bodyIndex )
-      llok = ( obs_bodyElem_i( obsData, obs_ass, bodyIndex ) == obs_assimilated )
-      if ( llok ) then
-        if ( obsVarno == bufr_sst ) then
+      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
+      if (llok) then
+        if (obsVarno == bufr_sst) then
        
-	  FGE = col_getElem( columnFGE, 1, headerIndex, 'TM' )
-	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex )
-          OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex )
+	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
+	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
+          OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
 	    
-	  if ( FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8 ) then 
+	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then 
 	    
 	    numberObs = numberObs + 1
-	    call obs_bodySet_r( obsData, OBS_HPHT, bodyIndex, FGE )
-	    bgCheck = ( OmP )**2 / ( FGE**2 + OER**2 )
-	    obsFlag = ocebg_setFlag( obsVarno, bgCheck )
+	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
+	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
+	    obsFlag = ocebg_setFlag(obsVarno, bgCheck)
 	
-            if ( obsFlag >= 2 ) then
+            if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
 	      write(*,'(a,i7,a,i7)')'*********** ', numberObsRejected, ', header index: ', headerIndex
-	      write(*,'(a)') myName//': rejected '//obs_elem_c( obsData, 'STID' , headerIndex )//' data:'
-	      write(*,'(a,i5,a,4f10.4)') 'codtype: ', obs_headElem_i( obsData, obs_ity, headerIndex ), &
+	      write(*,'(a)') myName//': rejected '//obs_elem_c(obsData, 'STID' , headerIndex)//' data:'
+	      write(*,'(a,i5,a,4f10.4)') 'codtype: ', obs_headElem_i(obsData, obs_ity, headerIndex), &
               ', lon/lat/obs.value/OmP: ', &
-              obs_headElem_r( obsData, obs_lon, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_r( obsData, obs_lat, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_bodyElem_r( obsData, obs_var, bodyIndex ), OmP
+              obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+              obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP
             end if
 	    	      
 	    ! update background check flags based on bgCheck
-            ! ( element flags + global header flags)  
-	    if ( obsFlag == 1 ) then
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 13 ))
-            else if ( obsFlag == 2 ) then
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 14 ))
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 16 ))
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 09 ))
-              call obs_headSet_i( obsData, obs_st1, headerIndex, ibset( obs_headElem_i( obsData, obs_st1, headerIndex ), 06 ))
-            else if ( obsFlag == 3 ) then
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 15 ))
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 16 ))
-              call obs_bodySet_i( obsData, obs_flg, bodyIndex  , ibset( obs_bodyElem_i( obsData, obs_flg, bodyIndex )  , 09 ))
-              call obs_headSet_i( obsData, obs_st1, headerIndex, ibset( obs_headElem_i( obsData, obs_st1, headerIndex ), 06 ))
+            ! (element flags + global header flags)  
+	    if (obsFlag == 1) then
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 13))
+            else if (obsFlag == 2) then
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 14))
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 16))
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
+              call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
+            else if (obsFlag == 3) then
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 15))
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 16))
+              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
+              call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
             end if
 	   
           end if
@@ -164,22 +164,22 @@ module bgckOcean_mod
       
     end do 
 
-    if ( numberObs > 0 ) then
+    if (numberObs > 0) then
       write(*,*)' '
       write(*,*) myName//': background check of TM data is computed'
       write(*,'(a, i7,a,i7,a)') myName//':   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
       write(*,*)' '
     end if
     
-    call gsv_deallocate( stateVector )
-    call col_deallocate( columnFGE )
+    call gsv_deallocate(stateVector)
+    call col_deallocate(columnFGE)
     
   end subroutine ocebg_bgCheckSST
 
   !--------------------------------------------------------------------------
   ! ocebg_setFlag
   !--------------------------------------------------------------------------
-  function ocebg_setFlag( obsVarno, bgCheck ) result( obsFlag )
+  function ocebg_setFlag(obsVarno, bgCheck) result(obsFlag)
     !
     !:Purpose: Set background-check flags according to values set in a table.
     !          Original values in table come from ECMWF.
@@ -198,12 +198,12 @@ module bgckOcean_mod
 
     obsFlag = 0
  
-    if ( obsVarno == bufr_sst ) then
-      if ( bgCheck >= multipleSST(1) .and. bgCheck < multipleSST(2) ) then
+    if (obsVarno == bufr_sst) then
+      if (bgCheck >= multipleSST(1) .and. bgCheck < multipleSST(2)) then
         obsFlag = 1
-      else if ( bgCheck >= multipleSST(2) .and. bgCheck < multipleSST(3) ) then
+      else if (bgCheck >= multipleSST(2) .and. bgCheck < multipleSST(3)) then
         obsFlag = 2
-      else if ( bgCheck >= multipleSST(3) ) then
+      else if (bgCheck >= multipleSST(3)) then
         obsFlag = 3
       end if
     end if

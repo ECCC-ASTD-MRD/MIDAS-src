@@ -1,0 +1,38 @@
+ &NAMTIME
+  dstepobs      = 24.0d0
+  dstepobsinc   = 24.0d0
+  dwindowsize   = 24.0d0
+  referencetime = 'start'
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMDIMO
+   NMXOBS=2500000,
+   NDATAMX=2500000
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042,
+  NFLAGS=6,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &pseudoSSTobs
+   iceFractionThreshold = 0.01
+   outputSST = 271.4
+   outputFreshWaterST = 273.2
+   seaiceThinning = 5
+   outputFileName = 'obssst_pseudo'
+   etiket = 'MIDAS'
+   seaWaterThreshold = 0.1
+/      
+ &NAMSQLsfc
+   numberElem=1
+   listElem="22042"
+   sqlNull=" and obsvalue is not null "  
+/
