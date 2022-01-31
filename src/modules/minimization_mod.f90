@@ -241,7 +241,7 @@ CONTAINS
     else if ( numIterMaxInnerLoop > 0 ) then
       numIterMaxInnerLoopUsed = numIterMaxInnerLoop
     else
-      call utl_abort('min_minimize: both nitermax and numIterMaxInnerLoop are negative values')
+      call utl_abort('min_minimize: one of the variables nIterMax and numIterMaxInnerLoop must be positive')
     end if
     if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
 
