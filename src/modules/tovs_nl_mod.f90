@@ -2262,7 +2262,7 @@ contains
           cld_profiles(tovsIndex) % totalice(:) = 0.d0 ! combined ice water and snow (kg/kg)
           cld_profiles(tovsIndex) % rain(:)      =  0.d0 ! rain (kg/kg)
         end if
-        column_ptr => col_getColumn(columnghr, headerIndex,'TT' )
+        column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
         
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
