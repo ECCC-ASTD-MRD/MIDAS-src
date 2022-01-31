@@ -186,15 +186,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer                             :: outerLoopIndex_in
-    type(struct_columnData)             :: columnTrlOnAnlIncLev
-    type(struct_obs)                    :: obsSpaceData
-    real(8)                   , target  :: controlVectorIncrSum(:)
-    real(8)                             :: vazx(:)
-    integer                             :: numIterMaxInnerLoop
-    integer,                   optional :: numIterMaxInnerLoopUsed_opt
-    logical,                   optional :: deallocHessian_opt
-    logical,                   optional :: isMinimizationFinalCall_opt
+    integer, intent(in)                    :: outerLoopIndex_in
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    real(8), intent(inout)        , target :: controlVectorIncrSum(:)
+    real(8), intent(inout)                 :: vazx(:)
+    integer, intent(in)                    :: numIterMaxInnerLoop
+    integer, intent(out),         optional :: numIterMaxInnerLoopUsed_opt
+    logical, intent(in),          optional :: deallocHessian_opt
+    logical, intent(in),          optional :: isMinimizationFinalCall_opt
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
