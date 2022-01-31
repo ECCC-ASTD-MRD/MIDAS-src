@@ -2110,7 +2110,6 @@ contains
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateAdd, queryResume, queryRDBSchema 
     character(len = 12)    :: idStation
-    character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
     character(len=*), parameter :: myName = 'sqlr_writePseudoSSTobs'
@@ -2135,20 +2134,20 @@ contains
     if (numHeaders == 0) return
 
     fileNameDir = trim(ram_getRamDiskDir())
-    if (fileNameDir == ' ') &
-    write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
+    if (fileNameDir == ' ') then
+      write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
+      write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
+    end if  
 
     if (obs_mpiLocal(obsData)) then
       write(cmyidy,'(I4.4)') (mpi_myidy + 1)
       write(cmyidx,'(I4.4)') (mpi_myidx + 1)
-      fileNameExtention  = trim(cmyidx) // '_' // trim(cmyidy)
+      fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)//'_'//trim(cmyidx)//'_'//trim(cmyidy)
     else
       if (mpi_myid > 0) return
-      fileNameExtention = ' '
+      fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)
     end if
     
-    fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
     write(*,*) myName//': Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
@@ -2170,7 +2169,7 @@ contains
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-    &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
+                &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
     write(*,*) myName//': Insert query Data   = ', trim(queryData)
     write(*,*) myName//': Insert query Header = ', trim(queryHeader)
@@ -2364,7 +2363,7 @@ contains
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-    &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
+                &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
     write(*,*) myName//': Insert query Data   = ', trim(queryData)
     write(*,*) myName//': Insert query Header = ', trim(queryHeader)
