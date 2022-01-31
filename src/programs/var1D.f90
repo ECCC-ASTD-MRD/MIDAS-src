@@ -42,6 +42,7 @@ program midas_var1D
   use biasCorrectionSat_mod
   use var1D_mod
   use bMatrix1Dvar_mod
+ 
 
   implicit none
 
@@ -160,7 +161,7 @@ program midas_var1D
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
-  call bmat1D_bsetup(vco_anl, obsSpaceData)
+  call bmat1D_bsetup(vco_anl, hco_anl, obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the gridded variable transform module

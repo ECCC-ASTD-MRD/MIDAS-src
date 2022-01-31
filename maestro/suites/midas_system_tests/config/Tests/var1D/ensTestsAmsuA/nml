@@ -2,6 +2,7 @@
    scalefactorHI=200*0.0,
    scalefactorHILQ=200*0.0
    nEns = 24
+   vLocalize = 3.d0
 /
  &NAMMIN
    NVAMAJ = 5,
