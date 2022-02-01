@@ -1,9 +1,4 @@
 #--------------------------------------
-var1D.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
-                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
-
-#--------------------------------------
 adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
@@ -82,10 +77,19 @@ prepcma.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		udfsqlite burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
+pseudoSSTobs.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+
+#--------------------------------------
 randomPert.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
+SSTbias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
+#--------------------------------------
 thinning.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random 
@@ -94,10 +98,10 @@ thinning.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_main rttov_emis_atlas rttov_other\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
-		
+
 #--------------------------------------
-SSTbias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+var1D.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_main rttov_emis_atlas rttov_other\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
-		
+
 # vim: set noexpandtab noautoindent nolist:
