@@ -55,7 +55,7 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-  public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles, odbf_addCloudParametersandEmissivity
+  public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -938,7 +938,7 @@ contains
       else if ( trim(obsFileType) == 'SQLITE' .and. odbf_isActive())  then
       ! Potentially modify obsf_determineSplitFileType to include odb file type
         write(*,*) 'obsf_addCloudParametersAndEmissivity: obsFileType = SQLITE and odbf_isActive = True'
-        call odbf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+        call odbf_addCloudAndBackgroundValues(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
       else  

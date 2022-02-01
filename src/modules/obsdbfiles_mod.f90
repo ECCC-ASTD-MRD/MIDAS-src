@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateFile, odbf_addCloudParametersandEmissivity
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile, odbf_addCloudAndBackgroundValues
 
  
   ! Arrays used to match obsDB column names with obsSpaceData column names
@@ -49,8 +49,8 @@ module obsdbFiles_mod
   
   character(len=lenSqlName) :: headTableName = ' '
   character(len=lenSqlName) :: bodyTableName = ' '
-
   character(len=lenSqlName) :: midasTableName = ' '
+  character(len=lenSqlName) :: radBgckTableName = ' '
 
   ! ...for the header table
 
@@ -226,7 +226,10 @@ contains
           ! Stop search at the end of RADIANCE_BGCK table
           if (index(trim(readline),'RADIANCE_BGCK TABLE INFO ENDS') > 0) exit
           radBgckTableRow = radBgckTableRow + 1
-          numRadBgcKTable = numRadBgcKTable + 1
+          ! Count obsSpaceData  RADIANCE_BGCK columns
+          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
+            numRadBgcKTable = numRadBgcKTable + 1
+          end if
         end do
       end if
     end do
@@ -239,7 +242,7 @@ contains
     write(*,*) 'odbf_setup: numHeadMatch', numHeadMatch
     write(*,*) 'odbf_setup: numBodyMatch', numBodyMatch
     write(*,*) 'odbf_setup: numColMidasTable', numColMidasTable
-    write(*,*) 'odbf_setup: numColMidasTable',numRadBgcKTable
+    write(*,*) 'odbf_setup: numRadBgcKTable',numRadBgcKTable
 
     ! Read Report obsdb and MIDAS obsSpaceData columns name
     allocate(headMatchList(2,numHeadMatch))
@@ -352,9 +355,15 @@ contains
         do countRow = 1, radBgckTableRow
           !Read all body table rows
           read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn
-          countMatchRow = countMatchRow + 1
-          radBgckNamesList(1,countMatchRow) = trim(readDBColumn)              
-          radBgckNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
+          select case (trim(readObsSpaceColumn))
+            case ('[radBgckTableName]')
+              radBgckTableName = trim(readDBColumn)
+              radBgckTableName = radBgckTableName(1:len(radBgckTableName)-1)
+            case default
+              countMatchRow = countMatchRow + 1
+              radBgckNamesList(1,countMatchRow) = trim(readDBColumn)              
+              radBgckNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
+            end select
         end do
       end if
     end do
@@ -2042,7 +2051,7 @@ contains
 
   end subroutine odbf_createMidasTable
 
-  subroutine odbf_addCloudParametersandEmissivity(obsdat, fileNumber, fileName)
+  subroutine odbf_addCloudAndBackgroundValues(obsdat, fileNumber, fileName)
     !
     ! :Purpose: To insert cloud parameters in obsspace data into odb file
     !
@@ -2054,7 +2063,7 @@ contains
     integer,           intent(in) :: fileNumber
 
     ! locals
-    character(len=*), parameter :: myName  = 'odbf_addCloudParametersandEmissivity'
+    character(len=*), parameter :: myName  = 'odbf_addCloudAndBackgroundValues'
     character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
   
     type(fSQL_DATABASE)    :: db   ! SQLite file handle
@@ -2063,52 +2072,64 @@ contains
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
 
-    character(len = 256)   :: query
+    character(len = 500)   :: query
     integer                :: numberInsert, headerIndex, obsIdo, obsIdf
     integer                :: NCO2
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
-    !character(len=*), parameter :: myName    = 'sqlr_addCloudParametersandEmissivity'
-    !character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
+    integer                :: columnIndex, obsColumnIndex
+    character(len=20)      :: sqlDataType
 
     call fSQL_open( db, fileName, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_open: ', fSQL_errmsg(stat )
       write(*,*) myError, fSQL_errmsg(stat )
     end if
-    !call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
-    !     sqlr_addCloudParametersandEmissivity( db, obsdat,fileNumber )
-    ! arguments
-    !type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    !type(struct_obs),    intent(in) :: obsdat
-    !integer,             intent(in) :: fileNumber
-    
     
 
-    query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
-         ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
-    query=trim(query)
+    ! Append query to create table
+    query = 'create table if not exists ' // trim(radBgckTableName) // ' (' // new_line('A') // &
+            '  ' // trim(headKeySqlName) // ' integer,' // new_line('A')  
+    
+    do columnIndex = 1, numRadBgcKTable
+      obsColumnIndex = obs_columnIndexFromName(trim(radBgckNamesList(2,columnIndex)))
+      if (obs_columnDataType(obsColumnIndex) == 'real') then
+        sqlDataType = 'double'
+      else
+        sqlDataType = 'integer'
+      end if
+      query = trim(query) // '  ' // trim(radBgckNamesList(1,columnIndex)) // &
+              ' ' // trim(sqlDataType)
+      if (columnIndex < numRadBgcKTable) query = trim(query) // ', '
+      query = trim(query) // new_line('A')
+    end do
+    query = trim(query) // ');'
+
     write(*,*) myName//': create query = ', trim(query)
-
-    call fSQL_do( db, trim(query), stat )
-    !if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_do : ')
-
+    
+    call fSQL_do_many( db, query, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_addCloudParametersandEmissivity: Problem with fSQL_do_many')
+      call utl_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
     end if
+ 
+    ! Append query to insert data into table
+    query = 'insert into ' // trim(radBgckTableName) // ' (' // new_line('A') // &
+            '  ' // trim(headKeySqlName) // ', ' //new_line('A')
 
-    query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
-         values(?,?,?,?,?,?,?,?,?,?,?,?);'
-    query=trim(query)
-
+    do columnIndex = 1, numRadBgcKTable
+      query = trim(query) // '  ' // trim(radBgckNamesList(1,columnIndex))
+      if (columnIndex < numRadBgcKTable) query = trim(query) // ', '
+      query = trim(query) // new_line('A')
+    end do
+    query = trim(query) // ') '
+    query = trim(query) // 'values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    
     write(*,*) ' Insert query = ', trim(query)
 
     call fSQL_prepare( db, query, stmt, stat )
-    !if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
-
+    
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_addCloudParametersandEmissivity: Problem with fSQL_prepare')
+      call utl_abort('odbf_addCloudAndBackgroundValues: Problem with fSQL_prepare')
     end if
 
     call fSQL_begin(db)

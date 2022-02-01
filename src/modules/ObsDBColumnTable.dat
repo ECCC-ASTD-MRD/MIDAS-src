@@ -61,6 +61,7 @@ SFC_EMISSIVITY                     SEM                    (-)                (-)
 -----MIDAS TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
 
 -----RADIANCE_BGCK TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------
+RADIANCE_BGCK                      [radBgckTableName]     (-)                (-)              Radiance Background Check Table
 MEDIAN_CO2_SLICING_CLD_TOP_PRES    ETOP                   (-)                (-)              Median CO2 Slicing Cloud Top Pressure 
 STD_CO2_SLICING_CLD_TOP_PRES       VTOP                   (-)                (-)              Standard Deviation CO2 Slicing Cloud Top Pressure 
 MEDIAN_CO2_SLICING_CLD_FRAC        ECF                    (-)                (-)              Median C02 Slicing Cloud Fraction
