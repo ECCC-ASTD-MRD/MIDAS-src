@@ -487,7 +487,7 @@ contains
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
     integer :: destObsColumn, get_max_rss
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
-    logical, save :: lgpdata
+    logical, save :: lgpdata = .false.
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
