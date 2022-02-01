@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateFile
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile, odbf_addCloudParametersandEmissivity
 
  
   ! Arrays used to match obsDB column names with obsSpaceData column names
@@ -76,6 +76,11 @@ module obsdbFiles_mod
   integer :: numColMidasTable
   character(len=lenSqlName), allocatable :: midasOutputNamesList(:,:)  
   integer :: numColMidasTableRequired
+
+  ! Column names for the Radiance_Bgck output table and corresponding obsSpace names
+  integer :: numRadBgcKTable
+  character(len=lenSqlName), allocatable :: radBgckNamesList(:,:)
+
     
   ! Other constants
   logical, parameter :: setObsFlagZero = .true.
@@ -103,14 +108,17 @@ contains
     integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
     
-    character(len=512), parameter :: obsDbColumnFile = & 
-                                     '/home/sanl000/data_maestro/eccc-ppp4/UnitTests/midas/ObsDBColumnTable.dat' 
+    !character(len=512), parameter :: obsDbColumnFile = & 
+    !                                 '/home/sanl000/data_maestro/eccc-ppp4/UnitTests/midas/ObsDBColumnTable.dat' 
+
+    character(len=512), parameter :: obsDbColumnFile = &
+                                     '/home/zqw002/midas-work/src/modules/ObsDBColumnTable.dat' 
 
     character(len=512) :: readLine
     character(len=lenSqlName) :: readDBColumn, readObsSpaceColumn, readBufrColumn  ! Strings to temporary assign 
                                                                                 ! read header and body column names
     
-    integer            :: headerTableRow, bodyTableRow, midasTableRow    ! Counters to determine the size of 
+    integer            :: headerTableRow, bodyTableRow, midasTableRow, radBgckTableRow ! Counters to determine the size of 
                                                                          ! header and body table
     
     integer            :: countRow, countMatchRow, countVarRow                        
@@ -158,9 +166,11 @@ contains
     headerTableRow = 0
     bodyTableRow = 0
     midasTableRow = 0
+    radBgckTableRow = 0
     numHeadMatch = 0
     numBodyMatch = 0 
     numColMidasTable = 0
+    numRadBgcKTable = 0
     numVarNo = 0
     do while(ierr == 0)
       read(nulfile, '(A)' ,iostat = ierr) readline
@@ -200,13 +210,23 @@ contains
         ! Found the start of the MIDAS table
         do while (ierr == 0)
           read(nulfile,'(A)' ,iostat = ierr) readline
-          ! Stop search at the end of body table
+          ! Stop search at the end of MIDAS table
           if (index(trim(readline),'MIDAS TABLE INFO ENDS') > 0) exit
           midasTableRow = midasTableRow + 1
-          ! Count obsSpaceData body columns
+          ! Count obsSpaceData MIDAS columns
           if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
             numColMidasTable = numColMidasTable + 1
           end if
+        end do
+
+      else if (index(trim(readline),'RADIANCE_BGCK TABLE INFO BEGINS') > 0) then
+        ! Found the start of the RADIANCE_BGCK table
+        do while (ierr == 0)
+          read(nulfile,'(A)' ,iostat = ierr) readline
+          ! Stop search at the end of RADIANCE_BGCK table
+          if (index(trim(readline),'RADIANCE_BGCK TABLE INFO ENDS') > 0) exit
+          radBgckTableRow = radBgckTableRow + 1
+          numRadBgcKTable = numRadBgcKTable + 1
         end do
       end if
     end do
@@ -214,10 +234,12 @@ contains
     write(*,*) 'odbf_setup: Number of header columns in ObsDBColumnTable', headerTableRow
     write(*,*) 'odbf_setup: Number of body columns in ObsDBColumnTable', bodyTableRow
     write(*,*) 'odbf_setup: Number of midas columns in ObsDBColumnTable', midasTableRow
+    write(*,*) 'odbf_setup: Number of radiance_bgck columns in ObsDBColumnTable', radBgckTableRow
 
     write(*,*) 'odbf_setup: numHeadMatch', numHeadMatch
     write(*,*) 'odbf_setup: numBodyMatch', numBodyMatch
     write(*,*) 'odbf_setup: numColMidasTable', numColMidasTable
+    write(*,*) 'odbf_setup: numColMidasTable',numRadBgcKTable
 
     ! Read Report obsdb and MIDAS obsSpaceData columns name
     allocate(headMatchList(2,numHeadMatch))
@@ -225,6 +247,7 @@ contains
     allocate(bodyMatchList(2,numBodyMatch))
     allocate(bodyBufrList(numBodyMatch))
     allocate(midasOutputNamesList(2,numColMidasTable))
+    allocate(radBgckNamesList(2,numRadBgcKTable))
     allocate(varNoList(2,numVarNo))
 
     rewind(nulfile)
@@ -323,6 +346,16 @@ contains
               end if
           end select
         end do
+      else if (index(trim(readline),'RADIANCE_BGCK TABLE INFO BEGINS') > 0) then
+
+        countMatchRow = 0
+        do countRow = 1, radBgckTableRow
+          !Read all body table rows
+          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn
+          countMatchRow = countMatchRow + 1
+          radBgckNamesList(1,countMatchRow) = trim(readDBColumn)              
+          radBgckNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
+        end do
       end if
     end do
 
@@ -359,6 +392,12 @@ contains
       obsColumnIsValid = obs_isColumnNameValid(trim(midasOutputNamesList(2,countRow)))
       if (.not. obsColumnIsValid) call utl_abort('odbf_setup: Column in MIDAS Table does not exist in ObsSpaceData: '&
              //trim(midasOutputNamesList(2,countRow)))
+    end do
+
+    do countRow = 1, numRadBgcKTable 
+      obsColumnIsValid = obs_isColumnNameValid(trim(radBgckNamesList(2,countRow)))
+      if (.not. obsColumnIsValid) call utl_abort('odbf_setup: Column in Radiance_Bgck Table does not exist in ObsSpaceData: '&
+             //trim(radBgckNamesList(2,countRow)))
     end do
 
   end subroutine odbf_setup
@@ -2002,5 +2041,120 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine odbf_createMidasTable
+
+  subroutine odbf_addCloudParametersandEmissivity(obsdat, fileNumber, fileName)
+    !
+    ! :Purpose: To insert cloud parameters in obsspace data into odb file
+    !
+    implicit none
+
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat
+    character(len=*),  intent(in) :: fileName
+    integer,           intent(in) :: fileNumber
+
+    ! locals
+    character(len=*), parameter :: myName  = 'odbf_addCloudParametersandEmissivity'
+    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
+  
+    type(fSQL_DATABASE)    :: db   ! SQLite file handle
+
+    !
+    type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
+    type(fSQL_STATUS)      :: stat !type for error status
+
+    character(len = 256)   :: query
+    integer                :: numberInsert, headerIndex, obsIdo, obsIdf
+    integer                :: NCO2
+    real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
+    !character(len=*), parameter :: myName    = 'sqlr_addCloudParametersandEmissivity'
+    !character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
+
+    call fSQL_open( db, fileName, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(stat )
+      write(*,*) myError, fSQL_errmsg(stat )
+    end if
+    !call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
+    !     sqlr_addCloudParametersandEmissivity( db, obsdat,fileNumber )
+    ! arguments
+    !type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
+    !type(struct_obs),    intent(in) :: obsdat
+    !integer,             intent(in) :: fileNumber
+    
+    
+
+    query = 'create table if not exists cld_params( id_obs integer,ETOP real,VTOP real, &
+         ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
+    query=trim(query)
+    write(*,*) myName//': create query = ', trim(query)
+
+    call fSQL_do( db, trim(query), stat )
+    !if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_do : ')
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_addCloudParametersandEmissivity: Problem with fSQL_do_many')
+    end if
+
+    query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
+         values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    query=trim(query)
+
+    write(*,*) ' Insert query = ', trim(query)
+
+    call fSQL_prepare( db, query, stmt, stat )
+    !if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_addCloudParametersandEmissivity: Problem with fSQL_prepare')
+    end if
+
+    call fSQL_begin(db)
+    numberInsert=0
+    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
+      obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
+      if ( obsIdf /= fileNumber ) cycle HEADER
+      obsIdo   = obs_headPrimaryKey(obsdat, headerIndex)
+      ETOP = obs_headElem_r(obsdat, OBS_ETOP, headerIndex )
+      VTOP = obs_headElem_r(obsdat, OBS_VTOP, headerIndex )
+      ECF  = obs_headElem_r(obsdat, OBS_ECF,  headerIndex )
+      VCF  = obs_headElem_r(obsdat, OBS_VCF,  headerIndex )
+      HE   = obs_headElem_r(obsdat, OBS_HE,   headerIndex )
+      ZTSR = obs_headElem_r(obsdat, OBS_ZTSR, headerIndex )
+      NCO2 = obs_headElem_i(obsdat, OBS_NCO2, headerIndex )
+      ZTM  = obs_headElem_r(obsdat, OBS_ZTM,  headerIndex )
+      ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex )
+      ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
+      ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
+
+      call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = ECF    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = VCF    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = HE     )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = ZTSR   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 8, INT_VAR  = NCO2   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = ZTM    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
+
+      call fSQL_exec_stmt ( stmt )
+      numberInsert=numberInsert +1
+    end do HEADER
+
+    call fSQL_finalize( stmt )
+    call fSQL_commit(db)
+    write(*,'(a,i8)') myName//': NUMBER OF INSERTIONS ----> ', numberInsert
+    
+    call fSQL_close( db, stat )
+    
+
+
+
+  end subroutine
   
 end module obsdbFiles_mod
