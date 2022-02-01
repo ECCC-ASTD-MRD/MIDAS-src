@@ -117,6 +117,8 @@
 #define HELP_OPTION1       "-h"
 #define HELP_OPTION2       "-help"
 #define HELP_OPTION3       "--help"
+#define AIDE_OPTION1       "-aide"
+#define AIDE_OPTION2       "--aide"
 
 #define MAXSTR_CHANNELS    MAXSTR
 
@@ -4870,17 +4872,22 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   int i;
   
   if (argc==1) { /* Alors, on veut la documentation */
-    aide();
+    help();
     exit(0);
   }
 
   strcpy(optptr->fst.nomvar,NOMVAR_DEFAUT);
-  
+
   for (i=1;i<argc;i++) {
     if (argv[i][0]=='-') {
       if (!strcmp(argv[i],HELP_OPTION1) ||
 	  !strcmp(argv[i],HELP_OPTION2) ||
 	  !strcmp(argv[i],HELP_OPTION3)) { /* Alors, on veut la documentation */
+	help();
+	exit(0);
+      }
+      if (!strcmp(argv[i],AIDE_OPTION1) ||
+	  !strcmp(argv[i],AIDE_OPTION2)) { /* Alors, on veut la documentation */
 	aide();
 	exit(0);
       }
