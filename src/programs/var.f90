@@ -78,6 +78,7 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
+  logical :: filterObsAndInitOer
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 3
 
@@ -269,7 +270,13 @@ program midas_var
     if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex, &
+    if ( outerLoopIndex == 1 ) then
+      filterObsAndInitOer = .true.
+    else
+      filterObsAndInitOer = .false.
+    end if
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
+                                filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -360,9 +367,10 @@ program midas_var
     if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
+    filterObsAndInitOer = .false.
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 destObsColumn_opt=OBS_OMA, &
-                                computeFinalNlJo_opt=.true., &
+                                filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if

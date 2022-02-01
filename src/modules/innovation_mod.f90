@@ -466,9 +466,9 @@ contains
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt, &
+  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
-                                    computeFinalNlJo_opt, beSilent_opt )
+                                    beSilent_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
@@ -476,28 +476,27 @@ contains
     ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
-    integer, optional       :: outerLoopIndex_opt
+    logical, optional       :: filterObsAndInitOer_opt
     logical, optional       :: applyVarqcOnNlJo_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
-    logical, optional       :: computeFinalNlJo_opt
     logical, optional       :: beSilent_opt
 
     ! Locals:
     real(8) :: Jo, JoRaob, JoSatWind, JoSurfc
     real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
-    integer :: destObsColumn, get_max_rss, outerloopIndex
-    logical :: applyVarqcOnNlJo, computeFinalNlJo, beSilent
+    integer :: destObsColumn, get_max_rss
+    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
     logical, save :: lgpdata
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(outerLoopIndex_opt) ) then
-      outerLoopIndex = outerLoopIndex_opt
+    if ( present(filterObsAndInitOer_opt) ) then
+      filterObsAndInitOer = filterObsAndInitOer_opt
     else
-      outerLoopIndex = 1
+      filterObsAndInitOer = .true.
     end if
 
     if ( present(applyVarqcOnNlJo_opt) ) then
@@ -510,12 +509,6 @@ contains
       destObsColumn = destObsColumn_opt
     else
       destObsColumn = obs_omp
-    end if
-
-    if ( present(computeFinalNlJo_opt) ) then
-      computeFinalNlJo = computeFinalNlJo_opt
-    else
-      computeFinalNlJo = .false.
     end if
 
     if ( present(beSilent_opt) ) then
@@ -533,26 +526,18 @@ contains
     !
     ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-    if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+    if ( filterObsAndInitOer ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
-      if ( computeFinalNlJo ) then
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo for final Nl Jo computation'
-      else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo for outer-loop index=', outerLoopIndex
-      end if
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
     
     ! Remove surface station wind observations
     if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
-      if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+      if ( filterObsAndInitOer ) then
         call filt_surfaceWind(obsSpaceData,beSilent)
       else
-        if ( computeFinalNlJo ) then
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind for final Nl Jo computation'
-        else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind for outer-loop index=', outerLoopIndex
-        end if
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if
     end if
     
@@ -570,14 +555,10 @@ contains
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AI', destObsColumn)
 
     ! SatWinds
-    if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+    if ( filterObsAndInitOer ) then
       call oer_sw(columnTrlOnTrlLev,obsSpaceData)
     else
-      if ( computeFinalNlJo ) then
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for final Nl Jo computation'
-      else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for outer-loop index=', outerLoopIndex
-      end if
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
@@ -595,16 +576,12 @@ contains
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
 
     ! Sea ice concentration
-    if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+    if ( filterObsAndInitOer ) then
       call filt_iceConcentration(obsSpaceData, beSilent)
       call filt_backScatAnisIce(obsSpaceData, beSilent)
       call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( computeFinalNlJo ) then
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for final Nl Jo computation'
-      else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for outer-loop index=', outerLoopIndex
-      end if
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
 
@@ -629,15 +606,11 @@ contains
     ! GPS radio occultation
     JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-      if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+      if ( filterObsAndInitOer ) then
         call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
         call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
       else
-        if ( computeFinalNlJo ) then
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for final Nl Jo computation'
-        else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for outer-loop index=', outerLoopIndex
-        end if
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
       end if
       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     end if
@@ -649,26 +622,18 @@ contains
     JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+        if ( filterObsAndInitOer ) then
           call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
         else
-          if ( computeFinalNlJo ) then
-            if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for final Nl Jo computation'
-          else
-            if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
-          end if
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
         end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.true.)
       else
-        if ( outerLoopIndex == 1 .and. .not. computeFinalNlJo ) then
+        if ( filterObsAndInitOer ) then
           call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
         else
-          if ( computeFinalNlJo ) then
-            if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for final Nl Jo computation'
-          else
-            if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
-          end if
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
         end if
         if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.false.)
