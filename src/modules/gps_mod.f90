@@ -44,6 +44,11 @@ module gps_mod
   public :: gps_setupro, gps_iprofile_from_index
   public :: gps_setupgb, gps_iztd_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
+  public :: gps_geopotential
+  ! DEBUG mad001 : either that or rename and make public gpsgeopotential
+  interface gps_geopotential
+    module procedure gpsgeopotential
+  end interface gps_geopotential
 
   ! public constants
   integer, parameter, public :: gps_Level_RO_Bnd       = 1

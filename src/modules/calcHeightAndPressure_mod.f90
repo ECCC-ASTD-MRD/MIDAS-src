@@ -31,6 +31,7 @@ module calcHeightAndPressure_mod
   use columnData_mod
   use utilities_mod
   use varnamelist_mod
+  use gps_mod
   use HorizontalCoord_mod ! DEBUG mad001
   implicit none
   save
@@ -330,6 +331,8 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
 
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
     numStep = statevector%numstep
 
     Vcode = gsv_getVco(statevector)%vcode
@@ -374,7 +377,7 @@ contains
         real(kind=8), pointer       :: Hsfc(:,:)
 
         real(kind=4), allocatable   :: Hsfc4(:,:)
-        real(kind=4), pointer       :: Height_out(:,:,:)
+        real(kind=4), pointer       :: GZHeight_out(:,:,:)
         real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
         if ( .not. gsv_varExist(statevector,'Z_*')) then
@@ -423,82 +426,30 @@ contains
         do stepIndex = 1, numStep
 
           ! Z_M
-          nullify(Height_out)
+          nullify(GZHeight_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_M, &
-                              levels=Height_out, &
+                              levels=GZHeight_out, &
                               sfc_field=Hsfc4, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_M(:,:,:,stepIndex) = Height_out(:,:,:)
-          ! DEBUG mad001 start
-!          write(*,*) 'DEBUG mad001 ip1_M', statevector%vco%ip1_M
-!          write(*,*) 'DEBUG mad001 Height_out (Z_M) bounds', lbound(Height_out), ubound(Height_out)
-!          write(*,*) 'DEBUG mad001 Z_M bounds', lbound(Z_M), ubound(Z_M)
-!          do locIdx = 1, 8
-!            lonIndex = locNi(locIdx)
-!            latIndex = locNj(locIdx)
-!            locHco = gsv_getHco(statevector) 
-!            locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
-!            locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
-!            if (locLon >= 180) locLon = locLon - 360
-!            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-!                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-!              do locLvl = locNLvl, locNLvl-10, -1
-!                write(*,*) 'DEBUG mad001 Height_out (Z_M): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
-!              end do
-!              write(*,*) 'DEBUG mad001 Z_M='
-!              write(*,*) Z_M(lonIndex,latIndex,:,1)
-!              do locLvl = locNLvl, locNLvl-10, -1
-!                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_M(lonIndex,latIndex,locLvl,1)
-!              end do
-!            end if
-!          end do
-!          write(*,*) 'DEBUG mad001 --------'
-          !call utl_abort('DEBUG mad001 ---END---')
-          ! DEBUG mad001 ends
-          deallocate(Height_out)
+          Z_M(:,:,:,stepIndex) = gz2geo_r4(GZHeight_out)
+          deallocate(GZHeight_out)
 
           ! Z_T
-          nullify(Height_out)
+          nullify(GZHeight_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_T, &
-                              levels=Height_out, &
+                              levels=GZHeight_out, &
                               sfc_field=Hsfc4, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
-          ! DEBUG mad001 start
-!          write(*,*) 'DEBUG mad001 ip1_T', statevector%vco%ip1_T
-!          write(*,*) 'DEBUG mad001 Height_out (Z_T) bounds', lbound(Height_out), ubound(Height_out)
-!          write(*,*) 'DEBUG mad001 Z_T bounds', lbound(Z_T), ubound(Z_T)
-!          do locIdx = 1, 8
-!            lonIndex = locNi(locIdx)
-!            latIndex = locNj(locIdx)
-!            if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-!                .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-!              locHco = gsv_getHco(statevector) 
-!              locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
-!              locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
-!              if (locLon >= 180) locLon = locLon - 360
-!              do locLvl = locNLvl, locNLvl-10, -1
-!                write(*,*) 'DEBUG mad001 Height_out (Z_T): ',locLabels(locIdx), locLvl, Height_out(lonIndex+1-statevector%myLonBeg,latIndex+1-statevector%myLatBeg,locLvl)
-!              end do
-!              write(*,*) 'DEBUG mad001 Z_T='
-!              write(*,*) Z_T(lonIndex,latIndex,:,1)
-!              do locLvl = locNLvl, locNLvl-10, -1
-!                write(*,*) locLabels(locIdx),locLon,locLat,locLvl,Z_T(lonIndex,latIndex,locLvl,1)
-!              end do
-!            end if
-!          end do
-!          write(*,*) 'DEBUG mad001 --------'
-          !call utl_abort('DEBUG mad001 ---END---')
-          ! DEBUG mad001 ends
-          deallocate(Height_out)
+          Z_T(:,:,:,stepIndex) = gz2geo_r4(GZHeight_out)
+          deallocate(GZHeight_out)
 
           beSilent=.false. ! DEBUG mad001
           if ( .not. beSilent .and. stepIndex == 1 ) then
@@ -533,6 +484,55 @@ contains
         ! DEBUG mad001 end
 
       end subroutine calcHeight_gsv_nl_vcode2100x_r4
+
+      ! DEBUG mad001 : do it for calcHeight_gsv_nl_vcode2100x_r8 as well
+      !---------------------------------------------------------
+      ! gz2geo_r4
+      !---------------------------------------------------------
+      function gz2geo_r4(gzHeight) result(alt)
+        !
+        ! :Purpose: iterative conversion of geopotential height to geometric
+        !           altitude.  (solution proposed by J. Aparicio)
+        !
+        real(kind=4), allocatable           :: alt(:,:,:)
+        real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
+
+        ! Locals
+        integer                             :: nLon, nLat, nLev
+        integer, parameter                  :: dp = selected_real_kind(12) ! Long floats for gps
+        type(struct_hco)                    :: hco
+        real(kind=dp)                       :: dAlt, altTmp, latitude
+        integer                             :: lonIndex, latIndex, lvlIndex, i
+        integer, parameter                  :: nIter = 2
+
+        ! gzHeight comes from external `vgd_levels` which does not know the
+        ! mpi shifted indexes
+        nLon = ubound(gzHeight, 1)
+        nLat = ubound(gzHeight, 2)
+        nLev = ubound(gzHeight, 3)
+        allocate(alt(nLon, nLat, nLev))
+
+        hco = gsv_getHco(statevector)
+
+        do lonIndex = 1, nLon
+          do latIndex = 1, nLat
+            do lvlIndex = 1, nLev
+              ! explicit shift of indexes
+              latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
+                                      latIndex+statevector%myLatBeg-1)
+              ! temporary type conversion for gps_geopotential
+              altTmp = real(gzHeight(lonIndex, latIndex, lvlIndex), dp)
+              do i = 1, nIter
+                dAlt = gps_geopotential(latitude, altTmp)/GRAV &
+                     - gzHeight(lonIndex, latIndex, lvlIndex)
+                altTmp = altTmp - dAlt
+              end do
+              alt(lonIndex, latIndex, lvlIndex) = real(altTmp,4)
+            end do
+          end do
+        end do
+
+      end function gz2geo_r4
 
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode2100x_r8
@@ -635,8 +635,6 @@ contains
         real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
         real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-        nlev_T = gsv_getNumLev(statevector,'TH')
-        nlev_M = gsv_getNumLev(statevector,'MM')
 
         allocate(tv(nlev_T))
 
