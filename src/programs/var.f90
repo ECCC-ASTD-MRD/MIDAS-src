@@ -312,7 +312,7 @@ program midas_var
       call bcs_writebias(controlVectorIncr)
     end if
 
-    call tvs_cleanupProfilesNlTlAd
+    call tvs_deallocateProfilesNlTlAd
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &

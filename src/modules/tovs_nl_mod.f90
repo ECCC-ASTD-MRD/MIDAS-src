@@ -107,7 +107,7 @@ module tovs_nl_mod
   public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_mwAllskyAssim
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
-  public :: tvs_cleanupProfilesNlTlAd
+  public :: tvs_deallocateProfilesNlTlAd
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
   public :: tvs_isInstrumGeostationary,  tvs_isNameHyperSpectral
   public :: tvs_isNameGeostationary
@@ -788,16 +788,16 @@ contains
   end subroutine tvs_cleanup
 
   !--------------------------------------------------------------------------
-  ! tvs_cleanupProfilesNlTlAd
+  ! tvs_deallocateProfilesNlTlAd
   !--------------------------------------------------------------------------
-  subroutine tvs_cleanupProfilesNlTlAd
+  subroutine tvs_deallocateProfilesNlTlAd
     !
     ! :Purpose: release memory used by RTTOV-12.
     !
     implicit none
     integer :: allocStatus(8)
 
-    Write(*,*) "Entering tvs_cleanupProfilesNlTlAd"
+    Write(*,*) "Entering tvs_deallocateProfilesNlTlAd"
 
     allocStatus(:) = 0
 
@@ -807,9 +807,9 @@ contains
       call utl_checkAllocationStatus(allocStatus(1:2), " tvs_profiles_nl tvs_profiles_tlad", .false.)
     end if
 
-    Write(*,*) "Exiting tvs_cleanupProfilesNlTlAd"
+    Write(*,*) "Exiting tvs_deallocateProfilesNlTlAd"
 
-  end subroutine tvs_cleanupProfilesNlTlAd
+  end subroutine tvs_deallocateProfilesNlTlAd
 
   !--------------------------------------------------------------------------
   ! sensors
