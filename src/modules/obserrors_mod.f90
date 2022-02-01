@@ -1645,7 +1645,7 @@ contains
   end subroutine oer_fillObsErrors
 
   subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                                sensorIndex, ompOmaObsColumn, beSilent_opt)
+                                                 ompOmaObsColumn, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error
     !
@@ -1655,13 +1655,13 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
     integer,          intent(in)    :: headerIndex
     integer,          intent(in)    :: bodyIndex
-    integer,          intent(in)    :: sensorIndex
     integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
     logical, intent(in), optional   :: beSilent_opt
 
     ! Locals:
     integer :: channelNumber_withOffset
-    integer :: channelNumber
+    integer :: channelNumber, channelIndex
+    integer :: tovsIndex, sensorIndex
     logical :: surfTypeIsWater 
     real(8) :: clwObs
     real(8) :: clwFG
@@ -1678,8 +1678,12 @@ contains
       beSilent = .true.
     end if
 
-    channelNumber_withOffset = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex) )
-    channelNumber = channelNumber_withOffset - tvs_channelOffset(sensorIndex)
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+
+    call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                        channelNumber, channelIndex )
+    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
 
     surfTypeIsWater = ( obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex ) == surftype_sea )
 

@@ -1679,7 +1679,7 @@ contains
     logical :: llprint,bgckMode
     character(len=2) :: option
 
-    integer :: sensorIndex, channelIndex, tovsIndex
+    integer :: channelIndex, tovsIndex
     real(pre_obsReal) :: zdtb, obsPRM
     integer :: idatyp, channelNumber
     integer :: headerIndex, bodyIndex
@@ -1751,8 +1751,6 @@ contains
       tovsIndex = tvs_tovsIndex(headerIndex)
       if ( tovsIndex == -1 ) cycle HEADER
 
-      sensorIndex = tvs_lsensor(tovsIndex)
-
       ! Set the body list
       ! (& start at the beginning of the list)
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1779,7 +1777,7 @@ contains
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
         call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                        sensorIndex, destObs, beSilent_opt=.true.)
+                                                 destObs, beSilent_opt=.true.)
 
       end do BODY
 

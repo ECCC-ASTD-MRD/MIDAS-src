@@ -207,7 +207,7 @@ contains
 
           if ( printJoTovsPerChannelSensor .and. &
                sensorIndexInListFound > 0 ) then
-            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+            call tvs_getChannelNumIndexFromPPP( lobsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex )
             channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
                                                         channelNumber)
