@@ -4,6 +4,8 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
+export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
+
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     module load craype-hugepages16M
     export FOR_DISABLE_KMP_MALLOC=0
@@ -21,12 +23,13 @@ elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement directives
     export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
     export KMP_AFFINITY=compact # Allows pinning the threads
+
+    export AFSISIO=/home/erv000/data/robert/UnitTests/midas/var/env_rhel-8-icelake-64
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
 
-export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
 
