@@ -51,8 +51,8 @@
 #define RECTANGLE_DEFAUT   {-1,-1,-1,-1,0,0,0,0}
 #define RDB_HEADER_DEFAUT     "header"
 #define RDB_DATA_DEFAUT       "data"
-#define RDB_PRIMARYKEY_DEFAUT "id_obs"
-#define optionsDEFAUT      {"" /* fstin */, "" /* obsin*/, "" /* obsout*/, "" /* gz*/, "" /* channels */, INOUT_DEFAUT /* inout */, PILOT_DEFAUT /* pilot */, RECTANGLE_DEFAUT /* rect */, fstparam_DEFAUT /* fst */, IP1_VIDE /* niveau_min */, IP1_VIDE /* niveau_max */, 1 /* channels_voulus */, NPEX_DEFAUT /* npex */, NPEY_DEFAUT /* npey */, NDIGITS_DEFAUT /* ndigits */, 0 /* check_ua4d */, 0 /* roundrobin */, -1 /* cherrypick_x */, -1 /* cherrypick_y */, RDB_HEADER_DEFAUT /* rdb_header_table */, RDB_DATA_DEFAUT /* rdb_data_table */, RDB_PRIMARYKEY_DEFAUT /* rdb_primarykey */ }
+#define RDB_SPLITONKEY_DEFAUT "id_obs"
+#define optionsDEFAUT      {"" /* fstin */, "" /* obsin*/, "" /* obsout*/, "" /* gz*/, "" /* channels */, INOUT_DEFAUT /* inout */, PILOT_DEFAUT /* pilot */, RECTANGLE_DEFAUT /* rect */, fstparam_DEFAUT /* fst */, IP1_VIDE /* niveau_min */, IP1_VIDE /* niveau_max */, 1 /* channels_voulus */, NPEX_DEFAUT /* npex */, NPEY_DEFAUT /* npey */, NDIGITS_DEFAUT /* ndigits */, 0 /* check_ua4d */, 0 /* roundrobin */, -1 /* cherrypick_x */, -1 /* cherrypick_y */, RDB_HEADER_DEFAUT /* rdb_header_table */, RDB_DATA_DEFAUT /* rdb_data_table */, RDB_SPLITONKEY_DEFAUT /* rdb_split_on_key */ }
 
 /* differentes options du programme */
 #define FSTIN_OPTION       "-fstin"
@@ -66,7 +66,7 @@
 #define OUT_OPTION         "-out"     /* Remplacee par '-obsout' */
 #define RDB_HEADER_OPTION      "-header"
 #define RDB_DATA_OPTION        "-data"
-#define RDB_PRIMARYKEY_OPTION  "-primarykey"
+#define RDB_SPLITONKEY_OPTION  "-split-on-key"
 #define GZ_OPTION          "-gz"
 #define NIVEAU_MIN_OPTION  "-niveau_min"
 #define NIVEAU_MAX_OPTION  "-niveau_max"
@@ -122,23 +122,26 @@ typedef struct {
   int check_ua4d;
   int roundrobin;
   int cherrypick_x, cherrypick_y;
-  char rdb_header_table[MAXSTR], rdb_data_table[MAXSTR], rdb_primarykey[MAXSTR];
+  char rdb_header_table[MAXSTR], rdb_data_table[MAXSTR], rdb_split_on_key[MAXSTR];
 } options, *optionsptr;
 
 typedef struct { // to be used as the argument in a callback
-  char *table_list, *primary_key;
-} sqlite_get_tables_with_primary_key_callback_arg;
+  char* split_on_key;
+  char* table_list_with_split_key;
+  char* table_list_without_split_key;
+} sqlite_get_tables_callback_arg;
 
 /*****************************************************/
 /******* Prototype des fonctions definies ************/
 /*****************************************************/
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
-static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns);
-static int sqlite_check_tables_with_primary_key_callback(void *callback_args, int count, char **data, char **columns);
-void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, char* header_table);
+static int sqlite_get_tables_callback(void *callback_args, int count, char **data, char **columns);
 
-int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name);
-int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* primary_key, char* header_table, char* data_table);
+void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, int nsplit, int id);
+void append_table_list_split_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, char* header_table, char* data_table);
+void append_table_list_without_split_key_requests(char* requete_sql, char* attached_db_name, char* table_list);
+
+int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_split_key, char* table_list_without_split_key);
 
 int    getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 
@@ -471,8 +474,9 @@ int f77name(splitobs)(int argc, char** argv) {
   } /* Fin du 'if ( opt.roundrobin == 0 )' */
 
   if ( filetype == WKF_SQLite ) {  /* Alors on traite une base de donnees SQL */
-    char sqlreq_resume[MAXSTR];
-    char table_list[MAXSTR];
+    char sqlreq_tables_without_split_key[MAXSTR];
+    char table_list_with_split_key[MAXSTR];
+    char table_list_without_split_key[MAXSTR];
 
     /**********************************************************
      * Cette partie a pour but de manipuler la base de donnees SQL
@@ -480,20 +484,16 @@ int f77name(splitobs)(int argc, char** argv) {
      * l'interieur du domaine defini par la grille donnee plus haut.  
      **********************************************************/
 
-    strcpy(table_list,"");
-    status = sqlite_get_tables_with_primary_key(opt.obsin, table_list, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_data_table);
+    strcpy(table_list_with_split_key,"");
+    strcpy(table_list_without_split_key,"");
+    status = sqlite_get_tables(opt.obsin, opt.rdb_split_on_key, table_list_with_split_key, table_list_without_split_key);
     if( status != OK ) {
-      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables_with_primary_key pour le fichier '%s'\n", status, opt.obsin);
+      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
 
       exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
     }
 
-    status = sqlite_add_resume_request(opt.obsin,sqlreq_resume,"dbin");
-    if( status != OK ) {
-      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_add_resume_request pour le fichier '%s'\n", status, opt.obsin);
-
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
-    }
+    append_table_list_without_split_key_requests(sqlreq_tables_without_split_key,"dbin",table_list_without_split_key);
 
     /* Si on n'est pas en mode round-robin, alors les fichiers 'grid*.gridid' ont ete ouverts */
     if ( opt.roundrobin == 0 ) {
@@ -765,63 +765,63 @@ int f77name(splitobs)(int argc, char** argv) {
         /* Aucun filtrage vertical n'est fait */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);",
+                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
                 opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table);
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table);
       else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;",
+                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
                 opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
-                SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
+                SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
       else if (strlen(opt.channels)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
-                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;",
+                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
                 opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_primarykey,
-                SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_split_on_key,
+                SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
                 grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
       else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord in (%s);",
+                "  dbin.%s.vcoord in (%s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
                 opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                 opt.rdb_data_table, opt.channels);
       else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
         sprintf(requete_sql,"attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord not in (%s);",
+                "  dbin.%s.vcoord not in (%s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
                 opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
                 opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
                 opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_primarykey, opt.rdb_primarykey, opt.rdb_header_table,
+                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                 opt.rdb_data_table, opt.channels);
       else {
         fprintf(stderr, "Fonction main: Incapable de creer la requete SQL\n");
@@ -848,10 +848,10 @@ int f77name(splitobs)(int argc, char** argv) {
         exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
       }
 
-      // On ajoute la requete SQL pour copier les tables 'rdb4_schema' et 'resume'.
-      strcat(requete_sql,sqlreq_resume);
+      // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
+      strcat(requete_sql,sqlreq_tables_without_split_key);
 
-      append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,opt.rdb_header_table);
+      append_table_list_split_key_requests_using_header(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,opt.rdb_header_table,opt.rdb_data_table);
 
       strcat(requete_sql,"\ndetach dbin;");
 
@@ -977,19 +977,12 @@ int f77name(splitobs)(int argc, char** argv) {
                               "PRAGMA journal_mode = OFF;\n"
                               "PRAGMA  synchronous = OFF;\n"
                               "attach '%s' as dbin; \n"
-                              "insert into %s select * from dbin.%s where abs(%s) %% %d = %d;\n"
-                              "insert into %s select * from dbin.%s where abs(%s) %% %d = %d;%s\n",
-                  opt.obsin,
-                  opt.rdb_header_table,opt.rdb_header_table,opt.rdb_primarykey,
-                  nsplit,id,
-                  opt.rdb_data_table,opt.rdb_data_table,opt.rdb_primarykey,
-                  nsplit,id,
-                  sqlreq_resume);
-          append_primary_key_table_list_requests(requete_sql,table_list,opt.rdb_primarykey,opt.rdb_header_table);
+                              "%s\n", opt.obsin, sqlreq_tables_without_split_key);
+          append_table_list_split_key_requests_nsplit(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,nsplit,id);
           if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
                strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
-               strcasecmp(opt.rdb_primarykey,RDB_PRIMARYKEY_DEFAUT) == 0 ) {
-            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);");
+               strcasecmp(opt.rdb_split_on_key,RDB_SPLITONKEY_DEFAUT) == 0 ) {
+            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);\n");
           }
           strcat(requete_sql,"detach dbin;");
 
@@ -2409,153 +2402,42 @@ static int sqlite_schema_callback(void *schema_void, int count, char **data, cha
 
 
   /***************************************************************************
-   * fonction: sqlite_add_resume_request
+   * fonction: sqlite_get_tables
    *
-   * Genere une requete SQL pour copier les tables resume.
-   *
-   ***************************************************************************/
-int sqlite_add_resume_request(char* obsin, char* requete_sql, char* attached_db_name) {
-  int status, is_resume_and_rdb4_schema_present_in_DB;
-  char *ErrMsg, sqlreqtmp[MAXSTR];
-  sqlite3 *sqldbin;
-
-  /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
-  /* On ouvre le fichier d'input */
-  status = sqlite3_open(obsin,&sqldbin);
-  if ( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_add_resume_request: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
-
-    status = sqlite3_close(sqldbin);
-    if( status != SQLITE_OK )
-      fprintf(stderr,"Fonction sqlite_add_resume_request: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
-
-    return NOT_OK;
-  } /* Fin du 'if ( status != SQLITE_OK )' */
-
-  /* Execution de la requete SQL sur la base de donnees */
-  /* L'idee est de detecter la presence des tables de resume pour les copier.  */
-  is_resume_and_rdb4_schema_present_in_DB = 0;
-  status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_check_resume_callback, &is_resume_and_rdb4_schema_present_in_DB, &ErrMsg);
-  if( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_add_resume_request: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
-    sqlite3_free(ErrMsg);
-
-    return NOT_OK;
-  } /* Fin du 'if ( status != SQLITE_OK )' */
-
-  if (is_resume_and_rdb4_schema_present_in_DB != 0 && is_resume_and_rdb4_schema_present_in_DB != 10 &&
-      is_resume_and_rdb4_schema_present_in_DB != 1 && is_resume_and_rdb4_schema_present_in_DB != 11) {
-    fprintf(stderr, "Fonction sqlite_add_resume_request: On attend 0, 1, 10 ou 11 comme valeur pour 'is_resume_and_rdb4_schema_present_in_DB' et non %d\n", is_resume_and_rdb4_schema_present_in_DB);
-
-    status = sqlite3_close(sqldbin);
-    if( status != SQLITE_OK )
-      fprintf(stderr,"Fonction sqlite_add_resume_request: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
-
-    return NOT_OK;
-  }
-
-  strcpy(requete_sql,"");
-  /* Si cette variable est egale a 1 ou 11, alors on a trouve une table 'resume' */
-  if ( is_resume_and_rdb4_schema_present_in_DB == 1 || is_resume_and_rdb4_schema_present_in_DB == 11 ) {
-    /* La table resume existe alors on fait la commande */
-    sprintf(sqlreqtmp,"\ninsert into rdb4_schema select * from %s.rdb4_schema;", attached_db_name);
-    strcat(requete_sql,sqlreqtmp);
-  }
-
-  /* Si cette variable est egale a 10 ou 11, alors on a trouve une table 'rdb4_schema' */
-  if ( is_resume_and_rdb4_schema_present_in_DB == 10 || is_resume_and_rdb4_schema_present_in_DB == 11 ) {
-    /* La table resume existe alors on fait la commande */
-    sprintf(sqlreqtmp,"\ninsert into resume select * from %s.resume;", attached_db_name);
-    strcat(requete_sql,sqlreqtmp);
-  }
-
-  status = sqlite3_close(sqldbin);
-  if( status != SQLITE_OK ) {
-    fprintf(stderr,"Fonction sqlite_add_resume_request: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
-
-    return NOT_OK;
-  }
-
-  return OK;
-}
-
-
-  /***************************************************************************
-   * fonction: sqlite_check_resume_callback
-   *
-   * Cette fonction sert de 'callback' pour la requete executee par 'sqlite3_exec'.
-   *    On veut savoir si elle contient les tables 'rdb4_schema' et 'resume'
+   * Trouve les tables qui contiennent une colonne 'split_on_key' et celles
+   * qui ne contiennent pas la colonne 'split_on_key'.
    *
    ***************************************************************************/
-static int sqlite_check_resume_callback(void *is_resume_and_rdb4_schema_present_in_DB_void, int count, char **data, char **columns) {
-  int idx, is_resume_and_rdb4_schema_present_in_DB, *is_resume_and_rdb4_schema_present_in_DB_ptr;
-
-  is_resume_and_rdb4_schema_present_in_DB_ptr = (int*) is_resume_and_rdb4_schema_present_in_DB_void;
-
-  // printf("Dans la fonction 'sqlite_check_resume_callback'\n");
-  // printf("There are %d column(s)\n", count);
-
-  is_resume_and_rdb4_schema_present_in_DB = 0;
-  for (idx = 0; idx < count; idx++) {
-    // printf("The data in column \"%s\" is: '%s'\n", columns[idx], data[idx]);
-    if (strcmp(columns[idx],"tbl_name")==0)
-      if(strcasecmp(data[idx],"rdb4_schema")==0) {
-        is_resume_and_rdb4_schema_present_in_DB++;
-        // printf("Found 'rdb4schema'\n");
-      }
-      else if(strcasecmp(data[idx],"resume")==0) {
-        is_resume_and_rdb4_schema_present_in_DB += 10;
-        // printf("Found 'resume'\n");
-      }
-  }
-  // printf("sqlite_check_resume_callback: is_resume_and_rdb4_schema_present_in_DB = %d\n", is_resume_and_rdb4_schema_present_in_DB);
-  *is_resume_and_rdb4_schema_present_in_DB_ptr += is_resume_and_rdb4_schema_present_in_DB;
-  // printf("sqlite_check_resume_callback: is_resume_and_rdb4_schema_present_in_DB_ptr = %d\n", *is_resume_and_rdb4_schema_present_in_DB_ptr);
-
-  return 0;
-}
-
-
-  /***************************************************************************
-   * fonction: sqlite_get_tables_with_primary_key
-   *
-   * Trouve les tables qui contiennent une colonne 'primary_key'
-   *
-   ***************************************************************************/
-int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* primary_key, char* header_table, char* data_table) {
+int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_split_key, char* table_list_without_split_key) {
   int status;
   char *ErrMsg;
   sqlite3 *sqldbin;
-  char sqlrequest[MAXSTR];
-  sqlite_get_tables_with_primary_key_callback_arg callback_arg;
+  sqlite_get_tables_callback_arg callback_arg;
 
   /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
   /* On ouvre le fichier d'input */
   status = sqlite3_open(obsin,&sqldbin);
   if ( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables_with_primary_key: Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
+    fprintf(stderr, "Fonction sqlite_get_tables Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
 
     status = sqlite3_close(sqldbin);
     if( status != SQLITE_OK )
-      fprintf(stderr,"Fonction sqlite_get_tables_with_primary_key: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+      fprintf(stderr,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   } /* Fin du 'if ( status != SQLITE_OK )' */
 
-  strcpy(table_list,"");
+  strcpy(table_list_with_split_key,"");
+  strcpy(table_list_without_split_key,"");
+
+  callback_arg.split_on_key = split_on_key;
+  callback_arg.table_list_with_split_key = table_list_with_split_key;
+  callback_arg.table_list_without_split_key = table_list_without_split_key;
 
   /* Execution de la requete SQL sur la base de donnees */
-  /* Since the table 'header' and 'data' are already processed in the main */
-  /*   request, we must not process them again when adding tables which */
-  /*   contains a column 'primary_key'. */
-  sprintf(sqlrequest, "select * from sqlite_master where lower(name) not in (lower('%s'),lower('%s'));", header_table, data_table);
-
-  callback_arg.table_list = table_list;
-  callback_arg.primary_key = primary_key;
-
-  status = sqlite3_exec(sqldbin,sqlrequest, sqlite_check_tables_with_primary_key_callback, &callback_arg, &ErrMsg);
+  status = sqlite3_exec(sqldbin, "select * from sqlite_master;", sqlite_get_tables_callback, &callback_arg, &ErrMsg);
   if( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables_with_primary_key: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+    fprintf(stderr, "Fonction sqlite_get_tables: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
     sqlite3_free(ErrMsg);
 
     return NOT_OK;
@@ -2564,7 +2446,7 @@ int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* prim
 
   status = sqlite3_close(sqldbin);
   if( status != SQLITE_OK ) {
-    fprintf(stderr,"Fonction sqlite_get_tables_with_primary_key: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+    fprintf(stderr,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   }
@@ -2574,18 +2456,22 @@ int sqlite_get_tables_with_primary_key(char* obsin, char* table_list, char* prim
 
 
   /***************************************************************************
-   * fonction: sqlite_check_tables_with_primary_key_callback
+   * fonction: sqlite_get_tables_callback
    *
    * Cette fonction sert de 'callback' pour la requete executee par 'sqlite3_exec'.
    *    On veut savoir si elle contient les tables 'rdb4_schema' et 'resume'
    *
    ***************************************************************************/
-static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg, int count, char **data, char **columns) {
-  int idx, isTypeTable, found_primary_key;
-  sqlite_get_tables_with_primary_key_callback_arg *callback_arg;
+static int sqlite_get_tables_callback(void *void_callback_arg, int count, char **data, char **columns) {
+  int idx, isTypeTable, found_split_on_key;
+  sqlite_get_tables_callback_arg *callback_arg;
   char table_name[MAXSTR];
+  char* table_list;
+  regex_t regex;
+  char regex_errbuf[MAXSTR];
+  int regex_err;
 
-  callback_arg = (sqlite_get_tables_with_primary_key_callback_arg*) void_callback_arg;
+  callback_arg = (sqlite_get_tables_callback_arg*) void_callback_arg;
 
   isTypeTable = 0;
   for (idx = 0; idx < count; idx++) {
@@ -2596,13 +2482,29 @@ static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg
 
   if (isTypeTable == 0) return 0;
 
-  /* printf("sqlite_check_tables_with_primary_key_callback: primary_key name: '%s'\n", callback_arg->primary_key); */
+  // printf("BEGIN sqlite_get_tables_callback: split_on_key name: '%s'\n", callback_arg->split_on_key);
+
+  regex_err = regcomp(&regex, callback_arg->split_on_key, REG_ICASE);
+  if (regex_err!=0) {
+    regerror(regex_err, &regex, regex_errbuf, MAXSTR);
+    fprintf(stderr,"sqlite_get_tables_callback: cannot compile regular expression '%s': error '%s'",
+            callback_arg->split_on_key, regex_errbuf);
+    return 1;
+  }
 
   strcpy(table_name,"");
-  found_primary_key=0;
+  found_split_on_key=0;
   for (idx = 0; idx < count; idx++) {
-    if (strcasecmp(columns[idx],"tbl_name")==0)
+    // printf("sqlite_get_tables_callback: columns[idx]='%s'\n", columns[idx]);
+    // printf("sqlite_get_tables_callback: data[idx]='%s'\n", data[idx]);
+    if (strcasecmp(columns[idx],"tbl_name")==0) {
+      if(strcasecmp(data[idx],"sqlite_stat1")==0) {
+        // printf("sqlite_get_tables_callback: ignore this table: '%s'\n", data[idx]);
+        regfree(&regex);
+        return 0;
+      }
       strcpy(table_name,data[idx]);
+    }
     else if(strcasecmp(columns[idx],"sql")==0) {
       // Ici, on regarde si 'id_obs' est contenu dans 'data[idx]' qui est de la forme:
       //       CREATE TABLE DATA (
@@ -2626,63 +2528,59 @@ static int sqlite_check_tables_with_primary_key_callback(void *void_callback_arg
       //       FSO real
       //       )
 
-      regex_t regex;
-      char regex_errbuf[MAXSTR];
-      int regex_err;
-
-      regex_err = regcomp(&regex, callback_arg->primary_key, REG_ICASE);
-      if (regex_err!=0) {
-	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-        fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: cannot compile regular expression '%s': error '%s'",
-                callback_arg->primary_key, regex_errbuf);
-        return 1;
-      }
       regex_err = regexec(&regex,data[idx],0,(regmatch_t*) NULL,0);
       if (regex_err == 0) {
         // This means that there was a match
-        found_primary_key=1;
+        found_split_on_key=1;
       }
       else if (regex_err == REG_NOMATCH) {
-        found_primary_key=0;
+        found_split_on_key=0;
       }
       else {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
         regfree(&regex);
-	fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
+	fprintf(stderr,"sqlite_get_tables_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
         return 1;
       }
+    } // End of 'for (idx = 0; idx < count; idx++)'
+  } // End of 'for (idx = 0; idx < count; idx++)'
 
-      regfree(&regex);
-    }
-  }
+  regfree(&regex);
 
-  if (found_primary_key) {
-    if (strlen(table_name)>0) {
-      if (strlen(callback_arg->table_list)>0) {
-        strcat(callback_arg->table_list, " ");
-      }
-      strcat(callback_arg->table_list, table_name);
-      /* printf("sqlite_check_tables_with_primary_key_callback: found table: '%s'\n", callback_arg->table_list); */
+  if (strlen(table_name)>0) {
+    if (found_split_on_key) {
+      table_list = callback_arg->table_list_with_split_key;
     }
     else {
-      fprintf(stderr,"sqlite_check_tables_with_primary_key_callback: found_primary_key = %d but table_name is empty", found_primary_key);
-      return 1;
+      table_list = callback_arg->table_list_without_split_key;
     }
+
+    if (strlen(table_list)>0) {
+        strcat(table_list, " ");
+    }
+    strcat(table_list, table_name);
+    /* printf("sqlite_get_tables_callback: found table: '%s'\n", callback_arg->table_list); */
+  }
+  else {
+    fprintf(stderr,"sqlite_get_tables_callback: found_split_on_key = %d but table_name is empty", found_split_on_key);
+    return 1;
   }
 
+  // printf("END sqlite_get_tables_callback: split_on_key name: '%s'\n\n\n", callback_arg->split_on_key);
+
   return 0;
-} /* End of function 'sqlite_check_tables_with_primary_key_callback' */
+} /* End of function 'sqlite_get_tables_callback' */
 
 
   /***************************************************************************
-   * fonction: append_primary_key_table_list_requests
+   * fonction: append_table_list_split_key_requests_nsplit
    *
-   * Cette fonction sert a ajouter des requetes SQL pour inclure les
-   * tables supplementaires autres que 'header' mais qui ont
-   * 'primary_key' comme colonne.
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les rangees des
+   * tables qui ont 'split_on_key' comme colonne en se basant sur le critere
+   *                 abs(split_on_key) % nsplit == id
    *
    ***************************************************************************/
-void append_primary_key_table_list_requests(char* requete_sql, char* table_list, char* primary_key, char* header_table) {
+void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, int nsplit, int id) {
   const char separator_char[2] = " ";
   char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
   char *token;
@@ -2693,13 +2591,68 @@ void append_primary_key_table_list_requests(char* requete_sql, char* table_list,
   token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
-    sprintf(sqlreqtmp,"insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
-            token,token,token,primary_key,primary_key,header_table);
+    sprintf(sqlreqtmp,"insert into %s select * from %s.%s where abs(%s) %% %d = %d;\n",
+            token,attached_db_name,token,split_on_key,nsplit,id);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
-  // On a termine d'ajouter les requetes pour les autres tables
-} /* End of function 'append_primary_key_table_list_requests' */
+} /* End of function 'append_table_list_split_key_requests_nsplit' */
+
+
+  /***************************************************************************
+   * fonction: append_table_list_split_key_requests_using_header
+   *
+   * Cette fonction sert a ajouter des requetes SQL pour inclure les rangees des
+   * tables qui ont 'split_on_key' comme colonne et qui ont un 'split_on_key' qui
+   * est dans le 'header_table'.
+   *
+   ***************************************************************************/
+void append_table_list_split_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, char* header_table, char* data_table) {
+  const char separator_char[2] = " ";
+  char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
+  char *token;
+
+  // Make a copy of 'table_list' input string because 'strtok' is changing in place that string
+  strcpy(table_list_tmp,table_list);
+  /* get the first token */
+  token = strtok(table_list_tmp, separator_char);
+  /* walk through other tokens */
+  while( token != (char*) NULL ) {
+    // If the table is 'header' or 'data', then ignore it since they already have been considered in the request
+    if ( strcasecmp(token,header_table) != 0 && strcasecmp(token,data_table) != 0) {
+      sprintf(sqlreqtmp,"insert into %s select * from %s.%s where %s.%s.%s in (select %s from %s);\n",
+              token,attached_db_name,token,attached_db_name,token,split_on_key,split_on_key,header_table);
+      strcat(requete_sql,sqlreqtmp);
+    }
+    token = strtok((char*) NULL, separator_char);
+  }
+} /* End of function 'append_table_list_split_key_requests_using_header' */
+
+
+  /***************************************************************************
+   * fonction: append_table_list_without_split_key_requests
+   *
+   * Genere une requete SQL pour copier les tables qui n'ont pas la colonne 'split_on_key'.
+   *
+   ***************************************************************************/
+void append_table_list_without_split_key_requests(char* requete_sql, char* attached_db_name, char* table_list) {
+  const char separator_char[2] = " ";
+  char sqlreqtmp[MAXSTR], table_list_tmp[MAXSTR];
+  char *token;
+
+  strcpy(requete_sql,"");
+  // Make a copy of 'table_list' input string because 'strtok' is changing in place that string
+  strcpy(table_list_tmp,table_list);
+  /* get the first token */
+  token = strtok(table_list_tmp, separator_char);
+  /* walk through other tokens */
+  while( token != (char*) NULL ) {
+    sprintf(sqlreqtmp,"insert into %s select * from %s.%s;\n",token,attached_db_name,token);
+    strcat(requete_sql,sqlreqtmp);
+    token = strtok((char*) NULL, separator_char);
+  }
+} // End of function 'append_table_list_without_split_key_requests'
+
 
 
 /***************************************************************************
@@ -5127,12 +5080,12 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	strcpy(optptr->rdb_data_table,argv[++i]);
       }
-      else if (!strcmp(argv[i],RDB_PRIMARYKEY_OPTION)) { /* Cette option enregistrera le nom de la cle primaire qui lie 'header' et 'data' */
+      else if (!strcmp(argv[i],RDB_SPLITONKEY_OPTION)) { /* Cette option enregistrera le nom de la cle qui sera utilisee pour faire le split des fichiers */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
 	}
-	strcpy(optptr->rdb_primarykey,argv[++i]);
+	strcpy(optptr->rdb_split_on_key,argv[++i]);
       }
       else if (!strcmp(argv[i],GZ_OPTION)) { /* Fichier standard dans lequel on lira le GZ au niveau voulu */
 	if (i+1>=argc || argv[i+1][0]=='-') {
@@ -5412,13 +5365,13 @@ void aide(void) {
 
   printf("  %s   [active la verification a chaque enregistrement si on est en presence d'un UA multi-niveaux (ua4d)]\n\n", CHECK_UA4D_OPTION);
 
-  printf("Attention, les options '%s' et '%s' puis '%s' et '%s' viennent en couple"
-	 " et sont mutuellement exclusives\n\n", RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
-  
-  printf("On specifie les tables et la cle primaire qui lie les tables ensemble a l'aide des options suivantes\n");
-  printf("  %s     [table qui joue le role du 'header' (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
-  printf("  %s       [table qui joue le role du 'data' (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
-  printf("  %s [cle primaire qui lie les tables 'header' et 'data' (par defaut '%s')]\n\n", RDB_PRIMARYKEY_OPTION, RDB_PRIMARYKEY_DEFAUT);
+  printf("Attention, les options '%s' et '%s', '%s' et '%s' puis '%s' et '%s' viennent en couple"
+	 " et sont mutuellement exclusives\n\n", OBSIN_OPTION, OBSOUT_OPTION, RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
+
+  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n");
+  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
+  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
+  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
 
   printf("Les options suivantes servent a identifier le champ qui definit la grille (fonction fstinf):\n\n");
 

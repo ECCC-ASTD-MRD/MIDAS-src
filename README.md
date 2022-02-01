@@ -255,6 +255,61 @@ When you will ask a merge-request, the new results will be copied in a
 safe directory with all other reference results by one of the
 maintainer.
 
+# Using `midas.splitobs.Abs`
+
+To gain access to the program `midas.splitobs.Abs`, one can load one
+of the MIDAS SSM domain with:
+```bash
+. ssmuse-sh -d eccc/mrd/rpn/anl/midas/3.6.8
+```
+or point directly to the program in the SSM domain:
+```
+/fs/ssm/eccc/mrd/rpn/anl/midas/3.6.8/${ORDENV_PLAT}/bin/midas.splitobs.Abs
+```
+
+An help message is printed to screen by calling `midas.splitobs.Abs`
+one these ways:
+```bash
+midas.splitobs.Abs -h
+midas.splitobs.Abs -help
+midas.splitobs.Abs --help
+midas.splitobs.Abs ## without any argument
+```
+
+Note that this program processes SQLite and BURP files transparently.
+
+### Splitting a file to prepare a unit test input
+
+In the case, a user wants to split an observation file to prepare a
+unit test input, this program can be called like this:
+```bash
+midas.splitobs.Abs -obsin ${OBS_FILE_IN} -obsout ${OBS_FILE_OUTPUT_PREFIX} -round-robin -npex ${NPEX} -npey ${NPEY}
+```
+where `${OBS_FILE_IN}` is the input observation file,
+`${OBS_FILE_OUTPUT_PREFIX}` is the prefix of the output files,
+`${NPEX}` is the number of parts in the X direction and `${NPEY}` is
+the number of parts in the Y direction.  Here the `${NPEX}` and
+`${NPEY}` must be the same as the MPI topology of the `run` task of
+the test.
+
+For example, if you have `cpu="2x40x4"` as the CPUs setting in the
+`UnitTest/run.xml` resource file of the test, then `NPEX=2` and
+`NPEY=40` and the program will generate $`2\times 40=80`$ files.
+
+For example, if you call the command
+```bash
+midas.splitobs.Abs -obsin obs_input -obsout obs_split -round-robin -npex 2 -npey 3
+```
+it will split the input observation file `obs_input` and generates 6 files with the name:
+```
+obs_split_0001_0001
+obs_split_0001_0002
+obs_split_0001_0003
+obs_split_0002_0001
+obs_split_0002_0002
+obs_split_0002_0003
+```
+
 # SSM
 
 The [CI](CI.md) has been configured to produce a SSM domain under

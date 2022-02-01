@@ -745,7 +745,7 @@ test_rdb_obsdb () {
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms -obsout obsatms -header Report -data Observation -primarykey id_report 1>> check_result.listing 2>&1 || program_status=$?
+                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_rdb_obsdb splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -758,7 +758,7 @@ test_rdb_obsdb () {
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms -obsout obsatms -header Report -data Observation -primarykey id_report 1>> check_result.listing 2>&1 || program_status=$?
+                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_rdb_obsdb splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
