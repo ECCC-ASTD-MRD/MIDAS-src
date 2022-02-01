@@ -30,12 +30,12 @@ ensembleH.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 #--------------------------------------
 ensDiagnostics.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main $(HDF5_LIBS) burp_module\
-		$(VGRID_LIBNAME) irc $(MPILIB)
+		$(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 ensManip.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
                 rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main $(HDF5_LIBS) burp_module\
-                $(VGRID_LIBNAME) irc $(MPILIB)
+                $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 ensPostProcess.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
@@ -108,6 +108,11 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 
 #--------------------------------------
 var1D.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+
+#--------------------------------------
+pseudoSSTobs.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
