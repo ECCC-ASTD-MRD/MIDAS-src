@@ -1681,7 +1681,7 @@ contains
 
     integer :: sensorIndex, channelIndex, tovsIndex
     real(pre_obsReal) :: zdtb, obsPRM
-    integer :: idatyp, channelNumber, ichobs_a
+    integer :: idatyp, channelNumber
     integer :: headerIndex, bodyIndex
 
     if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
@@ -1765,7 +1765,6 @@ contains
 
         channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
         channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
-        ichobs_a = channelNumber
         channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
         channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
         if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
