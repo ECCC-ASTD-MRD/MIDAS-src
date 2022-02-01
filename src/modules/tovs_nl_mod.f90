@@ -1997,7 +1997,7 @@ contains
       call utl_abort('tvs_fillProfiles')
     end if
 
-    write(*,*) 'you are in tvs_fillProfiles for profileType=', profileType
+    write(*,*) 'tvs_fillProfiles: profileType is ', profileType
 
     call tvs_getProfile(profiles, profileType)
 
