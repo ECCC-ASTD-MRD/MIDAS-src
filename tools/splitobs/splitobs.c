@@ -202,6 +202,7 @@ int    fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_
 
 int    parseOptions(int argc, char** argv, optionsptr optptr);
 void   aide(void);
+void   help(void);
 
 /* rmnlib.a */
 extern void f77name(incdatr)();
@@ -5427,7 +5428,99 @@ void aide(void) {
   printf("  %s [degre de verbosite (par defaut, 0)]\n", VERBOSE_OPTION);
 
   printf("  %s ou %s ou %s [affiche cette aide]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
+  printf("  %s ou %s ou %s [print an English help message]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
 
   printf("Ervig Lapalme, CMDA\n");
 
-} /* Fin de la fonction aide */
+} /* Fin de la fonction 'aide' */
+
+
+/***************************************************************************
+ * fonction: 'help'
+ *
+ * This function output a documentation of the program
+ ***************************************************************************/
+void help(void) {
+
+  printf("Ce programme %s (version '%s') permet d'extraire les observations d'une base de donnees\n", PROGRAM_NAME, VERSION);
+  printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard\n\n");
+
+  printf("This programs %s (version '%s') extracts observations from a database\n", PROGRAM_NAME, VERSION);
+  printf("which are inside the domaine of a grid as defined by a RPN standard file.\n");
+  printf("It can also split the observations in several files.\n\n");
+
+  printf("The arguments of this program are:\n");
+  printf("  %s        [input RPN standard file that contains the field which defined the domain]\n\n", FSTIN_OPTION);
+
+  printf("  %s        [input observation file]\n", OBSIN_OPTION);
+  printf("  %s       [output observation file\n\n", OBSOUT_OPTION);
+
+  printf("     The input file can be a BURP file, a RDB (SQLite) or ASCII (with a specific format)\n");
+
+  printf("  %s  [Set the round-robin method to split the observations in equal parts]\n\n", ROUNDROBIN_OPTION);
+
+  printf("  %s        [Decide whether observations inside the domain are chosen (if equals to '1')\n", INOUT_OPTION);
+  printf("                 or outside the domaine (if equals to '0') du domaine. ] (defalt, %d, inside the domain)\n\n", INOUT_DEFAUT);
+
+  printf("  %s        [Decide to use a piloting region]\n", PILOT_OPTION);
+  printf("                 (default, %d points inside the domain)\n\n", PILOT_DEFAUT);
+
+  printf("It is also possible to chose an arbitrary portion of the domain.  It can be defined using those options\n");
+  printf("  %s        [minimal index 'i' (along 'x' component) of the grid (can be a real number)]\n", MIN_I_OPTION);
+  printf("  %s        [maximal index 'i' (along 'x' component) of the grid (can be a real number)]\n", MAX_I_OPTION);
+  printf("  %s        [minimal index 'j' (along 'y' component) of the grid (can be a real number)]\n", MIN_J_OPTION);
+  printf("  %s        [maximal index 'j' (along 'y' component) of the grid (can be a real number)]\n", MAX_J_OPTION);
+  printf("         Note: Those options are mutually exclusive with the option %s\n\n", PILOT_OPTION);
+
+  printf("We can split observations into several files in 'x' and 'y' directions with the following options\n");
+  printf("  %s         [number of files in the 'x' component]\n", NPEX_OPTION);
+  printf("  %s         [number of files in the 'y' component]\n\n", NPEY_OPTION);
+
+  printf("We can extract only a single tile instead of all using those options:\n");
+  printf("  %s            [tile number along 'x' component]\n", CHERRYPICK_X_OPTION);
+  printf("  %s            [tile number along 'y' component]\n\n", CHERRYPICK_Y_OPTION);
+
+  printf("  %s   [activate the verification for all record to check if it is a multi-level UA profile (ua4d)]\n\n", CHECK_UA4D_OPTION);
+
+  printf("When processing SQLite files, we can use those options to specify where to find some information:\n");
+  printf("  %s       [table which contains the latitude (column 'lat'), the longitude (column 'lon') and elevation (column 'elev') of the station if necessary (default '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
+  printf("  %s         [table which contains the information about the height of each observation or the satellite channel (column 'vcoord') (default '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
+  printf("  %s [key which binds the tables together.  It is also used in the round-robin mode to select the observations (default '%s')]\n\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
+
+  printf("Those options identify the field which defined the domain (function 'fstinf'):\n\n");
+
+  printf("  %s    [nomvar of the wanted field] (by default, PN)\n", NOMVAR_OPTION);
+  printf("  %s    [typvar of the wanted field] (by default, vide)\n", TYPVAR_OPTION);
+  printf("  %s    [etiket of the wanted field] (by default, vide)\n", ETIKET_OPTION);
+  printf("  %s     [valid date of the wanted field]\n", DATEV_OPTION);
+  printf("                   (format: YYYYMMDDHHMMSS with padding vt 0 at the right, if the date is incomplete:\n");
+  printf("                           for example, 2004121912 becomes 20041219120000)\n");
+  printf("                           (by default, -1)\n");
+  printf("  %s       [ip1 of the wanted field] (par default, -1)\n", IP1_OPTION);
+  printf("  %s       [ip2 of the wanted field] (par default, -1)\n", IP2_OPTION);
+  printf("  %s       [ip3 of the wanted field] (par default, -1)\n\n", IP3_OPTION);
+
+  printf("We can also filter vertically by using those criteria:\n");
+  printf("  %s  [vertical level in hPa for which any observation above is not selected] (default, -1 so no vertical filtering)\n", NIVEAU_MAX_OPTION);
+  printf("  %s  [vertical level in hPa for which any observation below is not selected] (default, -1 so no vertical filtering)\n", NIVEAU_MIN_OPTION);
+  printf("  %s          [RPN standard file which contains the GZ field to convert the pressure into meters "
+	 "to use the pressure levels as vertical criteria] (by default, no vertical filtering)\n", GZ_OPTION);
+  printf("\n");
+  printf("The observations 'ai' and 'ua' have a pressure vertical coordinate (hPa) so the selected is straightforward.  \n");
+  printf("The observations 'pr' and 'ro' have a verical coordinate in meters, so we need to give\n");
+  printf("    pressure criteria (hPa) and a GZ field to read from the file specify with the option %s\n", GZ_OPTION);
+
+  printf("For satellite observations, we specify the wanter channel with the option:\n");
+  printf("  %s   [comma separated list (without any space) of the wanted channels (for a maximum of %d total characters)]\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
+  printf("or the channels that are not wanted with the option\n");
+  printf("  %s [comma separated list (without any space) of the channels that are not wanted (for a maximum of %d total characters)]\n", NOCHANNELS_OPTION, MAXSTR_CHANNELS);
+
+  printf("\n");
+
+  printf("  %s [verbosity level (by default, 0)]\n", VERBOSE_OPTION);
+
+  printf("  %s ou %s ou %s [print this help message]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
+
+  printf("Ervig Lapalme, CMDA\n");
+
+} /* End of function 'help' */
