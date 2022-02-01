@@ -1763,10 +1763,9 @@ contains
         ! Only consider if flagged for assimilation
         if ( obs_bodyElem_i(obsSpaceData,obs_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
 
-        channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
-        channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
+        call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                            channelNumber, channelIndex )
+
         if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &

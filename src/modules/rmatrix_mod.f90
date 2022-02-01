@@ -293,8 +293,8 @@ module rMatrix_mod
     integer, intent(in)  :: elem_src_i  ! source index
 
     ! Locals:
-    integer :: bodyIndex, headerIndex, sensorIndex, tovsIndex
-    integer :: idata, idatend, idatyp, count, channelNumber
+    integer :: bodyIndex, headerIndex
+    integer :: idata, idatend, idatyp, count, channelNumber, channelIndex
     real(8) :: obsIn( tvs_maxChannelNumber ), obsOut( tvs_maxChannelNumber )
     integer :: list_chan( tvs_maxChannelNumber )
     real(8) :: list_OER( tvs_maxChannelNumber )
@@ -313,11 +313,8 @@ module rMatrix_mod
         do bodyIndex = idata, idatend
 
           if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated ) then
-            tovsIndex = tvs_tovsIndex(headerIndex)
-            sensorIndex = tvs_lsensor(tovsIndex)
-            channelNumber = nint( obs_bodyElem_r( obsspacedata, OBS_PPP, bodyIndex ))
-            channelNumber = max( 0, min( channelNumber, tvs_maxChannelNumber + 1 ))
-            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             count = count + 1
             list_chan( count ) = channelNumber
             list_OER( count ) = obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex )

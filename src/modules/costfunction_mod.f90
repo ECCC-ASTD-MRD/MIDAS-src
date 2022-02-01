@@ -207,9 +207,8 @@ contains
 
           if ( printJoTovsPerChannelSensor .and. &
                sensorIndexInListFound > 0 ) then
-            channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
-            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
                                                         channelNumber)
 

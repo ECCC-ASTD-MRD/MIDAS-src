@@ -118,7 +118,7 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
-  public :: tvs_isInstrumUsingCLW
+  public :: tvs_isInstrumUsingCLW, tvs_getChannelNumIndexFromPPP
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -297,12 +297,8 @@ contains
         if (bodyIndex < 0) exit BODY
         if (nosensor > 0) then
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
-          
-            channelNumber = channelNumber - tvs_channelOffset(nosensor)
-
-            channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),channelNumber)
+            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             if ( channelIndex == 0 ) then
               tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
               tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
@@ -1735,6 +1731,7 @@ contains
 
     ! Locals:
     integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, nrank, iobs
+    integer :: ChannelIndex
 
     ! Build the list of channels/profiles indices
     count = 0
@@ -1747,9 +1744,8 @@ contains
         iend= obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
         do bodyIndex = istart, iend
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0, min(channelNumber,tvs_maxChannelNumber + 1))
-            channelNumber = channelNumber - tvs_channelOffset(sensorId)
+            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             do nrank = 1, tvs_nchan(sensorId)
               if ( channelNumber == tvs_ichan(nrank,sensorId) ) exit
             end do
@@ -2554,9 +2550,8 @@ contains
 
             ifBodyIndexFound = .false.
             loopClearSky2: do bodyIndex = istart, iend
-              channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-              channelNumber = channelNumber - tvs_channelOffset(sensorId)
-              channelIndexFound = utl_findArrayIndex(tvs_ichan(:,sensorId),tvs_nchan(sensorId),channelNumber)
+              call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                  channelNumber, channelIndexFound )
               if ( channelIndex == channelIndexFound ) then
                 ifBodyIndexFound = .true.
                 exit loopClearSky2
@@ -4494,10 +4489,9 @@ contains
         ! Only consider if flagged for assimilation
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY                
 
-        bufrChannelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        bufrChannelNumber = max( 0 , min( bufrChannelNumber , tvs_maxChannelNumber + 1))
-        rttovChannelNumber = bufrChannelNumber - tvs_channelOffset(sensorIndex)
-        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex), tvs_nchan(sensorIndex),  rttovChannelNumber)
+        call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                            rttovChannelNumber, channelIndex )
+        bufrChannelNumber = rttovChannelNumber + tvs_channelOffset(sensorIndex)
         if ( channelIndex == 0 ) then
           write(*,'(A)') '  tvs_printDetailledOmfStatistics: error with channel number'
           call utl_abort(' tvs_printDetailledOmfStatistics')
@@ -4666,5 +4660,36 @@ contains
     end if
 
   end subroutine updateCloudInTovsProfile
+
+
+  !--------------------------------------------------------------------------
+  !  tvs_getChannelNumIndexFromPPP
+  !--------------------------------------------------------------------------
+  subroutine tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                            channelNumber, channelIndex )
+    !
+    ! :Purpose: Get channel number/index from obs_ppp for TO observations.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),   intent(in) :: obsSpaceData
+    integer,            intent(in) :: headerIndex
+    integer,            intent(in) :: bodyIndex
+    integer,           intent(out) :: channelNumber
+    integer,           intent(out) :: channelIndex
+
+    ! Locals:
+    integer :: tovsIndex, sensorIndex
+
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+
+    channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+    channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
+    channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+    channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
+
+  end subroutine tvs_getChannelNumIndexFromPPP
 
 end module tovs_nl_mod
