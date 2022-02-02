@@ -280,7 +280,7 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      applyLimitOnHU = ( limitHuInOuterLoop .and. outerLoopIndex > 1 )
+      applyLimitOnHU = ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
@@ -326,8 +326,8 @@ program midas_var
                                      stateVectorUpdateHighRes, stateVectorPsfcHighRes )  ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Impose limits on stateVectorUpdateHighRes only when outerLoopIndex > 1
-    if ( limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
+    ! Impose limits on stateVectorUpdateHighRes only when outer loop is used.
+    if ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
       call qlim_saturationLimit( stateVectorUpdateHighRes )
       call qlim_rttovLimit( stateVectorUpdateHighRes )
