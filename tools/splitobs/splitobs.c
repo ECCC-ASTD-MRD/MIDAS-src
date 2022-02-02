@@ -5358,7 +5358,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
  ***************************************************************************/
 void aide(void) {
 
-  printf("Ce programme %s (version '%s') permet d'extraire les observations d'une base de donnees\n", PROGRAM_NAME, VERSION);
+  printf("Ce programme permet d'extraire les observations d'une base de donnees\n");
   printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard RPN.\n");
   printf("Il permet aussi de separer les observations en differents fichiers.\n\n");
 
@@ -5447,10 +5447,7 @@ void aide(void) {
  ***************************************************************************/
 void help(void) {
 
-  printf("Ce programme %s (version '%s') permet d'extraire les observations d'une base de donnees\n", PROGRAM_NAME, VERSION);
-  printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard\n\n");
-
-  printf("This programs %s (version '%s') extracts observations from a database\n", PROGRAM_NAME, VERSION);
+  printf("This programs extracts observations from a database\n");
   printf("which are inside the domaine of a grid as defined by a RPN standard file.\n");
   printf("It can also split the observations in several files.\n\n");
 
