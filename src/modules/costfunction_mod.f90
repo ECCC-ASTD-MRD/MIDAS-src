@@ -79,7 +79,7 @@ contains
   !--------------------------------------------------------------------------
   ! cfn_sumJo
   !--------------------------------------------------------------------------
-  subroutine cfn_sumJo( lobsSpaceData, pjo )
+  subroutine cfn_sumJo( lobsSpaceData, pjo, beSilent_opt )
     !
     !:Purpose: To compute the sum of Jo contributions saved in OBS_JOBS. Also,
     !          to compute contribution of each family of observation (for
@@ -89,11 +89,13 @@ contains
     ! Arguments:
     type(struct_obs) :: lobsSpaceData
     real(8), intent(out) :: pjo ! Total observation cost function
+    logical, optional :: beSilent_opt
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
+    logical :: beSilent
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
@@ -105,6 +107,12 @@ contains
     logical :: printJoTovsPerChannelSensor
 
     call tmg_start(81,'SUMJO')
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
 
     if ( .not. allocated(channelNumberList) ) then
       allocate(channelNumberList(tvs_maxNumberOfChannels,tvs_nsensors))
@@ -251,7 +259,7 @@ contains
       end do loopSensor2
     end if
 
-    if ( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 .and. .not. beSilent ) then
       write(*,'(a15,f25.17)') 'Jo(UA)   = ', dljoraob
       write(*,'(a15,f25.17)') 'Jo(AI)   = ', dljoairep
       write(*,'(a15,f25.17)') 'Jo(SF)   = ', dljosurfc

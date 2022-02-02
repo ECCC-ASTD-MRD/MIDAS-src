@@ -652,7 +652,7 @@ contains
     if ( applyVarqcOnNlJo ) call vqc_NlTl(obsSpaceData)
 
     ! Compute Jo components and print
-    call cfn_sumJo(obsSpaceData,Jo)
+    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
     if ( mpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
