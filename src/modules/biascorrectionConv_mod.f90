@@ -69,7 +69,6 @@ MODULE biasCorrectionConv_mod
   
   logical :: bcc_aiBiasActive, bcc_gpBiasActive, bcc_uaBiasActive
   logical, allocatable :: BiasCorrPresentStype(:,:,:), BiasCorrPresentStn(:,:,:)
-  logical :: initialized = .false.
   
   ! Bias correction files (must be in program working directory)
   character(len=8), parameter  :: aiBcFile = "ai_bcors", gpBcFile = "gp_bcors"
@@ -659,8 +658,6 @@ CONTAINS
     bcc_aiBiasActive = aiBiasActive
     bcc_gpBiasActive = gpBiasActive
     bcc_uaBiasActive = uaBiasActive
-    
-    initialized = .true.
     
     ! read in the namelist NAMSONDETYPES
     if ( uaBiasActive .and. .not.uaRevOnly ) then
