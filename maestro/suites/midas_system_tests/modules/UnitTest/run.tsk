@@ -108,6 +108,11 @@ echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
 ${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+#status=0
+#mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${cmd} ${UnitTest_run_pgm_args} || status=$?
+#echo mpirun exit code is ${status}
+#[ "${status}" -ne 0 ] && exit 1
+
 RUNTIME=${SECONDS}
 
 echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"

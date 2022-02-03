@@ -17,7 +17,13 @@ if [ "${fasttmp}" = yes ]; then
     FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
     /bin/mkdir -p ${FASTTMPDIR}
     export MIDAS_RAMDISKDIR=${FASTTMPDIR}
-    #echo "RAM disk space used on $(hostname) before pgm: $(/bin/df -hP ${FASTTMPDIR}) /bin/du -h ${FASTTMPDIR}"
+    set +x
+    free -h
+    echo "RAM disk space used on $(hostname) before pgm: "
+    echo "     $(/bin/df -hP ${FASTTMPDIR})"
+    echo "     $(/bin/du -h ${FASTTMPDIR})"
+    ls -lR /tmp || true
+    set -x
 fi
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
