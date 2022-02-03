@@ -14,5 +14,5 @@ SRC_FILES="$SRC_FILES biascorrectionConv_mod.f90 burpfiles_mod.f90 calcHeightAnd
 SRC_FILES="$SRC_FILES columnVariableTransforms_mod.f90 gridVariableTransforms_mod.f90 obsfiles_mod.f90 obstimeinterp_mod.f90 rmatrix_mod.f90 slantprofilelatlon_mod.f90 windrotation_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 obserrors_mod.f90 statetocolumn_mod.f90"
 SRC_FILES="$SRC_FILES controlvector_mod.f90 costfunction_mod.f90 localizationfunction_mod.f90 obsOperatorsChem_mod.f90 tovs_lin_mod.f90"
-SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90"
+SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsoperators_mod.f90 varqc_mod.f90"
 SRC_FILES="$SRC_FILES ensembleobservations_mod.f90 innovation_mod.f90 version_mod.f90"
