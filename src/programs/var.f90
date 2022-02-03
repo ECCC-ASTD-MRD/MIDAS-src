@@ -268,11 +268,7 @@ program midas_var
     if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    if ( outerLoopIndex == 1 ) then
-      filterObsAndInitOer = .true.
-    else
-      filterObsAndInitOer = .false.
-    end if
+    filterObsAndInitOer = ( outerLoopIndex == 1 )
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
