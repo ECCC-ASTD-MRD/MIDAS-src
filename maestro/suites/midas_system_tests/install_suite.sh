@@ -12,14 +12,17 @@ ${toplevel}/set_resources_def.sh
 
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0-beta"}
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.4
+
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.7.1
+    __rmnlib_version__=19.7.1
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.6.0
+    __rmnlib_version__=19.6.0
 else
     echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'ubuntu-18.04-skylake-64' and 'rhel-8-icelake-64' are!" >&2
     exit 1
 fi
+which r.date 1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/${__rmnlib_version__}
+unset __rmnlib_version__
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 
