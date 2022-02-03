@@ -37,7 +37,7 @@ module costfunction_mod
 
   ! public procedures
 
-  public :: cfn_calcJo, cfn_sumJo, cfn_computeNlTovsJo
+  public :: cfn_calcJo, cfn_sumJo
 
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
@@ -79,7 +79,7 @@ contains
   !--------------------------------------------------------------------------
   ! cfn_sumJo
   !--------------------------------------------------------------------------
-  subroutine cfn_sumJo( lobsSpaceData, pjo )
+  subroutine cfn_sumJo( lobsSpaceData, pjo, beSilent_opt )
     !
     !:Purpose: To compute the sum of Jo contributions saved in OBS_JOBS. Also,
     !          to compute contribution of each family of observation (for
@@ -88,12 +88,14 @@ contains
 
     ! Arguments:
     type(struct_obs) :: lobsSpaceData
-    real(8) :: pjo ! Total observation cost function
+    real(8), intent(out) :: pjo ! Total observation cost function
+    logical, optional :: beSilent_opt
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
+    logical :: beSilent
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
@@ -105,6 +107,12 @@ contains
     logical :: printJoTovsPerChannelSensor
 
     call tmg_start(81,'SUMJO')
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
 
     if ( .not. allocated(channelNumberList) ) then
       allocate(channelNumberList(tvs_maxNumberOfChannels,tvs_nsensors))
@@ -136,6 +144,8 @@ contains
     joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
+
+    pjo = 0.0d0
 
     do bodyIndex = 1, obs_numbody( lobsSpaceData )
 
@@ -205,9 +215,8 @@ contains
 
           if ( printJoTovsPerChannelSensor .and. &
                sensorIndexInListFound > 0 ) then
-            channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0,min(channelNumber,tvs_maxChannelNumber+1))
-            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+            call tvs_getChannelNumIndexFromPPP( lobsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
                                                         channelNumber)
 
@@ -250,7 +259,7 @@ contains
       end do loopSensor2
     end if
 
-    if ( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 .and. .not. beSilent ) then
       write(*,'(a15,f25.17)') 'Jo(UA)   = ', dljoraob
       write(*,'(a15,f25.17)') 'Jo(AI)   = ', dljoairep
       write(*,'(a15,f25.17)') 'Jo(SF)   = ', dljosurfc
@@ -304,134 +313,6 @@ contains
     call tmg_stop(81)
 
   end subroutine cfn_sumJo
-
-
-  !--------------------------------------------------------------------------
-  !  cfn_computeNlTovsJo
-  !--------------------------------------------------------------------------
-  subroutine cfn_computeNlTovsJo(pjo, obsSpaceData, dest_obs)
-    !
-    ! *Purpose*: Computation of Jo for TOVS observations and transfer O-F
-    !                     to obsSpaceData data column dest_obs
-    !
-    implicit none
-
-    !Arguments:
-    real(8),          intent(out)   :: pjo          ! Computed Tovs observation cost fucntion
-    type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
-    integer,          intent(in)    :: dest_obs     ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
-
-    ! Locals:
-    integer :: sensorIndex, channelIndex, tovsIndex
-    
-    real(pre_obsReal) :: zdtb, obsPRM
-    integer :: idatyp, channelNumber, ichobs_a
-    integer :: headerIndex, bodyIndex, count
-    real(8) :: obsIn(tvs_maxChannelNumber), obsOut(tvs_maxChannelNumber)
-    real(8) :: sigmaObs, dlsum
-    integer :: list_chan(tvs_maxChannelNumber)
-    real(8) :: list_oer(tvs_maxChannelNumber)
-
-    pjo = 0.d0
-
-    if ( tvs_nobtov == 0) return    ! exit if there are not tovs data
-
-    ! 1.  Computation of (hx - z)/sigma for tovs data only
-
-    dlsum    = 0.d0
-    
-
-    ! loop over all header indices of the 'TO' family
-    call obs_set_current_header_list(obsSpaceData,'TO')
-    HEADER: do
-      headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER
-
-      ! Extract general information for this observation point
-      !      ------------------------------------------------------
-
-      ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if ( tovsIndex == -1 ) cycle HEADER
-       
-      sensorIndex = tvs_lsensor(tovsIndex)
-
-      ! Set the body list
-      ! (& start at the beginning of the list)
-      call obs_set_current_body_list(obsSpaceData, headerIndex)
-      count = 0
-      BODY: do 
-        bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if ( bodyIndex < 0 ) exit BODY
-
-        ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(obsSpaceData,obs_aSS,bodyIndex) /= obs_assimilated ) cycle BODY                
-
-        channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
-        ichobs_a = channelNumber
-        channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
-        if ( channelIndex == 0 ) then
-          write(*,'(A)') ' cfn_computeNlTovsJo: error with channel number'
-          call utl_abort('cfn_computeNlTovsJo')
-        end if
-
-        zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
-             tvs_radiance (tovsIndex) % bt(channelIndex)
-        if ( tvs_debug ) then
-          obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
-          write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
-               channelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
-               obsPRM, -zdtb
-        end if
-        call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
-
-        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                        sensorIndex, dest_obs, beSilent_opt=.true.)
-
-        sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-
-        if ( sigmaObs == MPC_missingValue_R8) cycle body
-
-        ! Comment out the modification of Jobs due to varqc for now, since this is probably
-        ! only needed for use of nonlinear obs operator in minimization, which is not yet
-        ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
-        !if (.not. min_lvarqc .or. obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex).eq.0.0d0) then
-        !dlsum =  dlsum &
-        !     + (zdtb * zdtb) / (2.d0 * sigmaObs * sigmaObs)
-        !else
-        !  compute contribution of data with varqc
-        !   zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex)
-        !   zjon = (zdtb* &
-        !           zdtb)/2.d0
-        !   zqcarg = zgami + exp(-1.0d0*zjon)
-        !   dlsum= dlsum - log(zqcarg/(zgami+1.d0))
-        !end if
-
-        count = count + 1
-        obsIn(count) = zdtb
-        if (.not. rmat_lnondiagr) obsOut(count) = obsIn(count) / sigmaObs
-        list_chan(count) = channelNumber
-        list_oer(count) = sigmaObs
-       
-      end do BODY
-
-      if (count >0) then
-        if (rmat_lnondiagr) then
-          call rmat_RsqrtInverseOneObs(sensorIndex,count,obsIn(1:count),obsOut(1:count),list_chan(1:count),list_oer(1:count),tovsIndex)
-        end if
-        dlsum =  dlsum + 0.5d0 * dot_product(obsOut(1:count), obsOut(1:count))
-      end if
-
-    end do HEADER
-
-    pjo = dlsum
-
-  end subroutine cfn_computeNlTovsJo
 
   !--------------------------------------------------------------------------
   ! readNameList

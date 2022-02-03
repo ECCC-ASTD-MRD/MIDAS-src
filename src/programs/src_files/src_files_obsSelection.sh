@@ -15,5 +15,5 @@ SRC_FILES="$SRC_FILES columnVariableTransforms_mod.f90 gridVariableTransforms_mo
 SRC_FILES="$SRC_FILES advection_mod.f90 bmatrixchem_mod.f90 diffusion_mod.f90 gridBinning_mod.f90 localization_mod.f90 obserrors_mod.f90 spectralfilter_mod.f90 statetocolumn_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 controlvector_mod.f90 costfunction_mod.f90 lambmatrixhi_mod.f90 obsOperatorsChem_mod.f90 tovs_lin_mod.f90"
 SRC_FILES="$SRC_FILES bmatrix_mod.f90 obsoperators_mod.f90"
-SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsspacediag_mod.f90 obsSpaceErrorStdDev_mod.f90"
+SRC_FILES="$SRC_FILES biascorrectionSat_mod.f90 multi_ir_bgck_mod.f90 obsspacediag_mod.f90 obsSpaceErrorStdDev_mod.f90 varqc_mod.f90"
 SRC_FILES="$SRC_FILES backgroundCheck_mod.f90 bgckcsr_mod.f90 bgckmicrowave_mod.f90 bgckOcean_mod.f90 bgckssmis_mod.f90 innovation_mod.f90 thinning_mod.f90 version_mod.f90"

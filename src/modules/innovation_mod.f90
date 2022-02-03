@@ -51,6 +51,9 @@ module innovation_mod
   use statetocolumn_mod
   use biascorrectionSat_mod
   use columnVariableTransforms_mod
+  use rmatrix_mod
+  use costFunction_mod
+  use varqc_mod
   implicit none
   save
   private
@@ -463,8 +466,9 @@ contains
   !--------------------------------------------------------------------------
   ! inn_computeInnovation
   !--------------------------------------------------------------------------
-  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt, &
-                                    destObsColumn_opt, beSilent_opt)
+  subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
+                                    applyVarqcOnNlJo_opt, destObsColumn_opt, &
+                                    beSilent_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
@@ -472,7 +476,8 @@ contains
     ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
-    integer, optional       :: outerLoopIndex_opt
+    logical, optional       :: filterObsAndInitOer_opt
+    logical, optional       :: applyVarqcOnNlJo_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
 
@@ -480,17 +485,24 @@ contains
     real(8) :: Jo, JoRaob, JoSatWind, JoSurfc
     real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
     real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
-    integer :: destObsColumn, get_max_rss, outerloopIndex
-    logical :: lgpdata, beSilent
+    integer :: destObsColumn, get_max_rss
+    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
+    logical, save :: lgpdata = .false.
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(outerLoopIndex_opt) ) then
-      outerLoopIndex = outerLoopIndex_opt
+    if ( present(filterObsAndInitOer_opt) ) then
+      filterObsAndInitOer = filterObsAndInitOer_opt
     else
-      outerLoopIndex = 1
+      filterObsAndInitOer = .true.
+    end if
+
+    if ( present(applyVarqcOnNlJo_opt) ) then
+      applyVarqcOnNlJo = applyVarqcOnNlJo_opt
+    else
+      applyVarqcOnNlJo = .false.
     end if
 
     if ( present(destObsColumn_opt) ) then
@@ -514,18 +526,18 @@ contains
     !
     ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-    if ( outerLoopIndex == 1 ) then
+    if ( filterObsAndInitOer ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo for outer-loop index=', outerLoopIndex
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
     
     ! Remove surface station wind observations
     if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
-      if ( outerLoopIndex == 1 ) then
+      if ( filterObsAndInitOer ) then
         call filt_surfaceWind(obsSpaceData,beSilent)
       else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind for outer-loop index=', outerLoopIndex
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if
     end if
     
@@ -537,172 +549,111 @@ contains
     call tmg_start(48,'NL_OBS_OPER')
     
     ! Radiosondes
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoRaob, 'UA', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
 
     ! Aircrafts
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAirep, 'AI', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AI', destObsColumn)
 
     ! SatWinds
-    if ( outerLoopIndex == 1 ) then
+    if ( filterObsAndInitOer ) then
       call oer_sw(columnTrlOnTrlLev,obsSpaceData)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw for outer-loop index=', outerLoopIndex
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
-    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSatWind, 'SW', destObsColumn)
+    call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSF, 'SF', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcUA, 'UA', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcSC, 'SC', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGP, 'GP', destObsColumn)
-    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcRA, 'RA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SF', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SC', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GP', destObsColumn)
+    call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! RADAR Doppler velocity
-    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent,JoRadVel,'RA', destObsColumn)  
+    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! Sea surface temperature
-    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcTM, 'TM', destObsColumn)
+    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
 
     ! Sea ice concentration
-    if ( outerLoopIndex == 1 ) then
+    if ( filterObsAndInitOer ) then
       call filt_iceConcentration(obsSpaceData, beSilent)
       call filt_backScatAnisIce(obsSpaceData, beSilent)
       call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce for outer-loop index=', outerLoopIndex
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if
-    call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSfcGL, 'GL', destObsColumn)
+    call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
 
     ! Hydrology
-    call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoSFCHY, 'HY', destObsColumn)
+    call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'HY', destObsColumn)
 
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, JoTov, bgckMode_opt=.true., destObs_opt=destObsColumn)
+                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, JoTov, bgckMode_opt=.false., destObs_opt=destObsColumn)
+                       beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
 
     ! Profilers
-    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoProf, 'PR', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'PR', destObsColumn)
 
     ! Aladin winds
-    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoAladin, 'AL', destObsColumn)
+    call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AL', destObsColumn)
 
     ! GPS radio occultation
     JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-      if ( outerLoopIndex == 1 ) then
+      if ( filterObsAndInitOer ) then
         call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
         call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
       else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO for outer-loop index=', outerLoopIndex
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
       end if
-      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsRO, destObsColumn)
+      call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     end if
 
     ! Chemical constituents
-    call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, JoChm, destObsColumn)
+    call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, destObsColumn)
 
     ! GPS ground-based zenith delay
     JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        if ( outerLoopIndex == 1 ) then
+        if ( filterObsAndInitOer ) then
           call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
         else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
         end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.true.)
       else
-        if ( outerLoopIndex == 1 ) then
+        if ( filterObsAndInitOer ) then
           call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
         else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB for outer-loop index=', outerLoopIndex
+          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
         end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, JoGpsGB,  &
+        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                        destObsColumn, analysisMode_opt=.false.)
       end if
     end if
 
     call tmg_stop(48)
 
-    ! Combine surface contributions
-    JoSurfc = JoSfcUA + JoSfcSF + JoSfcSC + JoSfcGP + JoSfcRA + JoSfcTM + JoSfcGL + JoSFCHY
+    ! Save as OBS_WORK : R**-1/2 (d)
+    call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
 
-    ! Compute total Jo
-    Jo = JoRaob  + JoAirep + JoSatWind + JoSurfc + JoTov + JoProf + JoAladin + &
-         JoGpsRO + JoGpsGB + JoChm     + JoRadVel
+    ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d)**2
+    call cfn_calcJo(obsSpaceData)
 
-    ! Print Jo components
-    if ( .not.beSilent ) then
-      write(*,*) 'Cost function values for this MPI task:'
-      write(*,'(a15,f30.16)') 'JoRaob   = ',JoRaob
-      write(*,'(a15,f30.16)') 'JoAirep  = ',JoAirep
-      write(*,'(a15,f30.16)') 'JoSurfc  = ',JoSurfc
-      write(*,'(a15,f30.16)') 'JoSfcTM  = ',JoSfcTM
-      write(*,'(a15,f30.16)') 'JoSfcGL  = ',JoSfcGL
-      write(*,'(a15,f30.16)') 'JoSfcSF  = ',JoSfcSF
-      write(*,'(a15,f30.16)') 'JoSfcUA  = ',JoSfcUA
-      write(*,'(a15,f30.16)') 'JoSfcSC  = ',JoSfcSC
-      write(*,'(a15,f30.16)') 'JoSfcGP  = ',JoSfcGP
-      write(*,'(a15,f30.16)') 'JoSfcRA  = ',JoSfcRA
-      write(*,'(a15,f30.16)') 'JoTov    = ',JoTov
-      write(*,'(a15,f30.16)') 'JoSatWind= ',JoSatWind
-      write(*,'(a15,f30.16)') 'JoProf   = ',JoProf
-      write(*,'(a15,f30.16)') 'JoAladin = ',JoAladin
-      write(*,'(a15,f30.16)') 'JoGpsRO  = ',JoGpsRO
-      write(*,'(a15,f30.16)') 'JoGpsGB  = ',JoGpsGB
-      write(*,'(a15,f30.16)') 'JoChm    = ',JoChm
-      write(*,'(a15,f30.16)') 'JoRadVel = ',JoRadVel
-      write(*,'(a15,f30.16)') 'Total Jo = ',Jo
+    ! applying varqc, if asked for
+    if ( applyVarqcOnNlJo ) call vqc_NlTl(obsSpaceData)
 
-      call mpi_allreduce_sumreal8scalar(JoRaob,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoAirep,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSurfc,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcSF,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcUA,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcSC,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcGP,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcRA,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoTov,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSatWind,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoProf,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoAladin,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoGpsRO,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoGpsGB,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoChm,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcTM,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoSfcGL,'GRID')
-      call mpi_allreduce_sumreal8scalar(JoRadVel,'GRID')
-
-      write(*,*) 'Cost function values summed for all MPI tasks:'
-      write(*,'(a15,f30.16)') 'JoRaob   = ',JoRaob
-      write(*,'(a15,f30.16)') 'JoAirep  = ',JoAirep
-      write(*,'(a15,f30.16)') 'JoSurfc  = ',JoSurfc
-      write(*,'(a15,f30.16)') 'JoSfcTM  = ',JoSfcTM
-      write(*,'(a15,f30.16)') 'JoSfcGL  = ',JoSfcGL
-      write(*,'(a15,f30.16)') 'JoSfcSF  = ',JoSfcSF
-      write(*,'(a15,f30.16)') 'JoSfcUA  = ',JoSfcUA
-      write(*,'(a15,f30.16)') 'JoSfcSC  = ',JoSfcSC
-      write(*,'(a15,f30.16)') 'JoSfcGP  = ',JoSfcGP
-      write(*,'(a15,f30.16)') 'JoSfcRA  = ',JoSfcRA
-      write(*,'(a15,f30.16)') 'JoTov    = ',JoTov
-      write(*,'(a15,f30.16)') 'JoSatWind= ',JoSatWind
-      write(*,'(a15,f30.16)') 'JoProf   = ',JoProf
-      write(*,'(a15,f30.16)') 'JoAladin = ',JoAladin
-      write(*,'(a15,f30.16)') 'JoGpsRO  = ',JoGpsRO
-      write(*,'(a15,f30.16)') 'JoGpsGB  = ',JoGpsGB
-      write(*,'(a15,f30.16)') 'JoChm    = ',JoChm
-      write(*,'(a15,f30.16)') 'JoRadVel = ',JoRadVel
-    end if ! beSilent
-
-    ! Sum Jo over all MPI tasks
-    call mpi_allreduce_sumreal8scalar(Jo,'GRID')
-    write(*,'(a15,f30.16)') 'Total Jo = ',Jo
+    ! Compute Jo components and print
+    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
+    if ( mpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)

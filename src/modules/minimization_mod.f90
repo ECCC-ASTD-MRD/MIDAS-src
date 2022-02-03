@@ -109,13 +109,19 @@ module minimization_mod
 
 CONTAINS
 
-  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt )
+  subroutine min_setup( nvadim_mpilocal_in, hco_anl_in, oneDVarMode_opt, &
+                        varqc_opt, nwoqcv_opt )
+    !
+    ! :Purpose: Reading NAMMIN namelist to setup variables for minimization.
+    !
     implicit none
 
     ! Arguments:
     integer, intent(in)                   :: nvadim_mpilocal_in
     type(struct_hco), pointer, intent(in) :: hco_anl_in
     logical, intent(in), optional         :: oneDVarMode_opt
+    logical, intent(out), optional        :: varqc_opt
+    integer, intent(out), optional        :: nwoqcv_opt
 
     ! Locals:
     integer :: ierr,nulnam
@@ -167,6 +173,9 @@ CONTAINS
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
 
+    if ( present(varqc_opt) ) varqc_opt = lvarqc
+    if ( present(nwoqcv_opt) ) nwoqcv_opt = nwoqcv
+
     if(LVARQC .and. mpi_myid == 0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     initialized=.true.
@@ -176,18 +185,27 @@ CONTAINS
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, numIterMaxInnerLoop, deallocHessian_opt, &
-                           isMinimizationFinalCall_opt )
+                           isMinimizationFinalCall_opt, numIterMaxInnerLoopUsed_opt )
+    !
+    ! :Purpose: Minimizing cost function to get the increments.
+    !           The maximum number of inner-loop iterations is set to nitermax if the
+    !           namelist variable nitermax is provided. Otherwise, it is set to the
+    !           numIterMaxInnerLoop supplied by the calling subroutine/program.
+    !           numIterMaxInnerLoopUsed_opt is passing the maximum number of inner-loop
+    !           iterations to the calling subroutine/program.
+    !
     implicit none
 
     ! Arguments:
-    integer                             :: outerLoopIndex_in
-    type(struct_columnData)             :: columnTrlOnAnlIncLev
-    type(struct_obs)                    :: obsSpaceData
-    real(8)                   , target  :: controlVectorIncrSum(:)
-    real(8)                             :: vazx(:)
-    integer                             :: numIterMaxInnerLoop
-    logical,                   optional :: deallocHessian_opt
-    logical,                   optional :: isMinimizationFinalCall_opt
+    integer, intent(in)                    :: outerLoopIndex_in
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    real(8), intent(inout)        , target :: controlVectorIncrSum(:)
+    real(8), intent(inout)                 :: vazx(:)
+    integer, intent(in)                    :: numIterMaxInnerLoop
+    integer, intent(out),         optional :: numIterMaxInnerLoopUsed_opt
+    logical, intent(in),          optional :: deallocHessian_opt
+    logical, intent(in),          optional :: isMinimizationFinalCall_opt
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
@@ -223,8 +241,9 @@ CONTAINS
     else if ( numIterMaxInnerLoop > 0 ) then
       numIterMaxInnerLoopUsed = numIterMaxInnerLoop
     else
-      call utl_abort('min_minimize: both nitermax and numIterMaxInnerLoop are negative values')
+      call utl_abort('min_minimize: one of the variables nIterMax and numIterMaxInnerLoop must be positive')
     end if
+    if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
@@ -497,9 +516,6 @@ CONTAINS
 
       endif ! if numIterMaxInnerLoopUsed > 0
 
-      ! Set the QC flags to be consistent with VAR-QC if control analysis
-      if(lvarqc) call vqc_listrej(obsSpaceData)
-
       ! deallocate the gradient
       deallocate(vazg)
       if ( deallocHessian .and. .not. lwrthess ) deallocate(vatra)
@@ -630,7 +646,7 @@ CONTAINS
 
        ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        IF ( LVARQC ) THEN
-         call vqc_tl(obsSpaceData_ptr) 
+         call vqc_NlTl(obsSpaceData_ptr)
        endif
 
        dl_Jo = 0.d0

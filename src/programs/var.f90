@@ -43,6 +43,8 @@ program midas_var
   use gridVariableTransforms_mod
   use increment_mod
   use biasCorrectionSat_mod
+  use varqc_mod
+  use tovs_nl_mod
 
   implicit none
 
@@ -70,16 +72,21 @@ program midas_var
   type(struct_hco)      , pointer :: hco_core => null()
 
   integer :: outerLoopIndex, ip3ForWriteToFile
+  integer :: numIterWithoutVarqc, numInnerLoopIterDone
+  integer :: numIterMaxInnerLoopUsed
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
+  logical :: varqcActive, applyVarqcOnNlJo
+  logical :: filterObsAndInitOer
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 3
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop
+  logical :: limitHuInOuterLoop, computeFinalNlJo
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
+  NAMELIST /NAMVAR/ computeFinalNlJo
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -110,6 +117,7 @@ program midas_var
   numOuterLoopIterations = 1
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
+  computeFinalNlJo = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -217,7 +225,8 @@ program midas_var
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupColumnsOnTrlLev
-  call min_setup( cvm_nvadim, hco_anl ) ! IN
+  call min_setup( cvm_nvadim, hco_anl,                                   & ! IN
+                  varqc_opt=varqcActive, nwoqcv_opt=numIterWithoutVarqc )  ! OUT
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'var: Problem allocating memory for ''controlVectorIncr''',ierr
@@ -226,6 +235,8 @@ program midas_var
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(2)
+
+  numInnerLoopIterDone = 0
 
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
@@ -252,13 +263,20 @@ program midas_var
     call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    ! Determine if to apply varqc to Jo of non-linear operator
+    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
+    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, outerLoopIndex_opt=outerLoopIndex )
+    filterObsAndInitOer = ( outerLoopIndex == 1 )
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
+                                filterObsAndInitOer_opt=filterObsAndInitOer, &
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      applyLimitOnHU = ( limitHuInOuterLoop .and. outerLoopIndex > 1 )
+      applyLimitOnHU = ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
@@ -274,7 +292,9 @@ program midas_var
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
-                       isMinimizationFinalCall_opt=isMinimizationFinalCall )
+                       isMinimizationFinalCall_opt=isMinimizationFinalCall, &
+                       numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoopUsed )
+    numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoopUsed
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Accumulate control vector increments of all the previous iterations
@@ -285,6 +305,8 @@ program midas_var
     if ( outerLoopIndex == numOuterLoopIterations ) then
       call bcs_writebias(controlVectorIncr)
     end if
+
+    call tvs_deallocateProfilesNlTlAd
 
     call gsv_allocate(stateVectorIncr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
@@ -300,8 +322,8 @@ program midas_var
                                      stateVectorUpdateHighRes, stateVectorPsfcHighRes )  ! OUT
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Impose limits on stateVectorUpdateHighRes only when outerLoopIndex > 1
-    if ( limitHuInOuterLoop .and. outerLoopIndex > 1 ) then
+    ! Impose limits on stateVectorUpdateHighRes only when outer loop is used.
+    if ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
       call qlim_saturationLimit( stateVectorUpdateHighRes )
       call qlim_rttovLimit( stateVectorUpdateHighRes )
@@ -323,6 +345,28 @@ program midas_var
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
+
+  ! Set the QC flags to be consistent with VAR-QC if control analysis
+  if ( varqcActive ) call vqc_listrej(obsSpaceData)
+
+  if ( computeFinalNlJo ) then
+    ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+    call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                   stateVectorUpdateHighRes )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Determine if to apply varqc to Jo of non-linear operator
+    applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
+    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    filterObsAndInitOer = .false.
+    call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
+                                destObsColumn_opt=OBS_OMA, &
+                                filterObsAndInitOer_opt=filterObsAndInitOer, &
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  end if
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()

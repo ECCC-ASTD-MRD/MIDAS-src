@@ -294,7 +294,7 @@ module rMatrix_mod
 
     ! Locals:
     integer :: bodyIndex, headerIndex
-    integer :: idata, idatend, idatyp, count, ichn
+    integer :: idata, idatend, idatyp, count, channelNumber, channelIndex
     real(8) :: obsIn( tvs_maxChannelNumber ), obsOut( tvs_maxChannelNumber )
     integer :: list_chan( tvs_maxChannelNumber )
     real(8) :: list_OER( tvs_maxChannelNumber )
@@ -313,10 +313,10 @@ module rMatrix_mod
         do bodyIndex = idata, idatend
 
           if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated ) then
-            ichn = nint( obs_bodyElem_r( obsspacedata, OBS_PPP, bodyIndex ))
-            ichn = max( 0, min( ichn, tvs_maxChannelNumber + 1 ))
+            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex )
             count = count + 1
-            list_chan( count ) = ichn
+            list_chan( count ) = channelNumber
             list_OER( count ) = obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex )
             obsIn( count ) = obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex )
           end if
