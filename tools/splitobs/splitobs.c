@@ -5360,7 +5360,7 @@ void aide(void) {
 
   printf("Ce programme permet d'extraire les observations d'une base de donnees\n");
   printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard RPN.\n");
-  printf("Il permet aussi de separer les observations en differents fichiers.\n\n");
+  printf("Il permet aussi de separer les observations en plusieurs fichiers.\n\n");
 
   printf("Les arguments pour ce programme sont:\n");
   printf("  %s        [fichier d'input dans lequel observations sont contenues]\n", OBSIN_OPTION);
@@ -5388,17 +5388,20 @@ void aide(void) {
   printf("  %s         [nombre de bandes de longitudes (selon i)]\n", NPEX_OPTION);
   printf("  %s         [nombre de bandes de latitudes  (selon j)]\n\n", NPEY_OPTION);
 
-  printf("On peut extraire seulement un seul fichier d'une operation de splitting plutot que de les extraire tous en même temps avec ces options:\n");
+  printf("On peut extraire seulement un seul fichier d'une operation de splitting plutot que de les extraire tous en meme temps avec ces options:\n");
   printf("  %s            [numero de la composante selon 'x']\n", CHERRYPICK_X_OPTION);
   printf("  %s            [numero de la composante selon 'y']\n\n", CHERRYPICK_Y_OPTION);
 
-  printf("Activation de la verification, a chaque enregistrement, si on est en presence d'un UA multi-niveaux (ua4d)\n");
+  printf("Activation de la verification, a chaque enregistrement, si on est en presence d'un UA multi-niveaux (ua4d):\n");
   printf("  %s\n\n", CHECK_UA4D_OPTION);
 
-  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n");
-  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin pour selectionner les observations (par defaut '%s')]\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
-  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
-  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
+  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n\n");
+  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin\n", RDB_SPLITONKEY_OPTION);
+  printf("                  pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
+  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et\n", RDB_HEADER_OPTION);
+  printf("                  l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n\n", RDB_HEADER_DEFAUT);
+  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou \n", RDB_DATA_OPTION);
+  printf("                   le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n\n", RDB_DATA_DEFAUT);
 
   printf("Les options suivantes servent a identifier le champ qui definit le domaine (fonction RMNLIB 'fstinf'):\n");
   printf("  %s    [nomvar du champ qu'on veut lire] (par defaut, PN)\n", NOMVAR_OPTION);
@@ -5415,12 +5418,13 @@ void aide(void) {
   printf("On peut aussi filtrer verticalement en utilisant ces criteres\n");
   printf("  %s  [niveau en hPa pour lequel toute observation au dessus sera enlevee] (defaut, -1 donc aucun niveau maximum)\n", NIVEAU_MAX_OPTION);
   printf("  %s  [niveau en hPa pour lequel toute observation en dessous sera enlevee] (defaut, -1 donc aucun niveau minimal)\n", NIVEAU_MIN_OPTION);
-  printf("  %s          [fichier standard RPN qui contiendra un champ GZ qui donnera la hauteur avec "
-	 "laquelle les observations seront filtrees verticalement] (doit etre specifie si une conversion de pression en hauteur necessaire)\n", GZ_OPTION);
-  printf("\n");
+  printf("  %s          [fichier standard RPN qui contiendra un champ GZ qui donnera la hauteur avec\n", GZ_OPTION);
+  printf("                   laquelle les observations seront filtrees verticalement]\n");
+  printf("                   (doit etre specifie si une conversion de pression en hauteur necessaire)\n\n");
+
   printf("Les observations du type 'ai' et 'ua' ont une coordonnee verticale en pression (hPa) donc la selection est directe.  \n");
   printf("Les observations du type 'pr' et 'ro' ont une coordonnee verticale en metres, on donne alors\n");
-  printf("    un critere vertical (hPa) en pression et un champ GZ a lire dans le fichier standard specifie avec l'option %s\n\n", GZ_OPTION);
+  printf("un critere vertical (hPa) en pression et un champ GZ a lire dans le fichier standard specifie avec l'option %s\n\n", GZ_OPTION);
 
   printf("Dans le cas des observations satellitaires, on specifie plutot les canaux voulus avec l'option:\n");
   printf("  %s   [liste separee par des virgules, sans espace aucun, des canaux voulus (pour un maximum de %d caracteres en tout)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
@@ -5429,7 +5433,8 @@ void aide(void) {
 
   printf("\n");
 
-  printf("  %s [degre de verbosite (par defaut, 0)]\n\n", VERBOSE_OPTION);
+  printf("Degre de verbosite:\n");
+  printf("  %s [par defaut, %d]\n\n", VERBOSE_OPTION, VERBOSE);
 
   printf("  %s ou %s ou [affiche cette aide]\n", AIDE_OPTION1, AIDE_OPTION2);
   printf("  %s or %s or %s [print an English help message]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
@@ -5480,7 +5485,7 @@ void help(void) {
   printf("  %s            [tile number along 'x' component]\n", CHERRYPICK_X_OPTION);
   printf("  %s            [tile number along 'y' component]\n\n", CHERRYPICK_Y_OPTION);
 
-  printf("Activation of the verification for each record if it is a multi-level UA profile (ua4d)\n");
+  printf("Activation of the verification for each record if it is a multi-level UA profile (ua4d):\n");
   printf("  %s\n\n", CHECK_UA4D_OPTION);
 
   printf("When processing SQLite files, we can use those options to specify where to find some information:\n\n");
@@ -5511,7 +5516,7 @@ void help(void) {
 
   printf("The observations 'ai' and 'ua' have a pressure vertical coordinate (hPa) so the selection is straightforward.  \n");
   printf("The observations 'pr' and 'ro' have a vertical coordinate in meters, so we need to give\n");
-  printf("    pressure criteria (hPa) and a GZ field to read from the file specify with the option %s\n\n", GZ_OPTION);
+  printf("pressure criteria (hPa) and a GZ field to read from the file specify with the option %s\n\n", GZ_OPTION);
 
   printf("For satellite observations, we specify the wanted channels with the option:\n");
   printf("  %s   [comma separated list (without any space) of the wanted channels (for a maximum of %d total characters)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
@@ -5520,7 +5525,8 @@ void help(void) {
 
   printf("\n");
 
-  printf("  %s [verbosity level (by default, 0)]\n\n", VERBOSE_OPTION);
+  printf("Verbosity level:\n");
+  printf("  %s [by default, %d]\n\n", VERBOSE_OPTION, VERBOSE);
 
   printf("  %s or %s or %s [print this help message]\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
   printf("  %s ou %s ou [affiche cette aide en francais]\n\n", AIDE_OPTION1, AIDE_OPTION2);
