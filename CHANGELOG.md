@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Compute non-linear Jo similar to linearized operator, applying varqc in non-linear operator, and calling non-linear operator outside outer-loop to get final Jo (#572 and !537)
  * Added a program to generate pseudo SST observatons (#565 and !534)
  * Added ability to scale (e.g. taper) the LAM Bnmc StdDev in calcStats (#557 and !531)
  * Added ability to use each member for converting LQ to HU for HIP (#551 and !528)
@@ -62,6 +61,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Compute non-linear Jo linearized Jo, including varQC; optionally compute final non-linear Jo after minimization (#572 and !537)
  * Remove reference to any table name when splitting in round-robin mode using `midas.splitobs.Abs` (#573 and !538)
     * The option `-primarykey` has been renamed `-split-on-key`.  This option was added in #570.
  * Generalize the input table names and primary key for program `midas.splitobs.Abs` (#570 and !536)
