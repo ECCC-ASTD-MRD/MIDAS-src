@@ -124,7 +124,8 @@ ifndef MIDAS_COMPILE_DIR_MAIN
 MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
 endif
 ifndef MIDAS_ABS_LEAFDIR
-MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | cut -d'=' -f2)
+MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | sed $(__sed_env_extr))
+
 endif
 ifndef MIDAS_COMPILE_JOBNAME
 MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
