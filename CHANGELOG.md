@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Translated in English the command-line documentation of `midas.splitobs.Abs` (#577 and !541)
  * New subroutine to update the `Days Since Last Obs` in program `midas-analysisErrorOI` (#563 and !540)
    * minor impact only for midas-analysisErrorOI
  * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
