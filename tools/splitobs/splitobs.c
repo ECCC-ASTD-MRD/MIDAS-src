@@ -5358,8 +5358,9 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
  ***************************************************************************/
 void aide(void) {
 
-  printf("Ce programme permet d'extraire les observations d'une base de donnees\n");
-  printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard RPN.\n");
+  printf("Ce programme permet d'extraire les observations d'une base de donnees qui sont a l'interieur\n");
+  printf("du domaine d'une grille definie par champ d'un fichier standard RPN.\n\n");
+
   printf("Il permet aussi de separer les observations en plusieurs fichiers.\n\n");
 
   printf("Les arguments pour ce programme sont:\n");
@@ -5368,12 +5369,12 @@ void aide(void) {
 
   printf("     Le fichier d'input peut etre un fichier BURP, RDB (SQLite) ou ASCII (avec un format precis)\n\n");
 
-  printf("  %s  [On utilise la methode 'round-robin' pour separer les enregistrements d'un fichier BURP ou RDB en parties egales.]\n\n", ROUNDROBIN_OPTION);
+  printf("  %s  [Utilisation de la methode 'round-robin' pour separer les enregistrements d'un fichier BURP ou RDB en parties egales]\n\n", ROUNDROBIN_OPTION);
 
   printf("  %s        [fichier standard RPN d'entree dans lequel on va chercher le champ voulu]\n\n", FSTIN_OPTION);
 
-  printf("  %s        [On decide si on prend les observations a l'interieur (si egal a '1')\n", INOUT_OPTION);
-  printf("                 ou a l'exterieur (valeur = 0) du domaine. ] (par defaut, %d, a l'interieur du domaine)\n\n", INOUT_DEFAUT);
+  printf("  %s        [On decide si on prend les observations a l'interieur (si egal a '1') ou a l'exterieur (valeur = 0) du domaine]\n", INOUT_OPTION);
+  printf("                 (par defaut, %d, a l'interieur du domaine)\n\n", INOUT_DEFAUT);
 
   printf("  %s        [On decide si on utilise une zone tampon (par defaut, %d points a l'interieur du domaine)]\n\n", PILOT_OPTION, PILOT_DEFAUT);
 
@@ -5416,7 +5417,7 @@ void aide(void) {
   printf("  %s       [ip3 du champ qu'on veut lire] (par defaut, -1)\n\n", IP3_OPTION);
 
   printf("On peut aussi filtrer verticalement en utilisant ces criteres\n");
-  printf("  %s  [niveau en hPa pour lequel toute observation au dessus sera enlevee] (defaut, -1 donc aucun niveau maximum)\n", NIVEAU_MAX_OPTION);
+  printf("  %s  [niveau en hPa pour lequel toute observation au dessus sera enlevee] (defaut, -1 donc aucun niveau maximal)\n", NIVEAU_MAX_OPTION);
   printf("  %s  [niveau en hPa pour lequel toute observation en dessous sera enlevee] (defaut, -1 donc aucun niveau minimal)\n", NIVEAU_MIN_OPTION);
   printf("  %s          [fichier standard RPN qui contiendra un champ GZ qui donnera la hauteur avec\n", GZ_OPTION);
   printf("                   laquelle les observations seront filtrees verticalement]\n");
@@ -5451,8 +5452,9 @@ void aide(void) {
  ***************************************************************************/
 void help(void) {
 
-  printf("This programs extracts observations from a database\n");
-  printf("which are inside the domain of a grid as defined by a RPN standard file.\n");
+  printf("This programs extracts observations from a database which are inside \n");
+  printf("the domain of a grid as defined by a field in a RPN standard file.\n\n");
+
   printf("It can also split the observations into several files.\n\n");
 
   printf("The arguments of this program are:\n");
@@ -5461,12 +5463,12 @@ void help(void) {
 
   printf("     The input file can be a BURP file, a RDB (SQLite) or ASCII (with a specific format)\n\n");
 
-  printf("  %s  [Set the round-robin method to split the observations in equal parts]\n\n", ROUNDROBIN_OPTION);
+  printf("  %s  [Use the round-robin method to split the observations in equal parts]\n\n", ROUNDROBIN_OPTION);
 
   printf("  %s        [input RPN standard file that contains the field which defines the domain]\n\n", FSTIN_OPTION);
 
-  printf("  %s        [Decide whether observations inside the domain are chosen (if equals to '1')\n", INOUT_OPTION);
-  printf("                 or outside the domain (if equals to '0') (default, %d, inside the domain)]\n\n", INOUT_DEFAUT);
+  printf("  %s        [Decide whether observations inside the domain are chosen (if equals to '1') or outside the domain (if equals to '0')\n", INOUT_OPTION);
+  printf("                 (default, %d, inside the domain)]\n\n", INOUT_DEFAUT);
 
   printf("  %s        [Decide to use a piloting buffer region (default, %d points inside the domain)]\n\n", PILOT_OPTION, PILOT_DEFAUT);
 
@@ -5489,8 +5491,8 @@ void help(void) {
   printf("  %s\n\n", CHECK_UA4D_OPTION);
 
   printf("When processing SQLite files, we can use those options to specify where to find some information:\n\n");
-  printf("  %s [key which binds the tables together.\n", RDB_SPLITONKEY_OPTION);
-  printf("                  It is also used in the round-robin mode to select the observations (default '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
+  printf("  %s [key which binds the tables together which is also used in the round-robin mode\n", RDB_SPLITONKEY_OPTION);
+  printf("                  to select the observations (default '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
   printf("  %s       [table which contains the latitude (column 'lat'), the longitude (column 'lon') and\n", RDB_HEADER_OPTION);
   printf("                  elevation (column 'elev') of the station if necessary (default '%s')]\n\n", RDB_HEADER_DEFAUT);
   printf("  %s         [table which contains the information about the height of each observation\n", RDB_DATA_OPTION);
