@@ -19,12 +19,13 @@ stages:
 midas_build:
   stage: build
   script:
-    - cd src/programs
-    - ./compile_all_plat.sh $MIDAS_ABS
+    - cd src
+    - (export MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS __exec_leafdir_midas='' MIDAS_COMPILE_CLEAN=true && ./midas_build)
   only:
     - master
     - v_3.6
     - tags
+    - 447-modify-ci-for-use-with-makefile
   tags:
     - hpcr-u1
 
@@ -101,6 +102,7 @@ midas_tests:
      - master
      - v_3.6
      - tags
+     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
