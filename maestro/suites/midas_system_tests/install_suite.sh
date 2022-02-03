@@ -11,11 +11,10 @@ ${toplevel}/set_resources_def.sh
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0-beta"}
+which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.4
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.4
     which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.7.1
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
     which r.date      1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/19.6.0
 else
     echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'ubuntu-18.04-skylake-64' and 'rhel-8-icelake-64' are!" >&2
