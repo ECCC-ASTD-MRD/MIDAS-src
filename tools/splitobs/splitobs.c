@@ -5397,10 +5397,13 @@ void aide(void) {
   printf("  %s\n\n", CHECK_UA4D_OPTION);
 
   printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n\n");
+
   printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin\n", RDB_SPLITONKEY_OPTION);
   printf("                  pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
+
   printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et\n", RDB_HEADER_OPTION);
   printf("                  l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n\n", RDB_HEADER_DEFAUT);
+
   printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou \n", RDB_DATA_OPTION);
   printf("                   le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n\n", RDB_DATA_DEFAUT);
 
@@ -5429,6 +5432,7 @@ void aide(void) {
 
   printf("Dans le cas des observations satellitaires, on specifie plutot les canaux voulus avec l'option:\n");
   printf("  %s   [liste separee par des virgules, sans espace aucun, des canaux voulus (pour un maximum de %d caracteres en tout)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
+
   printf("ou bien plutot ceux que l'on ne veut pas avec l'option:\n");
   printf("  %s [liste separee par des virgules, sans espace aucun, des canaux exclus (pour un maximum de %d caracteres en tout)]\n", NOCHANNELS_OPTION, MAXSTR_CHANNELS);
 
@@ -5491,10 +5495,13 @@ void help(void) {
   printf("  %s\n\n", CHECK_UA4D_OPTION);
 
   printf("When processing SQLite files, we can use those options to specify where to find some information:\n\n");
+
   printf("  %s [key which binds the tables together which is also used in the round-robin mode\n", RDB_SPLITONKEY_OPTION);
   printf("                  to select the observations (default '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
+
   printf("  %s       [table which contains the latitude (column 'lat'), the longitude (column 'lon') and\n", RDB_HEADER_OPTION);
   printf("                  elevation (column 'elev') of the station if necessary (default '%s')]\n\n", RDB_HEADER_DEFAUT);
+
   printf("  %s         [table which contains the information about the height of each observation\n", RDB_DATA_OPTION);
   printf("                   or the satellite channel (column 'vcoord') (default '%s')]\n\n", RDB_DATA_DEFAUT);
 
@@ -5516,12 +5523,13 @@ void help(void) {
   printf("  %s          [RPN standard file which contains the GZ field to convert the pressure into meters\n", GZ_OPTION);
   printf("                to use the pressure levels as vertical criteria] (must be specified pressure to height conversion is needed)\n\n");
 
-  printf("The observations 'ai' and 'ua' have a pressure vertical coordinate (hPa) so the selection is straightforward.  \n");
+  printf("The observations 'ai' and 'ua' have a pressure vertical coordinate (hPa) so the selection is straightforward.\n");
   printf("The observations 'pr' and 'ro' have a vertical coordinate in meters, so we need to give\n");
   printf("pressure criteria (hPa) and a GZ field to read from the file specify with the option %s\n\n", GZ_OPTION);
 
   printf("For satellite observations, we specify the wanted channels with the option:\n");
   printf("  %s   [comma separated list (without any space) of the wanted channels (for a maximum of %d total characters)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
+
   printf("or the channels that are not wanted with the option:\n");
   printf("  %s [comma separated list (without any space) of the channels that are not wanted (for a maximum of %d total characters)]\n", NOCHANNELS_OPTION, MAXSTR_CHANNELS);
 
