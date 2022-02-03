@@ -15,7 +15,20 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    . r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0
+    # . r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0
+    # . ssmuse-sh -x /fs/ssm/main/opt/intelcomp/inteloneapi-2021.4.0
+
+    # instead of loading the whole OneAPI Intel compiler environment, we only load the essential
+    # things to be able to run
+    #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_390802
+    . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2021.4.0_multi/oneapi/compiler/2021.4.0/env/vars.sh
+    . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2021.4.0_multi/oneapi/mpi/2021.4.0/env/vars.sh
+    export I_MPI_F77=ifort
+    export I_MPI_F90=ifort
+    export I_MPI_FC=ifort
+    export I_MPI_CC=icc
+    export I_MPI_CXX=icpc
+
     ## essential variables
     export UCX_NET_DEVICES=mlx5_0:1
     export I_MPI_HYDRA_BOOTSTRAP=ssh
