@@ -13,7 +13,6 @@
    calcHeightPressIncrOnColumn = .FALSE.,
 /
  &NAMRADVEL 
-   maxRangeInterp = 15000.0D0,
 /
  &NAMDIMO
    NMXOBS=400000,

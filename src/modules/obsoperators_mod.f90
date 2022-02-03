@@ -41,6 +41,7 @@ module obsOperators_mod
   use obsOperatorsChem_mod
   use obserrors_mod
   use slantprofilelatlon_mod
+  use radvel_mod
  implicit none
   save
   private
@@ -931,17 +932,12 @@ contains
 
     ! locals
     integer :: bodyIndex, headerIndex, levelIndex, numLevels, bufrCode
-    integer :: fnom, fclos, nulnam, ierr
     real(8) :: observedDoppler, simulatedDoppler
     real(8) :: levelAltLow, levelAltHigh
-    real(8) :: radarAltitude, beamAzimuth, beamElevation, obsRange, obsAltitude
+    real(8) :: radarAltitude, beamAzimuth, beamElevation, obsAltitude
     real(8) :: uuLow, uuHigh, vvLow, vvHigh, uuInterpolated, vvInterpolated
-    real(8) :: interpWeight, maxRangeInterp
-
-    namelist /namradvel/ maxRangeInterp
     
-    ! default value 
-    maxRangeInterp = -1.0D0
+    real(8) :: interpWeight, zinc, zoer
 
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) 'Entering subroutine oop_raDvel_nl, family: ', trim(cdfam)
@@ -984,15 +980,8 @@ contains
         ! only process observations flagged to be assimilated
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
 
-        !altitude AGL of observation
-        obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
-        if (obsAltitude == real(MPC_missingValue_R8, pre_obsReal)) then
-          ! Altitude info was not in observation file, compute it and save result
-          obsRange = obs_bodyElem_r(obsSpaceData, OBS_LOCI, bodyIndex) 
-          call slp_radar_getHfromRange(obsRange, radarAltitude, beamElevation, obsAltitude)
-          call obs_bodySet_r(obsSpaceData, OBS_PPP, bodyIndex, obsAltitude)
-        end if
-       
+        obsAltitude  = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
+
         !find model levels that bracket the observation
         !   note to self:   like in GEM, level=1 is the highest level
         do levelIndex = 1, numLevels-1
@@ -1000,19 +989,6 @@ contains
           levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
           if (levelAltLow < obsAltitude) exit 
         end do
-
-        ! deactivate this check until slp_radar_getRangefromH() is fixed
-        !
-        !!observations are rejected if horizontal distance between levels is too large
-        !if (maxRangeInterp > 0.0) then
-        !  call slp_radar_getRangefromH(levelAltLow,  radarAltitude, beamElevation, levelRangeNear)
-        !  call slp_radar_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
-        !  if (abs(levelRangeFar-levelRangeNear) > maxRangeInterp) then
-        !    obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
-        !    call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
-        !    cycle BODY
-        !  end if
-        !end if
 
         !vertical interpolation of model wind at observation height
         interpWeight = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
