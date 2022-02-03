@@ -123,8 +123,8 @@ __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
 ifndef MIDAS_COMPILE_DIR_MAIN
 MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
 endif
-ifndef __exec_leafdir_midas
-__exec_leafdir_midas := $(shell cat $(FILE_CFG) | grep __exec_leafdir_midas= | cut -d'=' -f2)
+ifndef MIDAS_ABS_LEAFDIR
+MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | cut -d'=' -f2)
 endif
 ifndef MIDAS_COMPILE_JOBNAME
 MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
@@ -303,7 +303,7 @@ DEP_ABS	= 	dep.abs.inc
 
 ##  MIDAS installed programs with version signature
 ABS_COMPILED := $(notdir $(wildcard $(CURDIR)/*.Abs))
-ABS_INSTALL_DIR = $(MIDAS_COMPILE_DIR_MAIN)/$(__exec_leafdir_midas)
+ABS_INSTALL_DIR = $(MIDAS_COMPILE_DIR_MAIN)/$(MIDAS_ABS_LEAFDIR)
 ABS_INSTALL_PRFX = $(ABS_INSTALL_DIR)/midas-
 ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),\

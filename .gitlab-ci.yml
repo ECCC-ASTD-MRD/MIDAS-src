@@ -20,7 +20,7 @@ midas_build:
   stage: build
   script:
     - cd src
-    - (export MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS __exec_leafdir_midas='' MIDAS_COMPILE_CLEAN=true && ./midas_build)
+    - (export MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true && ./midas_build)
   only:
     - master
     - v_3.6

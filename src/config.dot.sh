@@ -41,8 +41,7 @@ MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 ##  these should not be changed unless you know what you're doing
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
-
-__exec_leafdir_midas=midas_abs
+MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
 __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
@@ -81,7 +80,7 @@ export MIDAS_COMPILE_BACKEND
 export MIDAS_COMPILE_DO_BACKEND
 export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
-export __exec_leafdir_midas
+export MIDAS_ABS_LEAFDIR
 export __install_always_midas 
 export MIDAS_COMPILE_NCORES
 export MIDAS_COMPILE_VERBOSE
