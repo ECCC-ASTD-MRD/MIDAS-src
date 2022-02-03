@@ -136,8 +136,8 @@ contains
     integer, parameter :: numWriteMax = 10
     integer :: headerIndex, bodyIndex, iterationCount, singularIndex, levelIndex
     integer :: nlv_T, flag
-    integer, save :: numWrites = 0
-    real(8), pointer :: p_column(:)
+    integer :: numWrites
+    real(8), pointer :: pressureProfile(:)
     logical :: good
     ! external functions
 
@@ -147,47 +147,39 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     nlv_T = col_getNumLev(column, 'TH')
-
-    !if (.not. doSlantPath) then
-    !  write(*,*) "pressureProfileMonotonicityCheck: nothing to do: exiting"
-    !  return
-    !end if
+    numWrites = 0
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-
-      ! process only radiance data to be assimilated?
-      !idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      !if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
      
-      p_column  => col_getColumn(column, headerIndex, 'P_T')
-      good = .true.
+      pressureProfile  => col_getColumn(column, headerIndex, 'P_T')
       !Should the check be done also on pressure on momentum levels (not used for radiances) ?
+      good = .true.
       iterationCount = 0
-      do
+      iterationLoop:do
         singularIndex = -1
         levelSearch:do levelIndex = 1, nlv_T - 1
-          if ( p_column(levelIndex) > p_column(levelIndex+1)) then
+          if ( pressureProfile(levelIndex) > pressureProfile(levelIndex+1)) then
             singularIndex = levelIndex
             exit levelSearch
           end if
         end do levelSearch
-        if ( singularIndex == -1 ) exit !regular profile or correction OK
+        if ( singularIndex == -1 ) exit iterationLoop !regular profile or correction OK
         iterationCount = iterationCount + 1
         if (iterationCount == 1 .and. numWrites < numWriteMax) then
           good = .false.
           numWrites = numWrites + 1
-          write(*,*) "found non monotonic pressure profile:", p_column
+          write(*,*) "pressureProfileMonotonicityCheck: found non monotonic pressure profile:", pressureProfile
         end if
         if (singularIndex == 1) then !should never happen
-          write(*,*) "pressureProfileMonotonicityCheck: ", p_column(1:2)
+          write(*,*) "pressureProfileMonotonicityCheck: ", pressureProfile(1:2)
           call utl_abort("pressureProfileMonotonicityCheck: profile in the wrong order ?")
         end if
-        p_column(singularIndex) = 0.5d0 * ( p_column(singularIndex - 1) + p_column(singularIndex + 1) )
-        write(*,*) "pressureProfileMonotonicityCheck: profile iteration", numWrites, iterationCount
-      end do
+        pressureProfile(singularIndex) = 0.5d0 * ( pressureProfile(singularIndex - 1) + pressureProfile(singularIndex + 1) )
+        write(*,*) "pressureProfileMonotonicityCheck: profile iteration", iterationCount
+      end do iterationLoop
 
       if (.not. good) then
         call obs_set_current_body_list(obsSpaceData, headerIndex)
