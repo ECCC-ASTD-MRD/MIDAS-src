@@ -1285,109 +1285,115 @@ end subroutine filt_topoAISW
     !
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
     integer :: fnom, fclos, nulnam, ierr, levelIndex
-    real(8) :: obsaltitude, obsrange, radaraltitude, beamelevation, levelaltlow,levelAltHight
+    real(8) :: obsaltitude, obsrange, radaraltitude, beamelevation, levelaltlow, levelAltHigh
     real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
     
     namelist /namradvel/ maxRangeInterp
     !
     if (.not.beSilent) then
       write(*,*)
-      write(*,*) 'filt_radvelso: begin'
+      write(*,*) 'filt_radvel: begin'
     end if
     
     ! default value 
     maxRangeInterp = -1.0D0
 
     ! reading namelist variables
-    if (utl_isNamelistPresent('namradvel', './flnml')) then
+    if ( utl_isNamelistPresent('namradvel', './flnml') ) then
       nulnam=0
-      ierr=fnom(nulnam,'./flnml', 'FTN+SEQ+R/O', 0)
+      ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
       read(nulnam, nml=namradvel, iostat=ierr)
-      if (ierr /= 0) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
-      if (.not.beSilent) write(*,nml=namradvel)
-      ierr=fclos(nulnam)
-    else if (.not. beSilent) then
+      if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+      if ( .not. beSilent ) write(*,nml=namradvel)
+      ierr = fclos(nulnam)
+    else if ( .not. beSilent ) then
       write(*,*)
-      write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
+      write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
     end if
     !
     ! Loop over all header indices of the 'RO' family:
     !
-    call obs_set_current_header_list(obsSpaceData,'RA')
+    call obs_set_current_header_list(obsSpaceData, 'RA')
     !
     ! Loop over all header indices of the 'RA' family with schema 'radvel':
     !
     HEADER: do  
 
       headerIndex = obs_getHeaderIndex(obsSpaceData)  
-      if (headerIndex < 0) exit HEADER
+      if ( headerIndex < 0 ) exit HEADER
   
-      numLevels = col_getNumLev(columnTrlOnTrlLev,'MM')
+      numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       !
       ! Loop over all body indices of the 'RA' family with schema 'radvel':
       !
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if (bodyIndex < 0) exit BODY
+        if ( bodyIndex < 0 ) exit BODY
         ! Check that this observation has the expected bufr element ID
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-        if (bufrCode /= bufr_radvel) cycle BODY
+        if ( bufrCode /= bufr_radvel ) cycle BODY
         ! only process observations flagged to be assimilated
-        if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
+        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
 
         !altitude AGL of observation
         beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
         radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
         obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
-        if (obsAltitude == real(MPC_missingValue_R8, pre_obsReal)) then
+        if ( obsAltitude == real(MPC_missingValue_R8, pre_obsReal) ) then
           ! Altitude info was not in observation file, compute it and save result
           obsRange = obs_bodyElem_r(obsSpaceData, OBS_LOCI, bodyIndex) 
-          call rdv_radar_getHfromRange(obsRange, radarAltitude, beamElevation, obsAltitude)
+          call radvel_getHfromRange(obsRange, radarAltitude, beamElevation, obsAltitude)
           call obs_bodySet_r(obsSpaceData, OBS_PPP, bodyIndex, obsAltitude)
         end if
 
         !find model levels that bracket the observation
         !   note to self:   like in GEM, level=1 is the highest level
         do levelIndex = 1, numLevels-1
-          levelAltHight= col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
-          levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
-          if (levelAltLow < obsAltitude) exit 
-        end do
-        !observations are rejected if horizontal distance between levels is too large
-        if (maxRangeInterp > 0.0) then
-          if (levelAltLow<radarAltitude) then 
-            levelRangeNear=0.0
-          else
-            call rdv_radar_getRangefromH(levelAltLow,  radarAltitude, beamElevation, levelRangeNear)
+          levelAltLow = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
+          if ( levelAltLow < obsAltitude ) then
+            levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex, headerIndex,'MM')
+            exit 
           end if
-          call rdv_radar_getRangefromH(levelAltHight, radarAltitude, beamElevation, levelRangeFar )
-          if (abs(levelRangeFar-levelRangeNear) > maxRangeInterp) then
-            call obs_bodySet_i(obsSpaceData,OBS_ASS, bodyindex, obs_notAssimilated)
+        end do
+
+        !observations are rejected if horizontal distance between levels is too large
+        if ( maxRangeInterp > 0.0 ) then
+          if ( levelAltLow < radarAltitude ) then 
+            levelRangeNear = 0.0
+          else
+            call radvel_getRangefromH(levelAltLow, radarAltitude, beamElevation, levelRangeNear)
+          end if
+          call radvel_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
+
+          if ( abs(levelRangeFar-levelRangeNear) > maxRangeInterp ) then
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
             obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
             call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
             cycle BODY
           end if
         end if
-        !  observations are rejected if observation is below the height of last model level
-        levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex,'MM')
-        if (levelAltLow > obsAltitude) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS, bodyindex, obs_notAssimilated)
+
+        !observations are rejected if observation is below the height of last model level
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex, 'MM')
+        if ( levelAltLow > obsAltitude ) then
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
           obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
         end if
-        !  observations are rejected if observation is above the height of first model level
-        levelAltHight =  col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
-        if (levelAltHight < obsAltitude) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS, bodyindex, obs_notAssimilated)
+
+        !observations are rejected if observation is above the height of first model level
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
+        if ( levelAltHigh < obsAltitude ) then
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
           obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
         end if
         
       end do Body
-    end do header  
-      if (.not.beSilent) write(*,*) 'filt_radvel: end'
+    end do HEADER  
+    if ( .not. beSilent ) write(*,*) 'filt_radvel: end'
   end subroutine filt_radvel
 
   ! filt_gpsro

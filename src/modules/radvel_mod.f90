@@ -30,13 +30,13 @@ module radvel_mod
   private
 
   ! public procedures
-  public :: rdv_radar_getlatlonHRfromRange, rdv_radar_getRangefromH, rdv_radar_getHfromRange 
+  public :: radvel_getlatlonHRfromRange, radvel_getRangefromH, radvel_getHfromRange 
 
 
 contains 
 
 
-  subroutine rdv_radar_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude, & 
+  subroutine radvel_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude, & 
                                             beamRange, latSlant,lonSlant, beamHeight, beamDistance)
     !
     ! :Purpose: Computation of  lat-lon , height  of the trajectory
@@ -47,7 +47,7 @@ contains
     ! Argument 
     real(8), intent(in)  :: beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude
     real(8), intent(in)  :: beamRange
-    real(8), intent(out) :: LatSlant, lonSlant, beamHeight,beamDistance
+    real(8), intent(out) :: LatSlant, lonSlant, beamHeight, beamDistance
     ! Local
     real(8)              :: Re 
     
@@ -57,7 +57,7 @@ contains
     Re = ec_wgs_R2 * (4./3.)
 
     !compute height of radar observation
-    call rdv_radar_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
+    call radvel_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
 
     ! distance following surface of the earth from Doviak and Zrnic (2.28c)
     beamDistance = atan(beamRange*cos(beamElevation)/(beamRange*sin(beamElevation)+Re+radarAltitude))*Re
@@ -66,9 +66,9 @@ contains
     latSlant = asin( sin(beamLat)*cos(beamDistance/ec_wgs_R2) + cos(beamLat)*sin(beamDistance/ec_wgs_R2)*cos(beamAzimuth))
     lonSlant = beamLon + atan2(sin(beamAzimuth)*sin(beamDistance/ec_wgs_R2)*cos(beamLat), cos(beamDistance/ec_wgs_R2)-sin(beamLat)*sin(latSlant))
 
-  end subroutine rdv_radar_getlatlonHRfromRange
+  end subroutine radvel_getlatlonHRfromRange
 
-  subroutine rdv_radar_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
+  subroutine radvel_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
     !
     ! :Purpose: Computation of height of the radar beam
     !            from range of the radar beam
@@ -82,22 +82,16 @@ contains
    
     ! Radius of sphere of equal area from earthconstants_mod.f90
     ! ec_wgs_R2 = 6371007.1809
-    ! efective radius of the earth
+    ! effective radius of the earth
     Re = ec_wgs_R2*(4./3.)
     ! height of radar beam  from range at beamElevation and radarAltitude 
     beamHeight = sqrt(beamRange**2.+(Re+radarAltitude)**2.+2.*beamRange*(Re+radarAltitude)*sin(beamElevation))-(Re)
 
-  end subroutine rdv_radar_getHfromRange
+  end subroutine radvel_getHfromRange
 
-  subroutine rdv_radar_getRangefromH(beamHeight, radarAltitude, beamElevation, beamRange)
+  subroutine radvel_getRangefromH(beamHeight, radarAltitude, beamElevation, beamRange)
     !
     ! :Purpose: Computation of range of the radar beam from height of the radar beam
-    !
-    !
-    !   To fix:
-    !   should use 4/3 radius of the earth
-    !
-    !
     !
     implicit none
     ! Argument
@@ -108,16 +102,15 @@ contains
   
     ! Radius of sphere of equal area from earthconstants_mod.f90
     ! ec_wgs_R2 = 6371007.1809
-    ! efective radius of the earth
+    ! effective radius of the earth
     Re = ec_wgs_R2*(4./3.)
 
     a = 1.
-    b = 2.*(Re+radarAltitude)*sin(beamElevation)
-    c = -(Re+beamHeight)**2+(Re+radarAltitude)**2.
-    print *,b**2,4*a*c
-    ! range of radar beam  from height and elevation of the radar beam 
-    beamRange  = (-b+sqrt(b**2-4*a*c))/2*a
+    b = 2.*(Re + radarAltitude)*sin(beamElevation)
+    c = -(Re + beamHeight)**2. + (Re + radarAltitude)**2.
+    ! range of radar beam from height and elevation of the radar beam 
+    beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
      
-  end subroutine rdv_radar_getRangefromH
+  end subroutine radvel_getRangefromH
 
 end module radvel_mod

@@ -656,7 +656,7 @@ contains
     mid=0.
     do while ((abs((upper_bound - lower_bound)/2.)>tolerance).or.(iteration>maximum_iteration))
       mid = (upper_bound + lower_bound)/2
-      call rdv_radar_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude,&
+      call radvel_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude,&
                                           mid, latSlant, lonSlant, beamHeight, beamDistance)
       call heightBilinearInterp(latSlant, lonSlant, hco, field2d_height, heightInterp_r4)
       difference_heights = beamHeight-heightInterp_r4
