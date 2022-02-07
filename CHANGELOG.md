@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
+   * minor impact on results
  * Added a program to generate pseudo SST observatons (#565 and !534)
  * Added ability to scale (e.g. taper) the LAM Bnmc StdDev in calcStats (#557 and !531)
  * Added ability to use each member for converting LQ to HU for HIP (#551 and !528)
