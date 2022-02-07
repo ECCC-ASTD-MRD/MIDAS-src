@@ -129,7 +129,6 @@ contains
 
     character(len=2 ) :: typvar
     character(len=12) :: etiket
-    logical :: containsFullField
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
@@ -169,7 +168,6 @@ contains
 
     etiket = '            '
     typvar = 'P@'
-    containsFullField = .true.
 
     call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
 
@@ -788,8 +786,8 @@ contains
     type(struct_gsv) :: stateVectorAnal
     real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:), analysisDaysSinceLastObs_ptr(:,:,:,:)
 
-    integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex, &
-               bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
+    integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
+    integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
 
     integer :: gridptCount, gridpt
 
@@ -797,7 +795,6 @@ contains
 
     character(len=2 ) :: typvar
     character(len=12) :: etiket
-    logical :: containsFullField
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
@@ -823,7 +820,6 @@ contains
 
     etiket = '            '
     typvar = 'P@'
-    containsFullField = .true.
 
     call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
 
@@ -865,33 +861,34 @@ contains
 
       BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) &
-             cycle BODY_LOOP
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) then
+          cycle BODY_LOOP
+        end if
 
-          do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
-            do stepIndex = 1, stateVectorBkGnd%numStep
-              do procIndex = 1, mpi_nprocs
+        do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+          do stepIndex = 1, stateVectorBkGnd%numStep
+            do procIndex = 1, mpi_nprocs
 
-                call s2c_getWeightsAndGridPointIndexes(headerIndex, &
-                     kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
-                     obsLonIndex, gridptCount)
+              call s2c_getWeightsAndGridPointIndexes(headerIndex, &
+                   kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
+                   obsLonIndex, gridptCount)
 
-                GRIDPT_LOOP: do gridpt = 1, gridptCount
+              GRIDPT_LOOP: do gridpt = 1, gridptCount
 
-                  if ( interpWeight(gridpt) == 0.0d0 ) cycle GRIDPT_LOOP
+                if ( interpWeight(gridpt) == 0.0d0 ) cycle GRIDPT_LOOP
 
-                  lonIndex = obsLonIndex(gridpt)
-                  latIndex = obsLatIndex(gridpt)
+                lonIndex = obsLonIndex(gridpt)
+                latIndex = obsLatIndex(gridpt)
 
-                  do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
-                     analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = 0.0
-                  end do
+                do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
+                  analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = 0.0
+                end do
 
-                end do GRIDPT_LOOP
+              end do GRIDPT_LOOP
 
-              end do
             end do
           end do
+        end do
 
       end do BODY_LOOP
 
