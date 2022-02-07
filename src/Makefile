@@ -310,12 +310,15 @@ ABS_INSTALL_SUFX = _$(ORDENV_PLAT)-$(VERSION)
 ABS_INSTALL = $(addprefix $(ABS_INSTALL_PRFX),\
 				$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$(ABS_COMPILED)))
 
+## splitobs as an external program has a different prefix
+ABS_INSTALL := $(subst $(ABS_INSTALL_PRFX)splitobs,$(ABS_INSTALL_DIR)/midas.splitobs,$(ABS_INSTALL))
+
 ##  abort if there is an error with dependencies generation
 ##	for instance if `makedepf90` not present
 .DELETE_ON_ERROR: $(DEP_OBJ) $(DEP_ABS)
 
 ##	rule for install target : simple copy and renaming
-$(ABS_INSTALL_PRFX)%$(ABS_INSTALL_SUFX).Abs : $(CURDIR)/%.Abs
+$(ABS_INSTALL_PRFX)%$(ABS_INSTALL_SUFX).Abs $(ABS_INSTALL_DIR)/midas.%$(ABS_INSTALL_SUFX).Abs :  $(CURDIR)/%.Abs
 	+@[ -d $(@D) ] || mkdir -p $(@D)
 	cp $< $@
 
