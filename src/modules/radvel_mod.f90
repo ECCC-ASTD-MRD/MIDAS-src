@@ -36,7 +36,7 @@ module radvel_mod
 contains 
 
 
-  subroutine radvel_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude, & 
+  subroutine radvel_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, & 
                                             beamRange, latSlant,lonSlant, beamHeight, beamDistance)
     !
     ! :Purpose: Computation of  lat-lon , height  of the trajectory
@@ -45,7 +45,7 @@ contains
     
     implicit none
     ! Argument 
-    real(8), intent(in)  :: beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude
+    real(8), intent(in)  :: antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude
     real(8), intent(in)  :: beamRange
     real(8), intent(out) :: LatSlant, lonSlant, beamHeight, beamDistance
     ! Local
@@ -63,8 +63,8 @@ contains
     beamDistance = atan(beamRange*cos(beamElevation)/(beamRange*sin(beamElevation)+Re+radarAltitude))*Re
 
     ! lat lon of the path along the radar beam  
-    latSlant = asin( sin(beamLat)*cos(beamDistance/ec_wgs_R2) + cos(beamLat)*sin(beamDistance/ec_wgs_R2)*cos(beamAzimuth))
-    lonSlant = beamLon + atan2(sin(beamAzimuth)*sin(beamDistance/ec_wgs_R2)*cos(beamLat), cos(beamDistance/ec_wgs_R2)-sin(beamLat)*sin(latSlant))
+    latSlant = asin( sin(antennaLat)*cos(beamDistance/ec_wgs_R2) + cos(antennaLat)*sin(beamDistance/ec_wgs_R2)*cos(beamAzimuth))
+    lonSlant = antennaLon + atan2(sin(beamAzimuth)*sin(beamDistance/ec_wgs_R2)*cos(antennaLat), cos(beamDistance/ec_wgs_R2)-sin(antennaLat)*sin(latSlant))
 
   end subroutine radvel_getlatlonHRfromRange
 

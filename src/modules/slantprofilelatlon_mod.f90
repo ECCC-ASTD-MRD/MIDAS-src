@@ -580,17 +580,17 @@ contains
     real(8), intent(out) :: latSlantLev_S
     real(8), intent(out) :: lonSlantLev_S
     ! Locals:
-    real(8) :: beamLat, beamLon, latSlant, lonSlant, beamElevation, beamAzimuth
+    real(8) :: antennaLat, antennaLon, latSlant, lonSlant, beamElevation, beamAzimuth
     real(8) :: radarAltitude, beamRangeStart, beamRangeEnd
     integer :: nlev_M,lev_M, nlev_T,lev_T
 
     nlev_M = size(height3D_M_r4,3)
     nlev_T = size(height3D_T_r4,3)
 
-    beamLat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-    beamLon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
-    if (beamLon <  0.0d0          ) beamLon = beamLon + 2.0d0*MPC_PI_R8
-    if (beamLon >= 2.0d0*MPC_PI_R8) beamLon = beamLon - 2.0d0*MPC_PI_R8
+    antennaLat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+    antennaLon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+    if (antennaLon <  0.0d0          ) antennaLon = antennaLon + 2.0d0*MPC_PI_R8
+    if (antennaLon >= 2.0d0*MPC_PI_R8) antennaLon = antennaLon - 2.0d0*MPC_PI_R8
 
     beamElevation  = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
     beamAzimuth    = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
@@ -598,35 +598,35 @@ contains
     beamRangeStart = obs_headElem_r(obsSpaceData, OBS_RANS, headerIndex)
     beamRangeEnd   = obs_headElem_r(obsSpaceData, OBS_RANE, headerIndex)
     
-    ! put the last beamLat/beamLon at the surface of thermo level
-    latSlantLev_T(nlev_T) = beamLat
-    lonSlantLev_T(nlev_T) = beamLon 
+    ! put the last antennaLat/antennaLon at the surface of thermo level
+    latSlantLev_T(nlev_T) = antennaLat
+    lonSlantLev_T(nlev_T) = antennaLon 
     ! Loop through rest of thermo level
     do lev_T = 1, nlev_T-1
-      call findIntersectLatlonRadar(beamLat, beamLon, beamElevation, beamAzimuth,  radarAltitude, &
+      call findIntersectLatlonRadar(antennaLat, antennaLon, beamElevation, beamAzimuth,  radarAltitude, &
                    beamRangeStart, beamRangeEnd, hco, height3D_T_r4(:,:,lev_T), latSlant, lonSlant)
       latSlantLev_T(lev_T) = latSlant
       lonSlantLev_T(lev_T) = lonSlant
     end do
     
-    ! put the last beamLat/beamlon at the surface of momentum levels
-    latSlantLev_M(nlev_M) = beamLat
-    lonSlantLev_M(nlev_M) = beamLon 
+    ! put the last antennaLat/beamlon at the surface of momentum levels
+    latSlantLev_M(nlev_M) = antennaLat
+    lonSlantLev_M(nlev_M) = antennaLon 
     ! loop through rest of momentum levels
     do lev_M = 1, nlev_M-1
       ! find the intersection 
-      call findIntersectLatlonRadar(beamLat, beamLon , beamElevation, beamAzimuth, radarAltitude,&
+      call findIntersectLatlonRadar(antennaLat, antennaLon , beamElevation, beamAzimuth, radarAltitude,&
                    beamRangeStart, beamRangeEnd, hco, height3D_M_r4(:,:,lev_M), latSlant, lonSlant)
       latSlantLev_M(lev_M) = latSlant
       lonSlantLev_M(lev_M) = lonSlant
     end do
 
-    latSlantLev_S = beamLat
-    lonSlantLev_S = beamLon 
+    latSlantLev_S = antennaLat
+    lonSlantLev_S = antennaLon 
 
   end subroutine slp_calcLatLonRadar
 
-  subroutine findIntersectLatlonRadar(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude, &
+  subroutine findIntersectLatlonRadar(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, &
                              beamRangeStart, beamRangeEnd, hco, field2d_height, latSlant, lonSlant)
     !
     ! :Purpose: Computation of lat lon  of the intersection 
@@ -637,7 +637,7 @@ contains
     implicit none
     !Argument
     type(struct_hco), intent(in) :: hco
-    real(8), intent(in)          :: beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude
+    real(8), intent(in)          :: antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude
     real(8), intent(in)          :: beamRangeStart, beamRangeEnd
     real(4), intent(in)          :: field2d_height(hco%ni,hco%nj)
     real(8)                      :: upper_bound, lower_bound, tolerance
@@ -656,7 +656,7 @@ contains
     mid=0.
     do while ((abs((upper_bound - lower_bound)/2.)>tolerance).or.(iteration>maximum_iteration))
       mid = (upper_bound + lower_bound)/2
-      call radvel_getlatlonHRfromRange(beamLat, beamLon, beamElevation, beamAzimuth, radarAltitude,&
+      call radvel_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude,&
                                           mid, latSlant, lonSlant, beamHeight, beamDistance)
       call heightBilinearInterp(latSlant, lonSlant, hco, field2d_height, heightInterp_r4)
       difference_heights = beamHeight-heightInterp_r4
