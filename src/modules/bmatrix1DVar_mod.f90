@@ -368,6 +368,7 @@ contains
     character(len=4), pointer :: varNames(:)
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:)
+    integer, allocatable :: subIndex(:)
 
     call tmg_start(12,'BENS1D_SETUP')
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
@@ -649,7 +650,7 @@ contains
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
    
-    do memberIndex =1 , nEns
+    do memberIndex = 1, nEns
       write(*,*) "Copy member ", memberIndex
       call ens_copyMember(ensPerts, stateVector, memberIndex)
       write(*,*) "interpolate member ", memberIndex
@@ -669,46 +670,61 @@ contains
                     mpiLocal_opt=.true., setToZero_opt=.true.)
     call s2c_nl( stateVector, obsSpaceData, meanColumn, hco_in, &
                      timeInterpType="NEAREST" )
-                     
+
     call gsv_deallocate(stateVector)
 
     nkgdim = 0
-    do varIndex =1, numIncludeAnlVar
+    do varIndex = 1, numIncludeAnlVar
       currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_varList(varIndex))
       nkgdim = nkgdim + size(currentProfile)
     end do
     write(*,*) "nkgdim", nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
+    currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
+    allocate (subIndex(nkgdim))
+    nkgdim = 0
+    do varIndex = 1, numIncludeAnlVar
+      do levIndex = 1, size(currentProfile)
+        if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
+          nkgdim = nkgdim + 1
+          subIndex(nkgdim) = levIndex
+          if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns: ", bmat1D_varList(varIndex), nkgdim, levIndex
+        end if
+      end do
+    end do
+    write(*,*) "nkgdim", nkgdim
     deallocate(pressureProfileEns_M)
     call ens_deallocate( ensPerts )
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
     allocate( lineVector(1,nkgdim) )
-    do columnIndex = 1, var1D_validHeaderCount 
+    do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      !offset = 0
-      !do varIndex =1, numIncludeAnlVar
-      !meanColumn => col_getColumn(meanColumn, headerIndex, varName_opt=bmat1D_varList(varIndex))
-      meanProfile => col_getColumn(meanColumn, headerIndex)
-      !offset = 0
-      !do varIndex = 1, bmat1D_varCount
-      !  currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_varList(varIndex))
-      !  currentColumn(:) = 0.d0
-      !  currentColumn(:) = oneDProfile(offset+1:offset+size(currentColumn))
-      !  offset = offset + size(currentColumn)
-      !end do
+!      offset = 0
+!      do varIndex = 1, numIncludeAnlVar
+      meanProfile => col_getColumn(meanColumn, headerIndex) !, varName_opt=bmat1D_varList(varIndex))
+      !currentSize = size(meanProfile)
       do memberIndex = 1, nEns
-        !currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex, varName_opt=bmat1D_varList(varIndex))
-        currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        lineVector(1,:) = currentProfile(:) - meanProfile(:)
+        currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex) !, varName_opt=bmat1D_varList(varIndex))
+        lineVector(1,:) = currentProfile(subIndex(:)) - meanProfile(subIndex(:))
         bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
-          matmul(transpose(lineVector),lineVector)
+            matmul(transpose(lineVector),lineVector)
       end do
-      bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
-      call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
       !end do
     end do
     deallocate(lineVector)
+    deallocate(subIndex)  
+    do columnIndex = 1, var1D_validHeaderCount
+      headerIndex = var1D_validHeaderIndex(columnIndex)
+      bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
+      !if (mpi_myId==0) then
+      !  do levIndex = 1, nkgdim
+      !    write(*,'(A4,1x,i12,1x,i12,1x,e14.6)') "bmat1D_setupBEns: COVZ",headerIndex,levIndex,bSqrtEns(headerIndex,levIndex,levIndex)
+      !  end do
+      !end if
+      call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+    end do
+
     call col_deallocate(meanColumn)
     do memberIndex =1 , nEns
       call col_deallocate(ensColumns(memberIndex))
