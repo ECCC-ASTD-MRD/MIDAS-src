@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add an English documentation for `midas.splitobs.Abs` (#577 and !541)
+   * when it is called with `-h`, `-help` or `--help`.
  * New subroutine to update the `Days Since Last Obs` in program `midas-analysisErrorOI` (#563 and !540)
    * minor impact only for midas-analysisErrorOI
  * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
@@ -65,6 +67,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Change the command-line option to obtain the French documentation for `midas.splitobs.Abs` (#577 and !541)
+   * The French documentation is printed when using `-aide` or `--aide`.
  * Compute non-linear Jo like linearized Jo, including varQC; optionally compute final non-linear Jo after minimization (#572 and !537)
  * Remove reference to any table name when splitting in round-robin mode using `midas.splitobs.Abs` (#573 and !538)
     * The option `-primarykey` has been renamed `-split-on-key`.  This option was added in #570.

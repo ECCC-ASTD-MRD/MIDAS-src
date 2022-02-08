@@ -52,7 +52,28 @@
 #define RDB_HEADER_DEFAUT     "header"
 #define RDB_DATA_DEFAUT       "data"
 #define RDB_SPLITONKEY_DEFAUT "id_obs"
-#define optionsDEFAUT      {"" /* fstin */, "" /* obsin*/, "" /* obsout*/, "" /* gz*/, "" /* channels */, INOUT_DEFAUT /* inout */, PILOT_DEFAUT /* pilot */, RECTANGLE_DEFAUT /* rect */, fstparam_DEFAUT /* fst */, IP1_VIDE /* niveau_min */, IP1_VIDE /* niveau_max */, 1 /* channels_voulus */, NPEX_DEFAUT /* npex */, NPEY_DEFAUT /* npey */, NDIGITS_DEFAUT /* ndigits */, 0 /* check_ua4d */, 0 /* roundrobin */, -1 /* cherrypick_x */, -1 /* cherrypick_y */, RDB_HEADER_DEFAUT /* rdb_header_table */, RDB_DATA_DEFAUT /* rdb_data_table */, RDB_SPLITONKEY_DEFAUT /* rdb_split_on_key */ }
+#define optionsDEFAUT      {""                    /* fstin */, \
+                            ""                    /* obsin*/, \
+                            ""                    /* obsout*/, \
+                            ""                    /* gz*/, \
+                            ""                    /* channels */, \
+                            INOUT_DEFAUT          /* inout */, \
+                            PILOT_DEFAUT          /* pilot */, \
+                            RECTANGLE_DEFAUT      /* rect */, \
+                            fstparam_DEFAUT       /* fst */, \
+                            IP1_VIDE              /* niveau_min */, \
+                            IP1_VIDE              /* niveau_max */, \
+                            1                     /* channels_voulus */, \
+                            NPEX_DEFAUT           /* npex */, \
+                            NPEY_DEFAUT           /* npey */, \
+                            NDIGITS_DEFAUT        /* ndigits */, \
+                            0                     /* check_ua4d */, \
+                            0                     /* roundrobin */, \
+                            -1                    /* cherrypick_x */, \
+                            -1                    /* cherrypick_y */, \
+                            RDB_HEADER_DEFAUT     /* rdb_header_table */, \
+                            RDB_DATA_DEFAUT       /* rdb_data_table */, \
+                            RDB_SPLITONKEY_DEFAUT /* rdb_split_on_key */ }
 
 /* differentes options du programme */
 #define FSTIN_OPTION       "-fstin"
@@ -96,6 +117,8 @@
 #define HELP_OPTION1       "-h"
 #define HELP_OPTION2       "-help"
 #define HELP_OPTION3       "--help"
+#define AIDE_OPTION1       "-aide"
+#define AIDE_OPTION2       "--aide"
 
 #define MAXSTR_CHANNELS    MAXSTR
 
@@ -181,6 +204,7 @@ int    fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_
 
 int    parseOptions(int argc, char** argv, optionsptr optptr);
 void   aide(void);
+void   help(void);
 
 /* rmnlib.a */
 extern void f77name(incdatr)();
@@ -4848,17 +4872,22 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   int i;
   
   if (argc==1) { /* Alors, on veut la documentation */
-    aide();
+    help();
     exit(0);
   }
 
   strcpy(optptr->fst.nomvar,NOMVAR_DEFAUT);
-  
+
   for (i=1;i<argc;i++) {
     if (argv[i][0]=='-') {
       if (!strcmp(argv[i],HELP_OPTION1) ||
 	  !strcmp(argv[i],HELP_OPTION2) ||
 	  !strcmp(argv[i],HELP_OPTION3)) { /* Alors, on veut la documentation */
+	help();
+	exit(0);
+      }
+      if (!strcmp(argv[i],AIDE_OPTION1) ||
+	  !strcmp(argv[i],AIDE_OPTION2)) { /* Alors, on veut la documentation */
 	aide();
 	exit(0);
       }
@@ -5329,52 +5358,56 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
  ***************************************************************************/
 void aide(void) {
 
-  printf("Ce programme %s (version '%s') permet d'extraire les observations d'une base de donnees\n", PROGRAM_NAME, VERSION);
-  printf("qui sont a l'interieur du domaine d'une grille definie par une grille d'un fichier standard\n\n");
-  
-  printf("Les arguments pour ce programme sont:\n");
-  printf("  %s        [fichier standard dans lequel on va chercher le champ voulu]\n\n", FSTIN_OPTION);
+  printf("Ce programme permet d'extraire les observations d'une base de donnees qui sont a l'interieur\n");
+  printf("du domaine d'une grille definie par champ d'un fichier standard RPN.\n\n");
 
+  printf("Il permet aussi de separer les observations en plusieurs fichiers.\n\n");
+
+  printf("Les arguments pour ce programme sont:\n");
   printf("  %s        [fichier d'input dans lequel observations sont contenues]\n", OBSIN_OPTION);
   printf("  %s       [fichier dans lequel seront stockees les observations selectionnees]\n\n", OBSOUT_OPTION);
 
-  printf("     Le fichier d'input peut etre un fichier BURP, RDB (SQLite) ou ASCII (avec un format precis)\n");
+  printf("     Le fichier d'input peut etre un fichier BURP, RDB (SQLite) ou ASCII (avec un format precis)\n\n");
 
-  printf("  %s  [On utilise la methode 'round-robin' pour separer les enregistrements d'un fichier BURP ou RDB en parties egales.]\n\n", ROUNDROBIN_OPTION);
+  printf("  %s  [Utilisation de la methode 'round-robin' pour separer les enregistrements d'un fichier BURP ou RDB en parties egales]\n\n", ROUNDROBIN_OPTION);
 
-  printf("  %s        [On decide si on prend les observations a l'interieur (valeur = 1)\n", INOUT_OPTION);
-  printf("                 ou a l'exterieur (valeur = 0) du domaine. ] (par defaut, %d, a l'interieur du domaine)\n\n", INOUT_DEFAUT);
+  printf("  %s        [fichier standard RPN d'entree dans lequel on va chercher le champ voulu]\n\n", FSTIN_OPTION);
 
-  printf("  %s        [On decide si on utilise une zone tampon]\n", PILOT_OPTION);
-  printf("                 (par defaut, %d points a l'interieur du domaine)\n\n", PILOT_DEFAUT);
+  printf("  %s        [On decide si on prend les observations a l'interieur (si egal a '1') ou a l'exterieur (valeur = 0) du domaine]\n", INOUT_OPTION);
+  printf("                 (par defaut, %d, a l'interieur du domaine)\n\n", INOUT_DEFAUT);
 
-  printf("On choisit une portion de la grille qui definit le domaine.  Pour la definir, on utilise les options suivantes\n");
+  printf("  %s        [On decide si on utilise une zone tampon (par defaut, %d points a l'interieur du domaine)]\n\n", PILOT_OPTION, PILOT_DEFAUT);
+
+  printf("On choisit une portion de la grille qui definit le domaine.  Pour la definir, on utilise les options suivantes:\n");
   printf("  %s        [indice 'i' minimal pour la grille (peut etre un nombre reel)]\n", MIN_I_OPTION);
   printf("  %s        [indice 'i' maximal pour la grille (peut etre un nombre reel)]\n", MAX_I_OPTION);
   printf("  %s        [indice 'j' minimal pour la grille (peut etre un nombre reel)]\n", MIN_J_OPTION);
   printf("  %s        [indice 'j' maximal pour la grille (peut etre un nombre reel)]\n", MAX_J_OPTION);
   printf("         Note: Ces dernieres options sont mutuellement exclusives avec l'option %s\n\n", PILOT_OPTION);
 
-  printf("On peut separer les fichiers en plusieurs bandes de latitude et de longitude avec les options suivantes\n");
+  printf("On peut separer les fichiers en plusieurs fichiers selon 'x' et 'y' avec les options suivantes\n");
   printf("  %s         [nombre de bandes de longitudes (selon i)]\n", NPEX_OPTION);
   printf("  %s         [nombre de bandes de latitudes  (selon j)]\n\n", NPEY_OPTION);
 
-  printf("On peut extraire seulement un seul fichier d'une operation de splitting plutot que de les extraire tous en même temps.\n");
-  printf("  %s            [coordonnee en 'x' (selon i)]\n", CHERRYPICK_X_OPTION);
-  printf("  %s            [coordonnee en 'y' (selon j)]\n\n", CHERRYPICK_Y_OPTION);
+  printf("On peut extraire seulement un seul fichier d'une operation de splitting plutot que de les extraire tous en meme temps avec ces options:\n");
+  printf("  %s            [numero de la composante selon 'x']\n", CHERRYPICK_X_OPTION);
+  printf("  %s            [numero de la composante selon 'y']\n\n", CHERRYPICK_Y_OPTION);
 
-  printf("  %s   [active la verification a chaque enregistrement si on est en presence d'un UA multi-niveaux (ua4d)]\n\n", CHECK_UA4D_OPTION);
+  printf("Activation de la verification, a chaque enregistrement, si on est en presence d'un UA multi-niveaux (ua4d):\n");
+  printf("  %s\n\n", CHECK_UA4D_OPTION);
 
-  printf("Attention, les options '%s' et '%s', '%s' et '%s' puis '%s' et '%s' viennent en couple"
-	 " et sont mutuellement exclusives\n\n", OBSIN_OPTION, OBSOUT_OPTION, RDBIN_OPTION, RDBOUT_OPTION, BURPIN_OPTION, BURPOUT_OPTION);
+  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n\n");
 
-  printf("Lorsqu'on utilise des fichiers SQLite, on utilise les options suivantes pour specifier ou aller chercher l'information necessaire:\n");
-  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n", RDB_HEADER_OPTION, RDB_HEADER_DEFAUT);
-  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n", RDB_DATA_OPTION, RDB_DATA_DEFAUT);
-  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_OPTION, RDB_SPLITONKEY_DEFAUT);
+  printf("  %s [cle qui lie les tables entre elles et qui est aussi utilisee en mode round-robin\n", RDB_SPLITONKEY_OPTION);
+  printf("                  pour selectionner les observations (par defaut '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
 
-  printf("Les options suivantes servent a identifier le champ qui definit la grille (fonction fstinf):\n\n");
+  printf("  %s       [table qui contient l'information sur la latitude (colonne 'lat'), la longitude (colonne 'lon') et\n", RDB_HEADER_OPTION);
+  printf("                  l'elevation (colonne 'elev') de la station (si necessaire) (par defaut '%s')]\n\n", RDB_HEADER_DEFAUT);
 
+  printf("  %s         [table qui contient l'information sur la hauteur de chaque observation ou \n", RDB_DATA_OPTION);
+  printf("                   le canal satellitaire (colonne 'vcoord') (par defaut '%s')]\n\n", RDB_DATA_DEFAUT);
+
+  printf("Les options suivantes servent a identifier le champ qui definit le domaine (fonction RMNLIB 'fstinf'):\n");
   printf("  %s    [nomvar du champ qu'on veut lire] (par defaut, PN)\n", NOMVAR_OPTION);
   printf("  %s    [typvar du champ qu'on veut lire] (par defaut, vide)\n", TYPVAR_OPTION);
   printf("  %s    [etiket du champ qu'on veut lire] (par defaut, vide)\n", ETIKET_OPTION);
@@ -5386,27 +5419,128 @@ void aide(void) {
   printf("  %s       [ip2 du champ qu'on veut lire] (par defaut, -1)\n", IP2_OPTION);
   printf("  %s       [ip3 du champ qu'on veut lire] (par defaut, -1)\n\n", IP3_OPTION);
 
-  printf("On peut aussi filtrer verticalement en imposant un niveau avec l'option\n");
-  printf("  %s  [niveau en hPa pour lequel toute observation au dessus sera enlevee] (defaut, -1 donc aucun filtrage vertical)\n", NIVEAU_MAX_OPTION);
-  printf("  %s  [niveau en hPa pour lequel toute observation en dessous sera enlevee] (defaut, -1 donc aucun filtrage vertical)\n", NIVEAU_MIN_OPTION);
-  printf("  %s          [fichier standard qui contiendra un champ GZ qui donnera la hauteur avec "
-	 "laquelle les observations seront filtrees verticalement] (par defaut, aucun filtrage vertical)\n", GZ_OPTION);
-  printf("\n");
+  printf("On peut aussi filtrer verticalement en utilisant ces criteres\n");
+  printf("  %s  [niveau en hPa pour lequel toute observation au dessus sera enlevee] (defaut, -1 donc aucun niveau maximal)\n", NIVEAU_MAX_OPTION);
+  printf("  %s  [niveau en hPa pour lequel toute observation en dessous sera enlevee] (defaut, -1 donc aucun niveau minimal)\n", NIVEAU_MIN_OPTION);
+  printf("  %s          [fichier standard RPN qui contiendra un champ GZ qui donnera la hauteur avec\n", GZ_OPTION);
+  printf("                   laquelle les observations seront filtrees verticalement]\n");
+  printf("                   (doit etre specifie si une conversion de pression en hauteur necessaire)\n\n");
+
   printf("Les observations du type 'ai' et 'ua' ont une coordonnee verticale en pression (hPa) donc la selection est directe.  \n");
   printf("Les observations du type 'pr' et 'ro' ont une coordonnee verticale en metres, on donne alors\n");
-  printf("    un critere vertical (hPa) en pression et un champ GZ a lire dans le fichier standard specifie avec l'option %s\n", GZ_OPTION);
+  printf("un critere vertical (hPa) en pression et un champ GZ a lire dans le fichier standard specifie avec l'option %s\n\n", GZ_OPTION);
 
-  printf("Dans le cas des observations satellitaires, on specifie plutot les canaux voulus avec l'option\n");
-  printf("  %s   [liste separee par des virgules, sans espace aucun, des canaux voulus (pour un maximum de %d caracteres en tout)]\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
-  printf("ou bien plutot ceux que l'on ne veut pas avec l'option\n");
+  printf("Dans le cas des observations satellitaires, on specifie plutot les canaux voulus avec l'option:\n");
+  printf("  %s   [liste separee par des virgules, sans espace aucun, des canaux voulus (pour un maximum de %d caracteres en tout)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
+
+  printf("ou bien plutot ceux que l'on ne veut pas avec l'option:\n");
   printf("  %s [liste separee par des virgules, sans espace aucun, des canaux exclus (pour un maximum de %d caracteres en tout)]\n", NOCHANNELS_OPTION, MAXSTR_CHANNELS);
 
   printf("\n");
 
-  printf("  %s [degre de verbosite (par defaut, 0)]\n", VERBOSE_OPTION);
+  printf("Degre de verbosite:\n");
+  printf("  %s [par defaut, %d]\n\n", VERBOSE_OPTION, VERBOSE);
 
-  printf("  %s ou %s ou %s [affiche cette aide]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
+  printf("  %s ou %s ou [affiche cette aide]\n", AIDE_OPTION1, AIDE_OPTION2);
+  printf("  %s or %s or %s [print an English help message]\n\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
 
   printf("Ervig Lapalme, CMDA\n");
 
-} /* Fin de la fonction aide */
+} /* Fin de la fonction 'aide' */
+
+
+/***************************************************************************
+ * fonction: 'help'
+ *
+ * This function output a documentation of the program
+ ***************************************************************************/
+void help(void) {
+
+  printf("This programs extracts observations from a database which are inside \n");
+  printf("the domain of a grid as defined by a field in a RPN standard file.\n\n");
+
+  printf("It can also split the observations into several files.\n\n");
+
+  printf("The arguments of this program are:\n");
+  printf("  %s        [input observation file]\n", OBSIN_OPTION);
+  printf("  %s       [output observation file]\n\n", OBSOUT_OPTION);
+
+  printf("     The input file can be a BURP file, a RDB (SQLite) or ASCII (with a specific format)\n\n");
+
+  printf("  %s  [Use the round-robin method to split the observations in equal parts]\n\n", ROUNDROBIN_OPTION);
+
+  printf("  %s        [input RPN standard file that contains the field which defines the domain]\n\n", FSTIN_OPTION);
+
+  printf("  %s        [Decide whether observations inside the domain are chosen (if equals to '1') or outside the domain (if equals to '0')\n", INOUT_OPTION);
+  printf("                 (default, %d, inside the domain)]\n\n", INOUT_DEFAUT);
+
+  printf("  %s        [Decide to use a piloting buffer region (default, %d points inside the domain)]\n\n", PILOT_OPTION, PILOT_DEFAUT);
+
+  printf("It is also possible to choose an arbitrary portion of the domain.  It can be defined using those options:\n");
+  printf("  %s        [minimal index 'i' (along 'x' component) of the grid (can be a real number)]\n", MIN_I_OPTION);
+  printf("  %s        [maximal index 'i' (along 'x' component) of the grid (can be a real number)]\n", MAX_I_OPTION);
+  printf("  %s        [minimal index 'j' (along 'y' component) of the grid (can be a real number)]\n", MIN_J_OPTION);
+  printf("  %s        [maximal index 'j' (along 'y' component) of the grid (can be a real number)]\n", MAX_J_OPTION);
+  printf("         Note: Those options are mutually exclusive with the option %s\n\n", PILOT_OPTION);
+
+  printf("We can split observations into several files in 'x' and 'y' directions with the following options:\n");
+  printf("  %s         [number of files in the 'x' component]\n", NPEX_OPTION);
+  printf("  %s         [number of files in the 'y' component]\n\n", NPEY_OPTION);
+
+  printf("We can extract only a single tile instead of all using those options:\n");
+  printf("  %s            [tile number along 'x' component]\n", CHERRYPICK_X_OPTION);
+  printf("  %s            [tile number along 'y' component]\n\n", CHERRYPICK_Y_OPTION);
+
+  printf("Activation of the verification for each record if it is a multi-level UA profile (ua4d):\n");
+  printf("  %s\n\n", CHECK_UA4D_OPTION);
+
+  printf("When processing SQLite files, we can use those options to specify where to find some information:\n\n");
+
+  printf("  %s [key which binds the tables together which is also used in the round-robin mode\n", RDB_SPLITONKEY_OPTION);
+  printf("                  to select the observations (default '%s')]\n\n", RDB_SPLITONKEY_DEFAUT);
+
+  printf("  %s       [table which contains the latitude (column 'lat'), the longitude (column 'lon') and\n", RDB_HEADER_OPTION);
+  printf("                  elevation (column 'elev') of the station if necessary (default '%s')]\n\n", RDB_HEADER_DEFAUT);
+
+  printf("  %s         [table which contains the information about the height of each observation\n", RDB_DATA_OPTION);
+  printf("                   or the satellite channel (column 'vcoord') (default '%s')]\n\n", RDB_DATA_DEFAUT);
+
+  printf("Those options identify the field which defined the domain (RMNLIB function 'fstinf'):\n");
+  printf("  %s    [nomvar of the wanted field] (default, PN)\n", NOMVAR_OPTION);
+  printf("  %s    [typvar of the wanted field] (default, empty)\n", TYPVAR_OPTION);
+  printf("  %s    [etiket of the wanted field] (default, empty)\n", ETIKET_OPTION);
+  printf("  %s     [valid date of the wanted field]\n", DATEV_OPTION);
+  printf("                   (format: YYYYMMDDHHMMSS padding with 0 at the right, if the date is incomplete\n");
+  printf("                           for example, 2004121912 becomes 20041219120000)\n");
+  printf("                           (by default, -1)\n");
+  printf("  %s       [ip1 of the wanted field] (default, -1)\n", IP1_OPTION);
+  printf("  %s       [ip2 of the wanted field] (default, -1)\n", IP2_OPTION);
+  printf("  %s       [ip3 of the wanted field] (default, -1)\n\n", IP3_OPTION);
+
+  printf("We can also filter vertically by using those criteria:\n");
+  printf("  %s  [vertical level in hPa for which any observation above is not selected] (default, -1 so no maxinum level)\n", NIVEAU_MAX_OPTION);
+  printf("  %s  [vertical level in hPa for which any observation below is not selected] (default, -1 so no mininum level)\n", NIVEAU_MIN_OPTION);
+  printf("  %s          [RPN standard file which contains the GZ field to convert the pressure into meters\n", GZ_OPTION);
+  printf("                to use the pressure levels as vertical criteria] (must be specified pressure to height conversion is needed)\n\n");
+
+  printf("The observations 'ai' and 'ua' have a pressure vertical coordinate (hPa) so the selection is straightforward.\n");
+  printf("The observations 'pr' and 'ro' have a vertical coordinate in meters, so we need to give\n");
+  printf("pressure criteria (hPa) and a GZ field to read from the file specify with the option %s\n\n", GZ_OPTION);
+
+  printf("For satellite observations, we specify the wanted channels with the option:\n");
+  printf("  %s   [comma separated list (without any space) of the wanted channels (for a maximum of %d total characters)]\n\n", CHANNELS_OPTION, MAXSTR_CHANNELS);
+
+  printf("or the channels that are not wanted with the option:\n");
+  printf("  %s [comma separated list (without any space) of the channels that are not wanted (for a maximum of %d total characters)]\n", NOCHANNELS_OPTION, MAXSTR_CHANNELS);
+
+  printf("\n");
+
+  printf("Verbosity level:\n");
+  printf("  %s [by default, %d]\n\n", VERBOSE_OPTION, VERBOSE);
+
+  printf("  %s or %s or %s [print this help message]\n", HELP_OPTION1, HELP_OPTION2, HELP_OPTION3);
+  printf("  %s ou %s ou [affiche cette aide en francais]\n\n", AIDE_OPTION1, AIDE_OPTION2);
+
+  printf("Ervig Lapalme, CMDA\n");
+
+} /* End of function 'help' */

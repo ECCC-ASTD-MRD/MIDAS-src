@@ -267,13 +267,18 @@ or point directly to the program in the SSM domain:
 /fs/ssm/eccc/mrd/rpn/anl/midas/3.6.8/${ORDENV_PLAT}/bin/midas.splitobs.Abs
 ```
 
-An help message is printed to screen by calling `midas.splitobs.Abs`
-one these ways:
+An English help message is printed to screen by calling
+`midas.splitobs.Abs` one these ways:
 ```bash
 midas.splitobs.Abs -h
 midas.splitobs.Abs -help
 midas.splitobs.Abs --help
 midas.splitobs.Abs ## without any argument
+```
+and a French documentation is printed when the program is called with:
+```bash
+midas.splitobs.Abs -aide
+midas.splitobs.Abs --aide
 ```
 
 Note that this program processes SQLite and BURP files transparently.
