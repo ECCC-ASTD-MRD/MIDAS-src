@@ -571,6 +571,7 @@ contains
 
     ! RADAR Doppler velocity
     if ( outerLoopIndex == 1 ) then
+     ! Filter Radar for Doppler velocity
       call filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_radvel for outer-loop index=', outerLoopIndex

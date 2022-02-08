@@ -982,15 +982,14 @@ contains
 
         obsAltitude  = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
 
-        !find model levels that bracket the observation
+        ! Levels that bracket the observation from OBS_LYR
         !   note to self:   like in GEM, level=1 is the highest level
-        do levelIndex = 1, numLevels-1
-          levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
-          levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
-          if (levelAltLow < obsAltitude) exit 
-        end do
+        levelIndex = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
 
-        !vertical interpolation of model wind at observation height
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
+
+        ! Vertical interpolation of model wind at observation height
         interpWeight = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
         uuHigh = col_getElem(columnTrlOnTrlLev, levelIndex,   headerIndex, 'UU')
         uuLow  = col_getElem(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'UU')

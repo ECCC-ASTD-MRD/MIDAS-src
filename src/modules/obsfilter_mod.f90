@@ -1285,7 +1285,7 @@ end subroutine filt_topoAISW
     !
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
     integer :: fnom, fclos, nulnam, ierr, levelIndex
-    real(8) :: obsaltitude, obsrange, radaraltitude, beamelevation, levelaltlow, levelAltHigh
+    real(8) :: obsaltitude, radaraltitude, beamelevation, levelaltlow, levelAltHigh
     real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
     
     namelist /namradvel/ maxRangeInterp
@@ -1341,22 +1341,13 @@ end subroutine filt_topoAISW
         radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
         obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
-        if ( obsAltitude == real(MPC_missingValue_R8, pre_obsReal) ) then
-          ! Altitude info was not in observation file, compute it and save result
-          obsRange = obs_bodyElem_r(obsSpaceData, OBS_LOCI, bodyIndex) 
-          call radvel_getHfromRange(obsRange, radarAltitude, beamElevation, obsAltitude)
-          call obs_bodySet_r(obsSpaceData, OBS_PPP, bodyIndex, obsAltitude)
-        end if
-
-        !find model levels that bracket the observation
+        ! Levels that bracket the observation from OBS_LYR
         !   note to self:   like in GEM, level=1 is the highest level
-        do levelIndex = 1, numLevels-1
-          levelAltLow = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
-          if ( levelAltLow < obsAltitude ) then
-            levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex, headerIndex,'MM')
-            exit 
-          end if
-        end do
+        levelIndex = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
+
 
         !observations are rejected if horizontal distance between levels is too large
         if ( maxRangeInterp > 0.0 ) then
