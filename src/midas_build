@@ -94,7 +94,7 @@ function printHeader {
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
     if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
-      echo "| * compilation also done on ${MIDAS_COMPILE_BACKEND}"
+      echo "| * compilation also done on ${MIDAS_COMPILE_BACKEND} (${MIDAS_COMPILE_BACKEND_ARCH})"
     fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted

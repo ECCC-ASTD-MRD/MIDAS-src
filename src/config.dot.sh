@@ -13,6 +13,7 @@ set -x
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
 MIDAS_COMPILE_DO_BACKEND=${MIDAS_COMPILE_DO_BACKEND:-true}
+MIDAS_COMPILE_BACKEND_ARCH=${MIDAS_COMPILE_BACKEND_ARCH:-sles-15-skylake-64-xc50}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
@@ -40,13 +41,14 @@ MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 ##  these should not be changed unless you know what you're doing
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
+
 __exec_leafdir_midas=midas_abs
 __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
 __keep_jobsubmit_ofile=false
 if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then 
-  __plat_super=sles-15-skylake-64-xc50
+  __plat_super=${MIDAS_COMPILE_BACKEND_ARCH}
 else
   __plat_super=''
 fi
