@@ -19,7 +19,6 @@ module radvel_mod
   !
   ! :Purpose: Containing commonly used functions for the assimilation of Doppler velocity
   !
-  ! :Note: prefix not used for all public variables
   !
   use mpi_mod
   use earthConstants_mod
@@ -30,13 +29,13 @@ module radvel_mod
   private
 
   ! public procedures
-  public :: radvel_getlatlonHRfromRange, radvel_getRangefromH, radvel_getHfromRange 
+  public :: rdv_getlatlonHRfromRange, rdv_getRangefromH, rdv_getHfromRange 
 
 
 contains 
 
 
-  subroutine radvel_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, & 
+  subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, & 
                                             beamRange, latSlant,lonSlant, beamHeight, beamDistance)
     !
     ! :Purpose: Computation of  lat-lon , height  of the trajectory
@@ -57,7 +56,7 @@ contains
     Re = ec_wgs_R2 * (4./3.)
 
     !compute height of radar observation
-    call radvel_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
+    call rdv_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
 
     ! distance following surface of the earth from Doviak and Zrnic (2.28c)
     beamDistance = atan(beamRange*cos(beamElevation)/(beamRange*sin(beamElevation)+Re+radarAltitude))*Re
@@ -66,9 +65,9 @@ contains
     latSlant = asin( sin(antennaLat)*cos(beamDistance/ec_wgs_R2) + cos(antennaLat)*sin(beamDistance/ec_wgs_R2)*cos(beamAzimuth))
     lonSlant = antennaLon + atan2(sin(beamAzimuth)*sin(beamDistance/ec_wgs_R2)*cos(antennaLat), cos(beamDistance/ec_wgs_R2)-sin(antennaLat)*sin(latSlant))
 
-  end subroutine radvel_getlatlonHRfromRange
+  end subroutine rdv_getlatlonHRfromRange
 
-  subroutine radvel_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
+  subroutine rdv_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
     !
     ! :Purpose: Computation of height of the radar beam
     !            from range of the radar beam
@@ -87,9 +86,9 @@ contains
     ! height of radar beam  from range at beamElevation and radarAltitude 
     beamHeight = sqrt(beamRange**2.+(Re+radarAltitude)**2.+2.*beamRange*(Re+radarAltitude)*sin(beamElevation))-(Re)
 
-  end subroutine radvel_getHfromRange
+  end subroutine rdv_getHfromRange
 
-  subroutine radvel_getRangefromH(beamHeight, radarAltitude, beamElevation, beamRange)
+  subroutine rdv_getRangefromH(beamHeight, radarAltitude, beamElevation, beamRange)
     !
     ! :Purpose: Computation of range of the radar beam from height of the radar beam
     !
@@ -111,6 +110,6 @@ contains
     ! range of radar beam from height and elevation of the radar beam 
     beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
      
-  end subroutine radvel_getRangefromH
+  end subroutine rdv_getRangefromH
 
 end module radvel_mod

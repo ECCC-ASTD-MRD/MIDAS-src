@@ -931,29 +931,16 @@ contains
     integer                , intent(in)    :: destObsColumn
 
     ! locals
-    integer :: bodyIndex, headerIndex, levelIndex, numLevels, bufrCode
+    integer :: bodyIndex, headerIndex, levelIndex, bufrCode
     real(8) :: observedDoppler, simulatedDoppler
     real(8) :: levelAltLow, levelAltHigh
     real(8) :: radarAltitude, beamAzimuth, beamElevation, obsAltitude
     real(8) :: uuLow, uuHigh, vvLow, vvHigh, uuInterpolated, vvInterpolated
-    
-    real(8) :: interpWeight, zinc, zoer
+    real(8) :: interpWeight
 
     call obs_set_current_header_list(obsSpaceData, cdfam)
     if (.not.beSilent) write(*,*) 'Entering subroutine oop_raDvel_nl, family: ', trim(cdfam)
 
-    ! reading namelist variables
-    if (utl_isNamelistPresent('namradvel', './flnml')) then
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=namradvel, iostat=ierr)
-      if (ierr /= 0) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
-      if (.not.beSilent) write(*,nml=namradvel)
-      ierr=fclos(nulnam)
-    else if (.not. beSilent) then
-      write(*,*)
-      write(*,*) 'oop_raDvel_nl: namradvel is missing in the namelist. The default value will be taken.'
-    end if
     
     !
     ! Loop over all header indices of the 'RA' family with schema 'radvel':
@@ -966,7 +953,6 @@ contains
       radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
       beamAzimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
       beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-      numLevels = col_getNumLev(columnTrlOnTrlLev,'MM')
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       !
       ! Loop over all body indices of the 'RA' family with schema 'radvel':

@@ -1358,9 +1358,9 @@ end subroutine filt_topoAISW
           if ( levelAltLow < radarAltitude ) then 
             levelRangeNear = 0.0
           else
-            call radvel_getRangefromH(levelAltLow, radarAltitude, beamElevation, levelRangeNear)
+            call rdv_getRangefromH(levelAltLow, radarAltitude, beamElevation, levelRangeNear)
           end if
-          call radvel_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
+          call rdv_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
 
           if ( abs(levelRangeFar-levelRangeNear) > maxRangeInterp ) then
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
