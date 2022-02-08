@@ -1274,9 +1274,9 @@ end subroutine filt_topoAISW
   subroutine filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
     !
     ! :Purpose: Filter Radvel observations
-    !           guarante that altitude  values are
-    !           within bounds for further processing and Altitude AGL of observation
-    !
+    !           guarantee that altitude values are
+    !           within bounds Altitude and check the horizontal distance between levels
+    !           for further processing
     implicit none
     !
     type(struct_columnData) :: columnTrlOnTrlLev
@@ -1327,6 +1327,12 @@ end subroutine filt_topoAISW
       !
       ! Loop over all body indices of the 'RA' family with schema 'radvel':
       !
+      ! 
+
+      ! Elevation beam (PPI) 
+      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      ! Altitude radar
+      radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
@@ -1336,20 +1342,18 @@ end subroutine filt_topoAISW
         ! only process observations flagged to be assimilated
         if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
 
-        !altitude AGL of observation
-        beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-        radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
+        ! Altitude of observation
         obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
         ! Levels that bracket the observation from OBS_LYR
         !   note to self:   like in GEM, level=1 is the highest level
-        levelIndex = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+        levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
 
         levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
         levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
 
 
-        !observations are rejected if horizontal distance between levels is too large
+        ! Observations are rejected if horizontal distance between levels is too large
         if ( maxRangeInterp > 0.0 ) then
           if ( levelAltLow < radarAltitude ) then 
             levelRangeNear = 0.0
@@ -1366,7 +1370,7 @@ end subroutine filt_topoAISW
           end if
         end if
 
-        !observations are rejected if observation is below the height of last model level
+        ! Observations are rejected if observation is below the height of last model level
         levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex, 'MM')
         if ( levelAltLow > obsAltitude ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
@@ -1374,7 +1378,7 @@ end subroutine filt_topoAISW
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
         end if
 
-        !observations are rejected if observation is above the height of first model level
+        ! Observations are rejected if observation is above the height of first model level
         levelAltHigh = col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
         if ( levelAltHigh < obsAltitude ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
@@ -1382,7 +1386,7 @@ end subroutine filt_topoAISW
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
         end if
         
-      end do Body
+      end do BODY
     end do HEADER  
     if ( .not. beSilent ) write(*,*) 'filt_radvel: end'
   end subroutine filt_radvel

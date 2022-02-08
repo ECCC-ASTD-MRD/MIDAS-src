@@ -984,7 +984,7 @@ contains
 
         ! Levels that bracket the observation from OBS_LYR
         !   note to self:   like in GEM, level=1 is the highest level
-        levelIndex = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+        levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
 
         levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
         levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')

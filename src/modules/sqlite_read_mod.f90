@@ -867,8 +867,9 @@ contains
         !add range along radar beam
         range_m = matdata(rowIndex,5)
         call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, range_m)
-        call radvel_getHfromRange(range_m,  elevReal, obsrele* MPC_RADIANS_PER_DEGREE_R8, vertCoord)
-        call obs_bodySet_r(obsdat, OBS_PPP , bodyIndex, vertCoord )
+        !add height (vertCoord) along radar beam from range 
+        call radvel_getHfromRange(range_m, elevReal, obsrele * MPC_RADIANS_PER_DEGREE_R8, vertCoord)
+        call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord )
 
       end if
         
