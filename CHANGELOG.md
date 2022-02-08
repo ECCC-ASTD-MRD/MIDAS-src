@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * New subroutine to update the `Days Since Last Obs` in program `midas-analysisErrorOI` (#563 and !540)
+   * minor impact only for midas-analysisErrorOI
  * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
    * minor impact on results
  * Added a program to generate pseudo SST observatons (#565 and !534)
@@ -24,7 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    updating the [`CHANGELOG`](CHANGELOG.md) (#539 and !513)
    * A token must be included to show the impact on the results
  * Add error checks for BURP library calls in burpread_mod.f90 (#526 and !512)
- * Satellite SST data bias correction is added to `SSTbias` program (#494 and !511) 
+ * Satellite SST data bias correction is added to `SSTbias` program (#494 and !511)
  * SST bias estimation program (#461 and !502)
  * Link splitobs compilation to `src/Makefile` (#490 and !499)
  * Implementation of outer-loop for computing analysis increment with results

@@ -47,7 +47,7 @@ module analysisErrorOI_mod
   private
 
   ! public subroutines and functions
-  public :: aer_analysisError
+  public :: aer_analysisError, aer_daysSinceLastObs
 
   type struct_neighborhood
    integer          :: numObs
@@ -129,7 +129,6 @@ contains
 
     character(len=2 ) :: typvar
     character(len=12) :: etiket
-    logical :: containsFullField
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
@@ -169,7 +168,6 @@ contains
 
     etiket = '            '
     typvar = 'P@'
-    containsFullField = .true.
 
     call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
 
@@ -765,5 +763,143 @@ contains
     call tmg_stop(189)
 
   end subroutine findObs
+
+  !---------------------------------------------------------
+  ! aer_daysSinceLastObs
+  !---------------------------------------------------------
+  subroutine aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, trlmFileName)
+    !
+    !:Purpose: Update the field "days since last obs" with the newly assimilated obs.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_obs), intent(in)  :: obsSpaceData
+    type(struct_hco), pointer    :: hco_ptr
+    type(struct_vco), pointer    :: vco_ptr
+    character(len=*), intent(in) :: trlmFileName
+
+    ! Local Variables
+    integer :: fnom, fclos, nulnam, ierr
+
+    type(struct_gsv) :: stateVectorBkGnd
+    type(struct_gsv) :: stateVectorAnal
+    real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:), analysisDaysSinceLastObs_ptr(:,:,:,:)
+
+    integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
+    integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
+
+    integer :: gridptCount, gridpt
+
+    character(len=*), parameter :: myName = 'aer_daysSinceLastObs'
+
+    character(len=2 ) :: typvar
+    character(len=12) :: etiket
+
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columng
+
+    real(8) :: leadTimeInHours
+
+    if( mpi_nprocs > 1 ) then
+      write(*,*) 'mpi_nprocs = ',mpi_nprocs
+      call utl_abort( myName// &
+                      ': this version of the code should only be used with one mpi task.')
+    end if
+    if( mpi_myid > 0 ) return
+
+    write(*,*) '**********************************************************'
+    write(*,*) '** '//myName//': Update the days since last obs **'
+    write(*,*) '**********************************************************'
+
+    call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       varNames_opt=(/'DSLO'/), dataKind_opt=8 )
+    call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
+                       varNames_opt=(/'DSLO'/), dataKind_opt=8 )
+
+    etiket = '            '
+    typvar = 'P@'
+
+    call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+
+    leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
+    call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
+                 leadTimeInHours)
+
+    call ocm_copyMask(stateVectorBkGnd%oceanMask, stateVectorAnal%oceanMask)
+    stateVectorAnal%etiket = stateVectorBkGnd%etiket
+
+    call col_setVco(column, vco_ptr)
+    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/'DSLO'/))
+    call col_setVco(columng, vco_ptr)
+    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/'DSLO'/))
+    call s2c_tl(statevectorBkGnd, column, columng, obsSpaceData)
+
+    ni = stateVectorBkGnd%hco%ni
+    nj = stateVectorBkGnd%hco%nj
+
+    call gsv_getField(stateVectorBkGnd, bkGndDaysSinceLastObs_ptr, 'DSLO')
+    call gsv_getField(stateVectorAnal,  analysisDaysSinceLastObs_ptr, 'DSLO')
+
+    ! Initialisation
+    do stepIndex = 1, stateVectorBkGnd%numStep
+      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
+        do latIndex = 1, nj
+          do lonIndex = 1, ni
+            analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
+               bkGndDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex)
+          end do
+        end do
+      end do
+    end do
+
+    HEADER_LOOP: do headerIndex = 1, obs_numHeader(obsSpaceData)
+
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+
+      BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) then
+          cycle BODY_LOOP
+        end if
+
+        do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+          do stepIndex = 1, stateVectorBkGnd%numStep
+            do procIndex = 1, mpi_nprocs
+
+              call s2c_getWeightsAndGridPointIndexes(headerIndex, &
+                   kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
+                   obsLonIndex, gridptCount)
+
+              GRIDPT_LOOP: do gridpt = 1, gridptCount
+
+                if ( interpWeight(gridpt) == 0.0d0 ) cycle GRIDPT_LOOP
+
+                lonIndex = obsLonIndex(gridpt)
+                latIndex = obsLatIndex(gridpt)
+
+                do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
+                  analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = 0.0
+                end do
+
+              end do GRIDPT_LOOP
+
+            end do
+          end do
+        end do
+
+      end do BODY_LOOP
+
+    end do HEADER_LOOP
+
+    call gsv_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
+                          containsFullField_opt=.true. )
+
+    call gsv_deallocate( stateVectorBkGnd )
+    call gsv_deallocate( stateVectorAnal )
+
+  end subroutine aer_daysSinceLastObs
 
 end module analysisErrorOI_mod
