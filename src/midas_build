@@ -60,13 +60,16 @@ function are_jobs_completed {
                 __front_done=1
         fi; fi
 
-        if [ "${__back_done}" = 0 ]; then
-        if [ "$(ps ${pid_back} | wc -l)" -le 1 ]; then
+        if [ "${pid_back}" = -1 ]; then
+                __back_done=1
+        else
+            if [ "${__back_done}" = 0 ]; then
+            if [ "$(ps ${pid_back} | wc -l)" -le 1 ]; then
                 echo "Compilation on ${MIDAS_COMPILE_BACKEND} \
 (pid: ${pid_back}) has finished."
                 __back_done=1
-        fi; fi
-
+            fi; fi
+        fi
         [ "${__front_done}" = 1 -a "${__back_done}" = 1 ] && break
         sleep ${__sleep_interval}
     done
@@ -90,6 +93,9 @@ function printHeader {
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
+    if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
+      echo "| * compilation also done on ${MIDAS_COMPILE_BACKEND} (${MIDAS_COMPILE_BACKEND_ARCH})"
+    fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
@@ -211,11 +217,8 @@ if [ -n "${__abs_exist_list}" ]; then
 fi
 
 
-
 ##=========================================================
-##  Compilation on backend (in the background)
-
-
+##  Compilation job for submission
 ##-- passing active environment to the job
 ##  (before sourcing config.dot.sh)
 cat > .compile_job << EOF
@@ -242,15 +245,8 @@ export MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION}
 cd ${__here}
 source ${__midas_dot_cfg}
 EOF
-echo "${__job}" >> .compile_job
 
-echo "========================================================================"
-echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
-echo "    > listing_${__listing_backend}"
-(cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > \
-    ${__listing_backend} 2>&1) &
-__pid_backend=$!
-echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
+echo "${__job}" >> .compile_job
 
 ##=========================================================
 ##  Compilation on frontend
@@ -270,7 +266,22 @@ else
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
 fi
 
-## waiting for backend compilation to terminate
+##=========================================================
+##  Compilation on backend (in the background)
+if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
+    echo "========================================================================"
+    echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
+    echo "    > listing_${__listing_backend}"
+    (cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > \
+        ${__listing_backend} 2>&1) &
+    __pid_backend=$!
+    echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
+else
+    __pid_backend=-1
+fi
+##=========================================================
+
+## waiting for compilation to terminate
 echo
 echo "Compilation underway in working directory: ${__build_dir_version}"
 echo
@@ -278,7 +289,7 @@ echo
 are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
     ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 
-##-- renaming ord_soumet listing
+##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
     __listing_frontend_search="^${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-.*-$(date +%Y%m%d).*\.out$"
     __listing_frontend_found=$(ls ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}")
@@ -301,24 +312,26 @@ mv ${__listing_config} ${__listing_frontend}
 typeset __err_regex='error #|(?<!-)undefined|make.*Circular'
 
 typeset __err_comp=0
-typeset __err_back=$(grep -Pn "${__err_regex}" ${__listing_frontend})
-typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_backend})
+typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_frontend})
 if [ -n "${__err_front}" ]; then
     echo
     echo "<!> some error found in ${__listing_frontend}"
     echo "${__err_front}"
     __err_comp=1
 fi
-if [ -n  "${__err_back}" ]; then
-    echo
-    echo "<!> some error found in ${__listing_backend}"
-    echo "${__err_back}"
-    __err_comp=1
-fi
-if [ "${__err_comp}" = 1 ]; then
-    exit 1
-fi
 
+if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
+    typeset __err_back=$(grep -Pn "${__err_regex}" ${__listing_backend})
+    if [ -n  "${__err_back}" ]; then
+        echo
+        echo "<!> some error found in ${__listing_backend}"
+        echo "${__err_back}"
+        __err_comp=1
+    fi
+    if [ "${__err_comp}" = 1 ]; then
+        exit 1
+    fi
+fi
 ##========================================================
 ##  Installing (copying + renaming) target programs
 if [ -n "${__abs_exist_list}" -a  "${__install_always_midas}" = true ]

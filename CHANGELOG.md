@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Option for `midas_build` to compile only on frontend architecture (#582 and !544)
  * Add an English documentation for `midas.splitobs.Abs` (#577 and !541)
    * when it is called with `-h`, `-help` or `--help`.
  * New subroutine to update the `Days Since Last Obs` in program `midas-analysisErrorOI` (#563 and !540)
