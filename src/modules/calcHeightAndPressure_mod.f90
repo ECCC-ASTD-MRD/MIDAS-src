@@ -435,7 +435,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_M(:,:,:,stepIndex) = gz2geo_r4(GZHeight_out)
+          Z_M(:,:,:,stepIndex) = gz2alt_r4(GZHeight_out)
           deallocate(GZHeight_out)
 
           ! Z_T
@@ -448,7 +448,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_T(:,:,:,stepIndex) = gz2geo_r4(GZHeight_out)
+          Z_T(:,:,:,stepIndex) = gz2alt_r4(GZHeight_out)
           deallocate(GZHeight_out)
 
           beSilent=.false. ! DEBUG mad001
@@ -485,11 +485,10 @@ contains
 
       end subroutine calcHeight_gsv_nl_vcode2100x_r4
 
-      ! DEBUG mad001 : do it for calcHeight_gsv_nl_vcode2100x_r8 as well
       !---------------------------------------------------------
-      ! gz2geo_r4
+      ! gz2alt_r4
       !---------------------------------------------------------
-      function gz2geo_r4(gzHeight) result(alt)
+      function gz2alt_r4(gzHeight) result(alt)
         !
         ! :Purpose: iterative conversion of geopotential height to geometric
         !           altitude.  (solution proposed by J. Aparicio)
@@ -521,17 +520,17 @@ contains
                                       latIndex+statevector%myLatBeg-1)
               gzH = gzHeight(lonIndex, latIndex, lvlIndex)
               ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-              b1 = -2._dp/WGS_a*(1._dp+WGS_f+WGS_m-2*WGS_f*latitude**2)
-              b2 = 3._dp/WGS_a**2
+              b1 = -2.0/WGS_a*(1.0+WGS_f+WGS_m-2*WGS_f*latitude**2)
+              b2 = 3.0/WGS_a**2
               ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
-              A2 = -b1/2._dp
-              A3 = b1**2/2._dp - b2/3._dp
+              A2 = -b1/2.0
+              A3 = b1**2/2.0 - b2/3.0
               alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
             end do
           end do
         end do
 
-      end function gz2geo_r4
+      end function gz2alt_r4
 
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode2100x_r8
@@ -542,7 +541,7 @@ contains
 
         ! Locals
         real(kind=8), allocatable   :: Hsfc(:,:)
-        real(kind=8), pointer       :: Height_out(:,:,:)
+        real(kind=8), pointer       :: GZHeight_out(:,:,:)
         real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
         if ( .not. gsv_varExist(statevector,'Z_*')) then
@@ -565,30 +564,30 @@ contains
         do stepIndex = 1, numStep
 
           ! Z_M
-          nullify(Height_out)
+          nullify(GZHeight_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_M, &
-                              levels=Height_out, &
+                              levels=GZHeight_out, &
                               sfc_field=Hsfc, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_M(:,:,:,stepIndex) = Height_out(:,:,:)
-          deallocate(Height_out)
+          Z_M(:,:,:,stepIndex) = gz2alt_r8(GZHeight_out)
+          deallocate(GZHeight_out)
 
           ! Z_T
-          nullify(Height_out)
+          nullify(GZHeight_out)
           status = vgd_levels(statevector%vco%vgrid, &
                               ip1_list=statevector%vco%ip1_T, &
-                              levels=Height_out, &
+                              levels=GZHeight_out, &
                               sfc_field=Hsfc, &
                               in_log=.false.)
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_T(:,:,:,stepIndex) = Height_out(:,:,:)
-          deallocate(Height_out)
+          Z_T(:,:,:,stepIndex) = gz2alt_r8(GZHeight_out)
+          deallocate(GZHeight_out)
 
           if ( .not. beSilent .and. stepIndex == 1 ) then
             write(*,*) 'stepIndex=',stepIndex, ',Z_M='
@@ -604,6 +603,53 @@ contains
         deallocate(Hsfc)
 
       end subroutine calcHeight_gsv_nl_vcode2100x_r8
+
+      !---------------------------------------------------------
+      ! gz2alt_r8
+      !---------------------------------------------------------
+      function gz2alt_r8(gzHeight) result(alt)
+        !
+        ! :Purpose: iterative conversion of geopotential height to geometric
+        !           altitude.  (solution proposed by J. Aparicio)
+        !
+        real(kind=8), allocatable           :: alt(:,:,:)
+        real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
+
+        ! Locals
+        integer                             :: nLon, nLat, nLev
+        type(struct_hco)                    :: hco
+        real(kind=8)                        :: latitude
+        real(kind=8)                        :: gzH, b1, b2, A2, A3, altTmp
+        integer                             :: lonIndex, latIndex, lvlIndex, i
+
+        ! gzHeight comes from external `vgd_levels` which does not know the
+        ! mpi shifted indexes
+        nLon = ubound(gzHeight, 1)
+        nLat = ubound(gzHeight, 2)
+        nLev = ubound(gzHeight, 3)
+        allocate(alt(nLon, nLat, nLev))
+
+        hco = gsv_getHco(statevector)
+
+        do lonIndex = 1, nLon
+          do latIndex = 1, nLat
+            do lvlIndex = 1, nLev
+              ! explicit shift of indexes
+              latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
+                                      latIndex+statevector%myLatBeg-1)
+              gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+              ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
+              b1 = -2.0D0/WGS_a*(1.0D0+WGS_f+WGS_m-2*WGS_f*latitude**2)
+              b2 = 3.0D0/WGS_a**2
+              ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
+              A2 = -b1/2.0D0
+              A3 = b1**2/2.0D0 - b2/3.0D0
+              alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
+            end do
+          end do
+        end do
+
+      end function gz2alt_r8
 
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode500x
