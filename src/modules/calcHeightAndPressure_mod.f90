@@ -499,11 +499,10 @@ contains
 
         ! Locals
         integer                             :: nLon, nLat, nLev
-        integer, parameter                  :: dp = selected_real_kind(12) ! Long floats for gps
         type(struct_hco)                    :: hco
-        real(kind=dp)                       :: dAlt, altTmp, latitude
+        real(kind=4)                        :: latitude
+        real(kind=4)                        :: gzH, b1, b2, A2, A3, altTmp
         integer                             :: lonIndex, latIndex, lvlIndex, i
-        integer, parameter                  :: nIter = 2
 
         ! gzHeight comes from external `vgd_levels` which does not know the
         ! mpi shifted indexes
@@ -520,14 +519,14 @@ contains
               ! explicit shift of indexes
               latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
                                       latIndex+statevector%myLatBeg-1)
-              ! temporary type conversion for gps_geopotential
-              altTmp = real(gzHeight(lonIndex, latIndex, lvlIndex), dp)
-              do i = 1, nIter
-                dAlt = gps_geopotential(latitude, altTmp)/GRAV &
-                     - gzHeight(lonIndex, latIndex, lvlIndex)
-                altTmp = altTmp - dAlt
-              end do
-              alt(lonIndex, latIndex, lvlIndex) = real(altTmp,4)
+              gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+              ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
+              b1 = -2._dp/WGS_a*(1._dp+WGS_f+WGS_m-2*WGS_f*latitude**2)
+              b2 = 3._dp/WGS_a**2
+              ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
+              A2 = -b1/2._dp
+              A3 = b1**2/2._dp - b2/3._dp
+              alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
             end do
           end do
         end do
