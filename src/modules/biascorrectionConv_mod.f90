@@ -110,6 +110,79 @@ MODULE biasCorrectionConv_mod
 CONTAINS
 
   !-----------------------------------------------------------------------
+  ! bcc_readConfig
+  !-----------------------------------------------------------------------
+  subroutine bcc_readConfig()
+    !
+    ! :Purpose: Read NAMBIASCONV namelist section and NAMSONDETYPES section if uaBiasActive=true
+    !
+    implicit none
+    !Locals:
+    integer  :: ierr, nulnam, i
+    
+    if ( initialized ) then
+      write(*,*) "bcc_readConfig has already been called. Returning..."
+      return
+    end if
+  
+    ! set default values for namelist variables
+    aiBiasActive = .false.  ! bias correct AI data (TT)
+    gpBiasActive = .false.  ! bias correct GP data (ZTD)
+    uaBiasActive = .false.  ! bias correct UA data (TT,ES)
+    aiRevOnly    = .false.  ! AI: don't apply new correction but simply reverse any old corrections
+    gpRevOnly    = .false.  ! GP: don't apply new correction but simply reverse any old corrections
+    uaRevOnly    = .false.  ! UA: don't apply new correction but simply reverse any old corrections
+    uaRejUnBcor  = .false.  ! UA: Set DATA QC flag bit 11 on to exclude uncorrected UA observations from assimilation
+    uaNprofsMin  = 100      ! UA: If Nprofs for a given stn/stype < uaNprofsMin, flag the bcors as unusable
+    uaNbiasCat   = 1        ! UA: Number of bias profile categories in UA bcor files: 1, or 2 for "asc" and "desc" categories
+    uaNlatBands  = 1        ! UA: Number of latitude bands in ua_bcors_stype file (1 or 5): 1 = no bands (global biases).
+    ! read in the namelist NAMBIASCONV
+    if ( utl_isNamelistPresent('nambiasconv','./flnml') ) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nambiasconv,iostat=ierr)
+      if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
+      if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'bcc_readconfig: NAMBIASCONV section is missing in the namelist. The default values will be used.'
+    end if
+        
+    bcc_aiBiasActive = aiBiasActive
+    bcc_gpBiasActive = gpBiasActive
+    bcc_uaBiasActive = uaBiasActive
+    
+    ! read in the namelist NAMSONDETYPES
+    if ( uaBiasActive .and. .not.uaRevOnly ) then
+      if ( utl_isNamelistPresent('namsondetypes','./flnml') ) then
+        nlNbSondes = 0
+        nlSondeTypes(:)   = 'empty'
+        nlSondeCodes(:,:) = -9
+        nulnam = 0
+        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam,nml=namsondetypes,iostat=ierr)
+        if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
+        if ( mpi_myid == 0 ) write(*,nml=namsondetypes)
+        ierr = fclos(nulnam)
+      else 
+        write(*,*)
+        call utl_abort('bcc_readconfig ERROR: NAMSONDETYPES section is missing in the namelist!')
+      end if
+      if ( nlNbSondes > nSondesMax ) call utl_abort('bcc_readconfig ERROR: Number of sonde types in namelist exceeds nSondesMax!')
+      if ( nlNbSondes <= 0 )         call utl_abort('bcc_readconfig ERROR: Number of sonde types in namelist <= 0!')
+      allocate( rs_types(nlNbSondes) )
+      do i = 1,nlNbSondes
+         rs_types(i)%name     = nlSondeTypes(i)
+         rs_types(i)%codes(:) = nlSondeCodes(i,:)
+      end do
+    end if
+    
+    initialized = .true.
+    
+  end subroutine bcc_readConfig  
+  
+  !-----------------------------------------------------------------------
   ! bcc_UACorrection
   !-----------------------------------------------------------------------
   
@@ -611,83 +684,6 @@ CONTAINS
     
   end function bcc_LatBand
     
-  
-  !-----------------------------------------------------------------------
-  ! bcc_readConfig
-  !-----------------------------------------------------------------------
-  subroutine bcc_readConfig()
-    !
-    ! :Purpose: Read NAMBIASCONV namelist section and NAMSONDETYPES section if uaBiasActive=true
-    !
-    ! FOR AN EXAMPLE OF NAMELIST WITH NAMSONDETYPES SECTION SEE
-    !   /home/mac003/temp/nml.default_bgck
-    !
-    implicit none
-    !Locals:
-    integer  :: ierr, nulnam, i
-    
-    if ( initialized ) then
-      write(*,*) "bcc_readConfig has already been called. Returning..."
-      return
-    end if
-  
-    ! set default values for namelist variables
-    aiBiasActive = .false.  ! bias correct AI data (TT)
-    gpBiasActive = .false.  ! bias correct GP data (ZTD)
-    uaBiasActive = .false.  ! bias correct UA data (TT,ES)
-    aiRevOnly    = .false.  ! AI: don't apply new correction but simply reverse any old corrections
-    gpRevOnly    = .false.  ! GP: don't apply new correction but simply reverse any old corrections
-    uaRevOnly    = .false.  ! UA: don't apply new correction but simply reverse any old corrections
-    uaRejUnBcor  = .false.  ! UA: Set DATA QC flag bit 11 on to exclude uncorrected UA observations from assimilation
-    uaNprofsMin  = 100      ! UA: If Nprofs for a given stn/stype < uaNprofsMin, flag the bcors as unusable
-    uaNbiasCat   = 1        ! UA: Number of bias profile categories in UA bcor files: 1, or 2 for "asc" and "desc" categories
-    uaNlatBands  = 1        ! UA: Number of latitude bands in ua_bcors_stype file (1 or 5): 1 = no bands (global biases).
-    ! read in the namelist NAMBIASCONV
-    if ( utl_isNamelistPresent('nambiasconv','./flnml') ) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=nambiasconv,iostat=ierr)
-      if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
-      if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
-      ierr = fclos(nulnam)
-    else
-      write(*,*)
-      write(*,*) 'bcc_readconfig: NAMBIASCONV section is missing in the namelist. The default value will be taken.'
-    end if
-        
-    bcc_aiBiasActive = aiBiasActive
-    bcc_gpBiasActive = gpBiasActive
-    bcc_uaBiasActive = uaBiasActive
-    
-    ! read in the namelist NAMSONDETYPES
-    if ( uaBiasActive .and. .not.uaRevOnly ) then
-      if ( utl_isNamelistPresent('namsondetypes','./flnml') ) then
-        nlNbSondes = 0
-        nlSondeTypes(:)   = 'empty'
-        nlSondeCodes(:,:) = -9
-        nulnam = 0
-        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam,nml=namsondetypes,iostat=ierr)
-        if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
-        if ( mpi_myid == 0 ) write(*,nml=namsondetypes)
-        ierr = fclos(nulnam)
-      else 
-        write(*,*)
-        call utl_abort('bcc_readconfig ERROR: NAMSONDETYPES section is missing in the namelist!')
-      end if
-      if ( nlNbSondes > nSondesMax ) call utl_abort('bcc_readconfig ERROR: Number of sonde types in namelist exceeds nSondesMax!')
-      if ( nlNbSondes <= 0 )         call utl_abort('bcc_readconfig ERROR: Number of sonde types in namelist <= 0!')
-      allocate( rs_types(nlNbSondes) )
-      do i = 1,nlNbSondes
-         rs_types(i)%name     = nlSondeTypes(i)
-         rs_types(i)%codes(:) = nlSondeCodes(i,:)
-      end do
-    end if
-    
-    initialized = .true.
-    
-  end subroutine bcc_readConfig
-
   !-----------------------------------------------------------------------
   ! bcc_readAIBiases
   !-----------------------------------------------------------------------
@@ -916,6 +912,8 @@ CONTAINS
         
       end do BODY
       
+      ! Set header flag bit 15 on to indicate that bias correction has been ADDED to raw value.
+      ! In older versions of this routine, such as the version used in IC-3/GDPS v8.0, the correction was SUBTRACTED.
       headerFlag = ibset(headerFlag, 15)
       call obs_headSet_i( obsSpaceData, OBS_ST1, headerIndex, headerFlag )
       
@@ -1304,9 +1302,16 @@ CONTAINS
     !
     ! :Purpose:  To apply bias corrections to radiosonde TT and ES observationa in obsSpaceData 
     !
+    !  This public routine is called by external routines.
+    !
     !  NOTE: We ADD the correction (negative of the bias) to the raw observation.
-    !        We SUBTRACT the old correction from the corrected value to remove (reverse) the old correction!
-    !        Value put in OBS_BCOR column is the corection that was ADDED to the raw observation.
+    !        We first SUBTRACT the old correction (if any) from the observation to remove (reverse) the old correction!
+    !        Bias correction is put in obsSpaceData OBS_BCOR column.
+    !
+    !  NOTE: Bias correction is NOT applied if the sonde type is RS41. Observations from this sonde type are 
+    !        assumed to be unbiased.
+    !
+    !  Routine does nothing if uaBiasActive = .false. (just returns to calling routine)
     !
     implicit none
     !Arguments:
@@ -1427,6 +1432,7 @@ CONTAINS
          end if
          if (debug) write(*,*) 'stype, stype_index = ', stype, stype_index
          
+         !! We assume that a sonde type of "RS41" reported by Chinese UA stations is not correct
          RealRS41 = .false.
          if ( trim(stype) == "RS41" ) then
            if ( stnid(1:1) == "5" ) then
