@@ -1731,7 +1731,7 @@ contains
         else
           call gsv_getField(statevector,P_M_ptr_r8,'P_M')
           call gsv_getField(statevector,P_T_ptr_r8,'P_T')
-          call gsv_getField(statevector,P0_ptr_r4,'P0')
+          call gsv_getField(statevector,P0_ptr_r8,'P0')
           call gsv_getField(statevector,hu_ptr_r8,'HU')
           call gsv_getField(statevector,tt_ptr_r8,'TT')
           call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
