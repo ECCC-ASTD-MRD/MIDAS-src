@@ -113,6 +113,7 @@ module stateToColumn_mod
   logical :: slantPath_RA_nl
   logical :: calcHeightPressIncrOnColumn
   logical :: useFootprintForTovs
+  logical :: rejectObsNonMonotonicPressure
 
   integer, external :: get_max_rss
 
@@ -129,17 +130,19 @@ contains
     implicit none
 
     ! arguments
-    type(struct_obs)       :: obsSpaceData
-    type(struct_columnData):: column
+    type(struct_obs), intent(inout)       :: obsSpaceData
+    type(struct_columnData), intent(inout):: column
 
     ! locals
     integer, parameter :: numWriteMax = 10
     integer :: headerIndex, bodyIndex, iterationCount, singularIndex, levelIndex
-    integer :: nlv_T, flag
+    integer :: pressureVarIndex
+    integer :: nlv_T
     integer :: numWrites
     real(8), pointer :: pressureProfile(:)
-    logical :: good
-    ! external functions
+    logical :: monotonicProfile
+    integer, parameter :: nPressureVar =2
+    character(len=4), parameter :: pressureVarList(nPressureVar)=['P_T ', 'P_M ']
 
     write(*,*) ' '
     write(*,*) 'pressureProfileMonotonicityCheck: START'
@@ -153,46 +156,54 @@ contains
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-     
-      pressureProfile  => col_getColumn(column, headerIndex, 'P_T')
-      !Should the check be done also on pressure on momentum levels (not used for radiances) ?
-      good = .true.
-      iterationCount = 0
-      iterationLoop:do
-        singularIndex = -1
-        levelSearch:do levelIndex = 1, nlv_T - 1
-          if ( pressureProfile(levelIndex) > pressureProfile(levelIndex+1)) then
-            singularIndex = levelIndex
-            exit levelSearch
+      do pressureVarIndex = 1, nPressureVar
+        pressureProfile  => col_getColumn(column, headerIndex, pressureVarList(pressureVarIndex))
+        monotonicProfile = .true.
+        iterationCount = 0
+        iterationLoop:do
+          singularIndex = -1
+          levelSearch:do levelIndex = 1, nlv_T - 1
+            if ( pressureProfile(levelIndex) > pressureProfile(levelIndex+1)) then
+              singularIndex = levelIndex
+              exit levelSearch
+            end if
+          end do levelSearch
+          if ( singularIndex == -1 ) exit iterationLoop !regular profile or correction OK
+          iterationCount = iterationCount + 1
+          if (iterationCount == 1) then
+            monotonicProfile = .false.
+            if (numWrites < numWriteMax) then
+              numWrites = numWrites + 1
+              write(*,*) 'pressureProfileMonotonicityCheck: found non monotonic pressure profile:', &
+                   pressureVarList(pressureVarIndex), pressureProfile
+            end if
           end if
-        end do levelSearch
-        if ( singularIndex == -1 ) exit iterationLoop !regular profile or correction OK
-        iterationCount = iterationCount + 1
-        if (iterationCount == 1 .and. numWrites < numWriteMax) then
-          good = .false.
-          numWrites = numWrites + 1
-          write(*,*) "pressureProfileMonotonicityCheck: found non monotonic pressure profile:", pressureProfile
-        end if
-        if (singularIndex == 1) then !should never happen
-          write(*,*) "pressureProfileMonotonicityCheck: ", pressureProfile(1:2)
-          call utl_abort("pressureProfileMonotonicityCheck: profile in the wrong order ?")
-        end if
-        pressureProfile(singularIndex) = 0.5d0 * ( pressureProfile(singularIndex - 1) + pressureProfile(singularIndex + 1) )
-        write(*,*) "pressureProfileMonotonicityCheck: profile iteration", iterationCount
-      end do iterationLoop
+          if (singularIndex == 1) then !should never happen
+            write(*,*) 'pressureProfileMonotonicityCheck: ', pressureProfile(1:2)
+            call utl_abort('pressureProfileMonotonicityCheck: profile in the wrong order ?' &
+                 // pressureVarList(pressureVarIndex))
+          end if
+          pressureProfile(singularIndex) = 0.5d0 * ( pressureProfile(singularIndex - 1) + pressureProfile(singularIndex + 1) )
+          write(*,*) 'pressureProfileMonotonicityCheck: profile iteration', &
+               pressureVarList(pressureVarIndex), iterationCount
+        end do iterationLoop
 
-      if (.not. good) then
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY: do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          !Should the flag change be optional ?
-          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
-          flag = ibset(flag, 9)
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, flag)
-        end do BODY
-      end if
+        ! if requested reject the corrected profile
+        if (.not. monotonicProfile .and. rejectObsNonMonotonicPressure) then
+          call obs_headSet_i(obsSpaceData,OBS_ST1,headerIndex, &
+               ibset( obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex), 05))
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
+          BODY: do
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if (bodyIndex < 0) exit BODY
+            if (rejectObsNonMonotonicPressure) then
+              call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, &
+                   ibset(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex),9))
+            end if
+          end do BODY
+        end if
+      end do ! loop on pressure variables
      
     end do HEADER
 
@@ -388,7 +399,7 @@ contains
     type(kdtree2), pointer  :: tree
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
-    namelist /nams2c/ useFootprintForTovs 
+    namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -411,6 +422,7 @@ contains
       slantPath_RA_nl   = .false.
       calcHeightPressIncrOnColumn = .false.
       useFootprintForTovs = .false.
+      rejectObsNonMonotonicPressure =.true.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mpi_myid == 0 ) then
@@ -1405,10 +1417,7 @@ contains
       call gsv_deallocate( stateVector )
     end if
     
-    if (slantPath_TO_tlad) then
-      call pressureProfileMonotonicityCheck(obsSpaceData, columnAnlInc)
-      call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
-    end if
+    if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
     call tmg_stop(167)
 
@@ -1626,10 +1635,7 @@ contains
 
     call gsv_deallocate( statevector_VarsLevs )
 
-    if (slantPath_TO_tlad) then
-      call pressureProfileMonotonicityCheck(obsSpaceData, columnAnlInc)
-      call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
-    end if
+    if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
     call tmg_stop(168)
 
