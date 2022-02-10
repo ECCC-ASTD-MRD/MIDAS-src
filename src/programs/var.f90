@@ -277,7 +277,7 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      applyLimitOnHU = ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 )
+      applyLimitOnHU = ( limitHuInOuterLoop .and. outerLoopIndex > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
