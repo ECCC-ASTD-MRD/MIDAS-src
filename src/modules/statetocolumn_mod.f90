@@ -137,7 +137,7 @@ contains
     integer, parameter :: numWriteMax = 10
     integer :: headerIndex, bodyIndex, iterationCount, singularIndex, levelIndex
     integer :: pressureVarIndex
-    integer :: nlv_T
+    integer :: nlv
     integer :: numWrites
     real(8), pointer :: pressureProfile(:)
     logical :: monotonicProfile
@@ -149,7 +149,6 @@ contains
     write(*,*) ' '
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    nlv_T = col_getNumLev(column, 'TH')
     numWrites = 0
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -157,12 +156,13 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       do pressureVarIndex = 1, nPressureVar
-        pressureProfile  => col_getColumn(column, headerIndex, pressureVarList(pressureVarIndex))
+        pressureProfile => col_getColumn(column, headerIndex, pressureVarList(pressureVarIndex))
+        nlv = size(pressureProfile)
         monotonicProfile = .true.
         iterationCount = 0
         iterationLoop:do
           singularIndex = -1
-          levelSearch:do levelIndex = 1, nlv_T - 1
+          levelSearch:do levelIndex = 1, nlv - 1
             if ( pressureProfile(levelIndex) > pressureProfile(levelIndex+1)) then
               singularIndex = levelIndex
               exit levelSearch
