@@ -85,8 +85,8 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loading craype-hugepages16M"
     module load craype-hugepages16M
 elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
-    echo "... loading rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0"
-    . r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0
+    echo "... loading rpn/code-tools/ENV/cdt-1.5.4-inteloneapi-2022.1.2"
+    . r.load.dot rpn/code-tools/ENV/cdt-1.5.4-inteloneapi-2022.1.2
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
@@ -116,8 +116,8 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     . ssmuse-sh -d hpco/exp/sqlite/3.29.0
 elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.7.1"
-    . r.load.dot eccc/mrd/rpn/libs/19.7.1
+    echo "... loading eccc/mrd/rpn/libs/20220204"
+    . r.load.dot eccc/mrd/rpn/libs/20220204
     echo "... loading hdf5"
     . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/inteloneapi-2021.3.0/01
 fi
@@ -148,18 +148,18 @@ if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-sk
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
 elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.6.0"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.6.0
+    echo "... loading eccc/mrd/rpn/vgrid/20220204"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/20220204
     VGRID_LIBNAME="vgrid"
 
-    echo "... loading eccc/cmd/cmda/libs/19.7.1/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.7.1/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/20220204/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/20220204/${COMP_ARCH}
 
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}
+    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.0/inteloneapi-2021.4.0"
+    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.0/inteloneapi-2021.4.0
 
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2"
