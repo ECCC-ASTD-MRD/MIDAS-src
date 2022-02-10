@@ -324,7 +324,7 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Impose limits on stateVectorUpdateHighRes only when outer loop is used.
-    if ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 ) then
+    if ( limitHuInOuterLoop ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
       call qlim_saturationLimit( stateVectorUpdateHighRes )
       call qlim_rttovLimit( stateVectorUpdateHighRes )
