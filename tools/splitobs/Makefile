@@ -25,9 +25,12 @@ DEBUG_OPTIONS =
 OPT_LEVEL = 2
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/ENV/cdt-1.5.3-b-inteloneapi-2021.4.0; \
-	. r.load.dot eccc/mrd/rpn/libs/19.7.1;                            \
-	. ssmuse-sh -d eccc/cmd/cmda/libs/19.7.1/${COMP_ARCH};            \
+	. r.load.dot rpn/code-tools/ENV/cdt-1.5.4-inteloneapi-2022.1.2; \
+	make splitobs_libs_20220204
+
+splitobs_libs_20220204: version.h $(SRC)
+	. r.load.dot eccc/mrd/rpn/libs/20220204;                 \
+	. ssmuse-sh -d eccc/cmd/cmda/libs/20220204/${COMP_ARCH}; \
 	make splitobs
 
 splitobs_ubuntu-18.04-skylake-64: version.h $(SRC)
