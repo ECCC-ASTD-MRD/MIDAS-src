@@ -160,6 +160,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckAmsubMonotonic"/>
+    <FAMILY  name="BgckAmsubMonotonic">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="BgckSsmis"/>
     <FAMILY  name="BgckSsmis">
       <SUBMITS sub_name="UnitTest"/>

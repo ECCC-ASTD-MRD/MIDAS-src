@@ -97,6 +97,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix non monotonic pressure profiles in slantpath mode for radiance observations (#564 and !543)
+   * Minor impact on results
  * Fix the interpolation of surface pressure in slantpath mode (#525 and !535)
    * Minor impact for radiances and GPS-RO
  * Fix bug in BURP update of high precision radiosonde temperature and dew-point depression observations (#554 and !529)
