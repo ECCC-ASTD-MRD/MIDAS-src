@@ -25,12 +25,12 @@ fi
 
 VERSION=${VERSION:-$(git describe --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
-INPUTS=${INPUTS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/inputs}
-REFERENCE=${REFERENCE:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/results}
-GRIDS=${GRIDS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/grids}
+INPUTS=${INPUTS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/grids}
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/19.7.1
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/19.7.1
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220204
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220204
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -50,16 +50,16 @@ cd ${WORKDIR}
 
 echo "Working directory is ${WORKDIR}"
 
-liburp=${liburp:-$(which liburp || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
-editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
-reflex=${reflex:-$(which reflex || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
-burpdiff=${burpdiff:-$(which burpdiff || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
-burp2rdb=${burp2rdb:-$(which burp2rdb || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
-rdbgen=${rdbgen:-$(which rdbgen || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite=${sqlite:-$(which d.sqlite || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
+liburp=${liburp:-$(which liburp 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
+editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+reflex=${reflex:-$(which reflex 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
+burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
+burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
+rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
+sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
 sqlite3=${sqlite3:-$(which sqlite3)}
-fstcomp=${fstcomp:-$(which fstcomp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
-editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
+editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
 #TMPDIR_OLD=${TMPDIR}
 #unset TMPDIR
