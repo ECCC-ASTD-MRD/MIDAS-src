@@ -14,11 +14,25 @@
    numElemIdList = 1
    elemIdList(1) = 12163
 /
- &namObsDbUpdate
+ &namObsDbMIDASBodyUpdate
    numberUpdateItems=3
    updateItemList(1)='OMP'
    updateItemList(2)='BCOR'
    updateItemList(3)='OER'
+/
+ &namObsDbMIDASHeaderUpdate
+   numberUpdateItems=11
+   updateItemList(1)='ETOP'
+   updateItemList(2)='VTOP'
+   updateItemList(3)='ECF'
+   updateItemList(4)='VCF'
+	 updateItemList(5)='HE'
+   updateItemList(6)='NCO2'
+   updateItemList(7)='ZTSR'
+   updateItemList(8)='ZTM'
+   updateItemList(9)='ZLQM'
+   updateItemList(10)='ZTGM'
+   updateItemList(11)='ZPS'
 /
  &NAMDIMO
    NMXOBS=400000,

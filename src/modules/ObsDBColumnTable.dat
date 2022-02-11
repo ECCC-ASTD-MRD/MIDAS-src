@@ -14,7 +14,7 @@
  Last updated: 2022/01/17
 
  ObsDB Columns                     MIDAS ObsSpaceData     BUFR ID           Unit             Description
------HEADER TABLE INFO BEGINS--------------------------------------------------------------------------------------------------------------------
+-----OBS_HEADER TABLE INFO BEGINS--------------------------------------------------------------------------------------------------------------------
 Report                             [headTableName]        (-)               (-)              Header table name
 ID_REPORT                          [headPrimaryKey]       (-)               (-)              Unique row ID for report table
 DATE_VALID                         [headDateSqlName]      (-)               Date             Valid Date of Observation
@@ -34,34 +34,18 @@ GEO_LOCATION_QUALITY               AQF1                   33078             Flag
 GRANULE_LEVEL_QUALITY              AQF2                   33079             Flag_Table       Granule Level Quality Flags
 SCAN_LEVEL_QUALITY                 AQF3                   33080             Flag_Table       Scan Level Quality Flags
 ORIGINATING_CENTER                 ORI                    1033              Code_Table       Identification of Originating/Generating Center
------HEADER TABLE INFO ENDS----------------------------------------------------------------------------------------------------------------------
+-----OBS_HEADER TABLE INFO ENDS----------------------------------------------------------------------------------------------------------------------
 
------BODY TABLE INFO BEGINS----------------------------------------------------------------------------------------------------------------------
+-----OBS_BODY TABLE INFO BEGINS----------------------------------------------------------------------------------------------------------------------
 Observation                        [bodyTableName]        (-)                (-)              Body table name
 ID_OBSERVATION                     [bodyPrimaryKey]       (-)                (-)              Unique row ID for observation table
 CHANNEL                            PPP                    2150/5042          (-)              Channel
 BRIGHTNESS_TEMPERATURE             VAR                    12163              K                Observed Brightness Temperature
 CHANNEL_QUALITY_FLAG               QCFL                   33032/33081        Flag Table       Channel Quality Flags for ATOVS
------BODY TABLE INFO ENDS------------------------------------------------------------------------------------------------------------------------
+-----OBS_BODY TABLE INFO ENDS------------------------------------------------------------------------------------------------------------------------
 
------MIDAS TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------------
-MIDAS_OUTPUT                       [midasTableName]       (-)                (-)              MIDAS table name
-ID_MIDAS                           [midasPrimaryKey]      (-)                (-)              Unique row ID for MIDAS table
-VCOORD                             PPP*                   (-)                (-)              Vertical coordinate parameter
-VARNO                              VNM*                   (-)                (-)              Variable Number
-OBS_VALUE                          VAR*                   (-)                (-)              Observation Value
-FLAG                               FLG                    (-)                (-)              Observation Flag
-OBS_MINUS_BACKGROUND               OMP                    (-)                (-)              Observation Minus Background
-OBS_MINUS_ANALYSIS                 OMA                    (-)                (-)              Observation Minus Analysis
-OBS_ERROR                          OER                    (-)                (-)              Observation Error
-BACKGROUND_ERROR                   HPHT                   (-)                (-)              Background Error
-FSO                                FSO                    (-)                (-)              Forecast Sensitivity to Observation
-BIAS_CORRECTION                    BCOR                   (-)                (-)              Observation Bias Correction
-SFC_EMISSIVITY                     SEM                    (-)                (-)              Surface Emissivity for Radiance Observation
------MIDAS TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
-
------RADIANCE_BGCK TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------
-RADIANCE_BGCK                      [radBgckTableName]     (-)                (-)              Radiance Background Check Table
+-----MIDAS_HEADER TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------
+MIDAS_HEADER_OUTPUT                [midasHeadTableName]   (-)                (-)              Radiance Background Check Table
 MEDIAN_CO2_SLICING_CLD_TOP_PRES    ETOP                   (-)                (-)              Median CO2 Slicing Cloud Top Pressure 
 STD_CO2_SLICING_CLD_TOP_PRES       VTOP                   (-)                (-)              Standard Deviation CO2 Slicing Cloud Top Pressure 
 MEDIAN_CO2_SLICING_CLD_FRAC        ECF                    (-)                (-)              Median C02 Slicing Cloud Fraction
@@ -73,4 +57,21 @@ MODEL_AIR_SFC_TEMPERATURE          ZTM                    (-)                (K)
 MODEL_AIR_SFC_HUMIDITY             ZLQM                   (-)                (kg/kg)          Model Air Surface Humidity
 MODEL_SKIN_TEMPERATURE             ZTGM                   (-)                (K)              Model Skin Temperature
 MODEL_SURFACE_PRESSURE             ZPS                    (-)                (Pa)             Model Surface Pressure
------RADIANCE_BGCK TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
+-----MIDAS_HEADER TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
+
+-----MIDAS_BODY TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------------
+MIDAS_BODY_OUTPUT                  [midasBodyTableName]   (-)                (-)              MIDAS table name
+ID_MIDAS                           [midasBodyPrimaryKey]  (-)                (-)              Unique row ID for MIDAS table
+VCOORD                             PPP*                   (-)                (-)              Vertical coordinate parameter
+VARNO                              VNM*                   (-)                (-)              Variable Number
+OBS_VALUE                          VAR*                   (-)                (-)              Observation Value
+FLAG                               FLG                    (-)                (-)              Observation Flag
+OBS_MINUS_BACKGROUND               OMP                    (-)                (-)              Observation Minus Background
+OBS_MINUS_ANALYSIS                 OMA                    (-)                (-)              Observation Minus Analysis
+OBS_ERROR                          OER                    (-)                (-)              Observation Error
+BACKGROUND_ERROR                   HPHT                   (-)                (-)              Background Error
+FSO                                FSO                    (-)                (-)              Forecast Sensitivity to Observation
+BIAS_CORRECTION                    BCOR                   (-)                (-)              Observation Bias Correction
+SFC_EMISSIVITY                     SEM                    (-)                (-)              Surface Emissivity for Radiance Observation
+-----MIDAS_BODY TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
+

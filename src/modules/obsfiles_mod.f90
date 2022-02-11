@@ -246,7 +246,7 @@ contains
                               fileIndex )
       else if ( obsFileType == 'SQLITE' ) then
         if (odbf_isActive()) then
-          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+          call odbf_updateMidasBodyFile( obsSpaceData, obsf_cfilnam(fileIndex), &
                                 obsf_cfamtyp(fileIndex), fileIndex )
         else
           call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
@@ -937,8 +937,8 @@ contains
         call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
       else if ( trim(obsFileType) == 'SQLITE' .and. odbf_isActive())  then
       ! Potentially modify obsf_determineSplitFileType to include odb file type
-        write(*,*) 'obsf_addCloudParametersAndEmissivity: obsFileType = SQLITE and odbf_isActive = True'
-        call odbf_addCloudAndBackgroundValues(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+        write(*,*) 'odbf_updateMIDASHeaderTable: obsFileType = SQLITE and odbf_isActive = True'
+        call odbf_updateMidasHeaderTable(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
       else  
