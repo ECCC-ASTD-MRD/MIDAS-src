@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateMidasBodyFile, odbf_updateMidasHeaderTable
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile
 
  
   ! Arrays used to match obsDB column names with obsSpaceData column names
@@ -810,12 +810,12 @@ contains
   end subroutine odbf_readMidasTable
 
   !--------------------------------------------------------------------------
-  ! odbf_updateMidasBodyFile
+  ! odbf_updateMidasBodyTable
   !--------------------------------------------------------------------------
-  subroutine odbf_updateMidasBodyFile(obsdat, fileName, familyType, fileIndex)
+  subroutine odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     !
-    ! :Purpose: Update the selected quantities in an obsDB file using
-    !           values from obsSpaceData. If the MIDAS table does not already
+    ! :Purpose: Update selected columns in the MIDAS Header Output table using
+    !           values from obsSpaceData. If the MIDAS Body table does not already
     !           exist, it is created by copying the observation table.
     !           A single table is created that contains all quantities being
     !           updated. Unlike the observation table, each observed variable
@@ -853,13 +853,14 @@ contains
 
     namelist/namObsDbMIDASBodyUpdate/ numberUpdateItems, updateItemList
 
-    call tmg_start(97,'obdf_updateFile')
+    call tmg_start(97,'odbf_updateMidasBodyTable')
 
     write(*,*)
-    write(*,*) 'odbf_updateFile: Starting'
+    write(*,*) 'odbf_updateMidasBodyTable: Starting'
     write(*,*)
-    write(*,*) 'odbf_updateFile: FileName   : ', trim(FileName)
-    write(*,*) 'odbf_updateFile: FamilyType : ', FamilyType
+    write(*,*) 'odbf_updateMidasBodyTable: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_updateMidasBodyTable: FamilyType : ', FamilyType
+    write(*,*) 'odbf_updateMidasBodyTable: fileIndex : ', fileIndex
 
     if (.not. nmlAlreadyRead) then
       nmlAlreadyRead = .true.
@@ -1100,7 +1101,7 @@ contains
 
     call tmg_stop(97)
 
-  end subroutine odbf_updateMidasBodyFile
+  end subroutine odbf_updateMidasBodyTable
 
   !--------------------------------------------------------------------------
   ! odbf_getPrimaryKeys
@@ -2059,13 +2060,13 @@ contains
 
   end subroutine odbf_createMidasBodyTable
 
-!--------------------------------------------------------------------------
-  ! odbf_createMidasBodyTable
+  !--------------------------------------------------------------------------
+  ! odbf_createMidasHeaderTable
   !--------------------------------------------------------------------------
   subroutine odbf_createMidasHeaderTable(fileName)
     !
-    ! :Purpose: Create the midasOutput table that stores all quantities computed
-    !           in MIDAS at the level of the obsSpaceData Body table (e.g. OMP, OMA, FLG).
+    ! :Purpose: Create the midasOutput Header table that stores all quantities computed
+    !           in MIDAS at the level of the obsSpaceData Header table (e.g. ETOP, VTOP, ECF).
     !
     implicit none
 
@@ -2100,11 +2101,23 @@ contains
     ! close the obsDB file
     call fSQL_close( db, stat ) 
 
-  end subroutine odbf_createMidasHeaderTable
-
-
-
+  end subroutine 
+  
+  !--------------------------------------------------------------------------
+  ! odbf_updateMidasHeaderTable
+  !--------------------------------------------------------------------------
   subroutine odbf_updateMidasHeaderTable(obsdat, fileIndex, fileName)
+!
+    ! :Purpose: Update selected columns in the MIDAS Header Output table using
+    !           values from obsSpaceData. If the MIDAS Header table does not already
+    !           exist, it is created by copying the observation table.
+    !           A single table is created that contains all quantities being
+    !           updated. Unlike the observation table, each observed variable
+    !           is stored in a separate row and all quantities are in columns
+    !           (e.g. ETOP, VTOP, ECF,...).
+    !
+    implicit none
+    
     ! arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: fileName 
@@ -2134,12 +2147,13 @@ contains
 
     namelist/namObsDbMIDASHeaderUpdate/ numberUpdateItems, updateItemList
 
-    call tmg_start(97,'obdf_updateFile')
+    call tmg_start(97,'odbf_updateMidasHeaderTable')
 
     write(*,*)
-    write(*,*) 'odbf_updateFile: Starting'
+    write(*,*) 'odbf_updateMidasHeaderTable: Starting'
     write(*,*)
-    write(*,*) 'odbf_updateFile: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_updateMidasHeaderTable: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_updateMidasHeaderTable: fileIndex   : ', fileIndex
 
     if (.not. nmlAlreadyRead) then
       nmlAlreadyRead = .true.
@@ -2159,11 +2173,6 @@ contains
         write(*, nml=namObsDbMIDASHeaderUpdate)
       end if
     end if ! not nmlAlreadyRead
-
-    ! some sql column names
-    !vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM')
-    !pppSqlName = odbf_midasTabColFromObsSpaceName('PPP')
-    !varSqlName = odbf_midasTabColFromObsSpaceName('VAR')
 
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasHeadTableName)
@@ -2341,6 +2350,32 @@ contains
 
   end subroutine odbf_updateMidasHeaderTable
     
+  subroutine odbf_updateFile(obsdat, fileName, familyType, fileIndex)
+    !
+    ! :Purpose: Call subroutines to update MIDAS Header and Body tables
+    !
+    implicit none
+    
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat
+    character(len=*),  intent(in) :: fileName, familyType
+    integer,           intent(in) :: fileIndex
+
+    ! Check if the Midas Header Table needs to be updated,specified from namelist
+    if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'odbf_setup: namObsDbMIDASHeaderUpdate is missing in the namelist.'
+        write(*,*) '            The MIDAS Header Output Table will not be updated.'
+      end if
+    else
+      ! Update the MIDAS Header Output Table
+      Call odbf_updateMidasHeaderTable(obsdat, fileIndex, fileName)
+    end if
+
+  ! ! Update the Midas Body Output Table
+  Call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+
+  end subroutine odbf_updateFile
 
   subroutine odbf_addCloudAndBackgroundValues(obsdat, fileNumber, fileName)
     !
