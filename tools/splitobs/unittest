@@ -1144,7 +1144,8 @@ test_burp_round_robin () {
 
 	split_status=0
 	cp ${INPUTS}/burp/2011070112_${fam} ref_2011070112_${fam}
-	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=0
+	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=1
+	assert "test_burp_round_robin fam=${fam} split_round_robin_with_reflex execution (status=${split_status})" [ "${split_status}" -eq 0 ] || return 1
 
 	num=1
 	while [ "${num}" -le "${test_burp_round_robin_number_of_process}" ]; do
@@ -1204,11 +1205,13 @@ EOFBRP
 	procx=$(((proc-1)/npey+1))
 	procy=$(((proc-1)%npey+1))
 
-        proc_str=$(paddedPrint ${splitobs_ndigits} ${proc})
+        ## 'reflex' is using 3 digits to split the file
+        proc_str=$(paddedPrint 3 ${proc})
         procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
         procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
 
 	mv ${bburpfile}_${proc_str} ${bburpfile}_${procx_str}_${procy_str}
+        [ ! -f ${bburpfile}_${procx_str}_${procy_str} ] && return 1
 	let proc=proc+1
     done
 
