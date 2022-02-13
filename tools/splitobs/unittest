@@ -1865,7 +1865,19 @@ EOF
 
 
 echo "Launching the unit tests version '${VERSION}'"
-unittest
+
+unittests_status=0
+unittest || unittests_status=1
+
+if [ "${unittests_status}" -ne 0 ]; then
+    errstr="One of the test aborted:"
+    for errstr in "One of the test aborted:"  \
+                      "   workdir: ${PWD}"    \
+                      "   listing: ${PWD}/check_result.listing"; do
+        printf "\033[0m\033[01;31m${errstr}\n\033[0m" >&2
+    done
+    exit 1
+fi
 
 cd
 ## [ -n "${WORKDIR}" ] && rm -rf ${WORKDIR}
