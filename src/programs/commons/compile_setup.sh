@@ -119,7 +119,7 @@ elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     echo "... loading eccc/mrd/rpn/libs/20220204"
     . r.load.dot eccc/mrd/rpn/libs/20220204
     echo "... loading hdf5"
-    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/inteloneapi-2021.3.0/01
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 fi
 
 if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
@@ -158,8 +158,8 @@ elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.0/inteloneapi-2021.4.0"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.0/inteloneapi-2021.4.0
+    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.0/${COMP_ARCH}"
+    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.1/${COMP_ARCH}
 
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2/${COMP_ARCH}"
