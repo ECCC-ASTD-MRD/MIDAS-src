@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Change to using `midas_build` in the CI (#447 and !546)
  * Change the command-line option to obtain the French documentation for `midas.splitobs.Abs` (#577 and !541)
    * The French documentation is printed when using `-aide` or `--aide`.
  * Compute non-linear Jo like linearized Jo, including varQC; optionally compute final non-linear Jo after minimization (#572 and !537)
