@@ -20,11 +20,12 @@ midas_build:
   stage: build
   script:
     - cd src
-    - (export MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true && ./midas_build)
+    - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
   only:
     - master
     - v_3.6
     - tags
+    - 447-modify-ci-for-use-with-makefile
   tags:
     - hpcr-u1
 
@@ -69,6 +70,7 @@ splitobs_burp_tests:
      - ./unittest_batch burp
    only:
      - tags
+     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
@@ -80,6 +82,7 @@ splitobs_rdb_tests:
      - ./unittest_batch rdb
    only:
      - tags
+     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
@@ -101,6 +104,7 @@ midas_tests:
      - master
      - v_3.6
      - tags
+     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
