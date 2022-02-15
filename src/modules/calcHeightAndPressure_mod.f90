@@ -145,6 +145,16 @@ contains
 
     ! Locals
     integer                   :: Vcode
+    logical                   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_gsv_nl (czp): START'
 
     Vcode = gsv_getVco(statevector)%vcode
 
@@ -193,6 +203,16 @@ contains
     ! Locals
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
+    logical                   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_gsv_tl (czp): START'
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
@@ -207,7 +227,7 @@ contains
         call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
 
         if (gsv_varExist(statevector, 'Z_*')) then
-          call czp_calcHeight_tl(statevector, statevectorRef)
+          call calcHeight_gsv_tl(statevector, statevectorRef)
         end if
 
       end if
@@ -255,6 +275,16 @@ contains
     ! Locals
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
+    logical                   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_gsv_ad (czp): START'
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
@@ -266,7 +296,7 @@ contains
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
-        call czp_calcHeight_ad(statevector, statevectorRef)
+        call calcHeight_gsv_ad(statevector, statevectorRef)
 
         if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
@@ -283,7 +313,7 @@ contains
         call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
 
         if (gsv_varExist(statevector, 'Z_*')) then
-          call czp_calcHeight_ad(statevector, statevectorRef)
+          call calcHeight_gsv_ad(statevector, statevectorRef)
         end if
 
       end if
@@ -1013,6 +1043,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
 
@@ -1289,6 +1320,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
 
@@ -2107,6 +2139,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     if (.not.beSilent) then
       write(*,*) 'calcPressure_gsv_tl (czp): START'
@@ -2294,6 +2327,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     if (.not.beSilent) then
       write(*,*) 'calcPressure_gsv_ad (czp): START'
@@ -2479,6 +2513,16 @@ contains
 
     ! Locals
     integer   :: Vcode
+    logical   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_col_nl (czp): START'
 
     Vcode = column%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
@@ -2518,6 +2562,16 @@ contains
 
     ! Locals
     integer   :: Vcode
+    logical   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_col_tl (czp): START'
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
@@ -2561,6 +2615,16 @@ contains
 
     ! Locals
     integer   :: Vcode
+    logical   :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    beSilent = .false. ! DEBUG mad001
+
+    if (.not.beSilent) write(*,*) 'calcZandP_col_ad (czp): START'
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
@@ -3358,6 +3422,7 @@ contains
     else
       beSilent = .true.
     end if
+    beSilent = .false. ! DEBUG mad001
 
     if (.not.beSilent) then
       write(*,*) 'calcPressure_col_ad (czp): START'
