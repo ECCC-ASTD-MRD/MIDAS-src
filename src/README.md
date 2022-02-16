@@ -219,17 +219,17 @@ If they aren't, you can either launch `midas_build` or faster:
 source config.dot.sh && make depend
 ```
 
-The script [findDependentAbs.py](findDependentAbs.py) can be used to analyze the
+The script [analyzeDep.py](analyzeDep.py) can be used to analyze the
 dependency tree to determine which absolutes are concerned by the
 introduction of new dependencies in a given module; those absolutes outputed are 
 the ones for which you need to add the new external dependencies in their
 respective sections of `./programs/programs.mk`.
 
 For example, say you add an external `newlib` through a `use` statement in
-`varqc_mod.f90`, then you will call `./findDependentAbs.py` to find which 
+`varqc_mod.f90`, then you will call `./analyzeDep.py` to find which 
 programs will need it at link time:
 ```sh
-$ ./findDependentAbs.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
+$ ./analyzeDep.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
 The following absolutes depends on varqc:
   * var1D.Abs
   * var.Abs

@@ -1,30 +1,30 @@
 #! /usr/bin/env python3
 '''
-Analyse the dependency tree of modules and programs to determine which programs
-are impacted by a new external dependency in a given module.
+Analyse the dependency tree of modules and programs 
 
+Usage:
+    findDependentAbs.py OBJECT PATH -a [ -v ]
+    findDependentAbs.py OBJECT PATH -c [ -v ]
+    findDependentAbs.py -h | --help
 
-SYNOPSIS
-from /src directory of a MIDAS project
+Arguments:
+    OBJECT  object name (module or program and without `_mod` or suffix)
+    PATH    path to build directory
 
-```
-./findDependentAbs.py ${moduleNameWithout_mod_dot_o} ${buildDir}
-```
+Options:
+    -h, --help      show this help and exit
+    -v              toggle verbose mode
+    -a              list which programs are impacted by a new external
+                        dependency in the module OBJECT
+    -c              show compilation order to build OBJECT
 
-ARGUMENTS
-    ${moduleNameWithout_mod_dot_o}  the module *name* (without '_mod.o') in
-                                    which new external dependencies have been 
-                                    added.
-    ${buildDir}                     the current build directory on the frontend
-
-EXAMPLE
-```
-./findDependentAbs.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
-```
+@TODO:
+    * automatic path determination using `../midas-version.sh` and `git describe`
 '''
-
+from docopt import docopt, DocoptExit
 import re
 import sys
+from glob import glob
 
 patternDepTarget = r'^(.*) :.*$'
 
@@ -105,36 +105,41 @@ def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
 
 
 ###| command arguments reading |#####################################
+try:                                                                            
+    opt = docopt(__doc__, sys.argv[1:])                                         
+except DocoptExit as inst:                                                      
+    print('Invalid command!')                                                   
+    print(inst)                                                                 
+    sys.exit(1)
 
-if __name__ == '__main__':
-    from glob import glob
-    module = sys.argv[1]
-    buildDir = sys.argv[2]
-    outputModules = False
-    
-    try:
-        depFileObj = glob(buildDir+'/dep.obj.inc')[0]
-        depFileAbs = glob(buildDir+'/dep.abs.inc')[0]
-    except: 
-        raise RuntimeError('Inexistant directory', buildDir)
+module = opt['OBJECT'].lower()
+buildDir = opt['PATH']
 
+try:
+    depFileObj = glob(buildDir+'/dep.obj.inc')[0]
+    depFileAbs = glob(buildDir+'/dep.abs.inc')[0]
+except: 
+    raise RuntimeError('Inexistant directory', buildDir)
+
+verbose=opt['-v']
+
+if opt['-a']:
     dependentModules = list(recurseModDependsOnMod( module,
                                                     depFile=depFileObj,
-                                                    verbose=False))
-    dependentModules.sort()
-
+                                                    verbose=verbose))
     if dependentModules : 
-        if outputModules: 
+        dependentModules.sort()
+        if verbose: 
             print(f'The following modules depends on {module}:')
             for mod in dependentModules:
                 print(f'  * {mod}')    
-
+    
         setAbs = list()
         for mod in dependentModules:
             setAbs.extend(findAbsDependsOnMod(mod, depFile=depFileAbs))
         setAbs=list(set(setAbs))
         setAbs.sort()
-
+    
         if setAbs: 
             print(f'The following absolutes depends on {module}:')
             for absolute in setAbs:
@@ -144,4 +149,14 @@ if __name__ == '__main__':
     else:
         print(f'No modules depends on {module}')
 
+elif opt['-c']:
+    
+    order = recurseCompilationOrder(module, depFile=depFileObj, verbose=verbose) 
+    if order:
+        print(f'Building {module} will result in compiling these objects:')
+        for i, prereq in enumerate(order):
+            print(f'{i+1} : {prereq}')
+    else:
+        print(f'{module} has no prerequisites') 
+        
 # vim: set ts=4 sw=4:
