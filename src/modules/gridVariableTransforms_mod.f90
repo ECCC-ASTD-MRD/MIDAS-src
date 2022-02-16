@@ -1894,7 +1894,8 @@ CONTAINS
     integer :: ipass, numPass, numCorrect
 
     logical :: orca12
-
+    character(len=2) :: inputVarName
+    
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
       call utl_abort('gvt_oceanIceContinous: 3D mask present - this case not properly handled')
