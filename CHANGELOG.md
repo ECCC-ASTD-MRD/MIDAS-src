@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+<<<<<<< HEAD
  * Option for `midas_build` to compile only on frontend architecture (#582 and !544)
  * Add an English documentation for `midas.splitobs.Abs` (#577 and !541)
    * when it is called with `-h`, `-help` or `--help`.
@@ -15,6 +16,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * minor impact only for midas-analysisErrorOI
  * Rejection of GB-GPS ZTD observations without associated ZTD data quality scores (#574 and !539)
    * minor impact on results
+=======
+ * Added ability to compute continous SST field (#571 and !542)
+>>>>>>> Issue#571: updated CHANGELOG
  * Added a program to generate pseudo SST observatons (#565 and !534)
  * Added ability to scale (e.g. taper) the LAM Bnmc StdDev in calcStats (#557 and !531)
  * Added ability to use each member for converting LQ to HU for HIP (#551 and !528)
