@@ -82,7 +82,7 @@ def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
         fun = open(depFile)
         lines=fun.readlines()
         fun.close()
-    patternLook4Mod = f'^{module}_mod.o :.*$'
+    patternLook4Mod = f'^{module}.* :.*$'
     patternMod = r'_mod.o'
     if verbose :
         print(f'-- listing {module} prerequisites')
@@ -127,9 +127,16 @@ if not buildDir:
     proc=subprocess.Popen(
         ['bash', '-c', f'source {cfgFile} && echo ${envLeafBldDir}'], 
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    proc.wait()
     ec_arch=proc.stdout.readlines()[-1].strip().decode(encoding)
     buildDir = relCompDir+'midas_bld-'+version+'/'+ec_arch
+    print(f'Next time call with\n\t--path {buildDir}')
 
+    if not os.path.isdir(buildDir):
+        print(f'{buildDir} does not exist')
+        print(f'Dependencies probably not built. Attempting to build them')
+        proc=subprocess.Popen( ['bash', '-c', f'source {cfgFile} && make depend']) 
+        proc.wait()
 try:
     depFileObj = glob(buildDir+'/dep.obj.inc')[0]
     depFileAbs = glob(buildDir+'/dep.abs.inc')[0]
