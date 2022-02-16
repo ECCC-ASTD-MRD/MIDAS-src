@@ -268,8 +268,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_analPostProcessing
   !--------------------------------------------------------------------------
-  subroutine inc_analPostProcessing (stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN
-                                     stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
+  subroutine inc_analPostProcessing (stateVectorPsfcHighRes, stateVectorUpdateHighRes, & ! IN
+                                     stateVectorTrial, stateVectorPsfc, stateVectorAnal) ! OUT
     !
     ! :Purpose: Post processing of the high resolution analysis including degrading 
     !           temporal resolution, variable transform, and humidity clipping.

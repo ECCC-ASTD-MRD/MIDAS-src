@@ -1860,7 +1860,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_oceanIceContinous
   !--------------------------------------------------------------------------
-  subroutine gvt_oceanIceContinous(stateVector, stateVectorRef, variableName)
+  subroutine gvt_oceanIceContinous(stateVector, stateVectorRef, outputVarName)
     !
     ! :Purpose: Solve laplaces equation at a subset of gridpoints
     !           subject to the boundary conditions imposed by the
@@ -1880,7 +1880,7 @@ CONTAINS
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: stateVectorRef
-    character(len=*), intent(in)    :: variableName   
+    character(len=*), intent(in)    :: outputVarName   
 
     ! Locals
     type(struct_gsv) :: statevector_analysis_1step_r8
@@ -1902,20 +1902,22 @@ CONTAINS
 
     ! allocate statevector for single time steps
     if (mpi_myid < stateVector%numStep) then
-      if (variableName == 'LG') then
+      if (outputVarName == 'LG') then
         call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
                           stateVector%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/'GL','LG'/))
         call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
                           stateVectorRef%vco, mpi_local_opt=.false., &
                           dataKind_opt=8, varNames_opt = (/'GL','LG'/))
-      else if(variableName == 'TM') then
+      else if(outputVarName == 'TM') then
         call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
                           stateVector%vco, mpi_local_opt = .false., &
-                          dataKind_opt = 8, varNames_opt = (/variableName/))
+                          dataKind_opt = 8, varNames_opt = (/outputVarName/))
         call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
                           stateVectorRef%vco, mpi_local_opt = .false., &
-                          dataKind_opt = 8, varNames_opt = (/variableName/))
+                          dataKind_opt = 8, varNames_opt = (/outputVarName/))
+      else
+      	call utl_abort('gvt_oceanIceContinous: unrecognized variable name: '//trim(outputVarName))		  
       end if
     end if
 
@@ -1924,13 +1926,14 @@ CONTAINS
 
     if (gsv_isAllocated(stateVector_analysis_1step_r8)) then
 
-      if (variableName == 'LG') then
-        call gsv_getField(stateVector_analysis_1step_r8, input_ptr, 'GL')
-      else if(variableName == 'TM') then
-         call gsv_getField(stateVector_analysis_1step_r8, input_ptr, variableName)
-      end if	
-      call gsv_getField(stateVector_analysis_1step_r8, analysis_ptr, variableName)
-      call gsv_getField(stateVector_trial_1step_r8, trial_ptr, variableName)
+      if (outputVarName == 'LG') then 
+        inputVarName = 'GL'
+      else 
+        inputVarName = outputVarName
+      end if
+      call gsv_getField(stateVector_analysis_1step_r8, input_ptr, inputVarName)
+      call gsv_getField(stateVector_analysis_1step_r8, analysis_ptr, outputVarName)
+      call gsv_getField(stateVector_trial_1step_r8, trial_ptr, outputVarName)
 
       alpha = 1.975d0
       if (stateVector%ni == 4322 .and. stateVector%nj == 3059) then
@@ -1951,7 +1954,7 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
         write(*,*) 'gvt_oceanIceContinous: stepIndex = ',stepIndex
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(variableName))
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(outputVarName))
 
           write(*,*) 'gvt_oceanIceContinous: levIndex = ',levIndex
 
@@ -2057,7 +2060,7 @@ CONTAINS
         end do
       end do
 
-      if (variableName == 'LG') then
+      if (outputVarName == 'LG') then
         !- Impose limits [0,1] on sea ice concentration analysis
         analysis_ptr(:,:,:,:) = min(analysis_ptr(:,:,:,:), 1.0d0)
         analysis_ptr(:,:,:,:) = max(analysis_ptr(:,:,:,:), 0.0d0)
