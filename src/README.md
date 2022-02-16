@@ -10,59 +10,41 @@ change in the [environment variable naming convention](#new-environment-variable
 
 Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), we provide a fully automated build wrapper script that should be used in most use cases: **`midas_build`**.  It builds MIDAS executables on both front and backend using multicore compilation and does some error checking.
 
-## Before submitting a merge request
-
-Although this compilation solution is expected to produce equivalent binaries 
-as the official `compile_*.sh` scripts described in the 
-[main README.md](../README.md#compiling-a-single-program), it is still 
-**mandatory** to test the compilation using `compile_all_plat.sh` 
-**prior to submitting a merge request**.
-This implies that, if your contribution modifies dependencies or adds a
-new program, you have to modify the content of `src/programs/src_files`.
-The `src_files` files can be automatically updated by running the script 
-`make_src_files.sh` that is located in the same directory as the main programs.
-Running the script without argument defaults to running it sequentially for all 
-programs, but that can be too long for the PPPs and it often gets killed.
-As a workaround, one can either launch it only for the modified (or new) 
-programs or launch it in parallel for all programs, from `src/programs/`:
-```sh
-for pgm in $(ls *.f90); do ./make_src_files.sh $pgm & done
-```
-
 ### Configuring the compilation and linking process
 
-The compilation and linking is configured through some environment variables.
+The compilation and linking is configured through some environment variables
+declared in [`./config.dot.sh`](./src/config.dot.sh), but it is suggested **not to modify directly that file**
+since it is part of the versioned repository.
 You can either modify and export them in your shell or add them to your profile.
-Here are these variables.
 
 Their default values (in parentheses), **should be good for most users**.
 
-* `MIDAS_COMPILE_BACKEND (daley)` and `MIDAS_COMPILE_FRONTEND (eccc-ppp4)`: 
-  machines used for each architecture
-* `MIDAS_COMPILE_JOBNAME (midasCompilation)`: name for the job submission
-  and the prefix for listings
-* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)`: 
+* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)` : 
   directory where build directories and the executables directory will be.
   Each git version will have its build directory 
   `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables 
   **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
   version included in the absolute name.
-* `MIDAS_COMPILE_NCORES (8)`: numbers of cores to be used on each machine to 
-  compile (more than 8 provide no significant improvement).
-* `MIDAS_COMPILE_VERBOSE (2)`: verbosity level
-* `MIDAS_COMPILE_CLEAN (true)`: if `true`, remove the build directory after the
-  installation of the absolutes
-* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)`: if `true`, frontend multicore 
+* `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
+  compilation if set to `yes`
+* `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
+  successful installation of the absolutes (if applicable)
+* `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on 
+  successful compilation (and linking if applicable)
+* `MIDAS_COMPILE_BACKEND (daley)` and `MIDAS_COMPILE_FRONTEND (eccc-ppp4)` : 
+  machines used for each architecture
+* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore 
   compilation is done directly on headnode, this should only be used on a 
   dedicated node obtained through `jobsubi` 
   (see [this section](#calling-make-in-parallel) for instructions.)
-* `MIDAS_COMPILE_KEEP_LISTING (false)`: if `false`, remove listings on 
-  successful compilation (and linking if applicable)
-* `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : add debug options to compiler if
-  set to `yes`.
-
-These variables are declared in `./config.dot.sh`, but it is suggested **not to 
-modify directly that file** since it is part of the versioned repository.
+* `MIDAS_COMPILE_DO_BACKEND (true)` : launch compilation on the backend as well
+* `MIDAS_COMPILE_BACKEND_ARCH (sles-15-skylake-64-xc50)` : backend architecture
+* `MIDAS_COMPILE_COMPF_GLOBAL ()` : additional user-specified compilation options
+* `MIDAS_COMPILE_JOBNAME (midasCompilation)` : name for the job submission
+  and the prefix for listings
+* `MIDAS_COMPILE_NCORES (8)` : numbers of cores to be used on each machine to 
+  compile (more than 8 provide no significant improvement).
+* `MIDAS_COMPILE_VERBOSE (2)` : verbosity level
 
 Notice that we are **uniformizing the MIDAS compilation environment variable 
 naming convention**, please consult 
@@ -181,14 +163,13 @@ obtain the expected result.
 
 ## Adding a new program or changing external dependencies
 
-In the previous solution, when a new program is added, two files needed to be changed in `./programs/src_files/`:
-* `src_files_${PGM}.sh`
-* `compile_setup_${PGM}.sh`
+Internal dependencies (the `use` statements in the programs and modules) are 
+dealt with automatically (consult the section 
+[Automatic dependencies](#automatic-dependencies)).
 
-The first contains dependencies information and this is dealt with automatically
-(consult the section [Automatic dependencies](#automatic-dependencies)).
-The second one contain external libraries that are needed at link time by the programs.
-The information contained in **all** `compile_setup_*.sh` files is now found in [`./programs/programs.mk`](programs/programs.mk).
+External dependencies however, that are needed at link time by the programs,
+need to be specified by the contributor in the file 
+[`./programs/programs.mk`](programs/programs.mk).
 
 So **when a new program is added** or when **external libraries change for an 
 existing program**, edit the [`./programs/programs.mk`](programs/programs.mk)
