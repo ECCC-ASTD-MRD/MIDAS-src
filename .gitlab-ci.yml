@@ -25,7 +25,6 @@ midas_build:
     - master
     - v_3.6
     - tags
-    - 447-modify-ci-for-use-with-makefile
   tags:
     - hpcr-u1
 
@@ -70,7 +69,6 @@ splitobs_burp_tests:
      - ./unittest_batch burp
    only:
      - tags
-     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
@@ -82,7 +80,6 @@ splitobs_rdb_tests:
      - ./unittest_batch rdb
    only:
      - tags
-     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
@@ -104,7 +101,6 @@ midas_tests:
      - master
      - v_3.6
      - tags
-     - 447-modify-ci-for-use-with-makefile
    tags:
      - hpcr-u1
 
