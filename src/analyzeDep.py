@@ -1,11 +1,15 @@
 #! /usr/bin/env python3
 '''
 Analyze the dependency tree of modules and programs.
+Allow direct recursive prerequisite analysis to determine the order of 
+compilation (`-c`)
+or reverse recursive target dependency to determine which program will be 
+impacted by a change in the module (`-a`).
 
 Usage:
-    findDependentAbs.py OBJECT -a [ -v ] [ --path=<str> ]
-    findDependentAbs.py OBJECT -c [ -v ] [ --path=<str> ]
-    findDependentAbs.py -h | --help
+    analyzeDep.py OBJECT -a [ -v ] [ --path=<str> ]
+    analyzeDep.py OBJECT -c [ -v ] [ --path=<str> ]
+    analyzeDep.py -h | --help
 
 Arguments:
     OBJECT  object name (module or program and without `_mod` or suffix)
@@ -13,9 +17,9 @@ Arguments:
 Options:
     -h, --help      show this help and exit
     -v              toggle verbose mode
-    -a              list which programs are impacted by a new external
-                        dependency in the module OBJECT
-    -c              show compilation order to build OBJECT
+    -a              reverse lookup : list which programs are impacted by a new 
+                        external dependency in the module OBJECT
+    -c              direct lookup : show compilation order to build OBJECT
     --path=<str>    explicit path to build directory
 '''
 from docopt import docopt, DocoptExit
