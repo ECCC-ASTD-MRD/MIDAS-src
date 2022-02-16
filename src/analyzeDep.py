@@ -3,13 +3,12 @@
 Analyse the dependency tree of modules and programs 
 
 Usage:
-    findDependentAbs.py OBJECT PATH -a [ -v ]
-    findDependentAbs.py OBJECT PATH -c [ -v ]
+    findDependentAbs.py OBJECT -a [ -v ] [ --path=<str> ]
+    findDependentAbs.py OBJECT -c [ -v ] [ --path=<str> ]
     findDependentAbs.py -h | --help
 
 Arguments:
     OBJECT  object name (module or program and without `_mod` or suffix)
-    PATH    path to build directory
 
 Options:
     -h, --help      show this help and exit
@@ -17,14 +16,14 @@ Options:
     -a              list which programs are impacted by a new external
                         dependency in the module OBJECT
     -c              show compilation order to build OBJECT
-
-@TODO:
-    * automatic path determination using `../midas-version.sh` and `git describe`
+    --path=<str>    explicit path to build directory
 '''
 from docopt import docopt, DocoptExit
 import re
 import sys
+import os
 from glob import glob
+import subprocess
 
 patternDepTarget = r'^(.*) :.*$'
 
@@ -113,7 +112,23 @@ except DocoptExit as inst:
     sys.exit(1)
 
 module = opt['OBJECT'].lower()
-buildDir = opt['PATH']
+
+buildDir = opt['--path']
+if not buildDir:
+    encoding=sys.getfilesystemencoding()
+    cfgFile='config.dot.sh'
+    envLeafBldDir='EC_ARCH'
+    print(f'... sourcing {cfgFile}, use explicit --path to make it faster')
+    version=subprocess.check_output('../midas.version.sh').strip().decode(encoding)
+    relCompDir='../compiledir/'
+    if not os.path.isdir(relCompDir):
+        print(f'{relCompDir} does not exist.  Dependency files not accessible')
+    ## -- loading compiler from SSM to get initialized EC_ARCH
+    proc=subprocess.Popen(
+        ['bash', '-c', f'source {cfgFile} && echo ${envLeafBldDir}'], 
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    ec_arch=proc.stdout.readlines()[-1].strip().decode(encoding)
+    buildDir = relCompDir+'midas_bld-'+version+'/'+ec_arch
 
 try:
     depFileObj = glob(buildDir+'/dep.obj.inc')[0]
@@ -122,6 +137,7 @@ except:
     raise RuntimeError('Inexistant directory', buildDir)
 
 verbose=opt['-v']
+
 
 if opt['-a']:
     dependentModules = list(recurseModDependsOnMod( module,
