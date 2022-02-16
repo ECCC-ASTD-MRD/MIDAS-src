@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 '''
-Analyse the dependency tree of modules and programs 
+Analyze the dependency tree of modules and programs.
 
 Usage:
     findDependentAbs.py OBJECT -a [ -v ] [ --path=<str> ]
@@ -40,12 +40,13 @@ def recurseModDependsOnMod( module, depFile='dep.obj.inc', uniqDep=None,
     with open(depFile) as fun:
         for line in fun.readlines():
             #-- check for module in dependencies
-            if re.match(patternLook4Mod, line):
+            if re.match(patternLook4Mod, line, re.IGNORECASE):
                 #-- extract dependant target
-                depObject = re.findall(patternDepTarget, line)[0]
+                depObject = re.findall( patternDepTarget, line, 
+                                        re.IGNORECASE)[0]
                 if verbose : print(depObject)
                 #-- is it a module?
-                if re.match(r'.*'+patternMod, depObject): 
+                if re.match(r'.*'+patternMod, depObject, re.IGNORECASE): 
                     depObject = re.sub(patternMod,'', depObject)
                     if depObject in uniqDep : continue
                     uniqDep.add(depObject)
@@ -63,9 +64,9 @@ def findAbsDependsOnMod(module, depFile='dep.abs.inc', verbose=False):
     with open(depFile) as fun:
         for line in fun.readlines():
             #-- check for module in dependencies
-            if re.match(patternLook4Mod, line):
+            if re.match(patternLook4Mod, line, re.IGNORECASE):
                 #-- extract dependant target
-                depAbs = re.findall(patternDepTarget, line)[0]
+                depAbs = re.findall(patternDepTarget, line, re.IGNORECASE)[0]
                 depAbs = re.sub(r'.o', '', depAbs)
                 absList.append(depAbs)
     return absList
@@ -87,7 +88,7 @@ def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
     if verbose :
         print(f'-- listing {module} prerequisites')
     for line in lines:
-        if re.match(patternLook4Mod, line):
+        if re.match(patternLook4Mod, line, re.IGNORECASE):
             if verbose: print(line)
             prereqList=line.split(':')[1].split()[1:]
             moduleList = list()
@@ -95,10 +96,10 @@ def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
                 moduleList.append(re.sub(patternMod, '', prereq))
             for prereq in moduleList:
                 if prereq not in order:
-                    order.append(prereq)
                     order=recurseCompilationOrder(  prereq, depFile=depFile,
                                                     order=order, lines=lines,
                                                     verbose=verbose)
+                    order.append(prereq)
             break
     return order
 
