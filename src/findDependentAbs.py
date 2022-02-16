@@ -84,8 +84,10 @@ if __name__ == '__main__':
     except: 
         raise RuntimeError('Inexistant directory', buildDir)
 
-    dependentModules = recurseModDependsOnMod(  module, depFile=depFileObj, 
-                                                verbose=False)
+    dependentModules = list(recurseModDependsOnMod( module,
+                                                    depFile=depFileObj,
+                                                    verbose=False))
+    dependentModules.sort()
 
     if dependentModules : 
         if outputModules: 
@@ -96,7 +98,8 @@ if __name__ == '__main__':
         setAbs = list()
         for mod in dependentModules:
             setAbs.extend(findAbsDependsOnMod(mod, depFile=depFileAbs))
-        setAbs=set(setAbs)
+        setAbs=list(set(setAbs))
+        setAbs.sort()
 
         if setAbs: 
             print(f'The following absolutes depends on {module}:')
