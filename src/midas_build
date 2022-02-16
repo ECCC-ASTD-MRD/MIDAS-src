@@ -30,6 +30,40 @@
 ##
 ###############################################################################
 
+##=========================================================
+## some prior defitions
+typeset __target
+typeset __job
+typeset __job_opt
+typeset __job_test_target
+typeset __here
+typeset __abs_exist_list
+typeset __abs_all
+
+__here=$(pwd)
+__date=$(date +%Y%m%d%H%M%S)
+__dateLong=$(date)
+__dateStampBeg=$(date +%s)
+__toplevel=$(git rev-parse --show-toplevel)
+__revstring=$(${__toplevel}/midas.version.sh)
+
+##--------------------------------------------------------
+## env. variable new naming convention + retrocompatibility
+source ${__toplevel}/src/programs/commons/retroComp_warning.sh
+
+##=========================================================
+##  sourcing user configuration
+source ${__here}/config.dot.sh  &> .tmp.config.out
+__listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
+__listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
+__listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+mv .tmp.config.out ${__listing_config}
+
+__abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
+__abs_external='splitobs'
+__abs_all="${__abs_all} ${__abs_external}"
+
+
 
 ##=========================================================
 ##  functions
@@ -78,7 +112,11 @@ function are_jobs_completed {
 function abs_path {
     abs_name=${1}
     platform=${2}
-    typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}/midas-
+    if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
+      typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
+    else
+      typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
+    fi
     echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
 }
 
@@ -102,7 +140,7 @@ function printHeader {
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo "|   (will be removed if installation is successful)"
         fi
-        echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_abs"
+        echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
         echo "| no installation (no absolute target)"
     fi
@@ -127,39 +165,6 @@ function printFooter {
     echo
 
 }
-
-
-##=========================================================
-## some prior defitions
-typeset __target
-typeset __job
-typeset __job_opt
-typeset __job_test_target
-typeset __here
-typeset __abs_exist_list
-typeset __abs_all
-
-__here=$(pwd)
-__date=$(date +%Y%m%d%H%M%S)
-__dateLong=$(date)
-__dateStampBeg=$(date +%s)
-__toplevel=$(git rev-parse --show-toplevel)
-__revstring=$(${__toplevel}/midas.version.sh)
-
-##--------------------------------------------------------
-## env. variable new naming convention + retrocompatibility
-source ${__toplevel}/src/programs/commons/retroComp_warning.sh
-
-##=========================================================
-##  sourcing user configuration
-source ${__here}/config.dot.sh  &> .tmp.config.out
-__listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
-__listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
-__listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
-mv .tmp.config.out ${__listing_config}
-
-__abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
-__abs_all="${__abs_all} splitobs"
 
 ##=========================================================
 ##  parsing input and building job for submissions
@@ -342,7 +347,7 @@ then
     typeset __status=0
     typeset __abs_name
     typeset __plat
-    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}
+    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir}
     for __abs in ${__abs_exist_list}; do
     for __plat in ${ORDENV_PLAT} ${__plat_super}; do
@@ -379,7 +384,7 @@ then
             for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
         fi
         echo
-        echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${__exec_leafdir_midas}"
+        echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then

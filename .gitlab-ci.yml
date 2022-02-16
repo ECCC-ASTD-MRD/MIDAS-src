@@ -19,8 +19,8 @@ stages:
 midas_build:
   stage: build
   script:
-    - cd src/programs
-    - ./compile_all_plat.sh $MIDAS_ABS
+    - cd src
+    - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
   only:
     - master
     - v_3.6
