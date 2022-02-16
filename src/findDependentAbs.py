@@ -28,7 +28,8 @@ import sys
 
 patternDepTarget = r'^(.*) :.*$'
 
-def recurseModDependsOnMod(module, depFile='dep.obj.inc', uniqDep=None, verbose=False):
+def recurseModDependsOnMod( module, depFile='dep.obj.inc', uniqDep=None,
+                            verbose=False):
     '''
     Find all dependent target modules of a given module, recurse with found
     dependent targets.
@@ -69,6 +70,39 @@ def findAbsDependsOnMod(module, depFile='dep.abs.inc', verbose=False):
                 depAbs = re.sub(r'.o', '', depAbs)
                 absList.append(depAbs)
     return absList
+
+
+def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
+                            lines=None, verbose=False):
+    '''
+    Establish  compilation order by recursing into prerequisites
+    '''
+    module = module.lower()
+    if order == None : order = list()
+    if lines == None :
+        fun = open(depFile)
+        lines=fun.readlines()
+        fun.close()
+    patternLook4Mod = f'^{module}_mod.o :.*$'
+    patternMod = r'_mod.o'
+    if verbose :
+        print(f'-- listing {module} prerequisites')
+    for line in lines:
+        if re.match(patternLook4Mod, line):
+            if verbose: print(line)
+            prereqList=line.split(':')[1].split()[1:]
+            moduleList = list()
+            for prereq in prereqList:
+                moduleList.append(re.sub(patternMod, '', prereq))
+            for prereq in moduleList:
+                if prereq not in order:
+                    order.append(prereq)
+                    order=recurseCompilationOrder(  prereq, depFile=depFile,
+                                                    order=order, lines=lines,
+                                                    verbose=verbose)
+            break
+    return order
+
 
 ###| command arguments reading |#####################################
 
