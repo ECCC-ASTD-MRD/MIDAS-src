@@ -219,25 +219,66 @@ If they aren't, you can either launch `midas_build` or faster:
 source config.dot.sh && make depend
 ```
 
-The script [findDependentAbs.py](findDependentAbs.py) can be used to analyze the
+The script [`analyzeDep.py`](analyzeDep.py) can be used to analyze the
 dependency tree to determine which absolutes are concerned by the
 introduction of new dependencies in a given module; those absolutes outputed are 
 the ones for which you need to add the new external dependencies in their
 respective sections of `./programs/programs.mk`.
 
 For example, say you add an external `newlib` through a `use` statement in
-`varqc_mod.f90`, then you will call `./findDependentAbs.py` to find which 
+`varqc_mod.f90`, then you will call `./analyzeDep.py` to find which 
 programs will need it at link time:
-```sh
-$ ./findDependentAbs.py varqc ../compiledir/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.199/
-The following absolutes depends on varqc:
-  * var1D.Abs
+```bash
+$ ./analyzeDep.py -a varqc
+The following absolutes depends on innovation:
+  * oMinusF.Abs
   * var.Abs
+  * var1D.Abs
 ```
-You would then add `newlib` in both `var1D.Abs` and `var.Abs` sections of 
-`./programs/programs.mk`.
+You would then add `newlib` to `oMinusF.Abs`, `var.Abs` and `var1D.Abs` 
+sections of `./programs/programs.mk`.
 
+### Addressing circular dependency issues
+A circular dependency happens when a module uses another module
+which also use the first one (or use a module that use the first one and so 
+forth).
+One can detect these by analysing the `use` statements and the
+[dependency tree](#automatic-dependencies).  but it can get tricky.
 
+`make` will detect a circular dependency issues and print a message such as
+```
+make[1]: Circular earthconstants_mod.o <- mathphysconstants_mod.o dependency dropped.
+```
+`midas_build` will in turn detect this as well.
+
+Still to help debugging or finding the proper hierarchy of `use` statements, it
+can be useful to know the order of compilation that will result from the
+dependency tree.
+[`analyzeDep.py`](analyzeDep.py) can help you with that; calling it with `-c` 
+will return, in order, all modules that will need to be compiled *prior* to 
+compile a given target object (module or program).
+
+For instance, if we want to compile `innovation_mod.o`, 
+```bash
+$ ./analyzeDep.py -c innovation
+...
+Building innovation will result in compiling these objects:
+1 : randomnumber
+2 : clib_interfaces
+3 : utilities
+4 : obsFamilyList
+5 : mathphysconstants
+6 : mpi
+...
+65 : bmatrixchem
+66 : obsOperatorsChem
+67 : obsoperators
+```
+`innovation_mod` depends on all these objects; they will be compiled first and
+no `use innovation_mod` can be found in any of those modules - it would
+result in a circular dependency error.
+
+Consult `./analyzeDep.py -h` for more information.
 
 --------
 
