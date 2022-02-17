@@ -29,8 +29,8 @@ INPUTS=${INPUTS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/inputs}
 REFERENCE=${REFERENCE:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/results}
 GRIDS=${GRIDS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/grids}
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220204
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220204
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220216
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220216
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
