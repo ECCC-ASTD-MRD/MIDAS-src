@@ -21,7 +21,7 @@ MEMORY_var_EnVar_24mem_xc40=17500M
 NUMTHREAD_var_EnVar_gdps=4
 NUMTHREAD_var_EnVar_geps=4
 NUMTHREAD_var_EnVar_rdps=4
-NUMTHREAD_var_EnVar_96mem_ppp_sqlite=4
+NUMTHREAD_var_EnVar_96mem_ppp_sqlite=8
 NUMTHREAD_var_EnVar_biFourier_xc40=5
 
 NUMTHREAD_var_Var3D_aladin_assim=2
