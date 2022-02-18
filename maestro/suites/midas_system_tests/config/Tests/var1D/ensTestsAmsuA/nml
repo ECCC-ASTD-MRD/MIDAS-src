@@ -5,12 +5,12 @@
    vLocalize = 3.d0
 /
  &NAMMIN
-   NVAMAJ = 5,
-   NITERMAX = 25,
-   NSIMMAX  = 100,
+   NVAMAJ = 7,
+   NITERMAX = 7,
+   NSIMMAX  = 20,
    REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .TRUE.,
+   LGRTEST  = .TRUE.,
+   LWRTHESS = .FALSE.,
    LVARQC=.FALSE.,
    NWOQCV=5
 /
