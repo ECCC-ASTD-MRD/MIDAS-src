@@ -25,9 +25,9 @@ fi
 
 VERSION=${VERSION:-$(git describe --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
-INPUTS=${INPUTS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/inputs}
-REFERENCE=${REFERENCE:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/v001/results}
-GRIDS=${GRIDS:-/home/sanl000/data/ppp6/UnitTests/midas/splitobs/grids}
+INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220216
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220216
