@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Applying humidity limits within outer-loop consistent with no outer-loop; optionally write last outer-loop inc to `rebm_*` (#585 and !549)
  * Promote `midas_build` in the README as the main compilation tool (#522 and !548)
  * Renamed `findDependentAbs.py` to `analyzeDep.py` and allow direct and reverse dependency analysis (#586 and !547)
  * Change to using `midas_build` in the CI (#447 and !546)
