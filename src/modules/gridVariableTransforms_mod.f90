@@ -405,11 +405,14 @@ CONTAINS
       end if
       call CH_bounds(statevector)
 
-    case ('GLtoLG')
-      if ( .not. present(statevectorRef_opt)) then
-        call utl_abort('gvt_transform: for GLtoLG, the option statevectorRef_opt must be present')
+    case ('oceanIceContinuous')
+      if (.not. present(statevectorRef_opt)) then
+        call utl_abort('gvt_transform: for gvt_oceanIceContinuous, the option statevectorRef_opt must be present')
       end if
-      call GLtoLG(statevector, stateVectorRef_opt)
+      if (.not.present(varName_opt)) then
+        call utl_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
+      end if	
+      call gvt_oceanIceContinous(statevector, stateVectorRef_opt, varName_opt)
 
     case default
       write(*,*)
@@ -1855,9 +1858,9 @@ CONTAINS
   end subroutine CH_bounds
 
   !--------------------------------------------------------------------------
-  ! GLtoLG
+  ! gvt_oceanIceContinous
   !--------------------------------------------------------------------------
-  subroutine GLtoLG(stateVector, stateVectorRef)
+  subroutine gvt_oceanIceContinous(stateVector, stateVectorRef, outputVarName)
     !
     ! :Purpose: Solve laplaces equation at a subset of gridpoints
     !           subject to the boundary conditions imposed by the
@@ -1877,46 +1880,64 @@ CONTAINS
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: stateVectorRef
+    character(len=*), intent(in)    :: outputVarName   
 
     ! Locals
     type(struct_gsv) :: statevector_analysis_1step_r8
     type(struct_gsv) :: statevector_trial_1step_r8
 
-    real(8), pointer  :: LGAnal_ptr(:,:,:,:), LGTrial_ptr(:,:,:,:)
-    real(8), pointer  :: GL_ptr(:,:,:,:)
-    real(8)           :: alpha, factor, correc, rms, maxAbsCorr, basic
+    real(8), pointer :: analysis_ptr(:,:,:,:), trial_ptr(:,:,:,:)
+    real(8), pointer :: input_ptr(:,:,:,:)
+    real(8)          :: alpha, factor, correc, rms, maxAbsCorr, basic
 
     integer :: lonIndex, latIndex, levIndex, stepIndex
     integer :: ipass, numPass, numCorrect
 
     logical :: orca12
-
+    character(len=2) :: inputVarName
+    
     ! abort if 3D mask is present, since we may not handle this situation correctly
-    if ( stateVector%oceanMask%nLev > 1 ) then
-      call utl_abort('gvt_GLtoLG: 3D mask present - this case not properly handled')
+    if (stateVector%oceanMask%nLev > 1) then
+      call utl_abort('gvt_oceanIceContinous: 3D mask present - this case not properly handled')
     end if
 
     ! allocate statevector for single time steps
-    if ( mpi_myid < stateVector%numStep ) then
-      call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
-                        stateVector%vco, mpi_local_opt=.false., &
-                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
-      call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
-                        stateVectorRef%vco, mpi_local_opt=.false., &
-                        dataKind_opt=8, varNames_opt=(/'GL','LG'/) )
+    if (mpi_myid < stateVector%numStep) then
+      if (outputVarName == 'LG') then
+        call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
+                          stateVector%vco, mpi_local_opt = .false., &
+                          dataKind_opt = 8, varNames_opt = (/'GL','LG'/))
+        call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
+                          stateVectorRef%vco, mpi_local_opt=.false., &
+                          dataKind_opt=8, varNames_opt = (/'GL','LG'/))
+      else if(outputVarName == 'TM') then
+        call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
+                          stateVector%vco, mpi_local_opt = .false., &
+                          dataKind_opt = 8, varNames_opt = (/outputVarName/))
+        call gsv_allocate(stateVector_trial_1step_r8, 1, stateVectorRef%hco, &
+                          stateVectorRef%vco, mpi_local_opt = .false., &
+                          dataKind_opt = 8, varNames_opt = (/outputVarName/))
+      else
+      	call utl_abort('gvt_oceanIceContinous: unrecognized variable name: '//trim(outputVarName))		  
+      end if
     end if
 
     call gsv_transposeTilesToStep(stateVector_analysis_1step_r8, stateVector, 1)
     call gsv_transposeTilesToStep(stateVector_trial_1step_r8, stateVectorRef, 1)
 
-    if ( gsv_isAllocated(stateVector_analysis_1step_r8) ) then
+    if (gsv_isAllocated(stateVector_analysis_1step_r8)) then
 
-      call gsv_getField(stateVector_analysis_1step_r8,     GL_ptr,'GL')
-      call gsv_getField(stateVector_analysis_1step_r8, LGAnal_ptr,'LG')
-      call gsv_getField(stateVector_trial_1step_r8,   LGTrial_ptr,'LG')
+      if (outputVarName == 'LG') then 
+        inputVarName = 'GL'
+      else 
+        inputVarName = outputVarName
+      end if
+      call gsv_getField(stateVector_analysis_1step_r8, input_ptr, inputVarName)
+      call gsv_getField(stateVector_analysis_1step_r8, analysis_ptr, outputVarName)
+      call gsv_getField(stateVector_trial_1step_r8, trial_ptr, outputVarName)
 
       alpha = 1.975d0
-      if ( stateVector%ni == 4322 .and. stateVector%nj == 3059 ) then
+      if (stateVector%ni == 4322 .and. stateVector%nj == 3059) then
         orca12 = .true.
         numPass = 1000
         factor = alpha*0.88d0
@@ -1926,53 +1947,46 @@ CONTAINS
         factor = alpha
       end if
 
-      write(*,*) 'gvt_GLtoLG Liebmann relaxation'
-      write(*,*) 'gvt_GLtoLG Number of free points: ',  count(.not. stateVector%oceanMask%mask)
-      write(*,*) 'gvt_GLtoLG Number of fixed points: ', count(      stateVector%oceanMask%mask)
-      write(*,*) 'gvt_GLtoLG Total number of grid points: ', stateVector%ni*stateVector%nj
-      write(*,*) 'gvt_GLtoLG Total number of iterations: ', numPass
+      write(*,*) 'gvt_oceanIceContinous: Liebmann relaxation'
+      write(*,*) 'gvt_oceanIceContinous: Number of free points: ',  count(.not. stateVector%oceanMask%mask)
+      write(*,*) 'gvt_oceanIceContinous: Number of fixed points: ', count(      stateVector%oceanMask%mask)
+      write(*,*) 'gvt_oceanIceContinous: Total number of grid points: ', stateVector%ni*stateVector%nj
+      write(*,*) 'gvt_oceanIceContinous: Total number of iterations: ', numPass
 
       do stepIndex = 1, statevector%numStep
-        write(*,*) 'gvt_GLtoLG stepIndex = ',stepIndex
-        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('LG'))
+        write(*,*) 'gvt_oceanIceContinous: stepIndex = ', stepIndex
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(outputVarName))
 
-          write(*,*) 'gvt_GLtoLG levIndex = ',levIndex
+          write(*,*) 'gvt_oceanIceContinous: levIndex = ',levIndex
 
           ! Initialisation
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
-              if ( stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                    GL_ptr(lonIndex,latIndex,levIndex,stepIndex)
+              if (stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                analysis_ptr(lonIndex,latIndex, levIndex, stepIndex) = input_ptr(lonIndex, latIndex, levIndex, stepIndex)
               else
-                LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                    LGTrial_ptr(lonIndex,latIndex,levIndex,stepIndex)
+                analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = trial_ptr(lonIndex, latIndex, levIndex, stepIndex)
               end if
             end do
           end do
 
-          do ipass=1,numPass
+          do ipass = 1, numPass
 
             rms = 0.0d0
             numCorrect = 0
             maxAbsCorr = 0.0d0
             do latIndex = 2, stateVector%nj-1
               do lonIndex = 2, stateVector%ni-1
-                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
-                            ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
-                                                      levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
-                  rms = rms + correc*correc
+                if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                  basic = (analysis_ptr(lonIndex + 1, latIndex    , levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex - 1, latIndex    , levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                  correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  rms = rms + correc * correc
                   numCorrect = numCorrect + 1
-                  if( abs(correc) > maxAbsCorr ) then
-                    maxAbsCorr = abs(correc)
-                  end if
+                  if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
                 end if
               end do
             end do
@@ -1981,100 +1995,81 @@ CONTAINS
               ! Periodicity in the X direction
               lonIndex = 1
               do latIndex = 2, stateVector%nj-1
-                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1, latIndex, levIndex,&
-                                        stepIndex) + &
-                            LGAnal_ptr( stateVector%ni-2, latIndex, levIndex,&
-                                        stepIndex) + &
-                            LGAnal_ptr( lonIndex, latIndex+1, levIndex, &
-                                        stepIndex) + &
-                            LGAnal_ptr( lonIndex, latIndex-1, levIndex, &
-                                        stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
-                                                      levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
-                  rms = rms + correc*correc
+                if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                  basic = (analysis_ptr(lonIndex + 1, latIndex, levIndex, stepIndex) + &
+                           analysis_ptr(stateVector%ni-2, latIndex, levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex, latIndex + 1, levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex, latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                  correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  rms = rms + correc * correc
                   numCorrect = numCorrect + 1
-                  if( abs(correc) > maxAbsCorr ) then
-                    maxAbsCorr = abs(correc)
-                  end if
+                  if(abs(correc) > maxAbsCorr ) maxAbsCorr = abs(correc)
                 end if
               end do
               lonIndex = stateVector%ni
               do latIndex = 2, stateVector%nj-1
-                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(3, latIndex,  levIndex,stepIndex) + &
-                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex,latIndex+1,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex,latIndex-1,levIndex,stepIndex)&
-                            ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex,&
-                                                      levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
-                  rms = rms + correc*correc
+                if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                  basic = (analysis_ptr(3, latIndex,  levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex - 1, latIndex, levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex, latIndex + 1, levIndex, stepIndex) + &
+                           analysis_ptr(lonIndex, latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                  correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  rms = rms + correc * correc
                   numCorrect = numCorrect + 1
-                  if( abs(correc) > maxAbsCorr ) then
-                    maxAbsCorr = abs(correc)
-                  end if
+                  if( abs(correc) > maxAbsCorr ) maxAbsCorr = abs(correc)
                 end if
               end do
               ! North fold
               latIndex = stateVector%nj
               do lonIndex = 2, stateVector%ni-1
-                if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) then
-                  basic = ( LGAnal_ptr(lonIndex+1,latIndex,levIndex,stepIndex)+&
-                            LGAnal_ptr(lonIndex-1,latIndex,levIndex,stepIndex)+&
-                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-2,&
-                                        levIndex,stepIndex) + &
-                            LGAnal_ptr( stateVector%ni+2-lonIndex, latIndex-1,&
-                                        levIndex,stepIndex) ) / 4.0d0
-                  correc = factor*(basic - LGAnal_ptr(lonIndex,latIndex, &
-                                                      levIndex,stepIndex))
-                  LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                      LGAnal_ptr(lonIndex,latIndex,levIndex,stepIndex) + correc
-                  rms = rms + correc*correc
+                if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                  basic = (analysis_ptr(lonIndex + 1, latIndex, levIndex, stepIndex)+&
+                           analysis_ptr(lonIndex - 1, latIndex, levIndex, stepIndex)+&
+                           analysis_ptr(stateVector%ni + 2 - lonIndex, latIndex - 2, levIndex, stepIndex) + &
+                           analysis_ptr(stateVector%ni + 2 - lonIndex, latIndex - 1, levIndex, stepIndex) ) / 4.0d0
+                  correc = factor*(basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  rms = rms + correc * correc
                   numCorrect = numCorrect + 1
-                  if( abs(correc) > maxAbsCorr ) then
-                    maxAbsCorr = abs(correc)
-                  end if
+                  if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
                 end if
               end do
             end if
 
           end do
 
-          if( numCorrect > 0 ) rms = sqrt(rms/real(numCorrect))
+          if(numCorrect > 0) rms = sqrt(rms / real(numCorrect))
 
-          write(*,*) 'gvt_GLtoLG number of points corrected = ',numCorrect
-          write(*,*) 'gvt_GLtoLG RMS correction during last iteration: ',rms
-          write(*,*) 'gvt_GLtoLG MAX absolute correction during last iteration: ', maxAbsCorr
-          write(*,*) 'gvt_GLtoLG Field min value = ',minval(LGAnal_ptr(:,:,levIndex,stepIndex))
-          write(*,*) 'gvt_GLtoLG Field max value = ',maxval(LGAnal_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinous: number of points corrected = ', numCorrect
+          write(*,*) 'gvt_oceanIceContinous: RMS correction during last iteration: ', rms
+          write(*,*) 'gvt_oceanIceContinous: MAX absolute correction during last iteration: ', maxAbsCorr
+          write(*,*) 'gvt_oceanIceContinous: Field min value = ', minval(analysis_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinous: Field max value = ', maxval(analysis_ptr(:,:,levIndex,stepIndex))
 
-          if( maxAbsCorr > 1.0 ) then
-            call utl_abort('gvt_GLtoLG Unstable algorithm !')
+          if(maxAbsCorr > 1.0) then
+            call utl_abort('gvt_oceanIceContinous: Unstable algorithm !')
           end if
 
         end do
       end do
 
-      !
-      !- Impose limits [0,1] on sea ice concentration analysis
-      !
-      LGAnal_ptr(:,:,:,:) = min(LGAnal_ptr(:,:,:,:), 1.0d0)
-      LGAnal_ptr(:,:,:,:) = max(LGAnal_ptr(:,:,:,:), 0.0d0)
+      if (outputVarName == 'LG') then
+        !- Impose limits [0,1] on sea ice concentration analysis
+        analysis_ptr(:,:,:,:) = min(analysis_ptr(:,:,:,:), 1.0d0)
+        analysis_ptr(:,:,:,:) = max(analysis_ptr(:,:,:,:), 0.0d0)
+      end if	
 
     end if
 
-    call gsv_transposeStepToTiles(stateVector_analysis_1step_r8,stateVector,1)
+    call gsv_transposeStepToTiles(stateVector_analysis_1step_r8, stateVector, 1)
 
-    if ( mpi_myid < stateVector%numStep ) then
+    if (mpi_myid < stateVector%numStep) then
       call gsv_deallocate(stateVector_analysis_1step_r8)
       call gsv_deallocate(stateVector_trial_1step_r8)
     end if
 
-  end subroutine GLtoLG
+  end subroutine gvt_oceanIceContinous
 
 end module gridVariableTransforms_mod

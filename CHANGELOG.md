@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to compute continous SST field (#571 and !542)
  * Option for `midas_build` to compile only on frontend architecture (#582 and !544)
  * Add an English documentation for `midas.splitobs.Abs` (#577 and !541)
    * when it is called with `-h`, `-help` or `--help`.

@@ -268,8 +268,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_analPostProcessing
   !--------------------------------------------------------------------------
-  subroutine inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN
-                                     stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
+  subroutine inc_analPostProcessing (stateVectorPsfcHighRes, stateVectorUpdateHighRes, & ! IN
+                                     stateVectorTrial, stateVectorPsfc, stateVectorAnal) ! OUT
     !
     ! :Purpose: Post processing of the high resolution analysis including degrading 
     !           temporal resolution, variable transform, and humidity clipping.
@@ -277,8 +277,8 @@ CONTAINS
     implicit none 
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVectorPsfcHighRes
-    type(struct_gsv), intent(in) :: stateVectorUpdateHighRes
+    type(struct_gsv), intent(in)  :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(in)  :: stateVectorUpdateHighRes
     type(struct_gsv), intent(out) :: stateVectorTrial
     type(struct_gsv), intent(out) :: stateVectorPsfc
     type(struct_gsv), intent(out) :: stateVectorAnal
@@ -287,7 +287,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
 
-    real(pre_incrReal), pointer :: GL_ptr(:,:,:,:)
+    real(pre_incrReal), pointer :: oceanIce_ptr(:,:,:,:)
 
     logical  :: allocHeightSfc
 
@@ -299,13 +299,13 @@ CONTAINS
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
     allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-    call gsv_allocate( stateVectorTrial, tim_nstepobsinc, hco_trl, vco_trl,  &
-                       dataKind_opt=pre_incrReal, &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero( stateVectorTrial )
-    call gsv_readTrials( stateVectorTrial )
+    call gsv_allocate(stateVectorTrial, tim_nstepobsinc, hco_trl, vco_trl,  &
+                      dataKind_opt = pre_incrReal, &
+                      dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                      allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
+    call gsv_zero(stateVectorTrial)
+    call gsv_readTrials(stateVectorTrial)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
@@ -315,54 +315,57 @@ CONTAINS
     end if
 
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
-    if ( gsv_varExist(varName='P0') ) then
-      call gsv_allocate( stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
-                         dataKind_opt=pre_incrReal, &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
-                         hInterpolateDegree_opt=hInterpolationDegree)
-      call gsv_copy( stateVectorPsfcHighRes, stateVectorPsfc, allowTimeMismatch_opt=.true.)
+    if (gsv_varExist(varName='P0')) then
+      call gsv_allocate(stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
+                        dataKind_opt = pre_incrReal, &
+                        dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true.,  &
+                        varNames_opt = (/'P0'/), allocHeightSfc_opt = allocHeightSfc, &
+                        hInterpolateDegree_opt = hInterpolationDegree)
+      call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, allowTimeMismatch_opt = .true.)
       call gsv_deallocate(stateVectorPsfcHighRes)
     end if
 
-    call gsv_allocate( stateVectorAnal, tim_nstepobsinc, hco_trl, vco_trl,  &
-                       dataKind_opt=pre_incrReal, &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_copy( stateVectorUpdateHighRes, stateVectorAnal, &
-                   allowVarMismatch_opt=.true., allowTimeMismatch_opt=.true. )
+    call gsv_allocate(stateVectorAnal, tim_nstepobsinc, hco_trl, vco_trl,  &
+                      dataKind_opt = pre_incrReal, &
+                      dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                      allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
+    call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
+                  allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
 
     ! Start the variable transformations
-    if( gsv_varExist(stateVectorAnal,'GL') ) then
+    if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
-      call gsv_getField(stateVectorAnal,GL_ptr,'GL')
-      GL_ptr(:,:,:,:) = min(GL_ptr(:,:,:,:), 1.0d0)
-      GL_ptr(:,:,:,:) = max(GL_ptr(:,:,:,:), 0.0d0)
-
-      if( gsv_varExist(stateVectorAnal,'LG') ) then
-
+      call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
+      oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
+      oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
+      if (gsv_varExist(stateVectorAnal, 'LG' ) ) then
         ! Compute the continuous sea ice concentration field (LG)
-        call gvt_transform(stateVectorAnal,'GLtoLG',stateVectorRef_opt=stateVectorTrial)
-
+        call gvt_transform( stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'LG' )
       end if
+    end if
 
+    ! Start the variable transformations
+    if( gsv_varExist(stateVectorAnal,'TM') ) then
+      call gsv_getField( stateVectorAnal, oceanIce_ptr, 'TM' )
+      ! Compute the continuous SST field (TM)
+      call gvt_transform( stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM' )
     end if
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for analysis
-    call gvt_transform(stateVectorAnal,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(stateVectorAnal, 'AllTransformedToModel', allowOverWrite_opt = .true.)
 
     ! Impose limits on humidity analysis
-    call tmg_start(182,'INC_QLIMITS')
+    call tmg_start(182, 'INC_QLIMITS')
     write(*,*) 'inc_analPostProcessing: calling qlim_saturationLimit'
     call qlim_saturationLimit(stateVectorAnal)
-    if ( imposeRttovHuLimits ) call qlim_rttovLimit(stateVectorAnal)
+    if (imposeRttovHuLimits) call qlim_rttovLimit(stateVectorAnal)
     call tmg_stop(182)
 
-    if ( gsv_varKindExist('CH') ) then
+    if (gsv_varKindExist('CH')) then
       ! Apply boundaries to analysis of CH kind variables as needed.
       write(*,*) 'inc_analPostProcessing: applying minimum values to analysis for variables of CH kind'
-      call gvt_transform(stateVectorAnal,'CH_bounds')
+      call gvt_transform(stateVectorAnal, 'CH_bounds')
     end if
 
     write(*,*) 'inc_analPostProcessing: END'
