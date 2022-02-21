@@ -1954,7 +1954,7 @@ CONTAINS
       write(*,*) 'gvt_oceanIceContinous: Total number of iterations: ', numPass
 
       do stepIndex = 1, statevector%numStep
-        write(*,*) 'gvt_oceanIceContinous: stepIndex = ',stepIndex
+        write(*,*) 'gvt_oceanIceContinous: stepIndex = ', stepIndex
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(outputVarName))
 
           write(*,*) 'gvt_oceanIceContinous: levIndex = ',levIndex
@@ -1963,11 +1963,9 @@ CONTAINS
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
               if (stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
-                analysis_ptr(lonIndex,latIndex, levIndex, stepIndex) = &
-                input_ptr(lonIndex, latIndex, levIndex, stepIndex)
+                analysis_ptr(lonIndex,latIndex, levIndex, stepIndex) = input_ptr(lonIndex, latIndex, levIndex, stepIndex)
               else
-                analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                trial_ptr(lonIndex, latIndex, levIndex, stepIndex)
+                analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = trial_ptr(lonIndex, latIndex, levIndex, stepIndex)
               end if
             end do
           end do
@@ -1985,8 +1983,7 @@ CONTAINS
                            analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
                            analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
                   correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
                   rms = rms + correc * correc
                   numCorrect = numCorrect + 1
                   if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
@@ -2004,8 +2001,7 @@ CONTAINS
                            analysis_ptr(lonIndex, latIndex + 1, levIndex, stepIndex) + &
                            analysis_ptr(lonIndex, latIndex - 1, levIndex, stepIndex)) / 4.0d0
                   correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
                   rms = rms + correc * correc
                   numCorrect = numCorrect + 1
                   if(abs(correc) > maxAbsCorr ) maxAbsCorr = abs(correc)
@@ -2019,8 +2015,7 @@ CONTAINS
                            analysis_ptr(lonIndex, latIndex + 1, levIndex, stepIndex) + &
                            analysis_ptr(lonIndex, latIndex - 1, levIndex, stepIndex)) / 4.0d0
                   correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
                   rms = rms + correc * correc
                   numCorrect = numCorrect + 1
                   if( abs(correc) > maxAbsCorr ) maxAbsCorr = abs(correc)
@@ -2035,8 +2030,7 @@ CONTAINS
                            analysis_ptr(stateVector%ni + 2 - lonIndex, latIndex - 2, levIndex, stepIndex) + &
                            analysis_ptr(stateVector%ni + 2 - lonIndex, latIndex - 1, levIndex, stepIndex) ) / 4.0d0
                   correc = factor*(basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
                   rms = rms + correc * correc
                   numCorrect = numCorrect + 1
                   if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
@@ -2048,11 +2042,11 @@ CONTAINS
 
           if(numCorrect > 0) rms = sqrt(rms / real(numCorrect))
 
-          write(*,*) 'gvt_oceanIceContinous: number of points corrected = ',numCorrect
-          write(*,*) 'gvt_oceanIceContinous: RMS correction during last iteration: ',rms
+          write(*,*) 'gvt_oceanIceContinous: number of points corrected = ', numCorrect
+          write(*,*) 'gvt_oceanIceContinous: RMS correction during last iteration: ', rms
           write(*,*) 'gvt_oceanIceContinous: MAX absolute correction during last iteration: ', maxAbsCorr
-          write(*,*) 'gvt_oceanIceContinous: Field min value = ',minval(analysis_ptr(:,:,levIndex,stepIndex))
-          write(*,*) 'gvt_oceanIceContinous: Field max value = ',maxval(analysis_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinous: Field min value = ', minval(analysis_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinous: Field max value = ', maxval(analysis_ptr(:,:,levIndex,stepIndex))
 
           if(maxAbsCorr > 1.0) then
             call utl_abort('gvt_oceanIceContinous: Unstable algorithm !')
