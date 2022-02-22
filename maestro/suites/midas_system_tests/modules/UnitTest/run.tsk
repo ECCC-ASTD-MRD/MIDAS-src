@@ -37,7 +37,7 @@ elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
     export KMP_AFFINITY=compact # Allows pinning the threads
 
-    export AFSISIO=/home/erv000/data/robert/UnitTests/midas/var/env_rhel-8-icelake-64
+    export AFSISIO=/home/erv000/data/underhill/UnitTests/midas/var/env_rhel-8-icelake-64
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
