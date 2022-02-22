@@ -567,6 +567,7 @@ contains
     !           radar beam columns .
     !
     implicit none
+
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData
     type(struct_hco), intent(in) :: hco 
@@ -603,8 +604,8 @@ contains
     lonSlantLev_T(nlev_T) = antennaLon 
     ! Loop through rest of thermo level
     do lev_T = 1, nlev_T-1
-      call findIntersectLatlonRadar(antennaLat, antennaLon, beamElevation, beamAzimuth,  radarAltitude, &
-                   beamRangeStart, beamRangeEnd, hco, height3D_T_r4(:,:,lev_T), latSlant, lonSlant)
+      call findIntersectLatlonRadar(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, &
+                        beamRangeStart, beamRangeEnd, hco, height3D_T_r4(:,:,lev_T), latSlant, lonSlant)
       latSlantLev_T(lev_T) = latSlant
       lonSlantLev_T(lev_T) = lonSlant
     end do
@@ -635,14 +636,15 @@ contains
     ! :NOTE: Bisection method  
     !
     implicit none
+    
     !Argument
     type(struct_hco), intent(in) :: hco
     real(8), intent(in)          :: antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude
     real(8), intent(in)          :: beamRangeStart, beamRangeEnd
     real(4), intent(in)          :: field2d_height(hco%ni,hco%nj)
-    real(8)                      :: upper_bound, lower_bound, tolerance
     real(8), intent(out)         :: latSlant,lonSlant
     ! Local
+    real(8)                      :: upper_bound, lower_bound, tolerance
     real(8)                      :: beamHeight, mid, difference_heights, beamDistance
     integer                      :: iteration,maximum_iteration
     real(4)                      :: heightInterp_r4
@@ -656,10 +658,10 @@ contains
     mid=0.
     do while ((abs((upper_bound - lower_bound)/2.)>tolerance).or.(iteration>maximum_iteration))
       mid = (upper_bound + lower_bound)/2
-      call rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude,&
-                                          mid, latSlant, lonSlant, beamHeight, beamDistance)
+      call rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, &
+                        radarAltitude, mid, latSlant, lonSlant, beamHeight, beamDistance)
       call heightBilinearInterp(latSlant, lonSlant, hco, field2d_height, heightInterp_r4)
-      difference_heights = beamHeight-heightInterp_r4
+      difference_heights = beamHeight - heightInterp_r4
       if (difference_heights>0.) then 
         upper_bound = mid
       else

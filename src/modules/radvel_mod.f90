@@ -35,18 +35,25 @@ module radvel_mod
 contains 
 
 
-  subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, & 
-                                            beamRange, latSlant,lonSlant, beamHeight, beamDistance)
+  subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, &
+                     radarAltitude, beamRange, latSlant,lonSlant, beamHeight, beamDistance)
     !
     ! :Purpose: Computation of  lat-lon , height  of the trajectory
-    !            along the radar beam from range of the radar beam
+    !           along the radar beam from range of the radar beam
     !
-    
     implicit none
+
     ! Argument 
-    real(8), intent(in)  :: antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude
+    real(8), intent(in)  :: antennaLat
+    real(8), intent(in)  :: antennaLon
+    real(8), intent(in)  :: beamElevation
+    real(8), intent(in)  :: beamAzimuth
+    real(8), intent(in)  :: radarAltitude
     real(8), intent(in)  :: beamRange
-    real(8), intent(out) :: LatSlant, lonSlant, beamHeight, beamDistance
+    real(8), intent(out) :: LatSlant
+    real(8), intent(out) :: lonSlant
+    real(8), intent(out) :: beamHeight
+    real(8), intent(out) :: beamDistance
     ! Local
     real(8)              :: Re 
     
@@ -70,11 +77,14 @@ contains
   subroutine rdv_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
     !
     ! :Purpose: Computation of height of the radar beam
-    !            from range of the radar beam
+    !           from range of the radar beam
     !
     implicit none
+
     ! Argument 
-    real(8) , intent(in)  :: beamRange, radarAltitude, beamElevation
+    real(8) , intent(in)  :: beamRange
+    real(8) , intent(in)  :: radarAltitude
+    real(8) , intent(in)  :: beamElevation
     real(8) , intent(out) :: beamHeight
     ! Local
     real(8)               :: Re 
@@ -93,8 +103,11 @@ contains
     ! :Purpose: Computation of range of the radar beam from height of the radar beam
     !
     implicit none
+    
     ! Argument
-    real(8) , intent(in)  :: beamHeight,  radarAltitude, beamElevation
+    real(8) , intent(in)  :: beamHeight
+    real(8) , intent(in)  :: radarAltitude
+    real(8) , intent(in)  :: beamElevation
     real(8) , intent(out) :: beamRange 
     ! Local
     real(8)               :: a, b, c, Re

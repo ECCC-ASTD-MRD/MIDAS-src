@@ -1289,7 +1289,7 @@ end subroutine filt_topoAISW
     real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
     
     namelist /namradvel/ maxRangeInterp
-    !
+
     if (.not.beSilent) then
       write(*,*)
       write(*,*) 'filt_radvel: begin'
@@ -1311,28 +1311,22 @@ end subroutine filt_topoAISW
       write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
     end if
     !
-    ! Loop over all header indices of the 'RO' family:
+    ! Loop over all header indices of the 'RA' family (Doppler Velocity)
     !
     call obs_set_current_header_list(obsSpaceData, 'RA')
-    !
-    ! Loop over all header indices of the 'RA' family with schema 'radvel':
-    !
     HEADER: do  
-
       headerIndex = obs_getHeaderIndex(obsSpaceData)  
       if ( headerIndex < 0 ) exit HEADER
-  
-      numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
-      call obs_set_current_body_list(obsSpaceData, headerIndex)
-      !
-      ! Loop over all body indices of the 'RA' family with schema 'radvel':
-      !
       ! 
-
+      numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
       ! Elevation beam (PPI) 
       beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
       ! Altitude radar
       radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
+      !
+      ! Loop over all body indices of the 'RA' family (Doppler Velocity)
+      !
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
