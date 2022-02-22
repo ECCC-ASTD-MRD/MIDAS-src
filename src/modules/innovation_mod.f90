@@ -570,7 +570,14 @@ contains
     call oop_sfc_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! RADAR Doppler velocity
-    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
+    if ( filterObsAndInitOer ) then
+     ! Filter Radar for Doppler velocity
+      call filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    else
+      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
+    end if
+
+    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)  
 
     ! Sea surface temperature
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)

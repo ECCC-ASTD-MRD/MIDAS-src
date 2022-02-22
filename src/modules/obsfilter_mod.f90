@@ -34,6 +34,7 @@ module obsFilter_mod
   use varNameList_mod
   use physicsFunctions_mod
   use codtyp_mod
+  use radvel_mod
   implicit none
   save
   private
@@ -42,7 +43,7 @@ module obsFilter_mod
   public :: filt_rlimlvhu
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
-  public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration
+  public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration, filt_radvel
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
 
   integer :: filt_nelems, filt_nflags
@@ -1268,6 +1269,124 @@ end subroutine filt_topoAISW
   end subroutine filt_surfaceWind
 
   !--------------------------------------------------------------------------
+  ! filt_radlvel
+  !--------------------------------------------------------------------------
+  subroutine filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    !
+    ! :Purpose: Filter Radvel observations
+    !           guarantee that altitude values are
+    !           within bounds Altitude and check the horizontal distance between levels
+    !           for further processing
+    implicit none
+    
+    ! arguments
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+
+    ! locals
+    integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
+    integer :: fnom, fclos, nulnam, ierr, levelIndex
+    real(8) :: obsaltitude, radaraltitude, beamelevation, levelaltlow, levelAltHigh
+    real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
+    
+    namelist /namradvel/ maxRangeInterp
+
+    if (.not.beSilent) then
+      write(*,*)
+      write(*,*) 'filt_radvel: begin'
+    end if
+    
+    ! default value 
+    maxRangeInterp = -1.0D0
+
+    ! reading namelist variables
+    if ( utl_isNamelistPresent('namradvel', './flnml') ) then
+      nulnam=0
+      ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml=namradvel, iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+      if ( .not. beSilent ) write(*,nml=namradvel)
+      ierr = fclos(nulnam)
+    else if ( .not. beSilent ) then
+      write(*,*)
+      write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
+    end if
+    !
+    ! Loop over all header indices of the 'RA' family (Doppler Velocity)
+    !
+    call obs_set_current_header_list(obsSpaceData, 'RA')
+    HEADER: do  
+      headerIndex = obs_getHeaderIndex(obsSpaceData)  
+      if ( headerIndex < 0 ) exit HEADER
+      ! 
+      numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
+      ! Elevation beam (PPI) 
+      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      ! Altitude radar
+      radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
+      !
+      ! Loop over all body indices of the 'RA' family (Doppler Velocity)
+      !
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
+        ! Check that this observation has the expected bufr element ID
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+        if ( bufrCode /= bufr_radvel ) cycle BODY
+        ! only process observations flagged to be assimilated
+        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
+
+        ! Altitude of observation
+        obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
+
+        ! Levels that bracket the observation from OBS_LYR
+        !   note to self:   like in GEM, level=1 is the highest level
+        levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
+
+
+        ! Observations are rejected if horizontal distance between levels is too large
+        if ( maxRangeInterp > 0.0 ) then
+          if ( levelAltLow < radarAltitude ) then 
+            levelRangeNear = 0.0
+          else
+            call rdv_getRangefromH(levelAltLow, radarAltitude, beamElevation, levelRangeNear)
+          end if
+          call rdv_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
+
+          if ( abs(levelRangeFar-levelRangeNear) > maxRangeInterp ) then
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
+            obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
+            call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+            cycle BODY
+          end if
+        end if
+
+        ! Observations are rejected if observation is below the height of last model level
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex, 'MM')
+        if ( levelAltLow > obsAltitude ) then
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
+          obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+        end if
+
+        ! Observations are rejected if observation is above the height of first model level
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
+        if ( levelAltHigh < obsAltitude ) then
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
+          obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+        end if
+        
+      end do BODY
+    end do HEADER  
+    if ( .not. beSilent ) write(*,*) 'filt_radvel: end'
+  end subroutine filt_radvel
+
   ! filt_gpsro
   !--------------------------------------------------------------------------
   subroutine FILT_GPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
