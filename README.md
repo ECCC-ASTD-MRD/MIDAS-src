@@ -73,68 +73,45 @@ git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
 git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force
 ```
 
+# Compiling MIDAS
 
-# Compiling a single program
+[`src/midas_build`](./src/README.md)
+is now the official compilation tool to build MIDAS.
+To proceed to compilation tasks, you should be in the `src/` directory.
+`midas_build` compiles by default on both platforms.
 
-To compile a program for a given platform, one has to do:
+## Compiling a single program
+To compile a single program on both platforms, do the following from the 
+frontnode:
 ```bash
-ssh ${host}  ## '${host}' can be 'hare', 'brooks', 'eccc-ppp1', eccc-ppp2, 'gpsc*'
-cd ${WHERE YOUR CODE IS}
-cd src/programs
-./compile_program.sh ${program}
+cd ${where_your_code_is}
+cd src
+./midas_build ${program_basename}.Abs
 ```
-where `program` may be one the file with extention `.f90` in the
-sub-directory `src/programs`.
+where `program_basename` is the **basename** of one the files with extention `.f90` in
+the sub-directory `src/programs` or [`splitobs`](./src/README.md#splitobs-an-external-program).
+If you installed the [auto-completion feature](./src/README.md#auto-completion)
+you can browse all install targets by pressing `<TAB>` following `./midas_build`.
 
-The listing of the compilation will let you know where the program
-binary is.
+By default the binary will be installed in 
+`${HOME}/data_maestro/ords/midas-bld/midas_abs/` 
+(this can be [configured by environment variables](./src/README.md#configuring-the-compilation-and-linking-process)).
 
-Note, if the compilation fails due to a change in the dependencies between
-the main program and modules or among the modules, the `src_files` files
-can be automatically updated by running the script `make_src_files.sh` that is 
-located in the same directory as the main programs.
-Running the script without argument defaults to running it sequentially for all 
-programs, but that can be too long for the PPPs and it often gets killed.
-As a workaround, one can either launch it only for the modified (or new) 
-programs or launch it in parallel for all programs, from `src/programs/`:
-```sh
-for pgm in $(ls *.f90); do ./make_src_files.sh $pgm & done
-```
-
-# Compiling all the programs
-
-To compile the programs used in this code, use the commands
+## Compiling all programs
+To compile all programs (`src/programs/*.f90` as well as
+[`splitobs`](./src/README.md#splitobs-an-external-program)),
+simply do:
 ```bash
-ssh eccc-ppp3  ## or eccc-ppp4
-cd ${WHERE YOUR CODE IS}
-cd src/programs
-yes '' | ./compile_all.sh
-```
-and
-```bash
-ssh banting    ## or daley
-cd ${WHERE YOUR CODE IS}
-cd src/programs
-yes '' | ./compile_all.sh
+cd ${where_your_code_is}
+cd src
+./midas_build
 ```
 
-## Compiling all programs on both platforms
-
-A script, `compile_all_plat.sh`, has been written to compile all
-programs of this project on supported platforms:
-`ubuntu-18.04-amd64-64` and `sles-11-broadwell-64-xc40`.  The
-compiling is done in parallel.  You can call it with:
-```bash
-cd src/programs
-./compile_all_plat.sh
-```
-
-# Testing the new compilation using `make`
-
-All the information and instructions can be found in the [src](./src)
-directory, by clicking on that folder in GitLab and and scrolling down
-past the files, you will see [`src/README.md`](./src/README.md)
-content appended there.
+## Complete documentation on using `midas_build` and `make`
+If you are [contributing a new program, changing external dependencies](./src/README.md#adding-a-new-program-or-changing-external-dependencies),
+recompiling a lot or debugging the code,
+you should take the time to read the detailed instructions found in
+[`src/README.md`](./src/README.md).
 
 # MIDAS test suite
 
