@@ -1278,11 +1278,13 @@ end subroutine filt_topoAISW
     !           within bounds Altitude and check the horizontal distance between levels
     !           for further processing
     implicit none
-    !
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    !
+    
+    ! arguments
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+
+    ! locals
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
     integer :: fnom, fclos, nulnam, ierr, levelIndex
     real(8) :: obsaltitude, radaraltitude, beamelevation, levelaltlow, levelAltHigh
