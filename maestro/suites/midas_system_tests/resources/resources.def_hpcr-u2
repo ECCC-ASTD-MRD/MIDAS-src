@@ -19,16 +19,16 @@ NUMTHREAD_maxPerNode_ppp=40
 NUMTHREAD_var_EnVar_24mem_xc40=5
 MEMORY_var_EnVar_24mem_xc40=17500M
 NUMTHREAD_var_EnVar_gdps=4
-NUMTHREAD_var_EnVar_geps=4
-NUMTHREAD_var_EnVar_rdps=4
+NUMTHREAD_var_EnVar_geps=8
+NUMTHREAD_var_EnVar_rdps=8
 NUMTHREAD_var_EnVar_96mem_ppp_sqlite=8
-NUMTHREAD_var_EnVar_biFourier_xc40=5
+NUMTHREAD_var_EnVar_biFourier_xc40=4
 
-NUMTHREAD_var_Var3D_aladin_assim=2
+NUMTHREAD_var_Var3D_aladin_assim=4
 MEMORY_var_Var3D_aladin_assim=8G
 NUMTHREAD_var_Var3D_gbc=10
 NUMTHREAD_var_Var3D_splitobs_xc40=4
 
-NUMTHREAD_var_vbc=5
+NUMTHREAD_var_vbc=10
 
 MPITOPO_ensembleH=10x4x1
