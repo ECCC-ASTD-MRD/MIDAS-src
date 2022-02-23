@@ -307,7 +307,7 @@ are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
     __listing_frontend_search="^${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-.*-$(date +%Y%m%d).*\.out$"
-    __listing_frontend_found=$(ls ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}")
+    __listing_frontend_found=$(ls -rt1 ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}" | tail -n 1)
     mv ${__listing_frontend_found} ${__listing_frontend}
     mv ${__listing_frontend_found}.o ${__listing_frontend}.o
     unset __listing_frontend_search
