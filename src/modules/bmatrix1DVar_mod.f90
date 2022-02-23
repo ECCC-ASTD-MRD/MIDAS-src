@@ -77,7 +77,7 @@ module bmatrix1DVar_mod
   real(8)          :: vlocalize
   real(8),allocatable :: LvertSqrt(:,:)
   type(struct_columnData), allocatable :: ensColumns(:)
-  type(struct_columnData) :: meanColumn, meanColumn2
+  type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensPerts
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
@@ -367,7 +367,7 @@ contains
     character(len=4), parameter  :: varNameALFAatmTH(1) = [ 'ALFT' ]
     character(len=4), parameter  :: varNameALFAsfc(1)   = [ 'ALFS' ]
     character(len=4), pointer :: varNames(:)
-    real(8), pointer :: currentProfile(:), meanProfile(:), meanProfile2(:)
+    real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:)
     integer, allocatable :: subIndex(:)
 
@@ -641,20 +641,19 @@ contains
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) "Read ensemble members"
     call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,         &
-                          vco_file_opt = vco_file,                          &
-                          varNames_opt = includeAnlVar(1:numIncludeAnlVar), & 
-                          containsFullField_opt=.true.)
+                          vco_file_opt = vco_ens,                          &
+                          varNames_opt = includeAnlVar(1:numIncludeAnlVar))
     
     allocate( ensColumns(nEns))
     call gsv_allocate( stateVector, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
-
+    
     call gsv_allocate( stateVectorMean, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. ) 
+                     dataKind_opt=4, allocHeightSfc_opt=.true. )
 
     do memberIndex = 1, nEns
       write(*,*) "Copy member ", memberIndex
@@ -668,21 +667,11 @@ contains
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
 
-    call col_setVco(meanColumn2, vco_ens)
-    call col_allocate(meanColumn2, obs_numheader(obsSpaceData),  &
-            mpiLocal_opt=.true., setToZero_opt=.true.)
-    call s2c_nl( stateVectorMean, obsSpaceData, meanColumn2, hco_in, &
-            timeInterpType="NEAREST" )
-
-    write(*,*) "Compute Ensemble Mean"
-    call ens_computeMean(ensPerts)
-    call ens_copyEnsMean(ensPerts, statevector)
-    write(*,*) "interpolate ensemble mean "
     call col_setVco(meanColumn, vco_ens)
     call col_allocate(meanColumn, obs_numheader(obsSpaceData),  &
-                    mpiLocal_opt=.true., setToZero_opt=.true.)
-    call s2c_nl( stateVector, obsSpaceData, meanColumn, hco_in, &
-                     timeInterpType="NEAREST" )
+            mpiLocal_opt=.true., setToZero_opt=.true.)
+    call s2c_nl( stateVectorMean, obsSpaceData, meanColumn, hco_in, &
+            timeInterpType="NEAREST" )
 
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorMean)
@@ -702,7 +691,7 @@ contains
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
           nkgdim = nkgdim + 1
           subIndex(nkgdim) = levIndex
-          !if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns: x ", bmat1D_varList(varIndex), nkgdim, levIndex
+          if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns: x ", bmat1D_varList(varIndex), nkgdim, levIndex
         end if
       end do
     end do
@@ -717,18 +706,15 @@ contains
 !      offset = 0
 !      do varIndex = 1, numIncludeAnlVar
       meanProfile => col_getColumn(meanColumn, headerIndex) !, varName_opt=bmat1D_varList(varIndex))
-      meanProfile2 => col_getColumn(meanColumn2, headerIndex) !, varName_opt=bmat1D_varList(varIndex))
-      !write(*,*) "a", size(meanProfile), meanProfile(:)
-      !currentSize = size(meanProfile)
       do memberIndex = 1, nEns
-        currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex) !, varName_opt=bmat1D_varList(varIndex))
-        lineVector(1,:) = currentProfile(subIndex(:)) - meanProfile2(subIndex(:))
+        currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
+        lineVector(1,:) = currentProfile(subIndex(:)) - meanProfile(subIndex(:))
         !if (mpi_myId == 0 .and. columnIndex==1) then
         !  write(*,*) "nkgdim", nkgdim,size(currentProfile),size(meanProfile)
         !  do levIndex = 1, nkgdim
         !    write(*,*) "bmat1D_setupBEns: lineVector ",headerIndex,levIndex,subIndex(levIndex),lineVector(1,levIndex), &
         !      col_getVarNameFromK(ensColumns(memberIndex),subIndex(levIndex)), currentProfile(subIndex(levIndex)), &
-        !      col_getVarNameFromK(meanColumn,subIndex(levIndex)), meanProfile(subIndex(levIndex)), meanProfile2(subIndex(levIndex))
+        !      col_getVarNameFromK(meanColumn,subIndex(levIndex)), meanProfile(subIndex(levIndex))
         !  end do
         !end if
         bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
