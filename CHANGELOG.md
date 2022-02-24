@@ -102,6 +102,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Augment width write format for Jo contributions (#591 and !552)
  * Fix some infrequent listing `mv` error in `midas_build` after an interrupted build (#590)
  * Fix non monotonic pressure profiles in slantpath mode for radiance observations (#564 and !543)
    * Minor impact on results

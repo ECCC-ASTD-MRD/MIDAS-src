@@ -260,27 +260,27 @@ contains
     end if
 
     if ( mpi_myid == 0 .and. .not. beSilent ) then
-      write(*,'(a15,f25.17)') 'Jo(UA)   = ', dljoraob
-      write(*,'(a15,f25.17)') 'Jo(AI)   = ', dljoairep
-      write(*,'(a15,f25.17)') 'Jo(SF)   = ', dljosurfc
-      write(*,'(a15,f25.17)') 'Jo(SC)   = ', dljoscat
-      write(*,'(a15,f25.17)') 'Jo(TO)   = ', dljotov
-      write(*,'(a15,f25.17)') 'Jo(SW)   = ', dljosatwind
-      write(*,'(a15,f25.17)') 'Jo(PR)   = ', dljoprof
-      write(*,'(a15,f25.17)') 'Jo(RO)   = ', dljogpsro
-      write(*,'(a15,f25.17)') 'Jo(GP)   = ', dljogpsztd
-      write(*,'(a15,f25.17)') 'Jo(CH)   = ', dljochm
-      write(*,'(a15,f25.17)') 'Jo(TM)   = ', dljosst
-      write(*,'(a15,f25.17)') 'Jo(AL)   = ', dljoaladin
-      write(*,'(a15,f25.17)') 'Jo(GL)   = ', dljoice
-      write(*,'(a15,f25.17)') 'Jo(HY)   = ', dljohydro
-      write(*,'(a15,f25.17)') 'Jo(RA)   = ', dljoradar
+      write(*,'(a15,f30.17)') 'Jo(UA)   = ', dljoraob
+      write(*,'(a15,f30.17)') 'Jo(AI)   = ', dljoairep
+      write(*,'(a15,f30.17)') 'Jo(SF)   = ', dljosurfc
+      write(*,'(a15,f30.17)') 'Jo(SC)   = ', dljoscat
+      write(*,'(a15,f30.17)') 'Jo(TO)   = ', dljotov
+      write(*,'(a15,f30.17)') 'Jo(SW)   = ', dljosatwind
+      write(*,'(a15,f30.17)') 'Jo(PR)   = ', dljoprof
+      write(*,'(a15,f30.17)') 'Jo(RO)   = ', dljogpsro
+      write(*,'(a15,f30.17)') 'Jo(GP)   = ', dljogpsztd
+      write(*,'(a15,f30.17)') 'Jo(CH)   = ', dljochm
+      write(*,'(a15,f30.17)') 'Jo(TM)   = ', dljosst
+      write(*,'(a15,f30.17)') 'Jo(AL)   = ', dljoaladin
+      write(*,'(a15,f30.17)') 'Jo(GL)   = ', dljoice
+      write(*,'(a15,f30.17)') 'Jo(HY)   = ', dljohydro
+      write(*,'(a15,f30.17)') 'Jo(RA)   = ', dljoradar
       write(*,*) ' '
       if ( tvs_nsensors > 0 ) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    Jo'
         do sensorIndex = 1, tvs_nsensors
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') sensorIndex, inst_name(tvs_instruments(sensorIndex)), &
+          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f30.17)') sensorIndex, inst_name(tvs_instruments(sensorIndex)), &
                                                     platform_name(tvs_platforms(sensorIndex)), &
                                                     tvs_satellites(sensorIndex), &
                                                     dljotov_sensors(sensorIndex)
@@ -298,7 +298,7 @@ contains
           loopChannel: do channelIndex = 1, tvs_maxNumberOfChannels
             if ( channelNumberList(channelIndex,sensorIndex) == 0 ) cycle loopChannel
 
-            write(*,'(i2,1x,a,1x,i4,1x,f25.17)') sensorIndex, &
+            write(*,'(i2,1x,a,1x,i4,1x,f30.17)') sensorIndex, &
                                                  sensorNameList(sensorIndex), &
                                                  channelNumberList(channelIndex,sensorIndex), &
                                                  joTovsPerChannelSensor(channelIndex,sensorIndex)
