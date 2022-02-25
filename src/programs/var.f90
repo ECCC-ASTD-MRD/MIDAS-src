@@ -79,6 +79,7 @@ program midas_var
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
   logical :: filterObsAndInitOer, writeIncToFile
+  logical :: deallocInterpInfoNL
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
@@ -256,8 +257,10 @@ program midas_var
     end if
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+    deallocInterpInfoNL = ( .not. numOuterLoopIterations > 1)
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorUpdateHighRes )
+                                   stateVectorUpdateHighRes, &
+                                   deallocInterpInfoNL_opt=deallocInterpInfoNL )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
