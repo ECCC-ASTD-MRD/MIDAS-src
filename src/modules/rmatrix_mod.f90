@@ -329,27 +329,35 @@ module rMatrix_mod
 
           count = 0
           do bodyIndex = idata, idatend
-
             if ( obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
               count = count + 1
               call obs_bodySet_r(obsspacedata, elem_dest_i, bodyIndex,obsOut(count))
             end if
           end do
 
-        end if
+        else
+
+          do bodyIndex = idata, idatend
+            call obs_bodySet_r(obsspacedata, elem_dest_i, bodyIndex, 0.d0)
+          end do
+
+        end if 
 
       else
-
+        if ( obs_getFamily(obsSpaceData, headerIndex_in=headerIndex) == 'TO' .and. rmat_lnondiagr) then
+          call utl_abort('rmat_RsqrtInverseAllObs: should not happen check NAMTOVSINST for missing sensor')
+        end if
         do bodyIndex = idata, idatend
           if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
             call obs_bodySet_r( obsspacedata, elem_dest_i, bodyIndex, &
-                     obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex) / obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex ))
+                 obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex) / obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex ))
           end if
         end do
-       end if
 
-    end do
+      end if ! is it a radiance in non diagonal R mode ?
 
+    end do !loop on header
+ 
   end subroutine rmat_RsqrtInverseAllObs
 
 end module rMatrix_mod
