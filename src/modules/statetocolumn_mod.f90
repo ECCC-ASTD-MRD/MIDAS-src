@@ -54,6 +54,7 @@ module stateToColumn_mod
   ! public routines
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
+  public :: s2c_deallocInterpInfo
 
   ! private module variables and derived types
 
@@ -1980,29 +1981,7 @@ contains
       deallocate(cols_recv)
       deallocate(cols_send_1proc)
 
-      if( dealloc ) then
-        deallocate(interpInfo_nl%interpWeightDepot)
-        deallocate(interpInfo_nl%latIndexDepot)
-        deallocate(interpInfo_nl%lonIndexDepot)
-        do stepIndex = 1, numStep
-          do procIndex = 1, mpi_nprocs
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-            if ( interpInfo_nl%hco%rotated ) then
-              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
-              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
-            end if
-          end do
-        end do
-        deallocate(interpInfo_nl%stepProcData)
-        deallocate(interpInfo_nl%allNumHeaderUsed)
-        call oti_deallocate(interpInfo_nl%oti)
-
-        interpInfo_nl%initialized = .false.
-      end if
+      if ( dealloc ) call s2c_deallocInterpInfo( inputStateVectorType='nl' )
 
     end do OBSBATCH
 
@@ -3823,5 +3802,77 @@ contains
     end do subGrid_loop
 
   end subroutine s2c_getWeightsAndGridPointIndexes
+
+  ! -------------------------------------------------------------
+  ! s2c_deallocInterpInfo
+  ! -------------------------------------------------------------
+  subroutine s2c_deallocInterpInfo( inputStateVectorType )
+    ! :Purpose: Deallocate interpInfo_nl/tlad object.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*), intent(in) :: inputStateVectorType
+
+    ! locals
+    integer :: stepIndex, procIndex, numStep
+
+    if ( inputStateVectorType == 'nl' .and. .not. interpInfo_nl%initialized ) return
+    if ( inputStateVectorType == 'tlad' .and. .not. interpInfo_tlad%initialized ) return
+
+    write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
+                inputStateVectorType
+
+    if ( inputStateVectorType == 'nl' ) then
+      numStep = size(interpInfo_nl%stepProcData,2)
+
+      deallocate(interpInfo_nl%interpWeightDepot)
+      deallocate(interpInfo_nl%latIndexDepot)
+      deallocate(interpInfo_nl%lonIndexDepot)
+      do stepIndex = 1, numStep
+        do procIndex = 1, mpi_nprocs
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+          if ( interpInfo_nl%hco%rotated ) then
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
+          end if
+        end do
+      end do
+      deallocate(interpInfo_nl%stepProcData)
+      deallocate(interpInfo_nl%allNumHeaderUsed)
+      call oti_deallocate(interpInfo_nl%oti)
+
+      interpInfo_nl%initialized = .false.
+    else
+      numStep = size(interpInfo_tlad%stepProcData,2)
+
+      deallocate(interpInfo_tlad%interpWeightDepot)
+      deallocate(interpInfo_tlad%latIndexDepot)
+      deallocate(interpInfo_tlad%lonIndexDepot)
+      do stepIndex = 1, numStep
+        do procIndex = 1, mpi_nprocs
+          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLat)
+          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLon)
+          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+          if ( interpInfo_tlad%hco%rotated ) then
+            deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLonRot)
+            deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLatRot)
+          end if
+        end do
+      end do
+      deallocate(interpInfo_tlad%stepProcData)
+      deallocate(interpInfo_tlad%allNumHeaderUsed)
+      call oti_deallocate(interpInfo_tlad%oti)
+
+      interpInfo_tlad%initialized = .false.
+    end if
+
+  end subroutine s2c_deallocInterpInfo
 
 end module stateToColumn_mod

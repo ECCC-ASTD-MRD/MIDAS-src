@@ -45,6 +45,7 @@ program midas_var
   use biasCorrectionSat_mod
   use varqc_mod
   use tovs_nl_mod
+  use stateToColumn_mod
 
   implicit none
 
@@ -389,6 +390,10 @@ program midas_var
 
   ! Deallocate memory related to B matrices and update stateVector
   call bmat_finalize()
+
+  ! Deallocate structures needed for interpolation
+  call s2c_deallocInterpInfo( inputStateVectorType='nl' )
+  call s2c_deallocInterpInfo( inputStateVectorType='tlad' )
 
   ! Post processing of analyis before writing (variable transform+humidity clipping)
   call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN 
