@@ -363,7 +363,7 @@ program midas_var
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
 
-  call gsv_deallocate( stateVectorIncrSum )
+  if ( gsv_isAllocated(stateVectorIncrSum) ) call gsv_deallocate( stateVectorIncrSum )
 
   ! Set the QC flags to be consistent with VAR-QC if control analysis
   if ( varqcActive ) call vqc_listrej(obsSpaceData)
