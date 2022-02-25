@@ -61,6 +61,7 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorIncrSum
   type(struct_gsv)                :: stateVectorUpdateHighRes
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: stateVectorPsfcHighRes
@@ -79,16 +80,16 @@ program midas_var
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
-  logical :: filterObsAndInitOer, writeIncToFile
+  logical :: filterObsAndInitOer
   logical :: deallocInterpInfoNL
 
   integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop, computeFinalNlJo, writeIncOnlyAtLastOuterLoop
+  logical :: limitHuInOuterLoop, computeFinalNlJo
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ computeFinalNlJo, writeIncOnlyAtLastOuterLoop
+  NAMELIST /NAMVAR/ computeFinalNlJo
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -120,7 +121,6 @@ program midas_var
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
   computeFinalNlJo = .false.
-  writeIncOnlyAtLastOuterLoop = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     if ( mpi_myid == 0 ) then
@@ -334,30 +334,36 @@ program midas_var
       call qlim_rttovLimit( stateVectorUpdateHighRes )
     end if
 
-    ! output the analysis increment
+    ! prepare to write incremnt when no outer-loop, or sum of increments at last
+    ! outer-loop iteration.
     call tmg_start(6,'WRITEINCR')
-    if ( numOuterLoopIterations == 1 )  then
-      ip3ForWriteToFile = 0
-    else
-      ip3ForWriteToFile = outerLoopIndex
-    end if
+    if ( numOuterLoopIterations > 1 .and. &
+         outerLoopIndex == numOuterLoopIterations ) then
 
-    writeIncToFile = .true.
-    if ( writeIncOnlyAtLastOuterLoop .and. &
-         outerLoopIndex /= numOuterLoopIterations ) then
-      writeIncToFile = .false.
-    end if
-    if ( writeIncToFile ) then
+      call gsv_allocate(stateVectorIncrSum, tim_nstepobsinc, hco_anl, vco_anl, &
+           datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+           dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
+      call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim )
+      call gsv_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      ip3ForWriteToFile = numOuterLoopIterations
+      call inc_writeIncrement( stateVectorIncrSum, &                     ! IN
+                               ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+    else if ( numOuterLoopIterations == 1 ) then
+      ip3ForWriteToFile = 0
       call inc_writeIncrement( stateVectorIncr, &                        ! IN
                                ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
-    call gsv_deallocate(stateVectorIncr)
+    call gsv_deallocate( stateVectorIncr )
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
+
+  call gsv_deallocate( stateVectorIncrSum )
 
   ! Set the QC flags to be consistent with VAR-QC if control analysis
   if ( varqcActive ) call vqc_listrej(obsSpaceData)
