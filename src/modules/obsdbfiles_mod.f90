@@ -2101,7 +2101,7 @@ contains
     ! close the obsDB file
     call fSQL_close( db, stat ) 
 
-  end subroutine 
+  end subroutine odbf_createMidasHeaderTable
   
   !--------------------------------------------------------------------------
   ! odbf_updateMidasHeaderTable
@@ -2201,8 +2201,6 @@ contains
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
 
-      write(*,*) 'ZQ_obs_numHeader(obsdat)',  obs_numHeader(obsdat)
-
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
@@ -2279,8 +2277,9 @@ contains
         else
           sqlDataType = 'integer'
         end if
+
         query = 'alter table ' // trim(midasHeadTableName) // ' add column ' // &
-                trim(sqlColumnName) // ' ' // trim(sqlDataType) // new_line('A') //';'
+                trim(sqlColumnName) // ' ' // trim(sqlDataType) // ';'
         write(*,*) 'odbf_updateFile: query ---> ', trim(query)
         call fSQL_do_many( db, query, stat )
         if ( fSQL_error(stat) /= FSQL_OK ) then

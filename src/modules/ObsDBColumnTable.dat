@@ -57,6 +57,7 @@ MODEL_AIR_SFC_TEMPERATURE          ZTM                    (-)                (K)
 MODEL_AIR_SFC_HUMIDITY             ZLQM                   (-)                (kg/kg)          Model Air Surface Humidity
 MODEL_SKIN_TEMPERATURE             ZTGM                   (-)                (K)              Model Skin Temperature
 MODEL_SURFACE_PRESSURE             ZPS                    (-)                (Pa)             Model Surface Pressure
+SURFACE_TYPE                       STYP                   (-)                (-)              Surface Type
 -----MIDAS_HEADER TABLE INFO ENDS-----------------------------------------------------------------------------------------------------------------------
 
 -----MIDAS_BODY TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------------
