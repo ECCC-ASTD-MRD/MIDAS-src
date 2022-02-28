@@ -251,8 +251,10 @@ contains
 
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER   ! Proceed to the next headerIndex
-
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER   ! Proceed to the next headerIndex
+      end if
       tvs_nobtov = tvs_nobtov + 1
      
       !    Construct list of channels for each sensor:
@@ -4471,8 +4473,10 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'tvs_printDetailledOmfStatistics: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       tovsIndex = tvs_tovsIndex(headerIndex)
       if ( tovsIndex == -1 ) cycle HEADER
        

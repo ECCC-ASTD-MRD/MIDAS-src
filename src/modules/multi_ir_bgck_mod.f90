@@ -270,8 +270,10 @@ contains
       
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER   ! Proceed to the next header_index
-
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'irbg_bgCheckIR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER   ! Proceed to the next header_index
+      end if
       tvs_nobtov = tvs_nobtov + 1
       do instrumentIndex=1, ninst
         if ( tvs_isIdBurpInst(idatyp,inst(instrumentIndex)) ) then

@@ -1707,8 +1707,10 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'oop_tovs_nl: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       tovsIndex = tvs_tovsIndex(headerIndex)
       if ( tovsIndex == -1 ) cycle HEADER
 
