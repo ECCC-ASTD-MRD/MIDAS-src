@@ -253,6 +253,12 @@ contains
 
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY2:do 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY2
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+        end do BODY2
         cycle HEADER   ! Proceed to the next headerIndex
       end if
       tvs_nobtov = tvs_nobtov + 1
