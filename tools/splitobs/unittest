@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 ## Ce script a pour but d'implementer des tests unitaires pour 'splitobs'
 ## Pour les executer, il suffit de faire la commande
@@ -25,12 +25,12 @@ fi
 
 VERSION=${VERSION:-$(git describe --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
-INPUTS=${INPUTS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/inputs}
-REFERENCE=${REFERENCE:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/v001/results}
-GRIDS=${GRIDS:-/home/sanl000/data/eccc-ppp3/UnitTests/midas/splitobs/grids}
+INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/19.6.0-2
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/19.6.0
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220216
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220216
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -38,7 +38,7 @@ check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
 
 WORKDIR=${WORKDIR:-${PWD}/work}
 
-export AFSISIO=${AFSISIO:-/home/smco502/env_${ORDENV_PLAT}}
+export AFSISIO=${AFSISIO:-/home/smco502}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
@@ -50,16 +50,16 @@ cd ${WORKDIR}
 
 echo "Working directory is ${WORKDIR}"
 
-liburp=${liburp:-$(which liburp || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
-editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
-reflex=${reflex:-$(which reflex || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
-burpdiff=${burpdiff:-$(which burpdiff || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
-burp2rdb=${burp2rdb:-$(which burp2rdb || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
-rdbgen=${rdbgen:-$(which rdbgen || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite=${sqlite:-$(which d.sqlite || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
+liburp=${liburp:-$(which liburp 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
+editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+reflex=${reflex:-$(which reflex 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
+burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
+burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
+rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
+sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
 sqlite3=${sqlite3:-$(which sqlite3)}
-fstcomp=${fstcomp:-$(which fstcomp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
-editbrp=${editbrp:-$(which editbrp || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
+fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
+editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
 #TMPDIR_OLD=${TMPDIR}
 #unset TMPDIR
@@ -153,6 +153,25 @@ say() {
     return ${__say_status}
 }
 
+paddedPrint() {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    if [ $# -ne 2 ]; then
+        echo "paddedPrint: This function accepts only and only 2 arguments" >&2
+        echo "             '${*}' was given" >&2
+        return 1
+    fi
+
+    __paddedPrint_numberOfDigits__=${1}
+    __paddedPrint_number__=${2}
+
+    __paddedPrint_format__=$(printf "%%0%dd" ${__paddedPrint_numberOfDigits__})
+
+    printf "${__paddedPrint_format__}" ${__paddedPrint_number__}
+
+    unset __paddedPrint_numberOfDigits___ __paddedPrint_number__ __paddedPrint_format__
+} ## End of function 'paddedPrint'
 
 test_run () {
     set -e
@@ -453,8 +472,6 @@ test_rdb_round_robin () {
     test_rdb_round_robin_npex=3
     test_rdb_round_robin_npey=4
 
-    typeset -Z${test_rdb_round_robin_ndigits} procx procy
-
     for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
 	status=0
 	program_status=0
@@ -467,8 +484,11 @@ test_rdb_round_robin () {
 	while [ "${procx}" -le "${test_rdb_round_robin_npex}" ]; do
             procy=1
 	    while [ "${procy}" -le "${test_rdb_round_robin_npey}" ]; do
+                procx_str=$(paddedPrint ${test_rdb_round_robin_ndigits} ${procx})
+                procy_str=$(paddedPrint ${test_rdb_round_robin_ndigits} ${procy})
+
                 check_status=0
-		check_result 2011070112_${fam}_output_${procx}_${procy} 2011070112_${fam}_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+		check_result 2011070112_${fam}_output_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
 	        assert "test_rdb_round_robin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                 let procy=procy+1
             done
@@ -494,8 +514,6 @@ test_rdb_cherrypick_roundrobin () {
     test_rdb_cherrypick_roundrobin_npex=3
     test_rdb_cherrypick_roundrobin_npey=4
 
-    typeset -Z${test_rdb_cherrypick_roundrobin_ndigits} procx procy
-
     for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
         filein=2011070112_${fam}
 
@@ -516,10 +534,14 @@ test_rdb_cherrypick_roundrobin () {
 	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick* | wc -l)
                 assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+
+                procx_str=$(paddedPrint ${test_rdb_cherrypick_roundrobin_ndigits} ${procx})
+                procy_str=$(paddedPrint ${test_rdb_cherrypick_roundrobin_ndigits} ${procy})
+
                 check_status=0
-		check_result ${filein}_${procx}_${procy} ${filein}_cherrypick_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+		check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
 	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
-                rm ${filein}_cherrypick_${procx}_${procy}
+                rm ${filein}_cherrypick_${procx_str}_${procy_str}
                 let procy=procy+1
             done
             let procx=procx+1
@@ -544,25 +566,21 @@ test_rdb_index () {
     test_rdb_index_npex=1
     test_rdb_index_npey=22
 
-    typeset -Z${test_rdb_index_ndigits} procx procy
-
-    procx=${test_rdb_index_npex}
-    procy=${test_rdb_index_npey}
+    procx=${test_rdb_dropindex_npex}
+    procy=${test_rdb_dropindex_npey}
 
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_rdb_index splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-    check_status=0
-    fileout=obsal_${procx}_${procy}
-    check_result ${REFERENCE}/rdb/obsal_${procx}_${procy}_v2 ${fileout} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-    assert "test_rdb_index fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    procx_str=$(paddedPrint ${test_rdb_dropindex_ndigits} ${procx})
+    procy_str=$(paddedPrint ${test_rdb_dropindex_ndigits} ${procy})
 
+    fileout=obsal_${procx_str}_${procy_str}
     check_status=0
-    fileout=obsal_${procx}_${procy}
-    echo .schema | ${sqlite3} ${fileout} | grep -sqi "create index idx1 on" || check_status=1
-    assert "test_rdb_index fileout=${fileout} check index (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+    check_result ${REFERENCE}/rdb/obsal_${procx_str}_${procy_str}_v2 ${fileout} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_dropindex fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
     [ "${status}" -ne 0 ] && return 1
     rm ${fileout}
@@ -582,8 +600,6 @@ test_rdb_resume () {
     test_rdb_resume_npex=3
     test_rdb_resume_npey=4
 
-    typeset -Z${test_rdb_resume_ndigits} procx procy
-
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs 1>> check_result.listing 2>&1 || program_status=$?
@@ -595,8 +611,11 @@ test_rdb_resume () {
     while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
         procy=1
 	while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+            procx_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procx})
+            procy_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procy})
+
             check_status=0
-	    check_result airs_reference_${procx}_${procy} airs_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+	    check_result airs_reference_${procx_str}_${procy_str} airs_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
 	    assert "test_rdb_resume splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
@@ -632,9 +651,8 @@ test_rdb_resume_schema_SAR () {
     test_rdb_resume_npex=3
     test_rdb_resume_npey=4
 
-    typeset -Z${test_rdb_resume_ndigits} procx procy
-    procx=${test_rdb_resume_npex}
-    procy=${test_rdb_resume_npey}
+    procx=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npex})
+    procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
     program_status=0
@@ -663,11 +681,14 @@ test_rdb_resume_schema_SAR () {
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     procx=1
-    proxy=1
     while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
+        procy=1
         while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+            procx_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procx})
+            procy_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procy})
+
             check_status=0
-            check_result ${REFERENCE}/rdb/sarwinds/sarwinds_${procx}_${procy} sarwinds_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            check_result ${REFERENCE}/rdb/sarwinds/sarwinds_${procx_str}_${procy_str} sarwinds_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
             assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
@@ -691,9 +712,8 @@ test_rdb_resume_schema_AL () {
     test_rdb_resume_npex=3
     test_rdb_resume_npey=4
 
-    typeset -Z${test_rdb_resume_ndigits} procx procy
-    procx=${test_rdb_resume_npex}
-    procy=${test_rdb_resume_npey}
+    procx=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npex})
+    procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
     program_status=0
@@ -790,9 +810,8 @@ test_rdb_avhrr () {
     test_rdb_avhrr_npex=1
     test_rdb_avhrr_npey=4
 
-    typeset -Z${test_rdb_avhrr_ndigits} procx procy
-    procx=${test_rdb_avhrr_npex}
-    procy=${test_rdb_avhrr_npey}
+    procx=$(paddedPrint ${test_rdb_avhrr_ndigits} ${test_rdb_avhrr_npex})
+    procy=$(paddedPrint ${test_rdb_avhrr_ndigits} ${test_rdb_avhrr_npey})
 
     status=0
     program_status=0
@@ -818,8 +837,11 @@ test_rdb_avhrr () {
     procy=1
     while [ "${procx}" -le "${test_rdb_avhrr_npex}" ]; do
         while [ "${procy}" -le "${test_rdb_avhrr_npey}" ]; do
+            procx_str=$(paddedPrint ${test_rdb_avhrr_ndigits} ${procx})
+            procy_str=$(paddedPrint ${test_rdb_avhrr_ndigits} ${procy})
+
             check_status=0
-            check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx}_${procy} obsiasi_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            check_result ${REFERENCE}/rdb/avhrr/obsiasi_${procx_str}_${procy_str} obsiasi_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
             assert "test_rdb_avhrr splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
@@ -1005,22 +1027,24 @@ test_burp_cherrypick_subdomains () {
 		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
 	    assert "test_burp_cherrypick_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-            typeset -Z4 i j
             i=1
             while [ "${i}" -le "${npex}" ]; do
                 j=1
                 while [ "${j}" -le "${npey}" ]; do
+                    procx_str=$(paddedPrint 4 ${i})
+                    procy_str=$(paddedPrint 4 ${j})
+
                     ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
 		        -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
 	            assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-                    if [ ! -f ${filein}_${i}_${j} ]; then
-                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} does not exists" [ ! -f ${filein}_cherrypick_${i}_${j} ] || status=$?
+                    if [ ! -f ${filein}_${procx_str}_${procy_str} ]; then
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} does not exists" [ ! -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
                         rm -f ${filein}_cherrypick* 2>/dev/null
                     else
-                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} exists" [ -f ${filein}_cherrypick_${i}_${j} ] || status=$?
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} exists" [ -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
                         nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
 		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
-		        check_result ${filein}_${i}_${j} ${filein}_cherrypick_${i}_${j} liburp 1>> check_result.listing 2>&1 || check_status=$?
+		        check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
 		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                         rm ${filein}_cherrypick*
                     fi
@@ -1028,7 +1052,7 @@ test_burp_cherrypick_subdomains () {
                 done
                 let i=i+1
             done
-            unset i j
+            unset i j procx_str procy_str
 
 	    [ "${status}" -ne 0 ] && return 1
 	    rm ${filein}*
@@ -1123,18 +1147,20 @@ test_burp_cherrypick_roundrobin () {
             -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
 	assert "test_burp_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-        typeset -Z${test_burp_cherrypick_roundrobin_ndigits} i j
         i=1
         while [ "${i}" -le "${test_burp_cherrypick_roundrobin_npex}" ]; do
             j=1
             while [ "${j}" -le "${test_burp_cherrypick_roundrobin_npey}" ]; do
+                procx_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${i})
+                procy_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${j})
+
                 ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
 		    -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
                     -ndigits ${test_burp_cherrypick_roundrobin_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
 	        assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
 		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
-		check_result ${filein}_${i}_${j} ${filein}_cherrypick_${i}_${j} liburp 1>> check_result.listing 2>&1 || check_status=$?
+		check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
 		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                 rm ${filein}_cherrypick*
                 let j=j+1
@@ -1171,16 +1197,20 @@ test_burp_round_robin () {
 
 	split_status=0
 	cp ${INPUTS}/burp/2011070112_${fam} ref_2011070112_${fam}
-	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=0
+	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=1
+	assert "test_burp_round_robin fam=${fam} split_round_robin_with_reflex execution (status=${split_status})" [ "${split_status}" -eq 0 ] || return 1
 
 	num=1
-	typeset -Z${test_burp_round_robin_ndigits} procx procy
 	while [ "${num}" -le "${test_burp_round_robin_number_of_process}" ]; do
-	    check_status=0
 	    procx=$(((num-1)/test_burp_round_robin_npey+1))
 	    procy=$(((num-1)%test_burp_round_robin_npey+1))
-	    check_result ref_2011070112_${fam}_${procx}_${procy} 2011070112_${fam}_${procx}_${procy} liburp-noresume 1>> check_result.listing 2>&1 || check_status=$?
+            procx_str=$(paddedPrint ${test_burp_round_robin_ndigits} ${procx})
+            procy_str=$(paddedPrint ${test_burp_round_robin_ndigits} ${procy})
+
+	    check_status=0
+	    check_result ref_2011070112_${fam}_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} liburp-noresume 1>> check_result.listing 2>&1 || check_status=$?
 	    assert "test_burp_round_robin fam=${fam} num=${num} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
 	    let num=num+1
 	done
 
@@ -1221,17 +1251,24 @@ EOFBRP
     rm ${bburpfile}.res ${bburpfile}.nores
     ## Il faut convertir les fichiers avec les noms compatibles avec ceux que le 3dvar lira
     ## Le fichier 'brptov_014' sera transforme en 'brptov_0001_0014'
-    typeset -Z3 proc=1
-    typeset -Z${splitobs_ndigits} procx=1
-    typeset -Z${splitobs_ndigits} procy=1
+    proc=1
+    procx=1
+    procy=1
     while [[ "${proc}" -le "${nprocs}" ]]; do
 	procx=$(((proc-1)/npey+1))
 	procy=$(((proc-1)%npey+1))
-	mv ${bburpfile}_${proc} ${bburpfile}_${procx}_${procy}
+
+        ## 'reflex' is using 3 digits to split the file
+        proc_str=$(paddedPrint 3 ${proc})
+        procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
+        procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
+
+	mv ${bburpfile}_${proc_str} ${bburpfile}_${procx_str}_${procy_str}
+        [ ! -f ${bburpfile}_${procx_str}_${procy_str} ] && return 1
 	let proc=proc+1
     done
 
-    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+    unset nprocs proc procx procy proc_str procx_str procy_str npex npey splitobs_ndigits burpfile bburpfile
 } ## End of function 'split_round_robin_with_reflex'
 
 test_ascii_regional_standard () {
@@ -1795,15 +1832,16 @@ function rdbsplit {
 
     let nprocs=npex*npey
 
-    typeset -Z${splitobs_ndigits} procx procy
-
     procx=1
     id=0
     while [ "${procx}" -le "${npex}" ]; do
         procy=1
         while [ "${procy}" -le "${npey}" ]; do
-            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx}_${procy}
-            ${sqlite3} ${rdbout}_${procx}_${procy} <<EOF
+            procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
+            procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
+
+            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
+            ${sqlite3} ${rdbout}_${procx_str}_${procy_str} <<EOF
 drop index idx1;
 
 PRAGMA journal_mode = OFF;
@@ -1820,7 +1858,7 @@ EOF
         let procx=procx+1
     done
 
-    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+    unset nprocs proc procx procy proc_str procx_str procy_str npex npey splitobs_ndigits burpfile bburpfile
 
     return 0
 } ## Fin de la fonction 'rdbsplit'
@@ -1843,7 +1881,6 @@ function rdbsplit_resume {
     RUN=$(echo ${RUN})
     TYPE=$(echo ${TYPE})
 
-    typeset -Z${splitobs_ndigits} procx procy
     let nprocs=npex*npey
 
     procx=1
@@ -1851,8 +1888,11 @@ function rdbsplit_resume {
     while [ "${procx}" -le "${npex}" ]; do
         procy=1
         while [ "${procy}" -le "${npey}" ]; do
-            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx}_${procy}
-            ${sqlite3} ${rdbout}_${procx}_${procy} <<EOF
+            procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
+            procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
+
+            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
+            ${sqlite3} ${rdbout}_${procx_str}_${procy_str} <<EOF
 drop index idx1;
 
 PRAGMA journal_mode = OFF;
@@ -1874,14 +1914,26 @@ EOF
         let procx=procx+1
     done
 
-    unset nprocs proc procx procy npex npey splitobs_ndigits burpfile bburpfile
+    unset nprocs proc procx procy procx_str procy_str npex npey splitobs_ndigits burpfile bburpfile
 
     return 0
 } ## Fin de la fonction 'rdbsplit_resume'
 
 
 echo "Launching the unit tests version '${VERSION}'"
-unittest || return 1
+
+unittests_status=0
+unittest || unittests_status=1
+
+if [ "${unittests_status}" -ne 0 ]; then
+    errstr="One of the test aborted:"
+    for errstr in "One of the test aborted:"  \
+                      "   workdir: ${PWD}"    \
+                      "   listing: ${PWD}/check_result.listing"; do
+        printf "\033[0m\033[01;31m${errstr}\n\033[0m" >&2
+    done
+    exit 1
+fi
 
 cd
 ## [ -n "${WORKDIR}" ] && rm -rf ${WORKDIR}

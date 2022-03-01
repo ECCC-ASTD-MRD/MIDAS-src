@@ -26,6 +26,15 @@ OPT_LEVEL = 2
 
 install : # defining default target
 
+splitobs_rhel-8-icelake-64: version.h $(SRC)
+	. r.load.dot rpn/code-tools/ENV/cdt-1.5.5-inteloneapi-2022.1.2; \
+	make splitobs_libs_20220204
+
+splitobs_libs_20220204: version.h $(SRC)
+	. r.load.dot eccc/mrd/rpn/libs/20220216;                 \
+	. ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}; \
+	make splitobs
+
 splitobs_ubuntu-18.04-skylake-64: version.h $(SRC)
 	. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199; . ssmuse-sh -d eccc/mrd/rpn/code-tools/1.5.0; make splitobs_libs_19
 

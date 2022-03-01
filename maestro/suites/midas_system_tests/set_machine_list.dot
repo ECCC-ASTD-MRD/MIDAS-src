@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 __set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests

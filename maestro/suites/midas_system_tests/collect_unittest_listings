@@ -2,7 +2,7 @@
 
 set -e
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"}
 which nodelister 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 export SEQ_EXP_HOME=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests

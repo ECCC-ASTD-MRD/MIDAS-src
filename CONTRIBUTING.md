@@ -16,7 +16,7 @@
    - that button will create automatically a new branch at the same point as the `master` branch
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.3
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.4
 . setcentraldepot.dot unset  ## needed only if 'setcentraldepot.dot' has already been called
 clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```

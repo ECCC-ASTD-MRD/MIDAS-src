@@ -14,13 +14,13 @@ rm -f ${profilePath} ${loginPath}
 mkdir -p ${profileDirPath}
 
 cat > ${profilePath} << EOF
-if [[ -z \${AFSISIO} ]]; then
-    export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
+if [[ -z "\${AFSISIO}" ]]; then
+    export AFSISIO=/home/smco502
 fi
 EOF
 
 cat > ${loginPath} << EOF
-if [[ -z \${AFSISIO} ]]; then
-    setenv AFSISIO '/home/smco502/env_${ORDENV_PLAT}'
+if [[ -z "\${AFSISIO}" ]]; then
+    setenv AFSISIO '/home/smco502
 fi
 EOF

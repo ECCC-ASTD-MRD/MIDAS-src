@@ -40,7 +40,11 @@ listing=$(findListing ${jobname} ${host} || true)
 linesListed=0
 while true; do
     status=0
-    jobchk -c ${host} ${jobid} || status=$?
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        echo qstat ${jobid} | ssh ${host} bash --login 1>/dev/null 2>&1 || status=$?
+    else
+        jobchk -c ${host} ${jobid} || status=$?
+    fi
 
     if [ -f "${listing}" ]; then
         if [ "${linesListed}" -eq 0 ]; then
