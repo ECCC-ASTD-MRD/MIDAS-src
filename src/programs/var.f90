@@ -73,9 +73,8 @@ program midas_var
   type(struct_vco)      , pointer :: vco_trl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
-  integer :: outerLoopIndex, ip3ForWriteToFile
+  integer :: outerLoopIndex, numIterMaxInnerLoopUsed
   integer :: numIterWithoutVarqc, numInnerLoopIterDone
-  integer :: numIterMaxInnerLoopUsed
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
@@ -347,14 +346,12 @@ program midas_var
       call gsv_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      ip3ForWriteToFile = numOuterLoopIterations
-      call inc_writeIncrement( stateVectorIncrSum, &                     ! IN
-                               ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+      call inc_writeIncrement( stateVectorIncrSum, &     ! IN
+                               ip3ForWriteToFile_opt=0 ) ! IN
       call gsv_deallocate( stateVectorIncrSum )
     else if ( numOuterLoopIterations == 1 ) then
-      ip3ForWriteToFile = 0
-      call inc_writeIncrement( stateVectorIncr, &                        ! IN
-                               ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+      call inc_writeIncrement( stateVectorIncr, &        ! IN
+                               ip3ForWriteToFile_opt=0 ) ! IN
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
