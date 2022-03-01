@@ -3847,7 +3847,7 @@ contains
       call oti_deallocate(interpInfo_nl%oti)
 
       interpInfo_nl%initialized = .false.
-    else
+    else if ( inputStateVectorType == 'tlad' ) then
       numStep = size(interpInfo_tlad%stepProcData,2)
 
       deallocate(interpInfo_tlad%interpWeightDepot)
@@ -3871,6 +3871,8 @@ contains
       call oti_deallocate(interpInfo_tlad%oti)
 
       interpInfo_tlad%initialized = .false.
+    else
+      call utl_abort('s2c_deallocInterpInfo: input argument should be either nl or tlad')
     end if
 
   end subroutine s2c_deallocInterpInfo
