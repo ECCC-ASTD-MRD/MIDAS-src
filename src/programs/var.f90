@@ -350,6 +350,7 @@ program midas_var
       ip3ForWriteToFile = numOuterLoopIterations
       call inc_writeIncrement( stateVectorIncrSum, &                     ! IN
                                ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
+      call gsv_deallocate( stateVectorIncrSum )
     else if ( numOuterLoopIterations == 1 ) then
       ip3ForWriteToFile = 0
       call inc_writeIncrement( stateVectorIncr, &                        ! IN
@@ -362,8 +363,6 @@ program midas_var
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
-
-  if ( gsv_isAllocated(stateVectorIncrSum) ) call gsv_deallocate( stateVectorIncrSum )
 
   ! Set the QC flags to be consistent with VAR-QC if control analysis
   if ( varqcActive ) call vqc_listrej(obsSpaceData)
