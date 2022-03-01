@@ -1,4 +1,4 @@
 <?xml version="1.0" ?>
 <NODE_RESOURCES>
-  <BATCH catchup="2" cpu="1" machine="${BACKEND}" memory="3G" queue="${BACKEND_XFER_Q}" wallclock="10"/>
+  <BATCH catchup="2" cpu="1" machine="${FRONTEND}" memory="3G" queue="${FRONTEND_DEFAULT_Q}" wallclock="10"/>
 </NODE_RESOURCES>

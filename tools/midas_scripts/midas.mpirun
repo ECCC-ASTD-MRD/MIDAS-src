@@ -35,7 +35,7 @@ unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
-if [ "${EC_ARCH}" = Linux_x86-64 ]; then
+if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 -o "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
     for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
 	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
@@ -43,32 +43,35 @@ if [ "${EC_ARCH}" = Linux_x86-64 ]; then
     done
     unset __midas_mpirun_ssmdomain__
     set -x
+elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
+    echo "Setting variables to run with MPI with compiler 'inteloneapi-2022.1.2'"
+    #. ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
 
-    echo "loading OMPI_MCA variables"
-    export OMPI_MCA_orte_tmpdir_base=/run/shm
-    export OMPI_MCA_btl_openib_if_include=mlx5_0
-elif [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
-    set +x
-    for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
-	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
-	. ssmuse-sh -d ${__midas_mpirun_ssmdomain__}
-    done
-    unset __midas_mpirun_ssmdomain__
-    set -x
-elif [ "${EC_ARCH}" = sles-11-amd64-64/PrgEnv-intel-5.2.82 -o "${EC_ARCH}" = sles-11-broadwell-64-xc40/PrgEnv-intel-5.2.82 ]; then
-    ## load 'dot-tools' compiled without any MPI libs on Cray
-    ## This will allow us to use 'cclargs' in MPI scripts.  It was
-    ## impossible before because 'cclargs' was using MPI and 'aprun'
-    ## can't launch two MPI binaries in the same call.
-    . ssmuse-sh -x comm/eccc/all/base/master/dot-tools_2.13-gcc_sles-11-amd64-64
-    export CCLARGS=$(which cclargs)
+    # instead of loading the whole OneAPI Intel compiler environment above,
+    # we only load the essential things to be able to run
+    #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_412503
+    . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/compiler/2022.0.2/env/vars.sh
+    . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mpi/2021.5.1/env/vars.sh
+    export I_MPI_F77=ifort
+    export I_MPI_F90=ifort
+    export I_MPI_FC=ifort
+    export I_MPI_CC=icc
+    export I_MPI_CXX=icpc
+
+    ## essential variables
+    export UCX_NET_DEVICES=mlx5_0:1
+    export I_MPI_HYDRA_BOOTSTRAP=ssh
+    ## suggested for improved performance
+    export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement directives
+    export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
+    export KMP_AFFINITY=compact # Allows pinning the threads
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
     ## export TBB_MALLOC_USE_HUGE_PAGES=1
     module load craype-hugepages16M
     export FOR_DISABLE_KMP_MALLOC=0
 else
-    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'AIX-powerpc7', 'Linux_x86-64', 'ubuntu-18.04-skylake-64', 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' and 'sles-11-amd64-64/PrgEnv-intel-5.2.82' are)"
+    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'ubuntu-18.04-skylake-64', 'rhel-8-icelake-64' and 'sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5' are)"
     exit 1
 fi
 

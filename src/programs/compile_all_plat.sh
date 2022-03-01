@@ -35,10 +35,13 @@ if [ -z "${COMPILING_MACHINE_PPP}" -o -z "${COMPILING_MACHINE_SUPER}" ]; then
     fi
 fi
 
-if [ "${COMPILING_MACHINE_SUPER}" = brooks -o "${COMPILING_MACHINE_SUPER}" = hare ]; then
-    PLAT_SUPER=sles-11-broadwell-64-xc40
-else
+if [ "${COMPILING_MACHINE_SUPER}" = daley -o "${COMPILING_MACHINE_SUPER}" = banting ]; then
     PLAT_SUPER=sles-15-skylake-64-xc50
+fi
+
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    ## On 'rhel-8-icelake-64', we can compile only on PPP
+    unset COMPILING_MACHINE_SUPER
 fi
 
 rev=${CI_BUILD_REF:-$(${toplevel}/midas.version.sh)}
@@ -73,14 +76,20 @@ set -x
 ## Using as many cpus as there are programs to compile
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs} -m 24G -tmpfs 2G)
 
-## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
 status=0
-cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
+if [ -n "${COMPILING_MACHINE_SUPER}" ]; then
+    ## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
+    cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login || status=1
+fi
 rm compile_job
 
 ## if previous compilation aborted, then kill the compilation job
 if [ "${status}" -ne 0 ]; then
-    jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        echo qdel ${jobid} | ssh ${COMPILING_MACHINE_PPP} bash --login
+    else
+        jobdel -c ${COMPILING_MACHINE_PPP} ${jobid}
+    fi
     echo "Compilation aborted!"
     exit 1
 fi
@@ -92,8 +101,10 @@ done
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}' in ${MIDAS_ABS}"
 ./check_if_all_programs_compiled.sh ${ORDENV_PLAT} ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}' in ${MIDAS_ABS}"
-./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
+if [ -n "${COMPILING_MACHINE_SUPER}" ]; then
+    echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}' in ${MIDAS_ABS}"
+    ./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
+fi
 
 if [ "${status}" -eq 0 ]; then
     echo "All programs have been compiled correctly!"

@@ -1,9 +1,9 @@
 # Machine stuff
-FRONTEND=eccc-ppp3
-BACKEND=daley
+FRONTEND=ppp5
+BACKEND=robert
 
-REFERENCE_MACHINE=eccc-ppp4
-REFERENCE_UPDATE_MACHINE=eccc-ppp4
+REFERENCE_MACHINE=ppp5
+REFERENCE_UPDATE_MACHINE=ppp5
 
 BACKEND_DEFAULT_Q=development
 FRONTEND_DEFAULT_Q=development
@@ -22,15 +22,12 @@ NUMTHREAD_var_EnVar_gdps=4
 NUMTHREAD_var_EnVar_geps=4
 NUMTHREAD_var_EnVar_rdps=4
 NUMTHREAD_var_EnVar_96mem_ppp_sqlite=4
-NUMTHREAD_var_EnVar_biFourier_xc40=5
+NUMTHREAD_var_EnVar_biFourier_xc40=4
 
-NUMTHREAD_var_Var3D_aladin_assim=2
+NUMTHREAD_var_Var3D_aladin_assim=4
 MEMORY_var_Var3D_aladin_assim=8G
-NUMTHREAD_var_Var3D_gbc=10
 NUMTHREAD_var_Var3D_splitobs_xc40=4
 
 NUMTHREAD_var_vbc=5
 
 MPITOPO_ensembleH=10x4x1
-
-SEQ_DEFAULT_SHELL=/bin/bash

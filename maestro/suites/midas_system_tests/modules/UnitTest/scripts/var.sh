@@ -17,7 +17,6 @@ if [ "${fasttmp}" = yes ]; then
     FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
     /bin/mkdir -p ${FASTTMPDIR}
     export MIDAS_RAMDISKDIR=${FASTTMPDIR}
-    #echo "RAM disk space used on $(hostname) before pgm: $(/bin/df -hP ${FASTTMPDIR}) /bin/du -h ${FASTTMPDIR}"
 fi
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
@@ -29,18 +28,10 @@ SECONDS=0
 
 #status=0
 #/usr/bin/time --format "Total Memory: %M Mb" ${RUN_PGM} || status=1
-${RUN_PGM} ## || status=1
+${RUN_PGM}
 
 echo ending ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 echo "The program itself took ${SECONDS} seconds"
-
-#if [ "${fasttmp}" = yes ]; then
-#    ls -lRh ${FASTTMPDIR}
-#    echo "RAM disk space used on $(hostname) after pgm: $(/bin/df -hP ${FASTTMPDIR} | tail -1) /bin/du -h ${FASTTMPDIR}"
-#fi
-#if [ "${status}" -ne 0 ]; then
-#    exit 1
-#fi
 
 SECONDS=0
 

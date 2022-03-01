@@ -3,7 +3,7 @@ variables:
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
-    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
+    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"
 
 stages:
    - build
@@ -86,7 +86,7 @@ splitobs_rdb_tests:
 midas_tests:
    stage: test
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS

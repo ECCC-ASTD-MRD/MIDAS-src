@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
+   * As expected, this change has minor impact on results
 
 ### Changed
 
