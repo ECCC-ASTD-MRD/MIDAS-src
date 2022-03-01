@@ -54,6 +54,7 @@ module stateToColumn_mod
   ! public routines
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
+  public :: s2c_deallocInterpInfo
 
   ! private module variables and derived types
 
@@ -90,7 +91,7 @@ module stateToColumn_mod
     character(len=2)          :: inputStateVectorType
   end type struct_interpInfo
 
-  type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
+  type(struct_interpInfo), target :: interpInfo_tlad, interpInfo_nl
   type(kdtree2), pointer  :: tree_nl => null()
   type(kdtree2), pointer  :: tree_tlad => null()
 
@@ -1980,29 +1981,7 @@ contains
       deallocate(cols_recv)
       deallocate(cols_send_1proc)
 
-      if( dealloc ) then
-        deallocate(interpInfo_nl%interpWeightDepot)
-        deallocate(interpInfo_nl%latIndexDepot)
-        deallocate(interpInfo_nl%lonIndexDepot)
-        do stepIndex = 1, numStep
-          do procIndex = 1, mpi_nprocs
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-            if ( interpInfo_nl%hco%rotated ) then
-              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
-              deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
-            end if
-          end do
-        end do
-        deallocate(interpInfo_nl%stepProcData)
-        deallocate(interpInfo_nl%allNumHeaderUsed)
-        call oti_deallocate(interpInfo_nl%oti)
-
-        interpInfo_nl%initialized = .false.
-      end if
+      if ( dealloc ) call s2c_deallocInterpInfo( inputStateVectorType='nl' )
 
     end do OBSBATCH
 
@@ -3823,5 +3802,60 @@ contains
     end do subGrid_loop
 
   end subroutine s2c_getWeightsAndGridPointIndexes
+
+  ! -------------------------------------------------------------
+  ! s2c_deallocInterpInfo
+  ! -------------------------------------------------------------
+  subroutine s2c_deallocInterpInfo( inputStateVectorType )
+    ! :Purpose: Deallocate interpInfo_nl/tlad object.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*), intent(in) :: inputStateVectorType
+
+    ! locals
+    type(struct_interpInfo), pointer :: interpInfo
+    integer :: stepIndex, procIndex, numStep
+
+    select case( trim(inputStateVectorType) )
+      case('nl')
+        interpInfo => interpInfo_nl
+      case('tlad')
+        interpInfo => interpInfo_tlad
+      case default
+        call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+    end select
+
+    if ( .not. interpInfo%initialized ) return
+
+    write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
+                inputStateVectorType
+
+    numStep = size(interpInfo%stepProcData,2)
+
+    deallocate(interpInfo%interpWeightDepot)
+    deallocate(interpInfo%latIndexDepot)
+    deallocate(interpInfo%lonIndexDepot)
+    do stepIndex = 1, numStep
+      do procIndex = 1, mpi_nprocs
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+        if ( interpInfo%hco%rotated ) then
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot)
+        end if
+      end do
+    end do
+    deallocate(interpInfo%stepProcData)
+    deallocate(interpInfo%allNumHeaderUsed)
+    call oti_deallocate(interpInfo%oti)
+
+    interpInfo%initialized = .false.
+
+  end subroutine s2c_deallocInterpInfo
 
 end module stateToColumn_mod
