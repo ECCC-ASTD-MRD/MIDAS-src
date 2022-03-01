@@ -104,7 +104,7 @@ contains
     logical, save      :: alreadyRead = .false.
     
     character(len=512), parameter :: obsDbColumnFile = & 
-                                     '/home/sanl000/data_maestro/eccc-ppp4/UnitTests/midas/ObsDBColumnTable.dat' 
+                                     '/home/sanl000/data_maestro/ppp5/UnitTests/midas/ObsDBColumnTable.dat' 
 
     character(len=512) :: readLine
     character(len=lenSqlName) :: readDBColumn, readObsSpaceColumn, readBufrColumn  ! Strings to temporary assign 
