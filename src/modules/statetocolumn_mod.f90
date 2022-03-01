@@ -3815,65 +3815,46 @@ contains
     character(len=*), intent(in) :: inputStateVectorType
 
     ! locals
+    type(struct_interpInfo), pointer :: interpInfo
     integer :: stepIndex, procIndex, numStep
 
-    if ( inputStateVectorType == 'nl' .and. .not. interpInfo_nl%initialized ) return
-    if ( inputStateVectorType == 'tlad' .and. .not. interpInfo_tlad%initialized ) return
+    select case( trim(inputStateVectorType) )
+      case('nl')
+        interpInfo => interpInfo_nl
+      case('tlad')
+        interpInfo => interpInfo_tlad
+      case default
+        call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+    end select
+
+    if ( .not. interpInfo%initialized ) return
 
     write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
                 inputStateVectorType
 
-    if ( inputStateVectorType == 'nl' ) then
-      numStep = size(interpInfo_nl%stepProcData,2)
+    numStep = size(interpInfo%stepProcData,2)
 
-      deallocate(interpInfo_nl%interpWeightDepot)
-      deallocate(interpInfo_nl%latIndexDepot)
-      deallocate(interpInfo_nl%lonIndexDepot)
-      do stepIndex = 1, numStep
-        do procIndex = 1, mpi_nprocs
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-          if ( interpInfo_nl%hco%rotated ) then
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
-            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
-          end if
-        end do
+    deallocate(interpInfo%interpWeightDepot)
+    deallocate(interpInfo%latIndexDepot)
+    deallocate(interpInfo%lonIndexDepot)
+    do stepIndex = 1, numStep
+      do procIndex = 1, mpi_nprocs
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+        if ( interpInfo%hco%rotated ) then
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot)
+        end if
       end do
-      deallocate(interpInfo_nl%stepProcData)
-      deallocate(interpInfo_nl%allNumHeaderUsed)
-      call oti_deallocate(interpInfo_nl%oti)
+    end do
+    deallocate(interpInfo%stepProcData)
+    deallocate(interpInfo%allNumHeaderUsed)
+    call oti_deallocate(interpInfo%oti)
 
-      interpInfo_nl%initialized = .false.
-    else if ( inputStateVectorType == 'tlad' ) then
-      numStep = size(interpInfo_tlad%stepProcData,2)
-
-      deallocate(interpInfo_tlad%interpWeightDepot)
-      deallocate(interpInfo_tlad%latIndexDepot)
-      deallocate(interpInfo_tlad%lonIndexDepot)
-      do stepIndex = 1, numStep
-        do procIndex = 1, mpi_nprocs
-          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLat)
-          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLon)
-          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-          deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-          if ( interpInfo_tlad%hco%rotated ) then
-            deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLonRot)
-            deallocate(interpInfo_tlad%stepProcData(procIndex,stepIndex)%allLatRot)
-          end if
-        end do
-      end do
-      deallocate(interpInfo_tlad%stepProcData)
-      deallocate(interpInfo_tlad%allNumHeaderUsed)
-      call oti_deallocate(interpInfo_tlad%oti)
-
-      interpInfo_tlad%initialized = .false.
-    else
-      call utl_abort('s2c_deallocInterpInfo: input argument should be either nl or tlad')
-    end if
+    interpInfo%initialized = .false.
 
   end subroutine s2c_deallocInterpInfo
 
