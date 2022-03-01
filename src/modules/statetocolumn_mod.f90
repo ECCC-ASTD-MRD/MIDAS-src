@@ -91,7 +91,7 @@ module stateToColumn_mod
     character(len=2)          :: inputStateVectorType
   end type struct_interpInfo
 
-  type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
+  type(struct_interpInfo), target :: interpInfo_tlad, interpInfo_nl
   type(kdtree2), pointer  :: tree_nl => null()
   type(kdtree2), pointer  :: tree_tlad => null()
 
