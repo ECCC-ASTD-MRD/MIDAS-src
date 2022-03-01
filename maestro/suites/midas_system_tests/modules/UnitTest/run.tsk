@@ -67,8 +67,8 @@ elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     # things to be able to run
     #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_390802
     cat >> load_env.sh <<EOF
-. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2021.4.0_multi/oneapi/compiler/2021.4.0/env/vars.sh
-. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2021.4.0_multi/oneapi/mpi/2021.4.0/env/vars.sh
+. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/compiler/2022.0.2/env/vars.sh
+. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mpi/2021.5.1/env/vars.sh
 export I_MPI_F77=ifort
 export I_MPI_F90=ifort
 export I_MPI_FC=ifort
