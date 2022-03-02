@@ -241,7 +241,7 @@ contains
       call utl_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
     end if
 
-    if (sqlr_doesSQLTableExist(db,'avhrr')) then
+    if (.not. sqlr_doesSQLTableExist(db,'avhrr')) then
       write(*,*) myName//': Table avhrr does not exist :  ... return  '
       return
     end if

@@ -1242,6 +1242,10 @@ contains
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_INT, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_setSurfaceType: fSQL_get_many (mask_mer): ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_setSurfaceType: fSQL_get_many' )
+    end if
     write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnValues )
