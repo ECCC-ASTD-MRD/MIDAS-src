@@ -1,4 +1,3 @@
-#!/bin/ksh
 
 for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     input=$(${TASK_BIN}/readlink ${fileinput})

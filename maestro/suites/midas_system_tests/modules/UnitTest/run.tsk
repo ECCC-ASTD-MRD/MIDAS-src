@@ -1,4 +1,3 @@
-#!/bin/ksh
 
 cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
@@ -61,7 +60,7 @@ if [ "${UnitTest_run_debug}" = ddt ]; then
         RUN_PGM=./pgm
     else
         cat > run.sh <<EOF
-#!/bin/ksh
+#!/bin/bash
 
 /fs/home/fs1/ords/ssc/hpco/mib002/allinea/forge/bin/ddt-client --ddtsessionfile ${HOME}/.allinea/session/eccc1-ppp2-1 ./pgm
 EOF
@@ -69,7 +68,7 @@ EOF
     fi
 elif [ "${UnitTest_run_debug}" = gdb ]; then
     cat > run.sh <<EOF
-#!/bin/ksh
+#!/bin/bash
 gdb -ex run -ex where ./pgm
 EOF
     RUN_PGM=./run.sh
