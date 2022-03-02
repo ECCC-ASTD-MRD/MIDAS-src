@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * input sea-ice analysis may be on a grid different from analysisgrid(#600 and !556)
  * New filt_radvel for Doppler velocity (#580 and !545)
  * Added ability to compute continous SST field (#571 and !542)
  * Option for `midas_build` to compile only on frontend architecture (#582 and !544)
