@@ -89,7 +89,7 @@ module calcHeightAndPressure_mod
   real(8), parameter :: p_wb = (p_md-p_mw)/p_mw
   ! Angular velocity of the Earth (omegaPrime) (radians/s).
   ! Standard Earth, rotating with a constant angular velocity (IAU, GRS67).
-  real(8), parameter :: WGS_OmegaPrime = 7292115.1467D-11
+  real(8), parameter :: ec_wgs_OmegaPrime = 7292115.1467D-11
 
   ! private module variables
   real(8), allocatable :: coeff_M_TT_gsv(:,:,:,:), coeff_M_HU_gsv(:,:,:,:)
@@ -550,8 +550,8 @@ contains
                                       latIndex+statevector%myLatBeg-1)
               gzH = gzHeight(lonIndex, latIndex, lvlIndex)
               ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-              b1 = -2.0/WGS_a*(1.0+WGS_f+WGS_m-2*WGS_f*latitude**2)
-              b2 = 3.0/WGS_a**2
+              b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
+              b2 = 3.0/ec_wgs_a**2
               ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
               A2 = -b1/2.0
               A3 = b1**2/2.0 - b2/3.0
@@ -669,8 +669,8 @@ contains
                                       latIndex+statevector%myLatBeg-1)
               gzH = gzHeight(lonIndex, latIndex, lvlIndex)
               ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-              b1 = -2.0D0/WGS_a*(1.0D0+WGS_f+WGS_m-2*WGS_f*latitude**2)
-              b2 = 3.0D0/WGS_a**2
+              b1 = -2.0D0/ec_wgs_a*(1.0D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
+              b2 = 3.0D0/ec_wgs_a**2
               ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
               A2 = -b1/2.0D0
               A3 = b1**2/2.0D0 - b2/3.0D0
