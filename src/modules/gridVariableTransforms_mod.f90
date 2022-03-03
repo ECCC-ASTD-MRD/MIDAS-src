@@ -28,6 +28,7 @@ module gridVariableTransforms_mod
   use earthConstants_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
   use lamSpectralTransform_mod
   use globalSpectralTransform_mod
@@ -128,7 +129,7 @@ CONTAINS
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( stateVectorRefHU )  ! IN/OUT
+      call gio_readTrials( stateVectorRefHU )  ! IN/OUT
 
     case ('height')
       if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
@@ -151,7 +152,7 @@ CONTAINS
       write(*,*) 'gvt_setupRefFromTrialFiles: statevector_noZnoP allocated'
 
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
+      call gio_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
       call gsv_copy(statevector_noZnoP, stateVectorRefHeight, &
@@ -179,7 +180,7 @@ CONTAINS
                             varNames_opt=(/trim(varName),'P0'/) )
 
           ! read trial files using default horizontal interpolation degree
-          call gsv_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
+          call gio_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
 
           varKindCHTrialsInitialized(varIndex) = .true.
            

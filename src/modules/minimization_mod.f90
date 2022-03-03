@@ -33,6 +33,7 @@ module minimization_mod
   use mpivar_mod
   use horizontalCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use bmatrix_mod
   use var1D_mod
   use bmatrixhi_mod
@@ -616,7 +617,7 @@ CONTAINS
            vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
            call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                 dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
-           call gsv_readMaskFromFile(statevector,'./analysisgrid')
+           call gio_readMaskFromFile(statevector,'./analysisgrid')
          end if
 
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)

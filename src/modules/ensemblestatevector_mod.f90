@@ -25,6 +25,7 @@ module ensembleStateVector_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use analysisGrid_mod
@@ -2461,10 +2462,10 @@ CONTAINS
           if (.not. horizontalInterpNeeded  .and. &
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
-            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
+            call gio_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           else
-            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
+            call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           end if
           if (stepIndex == numStep) then
@@ -2494,7 +2495,7 @@ CONTAINS
           end if
 
           ! unit conversion
-          call gsv_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
+          call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then

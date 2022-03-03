@@ -25,6 +25,7 @@ module gridBinning_mod
   use mpivar_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use utilities_mod
   use horizontalCoord_mod
   use timeCoord_mod
@@ -188,7 +189,7 @@ contains
                         mpi_local_opt=mpi_local, hInterpolateDegree_opt='LINEAR', &
                         allocHeightSfc_opt=.true. )
 
-      call gsv_readFromFile(statevector_landSeaTopo, './dataForGridBinning.fst', ' ', ' ', &
+      call gio_readFromFile(statevector_landSeaTopo, './dataForGridBinning.fst', ' ', ' ', &
                             readHeightSfc_opt=.true.)
 
       call gsv_getField(statevector_landSeaTopo,data2d)

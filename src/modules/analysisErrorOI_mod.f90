@@ -28,6 +28,7 @@ module analysisErrorOI_mod
 
   use columnData_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use kdtree2_mod
   use MathPhysConstants_mod
   use mpi_mod
@@ -169,7 +170,7 @@ contains
     etiket = '            '
     typvar = 'P@'
 
-    call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+    call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
 
     leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
@@ -197,7 +198,7 @@ contains
                        dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
                        varNames_opt=(/'GL'/) )
     call gsv_zero( statevector )
-    call gsv_readFromFile( statevector, correlationLengthFileName, 'CORRLEN', ' ', &
+    call gio_readFromFile( statevector, correlationLengthFileName, 'CORRLEN', ' ', &
                            unitConversion_opt = .false. )
 
     call gsv_getField( statevector, field3D_r4_ptr, 'GL' )
@@ -821,7 +822,7 @@ contains
     etiket = '            '
     typvar = 'P@'
 
-    call gsv_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+    call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
 
     leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &

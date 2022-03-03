@@ -25,6 +25,7 @@ module increment_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use humidityLimits_mod
@@ -157,7 +158,7 @@ CONTAINS
 
     ! Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     if (.not. hco_trl%global .and. useAnalIncMask) then
-      call gsv_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
+      call gio_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
     ! Get the increment of Psfc
@@ -307,7 +308,7 @@ CONTAINS
                       allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorTrial)
-    call gsv_readTrials(stateVectorTrial)
+    call gio_readTrials(stateVectorTrial)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then

@@ -32,6 +32,7 @@ program midas_obsimpact
   use obsSpaceData_mod
   use controlVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use bmatrix_mod
   use bmatrixensemble_mod
   use stateToColumn_mod
@@ -193,7 +194,7 @@ program midas_obsimpact
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
-  call gsv_readTrials( stateVectorTrialHighRes )
+  call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate trials to trial columns
@@ -440,7 +441,7 @@ contains
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR', &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P', containsFullField_opt=.true.)
+    call gio_readFromFile(statevector_fa, fileName_fa, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfa
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
@@ -453,7 +454,7 @@ contains
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR', &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P', containsFullField_opt=.true.)
+    call gio_readFromFile(statevector_fb, fileName_fb, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfb
     call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
@@ -466,7 +467,7 @@ contains
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR', &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
+    call gio_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
 
     ! compute error of both forecasts (overwrite forecasts with error)
     call gsv_add(statevector_a, statevector_fa, -1.0d0)

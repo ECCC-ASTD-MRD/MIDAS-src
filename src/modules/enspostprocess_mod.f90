@@ -28,6 +28,7 @@ module ensPostProcess_mod
   use horizontalCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use randomNumber_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -510,7 +511,7 @@ contains
 
       !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
       if (.not. hco_ens%global .and. useAnalIncMask) then
-        call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
+        call gio_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
       end if
 
       ! initialize the vector for the ensemble increment
@@ -1401,7 +1402,7 @@ contains
     call gsv_zero(stateVectorRecenterAnl)
 
     do stepIndex = 1, tim_nstepobsinc
-      call gsv_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
