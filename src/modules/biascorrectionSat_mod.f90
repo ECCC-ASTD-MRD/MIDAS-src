@@ -259,26 +259,26 @@ contains
 
           allocate(bias(iSensor)%chans(ncanBcif))
           
-          do ichan = 1, ncanBcif 
-            bias(iSensor)%chans(ichan)%channelNum = canBCIF(ichan + 1) 
-            bias(iSensor)%chans(ichan)%coeff_nobs = 0
-            bias(iSensor)%chans(ichan)%bcmode = bcmodeBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%bctype = bctypeBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%isDynamic = ((biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
-            npredictors = 1 + npredBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%numActivePredictors = npredictors
+          do ichan=1, ncanBcif 
+            bias(iSensor) % chans(ichan) % channelNum = canBCIF(ichan + 1) 
+            bias(iSensor) % chans(ichan) % coeff_nobs = 0
+            bias(iSensor) % chans(ichan) % bcmode =  bcmodeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % bctype =  bctypeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % isDynamic = ( (biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
+            npredictors =  1 + npredBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % numActivePredictors = npredictors
 
-            allocate(bias(iSensor)%chans(ichan)%stddev(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeffIncr(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeff(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeff_offset(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%predictorIndex(npredictors))
-            bias(iSensor)%chans(ichan)%stddev(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeffIncr(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeff(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeff_offset(:) = 0.d0
+            allocate( bias(iSensor) % chans(ichan) % stddev( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeffIncr( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeff( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeff_offset( npredictors ) )
+            allocate(  bias(iSensor)%chans(ichan)% predictorIndex( npredictors ) )
+            bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
+            bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
+            bias(iSensor) % chans(ichan) % coeff(:) = MPC_missingValue_R8
+            bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
 
-            bias(iSensor)%chans(ichan)%predictorIndex(1) = 1 !the constant term is always included
+            bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
             jPred = 1
             do ipred = 1, npredBCIF(ichan + 1)
               jPred =  jPred + 1
@@ -306,14 +306,14 @@ contains
 
         bias(iSensor)%numscan = nfov 
 
-        allocate(bias(iSensor)%BHalfScanBias(nfov,nfov))
-        if (doRegression) allocate(bias(iSensor)%BMinusHalfScanBias(nfov,nfov))
-        allocate(Bmatrix(nfov,nfov))
-        do ichan = 1, ncanBcif
-          allocate(bias(iSensor)%chans(ichan)%coeffIncr_fov(nfov))
-          allocate(bias(iSensor)%chans(ichan)%coeff_fov(nfov))
-          bias(iSensor)%chans(ichan)%coeffIncr_fov(:) = 0.d0
-          bias(iSensor)%chans(ichan)%coeff_fov(:) = 0.d0
+        allocate( bias(iSensor) % BHalfScanBias (nfov,nfov))
+        if (doRegression) allocate( bias(iSensor) % BMinusHalfScanBias (nfov,nfov))
+        allocate( Bmatrix(nfov,nfov))
+        do ichan=1, ncanBcif
+          allocate( bias(iSensor) % chans(ichan) % coeffIncr_fov(nfov))
+          allocate( bias(iSensor) % chans(ichan) % coeff_fov(nfov))
+          bias(iSensor) % chans(ichan) % coeffIncr_fov(:) = 0.d0
+          bias(iSensor) % chans(ichan) % coeff_fov(:) = MPC_missingValue_R8
         end do
 
         do ichan = 1, ncanBcif
@@ -702,18 +702,20 @@ contains
 
         call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
         if (chanindx > 0) then
-          biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
-            biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                 bias(iSensor)%chans(chanIndx)%coeff(1) 
-            do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
-              jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
-              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
-            end do
+            if ( bias(iSensor)%chans(chanIndx)%coeff_fov(iScan)/= MPC_missingValue_R8 .and. &
+                 all( bias(iSensor)%chans(chanIndx)%coeff(1:bias(iSensor)%chans(chanIndx)%NumActivePredictors)/= MPC_missingValue_R8) ) then
+              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
+                   bias(iSensor)%chans(chanIndx)%coeff(1)
+              call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+              do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
+                jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
+                biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
+              end do
+              biasCor = -1.d0 * biascor
+              call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
+            end if
           end if
-          biasCor = -1.d0 * biascor
-          call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
         end if
       end do BODY
     end do HEADER
