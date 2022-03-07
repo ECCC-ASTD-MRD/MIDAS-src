@@ -51,7 +51,8 @@ module gridStateVector_mod
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
   public :: gsv_transposeVarsLevsToTiles
-  public :: gsv_getField, gsv_getFieldUV, gsv_setFieldUV, gsv_getHeightSfc, gsv_setHeightSfc
+  public :: gsv_getField, gsv_getFieldUV, gsv_setFieldUV
+  public :: gsv_getHeightSfc, gsv_isAssocHeightSfc, gsv_setHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
   public :: gsv_copyHeightSfc
@@ -2823,10 +2824,29 @@ module gridStateVector_mod
   end subroutine gsv_setFieldUV_r8
 
   !--------------------------------------------------------------------------
+  ! gsv_isAssocHeightSfc
+  !--------------------------------------------------------------------------
+  function gsv_isAssocHeightSfc(statevector) result(isAssociated)
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(in)        :: statevector
+    logical                             :: isAssociated
+
+    isAssociated = .false.
+    if ( associated(statevector%HeightSfc) ) then
+      isAssociated = .true.
+    end if
+
+  end function gsv_isAssocHeightSfc
+
+  !--------------------------------------------------------------------------
   ! gsv_getHeightSfc
   !--------------------------------------------------------------------------
   function gsv_getHeightSfc(statevector) result(field)
     implicit none
+
+    ! Arguments
     type(struct_gsv), intent(in)           :: statevector
     real(8),pointer                        :: field(:,:)
     integer                                :: lon1,lat1

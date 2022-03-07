@@ -609,7 +609,7 @@ module gridStateVectorFileIO_mod
 
     ! Read surface height if requested
     if ( present(readHeightSfc_opt) ) then
-      if ( readHeightSfc_opt .and. associated( gsv_getHeightSfc(statevector) ) ) then
+      if ( readHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector) ) then
         write(*,*) 'gio_readFile: reading the surface height'
         varName = 'GZ'
         ip1 = gsv_getVco(statevector)%ip1_sfc
