@@ -163,19 +163,19 @@ module gridStateVectorFileIO_mod
 
     ! call appropriate subroutine to do actual work
     if ( (doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles' ) then
-      call gio_readFromFileAndInterpToTiles(statevector_out, fileName,  &
+      call readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField, PsfcReference_opt)
     else if ( (doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local ) then
-      call gio_readFromFileAndInterp1proc(statevector_out, fileName,  &
+      call readFromFileAndInterp1Proc(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     else if ( .not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local ) then
-      call gio_readFromFileAndTransposeToTiles(statevector_out, fileName,  &
+      call readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     else
-      call gio_readFromFileOnly(statevector_out, fileName,  &
+      call readFromFileOnly(statevector_out, fileName,  &
                                 etiket_in, typvar_in, stepIndex, unitConversion,  &
                                 readHeightSfc, containsFullField)
     end if
@@ -187,9 +187,9 @@ module gridStateVectorFileIO_mod
   end subroutine gio_readFromFile
 
   !--------------------------------------------------------------------------
-  ! gio_readFromFileAndInterpToTiles
+  ! readFromFileAndInterpToTiles
   !--------------------------------------------------------------------------
-  subroutine gio_readFromFileAndInterpToTiles(statevector_out, fileName,  &
+  subroutine readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField, PsfcReference_opt)
     implicit none
@@ -221,7 +221,7 @@ module gridStateVectorFileIO_mod
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
 
     write(*,*) ''
-    write(*,*) 'gio_readFromFileAndInterpToTiles: START'
+    write(*,*) 'readFromFileAndInterpToTiles: START'
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, statevector_out)
@@ -305,14 +305,14 @@ module gridStateVectorFileIO_mod
     call gsv_deallocate(statevector_vinterp)
     deallocate(varNamesToRead)
 
-    write(*,*) 'gio_readFromFileAndInterpToTiles: END'
+    write(*,*) 'readFromFileAndInterpToTiles: END'
 
-  end subroutine gio_readFromFileAndInterpToTiles
+  end subroutine readFromFileAndInterpToTiles
 
   !--------------------------------------------------------------------------
-  ! gio_readFromFileAndTransposeToTiles
+  ! readFromFileAndTransposeToTiles
   !--------------------------------------------------------------------------
-  subroutine gio_readFromFileAndTransposeToTiles(statevector_out, fileName,  &
+  subroutine readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     implicit none
@@ -340,7 +340,7 @@ module gridStateVectorFileIO_mod
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
 
     write(*,*) ''
-    write(*,*) 'gio_readFromFileAndTransposeToTiles: START'
+    write(*,*) 'readFromFileAndTransposeToTiles: START'
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, statevector_out)
@@ -377,14 +377,14 @@ module gridStateVectorFileIO_mod
     call gsv_deallocate(statevector_file_r4)
     deallocate(varNamesToRead)
 
-    write(*,*) 'gio_readFromFileAndTransposeToTiles: END'
+    write(*,*) 'readFromFileAndTransposeToTiles: END'
 
-  end subroutine gio_readFromFileAndTransposeToTiles
+  end subroutine readFromFileAndTransposeToTiles
 
   !--------------------------------------------------------------------------
-  ! gio_readFromFileAndInterp1Proc
+  ! readFromFileAndInterp1Proc
   !--------------------------------------------------------------------------
-  subroutine gio_readFromFileAndInterp1Proc(statevector_out_r4, fileName,  &
+  subroutine readFromFileAndInterp1Proc(statevector_out_r4, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     implicit none
@@ -411,7 +411,7 @@ module gridStateVectorFileIO_mod
     nullify(field_in_ptr, field_out_ptr)
 
     write(*,*) ''
-    write(*,*) 'gio_readFromFileAndInterp1Proc: START'
+    write(*,*) 'readFromFileAndInterp1Proc: START'
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, statevector_out_r4)
@@ -467,14 +467,14 @@ module gridStateVectorFileIO_mod
     call gsv_deallocate(statevector_vinterp_r4)
     deallocate(varNamesToRead)
 
-    write(*,*) 'gio_readFromFileAndInterp1Proc: END'
+    write(*,*) 'readFromFileAndInterp1Proc: END'
 
-  end subroutine gio_readFromFileAndInterp1Proc
+  end subroutine readFromFileAndInterp1Proc
 
   !--------------------------------------------------------------------------
-  ! gio_readFromFileOnly
+  ! readFromFileOnly
   !--------------------------------------------------------------------------
-  subroutine gio_readFromFileOnly(statevector_out, fileName,  &
+  subroutine readFromFileOnly(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     implicit none
@@ -490,10 +490,10 @@ module gridStateVectorFileIO_mod
     logical                       :: containsFullField
 
     write(*,*) ''
-    write(*,*) 'gio_readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
+    write(*,*) 'readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
 
     if ( statevector_out%dataKind /= 4) then
-      call utl_abort('gio_readFromFileOnly: Only compatible with dataKind=4')
+      call utl_abort('readFromFileOnly: Only compatible with dataKind=4')
     end if
 
     call gio_readFile( statevector_out, filename, etiket_in, typvar_in,  &
@@ -503,9 +503,9 @@ module gridStateVectorFileIO_mod
       call gio_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
     end if
 
-    write(*,*) 'gio_readFromFileOnly: END'
+    write(*,*) 'readFromFileOnly: END'
 
-  end subroutine gio_readFromFileOnly
+  end subroutine readFromFileOnly
 
   !--------------------------------------------------------------------------
   ! gio_readFile

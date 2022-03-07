@@ -416,8 +416,9 @@ module gridStateVector_mod
     integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
     real(8) :: minClwAtSfc
     character(len=4) :: anlvar(vnl_numVarMax)
-    NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, gsv_conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc, gsv_interpToPhysicsGrid
+    logical :: interpToPhysicsGrid, conversionVarKindCHtoMicrograms
+    NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc, interpToPhysicsGrid
 
     if (initialized) return
 
@@ -433,11 +434,11 @@ module gridStateVector_mod
     minClwAtSfc = 1.0d-12
     anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
-    gsv_conversionVarKindCHtoMicrograms = .false.
+    conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
     vInterpCopyLowestLevel = .false.
-    gsv_interpToPhysicsGrid = .false.
+    interpToPhysicsGrid = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -447,6 +448,8 @@ module gridStateVector_mod
     ierr=fclos(nulnam)
 
     gsv_rhumin = rhumin
+    gsv_interpToPhysicsGrid = interpToPhysicsGrid
+    gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
 
     if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
     if (varneed('P_T') .or. varneed('P_M')) call utl_abort('gsv_setup: pressure can not be specified as analysis variable in namelist!')
