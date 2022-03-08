@@ -2,17 +2,27 @@
 cd ${TMPDIR}
 
 unittest=$(dirname ${SEQ_CONTAINER})
-testworkdir=${SEQ_WORKBASE}/${unittest}
 
 if [ "${UnitTest_cleanup}" = yes ]; then
-    if [ "${TRUE_HOST}" = "${FRONTEND}" ]; then
-        ssh ${BACKEND} rm -rf ${SEQ_EXP_HOME}/hub/${BACKEND}/work/${SEQ_DATE}/${unittest}
-    elif [ "${TRUE_HOST}" = "${BACKEND}" ]; then
-        ssh ${FRONTEND} rm -rf ${SEQ_EXP_HOME}/hub/${FRONTEND}/work/${SEQ_DATE}/${unittest}
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Erasing test ${unittest}: ${testworkdir}"
+
+    backend_path=$(${TASK_BIN}/true_path ${SEQ_EXP_HOME}/hub/${BACKEND}/work/${SEQ_DATE}/${unittest} || true)
+    frontend_path=$(${TASK_BIN}/true_path ${SEQ_EXP_HOME}/hub/${FRONTEND}/work/${SEQ_DATE}/${unittest} || true)
+    if [ "${frontend_path}" != "${backend_path}" ]; then
+        if [ "${TRUE_HOST}" = "${FRONTEND}" ]; then
+            ssh ${BACKEND} rm -rf ${SEQ_EXP_HOME}/hub/${BACKEND}/work/${SEQ_DATE}/${unittest}
+        elif [ "${TRUE_HOST}" = "${BACKEND}" ]; then
+            ssh ${FRONTEND} rm -rf ${SEQ_EXP_HOME}/hub/${FRONTEND}/work/${SEQ_DATE}/${unittest}
+        fi
     fi
+
     cd ${TMPDIR}
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "Erasing test ${unittest}: ${testworkdir}"
-    rm -rf ${testworkdir}
+    if [ "${TRUE_HOST}" = "${FRONTEND}" ]; then
+        rm -rf ${frontend_path}
+    elif [ "${TRUE_HOST}" = "${BACKEND}" ]; then
+        rm -rf ${backend_path}
+    fi
+
 else
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "We do not erase the working directory for unit test ${unittest}: ${testworkdir}"
 fi
