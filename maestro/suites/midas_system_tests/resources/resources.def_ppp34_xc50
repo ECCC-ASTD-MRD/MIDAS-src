@@ -32,5 +32,3 @@ NUMTHREAD_var_Var3D_splitobs_xc40=4
 NUMTHREAD_var_vbc=5
 
 MPITOPO_ensembleH=10x4x1
-
-SEQ_DEFAULT_SHELL=/bin/bash

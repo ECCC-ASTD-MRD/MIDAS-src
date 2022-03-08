@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Remove the task `download` from the maestro module `UnitTest` (#595 and !558)
  * Remove any reference to release branch `v_3.4` in the documentation
    (#553 and !523)
 

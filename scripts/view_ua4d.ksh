@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 # this script modifies the structure of headers for UA 4D files to treat them with a common sqlr_readSqlite fortran routine 
 # Attention ! Make sure that the sql table resume containing date, time and run exists in the output files
 sqlfile=$1
