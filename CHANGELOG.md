@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * Migrate the "main" branch to `rhel-8-icelake-64` (#594 and !557)
+   * Also, use our version of `mpi_reduce` to avoid machine-dependent results for `genCoeff`
+   * Also, fix bug in sqlite_read_mod for reading avhrr table
+   * As expected, this change has minor impact on results
  * New filt_radvel for Doppler velocity (#580 and !545)
  * Added ability to compute continous SST field (#571 and !542)
  * Option for `midas_build` to compile only on frontend architecture (#582 and !544)
