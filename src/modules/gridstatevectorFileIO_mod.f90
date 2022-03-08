@@ -704,7 +704,7 @@ module gridStateVectorFileIO_mod
         if (gsv_interpToPhysicsGrid) then
           var_loop: do varIndex = 1, vnl_numvarmax
             varName = vnl_varNameList(varIndex)
-            hco_physics = gsv_getHco_physics(statevector)
+            hco_physics => gsv_getHco_physics(statevector)
             if ( .not. gsv_varExist(statevector,varName)) cycle var_loop
             if ( .not. vnl_isPhysicsVar(varName) ) cycle var_loop
             if ( utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
