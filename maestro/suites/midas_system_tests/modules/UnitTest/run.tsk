@@ -83,7 +83,7 @@ fi
 ulimit -c unlimited
 
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
-${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
+${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
     cp ${TASK_BIN}/mpiscript ./mpiscript
