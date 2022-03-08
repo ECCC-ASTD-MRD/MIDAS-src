@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -ex
+
+cd /fs/homeu2/eccc/mrd/rpndat/mab001/midas-master/tools/splitobs
+make splitobs_${ORDENV_PLAT}
+
+splitobs_pgm=midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+make install PGM=/home/mab001/data_maestro/ords//midas_abs/${splitobs_pgm}
+

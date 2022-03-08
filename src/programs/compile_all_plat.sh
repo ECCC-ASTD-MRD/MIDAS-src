@@ -47,7 +47,7 @@ if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     unset COMPILING_MACHINE_SUPER
 fi
 
-rev=${CI_BUILD_REF:-$(${toplevel}/midas.version.sh)}
+rev=${CI_BUILD_REF:-$(${__toplevel}/midas.version.sh)}
 jobname=${rev}_midasCompile
 
 ## get the number of programs

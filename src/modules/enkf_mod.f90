@@ -119,7 +119,7 @@ contains
     integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEnsComp(:,:)
-    integer, allocatable :: randomMemberIndexArray(:)
+    integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
 
     real(8), allocatable :: distances(:)
     real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
@@ -291,6 +291,10 @@ contains
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
+    ! get mpi global list of tags used for mpi send/recv
+    allocate(latLonTagMpiGlobal(stateVectorMeanAnl%ni,stateVectorMeanAnl%nj))
+    call enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
+    
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
@@ -308,7 +312,7 @@ contains
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
         procIndex = myProcIndexesRecv(latLonIndex)
-        recvTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
+        recvTag = latLonTagMpiGlobal(lonIndex,latIndex)
 
         nsize = nEns
         numRecv = numRecv + 1
@@ -317,7 +321,7 @@ contains
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
         nsize = nEns*nEns
         numRecv = numRecv + 1
-        recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
+        recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
@@ -721,7 +725,7 @@ contains
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
         do procIndex = 1, myNumProcIndexesSend(latLonIndex)
-          sendTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
+          sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
           nsize = nEns
@@ -731,7 +735,7 @@ contains
                           mpi_comm_grid, requestIdSend(numSend), ierr )
           nsize = nEns*nEns
           numSend = numSend + 1
-          sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
+          sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
@@ -1184,6 +1188,69 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine enkf_LETKFsetupMpiDistribution
+
+  !----------------------------------------------------------------------
+  ! enkf_LETKFgetMpiGlobalTags (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
+    implicit none
+    ! Arguments:
+    integer :: latLonTagMpiGlobal(:,:)
+    integer :: myLatIndexesRecv(:)
+    integer :: myLonIndexesRecv(:)
+
+    ! Locals:
+    integer :: ierr, ni, nj, lonIndex, latIndex
+    integer :: countTags, myNumLatLonRecv, numLatLonRecvMax
+    integer, allocatable :: allNumLatLonRecv(:)
+    integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
+
+    call tmg_start(94,'LETKFgetMpiTags')
+    write(*,*) 'enkf_LETKFgetMpiGlobalTags: Starting'
+
+    ni = size(latLonTagMpiGlobal,1)
+    nj = size(latLonTagMpiGlobal,2)
+
+    myNumLatLonRecv = size(myLatIndexesRecv)
+    allocate(allNumLatLonRecv(mpi_nprocs))
+    call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
+                            allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
+    numLatLonRecvMax = maxval(allNumLatLonRecv)
+
+    ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+    allocate(allLatIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+    allocate(allLonIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+    call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+    call rpn_comm_allgather(myLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+
+    latLonTagMpiGlobal(:,:) = 0
+    do lonIndex = 1, ni
+      do latIndex = 1, nj
+        if (any(lonIndex == allLonIndexesRecv(:,:) .and. latIndex == allLatIndexesRecv(:,:))) then
+          latLonTagMpiGlobal(lonIndex,latIndex) = 1
+        end if
+      end do
+    end do
+
+    countTags = 0
+    do lonIndex = 1, ni
+      do latIndex = 1, nj
+        if (latLonTagMpiGlobal(lonIndex,latIndex) == 1) then
+          countTags = countTags + 1
+          latLonTagMpiGlobal(lonIndex,latIndex) = countTags
+        end if
+      end do
+    end do
+    write(*,*) 'number of Recv grid points found = ', maxval(latLonTagMpiGlobal(:,:))
+    
+    write(*,*) 'enkf_LETKFgetMpiGlobalTags: Finished'
+    call tmg_stop(94)
+
+  end subroutine enkf_LETKFgetMpiGlobalTags
 
   !----------------------------------------------------------------------
   ! enkf_latLonAlreadyFound (private function)

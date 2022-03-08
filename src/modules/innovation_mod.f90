@@ -482,9 +482,7 @@ contains
     logical, optional       :: beSilent_opt
 
     ! Locals:
-    real(8) :: Jo, JoRaob, JoSatWind, JoSurfc
-    real(8) :: JoSfcSF, JoSfcUA, JoTov, JoAirep, JoSfcSC, JoProf, JoAladin, JoSfcTM
-    real(8) :: JoGpsRO, JoGpsGB, JoSfcGP, JoSfcRA, JoChm, JoSfcGL, JoSfchy, JoRadvel
+    real(8) :: Jo
     integer :: destObsColumn, get_max_rss
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
     logical, save :: lgpdata = .false.
@@ -611,7 +609,6 @@ contains
     call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'AL', destObsColumn)
 
     ! GPS radio occultation
-    JoGpsRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
       if ( filterObsAndInitOer ) then
         call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
@@ -626,7 +623,6 @@ contains
     call oop_chm_nl(columnTrlOnTrlLev, obsSpaceData, destObsColumn)
 
     ! GPS ground-based zenith delay
-    JoGpsGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
         if ( filterObsAndInitOer ) then
