@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
    * As expected, this change has minor impact on results
+ * Add support for platform `rhel-8-icelake-64` in `ssm/build_packages` (#606 and !560)
 
 ### Changed
 
