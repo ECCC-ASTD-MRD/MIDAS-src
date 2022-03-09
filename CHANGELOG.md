@@ -76,6 +76,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Adapted `midas_build` for single architecture U2 (#578 and !562)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
  * Implement the SSM packaging using shell scripts (#561 and !532)
  * Promote `midas_build` in the README as the main compilation tool (#522 and !548)

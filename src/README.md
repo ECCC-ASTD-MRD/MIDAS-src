@@ -8,7 +8,10 @@ change in the [environment variable naming convention](#new-environment-variable
 
 ## Using midas_build - for most use cases
 
-Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), we provide a fully automated build wrapper script that should be used in most use cases: **`midas_build`**.  It builds MIDAS executables on both front and backend using multicore compilation and does some error checking.
+Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), 
+we provide a fully automated build wrapper script that should be used in most use cases:
+**`midas_build`**.  It builds MIDAS executables using multicore compilation and does some
+error checking.
 
 ### Configuring the compilation and linking process
 
@@ -27,18 +30,15 @@ Their default values (in parentheses), **should be good for most users**.
   version included in the absolute name.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
   compilation if set to `yes`
+* `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
 * `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on 
   successful compilation (and linking if applicable)
-* `MIDAS_COMPILE_BACKEND (daley)` and `MIDAS_COMPILE_FRONTEND (eccc-ppp4)` : 
-  machines used for each architecture
 * `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore 
   compilation is done directly on headnode, this should only be used on a 
   dedicated node obtained through `jobsubi` 
   (see [this section](#calling-make-in-parallel) for instructions.)
-* `MIDAS_COMPILE_DO_BACKEND (true)` : launch compilation on the backend as well
-* `MIDAS_COMPILE_BACKEND_ARCH (sles-15-skylake-64-xc50)` : backend architecture
 * `MIDAS_COMPILE_COMPF_GLOBAL ()` : additional user-specified compilation options
 * `MIDAS_COMPILE_JOBNAME (midasCompilation)` : name for the job submission
   and the prefix for listings
@@ -68,8 +68,7 @@ display
 ```
 
 It will 
-1. build MIDAS executables on both architectures using the number of cores 
-   specified 
+1. build MIDAS executables using the number of cores specified 
 2. install (copy) the absolutes in the directory 
    `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format 
    `midas-${program}_${ORDENV_PLAT}-${VERSION}.Abs`
@@ -95,7 +94,8 @@ A *target* is something (often a file) to build; you can get information on
 available targets by calling `make help`.
 See [this section](#using-make-advanced-use-cases) for more on targets.
 
-If the targets contains absolutes (`*.Abs`), `midas_build` will also install these and a sucessful installation of a subsets of programs will be confirmed with the display
+If the targets contains absolutes (`*.Abs`), `midas_build` will also install these and a
+sucessful installation of a subsets of programs will be confirmed with the display
 ```
 +------------------------------+
 |                              |
@@ -113,7 +113,8 @@ If there is no absolute in the target list, **there won't be this display**.
 #### `splitobs` an *external* program
 
 The program `splitobs` is built by default with the other programs as described
-in the [section Building all](#building-all).  It can also be built as a specific program in the same manner as described in the 
+in the [section Building all](#building-all).  It can also be built as a specific 
+program in the same manner as described in the 
 [previous section](#using-midas_build-for-specific-targets).
 
 However, under the hood, the sources and compilation are dealt with in a totally
@@ -301,7 +302,6 @@ var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
 If `<TAB>` does not work (or just show you `help` and `clean`), it is probably 
 because did not `source ./config.dot.sh`.
-Auto-completion does not work on the backends.
 
 When you ask `make` to build a target, it will determine everything that needs
 to be done to achieve that goal, for instance if want to build `var.Abs`:
@@ -351,7 +351,6 @@ A complete install is then
 ```
 (source ./config.dot.sh && make && make install)
 ```
-launched from all platforms (what is done by `./midas_build` without argument).
 
 Note that when `make` is called to compile and link an absolute (`*.Abs`),
 it will first **remove the corresponding installed program** in the `midas_abs`
@@ -494,8 +493,7 @@ To publish the absolutes in a SSM domain, one have to
    ```
    (source ./config.dot.sh && make ssm)
    ```
-4. **once all architectures have been published**, protect the domain
-   (only need to be done once, from either front or backend):
+4. protect the domain
    ```
    (source ./config.dot.sh && make ssm_protect)
    ```
@@ -504,7 +502,6 @@ To publish the absolutes in a SSM domain, one have to
 ## What is left to do
 
 
-* address the `make --touch` spurious empty file bug (#444)
 * automated `doc` building and `diagrams`, etc.
 
 But most of all... taking into account your input.  
