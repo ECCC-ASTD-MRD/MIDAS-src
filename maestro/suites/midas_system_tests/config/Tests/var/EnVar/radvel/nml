@@ -1,0 +1,173 @@
+ &NAMBHI
+   SCALEFACTOR   = 100*1.0D0
+/
+ &NAMBEN
+   SCALEFACTOR   = 100*0.0D0
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 70,
+   NSIMMAX  = 110,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .TRUE.,
+   LWRTHESS = .TRUE.,
+   LVARQC=.TRUE.,
+   NWOQCV=5,
+
+
+/
+ &NAMS2C
+   SLANTPATH_TO_NL   = .FALSE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .FALSE.,
+   SLANTPATH_RA_NL   = .TRUE.,
+   calcHeightPressIncrOnColumn = .FALSE.,
+/
+ &NAMRADVEL 
+   maxRangeInterp = 15000.0D0,
+/
+ &NAMSQLradvel
+  numberElem=1
+  listElem="21014"
+  sqlNull=" and obsvalue is not null "
+/ 
+ &NAMSTATE
+   addHeightSfcOffset = .false.
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/
+ &NAMRMAT
+/
+ &NAMTIME
+  DSTEPOBS = 0.25D0
+/
+ &NAMFILT
+   NELEMS    = 17,
+   NLIST(1)=11003,
+   NLIST(2)=11004,
+   NLIST(3)=12192,
+   NLIST(4)=10192,
+   NLIST(5)=10194,
+   NLIST(6)=12001,
+   NLIST(7)=10004,
+   NLIST(8)=10051,
+   NLIST(9)=12004,
+   NLIST(10)=11215,
+   NLIST(11)=11216,
+   NLIST(12)=12203,
+   NLIST(13)=12163,
+   NLIST(14)=15036,
+   NLIST(15)=15031,
+   NLIST(16)=11012,
+   NLIST(17)=21014,
+
+   NFLAGS=8,
+   NLISTFLG(1)=0,
+   NLISTFLG(2)=-1,
+   NLISTFLG(3)=-2,
+   NLISTFLG(4)=-3,
+   NLISTFLG(5)=-4,
+   NLISTFLG(6)=-5,
+   NLISTFLG(7)=-6,
+   NLISTFLG(8)=-7,
+   RLIMLVHU=70.,
+/
+ &NAMDIMO
+   NMXOBS=200000,
+   NDATAMX=2000000,
+/
+ &NAMTOV
+/
+ &NAMGPSRO
+  SURFMIN  = 1000.D0,
+  HSFMIN   = 1000.D0,
+  HTPMAX   = 70000.D0,
+  BGCKBAND = 0.05D0,
+  gpsroError = 'DYNAMIC',
+/
+ &NAMGPSGB
+   DZMIN      = 2.0D0,
+   DZMAX      = 1000.0D0,
+   YZTDERR    = 0.0D0,
+   LASSMET    = .TRUE.,
+   LLBLMET    = .FALSE.,
+   YSFERRWGT  = 1.00D0,
+   YZDERRWGT  = 1.00D0,
+   LBEVIS     = .TRUE.,
+   IREFOPT    = 1,
+   L1OBS      = .FALSE.,
+   LTESTOP    = .FALSE.,
+   IZTDOP     = 1,
+/
+ &NAMCODTYP
+/
+ &NAMBURP_FILTER_SFC
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  NELEMS_SFC=10,
+  BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
+/
+ &NAMBURP_FILTER_CONV
+  UA_HIGH_PRECISION_TT_ES=.true.,
+  READ_QI_GA_MT_SW=.true.,
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=10,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMBURP_FILTER_TOVS
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=1
+  BLISTELEMENTS=12163
+/
+ &NAMPHY
+  NEW_TETENS_COEFS=.true.
+/
+ &NAMOER
+  NEW_OER_SW=.true.
+/
+ &NAMBGCKCONV
+  NEW_BGCK_SW=.true.
+/
+ &NAMBURP_UPDATE
+  BN_ITEMS=2,
+  BITEMLIST(1)='OMP',
+  BITEMLIST(2)='OER',
+  BITEMLIST(3)='FGE',
+  TYPE_RESUME='BGCKALT'
+/
+ &NAMSQLsfc
+  numberElem=11
+  listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035"
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLInsert
+  numberInsertItems=4
+  itemInsertList(1)=11215
+  itemInsertList(2)=11216
+  itemInsertList(3)=11003
+  itemInsertList(4)=11004
+/
+ &namSQLUpdate
+ numberUpdateItems=3
+ itemUpdateList(1)='OMP'
+ itemUpdateList(2)='OMA'
+ itemUpdateList(3)='FGE'
+/

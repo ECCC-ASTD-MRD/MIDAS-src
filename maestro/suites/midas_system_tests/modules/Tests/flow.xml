@@ -73,6 +73,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="radvel"/>
+      <FAMILY  name="radvel">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="Var3D"/>
     <FAMILY  name="Var3D">
