@@ -299,6 +299,7 @@ if [ -n "${__err_front}" ]; then
     echo "<!> some error found in ${__listing_frontend}"
     echo "${__err_front}"
     __err_comp=1
+    exit 1
 fi
 
 ##========================================================
