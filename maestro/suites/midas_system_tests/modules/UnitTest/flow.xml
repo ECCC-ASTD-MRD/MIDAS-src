@@ -6,10 +6,6 @@
   </TASK>
 
   <TASK name="run">
-    <SUBMITS sub_name="download"/>
-  </TASK>
-
-  <TASK name="download">
     <SUBMITS sub_name="check"/>
   </TASK>
 

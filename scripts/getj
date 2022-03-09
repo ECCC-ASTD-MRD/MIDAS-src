@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 # JFC: This script works with listings from MAESTRO archives (e.g. main.assimcycle.anlalt.envar.VAR.success.*)
 

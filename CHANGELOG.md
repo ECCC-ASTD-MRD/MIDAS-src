@@ -140,6 +140,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * (Nothing yet)
+
+## [3.7.0-rc1]
+
+### Added
+
+ * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
+   * As expected, this change has minor impact on results
+ * Add support for platform `rhel-8-icelake-64` in `ssm/build_packages` (#606 and !560)
+
+### Changed
+
+ * Use a topology-independent mpi-reduce operator in `biasCorrectionSat_mod` (#604 and !559)
+ * Implement the SSM packaging using shell scripts (#561 and !532)
+ * Improve the documentation on how to start a branch associated to an
+   issue from the release branch (#553 and !523)
+
+### Removed
+
+ * Remove the task `download` from the maestro module `UnitTest` (#595 and !558)
  * Remove any reference to release branch `v_3.4` in the documentation
    (#553 and !523)
 

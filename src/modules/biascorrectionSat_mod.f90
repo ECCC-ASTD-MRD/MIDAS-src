@@ -1051,9 +1051,9 @@ contains
         end do BODY
       end do HEADER
 
-      allocate(biasMpiGlobal(nchans,nscan))
-      allocate(stdMpiGlobal(nchans,nscan))
-      allocate(countMpiGlobal(nchans,nscan))
+      allocate( biasMpiGlobal(nchans,nscan) )
+      allocate( stdMpiGlobal(nchans,nscan) )
+      allocate( countMpiGlobal(nchans,nscan) )
 
       call mpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
