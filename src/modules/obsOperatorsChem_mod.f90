@@ -1537,8 +1537,8 @@ contains
   !--------------------------------------------------------------------------
   ! oopc_CHobsoperators
   !--------------------------------------------------------------------------
-  subroutine oopc_CHobsoperators(columnTrl,obsSpaceData,kmode, &
-                                       columnAnlInc_opt,jobs_opt)
+  subroutine oopc_CHobsoperators(columnTrl, obsSpaceData, kmode, &
+                                 columnAnlInc_opt, jobs_opt, destObsColumn_opt)
     !
     !:Purpose: To apply the observation operators for chemical constituents.
     !          Mode of operator set by kmode.
@@ -1619,6 +1619,7 @@ contains
     integer, intent(in) :: kmode
     type(struct_columnData), intent(inout), optional :: columnAnlInc_opt
     real(8), intent(out), optional :: jobs_opt
+    integer, intent(in), optional :: destObsColumn_opt
 
     ! Local variables
     real(8) :: zomp,zinc,zoer,zhbht
@@ -1628,6 +1629,7 @@ contains
 
     integer :: headerIndex,bodyIndex,bodyIndex_start,bodyIndex_end
     integer :: icodtyp,iobslev,nobslev,varno
+    integer :: destObsColumn
     character(len=12) :: stnid
 
     integer, allocatable :: ixtr(:),iass(:),flag(:)
@@ -1652,7 +1654,12 @@ contains
        call utl_abort("oopc_CHobsoperators: columnAnlInc_opt must be specified for kmode = " // utl_str(kmode))
     
     ! Initializations
-        
+    if ( present(destObsColumn_opt) ) then
+      destObsColumn = destObsColumn_opt
+    else
+      destObsColumn = obs_omp
+    end if
+
     if (present(jobs_opt)) jobs_opt = 0.d0
 
     nlev_bkgrnd = col_getNumLev(columnTrl,varLevel)
@@ -1904,7 +1911,7 @@ contains
                ! Store OmP in OBS_OMP and add to Jo(x_background) of CH.   
                            
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
-               call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+               call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
                if (oopc_diagn_only('CH',stnid,varno,nobslev,flag(iobslev))) then
                   ! Observation is for diagnostics and is not to be assimilated

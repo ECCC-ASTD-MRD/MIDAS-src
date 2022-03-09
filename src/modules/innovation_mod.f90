@@ -200,7 +200,8 @@ contains
   ! inn_setupColumnsOnTrlLev
   !--------------------------------------------------------------------------
   subroutine inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                       stateVectorUpdateHighRes )
+                                       stateVectorUpdateHighRes, &
+                                       deallocInterpInfoNL_opt )
     !
     !:Purpose: To compute vertical (and potentially slanted) columns of trial data interpolated to obs location
     !
@@ -211,11 +212,12 @@ contains
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
     type(struct_gsv)           :: stateVectorUpdateHighRes
+    logical         , optional :: deallocInterpInfoNL_opt
 
     ! locals
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
-    logical                   :: deallocInterpInfo
+    logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
@@ -246,6 +248,12 @@ contains
 
     call tmg_start(10,'SETUPCOLUMN')
 
+    if ( present(deallocInterpInfoNL_opt) ) then
+      deallocInterpInfoNL = deallocInterpInfoNL_opt
+    else
+      deallocInterpInfoNL = .true.
+    end if
+
     nullify(vco_trl)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
@@ -257,11 +265,10 @@ contains
       call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
     end if
 
-    deallocInterpInfo = .true.
     call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., numObsBatches_opt=numObsBatches, &
-                 dealloc_opt=deallocInterpInfo )
+                 dealloc_opt=deallocInterpInfoNL )
 
     if ( col_getNumCol(columnTrlOnTrlLev) > 0 .and. col_varExist(columnTrlOnTrlLev,'Z_T ') ) then
       write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'

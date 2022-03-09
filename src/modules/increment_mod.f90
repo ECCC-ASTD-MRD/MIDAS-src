@@ -37,7 +37,7 @@ module increment_mod
   private
 
   ! public procedures
-  public :: inc_computeHighResAnalysis, inc_writeIncrementHighRes, inc_getIncrement, inc_writeIncrement
+  public :: inc_computeHighResAnalysis, inc_writeIncAndAnalHighRes, inc_getIncrement, inc_writeIncrement
   public :: inc_writeAnalysis, inc_analPostProcessing
 
   integer, external :: get_max_rss
@@ -373,10 +373,10 @@ CONTAINS
   end subroutine inc_analPostProcessing
 
   !--------------------------------------------------------------------------
-  ! inc_writeIncrementHighRes
+  ! inc_writeIncAndAnalHighRes
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrementHighRes( stateVectorTrial, stateVectorPsfc, &
-                                        stateVectorAnal )
+  subroutine inc_writeIncAndAnalHighRes( stateVectorTrial, stateVectorPsfc, &
+                                         stateVectorAnal )
     !
     ! :Purpose: Write the high-resolution analysis increments to the rehm file.
     !
@@ -408,7 +408,7 @@ CONTAINS
 
     logical  :: allocHeightSfc, writeHeightSfc
 
-    write(*,*) 'inc_writeIncrementHighRes: STARTING'
+    write(*,*) 'inc_writeIncAndAnalHighRes: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! Setup timeCoord module (date read from trial file)
@@ -455,20 +455,20 @@ CONTAINS
 
     ! figure out number of batches of time steps for writing
     numBatch = ceiling(real(stateVectorAnal%numStep) / real(mpi_nprocs))
-    write(*,*) 'inc_writeIncrementHighRes: writing will be done by number of batches = ', numBatch
+    write(*,*) 'inc_writeIncAndAnalHighRes: writing will be done by number of batches = ', numBatch
 
     batch_loop: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
       stepIndexEnd = min(stateVectorAnal%numStep, stepIndexBeg + mpi_nprocs - 1)
-      write(*,*) 'inc_writeIncrementHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
+      write(*,*) 'inc_writeIncAndAnalHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will write, if any (-1 if none)
       stepIndexToWrite = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
         procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
         if ( procToWrite == mpi_myid ) stepIndexToWrite = stepIndex
-        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrementHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
+        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncAndAnalHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
       end do
 
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
@@ -550,9 +550,9 @@ CONTAINS
     call gsv_deallocate(stateVectorIncHighRes)
     call gsv_deallocate(stateVectorTrial)
 
-    write(*,*) 'inc_writeIncrementHighRes: END'
+    write(*,*) 'inc_writeIncAndAnalHighRes: END'
 
-  end subroutine inc_writeIncrementHighRes
+  end subroutine inc_writeIncAndAnalHighRes
 
   !--------------------------------------------------------------------------
   ! inc_getIncrement

@@ -45,6 +45,7 @@ program midas_var
   use biasCorrectionSat_mod
   use varqc_mod
   use tovs_nl_mod
+  use stateToColumn_mod
 
   implicit none
 
@@ -60,6 +61,7 @@ program midas_var
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
   type(struct_gsv)                :: stateVectorIncr
+  type(struct_gsv)                :: stateVectorIncrSum
   type(struct_gsv)                :: stateVectorUpdateHighRes
   type(struct_gsv)                :: stateVectorTrial
   type(struct_gsv)                :: stateVectorPsfcHighRes
@@ -71,16 +73,16 @@ program midas_var
   type(struct_vco)      , pointer :: vco_trl => null()
   type(struct_hco)      , pointer :: hco_core => null()
 
-  integer :: outerLoopIndex, ip3ForWriteToFile
+  integer :: outerLoopIndex, numIterMaxInnerLoopUsed
   integer :: numIterWithoutVarqc, numInnerLoopIterDone
-  integer :: numIterMaxInnerLoopUsed
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
   logical :: varqcActive, applyVarqcOnNlJo
   logical :: filterObsAndInitOer
+  logical :: deallocInterpInfoNL
 
-  integer, parameter :: maxNumberOfOuterLoopIterations = 3
+  integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
   ! namelist variables
   integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
@@ -255,8 +257,10 @@ program midas_var
     end if
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
+    deallocInterpInfoNL = ( numOuterLoopIterations <= 1 )
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorUpdateHighRes )
+                                   stateVectorUpdateHighRes, &
+                                   deallocInterpInfoNL_opt=deallocInterpInfoNL )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -276,7 +280,7 @@ program midas_var
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
-      applyLimitOnHU = ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 )
+      applyLimitOnHU = ( limitHuInOuterLoop .and. outerLoopIndex > 1 )
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
@@ -323,25 +327,36 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Impose limits on stateVectorUpdateHighRes only when outer loop is used.
-    if ( limitHuInOuterLoop .and. numOuterLoopIterations > 1 ) then
+    if ( limitHuInOuterLoop ) then
       write(*,*) 'var: impose limits on stateVectorUpdateHighRes'
       call qlim_saturationLimit( stateVectorUpdateHighRes )
       call qlim_rttovLimit( stateVectorUpdateHighRes )
     end if
 
-    ! output the analysis increment
+    ! prepare to write incremnt when no outer-loop, or sum of increments at last
+    ! outer-loop iteration.
     call tmg_start(6,'WRITEINCR')
-    if ( numOuterLoopIterations == 1 )  then
-      ip3ForWriteToFile = 0
-    else
-      ip3ForWriteToFile = outerLoopIndex
+    if ( numOuterLoopIterations > 1 .and. &
+         outerLoopIndex == numOuterLoopIterations ) then
+
+      call gsv_allocate(stateVectorIncrSum, tim_nstepobsinc, hco_anl, vco_anl, &
+           datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+           dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
+      call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim )
+      call gsv_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      call inc_writeIncrement( stateVectorIncrSum, &     ! IN
+                               ip3ForWriteToFile_opt=0 ) ! IN
+      call gsv_deallocate( stateVectorIncrSum )
+    else if ( numOuterLoopIterations == 1 ) then
+      call inc_writeIncrement( stateVectorIncr, &        ! IN
+                               ip3ForWriteToFile_opt=0 ) ! IN
     end if
-    call inc_writeIncrement( stateVectorIncr, &                        ! IN
-                             ip3ForWriteToFile_opt=ip3ForWriteToFile ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call tmg_stop(6)
 
-    call gsv_deallocate(stateVectorIncr)
+    call gsv_deallocate( stateVectorIncr )
 
     write(*,*) 'var: end of outer-loop index=', outerLoopIndex
   end do outer_loop
@@ -378,6 +393,10 @@ program midas_var
   ! Deallocate memory related to B matrices and update stateVector
   call bmat_finalize()
 
+  ! Deallocate structures needed for interpolation
+  call s2c_deallocInterpInfo( inputStateVectorType='nl' )
+  call s2c_deallocInterpInfo( inputStateVectorType='tlad' )
+
   ! Post processing of analyis before writing (variable transform+humidity clipping)
   call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN 
                                stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
@@ -385,8 +404,8 @@ program midas_var
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18,'ADDINCREMENT')
-  call inc_writeIncrementHighRes( stateVectorTrial, stateVectorPsfc, &
-                                  stateVectorAnal )
+  call inc_writeIncAndAnalHighRes( stateVectorTrial, stateVectorPsfc, &
+                                   stateVectorAnal )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   call tmg_stop(18)
 

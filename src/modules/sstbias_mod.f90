@@ -104,8 +104,8 @@ module SSTbias_mod
 
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
-                       datestamp_opt = -1, mpi_local_opt = .false.,    &
-                       varNames_opt = (/'LG'/))
+                      datestamp_opt = -1, mpi_local_opt = .false.,    &
+                      varNames_opt = (/'LG'/), hInterpolateDegree_opt ='LINEAR')
     call gsv_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
                            unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_ice, seaice_ptr)
