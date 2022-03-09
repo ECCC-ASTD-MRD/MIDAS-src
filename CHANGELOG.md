@@ -93,8 +93,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * WGS (World Geodetic System) functions moved to EarthConstants module. Other Earth constants simplified, renamed (#524 and (!522).
  * Keep `ID_DATA` when the `dia*` files are grouped with `midas.reunir_obs_mpi` (#552 and !521)
    * With `dumpToSqliteAfterThinning=.true.` in `NAMBIASSAT`, the output files have the prefix `bcr` and are grouped together in `midas.reunir_obs_mpi`.
- * Improve the documentation on how to start a branch associated to an
-   issue from the release branch (#553 and !523)
  * midas_build provide more details on the compilation process (#549 and !520)
  * Renamed module `tt2phi_mod` to `calcHeightAndPressure_mod` and regrouped pressure calculation subroutines (#523 and !504)
  * Consistent application of bias corrections for all observation families (add the correction in OBS_BCOR) (#391 and !506)
