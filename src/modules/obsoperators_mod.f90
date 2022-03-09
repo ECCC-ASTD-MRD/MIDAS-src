@@ -1707,8 +1707,10 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'oop_tovs_nl: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       tovsIndex = tvs_tovsIndex(headerIndex)
       if ( tovsIndex == -1 ) cycle HEADER
 
@@ -1771,11 +1773,12 @@ contains
     
     if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
 
-    if (destObsColumn /= obs_omp) then
-      call utl_abort('oop_chm_nl: the ability to store results in an obs column other than OBS_OMP is not yet implemented.')
+    if ( destObsColumn /= obs_omp ) then
+      write(*,*) 'oop_chm_nl: WARNING: Storing results in an obs column other than OBS_OMP. Not fully implemented.'
     end if
 
-    call oopc_CHobsoperators(columnTrlOnTrlLev,obsSpaceData,kmode=0) ! kmode=0 for general operator
+    call oopc_CHobsoperators( columnTrlOnTrlLev, obsSpaceData, kmode=0, & ! kmode=0 for general operator
+                              destObsColumn_opt=destObsColumn )
 
   end subroutine oop_chm_nl
 

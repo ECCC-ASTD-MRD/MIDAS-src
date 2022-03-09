@@ -259,26 +259,26 @@ contains
 
           allocate(bias(iSensor)%chans(ncanBcif))
           
-          do ichan = 1, ncanBcif 
-            bias(iSensor)%chans(ichan)%channelNum = canBCIF(ichan + 1) 
-            bias(iSensor)%chans(ichan)%coeff_nobs = 0
-            bias(iSensor)%chans(ichan)%bcmode = bcmodeBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%bctype = bctypeBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%isDynamic = ((biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
-            npredictors = 1 + npredBCIF(ichan + 1)
-            bias(iSensor)%chans(ichan)%numActivePredictors = npredictors
+          do ichan=1, ncanBcif 
+            bias(iSensor) % chans(ichan) % channelNum = canBCIF(ichan + 1) 
+            bias(iSensor) % chans(ichan) % coeff_nobs = 0
+            bias(iSensor) % chans(ichan) % bcmode =  bcmodeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % bctype =  bctypeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % isDynamic = ( (biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
+            npredictors =  1 + npredBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % numActivePredictors = npredictors
 
-            allocate(bias(iSensor)%chans(ichan)%stddev(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeffIncr(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeff(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%coeff_offset(npredictors))
-            allocate(bias(iSensor)%chans(ichan)%predictorIndex(npredictors))
-            bias(iSensor)%chans(ichan)%stddev(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeffIncr(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeff(:) = 0.d0
-            bias(iSensor)%chans(ichan)%coeff_offset(:) = 0.d0
+            allocate( bias(iSensor) % chans(ichan) % stddev( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeffIncr( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeff( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeff_offset( npredictors ) )
+            allocate(  bias(iSensor)%chans(ichan)% predictorIndex( npredictors ) )
+            bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
+            bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
+            bias(iSensor) % chans(ichan) % coeff(:) = MPC_missingValue_R8
+            bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
 
-            bias(iSensor)%chans(ichan)%predictorIndex(1) = 1 !the constant term is always included
+            bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
             jPred = 1
             do ipred = 1, npredBCIF(ichan + 1)
               jPred =  jPred + 1
@@ -306,14 +306,14 @@ contains
 
         bias(iSensor)%numscan = nfov 
 
-        allocate(bias(iSensor)%BHalfScanBias(nfov,nfov))
-        if (doRegression) allocate(bias(iSensor)%BMinusHalfScanBias(nfov,nfov))
-        allocate(Bmatrix(nfov,nfov))
-        do ichan = 1, ncanBcif
-          allocate(bias(iSensor)%chans(ichan)%coeffIncr_fov(nfov))
-          allocate(bias(iSensor)%chans(ichan)%coeff_fov(nfov))
-          bias(iSensor)%chans(ichan)%coeffIncr_fov(:) = 0.d0
-          bias(iSensor)%chans(ichan)%coeff_fov(:) = 0.d0
+        allocate( bias(iSensor) % BHalfScanBias (nfov,nfov))
+        if (doRegression) allocate( bias(iSensor) % BMinusHalfScanBias (nfov,nfov))
+        allocate( Bmatrix(nfov,nfov))
+        do ichan=1, ncanBcif
+          allocate( bias(iSensor) % chans(ichan) % coeffIncr_fov(nfov))
+          allocate( bias(iSensor) % chans(ichan) % coeff_fov(nfov))
+          bias(iSensor) % chans(ichan) % coeffIncr_fov(:) = 0.d0
+          bias(iSensor) % chans(ichan) % coeff_fov(:) = MPC_missingValue_R8
         end do
 
         do ichan = 1, ncanBcif
@@ -558,8 +558,10 @@ contains
 
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
-
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_computePredictorBiases: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER
+        end if
         iobs = iobs + 1
         
         indxTovs = tvs_tovsIndex(headerIndex)
@@ -666,7 +668,10 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'bcs_calBias: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
 
       iobs = iobs + 1
       
@@ -693,18 +698,20 @@ contains
 
         call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
         if (chanindx > 0) then
-          biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
-            biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                 bias(iSensor)%chans(chanIndx)%coeff(1) 
-            do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
-              jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
-              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
-            end do
+            if ( bias(iSensor)%chans(chanIndx)%coeff_fov(iScan)/= MPC_missingValue_R8 .and. &
+                 all( bias(iSensor)%chans(chanIndx)%coeff(1:bias(iSensor)%chans(chanIndx)%NumActivePredictors)/= MPC_missingValue_R8) ) then
+              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
+                   bias(iSensor)%chans(chanIndx)%coeff(1)
+              call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+              do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
+                jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
+                biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
+              end do
+              biasCor = -1.d0 * biascor
+              call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
+            end if
           end if
-          biasCor = -1.d0 * biascor
-          call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
         end if
       end do BODY
     end do HEADER
@@ -813,7 +820,10 @@ contains
       if (headerIndex < 0) exit HEADER
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       iobs = iobs + 1
       fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_OTP, headerIndex))
       indxtovs = tvs_tovsIndex(headerIndex)
@@ -1324,7 +1334,10 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'bcs_calBias_tl: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       
       iobs = iobs + 1
 
@@ -1385,33 +1398,22 @@ contains
     type(struct_obs), intent(inout)        :: obsSpaceData
 
     ! Locals:
-    integer  :: headerIndex, idatyp, nobs
+    integer  :: headerIndex, idatyp, iobs
     real(8)  :: height1, height2
 
-    ! count number of tovs locations
-    nobs = 0
-    call obs_set_current_header_list(obsSpaceData, 'TO')
-    HEADER: do
-      headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER
-      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER 
-      nobs = nobs + 1
-    end do HEADER
-    
-    if (nobs > 0) then
-      allocate(trialHeight300m1000(nobs))
-      allocate(trialHeight50m200(nobs))
-      allocate(trialHeight5m50(nobs))
-      allocate(trialHeight1m10(nobs))
-      allocate(trialTG(nobs))
-      allocate(RadiosondeWeight(nobs))
+    if (tvs_nobtov > 0) then
+      allocate(trialHeight300m1000(tvs_nobtov))
+      allocate(trialHeight50m200(tvs_nobtov))
+      allocate(trialHeight5m50(tvs_nobtov))
+      allocate(trialHeight1m10(tvs_nobtov))
+      allocate(trialTG(tvs_nobtov))
+      allocate(RadiosondeWeight(tvs_nobtov))
     else
-      write(*,*) 'bcs_getTrialPredictors: NO OBS found'
+      write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
       return
     end if
-
-    nobs = 0
+    
+    iobs = 0
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
 
@@ -1419,30 +1421,33 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not.  tvs_isIdBurpTovs(idatyp)) cycle HEADER2 
-      nobs = nobs + 1
+      if (.not.  tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'bcs_getTrialPredictors: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER2
+      end if
+      iobs = iobs + 1
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 1000.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 300.d0)
       
-      trialHeight300m1000(nobs) = height2 - height1
+      trialHeight300m1000(iobs) = height2 - height1
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 200.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 50.d0)
 
-      trialHeight50m200(nobs) = height2 - height1
+      trialHeight50m200(iobs) = height2 - height1
 
       height1 = height2
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 5.d0)
 
-      trialHeight5m50(nobs) = height2 - height1
+      trialHeight5m50(iobs) = height2 - height1
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 10.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 1.d0)
 
-      trialHeight1m10(nobs) = height2 - height1
+      trialHeight1m10(iobs) = height2 - height1
 
-      trialTG(nobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
+      trialTG(iobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
 
     end do HEADER2
 
@@ -1681,7 +1686,10 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if (.not.  tvs_isIdBurpTovs(idatyp)) cycle HEADER
+      if (.not.  tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'bcs_calcBias_ad: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
       iobs = iobs + 1
       if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER
 
@@ -2587,8 +2595,10 @@ contains
           
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER
-      
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_getRadiosondeWeight: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER
+        end if
         iobs = iobs + 1
 
         RadiosondeWeight(iobs) = col_getElem(column_mask, 1, headerIndex) 
@@ -2692,8 +2702,10 @@ contains
           
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER1
-      
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_do_regression: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER1
+        end if
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER1
 
@@ -2761,8 +2773,10 @@ contains
 
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if (.not. tvs_isIdBurpTovs(idatyp)) cycle HEADER2
-
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_do_regression: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER2
+        end if
         iobs = iobs + 1
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER2

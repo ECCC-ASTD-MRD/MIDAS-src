@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
  * Migrate the "main" branch to `rhel-8-icelake-64` (#594 and !557)
    * Also, use our version of `mpi_reduce` to avoid machine-dependent results for `genCoeff`
    * Also, fix bug in sqlite_read_mod for reading avhrr table
@@ -74,6 +76,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
  * Implement the SSM packaging using shell scripts (#561 and !532)
  * Promote `midas_build` in the README as the main compilation tool (#522 and !548)
  * Renamed `findDependentAbs.py` to `analyzeDep.py` and allow direct and reverse dependency analysis (#586 and !547)
@@ -107,6 +110,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug causing zero radiance bias correction when all coefficients missing (#562 and !555)
+ * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553) 
  * Augment width write format for Jo contributions (#591 and !552)
  * Fix some infrequent listing `mv` error in `midas_build` after an interrupted build (#590)
  * Fix non monotonic pressure profiles in slantpath mode for radiance observations (#564 and !543)
