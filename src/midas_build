@@ -81,8 +81,7 @@ function are_jobs_completed {
                 [ $(ps ${job_or_pid_front} | wc -l) -le 1 ] && __status=1
                 __id_type="pid"
             else
-                jobchk -c ${MIDAS_COMPILE_FRONTEND} ${job_or_pid_front} \
-                    || __status=$?
+                qstat ${job_or_pid_front} > /dev/null 2>&1 && __status=0 || __status=1
                 __id_type="jobid"
             fi
             if [ "${__status}" -ne 0 ]; then
