@@ -58,23 +58,23 @@ monitor_tests:
 ##    tags:
 ##      - hpcr-u1
 
-splitobs_burp_tests:
-   stage: test
-   script:
-     - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch burp
-   tags:
-     - hpcr-u1
-
-splitobs_rdb_tests:
-   stage: test
-   script:
-     - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch rdb
-   tags:
-     - hpcr-u1
+## splitobs_burp_tests:
+##    stage: test
+##    script:
+##      - cd tools/splitobs
+##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##      - ./unittest_batch burp
+##    tags:
+##      - hpcr-u1
+##
+## splitobs_rdb_tests:
+##    stage: test
+##    script:
+##      - cd tools/splitobs
+##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##      - ./unittest_batch rdb
+##    tags:
+##      - hpcr-u1
 
 midas_tests:
    stage: test
