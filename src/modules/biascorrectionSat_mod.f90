@@ -589,14 +589,11 @@ CONTAINS
 
       do iSensor =1,tvs_nSensors 
         temp_offset(:,:) = 0.0d0
-        nsize=size( temp_offset )
-        call rpn_comm_allreduce(temp_offset2(iSensor,:,:),temp_offset(:,:),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-        if ( ierr /= 0) then
-          call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 1")
-        end if
-       
-        do i=1, bias(iSensor)%numChannels
-          do j=2,bias(iSensor)%chans(i)%numActivePredictors
+        temp_offset(:,:) = temp_offset2(iSensor,:,:)
+        call mpi_allreduce_sumR8_2d( temp_offset, "GRID" )
+
+        do i = 1, bias(iSensor)%numChannels
+          do j = 2, bias(iSensor)%chans(i)%numActivePredictors
             bias(iSensor)%chans(i)%coeff_offset(j) = temp_offset(i,j)
           end do
         end do
@@ -804,21 +801,11 @@ CONTAINS
       allocate( stdMpiGlobal(nchans,nscan) )
       allocate( countMpiGlobal(nchans,nscan) )
 
-      call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /= 0) then
-        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 1",  ierr 
-        call utl_abort(errorMessage)
-      end if
-
-      call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0 ) then
-        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 2",  ierr 
-        call utl_abort(errorMessage)
-      end if
-
-      call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0 ) then
-        Write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3",  ierr 
+      call mpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
+      call mpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /=0) then
+        write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -944,21 +931,11 @@ CONTAINS
       allocate( stdMpiGlobal(nchans,nfiles) )
       allocate( countMpiGlobal(nchans,nfiles) )
 
-      call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0 ) then
-        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 1",  ierr 
-        call utl_abort(errorMessage)
-      end if
-
-      call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0 ) then
-        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 2",  ierr 
-        call utl_abort(errorMessage)
-      end if
-
-      call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0 ) then
-        Write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3",  ierr 
+      call mpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
+      call mpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /=0) then
+        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -1520,7 +1497,7 @@ CONTAINS
     !Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
     integer  :: nChan, nScan
-    integer  :: nsize, ierr, iChan
+    integer  :: nsize, iChan
     real(8), allocatable  :: temp_coeffIncr(:), temp_coeffIncr_fov(:)
 
 
@@ -1534,7 +1511,7 @@ CONTAINS
             nSize  = bias(iSensor)%chans(iChan)%numActivePredictors
             allocate(temp_coeffIncr(nSize))
             temp_coeffIncr(:) = 0.0d0
-            call rpn_comm_reduce(bias(iSensor)%chans(ichan)%coeffIncr(:),temp_coeffIncr,nsize,"mpi_double_precision","mpi_sum",0,"GRID",ierr)
+            call mpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr(:), temp_coeffIncr, 0, "GRID" )
             bias(iSensor)%chans(ichan)%coeffIncr(:) = temp_coeffIncr(:)
             deallocate(temp_coeffIncr)
           end if
@@ -1552,7 +1529,7 @@ CONTAINS
           do ichan = 1, nChan
             if ( bias(iSensor) % chans(ichan) %isDynamic) then
               temp_coeffIncr_fov(:) = 0.0d0
-              call rpn_comm_reduce(bias(iSensor)%chans(ichan)%coeffIncr_fov,temp_coeffIncr_fov,nscan,"mpi_double_precision","mpi_sum",0,"GRID",ierr)
+              call mpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr_fov, temp_coeffIncr_fov, 0, "GRID" )
               bias(iSensor)%chans(iChan)%coeffIncr_fov(:) = temp_coeffIncr_fov(:)
             end if
           end do
@@ -2491,12 +2468,8 @@ CONTAINS
 
       allocate( omfCountMpiGlobal(nchans,nscan) )
 
-      if ( mimicSatbcor ) then
-        call rpn_comm_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-        if (ierr /=0) then
-          Write(errorMessage,*) "bcs_do_regression: MPI communication error 1",  ierr 
-          call utl_abort(errorMessage)
-        end if
+      if (mimicSatbcor) then
+        call mpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       end if
       call rpn_comm_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
 
@@ -2595,16 +2568,8 @@ CONTAINS
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call rpn_comm_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(errorMessage,*) "bcs_do_regression: MPI communication error 4",  ierr 
-        call utl_abort(errorMessage)
-      end if
-      call rpn_comm_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(errorMessage,*) "bcs_do_regression: MPI communication error 5",  ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mpi_reduce_sumR8_3d( Matrix, matrixMpiGlobal, 0, "GRID" )
+      call mpi_reduce_sumR8_2d( Vector, vectorMpiGlobal, 0, "GRID" )
 
       do iChannel = 1, nchans
 
