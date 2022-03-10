@@ -1,4 +1,3 @@
-#!/bin/ksh
 
 updated_results=$(${TASK_BIN}/readlink ${TASK_OUTPUT}/updated_results)
 does_dir_exist=false

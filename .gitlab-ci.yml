@@ -24,7 +24,6 @@ midas_build:
   only:
     - master
     - v_3.6
-    - tags
   tags:
     - hpcr-u1
 
@@ -36,7 +35,6 @@ monitor_build:
   only:
     - master
     - v_3.6
-    - tags
   tags:
     - hpcr-u1
 
@@ -48,7 +46,6 @@ monitor_tests:
    only:
      - master
      - v_3.6
-     - tags
    tags:
      - hpcr-u1
 
@@ -61,27 +58,23 @@ monitor_tests:
 ##    tags:
 ##      - hpcr-u1
 
-splitobs_burp_tests:
-   stage: test
-   script:
-     - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch burp
-   only:
-     - tags
-   tags:
-     - hpcr-u1
-
-splitobs_rdb_tests:
-   stage: test
-   script:
-     - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch rdb
-   only:
-     - tags
-   tags:
-     - hpcr-u1
+## splitobs_burp_tests:
+##    stage: test
+##    script:
+##      - cd tools/splitobs
+##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##      - ./unittest_batch burp
+##    tags:
+##      - hpcr-u1
+##
+## splitobs_rdb_tests:
+##    stage: test
+##    script:
+##      - cd tools/splitobs
+##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##      - ./unittest_batch rdb
+##    tags:
+##      - hpcr-u1
 
 midas_tests:
    stage: test
@@ -100,7 +93,6 @@ midas_tests:
    only:
      - master
      - v_3.6
-     - tags
    tags:
      - hpcr-u1
 
@@ -112,7 +104,6 @@ findTrials_tests:
    only:
      - master
      - v_3.6
-     - tags
    tags:
      - hpcr-u1
 
@@ -129,24 +120,21 @@ doc_sphinx:
   only:
     - master
     - v_3.6
-    - tags
   tags:
     - hpcr-u1
 
-ssm:
-  stage: deploy
-  script:
-    - ./set_resources_def.sh
-    - . maestro/suites/midas_system_tests/set_machine_list.dot
-    ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
-    - VERSION=$(./midas.version.sh | cut -c3-)
-    - cd ssm
-    - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION}
-    ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
-    ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
-    - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
-    - rm -rf ${SSM_PACKAGES}/${VERSION}
-  only:
-    - tags
-  tags:
-    - hpcr-u1
+## ssm:
+##   stage: deploy
+##   script:
+##     - ./set_resources_def.sh
+##     - . maestro/suites/midas_system_tests/set_machine_list.dot
+##     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
+##     - VERSION=$(./midas.version.sh | cut -c3-)
+##     - cd ssm
+##     - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION}
+##     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
+##     ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
+##     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
+##     - rm -rf ${SSM_PACKAGES}/${VERSION}
+##   tags:
+##     - hpcr-u1

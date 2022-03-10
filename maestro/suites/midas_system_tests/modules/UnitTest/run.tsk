@@ -1,4 +1,3 @@
-#!/bin/ksh
 
 args=${*}
 
@@ -65,7 +64,7 @@ EOF
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     # instead of loading the whole OneAPI Intel compiler environment, we only load the essential
     # things to be able to run
-    #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_390802
+    #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_412503
     cat >> load_env.sh <<EOF
 . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/compiler/2022.0.2/env/vars.sh
 . /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mpi/2021.5.1/env/vars.sh
@@ -83,6 +82,7 @@ export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement dire
 export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
 export KMP_AFFINITY=compact # Allows pinning the threads
 EOF
+
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
@@ -111,7 +111,7 @@ cat << EOF > ptopo_nml
 EOF
 
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
-${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath}"
+${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
     localFilesNotToErase="${localFilesNotToErase} mpiscript"

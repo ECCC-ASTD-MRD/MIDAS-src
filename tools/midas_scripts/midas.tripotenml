@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 #-*-ksh-*-
 #
 # Ce script sert à modifier des entrées dans un namelist fortran.  On

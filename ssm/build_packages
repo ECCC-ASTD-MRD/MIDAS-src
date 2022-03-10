@@ -70,18 +70,15 @@ if [ -z "${MIDAS_SOURCE}" ]; then
     MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
 fi
 
-platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50 all"
+platforms="rhel-8-icelake-64 all"
 
 for platform in ${platforms}; do
     case "${platform}" in
 	all)
 	    compiler=
 	    ;;
-	ubuntu-18.04-skylake-64)
-	    compiler=-intel-19.0.3.199
-	    ;;
-	sles-15-skylake-64-xc50)
-	    compiler=-PrgEnv-intel-6.0.5
+        rhel-8-icelake-64)
+	    compiler=-inteloneapi-2022.1.2
 	    ;;
     esac
 
