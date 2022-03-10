@@ -211,6 +211,7 @@ For example, say you add an external `newlib` through a `use` statement in
 `varqc_mod.f90`, then you will call `./analyzeDep.py` to find which 
 programs will need it at link time:
 ```bash
+$ source config.dot.sh
 $ ./analyzeDep.py -a varqc
 The following absolutes depends on innovation:
   * oMinusF.Abs
@@ -242,6 +243,7 @@ compile a given target object (module or program).
 
 For instance, if we want to compile `innovation_mod.o`, 
 ```bash
+$ source config.dot.sh
 $ ./analyzeDep.py -c innovation
 ...
 Building innovation will result in compiling these objects:
