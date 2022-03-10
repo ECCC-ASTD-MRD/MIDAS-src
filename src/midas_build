@@ -81,7 +81,7 @@ function are_jobs_completed {
                 [ $(ps ${job_or_pid_front} | wc -l) -le 1 ] && __status=1
                 __id_type="pid"
             else
-                qstat ${job_or_pid_front} > /dev/null 2>&1 && __status=0 || __status=1
+                echo qstat ${job_or_pid_front} | ssh ${MIDAS_COMPILE_FRONTEND} bash --login 1>/dev/null 2>&1 || __status=$?
                 __id_type="jobid"
             fi
             if [ "${__status}" -ne 0 ]; then
@@ -265,7 +265,8 @@ fi
 
 ## waiting for compilation to terminate
 echo
-echo "Compilation underway in working directory: ${__build_dir_version}"
+echo "Compilation underway : ${__job_or_pid_frontend}"
+echo "Working directory : ${__build_dir_version}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
