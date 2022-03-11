@@ -104,6 +104,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix wind vector rotation to avoid abort when grid point is at the equator (#567 and !564)
  * Fix bug causing zero radiance bias correction when all coefficients missing (#562 and !555)
  * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553) 
  * Augment width write format for Jo contributions (#591 and !552)
