@@ -110,6 +110,7 @@ module biasCorrectionSat_mod
   logical  :: refreshBiasCorrection !flag to replace an existing bias correction with a new one
   logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
   logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
+  logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
   real(8)  :: scanBiasCorLength     ! if positive and .not. mimicSatBcor use error correlation between scan positions with the given correlation length
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
@@ -128,7 +129,7 @@ module biasCorrectionSat_mod
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
   namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
-  namelist /nambiassat/ dumpToSqliteAfterThinning
+  namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov
 contains
  
   !-----------------------------------------------------------------------
@@ -159,6 +160,7 @@ contains
     scanBiasCorLength = -1.d0
     weightedEstimate = .false.
     outCoeffCov = .false.
+    outOmFPredCov = .false.
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
@@ -202,7 +204,6 @@ contains
     character(len=85)  :: bcifFile
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff 
     logical            :: bcifExists
-   
     ! variables from background coeff file
     integer            :: nfov, exitCode
     character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
@@ -272,7 +273,7 @@ contains
             allocate( bias(iSensor) % chans(ichan) % coeffIncr( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeff( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeff_offset( npredictors ) )
-            allocate(  bias(iSensor)%chans(ichan)% predictorIndex( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % predictorIndex( npredictors ) )
             bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeff(:) = MPC_missingValue_R8
@@ -2687,6 +2688,8 @@ contains
 
     call  bcs_getRadiosondeWeight(obsSpaceData)
 
+    if (outOmFPredCov) call bcs_outputCvOmPPred(obsSpaceData)
+
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
@@ -2947,6 +2950,247 @@ contains
     end do SENSORS
 
   end subroutine bcs_do_regression
+
+
+  !-----------------------------------------
+  ! bcs_outputCvOmPPred
+  !-----------------------------------------
+  subroutine bcs_outputCvOmPPred(obsSpaceData)
+    !
+    ! :Purpose: compute and output OmF-predictors covariance and correlation matrices
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs), intent(inout)        :: obsSpaceData
+    ! Locals:
+    integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
+    integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
+    Real(8):: OmF
+    real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
+    integer, allocatable :: Count(:)
+    real(8), allocatable :: OmFBiasMpiGLobal(:), MatrixMpiGLobal(:,:,:), PredBiasMpiGLobal(:,:)
+    integer, allocatable :: CountMpiGlobal(:)
+    character(len=128) :: errorMessage
+    real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
+    real(8) :: sigma(numPredictors)
+
+
+    write(*,*) "entering bcs_outputCvOmPPred"
+
+    SENSORS:do sensorIndex = 1, tvs_nsensors
+  
+      if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
+      write(*,*) "sensor ", sensorIndex
+
+      nchans = bias(sensorIndex)%numChannels
+
+      allocate(OmFBias(nchans))
+      OmFBias(:) = 0.d0
+
+      allocate(predBias(nchans,numPredictors))
+      predBias(:,:) = 0.d0
+
+      allocate(Count(nchans))
+      Count(:) = 0
+
+      iobs = 0
+      ! First pass throught ObsSpaceData to estimate biases and count data
+      call obs_set_current_header_list(obsSpaceData, 'TO')
+      HEADER1: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER1
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER1
+        end if
+        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if (indxtovs < 0) cycle HEADER1
+        iSensor = tvs_lsensor(indxTovs)
+        if (iSensor /= sensorIndex) cycle HEADER1
+        
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY1
+          if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY1 
+          call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
+          if (chanindx > 0) then
+            !print *,"xx",iSensor,bodyIndex,headerIndex,chanIndx
+            OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
+            OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
+            count(chanIndx) = count(chanIndx) + 1
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            predBias(chanIndx,:) = predBias(chanIndx,:) + predictor(:)
+          end if
+        end do BODY1
+      end do HEADER1
+      allocate(omfBiasMpiGlobal(nchans))
+      allocate(countMpiGlobal(nchans))
+      allocate(predBiasMpiGlobal(nchans,numPredictors))
+
+      call rpn_comm_reduce(OmFBias, omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      call rpn_comm_reduce(predBias, predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 2", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      if (mpi_myId == 0) then
+        where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
+        where(countMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / countMpiGlobal
+        do channelIndex =1, nchans
+          if (countMpiGlobal(channelIndex) == 0) predBiasMpiGlobal(channelIndex,:) = 0.d0
+          if (countMpiGlobal(channelIndex) > 0) predBiasMpiGlobal(channelIndex,:) = predBiasMpiGlobal(channelIndex,:) / countMpiGlobal(channelIndex)
+        end do
+      end if
+      call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
+        call utl_abort(errorMessage)
+      end if
+      call rpn_comm_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 5", ierr 
+        call utl_abort(errorMessage)
+      end if
+      call rpn_comm_bcast(countMpiGlobal, size(countMpiGlobal), "mpi_integer", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 5", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      deallocate(OmFBias)
+      deallocate(predBias)
+      deallocate(Count)
+      allocate(matrix(nchans,numPredictors,numPredictors))
+      matrix(:,:,:) = 0.d0
+
+      ! Second pass to fill covariance Matrix
+      call obs_set_current_header_list(obsSpaceData, 'TO')
+      iobs = 0
+      HEADER2: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER2
+
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER2
+        end if
+        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if (indxtovs < 0) cycle HEADER2
+
+        iSensor = tvs_lsensor(indxTovs)
+        if (iSensor /= sensorIndex) cycle HEADER2
+          
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY2
+          if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY2 
+          call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
+          if (chanIndx > 0) then
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            predictor(:) = predictor(:) - predBiasMpiGLobal(chanIndx,:)
+            OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
+            OmF = OmF - omfBiasMpiGlobal(chanIndx)
+            vector(1,1) = OmF
+            vector(1,2:numPredictors) = predictor(2:numPredictors)
+            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(vector),vector)
+          end if
+        end do BODY2
+      end do HEADER2
+
+      if (mpi_myId == 0) then
+        allocate(matrixMpiGlobal(nchans,numPredictors,numPredictors))
+      else
+        allocate(matrixMpiGlobal(1,1,1))
+      end if
+
+      ! communication MPI pour tout avoir sur tache 0
+      call rpn_comm_reduce(Matrix, matrixMpiGlobal, size(Matrix), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 6", ierr 
+        call utl_abort(errorMessage)
+      end if
+      deallocate(matrix)
+      deallocate(OmFBiasMpiGLobal)
+      deallocate(predBiasMpiGLobal)
+      if (mpi_myId == 0) then
+        do channelIndex = 1, nchans
+          if (countMpiGlobal(channelIndex) > 1) then
+            matrixMpiGlobal(channelIndex,:,:) = matrixMpiGlobal(channelIndex,:,:) / countMpiGlobal(channelIndex)
+            write(*,*) "OmF Pred covariance Matrix for channel ", tvs_ichan(channelIndex,sensorIndex), &
+                 "instrument ", tvs_instrumentName(sensorIndex)," ", &
+                 tvs_satelliteName(sensorIndex)
+            write(*,'(10x,A6,8x)',advance="no") "OmF"
+            do predictorIndex = 2, numPredictors
+              write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+            end do
+            write(*,*)
+            write(*,'(A6)',advance="no") "Omf"
+            write(*,'(100f12.6)') matrixMpiGlobal(channelIndex,1,:)
+            do predictorIndex = 2, numPredictors
+              write(*,'(A6)',advance="no") predTab(predictorIndex)
+              write(*,'(100f12.6)') matrixMpiGlobal(channelIndex,predictorIndex,:)
+            end do
+
+            sigma(:) = 0
+            do predictorIndex = 1,numPredictors
+              if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
+                   sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
+            end do
+            do predictorIndex = 1, numPredictors
+              do predictorIndex2=1, numPredictors
+                correlation(predictorIndex, predictorIndex2) =  &
+                     matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
+                     (sigma(predictorIndex) * sigma(predictorIndex2) )
+              end do
+            end do
+      
+            write(*,*) "OmF Pred correlation Matrix for channel ", &
+                 tvs_ichan(channelIndex,sensorIndex) ,"instrument ", &
+                 tvs_instrumentName(sensorIndex)," ", &
+                 tvs_satelliteName(sensorIndex)
+            write(*,'(10x,A6,8x)',advance="no") "OmF"
+            do predictorIndex = 2, numPredictors
+              write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+            end do
+            write(*,*)
+            write(*,'(A6)',advance="no") "Omf"
+            write(*,'(100f12.6)') correlation(1,:)
+            do predictorIndex = 2, numPredictors
+              write(*,'(A6)',advance="no") predTab(predictorIndex)
+              write(*,'(100f12.6)') correlation(predictorIndex,:)
+            end do
+            
+          end if
+       
+        end do
+      end if
+          
+      deallocate(countMpiGlobal)
+      deallocate(matrixMpiGlobal)
+       
+    end do SENSORS
+
+  end subroutine bcs_outputCvOmPPred
 
   !----------------------
   ! bcs_Finalize
