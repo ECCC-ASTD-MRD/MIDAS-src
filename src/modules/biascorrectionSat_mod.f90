@@ -2982,7 +2982,7 @@ contains
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
       write(*,*) "sensor ", sensorIndex
 
-      nchans = bias(sensorIndex)%numChannels
+      nchans = bias(sensorIndex)%numChannels ! from bcif
 
       allocate(OmFBias(nchans))
       OmFBias(:) = 0.d0
@@ -3136,10 +3136,11 @@ contains
         do channelIndex = 1, nchans
           if (countMpiGlobal(channelIndex) > 1) then
             matrixMpiGlobal(channelIndex,:,:) = matrixMpiGlobal(channelIndex,:,:) / countMpiGlobal(channelIndex)
-            write(*,*) "OmF Pred covariance Matrix for channel ", tvs_ichan(channelIndex,sensorIndex), &
-                 "instrument ", tvs_instrumentName(sensorIndex)," ", &
-                 tvs_satelliteName(sensorIndex)
-            write(*,'(10x,A6,8x)',advance="no") "OmF"
+            write(*,*) "OmF Pred covariance Matrix for channel ", &
+                 bias(sensorIndex)%chans(channelIndex)%channelNum, "instrument ", &
+                 trim(tvs_instrumentName(sensorIndex))," ", &
+                 trim(tvs_satelliteName(sensorIndex))
+            write(*,'(10x,A6)',advance="no") "OmF"
             do predictorIndex = 2, numPredictors
               write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
             end do
@@ -3157,7 +3158,7 @@ contains
                    sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
             end do
             do predictorIndex = 1, numPredictors
-              do predictorIndex2=1, numPredictors
+              do predictorIndex2 =1, numPredictors
                 correlation(predictorIndex, predictorIndex2) =  &
                      matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
                      (sigma(predictorIndex) * sigma(predictorIndex2) )
@@ -3165,10 +3166,10 @@ contains
             end do
       
             write(*,*) "OmF Pred correlation Matrix for channel ", &
-                 tvs_ichan(channelIndex,sensorIndex) ,"instrument ", &
-                 tvs_instrumentName(sensorIndex)," ", &
-                 tvs_satelliteName(sensorIndex)
-            write(*,'(10x,A6,8x)',advance="no") "OmF"
+                 bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
+                 trim(tvs_instrumentName(sensorIndex))," ", &
+                 trim(tvs_satelliteName(sensorIndex))
+            write(*,'(10x,A6)',advance="no") "OmF"
             do predictorIndex = 2, numPredictors
               write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
             end do
