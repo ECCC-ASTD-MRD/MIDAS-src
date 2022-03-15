@@ -1,5 +1,4 @@
 #!/bin/bash
-#-*-ksh-*-
 #
 # Ce script sert à modifier des entrées dans un namelist fortran.  On
 # l'utilise pour changer la valeur de l'étiquette.

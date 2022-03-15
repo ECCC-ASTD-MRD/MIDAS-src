@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * The script 'tools/midas_scripts/midas.mpirun' was considering both
    `ubuntu-18.04-skylake-64` and `rhel-8-icelake-64` at the same time (#610 and !565)
+ * Remove further dependencies to `ksh` (#611 and !566)
 
 ## [3.7.0-rc1]
 
