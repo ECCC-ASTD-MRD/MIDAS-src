@@ -48,7 +48,7 @@
     cinst(12)="CRIS"				
     nbscan(12)=1
     cglobal(12)="NON"
-    cinst(13)="CRIS-FSR"			
+    cinst(13)="CRISFSR"			
     nbscan(13)=1
     cglobal(13)="NON"
     cinst(14)="AHI"		
