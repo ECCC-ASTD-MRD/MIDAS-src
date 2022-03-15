@@ -35,7 +35,7 @@ unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
-if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 -o "${EC_ARCH}" = rhel-8-icelake-64 ]; then
+if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set +x
     for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
 	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
