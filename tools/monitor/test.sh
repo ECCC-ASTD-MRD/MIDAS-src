@@ -8,7 +8,7 @@ MONITOR_PGM=${1:-./midas.monitor.Abs}
 
 echo "Testing program '${MONITOR_PGM}'"
 cat > run_after_rebm_done.sh <<EOF
-#!/bin/ksh
+#!/bin/bash
 
 echo "On a trouve le fichier 'VAR3D_STATUS.dot' qui contenait 'VAR3D_STATUS=REBM_DONE'"
 echo ORDENV_PLAT=\${ORDENV_PLAT}
