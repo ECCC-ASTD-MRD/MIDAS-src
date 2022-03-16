@@ -26,7 +26,10 @@ Their default values (in parentheses), **should be good for most users**.
   **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
   version included in the absolute name.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
-  compilation if set to `yes`
+  compilation if set to `yes`.
+  It is important to **clean** your build directory prior to compile if you 
+  just changed `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` to `yes` for the effect
+  to be applied across all objects.
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
 * `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on 
