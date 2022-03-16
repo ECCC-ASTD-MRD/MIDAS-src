@@ -2512,7 +2512,7 @@ contains
       end if
     else
       ! Update the MIDAS Header Output Table
-      Call odbf_updateMidasHeaderTable(obsdat, fileIndex, fileName, familyType))
+      Call odbf_updateMidasHeaderTable(obsdat, fileIndex, fileName, familyType)
     end if
 
   ! ! Update the Midas Body Output Table
