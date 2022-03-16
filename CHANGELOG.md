@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added an option dump cores in case of runtime errors in UnitTests (#602 and !568)
  * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
  * New filt_radvel for Doppler velocity (#580 and !545)
  * Added ability to compute continous SST field (#571 and !542)
