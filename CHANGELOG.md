@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added an option dump cores in case of runtime errors in UnitTests (#602 and !567)
  * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
  * Migrate the "main" branch to `rhel-8-icelake-64` (#594 and !557)
    * Also, use our version of `mpi_reduce` to avoid machine-dependent results for `genCoeff`

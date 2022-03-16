@@ -46,6 +46,8 @@ export OMP_NUM_THREADS=${OMP_NUM_THREADS}
 
 export SEQ_NPEX=${SEQ_NPEX}
 export SEQ_NPEY=${SEQ_NPEY}
+
+export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 EOF
 
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
