@@ -49,7 +49,8 @@ __revstring=$(${__toplevel}/midas.version.sh)
 
 ##=========================================================
 ##  sourcing user configuration
-source ${__here}/config.dot.sh  &> .tmp.config.out
+__midas_dot_cfg=${__here}/config.dot.sh
+source ${__midas_dot_cfg}  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 mv .tmp.config.out ${__listing_config}
