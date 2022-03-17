@@ -12,10 +12,7 @@ set -x
 ###########################################################
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
-MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-eccc-ppp4}
-MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
-MIDAS_COMPILE_DO_BACKEND=${MIDAS_COMPILE_DO_BACKEND:-true}
-MIDAS_COMPILE_BACKEND_ARCH=${MIDAS_COMPILE_BACKEND_ARCH:-sles-15-skylake-64-xc50}
+MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
 MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND:-false}
@@ -46,11 +43,6 @@ __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
 __keep_jobsubmit_ofile=false
-if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then 
-  __plat_super=${MIDAS_COMPILE_BACKEND_ARCH}
-else
-  __plat_super=''
-fi
 
 ###########################################################
 ##  compilation and SSM needed for compilation
@@ -76,8 +68,10 @@ then
     false 
 fi
 
-export MIDAS_COMPILE_BACKEND
-export MIDAS_COMPILE_DO_BACKEND
+## loading docopt for analyzeDep.py
+## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
+. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
+
 export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
 export MIDAS_ABS_LEAFDIR

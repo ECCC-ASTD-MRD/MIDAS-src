@@ -55,7 +55,6 @@ source ${__toplevel}/src/programs/commons/retroComp_warning.sh
 ##  sourcing user configuration
 source ${__here}/config.dot.sh  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
-__listing_backend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_BACKEND}-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 mv .tmp.config.out ${__listing_config}
 
@@ -70,12 +69,10 @@ __abs_all="${__abs_all} ${__abs_external}"
 function are_jobs_completed {
     set -e
     typeset job_or_pid_front=$1
-    typeset pid_back=$2
-    typeset headnode_frontend=$3
+    typeset headnode_frontend=$2
 
     typeset __sleep_interval=3
     typeset __front_done=0
-    typeset __back_done=0
     while true; do
         typeset __status=0
 
@@ -84,8 +81,7 @@ function are_jobs_completed {
                 [ $(ps ${job_or_pid_front} | wc -l) -le 1 ] && __status=1
                 __id_type="pid"
             else
-                jobchk -c ${MIDAS_COMPILE_FRONTEND} ${job_or_pid_front} \
-                    || __status=$?
+                echo qstat ${job_or_pid_front} | ssh ${MIDAS_COMPILE_FRONTEND} bash --login 1>/dev/null 2>&1 || __status=$?
                 __id_type="jobid"
             fi
             if [ "${__status}" -ne 0 ]; then
@@ -94,17 +90,7 @@ function are_jobs_completed {
                 __front_done=1
         fi; fi
 
-        if [ "${pid_back}" = -1 ]; then
-                __back_done=1
-        else
-            if [ "${__back_done}" = 0 ]; then
-            if [ "$(ps ${pid_back} | wc -l)" -le 1 ]; then
-                echo "Compilation on ${MIDAS_COMPILE_BACKEND} \
-(pid: ${pid_back}) has finished."
-                __back_done=1
-            fi; fi
-        fi
-        [ "${__front_done}" = 1 -a "${__back_done}" = 1 ] && break
+        [ "${__front_done}" = 1 ] && break
         sleep ${__sleep_interval}
     done
 }
@@ -131,9 +117,6 @@ function printHeader {
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
-    if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
-      echo "| * compilation also done on ${MIDAS_COMPILE_BACKEND} (${MIDAS_COMPILE_BACKEND_ARCH})"
-    fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
@@ -146,7 +129,6 @@ function printHeader {
     fi
     echo "| listings"
     echo "| * ${__listing_frontend}"
-    echo "| * ${__listing_backend}"
     if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
         echo "|   (will be removed if compilation is successful)"
     fi
@@ -222,12 +204,11 @@ if [ -n "${__abs_exist_list}" ]; then
     done
     echo "Checking prior existence of target absolutes"
     for __abs in ${__abs_exist_list}; do
-    for __plat in ${ORDENV_PLAT} ${__plat_super}; do
-        typeset __abs_full=$(abs_path ${__abs} ${__plat})
+        typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
         [ -f  "${__abs_full}" ] && \
         ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
         rm ${__abs_full} )
-    done; done
+    done
     echo
 fi
 
@@ -240,7 +221,6 @@ cat > .compile_job << EOF
 #! /bin/bash
 set -ex
 
-export MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND}
 export MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND}
 export MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME}
 export MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}
@@ -282,27 +262,14 @@ else
 fi
 
 ##=========================================================
-##  Compilation on backend (in the background)
-if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
-    echo "========================================================================"
-    echo "... Launching direct compilation on ${MIDAS_COMPILE_BACKEND}"
-    echo "    > listing_${__listing_backend}"
-    (cat .compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login > \
-        ${__listing_backend} 2>&1) &
-    __pid_backend=$!
-    echo "    ${MIDAS_COMPILE_BACKEND} compilation process id: ${__pid_backend}"
-else
-    __pid_backend=-1
-fi
-##=========================================================
 
 ## waiting for compilation to terminate
 echo
-echo "Compilation underway in working directory: ${__build_dir_version}"
+echo "Compilation underway : ${__job_or_pid_frontend}"
+echo "Working directory : ${__build_dir_version}"
 echo
 
-are_jobs_completed ${__job_or_pid_frontend} ${__pid_backend} \
-    ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
@@ -333,20 +300,9 @@ if [ -n "${__err_front}" ]; then
     echo "<!> some error found in ${__listing_frontend}"
     echo "${__err_front}"
     __err_comp=1
+    exit 1
 fi
 
-if [ "${MIDAS_COMPILE_DO_BACKEND}" = true ]; then
-    typeset __err_back=$(grep -Pn "${__err_regex}" ${__listing_backend})
-    if [ -n  "${__err_back}" ]; then
-        echo
-        echo "<!> some error found in ${__listing_backend}"
-        echo "${__err_back}"
-        __err_comp=1
-    fi
-    if [ "${__err_comp}" = 1 ]; then
-        exit 1
-    fi
-fi
 ##========================================================
 ##  Installing (copying + renaming) target programs
 if [ -n "${__abs_exist_list}" -a  "${__install_always_midas}" = true ]
@@ -356,13 +312,11 @@ then
     echo "Installing target programs"
     typeset __status=0
     typeset __abs_name
-    typeset __plat
     typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir}
     for __abs in ${__abs_exist_list}; do
-    for __plat in ${ORDENV_PLAT} ${__plat_super}; do
-        typeset __abs_installed=$(abs_path ${__abs} ${__plat})
-        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${__plat}/
+        typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
+        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${ORDENV_PLAT}/
         find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \;
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
@@ -371,7 +325,7 @@ then
             echo "  ${__abs_installed} installed" >> .checkAbs
         fi
 
-    done; done
+    done
     [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
     if [ "${__status}" -eq 0 ]; then
@@ -426,7 +380,7 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "MIDAS_COMPILE_KEEP_LISTING=false"
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
-    rm -rf ${__listing_frontend} ${__listing_backend}
+    rm -rf ${__listing_frontend} 
 fi
 
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o

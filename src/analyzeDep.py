@@ -22,9 +22,15 @@ Options:
     -c              direct lookup : show compilation order to build OBJECT
     --path=<str>    explicit path to build directory
 '''
-from docopt import docopt, DocoptExit
-import re
 import sys
+try:
+    from docopt import docopt, DocoptExit
+except ModuleNotFoundError:
+    print('docopt module not available; load it using:')
+    print('. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0')
+    print()
+    sys.exit(1)
+import re
 import os
 from glob import glob
 import subprocess
