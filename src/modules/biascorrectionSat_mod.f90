@@ -87,7 +87,8 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 6
+  integer, parameter    :: NumPredictors = 7
+  integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
 
   real(8), allocatable  :: trialHeight300m1000(:)
@@ -116,7 +117,7 @@ module biasCorrectionSat_mod
   character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(25) ! a "global" parameter and
   integer          :: nbscan(25)  ! the number of scan positions are necessary
-  character(len=2), parameter  :: predTab(0:6) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV"]
+  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
   logical  :: offlineMode   ! flag to select offline mode for bias correction computation
@@ -206,7 +207,7 @@ contains
     logical            :: bcifExists
     ! variables from background coeff file
     integer            :: nfov, exitCode
-    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
+    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictorsBCIF)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
@@ -294,6 +295,8 @@ contains
                 kpred = 5
               case('SV')
                 kpred = 6
+              case('TG')
+                kpred = 7
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1634,14 +1637,14 @@ contains
         predictor(iPredictor) = trialHeight5m50(obsIndex) / 1000.0d0
       else if (iPredictor == 5) then
         ! Height1-Height10 (dam) /1000    T4
-        predictor(iPredictor) = trialHeight1m10(obsIndex) / 1000.0d0
-        !      else if (iPredictor == 6) then
-        !        ! skin temperature (C) /10
-        !        predictor(iPredictor) = trialTG(obsIndex)
+        predictor(iPredictor) = trialHeight1m10(obsIndex) / 1000.0d0        
       else if (iPredictor == 6) then
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
         if (zenithAngle < 75.) predictor(iPredictor) = (1.d0 / cos(zenithAngle * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+      else if (iPredictor == 7) then
+        ! skin temperature (C) /10
+        predictor(iPredictor) = trialTG(obsIndex)
       end if
 
     end do
@@ -3330,7 +3333,7 @@ contains
     integer, intent(out)          :: can(tvs_maxchannelnumber), npred(tvs_maxchannelnumber)
     character(len=3), intent(in)  :: global_opt
     character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber), bctype(tvs_maxchannelnumber)
-    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictors)
+    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictorsBCIF)
 
     ! Locals:
     character(len=7)             :: instrum
@@ -3387,7 +3390,7 @@ contains
     ! For GLOBAL option, read global values from first line (channel 0) and clone to all channels
     if (global_opt == 'OUI' .or. global_opt == 'DEF') then 
       ! Read channel 0 information
-      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictors)
+      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictorsbcif)
       if (ier /= 0) then
         write(*,*) 'read_BCIF: Error reading channel 0 data!'
         exitcode = ier
@@ -3407,7 +3410,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictors
+          do j = 1, numpredictorsbcif
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3424,7 +3427,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictors
+          do j = 1, numpredictorsbcif
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3432,14 +3435,14 @@ contains
         rewind (iun)
         read(iun,*) instrum, ncan
         read(iun,'(A64)') line
-        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
       end if
       ! For global_opt == 'DEF' check for channel-specific information and overwrite the default (channel 0) values
       ! for the channel with the values from the file
       if (global_opt == 'DEF') then
         if (.not. hspec) then
           do
-            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
             if (ier < 0) exit  
             if (ier > 0) then
               write(*,*) 'read_BCIF: Error reading file!'
@@ -3456,19 +3459,19 @@ contains
             bcmode(ii) = xbcmode
             bctype(ii) = xbctype
             npred(ii) = xnpred
-            do j = 1, numpredictors
+            do j = 1, numpredictorsbcif
               pred(ii,j) = xpred(j)
             end do
           end do
         else
           ! For hyperspectral instruments
           do i = 2, ncan + 1
-            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
             if (ier /= 0) cycle  
             bcmode(i) = xbcmode
             bctype(i) = xbctype
             npred(i) = xnpred
-            do j = 1, numpredictors
+            do j = 1, numpredictorsbcif
               pred(i,j) = xpred(j)
             end do
           end do
@@ -3480,7 +3483,7 @@ contains
     if (global_opt == 'NON') then
       ii = 1
       do
-        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictors)
+        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictorsbcif)
         if (ier < 0) exit  
         if (ier > 0) then
           write(*,*) 'read_BCIF: Error reading file!'
@@ -3515,7 +3518,7 @@ contains
       chknp = count(pred(i,:) /= 'XX')
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictors)
+      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
     end do
     write(*,*) 'read_BCIF: exit '
 
