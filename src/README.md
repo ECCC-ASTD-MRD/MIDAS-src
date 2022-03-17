@@ -157,10 +157,8 @@ These former variables have been renamed:
 * `COMPILEDIR_MIDAS_MAIN` is now `MIDAS_COMPILE_DIR_MAIN`
 * `COMPILE_MIDAS_ADD_DEBUG_OPTIONS` is now `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`
 
-If any of those are defined in your profile, you will see a corresponding 
-warning and should change them to respect this new convention in order to
-obtain the expected result.
-
+If any of those are defined in your profile, they won't be taken into account
+and you should remove them.
 
 ## Adding a new program or changing external dependencies
 

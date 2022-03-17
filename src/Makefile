@@ -101,18 +101,6 @@ endif
 ## 	can only be used in target.mk
 ## 	can be initialized from parent shell
 
-
-## env. variable new naming convention + retrocompatibility
-ifdef COMPILEDIR_MIDAS_MAIN
-MIDAS_COMPILE_DIR_MAIN=$(COMPILEDIR_MIDAS_MAIN)
-$(warning COMPILEDIR_MIDAS_MAIN is deprecated, use MIDAS_COMPILE_DIR_MAIN)
-endif 
-ifdef COMPILE_MIDAS_ADD_DEBUG_OPTIONS
-MIDAS_COMPILE_ADD_DEBUG_OPTIONS=$(COMPILE_MIDAS_ADD_DEBUG_OPTIONS)
-$(warning COMPILE_MIDAS_ADD_DEBUG_OPTIONS is deprecated, use MIDAS_COMPILE_ADD_DEBUG_OPTIONS)
-endif 
-
-
 ## extract MIDAS_COMPILE_DIR_MAIN for simple __nopreq_goals target
 ## (those that can be called without sourcing config)
 ## extracting default value for DIR_* environment variables

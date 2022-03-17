@@ -47,10 +47,6 @@ __dateStampBeg=$(date +%s)
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version.sh)
 
-##--------------------------------------------------------
-## env. variable new naming convention + retrocompatibility
-source ${__toplevel}/src/programs/commons/retroComp_warning.sh
-
 ##=========================================================
 ##  sourcing user configuration
 source ${__here}/config.dot.sh  &> .tmp.config.out
