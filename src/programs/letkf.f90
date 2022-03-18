@@ -55,6 +55,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorMemberAnl
   type(struct_gsv)          :: stateVectorMeanAnl
   type(struct_gsv)          :: stateVectorWithZandP4D
+  type(struct_gsv)          :: stateVectorToComputeInnovation
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_gsv)          :: stateVectorCtrlTrl
   type(struct_gsv)          :: stateVectorRecenter
@@ -69,6 +70,7 @@ program midas_letkf
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
+  integer :: nEnsUsed, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
@@ -92,6 +94,7 @@ program midas_letkf
   logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
+  integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck      ! apply additional background check using ensemble spread
   logical  :: huberize             ! apply huber norm quality control procedure
@@ -113,7 +116,8 @@ program midas_letkf
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
-                     obsTimeInterpType, mpiDistribution, etiket_anl
+                     obsTimeInterpType, mpiDistribution, etiket_anl, &
+                     numRetainedEigen
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -167,6 +171,7 @@ program midas_letkf
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
+  numRetainedEigen      = 1
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -189,8 +194,13 @@ program midas_letkf
   end if
 
   if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
-      trim(algorithm) /= 'CVLETKF-PERTOBS') then
+      trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
+      trim(algorithm) /= 'LETKF-ME') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
+  end if
+
+  if ( trim(algorithm) == 'LETKF-ME' .and. numRetainedEigen <= 1 ) then
+    call utl_abort('midas-letkf: numRetainedEigen should be greater than one for LETKF algorithm: ' // trim(algorithm))
   end if
 
   !
@@ -250,7 +260,12 @@ program midas_letkf
   call filt_suprep(obsSpaceData)
 
   ! Allocate vectors for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  if ( trim(algorithm)=='LETKF-ME' ) then
+    nEnsUsed = nEns * numRetainedEigen
+  else
+    nEnsUsed = nEns
+  end if
+  call eob_allocate(ensObs, nEnsUsed, obs_numBody(obsSpaceData), obsSpaceData)
   call eob_zero(ensObs)
 
   ! Set lat, lon, obs values in ensObs
@@ -354,14 +369,28 @@ program midas_letkf
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
     end if
 
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                 timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+    do eigenVectorIndex = 1, numRetainedEigen
+      ! modulate the member with eigenvectors of vertical localization matrix
+      ! Only effective with LETKF-ME algorithm. Otherwise returns
+      ! stateVectorWithZandP4D.
+      call enkf_getModulatedMember( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
+                                    vLocalize, numRetainedEigen, &
+                                    eigenVectorIndex, algorithm, &
+                                    stateVectorToComputeInnovation )
 
-    ! Compute Y-H(X) in OBS_OMP
-    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
+      call s2c_nl( stateVectorToComputeInnovation, obsSpaceData, column, hco_ens, &
+                   timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
-    ! Copy to ensObs: Y-HX for this member
-    call eob_setYb(ensObs, memberIndex)
+      ! Compute Y-H(X) in OBS_OMP
+      call tmg_start(6,'LETKF-obsOperators')
+      call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
+      call tmg_stop(6)
+
+      ! Copy to ensObs: Y-HX for this member
+      memberIndexInEnsObs = (eigenVectorIndex - 1) * numRetainedEigen + memberIndex
+      call eob_setYb(ensObs, memberIndexInEnsObs)
+    end do
+    call gsv_deallocate(stateVectorToComputeInnovation)
 
   end do
 

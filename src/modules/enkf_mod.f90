@@ -46,7 +46,7 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
-  public :: enkf_rejectHighLatIR
+  public :: enkf_rejectHighLatIR, enkf_getModulatedMember
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -1633,5 +1633,103 @@ contains
     end do
 
   end subroutine enkf_rejectHighLatIR
+
+  !--------------------------------------------------------------------------
+  ! enkf_getModulatedMember
+  !--------------------------------------------------------------------------
+  subroutine enkf_getModulatedMember( stateVector_in, stateVectorMeanTrl, &
+                                      vLocalizeLengthScale, numRetainedEigen, &
+                                      eigenVectorIndex, letkfAlgorithm, &
+                                      stateVector_out )
+    !
+    !:Purpose: Compute vertical localization matrix, and the corresponding
+    !          eigenvectors/eigenvalues, and modulated member.
+    !
+    implicit none
+
+    ! Aguments:
+    type(struct_gsv), intent(in) :: stateVector_in
+    type(struct_gsv), intent(in) :: stateVectorMeanTrl
+    real(8), intent(in) :: vLocalizeLengthScale
+    integer, intent(in) :: numRetainedEigen
+    integer, intent(in) :: eigenVectorIndex
+    character(len=20), intent(in) :: letkfAlgorithm
+    type(struct_gsv), intent(out) :: stateVector_out
+
+    ! Locals:
+    real(8)              :: zr, zcorr, pSurfRef
+    real(8)              :: tolerance
+    real(8), pointer     :: pressureProfile(:)
+    real(8), allocatable, save :: eigenValues(:)
+    real(8), allocatable, save :: eigenVectors(:,:)
+    real(8), allocatable, save :: verticalLocalizationMat(:,:)
+
+    integer              :: levIndex1, levIndex2, status
+    integer              :: nLev, matrixRank
+
+    logical, save        :: firstCall = .true.
+
+    if ( firstCall ) then
+      call gsv_allocate( stateVector_out, stateVector_in%numstep, &
+                         stateVector_in%hco, stateVector_in%vco, &
+                         dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=stateVector_in%mpi_local, &
+                         mpi_distribution_opt='Tiles', &
+                         dataKind_opt=stateVector_in%dataKind, &
+                         allocHeightSfc_opt=stateVector_in%heightSfcPresent )
+    end if
+    call gsv_zero(stateVector_out)
+
+    if ( trim(letkfAlgorithm) /= 'LETKF-ME' ) then
+      call gsv_copy(stateVector_in, stateVector_out)
+      return
+    end if
+
+    nLev = stateVector_in%vco%nLev_M
+    if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
+      call utl_abort('enkf_getModulatedMember: no vertical localization')
+    end if
+
+    ! Compute vertical localization matrix and its eigenValues/Vectors on first call
+    if ( firstCall ) then
+      firstCall = .false.
+
+      allocate(eigenValues(nLev))
+      allocate(eigenVectors(nLev,nLev))
+      allocate(verticalLocalizationMat(nLev,nLev))
+
+      pSurfRef = 101000.D0
+      nullify(pressureProfile)
+      status = vgd_levels( stateVector_in%vco%vgrid, &
+                           ip1_list=stateVector_in%vco%ip1_M, &
+                           levels=pressureProfile, &
+                           sfc_field=pSurfRef, &
+                           in_log=.false. )
+      if ( status /= VGD_OK ) then
+        call utl_abort('enkf_getModulatedMember: ERROR from vgd_levels')
+      end if
+
+      ! Calculate 5'th order function
+      do levIndex1 = 1, nLev
+        do levIndex2 = 1, nLev
+          zr = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
+          zcorr = lfn_response(zr,vLocalizeLengthScale)
+          verticalLocalizationMat(levIndex1,levIndex2) = zcorr
+        end do
+      end do
+
+      ! Compute eigenValues/Vectors of vertical localization matrix
+      tolerance = 1.0D-3
+      call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
+                           tolerance, matrixRank)
+      if ( matrixRank < numRetainedEigen ) then
+        write(*,*) 'matrixRank=', matrixRank
+        call utl_abort('enkf_getModulatedMember: verticalLocalizationMat is rank deficient=')
+      end if
+    end if
+
+    call gsv_copy(stateVector_in, stateVector_out)
+
+  end subroutine enkf_getModulatedMember
 
 end module enkf_mod
