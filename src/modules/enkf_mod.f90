@@ -1638,7 +1638,7 @@ contains
   ! enkf_getModulatedMember
   !--------------------------------------------------------------------------
   subroutine enkf_getModulatedMember( stateVector_in, stateVectorMeanTrl, &
-                                      vLocalizeLengthScale, numRetainedEigen, &
+                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
                                       eigenVectorIndex, letkfAlgorithm, &
                                       stateVector_out )
     !
@@ -1652,6 +1652,7 @@ contains
     type(struct_gsv), intent(in) :: stateVectorMeanTrl
     real(8), intent(in) :: vLocalizeLengthScale
     integer, intent(in) :: numRetainedEigen
+    integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorIndex
     character(len=20), intent(in) :: letkfAlgorithm
     type(struct_gsv), intent(out) :: stateVector_out
@@ -1663,11 +1664,20 @@ contains
     real(8), allocatable, save :: eigenValues(:)
     real(8), allocatable, save :: eigenVectors(:,:)
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
+    real(4), pointer :: field_out_r4(:,:,:,:)
 
-    integer              :: levIndex1, levIndex2, status
-    integer              :: nLev, matrixRank
+    integer :: levIndex1, levIndex2, status, nLev, matrixRank
+    integer :: nlev_out, levIndex, latIndex, lonIndex
+    integer :: lon1, lon2, lat1, lat2
+    integer :: varIndex, stepIndex
+
+    character(len=4) :: varName
 
     logical, save        :: firstCall = .true.
+
+    if ( stateVector_in%dataKind /= 4 ) then
+      call utl_abort('enkf_getModulatedMember: only dataKind=4 is implemented')
+    end if
 
     if ( firstCall ) then
       call gsv_allocate( stateVector_out, stateVector_in%numstep, &
@@ -1728,7 +1738,46 @@ contains
       end if
     end if
 
+    ! Compute perturbation by subtracting ensMean
     call gsv_copy(stateVector_in, stateVector_out)
+    call gsv_add(stateVectorMeanTrl, stateVector_out, scaleFactor_opt=-1.0d0)
+
+    lon1 = stateVector_out%myLonBeg
+    lon2 = stateVector_out%myLonEnd
+    lat1 = stateVector_out%myLatBeg
+    lat2 = stateVector_out%myLatEnd
+
+    ! Compute modulated member perturbation from original member perturbation:
+    !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
+    step_loop: do stepIndex = 1, stateVector_out%numStep
+      var_loop: do varIndex = 1, vnl_numvarmax
+        varName = vnl_varNameList(varIndex)
+        if ( .not. gsv_varExist(stateVector_out,varName) ) cycle var_loop
+
+        nlev_out  = stateVector_out%varNumLev(varIndex)
+
+        call gsv_getField(statevector_out,field_out_r4,varName)
+
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do levIndex = 1, nlev_out
+              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+                                 eigenVectors(levIndex,eigenVectorIndex) * &
+                                 eigenValues(eigenVectorIndex) ** 0.5 * &
+                                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+
+      end do var_loop
+    end do step_loop
+
+    ! Now add to ensMean to get modulated member
+    ! v_k = v'_k + v_mean
+    call gsv_add(stateVectorMeanTrl, stateVector_out)
 
   end subroutine enkf_getModulatedMember
 

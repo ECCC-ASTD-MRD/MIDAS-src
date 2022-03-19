@@ -371,10 +371,10 @@ program midas_letkf
 
     do eigenVectorIndex = 1, numRetainedEigen
       ! modulate the member with eigenvectors of vertical localization matrix
-      ! Only effective with LETKF-ME algorithm. Otherwise returns
+      ! Only effective with LETKF-ME algorithm. Otherwise returns with
       ! stateVectorWithZandP4D.
       call enkf_getModulatedMember( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
-                                    vLocalize, numRetainedEigen, &
+                                    vLocalize, numRetainedEigen, nEns, &
                                     eigenVectorIndex, algorithm, &
                                     stateVectorToComputeInnovation )
 
