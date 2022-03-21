@@ -622,7 +622,7 @@ module gridStateVectorFileIO_mod
       if ( readHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector) ) then
         write(*,*) 'gio_readFile: reading the surface height'
         varName = 'GZ'
-        ip1 = gsv_getVco(statevector)%ip1_sfc
+        ip1 = statevector%vco%ip1_sfc
         typvar_var = typvar_in
         ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
                       -1, etiket_in, &
@@ -642,9 +642,9 @@ module gridStateVectorFileIO_mod
           end if
         end if
 
-        if ( ni_file /= gsv_getHco(statevector)%ni .or. nj_file /= gsv_getHco(statevector)%nj ) then
+        if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
-          write(*,*) 'ni, nj in statevector = ', gsv_getHco(statevector)%ni, gsv_getHco(statevector)%nj
+          write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
           call utl_abort('gio_readFile: Dimensions of surface height not consistent')
         end if
 
@@ -668,7 +668,7 @@ module gridStateVectorFileIO_mod
     nullify(hco_file)
     nullify(gd2d_file_r4)
     if ( statevector%mykCount > 0 ) then
-      if (gsv_getHco(statevector)%global) then
+      if (statevector%hco%global) then
 
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
@@ -708,19 +708,19 @@ module gridStateVectorFileIO_mod
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
-        hco_file => gsv_getHco(statevector)
+        hco_file => statevector%hco
 
         ! Also attempt to set up the physics grid
         if (interpToPhysicsGrid) then
           var_loop: do varIndex = 1, vnl_numvarmax
             varName = vnl_varNameList(varIndex)
-            hco_physics => gsv_getHco_physics(statevector)
             if ( .not. gsv_varExist(statevector,varName)) cycle var_loop
             if ( .not. vnl_isPhysicsVar(varName) ) cycle var_loop
             if ( utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
-               .not. associated(hco_physics) ) then
+               .not. associated(statevector%hco_physics) ) then
               write(*,*) 'gio_readFile: set up physics grid using the variable:', varName
-              call hco_SetupFromFile(hco_physics, filename, ' ', 'INPUTFILE', varName_opt=varName)
+              call hco_SetupFromFile(statevector%hco_physics, filename, ' ', &
+                                     'INPUTFILE', varName_opt=varName)
               exit var_loop
             end if
           end do var_loop
@@ -826,10 +826,9 @@ module gridStateVectorFileIO_mod
           write(*,*) 'gio_readFile: variable on a different horizontal grid = ',trim(varNameToRead)
           write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
           if ( interpToPhysicsGrid ) then
-            hco_physics => gsv_getHco_physics(statevector)
-            if ( associated(hco_physics) ) then
-              if ( ni_var == hco_physics%ni .and. &
-                   nj_var == hco_physics%nj ) then
+            if ( associated(statevector%hco_physics) ) then
+              if ( ni_var == statevector%hco_physics%ni .and. &
+                   nj_var == statevector%hco_physics%nj ) then
                 write(*,*) 'gio_readFile: this variable on same grid as other physics variables'
                 statevector%onPhysicsGrid(vnl_varListIndex(varName)) = .true.
               else
@@ -840,7 +839,7 @@ module gridStateVectorFileIO_mod
             end if
           end if
 
-          if (gsv_getHco(statevector)%global) then
+          if (statevector%hco%global) then
             call utl_abort('gio_readFile: This is not allowed in global mode!')
           end if
 
@@ -866,15 +865,15 @@ module gridStateVectorFileIO_mod
         end if
 
         if (varNameToRead == varName .or. .not. containsFullField) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)
+          field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
         else
           select case (trim(varName))
           case ('LVIS')
             field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(max(min(gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj),mpc_maximum_vis_r4),mpc_minimum_vis_r4))
+                 log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),mpc_maximum_vis_r4),mpc_minimum_vis_r4))
           case ('LPR')
             field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(mpc_minimum_pr_r4 + max(0.0,gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)))
+                 log(mpc_minimum_pr_r4 + max(0.0,gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)))
           case default
             call utl_abort('gio_readFile: Oups! This should not happen... Check the code.')
           end select
@@ -909,7 +908,7 @@ module gridStateVectorFileIO_mod
       end do k_loop
     end do
 
-    if (gsv_getHco(statevector)%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
+    if (statevector%hco%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
     if (allocated(mask)) deallocate(mask)
 
     ierr = fstfrm(nulfile)
