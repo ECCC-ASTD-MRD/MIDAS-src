@@ -254,7 +254,7 @@ then
 else
     ## use ord_soumet
     __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
-        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 5 \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock} \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
 fi
 

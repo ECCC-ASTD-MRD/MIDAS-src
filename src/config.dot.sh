@@ -43,6 +43,7 @@ __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
 __keep_jobsubmit_ofile=false
+__ordsoumet_wallclock=${__ordsoumet_wallclock:-5}
 
 ##  linking the build directory where it used to be
 ([ -d  ${__compiledir_link} ]||[ -L ${__compiledir_link} ]) \
