@@ -4,9 +4,6 @@ set -e
 
 __toplevel=$(git rev-parse --show-toplevel)
 
-## env. variable new naming convention + retrocompatibility
-source ${__toplevel}/src/programs/commons/retroComp_warning.sh
-
 MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 
 # set the resources.def file, which depends on the TRUE_HOST name

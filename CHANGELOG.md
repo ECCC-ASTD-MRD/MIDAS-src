@@ -140,7 +140,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * removes of `compile_*.sh`, associated files and old env. variable retrocompatibility (#612 and !569)
 
 ## [3.7.0-rc1]
 

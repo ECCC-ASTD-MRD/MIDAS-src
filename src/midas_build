@@ -47,13 +47,10 @@ __dateStampBeg=$(date +%s)
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version.sh)
 
-##--------------------------------------------------------
-## env. variable new naming convention + retrocompatibility
-source ${__toplevel}/src/programs/commons/retroComp_warning.sh
-
 ##=========================================================
 ##  sourcing user configuration
-source ${__here}/config.dot.sh  &> .tmp.config.out
+__midas_dot_cfg=${__here}/config.dot.sh
+source ${__midas_dot_cfg}  &> .tmp.config.out
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 mv .tmp.config.out ${__listing_config}
@@ -257,7 +254,7 @@ then
 else
     ## use ord_soumet
     __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
-        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 5 \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock} \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
 fi
 
