@@ -533,7 +533,7 @@ module gridStateVectorFileIO_mod
 
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex, ikey, levIndex
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
-    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
+    integer :: fnom, fstouv, fclos, nulnam, fstfrm, fstlir, fstinf
     integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
 
     integer :: dateo_var, deet_var, npas_var, nbits_var, datyp_var
@@ -557,7 +557,18 @@ module gridStateVectorFileIO_mod
 
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
-    logical :: foundVarNameInFile, ignoreDate
+    logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
+    NAMELIST /NAMSTIO/interpToPhysicsGrid
+
+    ! Read namelist NAMSTIO
+    interpToPhysicsGrid = .false.
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namstio,iostat=ierr)
+    if (ierr.ne.0) call utl_abort('gio_readfile: Error reading namelist')
+    if (mpi_myid.eq.0) write(*,nml=namstio)
+    ierr=fclos(nulnam)
 
     vco_file => gsv_getVco(statevector)
 
@@ -700,7 +711,7 @@ module gridStateVectorFileIO_mod
         hco_file => gsv_getHco(statevector)
 
         ! Also attempt to set up the physics grid
-        if (gsv_interpToPhysicsGrid) then
+        if (interpToPhysicsGrid) then
           var_loop: do varIndex = 1, vnl_numvarmax
             varName = vnl_varNameList(varIndex)
             hco_physics => gsv_getHco_physics(statevector)
@@ -814,8 +825,8 @@ module gridStateVectorFileIO_mod
           write(*,*)
           write(*,*) 'gio_readFile: variable on a different horizontal grid = ',trim(varNameToRead)
           write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
-          if ( gsv_interpToPhysicsGrid ) then
-            hco_physics = gsv_getHco_physics(statevector)
+          if ( interpToPhysicsGrid ) then
+            hco_physics => gsv_getHco_physics(statevector)
             if ( associated(hco_physics) ) then
               if ( ni_var == hco_physics%ni .and. &
                    nj_var == hco_physics%nj ) then

@@ -145,7 +145,7 @@ module gridStateVector_mod
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
   logical :: vInterpCopyLowestLevel
-  logical, public :: gsv_interpToPhysicsGrid
+  logical :: interpToPhysicsGrid
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -418,7 +418,8 @@ module gridStateVector_mod
     character(len=4) :: anlvar(vnl_numVarMax)
     logical :: interpToPhysicsGrid, conversionVarKindCHtoMicrograms
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc, interpToPhysicsGrid
+                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
+    NAMELIST /NAMSTIO/interpToPhysicsGrid
 
     if (initialized) return
 
@@ -443,12 +444,17 @@ module gridStateVector_mod
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist')
+    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mpi_myid.eq.0) write(*,nml=namstate)
     ierr=fclos(nulnam)
 
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namstio,iostat=ierr)
+    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTIO')
+    if (mpi_myid.eq.0) write(*,nml=namstio)
+    ierr=fclos(nulnam)
+
     gsv_rhumin = rhumin
-    gsv_interpToPhysicsGrid = interpToPhysicsGrid
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
 
     if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
@@ -5129,7 +5135,7 @@ module gridStateVector_mod
             end if
 
             !- Do interpolation back to physics grid, if needed
-            if ( gsv_interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex) ) then
+            if ( interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex) ) then
               write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
                          nomvar, associated(statevector%hco_physics)
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
@@ -5201,7 +5207,6 @@ module gridStateVector_mod
     implicit none
 
     type(struct_gsv)    :: statevector
-    type(struct_hco), pointer    :: hco_physics
     integer, intent(in) :: iun
     character(len=*), intent(in) :: etiket
 
@@ -5252,33 +5257,28 @@ module gridStateVector_mod
       ! Also write the tic tac for the physics grid
       if ( any(statevector%onPhysicsGrid(:)) ) then
 
-        hco_physics => statevector%hco_physics 
-        if (.not. associated(hco_physics)) then
-          write(*,*) 'DEBUG mad001', statevector%onPhysicsGrid(:)
-          call utl_abort('writeTicTacToc: hco_physics not associated')
-        end if
-        ip1      =  hco_physics%ig1
-        ip2      =  hco_physics%ig2
-        ip3      =  hco_physics%ig3
-        grtyp    =  hco_physics%grtypTicTac
+        ip1      =  statevector%hco_physics%ig1
+        ip2      =  statevector%hco_physics%ig2
+        ip3      =  statevector%hco_physics%ig3
+        grtyp    =  statevector%hco_physics%grtypTicTac
         
         call cxgaig ( grtyp,                                          & ! IN
                       ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                      real(hco_physics%xlat1), real(hco_physics%xlon1),   & ! IN
-                      real(hco_physics%xlat2), real(hco_physics%xlon2)  )   ! IN
+                      real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1),   & ! IN
+                      real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2)  )   ! IN
 
         ig1      =  ig1_tictac
         ig2      =  ig2_tictac
         ig3      =  ig3_tictac
         ig4      =  ig4_tictac
 
-        ier = utl_fstecr(hco_physics%lon*mpc_degrees_per_radian_r8, npak, &
-                         iun, dateo, deet, npas, hco_physics%ni, 1, 1, ip1,    &
+        ier = utl_fstecr(statevector%hco_physics%lon*mpc_degrees_per_radian_r8, npak, &
+                         iun, dateo, deet, npas, statevector%hco_physics%ni, 1, 1, ip1,    &
                          ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
                          ig2, ig3, ig4, datyp, .true.)
 
-        ier = utl_fstecr(hco_physics%lat*mpc_degrees_per_radian_r8, npak, &
-                         iun, dateo, deet, npas, 1, hco_physics%nj, 1, ip1,    &
+        ier = utl_fstecr(statevector%hco_physics%lat*mpc_degrees_per_radian_r8, npak, &
+                         iun, dateo, deet, npas, 1, statevector%hco_physics%nj, 1, ip1,    &
                          ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                          ig2, ig3, ig4, datyp, .true.)
       end if
