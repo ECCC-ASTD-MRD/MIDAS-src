@@ -86,11 +86,6 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="aladin_assim"/>
-      <FAMILY  name="aladin_assim">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
       <SUBMITS sub_name="splitobs_xc40"/>
       <FAMILY  name="splitobs_xc40">
         <SUBMITS sub_name="UnitTest"/>

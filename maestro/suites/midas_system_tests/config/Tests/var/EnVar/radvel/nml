@@ -147,10 +147,10 @@
   NEW_BGCK_SW=.true.
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=2,
+  BN_ITEMS=3,
   BITEMLIST(1)='OMP',
   BITEMLIST(2)='OER',
-  BITEMLIST(3)='FGE',
+  BITEMLIST(3)='ALT',
   TYPE_RESUME='BGCKALT'
 /
  &NAMSQLsfc
@@ -169,5 +169,5 @@
  numberUpdateItems=3
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
- itemUpdateList(3)='FGE'
+ itemUpdateList(3)='ALT'
 /
