@@ -118,7 +118,6 @@ if [ "${MEMBER_MISSING}" -gt 0 ]; then
     else
         ${nodelogger} -n ${SEQ_NODE} -s info -m "Trop de membres sont absents alors nous tournerons sans les ensemble (3D-Var)"
         ## On enleve la partie '&NAMBEN ... /' dans le namelist pour tourner sans ceux-ci.
-        ## cat ${namelist} | python -c "import re, sys; match=re.match('(.*)^ *?\&NAMBEN.*?^ *?/(.*)', sys.stdin.read(), re.DOTALL | re.MULTILINE); print match.group(1),match.group(2)," > flnml || true
         cat > convert_to_3DVar.py <<EOF
 import re
 import sys
