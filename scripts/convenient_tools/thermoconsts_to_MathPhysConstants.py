@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """This utility is NOT part of the MathPhysConstants source code.  It is merely
 a convenient tool for producing the file, MathPhysConstants_mod.ftn90, which is part of the
