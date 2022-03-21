@@ -46,6 +46,7 @@ CHANNEL_QUALITY_FLAG               QCFL                   33032/33081        Fla
 
 -----MIDAS_HEADER TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------
 MIDAS_HEADER_OUTPUT                [midasHeadTableName]   (-)                (-)              Radiance Background Check Table
+ID_MIDAS_HEADER                    [midasHeadPrimaryKey]  (-)                (-)              Unique row ID for MIDAS header table
 MEDIAN_CO2_SLICING_CLD_TOP_PRES    ETOP                   (-)                (-)              Median CO2 Slicing Cloud Top Pressure 
 STD_CO2_SLICING_CLD_TOP_PRES       VTOP                   (-)                (-)              Standard Deviation CO2 Slicing Cloud Top Pressure 
 MEDIAN_CO2_SLICING_CLD_FRAC        ECF                    (-)                (-)              Median C02 Slicing Cloud Fraction
@@ -62,7 +63,7 @@ SURFACE_TYPE                       STYP                   (-)                (-)
 
 -----MIDAS_BODY TABLE INFO BEGINS---------------------------------------------------------------------------------------------------------------------
 MIDAS_BODY_OUTPUT                  [midasBodyTableName]   (-)                (-)              MIDAS table name
-ID_MIDAS                           [midasBodyPrimaryKey]  (-)                (-)              Unique row ID for MIDAS table
+ID_MIDAS_BODY                      [midasBodyPrimaryKey]  (-)                (-)              Unique row ID for MIDAS body table
 VCOORD                             PPP*                   (-)                (-)              Vertical coordinate parameter
 VARNO                              VNM*                   (-)                (-)              Variable Number
 OBS_VALUE                          VAR*                   (-)                (-)              Observation Value
