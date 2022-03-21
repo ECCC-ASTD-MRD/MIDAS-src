@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # =================================================================
 #
 # Terms and Conditions of Use
@@ -53,7 +53,7 @@
 ###    ./gitlab-list-branches.py atmospheric-observations-quality-control/bgck.thinning1_radiosondes
 
 import json
-from urllib2 import urlopen
+from urllib.request import urlopen
 import sys
 import os
 import re
@@ -86,8 +86,8 @@ else:
     sys.stderr.write("The gitlab project URL must start with 'http://', 'https://' or 'git@'\n")
     sys.exit(1)
 
-#print 'GITLAB_API=%s' % GITLAB_API
-#print 'PROJECT_PATH=%s' % PROJECT_PATH
+#print('GITLAB_API=%s' % GITLAB_API)
+#print('PROJECT_PATH=%s' % PROJECT_PATH)
 
 ## This is the list of all issue and merge request that should have been mentionned in the CHANGELOG
 ##    See https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/204
@@ -119,15 +119,16 @@ all_mr_json=[]
 number=1
 while True:
     url='%s/projects/%s/merge_requests?private_token=%s&page=%d' % (GITLAB_API,PROJECT_ID,PRIVATE_TOKEN,number)
-    print url
+    print(url)
     content = urlopen(url).read()
-    if content != '[]':
-        all_mr_json.extend(json.loads(content))
+    jsoncontent = json.loads(content)
+    if len(jsoncontent)>0:
+        all_mr_json.extend(jsoncontent)
     else:
         break
     number+=1
 
-print len(all_mr_json)
+print(len(all_mr_json))
 
 output = open("descriptions","w")
 for mr_json in all_mr_json:
@@ -137,10 +138,10 @@ for mr_json in all_mr_json:
         if mr_id == mr:
             output.write("###########################################\n")
             output.write("(#%d and !%d)\n\n" % (issue_mr[0], issue_mr[1]))
-            output.write(mr_json['title'].encode('utf-8'))
+            output.write(mr_json['title'])
             output.write("\n\n")
             output.write(mr_json['description'])
             output.write("\n###########################################\n")
             output.write("\n\n")
-    #print issue_json['title'], issue_json['iid'], issue_json['id']
+    #print(issue_json['title'], issue_json['iid'], issue_json['id'])
 output.close()
