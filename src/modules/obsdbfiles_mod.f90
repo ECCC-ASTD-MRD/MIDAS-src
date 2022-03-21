@@ -197,8 +197,7 @@ contains
           bodyTableRow = bodyTableRow + 1
           if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
             ! Count obsSpaceData body columns
-            numBodyMatch = numBodyMatch + 1
-          
+            numBodyMatch = numBodyMatch + 1 
             if (index(trim(readline),'VAR') /= 0) then
               ! Count VarNo columns
               numVarNo = numVarNo + 1
@@ -220,32 +219,25 @@ contains
         end do
 
       else if (index(trim(readline),'MIDAS_BODY TABLE INFO BEGINS') > 0) then
-         write(*,*) 'ierr', ierr
         ! Found the start of the MIDAS_BODY table
         do while (ierr == 0)
           read(nulfile,'(A)' ,iostat = ierr) readline
-          write(*,*) 'ierr', ierr
           ! Stop search at the end of MIDAS_BODY table
           if (index(trim(readline),'MIDAS_BODY TABLE INFO ENDS') > 0) exit
-          write(*,*) 'ierr', ierr
           midasBodyTableRow = midasBodyTableRow + 1
           ! Count obsSpaceData MIDAS_BODY columns
-          write(*,*) 'ierr', ierr
           if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
-            write(*,*) 'ierr', ierr
             numMidasBodyMatch = numMidasBodyMatch + 1
           end if
         end do
-
       end if
     end do
 
-    write(*,*) 'odbf_setup: Number of header columns in ObsDBColumnTable', headerTableRow
-    write(*,*) 'odbf_setup: Number of body columns in ObsDBColumnTable', bodyTableRow
-    write(*,*) 'odbf_setup: Number of misda header columns in ObsDBColumnTable', midasHeadTableRow
+    write(*,*) 'odbf_setup: Number of obs header columns in ObsDBColumnTable', headerTableRow
+    write(*,*) 'odbf_setup: Number of obs body columns in ObsDBColumnTable', bodyTableRow
+    write(*,*) 'odbf_setup: Number of midas header columns in ObsDBColumnTable', midasHeadTableRow
     write(*,*) 'odbf_setup: Number of midas body columns in ObsDBColumnTable', midasBodyTableRow
     
-
     write(*,*) 'odbf_setup: numHeadMatch', numHeadMatch
     write(*,*) 'odbf_setup: numBodyMatch', numBodyMatch
     write(*,*) 'odbf_setup: numMidasHeadMatch',numMidasHeadMatch
@@ -267,7 +259,7 @@ contains
       read(nulfile, '(A)' ,iostat = ierr) readline
 
       if (index(trim(readline),'OBS_HEADER TABLE INFO BEGINS') > 0) then
-        ! Found the start of HEADER table in the file  
+        ! Found the start of Obs Header table in the file  
         countMatchRow = 0
         do countRow = 1, headerTableRow
           ! Read all header table rows
@@ -295,7 +287,7 @@ contains
         end do
 
       else if (index(trim(readline),'OBS_BODY TABLE INFO BEGINS') > 0) then
-        ! Found the start of BODY table in the file  
+        ! Found the start of Obs BODY table in the file  
         countMatchRow = 0
         countVarRow = 0 
         do countRow = 1, bodyTableRow
@@ -327,7 +319,7 @@ contains
         end do
 
       else if (index(trim(readline),'MIDAS_HEADER TABLE INFO BEGINS') > 0) then
-
+        ! Found the start of MIDAS Header table in the file
         countMatchRow = 0
         do countRow = 1, midasHeadTableRow
           !Read all body table rows
@@ -344,7 +336,7 @@ contains
         end do
 
       else if (index(trim(readline),'MIDAS_BODY TABLE INFO BEGINS') > 0) then
-
+        ! Found the start of MIDAS Body table in the file
         numBodyMidasTableRequired = 0
         countMatchRow = 0
         do countRow = 1, midasBodyTableRow
@@ -849,7 +841,7 @@ contains
 
     integer              :: columnIndex, obsColumnIndex
     character(len=5000)  :: tableInsertColumnList
-    character(len=6), parameter     :: midasTableType='body' !Define the type of MIDAS table: header/body
+    character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
     
 
     ! namelist variables
@@ -988,6 +980,7 @@ contains
 
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_updateMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort('odbf_updateMidasBodyTable: fSQL_open '//fSQL_errmsg(stat) )
     end if
 
@@ -1078,7 +1071,7 @@ contains
     call fSQL_close( db, stat ) 
 
     write(*,*)
-    write(*,*) 'odbf_updateFile: finished'
+    write(*,*) 'odbf_updateMidasBodyTable: finished'
     write(*,*)
 
     call tmg_stop(97)
@@ -2106,7 +2099,6 @@ contains
     integer, optional, intent(in)            :: numMidasTableRequired_opt
     character(len=*), intent(in)             :: headKeySqlName, bodyKeySqlName
 
-
     ! locals:
     type(fSQL_STATUS)                :: stat ! sqlite error status
     type(fSQL_DATABASE)              :: db   ! sqlite file handle
@@ -2130,15 +2122,16 @@ contains
 
     if ( .not. all(midasColumnExists(:)) ) then
 
+      write(*,*) 'odbf_addColumnsMidasTable: Additional MIDAS ' // trim(midasTableType) // ' columns will be created'
+
       ! open the obsDB file
       call fSQL_open( db, trim(fileName), stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateFile: fSQL_open: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateFile: fSQL_open' )
+        write(*,*) 'odbf_addColumnsMidasTable: fSQL_open: ', fSQL_errmsg(stat)
+        call utl_abort( 'odbf_addColumnsMidasTable: fSQL_open' )
       end if
 
       ! Create Temporary table
-      ! Create MIDAS header table
       if ( midasTableType == 'header' ) then
         query = 'create table ' // trim(midasHeadTableName) // '_tmp' // ' (' // new_line('A') // &
                   '  ' // trim(headKeySqlName) // ' integer,' // new_line('A')
@@ -2173,7 +2166,6 @@ contains
         end do
       end if
 
-
       ! Add columns to the temporary table
       do updateItemIndex = 1, numberUpdateItems
       
@@ -2198,7 +2190,6 @@ contains
             
           if (updateItemIndex < numberUpdateItems) query = trim(query) // ', '
           query = trim(query) // new_line('A')
-
         end if
       end do
 
@@ -2256,7 +2247,6 @@ contains
               trim(midasTableName) // &
               '(' // trim(bodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
       end if
-      
       
       write(*,*) 'odbf_addColumnsMidasTable: query --->', trim(query)
       call fSQL_do_many( db, query, stat )
@@ -2402,12 +2392,9 @@ contains
 
       ! close the obsDB file
       call fSQL_close( db, stat ) 
-
     else
-
       write(*,*) 'odbf_updateMidasHeaderTable: the midas header output table already exists, ' // &
                  'will just update its values'
-
     end if ! .not.midasTableExists
 
     ! Add additional columns to the MIDAS Header table if requested from namObsDbMIDASBodyUpdate
@@ -2479,7 +2466,6 @@ contains
       call fSQL_finalize( stmt )
       call fSQL_commit( db )
       
-
     end do
 
   ! close the obsDB file
@@ -2504,7 +2490,7 @@ contains
     character(len=*),  intent(in)    :: fileName, familyType
     integer,           intent(in)    :: fileIndex
 
-    ! Check if the Midas Header Table needs to be updated,specified from namelist
+    ! Check if the Midas Header Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
       if ( mpi_myid == 0 ) then
         write(*,*) 'odbf_updateFile: namObsDbMIDASHeaderUpdate is missing in the namelist.'
@@ -2520,131 +2506,4 @@ contains
 
   end subroutine odbf_updateFile
 
-  subroutine odbf_addCloudAndBackgroundValues(obsdat, fileNumber, fileName)
-    !
-    ! :Purpose: To insert cloud parameters in obsspace data into odb file
-    !
-    implicit none
-
-    ! arguments
-    type (struct_obs), intent(inout) :: obsdat
-    character(len=*),  intent(in) :: fileName
-    integer,           intent(in) :: fileNumber
-
-    ! locals
-    character(len=*), parameter :: myName  = 'odbf_addCloudAndBackgroundValues'
-    character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
-  
-    type(fSQL_DATABASE)    :: db   ! SQLite file handle
-
-    !
-    type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat !type for error status
-
-    character(len = 500)   :: query
-    integer                :: numberInsert, headerIndex, obsIdo, obsIdf
-    integer                :: NCO2
-    real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
-    integer                :: columnIndex, obsColumnIndex
-    character(len=20)      :: sqlDataType
-
-    call fSQL_open( db, fileName, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_open: ', fSQL_errmsg(stat )
-      write(*,*) myError, fSQL_errmsg(stat )
-    end if
-    
-
-    ! Append query to create table
-    query = 'create table if not exists ' // trim(midasHeadTableName) // ' (' // new_line('A') // &
-            '  ' // trim(headKeySqlName) // ' integer,' // new_line('A')  
-    
-    do columnIndex = 1, numMidasHeadMatch
-      obsColumnIndex = obs_columnIndexFromName(trim(midasHeadNamesList(2,columnIndex)))
-      if (obs_columnDataType(obsColumnIndex) == 'real') then
-        sqlDataType = 'double'
-      else
-        sqlDataType = 'integer'
-      end if
-      query = trim(query) // '  ' // trim(midasHeadNamesList(1,columnIndex)) // &
-              ' ' // trim(sqlDataType)
-      if (columnIndex < numMidasHeadMatch) query = trim(query) // ', '
-      query = trim(query) // new_line('A')
-    end do
-    query = trim(query) // ');'
-
-    write(*,*) myName//': create query = ', trim(query)
-    
-    call fSQL_do_many( db, query, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
-    end if
- 
-    ! Append query to insert data into table
-    query = 'insert into ' // trim(midasHeadTableName) // ' (' // new_line('A') // &
-            '  ' // trim(headKeySqlName) // ', ' //new_line('A')
-
-    do columnIndex = 1, numMidasHeadMatch
-      query = trim(query) // '  ' // trim(midasHeadNamesList(1,columnIndex))
-      if (columnIndex < numMidasHeadMatch) query = trim(query) // ', '
-      query = trim(query) // new_line('A')
-    end do
-    query = trim(query) // ') '
-    query = trim(query) // 'values(?,?,?,?,?,?,?,?,?,?,?,?);'
-    
-    write(*,*) ' Insert query = ', trim(query)
-
-    call fSQL_prepare( db, query, stmt, stat )
-    
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_addCloudAndBackgroundValues: Problem with fSQL_prepare')
-    end if
-
-    call fSQL_begin(db)
-    numberInsert=0
-    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
-      obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-      if ( obsIdf /= fileNumber ) cycle HEADER
-      obsIdo   = obs_headPrimaryKey(obsdat, headerIndex)
-      ETOP = obs_headElem_r(obsdat, OBS_ETOP, headerIndex )
-      VTOP = obs_headElem_r(obsdat, OBS_VTOP, headerIndex )
-      ECF  = obs_headElem_r(obsdat, OBS_ECF,  headerIndex )
-      VCF  = obs_headElem_r(obsdat, OBS_VCF,  headerIndex )
-      HE   = obs_headElem_r(obsdat, OBS_HE,   headerIndex )
-      ZTSR = obs_headElem_r(obsdat, OBS_ZTSR, headerIndex )
-      NCO2 = obs_headElem_i(obsdat, OBS_NCO2, headerIndex )
-      ZTM  = obs_headElem_r(obsdat, OBS_ZTM,  headerIndex )
-      ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex )
-      ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
-      ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
-
-      call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = ECF    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = VCF    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = HE     )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = ZTSR   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 8, INT_VAR  = NCO2   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = ZTM    )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
-
-      call fSQL_exec_stmt ( stmt )
-      numberInsert=numberInsert +1
-    end do HEADER
-
-    call fSQL_finalize( stmt )
-    call fSQL_commit(db)
-    write(*,'(a,i8)') myName//': NUMBER OF INSERTIONS ----> ', numberInsert
-    
-    call fSQL_close( db, stat )
-    
-
-
-
-  end subroutine
-  
 end module obsdbFiles_mod
