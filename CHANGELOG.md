@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Convert all scripts to Python 3 (#614 and!)
+    * upgrade to `maestro/1.8.2`
 
 ### Fixed
 
