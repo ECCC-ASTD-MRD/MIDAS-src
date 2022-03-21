@@ -145,9 +145,9 @@ regex5=re.compile('^ *NSIMMAX *= *([0-9]*) *, *$', re.MULTILINE)
 nsimmax=regex5.search(result)
 result=regex5.sub('   NSIMMAX = %d,' % (2*int(nsimmax.group(1))), result, 1)
 
-print result,
+print(result, end='')
 EOF
-        cat ${namelist} | python convert_to_3DVar.py > flnml || true
+        cat ${namelist} | python3 convert_to_3DVar.py > flnml || true
         if [ ! -s flnml ]; then
             rm -f flnml
         fi
