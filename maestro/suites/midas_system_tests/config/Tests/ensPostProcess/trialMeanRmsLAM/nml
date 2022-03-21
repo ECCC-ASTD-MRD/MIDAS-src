@@ -16,7 +16,6 @@
    forceSfcOnly(3) = 'TD'
 /
  &NAMSTATE
-   interpToPhysicsGrid = .true.
    ANLVAR(1)    ='UU'
    ANLVAR(2)    ='VV'
    ANLVAR(3)    ='TT'
@@ -42,4 +41,7 @@
    ANLVAR(23)   ='ES'
    ANLVAR(24)   ='HR'
    ANLVAR(25)   ='TD'
+/
+ &NAMSTIO
+   interpToPhysicsGrid = .true.
 /

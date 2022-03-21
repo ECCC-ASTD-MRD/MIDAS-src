@@ -560,15 +560,22 @@ module gridStateVectorFileIO_mod
     logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
 
-    ! Read namelist NAMSTIO
     interpToPhysicsGrid = .false.
+    if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'gio_readFile: namstio is missing in the namelist.'
+        write(*,*) '                     The default values will be taken.'
+      end if
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namstio,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gio_readfile: Error reading namelist')
-    if (mpi_myid.eq.0) write(*,nml=namstio)
-    ierr=fclos(nulnam)
+    else
+      ! Read namelist NAMSTIO
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namstio,iostat=ierr)
+      if (ierr.ne.0) call utl_abort('gio_readfile: Error reading namelist')
+      if (mpi_myid.eq.0) write(*,nml=namstio)
+      ierr=fclos(nulnam)
+    end if
 
     vco_file => gsv_getVco(statevector)
 

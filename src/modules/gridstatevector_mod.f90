@@ -439,7 +439,6 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
     vInterpCopyLowestLevel = .false.
-    interpToPhysicsGrid = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -448,11 +447,21 @@ module gridStateVector_mod
     if (mpi_myid.eq.0) write(*,nml=namstate)
     ierr=fclos(nulnam)
 
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namstio,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTIO')
-    if (mpi_myid.eq.0) write(*,nml=namstio)
-    ierr=fclos(nulnam)
+    interpToPhysicsGrid = .false.
+    if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'gsv_setup: namstio is missing in the namelist.'
+        write(*,*) '                     The default values will be taken.'
+      end if
+
+    else
+      ! Read namelist NAMSTIO
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namstio,iostat=ierr)
+      if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTIO')
+      if (mpi_myid.eq.0) write(*,nml=namstio)
+      ierr=fclos(nulnam)
+    end if
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
