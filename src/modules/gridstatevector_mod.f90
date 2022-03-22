@@ -416,7 +416,7 @@ module gridStateVector_mod
     integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
     real(8) :: minClwAtSfc
     character(len=4) :: anlvar(vnl_numVarMax)
-    logical :: interpToPhysicsGrid, conversionVarKindCHtoMicrograms
+    logical :: conversionVarKindCHtoMicrograms
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
     NAMELIST /NAMSTIO/interpToPhysicsGrid
