@@ -61,7 +61,8 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorRecenter
   type(struct_columnData)   :: column
 
-  type(struct_eob) :: ensObs, ensObs_mpiglobal
+  type(struct_eob), target  :: ensObs, ensObs_mpiglobal
+  type(struct_eob)          :: ensObsGain, ensObsGain_mpiglobal
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
@@ -70,7 +71,7 @@ program midas_letkf
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
-  integer :: nEnsUsed, eigenVectorIndex, memberIndexInEnsObs
+  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
@@ -260,16 +261,19 @@ program midas_letkf
   call filt_suprep(obsSpaceData)
 
   ! Allocate vectors for storing HX values
-  if ( trim(algorithm)=='LETKF-ME' ) then
-    nEnsUsed = nEns * numRetainedEigen
-  else
-    nEnsUsed = nEns
-  end if
-  call eob_allocate(ensObs, nEnsUsed, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
   call eob_zero(ensObs)
+  if ( numRetainedEigen > 0 ) then
+    nEnsGain = nEns * numRetainedEigen
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
+    call eob_zero(ensObsGain)
+  else
+    ensObsGain => ensObs
+  end if
 
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_setLatLonObs(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -351,7 +355,7 @@ program midas_letkf
   end if
   
   !
-  !- 3. Compute HX values with results in ensObs
+  !- 3. Compute HX values with results in ensObs/ensObsGain
   !
 
   !- 3.1 Loop over all members and compute HX for each
@@ -369,6 +373,19 @@ program midas_letkf
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
     end if
 
+    ! Compute and set Yb in ensObsGain
+    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                 timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+
+    ! Compute Y-H(X) in OBS_OMP
+    call tmg_start(6,'LETKF-obsOperators')
+    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
+    call tmg_stop(6)
+
+    ! Copy to ensObs: Y-HX for this member
+    call eob_setYb(ensObs, memberIndex)
+
+    ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
       ! modulate the member with eigenvectors of vertical localization matrix
       ! Only effective with LETKF-ME algorithm. Otherwise returns with
@@ -386,27 +403,30 @@ program midas_letkf
       call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
       call tmg_stop(6)
 
-      ! Copy to ensObs: Y-HX for this member
+      ! Copy to ensObsGain: Y-HX for this member
       memberIndexInEnsObs = (eigenVectorIndex - 1) * numRetainedEigen + memberIndex
-      call eob_setYb(ensObs, memberIndexInEnsObs)
+      call eob_setYb(ensObsGain, memberIndexInEnsObs)
     end do
-    call gsv_deallocate(stateVectorToComputeInnovation)
+    if ( numRetainedEigen > 0 ) call gsv_deallocate(stateVectorToComputeInnovation)
 
   end do
 
-  !- 3.2 Set some additional information in ensObs and additional quality 
-  !      control before finally communicating ensObs globally
+  !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
+  !      control before finally communicating ensObs/ensObsGain globally
 
   ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_calcAndRemoveMeanYb(ensObsGain)
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_setHPHT(ensObsGain)
 
   ! Compute random observation perturbations
   if (trim(algorithm) == 'CVLETKF-PERTOBS') then
     randomSeedObs = 1 + mmpi_myid
     call eob_calcRandPert(ensObs, randomSeedObs)
+    if ( numRetainedEigen > 0 ) call eob_calcRandPert(ensObsGain, randomSeedObs)
   end if
 
   ! Apply obs operators to ensemble mean background for several purposes
@@ -424,15 +444,19 @@ program midas_letkf
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_setMeanOMP(ensObsGain)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then
     if (nwpFields) then
       call eob_setTypeVertCoord(ensObs,'logPressure')
+      if ( numRetainedEigen > 0 ) call eob_setTypeVertCoord(ensObsGain,'logPressure')
     else if (oceanFields) then
       call eob_setTypeVertCoord(ensObs,'depth')
+      if ( numRetainedEigen > 0 ) call eob_setTypeVertCoord(ensObsGain,'depth')
     end if
     call eob_setVertLocation(ensObs, column)
+    if ( numRetainedEigen > 0 ) call eob_setVertLocation(ensObsGain, column)
   end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
@@ -440,27 +464,33 @@ program midas_letkf
 
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
+  if (backgroundCheck .and. numRetainedEigen > 0 ) call eob_backgroundCheck(ensObsGain)
 
   ! For ice/ocean DA: remove obs that are too close to land
   if (minDistanceToLand > 0.0D0) then
     call ens_getMask(ensembleTrl4D,oceanMask)
     call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+    if ( numRetainedEigen > 0 ) call eob_removeObsNearLand(ensObsGain, oceanMask, minDistanceToLand)
   end if
 
   ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
   call eob_setSigiSigo(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_setSigiSigo(ensObsGain)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
   if (huberize) call eob_huberNorm(ensObs)
+  if (huberize .and. numRetainedEigen > 0 ) call eob_huberNorm(ensObsGain)
 
   !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
   if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 
   ! Reject radiance observations too close to the surface
   if (rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
+  if (rejectRadNearSfc .and. numRetainedEigen > 0 ) call eob_rejectRadNearSfc(ensObsGain)
 
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
+  if ( numRetainedEigen > 0 ) call eob_setObsErrInv(ensObsGain)
 
   call utl_tmg_start(108,'----Barr')
   call rpn_comm_barrier('GRID',ierr)
@@ -468,6 +498,11 @@ program midas_letkf
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
+  if ( numRetainedEigen > 0 ) then
+    call eob_allGather(ensObsGain,ensObsGain_mpiglobal)
+  else
+    ensObsGain_mpiglobal => ensObs_mpiglobal
+  end if
 
   ! Print number of assimilated obs per family to the listing
   write(*,*) 'oti_timeBinning: After extra filtering done in midas-letkf'
@@ -504,7 +539,7 @@ program midas_letkf
   !- 5.1 Call to perform LETKF
   call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                          stateVectorMeanAnl, &
+                          ensObsGain_mpiglobal, stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, mpiDistribution)
 
