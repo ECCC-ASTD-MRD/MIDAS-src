@@ -171,7 +171,7 @@ program midas_letkf
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
-  numRetainedEigen      = 1
+  numRetainedEigen      = 0
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -199,8 +199,8 @@ program midas_letkf
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
-  if ( trim(algorithm) == 'LETKF-ME' .and. numRetainedEigen <= 1 ) then
-    call utl_abort('midas-letkf: numRetainedEigen should be greater than one for LETKF algorithm: ' // trim(algorithm))
+  if ( trim(algorithm) == 'LETKF-ME' .and. numRetainedEigen < 1 ) then
+    call utl_abort('midas-letkf: numRetainedEigen should be equal or greater than one for LETKF algorithm: ' // trim(algorithm))
   end if
 
   !
