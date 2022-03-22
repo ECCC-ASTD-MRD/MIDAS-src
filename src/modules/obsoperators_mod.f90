@@ -2241,7 +2241,7 @@ contains
     subroutine oop_HheightCoordObs()
       !
       ! :Purpose: Compute simulated geometric-height based observations
-      !           including Radar Doppler velocity and aladin wind data.
+      !           such as Radar Doppler velocity and Aladin wind measurements.
       !           It returns Hdx in OBS_WORK
       implicit none
 
@@ -2255,9 +2255,9 @@ contains
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 
-      listFamily(1) = 'RA'
-      listFamily(2) = 'PR'
-      listFamily(3) = 'AL'
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
+      listFamily(2) = 'PR' ! Dew point difference           burf_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
       ! Loop over all family
       FAMILY: do familyIndex=1, NUMFAMILY
 
@@ -2266,9 +2266,9 @@ contains
         HEADER: do  
           headerIndex = obs_getHeaderIndex(obsSpaceData)
 
-          if (headerIndex < 0) exit HEADER
+          if ( headerIndex < 0 ) exit HEADER
 
-          if (listFamily(familyIndex) == 'RA') then
+          if ( listFamily(familyIndex) == 'RA' ) then
 
             ! Azimuth of the radar beam
             azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
@@ -2278,26 +2278,28 @@ contains
           ! Local vector state
           du_column  => col_getColumn(columnAnlInc, headerIndex, 'UU') 
           dv_column  => col_getColumn(columnAnlInc, headerIndex, 'VV')
+
           ! Loop over all body indices 
           call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
 
-            if (bodyIndex < 0) exit BODY
+            if ( bodyIndex < 0 ) exit BODY
+            ! only process observations flagged to be assimilated
+            if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
+
 
             ! Check that this observation has the expected bufr element ID
             bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-            if (bufrCode == bufr_nees .or. bufrCode == bufr_neal ) then
+            if ( bufrCode == bufr_nees .or. bufrCode == bufr_neal ) then
 
               cfam = obs_getfamily(obsSpaceData,headerIndex)
-              write(*,*) 'CANNOT ASSIMILATE ES!!!', &
-                         bufrCode,cfam,headerIndex,bodyIndex
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
               call utl_abort('oop_HheightCoordObs')
 
-            else if  (bufrCode == bufr_radvel) then
+            else if  ( bufrCode == bufr_radvel ) then
 
-              ! only process observations flagged to be assimilated
-              if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
 
               ! Operator Hx for tangential wind is linear in x
               ! that is:
@@ -2309,25 +2311,28 @@ contains
               !   and projection of U and V wind components along the direction of the beam
               !
               ! In matrix form for one Doppler velocity observation:
-              !   VDoppler = Hx = [ iwHigh*sin(azimuth) iwHigh*cos(azimuth) iwLow*sin(azimuth) iwLow*cos(azimuth) ][ uuHigh ]
+              !   VDoppler = Hx = [ iwHigh*sin(az) iwHigh*cos(az) iwLow*sin(az) iwLow*cos(az) ][ uuHigh ]
               !                                                                                [ vvHigh ]
               !                                                                                [ uuLow  ] 
               !                                                                                [ vvLow  ] 
               ! such that
-              !   VDoppler =  iwHigh*sin(azimuth)*uuHigh 
-              !             + iwHigh*cos(azimuth)*vvHigh
-              !             + iwLow *sin(azimuth)*uuLow 
-              !             + iwLow *cos(azimuth)*vvLow
+              !   VDoppler =  iwHigh*sin(az)*uuHigh 
+              !             + iwHigh*cos(az)*vvHigh
+              !             + iwLow *sin(az)*uuLow 
+              !             + iwLow *cos(az)*vvLow
               !
               ! With
+              !   az     = beam azimuth (radians, met convention) 
               !   iwHigh = Interpolation Weight for model level just above observation
               !   iwLow  =                 "                         below     "
-              !   az     = beam azimuth (radians, met convention) 
               !   uuHigh and vvHigh = wind components on model level just above observation
               !   uuLow  and vvLow  =                 "                   below     "
+              !
+              ! The dependence of model levels on surface pressure is neglected here
 
-              ! Levels that bracket the observation from OBS_LYR
-              !   level=1 is the highest level such that level+1 is lower than level
+
+              ! OBS_LYR returns the index of the model level just above the observation
+              !   level=1 is the highest level such that level+1 is lower 
               levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
               levelAltHigh = col_getHeight(columnTrlOnAnlIncLev, levelIndex,   headerIndex, 'MM')
               levelAltLow  = col_getHeight(columnTrlOnAnlIncLev, levelIndex+1, headerIndex, 'MM')
@@ -2603,6 +2608,7 @@ contains
       call oop_HTgp( initializeLinearization_opt=initializeLinearization_opt )
     end if
 
+    call oop_HTheighCoordObs()
 
     call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
 
@@ -2618,7 +2624,6 @@ contains
 
     call oop_HThydro()
 
-    call oop_HTheighCoordObs()
 
   CONTAINS
 
@@ -3206,31 +3211,35 @@ contains
       ! :Purpose: Compute the adjoint operator of the
       !           vertical interpolation of geometric-height based data.
       !           Including Radar Doppler velocity data and aladin wind data.
+      !
+      !  delta x is updated by this routine 
       implicit none
 
       ! locals
       integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
       integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
-      real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude
-      real(8) :: uuLow, uuHigh, vvLow, vvHigh, ZWB, ZWT, ZRES, ZDA1, ZDA2
+      real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude, HDX 
       real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
-      real(8) :: DervInterpWeightHigh, DervInterpWeightLow, vInterpWeightLow, vInterpWeightHigh
+      real(8) :: vInterpWeightLow, vInterpWeightHigh
       real(8), pointer :: du_column(:), dv_column(:), height_column(:)
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
      
-      listFamily(1) = 'RA'
-      listFamily(2) = 'AL'
-      listFamily(3) = 'PR'
       
-      ! Loop over all family
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
+      listFamily(2) = 'PR' ! Dew point difference           burf_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
+      
+      ! Loop over all families
       FAMILY: do familyIndex = 1, NUMFAMILY
-        ! Loop over all header indices of the family
+
+        ! Loop over header indices 
         call obs_set_current_header_list(obsSpaceData, listFamily(familyIndex))
         HEADER: do  
           headerIndex = obs_getHeaderIndex(obsSpaceData)  
-          if (headerIndex < 0) exit HEADER
-          if  (listFamily(familyIndex) == 'RA') then
+          if ( headerIndex < 0 ) exit HEADER
+
+          if  ( listFamily(familyIndex) == 'RA' ) then
             ! Azimuth of the radar beam
             azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
           end if
@@ -3238,73 +3247,62 @@ contains
           ! Local vector state
           du_column  => col_getColumn(columnAnlInc, headerIndex, 'UU') 
           dv_column  => col_getColumn(columnAnlInc, headerIndex, 'VV')
-          ! Loop over all body indices of the family
+
+          ! Loop over body indices 
           call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
-            if (bodyIndex < 0) exit BODY
+            if ( bodyIndex < 0 ) exit BODY
+            ! only process observations flagged to be assimilated
+            if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
+
             ! Check that this observation has the expected bufr element ID
             bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-            if (bufrCode == bufr_nees .or. bufrCode == bufr_neal) then
+            if ( bufrCode == bufr_nees .or. bufrCode == bufr_neal ) then
               cfam = obs_getfamily(obsSpaceData,headerIndex)
-              write(*,*) 'CANNOT ASSIMILATE ES!!!', &
-                         bufrCode,cfam,headerIndex,bodyIndex
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
               call utl_abort('oop_HTheighCoordObs')
 
-            else if (bufrCode == bufr_radvel) then
-              ! only process observations flagged to be assimilated
-              if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
+            else if ( bufrCode == bufr_radvel ) then
 
+              ! OBS_LYR returns the index of the model level just above the observation
+              !   level=1 is the highest level such that level+1 is lower 
+              levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+              levelAltHigh = col_getHeight(columnTrlOnAnlIncLev, levelIndex,   headerIndex, 'MM')
+              levelAltLow  = col_getHeight(columnTrlOnAnlIncLev, levelIndex+1, headerIndex, 'MM')
               obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
 
-              ! Levels that bracket the observation from OBS_LYR
-              !   note to self:   like in GEM, level=1 is the highest level
-              levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
-              levelAltHigh = col_getHeight(columnTrlOnAnlIncLev, levelIndex,   headerIndex,'MM')
-              levelAltLow  = col_getHeight(columnTrlOnAnlIncLev, levelIndex+1, headerIndex,'MM')
-
-              
-              ! Normalized increment
-              ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+              ! HDX from store
+              HDX = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex)
               vInterpWeightHigh = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
               vInterpWeightLow = 1.0D0 - vInterpWeightHigh
             
-              ! Operator Hx for tangential wind is linear in x
-              ! that is:
-              !    h(x) = Hx
-              ! and
-              ! h(xb) + Hdx  =  Hxb + Hdx 
-              !
-              ! H includes vertical interpolation  
-              !   and projection of U and V wind components along the direction of the beam
-              !
-              ! In matrix form for one Doppler velocity observation:
-              !   VDoppler = Hx = [ iwHigh*sin(az) iwHigh*cos(az) iwLow*sin(az) iwLow*cos(az) ][ uuHigh ]
-              !                                                                                [ vvHigh ]
-              !                                                                                [ uuLow  ] 
-              !                                                                                [ vvLow  ] 
-              ! in matrix form Adjoint of H operator
+
+              ! see oop_HheightCoordObs for the description of the H operator for radar Doppler velocity
+              ! 
+              ! In matrix form, adjoint of H operator for one observation:
               !
               !  delta x         = Ht TangentialWindResidual
               !
-              !  [ deltaUUHigh ] = [ iwHigh*sin(azimuth) ][ residual ]  
-              !  [ deltaVVigh  ]   [ iwHigh*cos(azimuth) ]
-              !  [ deltaUULow  ]   [ iwLow*sin(azimuth)  ]
-              !  [ deltaVVLow  ]   [ iwLow*cos(azimuth)  ]
-              !
+              !  [ deltaUUHigh ] = [ iwHigh*sin(az) ][ residual ]  
+              !  [ deltaVVigh  ]   [ iwHigh*cos(az) ]
+              !  [ deltaUULow  ]   [ iwLow *sin(az) ]
+              !  [ deltaVVLow  ]   [ iwLow *cos(az) ]
               !
               ! With
+              !   az     = beam azimuth (radians, met convention) 
               !   iwHigh = Interpolation Weight for model level just above observation
               !   iwLow  =                 "                         below     "
-              !   az     = beam azimuth (radians, met convention) 
-              !   residual = 
+              !   residual = OmP - Hdx
               !   deltaUUHigh and deltaVVHigh = wind components on model level just above observation
               !   deltaUULow  and deltaVVLow  =                 "                   below     "
-              du_column(levelIndex+1) = du_column(levelIndex+1) + vInterpWeightLow*ZRES*sin(azimuth)
-              dv_column(levelIndex+1) = dv_column(levelIndex+1) + vInterpWeightLow*ZRES*cos(azimuth)
-             
-              du_column(levelIndex  ) = du_column(levelIndex  ) + vInterpWeightHigh*ZRES*sin(azimuth)
-              dv_column(levelIndex  ) = dv_column(levelIndex  ) + vInterpWeightHigh*ZRES*cos(azimuth)
+
+              !delta x is updated
+              du_column(levelIndex  ) = du_column(levelIndex  ) + vInterpWeightHigh*HDX*sin(azimuth)
+              dv_column(levelIndex  ) = dv_column(levelIndex  ) + vInterpWeightHigh*HDX*cos(azimuth)
+              du_column(levelIndex+1) = du_column(levelIndex+1) + vInterpWeightLow *HDX*sin(azimuth)
+              dv_column(levelIndex+1) = dv_column(levelIndex+1) + vInterpWeightLow *HDX*cos(azimuth)
 
             end if
           end do BODY
