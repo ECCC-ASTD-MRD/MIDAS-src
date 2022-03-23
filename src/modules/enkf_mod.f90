@@ -1688,7 +1688,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
-                                     eigenVectorIndex, letkfAlgorithm, &
+                                     eigenVectorIndex, &
                                      stateVector_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
@@ -1703,7 +1703,6 @@ contains
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorIndex
-    character(len=20), intent(in) :: letkfAlgorithm
     type(struct_gsv), intent(out) :: stateVector_out
 
     ! Locals:
@@ -1738,11 +1737,6 @@ contains
                          allocHeightSfc_opt=stateVector_in%heightSfcPresent )
     end if
     call gsv_zero(stateVector_out)
-
-    if ( trim(letkfAlgorithm) /= 'LETKF-ME' ) then
-      call gsv_copy(stateVector_in, stateVector_out)
-      return
-    end if
 
     nLev = stateVector_in%vco%nLev_M
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then

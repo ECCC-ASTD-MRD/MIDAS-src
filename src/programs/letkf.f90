@@ -388,11 +388,9 @@ program midas_letkf
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
       ! modulate the member with eigenvectors of vertical localization matrix
-      ! Only effective with LETKF-ME algorithm. Otherwise returns with
-      ! stateVectorWithZandP4D.
       call enkf_getModulatedState( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
-                                   eigenVectorIndex, algorithm, &
+                                   eigenVectorIndex, &
                                    stateVectorToComputeInnovation )
 
       call s2c_nl( stateVectorToComputeInnovation, obsSpaceData, column, hco_ens, &
