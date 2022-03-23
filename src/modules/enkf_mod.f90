@@ -112,6 +112,7 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
+    integer :: nEnsUsed
     real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
 
     integer, allocatable :: localBodyIndices(:)
@@ -164,6 +165,11 @@ contains
     allocate(requestIdRecv(3*myNumLatLonRecv))
 
     nEns       = ens_getNumMembers(ensembleAnl)
+    if ( numRetainedEigen > 0 ) then
+      nEnsUsed   = nEns * numRetainedEigen
+    else
+      nEnsUsed   = nEns
+    end if
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
     nLev_weights = max(nLev_M,nLev_depth)
@@ -184,27 +190,27 @@ contains
     !
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
-    allocate(YbTinvR(nEns,maxNumLocalObs))
-    allocate(YbTinvRYb(nEns,nEns))
-    allocate(eigenValues(nEns))
-    allocate(eigenVectors(nEns,nEns))
-    allocate(PaInv(nEns,nEns))
-    allocate(PaSqrt(nEns,nEns))
-    allocate(Pa(nEns,nEns))
-    allocate(memberAnlPert(nEns))
-    allocate(weightsTemp(nEns))
-    allocate(weightsTemp2(nEns))
+    allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
+    allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
+    allocate(eigenValues(nEnsUsed))
+    allocate(eigenVectors(nEnsUsed,nEnsUsed))
+    allocate(PaInv(nEnsUsed,nEnsUsed))
+    allocate(PaSqrt(nEnsUsed,nEnsUsed))
+    allocate(Pa(nEnsUsed,nEnsUsed))
+    allocate(memberAnlPert(nEnsUsed))
+    allocate(weightsTemp(nEnsUsed))
+    allocate(weightsTemp2(nEnsUsed))
     weightsTemp(:) = 0.0d0
     weightsTemp2(:) = 0.0d0
     ! Weights for mean analysis
-    allocate(weightsMean(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMean(nEnsUsed,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMean(:,:,:,:) = 0.0d0
-    allocate(weightsMeanLatLon(nEns,1,myNumLatLonSend))
+    allocate(weightsMeanLatLon(nEnsUsed,1,myNumLatLonSend))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
-    allocate(weightsMembers(nEns,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEnsUsed,nEnsUsed,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEnsUsed,nEnsUsed,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -223,14 +229,14 @@ contains
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
-      nEnsPerSubEns = nEns / numSubEns
-      if ( (nEnsPerSubEns * numSubEns) /= nEns ) then
+      nEnsPerSubEns = nEnsUsed / numSubEns
+      if ( (nEnsPerSubEns * numSubEns) /= nEnsUsed ) then
         call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
       if (numSubEns <= 1) then
         call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS) algorithm, numSubEns must be greater than 1')
       end if
-      nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
+      nEnsIndependentPerSubEns = nEnsUsed - nEnsPerSubEns
       allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(eigenValues_CV(nEnsIndependentPerSubEns))
       allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
@@ -253,8 +259,8 @@ contains
         datePrint =  datePrint*100 + timePrint
         ! Remove the century, keeping 2 digits of the year
         randomSeed = datePrint - 100000000*(datePrint/100000000)
-        allocate(randomMemberIndexArray(nEns))
-        do memberIndex = 1, nEns
+        allocate(randomMemberIndexArray(nEnsUsed))
+        do memberIndex = 1, nEnsUsed
           randomMemberIndexArray(memberIndex) = memberIndex
         end do
         call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
@@ -278,8 +284,8 @@ contains
         end do
       end do
 
-      write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
-                 nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+      write(*,*) 'nEnsUsed, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
+                 nEnsUsed, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
       do subEnsIndex = 1, numSubEns
         write(*,*) 'memberIndexSubEns = '
         write(*,*) memberIndexSubEns(:,subEnsIndex)
@@ -324,12 +330,12 @@ contains
         procIndex = myProcIndexesRecv(latLonIndex)
         recvTag = latLonTagMpiGlobal(lonIndex,latIndex)
 
-        nsize = nEns
+        nsize = nEnsUsed
         numRecv = numRecv + 1
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-        nsize = nEns*nEns
+        nsize = nEnsUsed*nEnsUsed
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
@@ -385,10 +391,10 @@ contains
             localization = localization * lfn_Response(distance,vLocalize)
           end if
 
-          do memberIndex = 1, nEns
+          do memberIndex = 1, nEnsUsed
             YbTinvR(memberIndex,localObsIndex) =  &
                  ensObs_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                 localization * ensObs_mpiglobal%obsErrInv(bodyIndex)
+                 localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
           end do
         end do ! localObsIndex
 
@@ -397,11 +403,11 @@ contains
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-          do memberIndex2 = 1, nEns
-            do memberIndex1 = 1, nEns
+          do memberIndex2 = 1, nEnsUsed
+            do memberIndex1 = 1, nEnsUsed
               YbTinvRYb(memberIndex1,memberIndex2) =  &
                    YbTinvRYb(memberIndex1,memberIndex2) +  &
-                   YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+                   YbTinvR(memberIndex1,localObsIndex) * ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
             end do
           end do
           !$OMP END PARALLEL DO
@@ -452,6 +458,46 @@ contains
             ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
             weightsMembersLatLon(:,:,latLonIndex) = sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
 
+          else if (trim(algorithm) == 'LETKF-ME') then
+            !
+            ! Weight calculation for standard with modulated ensemble algorithm
+            !
+
+            ! Add second term of PaInv
+            PaInv(:,:) = YbTinvRYb(:,:)
+            do memberIndex = 1, nEnsUsed
+              PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEnsUsed - 1,8)
+            end do
+
+            ! Compute Pa and sqrt(Pa) matrices from PaInv
+            Pa(:,:) = PaInv(:,:)
+            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_matInverse(Pa, nEnsUsed)
+            call tmg_stop(90)
+
+            ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
+            weightsTemp(:) = 0.0d0
+            do localObsIndex = 1, numLocalObs
+              bodyIndex = localBodyIndices(localObsIndex)
+              do memberIndex = 1, nEnsUsed
+                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                           YbTinvR(memberIndex,localObsIndex) *  &
+                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+              end do
+            end do
+
+            weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+            do memberIndex2 = 1, nEnsUsed
+              do memberIndex1 = 1, nEnsUsed
+                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
+                     Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+              end do
+            end do
+
+            ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
+            !weightsMembersLatLon(:,:,latLonIndex) = sqrt(real(nEnsUsed - 1,8)) * PaSqrt(:,:)
           else if (trim(algorithm) == 'CVLETKF') then
             !
             ! Weight calculation for cross-validation LETKF algorithm
@@ -722,7 +768,7 @@ contains
           ! no obs near this grid point, mean weights zero, member weights identity
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          do memberIndex = 1, nEns
+          do memberIndex = 1, nEnsUsed
             weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
           end do
 
@@ -740,12 +786,12 @@ contains
           sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
-          nsize = nEns
+          nsize = nEnsUsed
           numSend = numSend + 1
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mmpi_comm_grid, requestIdSend(numSend), ierr )
-          nsize = nEns*nEns
+          nsize = nEnsUsed*nEnsUsed
           numSend = numSend + 1
           sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
