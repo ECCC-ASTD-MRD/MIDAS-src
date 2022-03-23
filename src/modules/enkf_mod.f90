@@ -46,7 +46,7 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
-  public :: enkf_rejectHighLatIR, enkf_getModulatedMember
+  public :: enkf_rejectHighLatIR, enkf_getModulatedState
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -1684,12 +1684,12 @@ contains
   end subroutine enkf_rejectHighLatIR
 
   !--------------------------------------------------------------------------
-  ! enkf_getModulatedMember
+  ! enkf_getModulatedState
   !--------------------------------------------------------------------------
-  subroutine enkf_getModulatedMember( stateVector_in, stateVectorMeanTrl, &
-                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
-                                      eigenVectorIndex, letkfAlgorithm, &
-                                      stateVector_out )
+  subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
+                                     vLocalizeLengthScale, numRetainedEigen, nEns, &
+                                     eigenVectorIndex, letkfAlgorithm, &
+                                     stateVector_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
     !          eigenvectors/eigenvalues, and modulated member.
@@ -1725,7 +1725,7 @@ contains
     logical, save        :: firstCall = .true.
 
     if ( stateVector_in%dataKind /= 4 ) then
-      call utl_abort('enkf_getModulatedMember: only dataKind=4 is implemented')
+      call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
     end if
 
     if ( firstCall ) then
@@ -1746,7 +1746,7 @@ contains
 
     nLev = stateVector_in%vco%nLev_M
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
-      call utl_abort('enkf_getModulatedMember: no vertical localization')
+      call utl_abort('enkf_getModulatedState: no vertical localization')
     end if
 
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
@@ -1765,7 +1765,7 @@ contains
                            sfc_field=pSurfRef, &
                            in_log=.false. )
       if ( status /= VGD_OK ) then
-        call utl_abort('enkf_getModulatedMember: ERROR from vgd_levels')
+        call utl_abort('enkf_getModulatedState: ERROR from vgd_levels')
       end if
 
       ! Calculate 5'th order function
@@ -1783,7 +1783,7 @@ contains
                            tolerance, matrixRank)
       if ( matrixRank < numRetainedEigen ) then
         write(*,*) 'matrixRank=', matrixRank
-        call utl_abort('enkf_getModulatedMember: verticalLocalizationMat is rank deficient=')
+        call utl_abort('enkf_getModulatedState: verticalLocalizationMat is rank deficient=')
       end if
     end if
 
@@ -1828,6 +1828,6 @@ contains
     ! v_k = v'_k + v_mean
     call gsv_add(stateVectorMeanTrl, stateVector_out)
 
-  end subroutine enkf_getModulatedMember
+  end subroutine enkf_getModulatedState
 
 end module enkf_mod
