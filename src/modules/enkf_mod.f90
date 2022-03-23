@@ -69,11 +69,12 @@ contains
   ! enkf_LETKFanalyses
   !----------------------------------------------------------------------
   subroutine enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
-                                ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
+                                ensembleAnl, ensembleTrl, &
+                                ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution)
+                                mpiDistribution, numRetainedEigen)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean.
@@ -85,7 +86,8 @@ contains
     logical                     :: randomShuffleSubEns
     type(struct_ens), pointer   :: ensembleTrl
     type(struct_ens)            :: ensembleAnl
-    type(struct_eob)            :: ensObs_mpiglobal
+    type(struct_eob), target    :: ensObs_mpiglobal
+    type(struct_eob)            :: ensObsGain_mpiglobal
     type(struct_gsv)            :: stateVectorMeanAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
     integer                     :: maxNumLocalObs
@@ -93,6 +95,7 @@ contains
     real(8)                     :: hLocalizePressure(:)
     real(8)                     :: vLocalize
     character(len=*)            :: mpiDistribution
+    integer                     :: numRetainedEigen
 
     ! Locals
     integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns
