@@ -27,9 +27,12 @@ Their default values (in parentheses), **should be good for most users**.
   version included in the absolute name.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
   compilation if set to `yes`.
-  It is important to **clean** your build directory prior to compile if you 
-  just changed `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` to `yes` for the effect
-  to be applied across all objects.
+  Note that enabling debug options **may subtly alter the results and
+  therefore cause some unit tests to fail**.
+  Also, make sure to **`make clean` before recompiling when you change that
+  variable value** if `MIDAS_COMPILE_CLEAN=false`.  Otherwise, some already
+  compiled object will keep the impact of the debug options and may result
+  in inconsistencies.
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
 * `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on 
