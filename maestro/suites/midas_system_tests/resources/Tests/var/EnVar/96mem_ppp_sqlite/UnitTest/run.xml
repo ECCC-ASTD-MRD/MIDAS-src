@@ -1,4 +1,4 @@
 <?xml version="1.0" ?>
 <NODE_RESOURCES>
-  <BATCH catchup="2" cpu="8x8x${NUMTHREAD_var_EnVar_96mem_ppp_sqlite}" memory="10G" mpi="1" machine="${FRONTEND}" queue="${FRONTEND_DEFAULT_Q}" soumet_args="-waste" wallclock="40"/>
+  <BATCH catchup="2" cpu="8x8x${NUMTHREAD_var_EnVar_96mem_ppp_sqlite}" machine="${FRONTEND}" memory="14G" mpi="1" queue="${FRONTEND_DEFAULT_Q}" soumet_args="-tmpfs 30G -waste" wallclock="40"/>
 </NODE_RESOURCES>
