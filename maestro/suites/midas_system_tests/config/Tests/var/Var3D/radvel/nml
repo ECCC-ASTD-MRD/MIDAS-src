@@ -13,8 +13,6 @@
    LWRTHESS = .TRUE.,
    LVARQC=.TRUE.,
    NWOQCV=5,
-
-
 /
  &NAMS2C
    SLANTPATH_TO_NL   = .FALSE.,

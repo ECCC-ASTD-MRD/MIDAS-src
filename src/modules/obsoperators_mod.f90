@@ -2241,7 +2241,7 @@ contains
     subroutine oop_HheightCoordObs()
       !
       ! :Purpose: Compute simulated geometric-height based observations
-      !           such as Radar Doppler velocity and Aladin wind measurements.
+      !           such as Radar Doppler velocity.
       !           It returns Hdx in OBS_WORK
       implicit none
 
@@ -2265,7 +2265,6 @@ contains
         call obs_set_current_header_list(obsSpaceData, listFamily(familyIndex))
         HEADER: do  
           headerIndex = obs_getHeaderIndex(obsSpaceData)
-
           if ( headerIndex < 0 ) exit HEADER
 
           if ( listFamily(familyIndex) == 'RA' ) then
@@ -2283,24 +2282,16 @@ contains
           call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
-
             if ( bodyIndex < 0 ) exit BODY
+
             ! only process observations flagged to be assimilated
             if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
 
-
             ! Check that this observation has the expected bufr element ID
             bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-            if ( bufrCode == bufr_nees .or. bufrCode == bufr_neal ) then
+            if ( bufrCode == BUFR_logRadarPrecip ) cycle BODY
 
-              cfam = obs_getfamily(obsSpaceData,headerIndex)
-              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
-                         'bufrCode =', bufrCode, 'cfam =',  cfam
-              call utl_abort('oop_HheightCoordObs')
-
-            else if  ( bufrCode == bufr_radvel ) then
-
-
+            if  ( bufrCode == bufr_radvel ) then
               ! Operator Hx for tangential wind is linear in x
               ! that is:
               !    h(x) = Hx
@@ -2330,7 +2321,6 @@ contains
               !
               ! The dependence of model levels on surface pressure is neglected here
 
-
               ! OBS_LYR returns the index of the model level just above the observation
               !   level=1 is the highest level such that level+1 is lower 
               levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
@@ -2349,11 +2339,19 @@ contains
                 
               ! Store HDX in OBS_WORK  
               call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex, HDX)
+              
+            else 
+
+              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
+              call utl_abort('oop_HheightCoordObs')
 
             end if
           end do BODY
         end do HEADER
       end do FAMILY
+
     end subroutine oop_HheightCoordObs
 
     !--------------------------------------------------------------------------
@@ -3210,7 +3208,7 @@ contains
     subroutine oop_HTheighCoordObs()
       ! :Purpose: Compute the adjoint operator of the
       !           vertical interpolation of geometric-height based data.
-      !           Including Radar Doppler velocity data and aladin wind data.
+      !           Including Radar Doppler velocity data.
       !
       !  delta x is updated by this routine 
       implicit none
@@ -3225,7 +3223,6 @@ contains
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
      
-      
       listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
       listFamily(2) = 'PR' ! Dew point difference           burf_nees
       listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
@@ -3258,14 +3255,9 @@ contains
 
             ! Check that this observation has the expected bufr element ID
             bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-            if ( bufrCode == bufr_nees .or. bufrCode == bufr_neal ) then
-              cfam = obs_getfamily(obsSpaceData,headerIndex)
-              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
-                         'bufrCode =', bufrCode, 'cfam =',  cfam
-              call utl_abort('oop_HTheighCoordObs')
+            if ( bufrCode == BUFR_logRadarPrecip ) cycle BODY
 
-            else if ( bufrCode == bufr_radvel ) then
-
+            if ( bufrCode == bufr_radvel ) then
               ! OBS_LYR returns the index of the model level just above the observation
               !   level=1 is the highest level such that level+1 is lower 
               levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
@@ -3277,7 +3269,6 @@ contains
               HDX = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex)
               vInterpWeightHigh = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
               vInterpWeightLow = 1.0D0 - vInterpWeightHigh
-            
 
               ! see oop_HheightCoordObs for the description of the H operator for radar Doppler velocity
               ! 
@@ -3304,10 +3295,18 @@ contains
               du_column(levelIndex+1) = du_column(levelIndex+1) + vInterpWeightLow *HDX*sin(azimuth)
               dv_column(levelIndex+1) = dv_column(levelIndex+1) + vInterpWeightLow *HDX*cos(azimuth)
 
+            else
+              
+              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
+              call utl_abort('oop_HTheighCoordObs')
+
             end if
           end do BODY
         end do HEADER
       end do FAMILY
+
     end subroutine oop_HTheighCoordObs
 
     !--------------------------------------------------------------------------
