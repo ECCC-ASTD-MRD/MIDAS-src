@@ -112,7 +112,7 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
-    integer :: nEnsUsed
+    integer :: nEnsUsed, eigenVectorIndex
     real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
 
     integer, allocatable :: localBodyIndices(:)
@@ -137,6 +137,7 @@ contains
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
+    real(4) :: memberTrlMod_r4
 
     character(len=4)     :: varLevel
     character(len=2)     :: varKind
@@ -871,13 +872,32 @@ contains
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
-              do memberIndex = 1, nEns
-                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                     weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-              end do ! memberIndex
+              if ( numRetainedEigen > 0 ) then
+                do memberIndex = 1, nEns
+                  do eigenVectorIndex = 1, numRetainedEigen
+                    call getModulatedScaler( stateVectorMeanInc, &
+                                             memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex), &
+                                             meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
+                                             vLocalize, numRetainedEigen, nEns, &
+                                             eigenVectorIndex, levIndex, &
+                                             memberTrlMod_r4 )
+
+                    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                         meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                         weightsMean(memberIndex,1,lonIndex,latIndex) *  &
+                         (memberTrlMod_r4 - meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                  end do
+                end do
+              else
+                do memberIndex = 1, nEns
+                  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                       meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                       weightsMean(memberIndex,1,lonIndex,latIndex) *  &
+                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                end do
+              end if
+
               ! mean analysis
               meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                    meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
