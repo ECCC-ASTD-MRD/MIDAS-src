@@ -9,7 +9,7 @@ echo starting var.sh at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 
 fasttmp=${1}
-ramdiskpath=${PBSTMPFSDIR}
+ramdiskpath=${PBSTMPFSDIR-/tmp/${USER}}
 
 ## assume the observations are splitted into many files
 
