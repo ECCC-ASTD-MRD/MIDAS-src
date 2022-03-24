@@ -1692,7 +1692,7 @@ contains
                                      stateVector_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
-    !          eigenvectors/eigenvalues, and modulated member.
+    !          eigenvectors/eigenvalues, to obtain modulated stateVector.
     !
     implicit none
 
@@ -1721,7 +1721,7 @@ contains
 
     character(len=4) :: varName
 
-    logical, save        :: firstCall = .true.
+    logical, save :: firstCall = .true.
 
     if ( stateVector_in%dataKind /= 4 ) then
       call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
@@ -1823,5 +1823,103 @@ contains
     call gsv_add(stateVectorMeanTrl, stateVector_out)
 
   end subroutine enkf_getModulatedState
+
+  !--------------------------------------------------------------------------
+  ! getModulatedScaler
+  !--------------------------------------------------------------------------
+  subroutine getModulatedScaler( stateVector_in, memberScaler_in, meanScaler, &
+                                 vLocalizeLengthScale, numRetainedEigen, nEns, &
+                                 eigenVectorIndex, levIndex, &
+                                 memberScaler_out )
+    !
+    !:Purpose: Compute vertical localization matrix, and the corresponding
+    !          eigenvectors/eigenvalues, to obtain modulated scaler for
+    !          single lat/lon/lev/step of an ensemble member.
+    !
+    implicit none
+
+    ! Aguments:
+    type(struct_gsv), intent(in) :: stateVector_in
+    real(4), intent(in) :: memberScaler_in
+    real(4), intent(in) :: meanScaler
+    real(8), intent(in) :: vLocalizeLengthScale
+    integer, intent(in) :: numRetainedEigen
+    integer, intent(in) :: nEns
+    integer, intent(in) :: eigenVectorIndex
+    integer, intent(in) :: levIndex
+    real(4), intent(out) :: memberScaler_out
+
+    ! Locals:
+    real(8)              :: zr, zcorr, pSurfRef
+    real(8)              :: tolerance
+    real(8)              :: pertScaler
+    real(8), pointer     :: pressureProfile(:)
+    real(8), allocatable, save :: eigenValues(:)
+    real(8), allocatable, save :: eigenVectors(:,:)
+    real(8), allocatable, save :: verticalLocalizationMat(:,:)
+
+    integer :: levIndex1, levIndex2, status, nLev, matrixRank
+    integer :: lon1, lon2, lat1, lat2
+    integer :: varIndex, stepIndex
+
+    logical, save :: firstCall = .true.
+
+    nLev = stateVector_in%vco%nLev_M
+    if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
+      call utl_abort('getModulatedScaler: no vertical localization')
+    end if
+
+    ! Compute vertical localization matrix and its eigenValues/Vectors on first call
+    if ( firstCall ) then
+      firstCall = .false.
+
+      allocate(eigenValues(nLev))
+      allocate(eigenVectors(nLev,nLev))
+      allocate(verticalLocalizationMat(nLev,nLev))
+
+      pSurfRef = 101000.D0
+      nullify(pressureProfile)
+      status = vgd_levels( stateVector_in%vco%vgrid, &
+                           ip1_list=stateVector_in%vco%ip1_M, &
+                           levels=pressureProfile, &
+                           sfc_field=pSurfRef, &
+                           in_log=.false. )
+      if ( status /= VGD_OK ) then
+        call utl_abort('getModulatedScaler: ERROR from vgd_levels')
+      end if
+
+      ! Calculate 5'th order function
+      do levIndex1 = 1, nLev
+        do levIndex2 = 1, nLev
+          zr = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
+          zcorr = lfn_response(zr,vLocalizeLengthScale)
+          verticalLocalizationMat(levIndex1,levIndex2) = zcorr
+        end do
+      end do
+
+      ! Compute eigenValues/Vectors of vertical localization matrix
+      tolerance = 1.0D-3
+      call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
+                           tolerance, matrixRank)
+      if ( matrixRank < numRetainedEigen ) then
+        write(*,*) 'matrixRank=', matrixRank
+        call utl_abort('getModulatedScaler: verticalLocalizationMat is rank deficient=')
+      end if
+    end if
+
+    ! Compute perturbation by subtracting mean
+    pertScaler = real(memberScaler_in-meanScaler,8)
+
+    ! Compute modulated member perturbation from original member perturbation:
+    !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
+    pertScaler = pertScaler * eigenVectors(levIndex,eigenVectorIndex) * &
+                 eigenValues(eigenVectorIndex) ** 0.5 * &
+                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+
+    ! Now add to mean to get modulated scaler
+    ! v_k = v'_k + v_mean
+    memberScaler_out = real(pertScaler,4) + meanScaler
+
+  end subroutine getModulatedScaler
 
 end module enkf_mod
