@@ -265,6 +265,7 @@ program midas_letkf
   call eob_zero(ensObs)
   if ( numRetainedEigen > 0 ) then
     nEnsMod = nEns * numRetainedEigen
+    allocate(ensObsGain)
     call eob_allocate(ensObsGain, nEnsMod, obs_numBody(obsSpaceData), obsSpaceData)
     call eob_zero(ensObsGain)
   else
@@ -373,7 +374,7 @@ program midas_letkf
       call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
     end if
 
-    ! Compute and set Yb in ensObsGain
+    ! Compute and set Yb in ensObs
     call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                  timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
@@ -497,6 +498,7 @@ program midas_letkf
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
   if ( numRetainedEigen > 0 ) then
+    allocate(ensObsGain_mpiglobal)
     call eob_allGather(ensObsGain,ensObsGain_mpiglobal)
   else
     ensObsGain_mpiglobal => ensObs_mpiglobal
