@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Several improvements (#614 and #618 and !574):
+   * convert all scripts to Python 3
+   * upgrade to `maestro/1.8.2`
+   * add `export POSTINSTALL_PACKAGE_VERSION=${version}` in the SSM publishing scripts
 
 ### Fixed
 

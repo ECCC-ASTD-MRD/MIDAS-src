@@ -46,7 +46,7 @@ packages=${3}
 [ -d "${packages}" ] || die "Cannot find the directory '${packages}"
 
 command="${HOME}/ssm/${project}/publish --post-install ${HOME}/ssm/${project}/post-install --packages ${packages} --workdir ${HOME}/data_maestro/ords/ssm_tmpdir/midas"
-command="${command} --domainpath /fs/ssm/eccc/mrd/rpn/anl/${project}/${version}"
+command="${command} --version ${version} --domainpath /fs/ssm/eccc/mrd/rpn/anl/${project}/${version}"
 ## To test, uncomment this line and comment the line just above
 ## command="${command} --domainpath ${HOME}/SSM/${project}/${version}"
 
