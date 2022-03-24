@@ -198,7 +198,7 @@ contains
     allocate(PaInv(nEnsUsed,nEnsUsed))
     allocate(PaSqrt(nEnsUsed,nEnsUsed))
     allocate(Pa(nEnsUsed,nEnsUsed))
-    allocate(memberAnlPert(nEnsUsed))
+    allocate(memberAnlPert(nEns))
     allocate(weightsTemp(nEnsUsed))
     allocate(weightsTemp2(nEnsUsed))
     weightsTemp(:) = 0.0d0
@@ -209,9 +209,9 @@ contains
     allocate(weightsMeanLatLon(nEnsUsed,1,myNumLatLonSend))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
-    allocate(weightsMembers(nEnsUsed,nEnsUsed,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEns,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsUsed,nEnsUsed,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -230,14 +230,14 @@ contains
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
-      nEnsPerSubEns = nEnsUsed / numSubEns
-      if ( (nEnsPerSubEns * numSubEns) /= nEnsUsed ) then
+      nEnsPerSubEns = nEns / numSubEns
+      if ( (nEnsPerSubEns * numSubEns) /= nEns ) then
         call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
       if (numSubEns <= 1) then
         call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS) algorithm, numSubEns must be greater than 1')
       end if
-      nEnsIndependentPerSubEns = nEnsUsed - nEnsPerSubEns
+      nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
       allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(eigenValues_CV(nEnsIndependentPerSubEns))
       allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
@@ -260,8 +260,8 @@ contains
         datePrint =  datePrint*100 + timePrint
         ! Remove the century, keeping 2 digits of the year
         randomSeed = datePrint - 100000000*(datePrint/100000000)
-        allocate(randomMemberIndexArray(nEnsUsed))
-        do memberIndex = 1, nEnsUsed
+        allocate(randomMemberIndexArray(nEns))
+        do memberIndex = 1, nEns
           randomMemberIndexArray(memberIndex) = memberIndex
         end do
         call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
@@ -285,8 +285,8 @@ contains
         end do
       end do
 
-      write(*,*) 'nEnsUsed, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
-                 nEnsUsed, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+      write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
+                 nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
       do subEnsIndex = 1, numSubEns
         write(*,*) 'memberIndexSubEns = '
         write(*,*) memberIndexSubEns(:,subEnsIndex)
@@ -336,7 +336,7 @@ contains
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-        nsize = nEnsUsed*nEnsUsed
+        nsize = nEns*nEns
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
@@ -394,7 +394,7 @@ contains
 
           do memberIndex = 1, nEnsUsed
             YbTinvR(memberIndex,localObsIndex) =  &
-                 ensObs_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
+                 ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                  localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
           end do
         end do ! localObsIndex
@@ -461,7 +461,7 @@ contains
 
           else if (trim(algorithm) == 'LETKF-ME') then
             !
-            ! Weight calculation for standard with modulated ensemble algorithm
+            ! Weight calculation for standard LETKF algorithm with modulated ensemble
             !
 
             ! Add second term of PaInv
@@ -769,7 +769,7 @@ contains
           ! no obs near this grid point, mean weights zero, member weights identity
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          do memberIndex = 1, nEnsUsed
+          do memberIndex = 1, nEns
             weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
           end do
 
@@ -792,7 +792,7 @@ contains
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mmpi_comm_grid, requestIdSend(numSend), ierr )
-          nsize = nEnsUsed*nEnsUsed
+          nsize = nEns*nEns
           numSend = numSend + 1
           sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
@@ -875,7 +875,7 @@ contains
               if ( numRetainedEigen > 0 ) then
                 do memberIndex = 1, nEns
                   do eigenVectorIndex = 1, numRetainedEigen
-                    call getModulatedScaler( stateVectorMeanInc, &
+                    call getModulatedScalar( stateVectorMeanInc, &
                                              memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex), &
                                              meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
                                              vLocalize, numRetainedEigen, nEns, &
@@ -1845,34 +1845,34 @@ contains
   end subroutine enkf_getModulatedState
 
   !--------------------------------------------------------------------------
-  ! getModulatedScaler
+  ! getModulatedScalar
   !--------------------------------------------------------------------------
-  subroutine getModulatedScaler( stateVector_in, memberScaler_in, meanScaler, &
+  subroutine getModulatedScalar( stateVector_in, memberScalar_in, meanScalar, &
                                  vLocalizeLengthScale, numRetainedEigen, nEns, &
                                  eigenVectorIndex, levIndex, &
-                                 memberScaler_out )
+                                 memberScalar_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
-    !          eigenvectors/eigenvalues, to obtain modulated scaler for
+    !          eigenvectors/eigenvalues, to obtain modulated Scalar for
     !          single lat/lon/lev/step of an ensemble member.
     !
     implicit none
 
     ! Aguments:
     type(struct_gsv), intent(in) :: stateVector_in
-    real(4), intent(in) :: memberScaler_in
-    real(4), intent(in) :: meanScaler
+    real(4), intent(in) :: memberScalar_in
+    real(4), intent(in) :: meanScalar
     real(8), intent(in) :: vLocalizeLengthScale
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorIndex
     integer, intent(in) :: levIndex
-    real(4), intent(out) :: memberScaler_out
+    real(4), intent(out) :: memberScalar_out
 
     ! Locals:
     real(8)              :: zr, zcorr, pSurfRef
     real(8)              :: tolerance
-    real(8)              :: pertScaler
+    real(8)              :: pertScalar
     real(8), pointer     :: pressureProfile(:)
     real(8), allocatable, save :: eigenValues(:)
     real(8), allocatable, save :: eigenVectors(:,:)
@@ -1886,7 +1886,7 @@ contains
 
     nLev = stateVector_in%vco%nLev_M
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
-      call utl_abort('getModulatedScaler: no vertical localization')
+      call utl_abort('getModulatedScalar: no vertical localization')
     end if
 
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
@@ -1905,7 +1905,7 @@ contains
                            sfc_field=pSurfRef, &
                            in_log=.false. )
       if ( status /= VGD_OK ) then
-        call utl_abort('getModulatedScaler: ERROR from vgd_levels')
+        call utl_abort('getModulatedScalar: ERROR from vgd_levels')
       end if
 
       ! Calculate 5'th order function
@@ -1923,23 +1923,23 @@ contains
                            tolerance, matrixRank)
       if ( matrixRank < numRetainedEigen ) then
         write(*,*) 'matrixRank=', matrixRank
-        call utl_abort('getModulatedScaler: verticalLocalizationMat is rank deficient=')
+        call utl_abort('getModulatedScalar: verticalLocalizationMat is rank deficient=')
       end if
     end if
 
     ! Compute perturbation by subtracting mean
-    pertScaler = real(memberScaler_in-meanScaler,8)
+    pertScalar = real(memberScalar_in-meanScalar,8)
 
     ! Compute modulated member perturbation from original member perturbation:
     !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
-    pertScaler = pertScaler * eigenVectors(levIndex,eigenVectorIndex) * &
+    pertScalar = pertScalar * eigenVectors(levIndex,eigenVectorIndex) * &
                  eigenValues(eigenVectorIndex) ** 0.5 * &
                  (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
 
-    ! Now add to mean to get modulated scaler
+    ! Now add to mean to get modulated Scalar
     ! v_k = v'_k + v_mean
-    memberScaler_out = real(pertScaler,4) + meanScaler
+    memberScalar_out = real(pertScalar,4) + meanScalar
 
-  end subroutine getModulatedScaler
+  end subroutine getModulatedScalar
 
 end module enkf_mod
