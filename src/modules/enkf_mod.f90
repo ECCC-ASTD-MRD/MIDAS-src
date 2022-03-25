@@ -1743,6 +1743,8 @@ contains
 
     logical, save :: firstCall = .true.
 
+    write(*,*) 'enkf_getModulatedState: START'
+
     if ( stateVector_in%dataKind /= 4 ) then
       call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
     end if
@@ -1766,6 +1768,7 @@ contains
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
     if ( firstCall ) then
       firstCall = .false.
+      write(*,*) 'enkf_getModulatedState: computing eigenValues/Vectors'
 
       allocate(eigenValues(nLev))
       allocate(eigenVectors(nLev,nLev))
@@ -1781,6 +1784,8 @@ contains
       if ( status /= VGD_OK ) then
         call utl_abort('enkf_getModulatedState: ERROR from vgd_levels')
       end if
+
+      call lfn_Setup(LocFunctionWanted='FifthOrder')
 
       ! Calculate 5'th order function
       do levIndex1 = 1, nLev
@@ -1841,6 +1846,8 @@ contains
     ! Now add to ensMean to get modulated member
     ! v_k = v'_k + v_mean
     call gsv_add(stateVectorMeanTrl, stateVector_out)
+
+    write(*,*) 'enkf_getModulatedState: END'
 
   end subroutine enkf_getModulatedState
 
@@ -1907,6 +1914,8 @@ contains
       if ( status /= VGD_OK ) then
         call utl_abort('getModulatedScalar: ERROR from vgd_levels')
       end if
+
+      call lfn_Setup(LocFunctionWanted='FifthOrder')
 
       ! Calculate 5'th order function
       do levIndex1 = 1, nLev

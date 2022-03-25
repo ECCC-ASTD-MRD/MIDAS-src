@@ -388,6 +388,9 @@ program midas_letkf
 
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
+      write(*,*) 'midas-letkf: computing modulated member ', eigenVectorIndex, '/', &
+                 numRetainedEigen
+
       ! modulate the member with eigenvectors of vertical localization matrix
       call enkf_getModulatedState( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
