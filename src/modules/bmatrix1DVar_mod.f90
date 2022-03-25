@@ -75,7 +75,7 @@ module bmatrix1DVar_mod
   logical          :: bmatActive    (numBmatMax)
   integer          :: nEns
   real(8)          :: vlocalize
-  real(8),allocatable :: LvertSqrt(:,:)
+  !real(8),allocatable :: Lvert(:,:)
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensPerts
@@ -350,7 +350,7 @@ contains
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR, zcorr
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
-    real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
+    real(8),pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
     integer :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
@@ -367,9 +367,12 @@ contains
     character(len=4), parameter  :: varNameALFAatmTH(1) = [ 'ALFT' ]
     character(len=4), parameter  :: varNameALFAsfc(1)   = [ 'ALFS' ]
     character(len=4), pointer :: varNames(:)
+    real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
-    real(8), allocatable :: lineVector(:,:)
+    real(8), allocatable :: lineVector(:,:), meanPressureProfile(:)
     integer, allocatable :: subIndex(:)
+    character(len=4),allocatable :: varNameCv(:)
+    character(len=2) :: varLevel
 
     call tmg_start(12,'BENS1D_SETUP')
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
@@ -599,39 +602,9 @@ contains
       if (status /= VGD_OK)then
         call utl_abort('bmat1D_setubBEns: ERROR from vgd_levels')
       end if
-      allocate(pressureProfileEns_M(nLevEns_M))
-      pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
       deallocate(pressureProfileInc_M)
-    else ! vco_in%Vcode == 0
-      allocate(pressureProfileEns_M(1))
-      pressureProfileEns_M(:) = pSurfRef
     end if
-    
-    !to replace with simpler code for vertical localization only
-    allocate(LvertSqrt(nLevEns_M, nLevEns_M),stat=ierr)
-    if (ierr /= 0 ) then
-       write(*,*) 'bmat1D_setubBEns: Problem allocating memory! id=10',ierr
-       call utl_abort('bmat1D_setubBEns')
-    end if
-    if (vLocalize > 0.0d0 .and. nLevEns_M > 1) then
-
-      !-  3.1 Calculate 5'th order function
-      do levIndex1 = 1, nLevEns_M
-        do levIndex2 = 1, nLevEns_M
-          ZR = abs(log(pressureProfileEns_M(levIndex2)) - log(pressureProfileEns_M(levIndex1)))
-          zcorr = lfn_response(zr,vLocalize)
-          LvertSqrt(levIndex1,levIndex2) = zcorr
-        end do
-      end do
-
-!      !- 3.2 Compute sqrt of the matrix
-!      if (vLocalize > 0.0d0) then
-!        call utl_matSqrt(LvertSqrt(1,1), nLevEns_M, 1.0d0, .false.)
-!      end if
-    else
-      LvertSqrt(:,:) = 1.d0 ! no vertical localization
-    end if
-    deallocate(pressureProfileEns_M)
+  
     call ens_allocate(ensPerts,  &
          nEns, numStep, &
          hco_ens,  &
@@ -685,12 +658,14 @@ contains
     cvDim_out = nkgdim * var1D_validHeaderCount
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (subIndex(nkgdim))
+    allocate (varNameCv(nkgdim))
     nkgdim = 0
     do varIndex = 1, numIncludeAnlVar
       do levIndex = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
           nkgdim = nkgdim + 1
           subIndex(nkgdim) = levIndex
+          varNameCv(nkgdim) = trim( bmat1D_varList(varIndex) )
           if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns: x ", bmat1D_varList(varIndex), nkgdim, levIndex
         end if
       end do
@@ -703,6 +678,7 @@ contains
     allocate( lineVector(1,nkgdim) )
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
+      !write(*,*) "compute covariance", columnIndex,headerIndex
 !      offset = 0
 !      do varIndex = 1, numIncludeAnlVar
       meanProfile => col_getColumn(meanColumn, headerIndex) !, varName_opt=bmat1D_varList(varIndex))
@@ -723,7 +699,7 @@ contains
       !end do
     end do
     deallocate(lineVector)
-    deallocate(subIndex)  
+    allocate(meanPressureProfile(nkgdim))
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
@@ -732,9 +708,42 @@ contains
       !    write(*,'(A4,1x,i12,1x,i12,1x,e14.6)') "bmat1D_setupBEns: COVZ",headerIndex,levIndex,bSqrtEns(headerIndex,levIndex,levIndex)
       !  end do
       !end if
+      if (vLocalize > 0.0d0) then
+        do levIndex1 = 1, nkgdim
+          levIndex2 = subIndex(levIndex1)
+          select case(trim( varNameCv(levIndex1) ))
+          case("TT","HU","LQ")
+            varLevel="TH"
+          case("UU","VV")
+            varLevel="MM"
+          case("TG","P0")
+            varLevel="SF"
+          case default
+            call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameCv(levIndex)) )
+          end select
+          if (varLevel=="SF") then
+            meanPressureProfile(levIndex1) = col_getElem(meanColumn,1,headerIndex,'P0')
+          else
+            offset = col_getOffsetFromVarName(meanColumn, varNameCv(levIndex1))
+            meanPressureProfile(levIndex1) = col_getPressure(meanColumn,levIndex2-offset+1,headerIndex,varLevel)
+          end if
+        end do
+        do levIndex1 = 1, nkgdim
+          logp1 = log(meanPressureProfile(levIndex1))
+          do levIndex2 = 1, nkgdim
+            !-  do Schurr product with 5'th order function
+            logP2 = log(meanPressureProfile(levIndex2))
+            ZR = abs(logP2  -  logP1)
+            bSqrtEns(headerIndex, levIndex2, levIndex1) = &
+                 bSqrtEns(headerIndex, levIndex2, levIndex1) * lfn_response(zr,vLocalize)
+          end do
+        end do
+      end if
       call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
-
+    deallocate(subIndex) 
+    deallocate(varNameCv)
+    deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
     do memberIndex =1 , nEns
       call col_deallocate(ensColumns(memberIndex))
