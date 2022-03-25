@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [3.7.0]
 
+### Added
+
+ * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
+   * As expected, this change has minor impact on results
+ * Add support for platform `rhel-8-icelake-64` in `ssm/build_packages` (#606 and !560)
+ * Use a topology-independent mpi-reduce operator in `biasCorrectionSat_mod` (#604 and !559)
+ * Implement the SSM packaging using shell scripts (#561 and !532)
+ * Improve the documentation on how to start a branch associated to an
+   issue from the release branch (#553 and !523)
+
 ### Changed
 
  * Several improvements (#614 and #618 and !574):
@@ -35,32 +45,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Use the environment variable `${PBSTMPFSDIR}` to get the path to the RAMDisk on each node (#598 and !575)
    * The user must use at least this environment profile:  `/fs/ssm/eccc/mrd/ordenv/profile/1.16.0`
-
-## [3.7.0-rc2]
-
-### Fixed
-
  * The script 'tools/midas_scripts/midas.mpirun' was considering both
    `ubuntu-18.04-skylake-64` and `rhel-8-icelake-64` at the same time (#610 and !565)
- * Remove further dependencies to `ksh` (#611 and !566)
-
-## [3.7.0-rc1]
-
-### Added
-
- * Migrate the whole to `rhel-8-icelake-64` (#559 and !554)
-   * As expected, this change has minor impact on results
- * Add support for platform `rhel-8-icelake-64` in `ssm/build_packages` (#606 and !560)
-
-### Changed
-
- * Use a topology-independent mpi-reduce operator in `biasCorrectionSat_mod` (#604 and !559)
- * Implement the SSM packaging using shell scripts (#561 and !532)
- * Improve the documentation on how to start a branch associated to an
-   issue from the release branch (#553 and !523)
 
 ### Removed
 
+ * Remove further dependencies to `ksh` (#611 and !566)
  * Remove the task `download` from the maestro module `UnitTest` (#595 and !558)
  * Remove any reference to release branch `v_3.4` in the documentation
    (#553 and !523)
@@ -777,9 +767,7 @@ Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...HEAD
-[3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc2...v_3.7.0
-[3.7.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc1...v_3.7.0-rc2
-[3.7.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0-rc1
+[3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
 [3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6
