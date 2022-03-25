@@ -77,6 +77,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Several improvements (#614 and #618 and !574):
+   * convert all scripts to Python 3
+   * upgrade to `maestro/1.8.2`
+   * add `export POSTINSTALL_PACKAGE_VERSION=${version}` in the SSM publishing scripts
  * Adapted `midas_build` for single architecture U2 (#578 and !562)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
  * Implement the SSM packaging using shell scripts (#561 and !532)
@@ -110,6 +114,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Use the environment variable `${PBSTMPFSDIR}` to get the path to the RAMDisk on each node (#598 and !575)
+   * The user must use at least this environment profile:  `/fs/ssm/eccc/mrd/ordenv/profile/1.16.0`
  * Fix bug causing zero radiance bias correction when all coefficients missing (#562 and !555)
  * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553) 
  * Augment width write format for Jo contributions (#591 and !552)
@@ -141,6 +147,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * removes of `compile_*.sh`, associated files and old env. variable retrocompatibility (#612 and !569)
+
+## [3.7.0-rc2]
+
+### Fixed
+
+ * The script 'tools/midas_scripts/midas.mpirun' was considering both
+   `ubuntu-18.04-skylake-64` and `rhel-8-icelake-64` at the same time (#610 and !565)
+ * Remove further dependencies to `ksh` (#611 and !566)
 
 ## [3.7.0-rc1]
 
@@ -874,7 +888,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc2...HEAD
+[3.7.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0-rc1...v_3.7.0-rc2
+[3.7.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0-rc1
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
 [3.6.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.5...v_3.6.6

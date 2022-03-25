@@ -473,6 +473,8 @@ fi
 
 if [ -n "${MIDAS_RAMDISKPATH}" ]; then
     ramdiskpath=${MIDAS_RAMDISKPATH}
+elif [ -n "${PBSTMPFSDIR}}" ]; then
+    ramdiskpath=${PBSTMPFSDIR}
 elif [ -n "${TMPFSDIR}" ]; then
     ramdiskpath=tmpfsdir
 else

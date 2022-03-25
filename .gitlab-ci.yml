@@ -3,7 +3,7 @@ variables:
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
-    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"
+    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"
 
 stages:
    - build
