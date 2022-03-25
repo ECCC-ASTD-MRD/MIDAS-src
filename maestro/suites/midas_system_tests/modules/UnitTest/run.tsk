@@ -76,13 +76,9 @@ export I_MPI_FC=ifort
 export I_MPI_CC=icc
 export I_MPI_CXX=icpc
 
-## essential variables
-export UCX_NET_DEVICES=mlx5_0:1
-export I_MPI_HYDRA_BOOTSTRAP=ssh
-## suggested for improved performance
-export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement directives
-export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
-export KMP_AFFINITY=compact # Allows pinning the threads
+## this is needed to create tmpdirs on all nodes
+pbsdsh :
+
 EOF
 
 else

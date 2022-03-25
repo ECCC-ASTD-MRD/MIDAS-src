@@ -9,7 +9,7 @@ echo starting var.sh at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 
 fasttmp=${1}
-ramdiskpath=${2:-/tmp/${USER}}
+ramdiskpath=${PBSTMPFSDIR-/tmp/${USER}}
 
 ## assume the observations are splitted into many files
 
@@ -18,6 +18,7 @@ if [ "${fasttmp}" = yes ]; then
     [ -d "${FASTTMPDIR}" ] && /bin/rm -rf ${FASTTMPDIR}
     /bin/mkdir -p ${FASTTMPDIR}
     export MIDAS_RAMDISKDIR=${FASTTMPDIR}
+    echo "Start of the job $(hostname) ${FASTTMPDIR} $(df -h ${FASTTMPDIR})"
 fi
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
@@ -30,6 +31,8 @@ SECONDS=0
 #status=0
 #/usr/bin/time --format "Total Memory: %M Mb" ${RUN_PGM} || status=1
 ${RUN_PGM}
+
+echo "After program of the job $(hostname) ${FASTTMPDIR} $(df -h ${FASTTMPDIR})"
 
 echo ending ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 echo "The program itself took ${SECONDS} seconds"

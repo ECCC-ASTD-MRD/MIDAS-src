@@ -21,6 +21,7 @@ packages=
 domainpath=
 postinstall=
 workdir=${TMPDIR}
+version=
 
 args=
 while [ $# -gt 0 ]; do
@@ -35,6 +36,9 @@ while [ $# -gt 0 ]; do
         shift
     elif [ "${1}" = --workdir ]; then
         workdir=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --version ]; then
+        version=$(getArg $1 $2)
         shift
     else
         args="${args} ${1}"
@@ -55,6 +59,12 @@ if [ -z "${domainpath}" ]; then
     echo "ssm/publish: You must provide a domain path with '--domainpath'" >&2
     exit 1
 fi
+if [ -n "${version}" ]; then
+    echo "ssm/publish: exporting 'POSTINSTALL_PACKAGE_VERSION=${version}"
+    ## this variable me be used in the 'post-install' script of the packages which will be installed
+    export POSTINSTALL_PACKAGE_VERSION=${version}
+fi
+
 
 if [ ! -d "$(dirname ${domainpath})" ]; then
     mkdir -pv $(dirname ${domainpath})

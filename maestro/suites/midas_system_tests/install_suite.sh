@@ -10,7 +10,7 @@ MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 ${__toplevel}/set_resources_def.sh
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
-which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"}
+which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then

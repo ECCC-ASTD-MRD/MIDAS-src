@@ -35,7 +35,7 @@ unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
-if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 -o "${EC_ARCH}" = rhel-8-icelake-64 ]; then
+if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set +x
     for __midas_mpirun_ssmdomain__ in ${__midas_mpirun_ssm__}; do
 	echo "loading SSM domain '${__midas_mpirun_ssmdomain__}'"
@@ -58,13 +58,8 @@ elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     export I_MPI_CC=icc
     export I_MPI_CXX=icpc
 
-    ## essential variables
-    export UCX_NET_DEVICES=mlx5_0:1
-    export I_MPI_HYDRA_BOOTSTRAP=ssh
-    ## suggested for improved performance
-    export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=no # Allow override of placement directives
-    export I_MPI_PIN_DOMAIN=auto:scatter # Considered option auto:compact
-    export KMP_AFFINITY=compact # Allows pinning the threads
+    ## this is needed temporarily to create tmpdirs on all nodes
+    pbsdsh :
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
     ## export TBB_MALLOC_USE_HUGE_PAGES=1

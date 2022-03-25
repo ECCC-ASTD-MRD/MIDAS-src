@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import math
 import sys
@@ -34,38 +34,40 @@ def find_subdomain(lat,lon,npex,npey):
     jlatband = int(math.floor(jlatband_r8))
 
     if verbose:
-        print "find_subdomain: ((lon+360)%%360)/(360./npex)=%f (lat+90)/(180./npey)=%f returning ilonband=%d jlatband=%d" % (((lon+360)%360)/(360./npex),(lat+90)/(180./npey),ilonband,jlatband)
+        message="find_subdomain: ((lon+360)%%360)/(360./npex)=%f (lat+90)/(180./npey)=%f returning ilonband=%d jlatband=%d" % (((lon+360)%360)/(360./npex),(lat+90)/(180./npey),ilonband,jlatband)
+        print(message)
 
     return ilonband, jlatband, ilonband_r8, jlatband_r8
 
     
 def check_latlon_in_subdomain(lat,lon,ilonband,jlatband,npex,npey):
     if verbose:
-        print "check_latlon_in_subdomain: lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
+        message="check_latlon_in_subdomain: lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
+        print(message)
 
     if npex==1 and ilonband!=1:
-        print "npex=1 but ilonband=%d" % ilonband
+        print("npex=1 but ilonband=%d" % ilonband)
         return False
     if npey==1 and jlatband!=1:
-        print "npey=1 but jlatband=%d" % jlatband
+        print("npey=1 but jlatband=%d" % jlatband)
         return False
 
     thislonband, thislatband, lonband_r8, latband_r8 = find_subdomain(lat,lon,npex,npey)
     if npey!=1 and thislatband!=jlatband:
-        print "jlatband=%d and thislatband=%d ecartlat=%f" % (jlatband,thislatband,jlatband-latband_r8)
+        print("jlatband=%d and thislatband=%d ecartlat=%f" % (jlatband,thislatband,jlatband-latband_r8))
         if abs(jlatband-latband_r8)<tolerance:
             return True
         else:
             return False
     if npey!=1 and thislatband!=jlatband:
-        print "ilonband=%d and thislonband=%d ecartlon=%f" % (ilonband,thislonband,ilonband-lonband_r8)
+        print("ilonband=%d and thislonband=%d ecartlon=%f" % (ilonband,thislonband,ilonband-lonband_r8))
         if abs(ilonband-lonband_r8)<tolerance:
             return True
         else:
             return False
 
     if verbose:
-        print "check_latlon_in_subdomain: observation in the correct subdomain"
+        print("check_latlon_in_subdomain: observation in the correct subdomain")
 
     return True
        
@@ -75,8 +77,10 @@ for line in open(filein).readlines():
     
     check = check_latlon_in_subdomain(lat,lon,ilonband,jlatband,npex,npey)
     if check and verbose:
-        print "The function check_latlon_in_subdomain is returning True for args lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
-    
+        message="The function check_latlon_in_subdomain is returning True for args lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
+        print(message)
+
     if not check:
-        print "The function check_latlon_in_subdomain is returning False for args lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
+        message="The function check_latlon_in_subdomain is returning False for args lat=%f lon=%f ilonband=%d jlatband=%d npex=%d npey=%d" % (lat,lon,ilonband,jlatband,npex,npey)
+        print(message)
         sys.exit(1)

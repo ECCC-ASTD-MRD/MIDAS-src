@@ -10,7 +10,7 @@ export SEQ_EXP_HOME
 
 toplevel=$(git rev-parse --show-toplevel)
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.0"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 ${toplevel}/set_resources_def.sh
