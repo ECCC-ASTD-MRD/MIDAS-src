@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Use the environment variable `${PBSTMPFSDIR}` to get the path to the RAMDisk on each node (#598 and !575)
+   * The user must use at least this environment profile:  `/fs/ssm/eccc/mrd/ordenv/profile/1.16.0`
 
 ### Removed
 
