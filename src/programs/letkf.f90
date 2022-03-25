@@ -55,7 +55,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorMemberAnl
   type(struct_gsv)          :: stateVectorMeanAnl
   type(struct_gsv)          :: stateVectorWithZandP4D
-  type(struct_gsv)          :: stateVectorToComputeInnovation
+  type(struct_gsv)          :: stateVectorWithZandP4Dmod
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_gsv)          :: stateVectorCtrlTrl
   type(struct_gsv)          :: stateVectorRecenter
@@ -320,6 +320,16 @@ program midas_letkf
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
+  if ( numRetainedEigen > 0 ) then
+    call gsv_allocate( stateVectorWithZandP4Dmod, stateVectorWithZandP4D%numstep, &
+                       stateVectorWithZandP4D%hco, stateVectorWithZandP4D%vco, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=stateVectorWithZandP4D%mpi_local, &
+                       mpi_distribution_opt='Tiles', &
+                       dataKind_opt=stateVectorWithZandP4D%dataKind, &
+                       allocHeightSfc_opt=stateVectorWithZandP4D%heightSfcPresent )
+    call gsv_zero(stateVectorWithZandP4Dmod)
+  end if
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
@@ -395,9 +405,9 @@ program midas_letkf
       call enkf_getModulatedState( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
                                    eigenVectorIndex, &
-                                   stateVectorToComputeInnovation )
+                                   stateVectorWithZandP4Dmod )
 
-      call s2c_nl( stateVectorToComputeInnovation, obsSpaceData, column, hco_ens, &
+      call s2c_nl( stateVectorWithZandP4Dmod, obsSpaceData, column, hco_ens, &
                    timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
       ! Compute Y-H(X) in OBS_OMP
@@ -410,9 +420,9 @@ program midas_letkf
       memberIndexInEnsObs = (eigenVectorIndex - 1) * numRetainedEigen + memberIndex
       call eob_setYb(ensObsGain, memberIndexInEnsObs)
     end do
-    if ( numRetainedEigen > 0 ) call gsv_deallocate(stateVectorToComputeInnovation)
 
   end do
+  if ( gsv_isAllocated(stateVectorWithZandP4Dmod) ) call gsv_deallocate(stateVectorWithZandP4Dmod)
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
   !      control before finally communicating ensObs/ensObsGain globally

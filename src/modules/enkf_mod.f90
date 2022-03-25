@@ -1723,7 +1723,7 @@ contains
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorIndex
-    type(struct_gsv), intent(out) :: stateVector_out
+    type(struct_gsv), intent(inout) :: stateVector_out
 
     ! Locals:
     real(8)              :: zr, zcorr, pSurfRef
@@ -1748,17 +1748,6 @@ contains
     if ( stateVector_in%dataKind /= 4 ) then
       call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
     end if
-
-    if ( firstCall ) then
-      call gsv_allocate( stateVector_out, stateVector_in%numstep, &
-                         stateVector_in%hco, stateVector_in%vco, &
-                         dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=stateVector_in%mpi_local, &
-                         mpi_distribution_opt='Tiles', &
-                         dataKind_opt=stateVector_in%dataKind, &
-                         allocHeightSfc_opt=stateVector_in%heightSfcPresent )
-    end if
-    call gsv_zero(stateVector_out)
 
     nLev = stateVector_in%vco%nLev_M
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
@@ -1815,33 +1804,33 @@ contains
     lat1 = stateVector_out%myLatBeg
     lat2 = stateVector_out%myLatEnd
 
-    ! Compute modulated member perturbation from original member perturbation:
-    !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
-    step_loop: do stepIndex = 1, stateVector_out%numStep
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(stateVector_out,varName) ) cycle var_loop
+    !! Compute modulated member perturbation from original member perturbation:
+    !!   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
+    !step_loop: do stepIndex = 1, stateVector_out%numStep
+    !  var_loop: do varIndex = 1, vnl_numvarmax
+    !    varName = vnl_varNameList(varIndex)
+    !    if ( .not. gsv_varExist(stateVector_out,varName) ) cycle var_loop
 
-        nlev_out  = stateVector_out%varNumLev(varIndex)
+    !    nlev_out  = stateVector_out%varNumLev(varIndex)
 
-        call gsv_getField(statevector_out,field_out_r4,varName)
+    !    call gsv_getField(statevector_out,field_out_r4,varName)
 
-        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
-        do latIndex = lat1, lat2
-          do lonIndex = lon1, lon2
-            do levIndex = 1, nlev_out
-              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
-                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
-                                 eigenVectors(levIndex,eigenVectorIndex) * &
-                                 eigenValues(eigenVectorIndex) ** 0.5 * &
-                                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
+    !    !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
+    !    do latIndex = lat1, lat2
+    !      do lonIndex = lon1, lon2
+    !        do levIndex = 1, nlev_out
+    !          field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+    !                             field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+    !                             eigenVectors(levIndex,eigenVectorIndex) * &
+    !                             eigenValues(eigenVectorIndex) ** 0.5 * &
+    !                             (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+    !        end do
+    !      end do
+    !    end do
+    !    !$OMP END PARALLEL DO
 
-      end do var_loop
-    end do step_loop
+    !  end do var_loop
+    !end do step_loop
 
     ! Now add to ensMean to get modulated member
     ! v_k = v'_k + v_mean
