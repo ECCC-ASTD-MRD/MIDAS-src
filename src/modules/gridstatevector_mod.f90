@@ -1457,10 +1457,14 @@ module gridStateVector_mod
     integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_add: gridStateVector_in not yet allocated')
+      call utl_abort('gsv_add: stateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_add: gridStateVector_inout not yet allocated')
+      call utl_abort('gsv_add: stateVector_inout not yet allocated')
+    end if
+    if ( statevector_in%mykBeg /= statevector_inout%mykBeg .or. &
+         statevector_in%mykEnd /= statevector_inout%mykEnd ) then
+      call utl_abort('gsv_add: mykBeg/mykEnd of stateVector_in/inout do not match')
     end if
 
     lon1=statevector_in%myLonBeg
