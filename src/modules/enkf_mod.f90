@@ -1733,6 +1733,7 @@ contains
     real(8), allocatable, save :: eigenVectors(:,:)
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
     real(4), pointer :: field_out_r4(:,:,:,:)
+    real(4), pointer :: field_mean_r4(:,:,:,:)
 
     integer :: levIndex1, levIndex2, status, nLev, matrixRank
     integer :: nlev_out, levIndex, latIndex, lonIndex
@@ -1786,7 +1787,7 @@ contains
       end do
 
       ! Compute eigenValues/Vectors of vertical localization matrix
-      tolerance = 1.0D-3
+      tolerance = 1.0D-50
       call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
                            tolerance, matrixRank)
       if ( matrixRank < numRetainedEigen ) then
@@ -1794,6 +1795,9 @@ contains
         call utl_abort('enkf_getModulatedState: verticalLocalizationMat is rank deficient=')
       end if
     end if
+
+write(*,*) 'maziar: eigenVectors=', eigenVectors(:,eigenVectorIndex)
+write(*,*) 'maziar: eigenValues=', eigenValues(eigenVectorIndex)
 
     ! Compute perturbation by subtracting ensMean
     call gsv_copy(stateVector_in, stateVector_out)
@@ -1803,6 +1807,8 @@ contains
     lon2 = stateVector_out%myLonEnd
     lat1 = stateVector_out%myLatBeg
     lat2 = stateVector_out%myLatEnd
+write(*,*) 'maziar: lat1=', lat1
+write(*,*) 'maziar: lon1=', lon1
 
     ! Compute modulated member perturbation from original member perturbation:
     !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
@@ -1814,20 +1820,40 @@ contains
         nlev_out  = stateVector_out%varNumLev(varIndex)
 
         call gsv_getField(statevector_out,field_out_r4,varName)
+        if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) call gsv_getField(stateVectorMeanTrl,field_mean_r4,varName)
 
-        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
+        !!$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do levIndex = 1, nlev_out
+if ( latIndex == lat1 .and. lonIndex == lon1 ) then
+  write(*,*) 'maziar: varName=', varName,', levIndex=', levIndex, ', stepIndex=', stepIndex
+  write(*,*) 'maziar: eigenvector=', eigenVectors(levIndex,eigenVectorIndex)
+  write(*,*) 'maziar: eigenValue=', eigenValues(eigenVectorIndex)
+  if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
+  write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
+end if
+            if ( nlev_out == 1 ) then
+              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+                                 eigenVectors(nLev,eigenVectorIndex) * &
+                                 eigenValues(eigenVectorIndex) ** 0.5 * &
+                                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+            else
               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
                                  field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
                                  eigenVectors(levIndex,eigenVectorIndex) * &
                                  eigenValues(eigenVectorIndex) ** 0.5 * &
                                  (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+            end if
+if ( latIndex == lat1 .and. lonIndex == lon1 ) then
+  write(*,*) 'maziar: modulated pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
+end if
+
             end do
           end do
         end do
-        !$OMP END PARALLEL DO
+        !!$OMP END PARALLEL DO
 
       end do var_loop
     end do step_loop
@@ -1916,7 +1942,7 @@ contains
       end do
 
       ! Compute eigenValues/Vectors of vertical localization matrix
-      tolerance = 1.0D-3
+      tolerance = 1.0D-50
       call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
                            tolerance, matrixRank)
       if ( matrixRank < numRetainedEigen ) then

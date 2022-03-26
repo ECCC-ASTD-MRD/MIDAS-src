@@ -54,6 +54,8 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorMeanTrl4D
   type(struct_gsv)          :: stateVectorMemberAnl
   type(struct_gsv)          :: stateVectorMeanAnl
+  type(struct_gsv)          :: stateVector4D
+  type(struct_gsv)          :: stateVector4Dmod
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorWithZandP4Dmod
   type(struct_gsv)          :: stateVectorHeightSfc
@@ -84,6 +86,8 @@ program midas_letkf
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
+
+  real(4), pointer :: field_Psfc(:,:,:,:)
 
   ! namelist variables
   character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
@@ -306,6 +310,21 @@ program midas_letkf
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanAnl)
+  call gsv_allocate( stateVector4D, tim_nstepobs, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                     dataKind_opt=4, allocHeightSfc_opt=.true., &
+                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_zero(stateVector4D)
+  if ( numRetainedEigen > 0 ) then
+    ! same as stateVector4D
+    call gsv_allocate( stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVector4Dmod)
+  end if
 
   !- 2.9 Allocate statevector related to an analysis ensemble member  
   call gsv_allocate( stateVectorMemberAnl, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -320,16 +339,6 @@ program midas_letkf
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
-  if ( numRetainedEigen > 0 ) then
-    call gsv_allocate( stateVectorWithZandP4Dmod, stateVectorWithZandP4D%numstep, &
-                       stateVectorWithZandP4D%hco, stateVectorWithZandP4D%vco, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=stateVectorWithZandP4D%mpi_local, &
-                       mpi_distribution_opt='Tiles', &
-                       dataKind_opt=stateVectorWithZandP4D%dataKind, &
-                       allocHeightSfc_opt=stateVectorWithZandP4D%heightSfcPresent )
-    call gsv_zero(stateVectorWithZandP4Dmod)
-  end if
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
@@ -377,7 +386,8 @@ program midas_letkf
     write(*,*) ''
 
     ! copy 1 member to a stateVector
-    call ens_copyMember(ensembleTrl4D, stateVectorWithZandP4D, memberIndex)
+    call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
+    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
 
     ! copy the surface height field
     if (nwpFields) then
@@ -402,12 +412,20 @@ program midas_letkf
                  numRetainedEigen
 
       ! modulate the member with eigenvectors of vertical localization matrix
-      call enkf_getModulatedState( stateVectorWithZandP4D, stateVectorMeanTrl4D, &
+      call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
                                    eigenVectorIndex, &
-                                   stateVectorWithZandP4Dmod )
+                                   stateVector4Dmod )
 
-      call s2c_nl( stateVectorWithZandP4Dmod, obsSpaceData, column, hco_ens, &
+      call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
+      write(*,*) 'maziar: max(Psfc)=', maxval(field_Psfc)
+      write(*,*) 'maziar: min(Psfc)=', minval(field_Psfc)
+
+      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
+      if (nwpFields) then
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+      end if
+      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                    timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
       ! Compute Y-H(X) in OBS_OMP
@@ -422,7 +440,7 @@ program midas_letkf
     end do
 
   end do
-  if ( gsv_isAllocated(stateVectorWithZandP4Dmod) ) call gsv_deallocate(stateVectorWithZandP4Dmod)
+  if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
   !      control before finally communicating ensObs/ensObsGain globally
