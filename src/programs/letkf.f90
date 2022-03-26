@@ -435,7 +435,7 @@ program midas_letkf
       call tmg_stop(6)
 
       ! Copy to ensObsGain: Y-HX for this member
-      memberIndexInEnsObs = (eigenVectorIndex - 1) * numRetainedEigen + memberIndex
+      memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
       call eob_setYb(ensObsGain, memberIndexInEnsObs)
     end do
 

@@ -901,7 +901,7 @@ if ( latIndex == myLatBeg .and. lonIndex == myLonBeg ) then
 end if
                     pert_r4 = pert_r4 * real(modulationFactor,4)
 
-                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * numRetainedEigen + &
+                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
                                         memberIndex
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                          meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
