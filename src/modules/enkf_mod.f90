@@ -112,8 +112,10 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
-    integer :: nEnsUsed, eigenVectorIndex
+    integer :: nEnsUsed, eigenVectorColumnIndex, eigenVectorLevelIndex
+    integer :: memberIndexInModEns, nLev
     real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
+    real(8) :: modulationFactor
 
     integer, allocatable :: localBodyIndices(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -137,7 +139,7 @@ contains
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
-    real(4) :: memberTrlMod_r4
+    real(4)              :: pert_r4
 
     character(len=4)     :: varLevel
     character(len=2)     :: varKind
@@ -870,22 +872,34 @@ contains
             end if
             if (levIndex2 /= levIndex) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+            nLev = gsv_getNumLevFromVarName( stateVectorMeanInc, &
+                                             gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex) )
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
               if ( numRetainedEigen > 0 ) then
                 do memberIndex = 1, nEns
-                  do eigenVectorIndex = 1, numRetainedEigen
-                    call getModulatedScalar( stateVectorMeanInc, &
-                                             memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex), &
-                                             meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
-                                             vLocalize, numRetainedEigen, nEns, &
-                                             eigenVectorIndex, levIndex, &
-                                             memberTrlMod_r4 )
+                  do eigenVectorColumnIndex = 1, numRetainedEigen
 
+                    ! maziar: does this cover all cases?
+                    if ( nLev == 1 ) then
+                      eigenVectorLevelIndex = nLev
+                    else
+                      eigenVectorLevelIndex = levIndex
+                    end if
+
+                    call getModulationFactor( stateVectorMeanInc%vco, eigenVectorLevelIndex, &
+                                              eigenVectorColumnIndex, numRetainedEigen, &
+                                              nEns, vLocalize, &
+                                              modulationFactor )
+                    pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                    pert_r4 = pert_r4 * real(modulationFactor,4)
+
+                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * numRetainedEigen + &
+                                        memberIndex
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                          meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                         weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                         (memberTrlMod_r4 - meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                         weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
                   end do
                 end do
               else
@@ -1779,6 +1793,7 @@ if ( latIndex == lat1 .and. lonIndex == lon1 ) then
   if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
   write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
 end if
+            ! maziar: does this cover all cases?
             if ( nlev_out == 1 ) then
               eigenVectorLevelIndex = nLev
             else
