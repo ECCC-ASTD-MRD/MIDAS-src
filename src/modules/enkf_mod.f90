@@ -1708,7 +1708,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
-                                     eigenVectorIndex, &
+                                     eigenVectorColumnIndex, &
                                      stateVector_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
@@ -1722,27 +1722,19 @@ contains
     real(8), intent(in) :: vLocalizeLengthScale
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
-    integer, intent(in) :: eigenVectorIndex
+    integer, intent(in) :: eigenVectorColumnIndex
     type(struct_gsv), intent(inout) :: stateVector_out
 
     ! Locals:
-    real(8)              :: zr, zcorr, pSurfRef
-    real(8)              :: tolerance
-    real(8), pointer     :: pressureProfile(:)
-    real(8), allocatable, save :: eigenValues(:)
-    real(8), allocatable, save :: eigenVectors(:,:)
-    real(8), allocatable, save :: verticalLocalizationMat(:,:)
+    real(8)          :: modulationFactor
     real(4), pointer :: field_out_r4(:,:,:,:)
     real(4), pointer :: field_mean_r4(:,:,:,:)
 
-    integer :: levIndex1, levIndex2, status, nLev, matrixRank
-    integer :: nlev_out, levIndex, latIndex, lonIndex
+    integer :: nLev, nlev_out, levIndex, latIndex, lonIndex
     integer :: lon1, lon2, lat1, lat2
-    integer :: varIndex, stepIndex
+    integer :: varIndex, stepIndex, eigenVectorLevelIndex
 
     character(len=4) :: varName
-
-    logical, save :: firstCall = .true.
 
     write(*,*) 'enkf_getModulatedState: START'
 
@@ -1754,50 +1746,6 @@ contains
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
       call utl_abort('enkf_getModulatedState: no vertical localization')
     end if
-
-    ! Compute vertical localization matrix and its eigenValues/Vectors on first call
-    if ( firstCall ) then
-      firstCall = .false.
-      write(*,*) 'enkf_getModulatedState: computing eigenValues/Vectors'
-
-      allocate(eigenValues(nLev))
-      allocate(eigenVectors(nLev,nLev))
-      allocate(verticalLocalizationMat(nLev,nLev))
-
-      pSurfRef = 101000.D0
-      nullify(pressureProfile)
-      status = vgd_levels( stateVector_in%vco%vgrid, &
-                           ip1_list=stateVector_in%vco%ip1_M, &
-                           levels=pressureProfile, &
-                           sfc_field=pSurfRef, &
-                           in_log=.false. )
-      if ( status /= VGD_OK ) then
-        call utl_abort('enkf_getModulatedState: ERROR from vgd_levels')
-      end if
-
-      call lfn_Setup(LocFunctionWanted='FifthOrder')
-
-      ! Calculate 5'th order function
-      do levIndex1 = 1, nLev
-        do levIndex2 = 1, nLev
-          zr = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
-          zcorr = lfn_response(zr,vLocalizeLengthScale)
-          verticalLocalizationMat(levIndex1,levIndex2) = zcorr
-        end do
-      end do
-
-      ! Compute eigenValues/Vectors of vertical localization matrix
-      tolerance = 1.0D-50
-      call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
-                           tolerance, matrixRank)
-      if ( matrixRank < numRetainedEigen ) then
-        write(*,*) 'matrixRank=', matrixRank
-        call utl_abort('enkf_getModulatedState: verticalLocalizationMat is rank deficient=')
-      end if
-    end if
-
-write(*,*) 'maziar: eigenVectors=', eigenVectors(:,eigenVectorIndex)
-write(*,*) 'maziar: eigenValues=', eigenValues(eigenVectorIndex)
 
     ! Compute perturbation by subtracting ensMean
     call gsv_copy(stateVector_in, stateVector_out)
@@ -1828,24 +1776,27 @@ write(*,*) 'maziar: lon1=', lon1
             do levIndex = 1, nlev_out
 if ( latIndex == lat1 .and. lonIndex == lon1 ) then
   write(*,*) 'maziar: varName=', varName,', levIndex=', levIndex, ', stepIndex=', stepIndex
-  write(*,*) 'maziar: eigenvector=', eigenVectors(levIndex,eigenVectorIndex)
-  write(*,*) 'maziar: eigenValue=', eigenValues(eigenVectorIndex)
   if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
   write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
 end if
             if ( nlev_out == 1 ) then
-              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
-                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
-                                 eigenVectors(nLev,eigenVectorIndex) * &
-                                 eigenValues(eigenVectorIndex) ** 0.5 * &
-                                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+              eigenVectorLevelIndex = nLev
             else
-              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
-                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
-                                 eigenVectors(levIndex,eigenVectorIndex) * &
-                                 eigenValues(eigenVectorIndex) ** 0.5 * &
-                                 (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+              eigenVectorLevelIndex = levIndex
             end if
+
+            call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
+                                      eigenVectorColumnIndex, numRetainedEigen, &
+                                      nEns, vLocalizeLengthScale, &
+                                      modulationFactor )
+if ( latIndex == lat1 .and. lonIndex == lon1 ) then
+  write(*,*) 'maziar: modulationFactor=', modulationFactor
+end if
+
+            field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+                               real(modulationFactor,4)
+
 if ( latIndex == lat1 .and. lonIndex == lon1 ) then
   write(*,*) 'maziar: modulated pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
 end if
@@ -1965,5 +1916,92 @@ end if
     memberScalar_out = real(pertScalar,4) + meanScalar
 
   end subroutine getModulatedScalar
+
+  !--------------------------------------------------------------------------
+  ! getModulationFactor
+  !--------------------------------------------------------------------------
+  subroutine getModulationFactor( vco, eigenVectorLevelIndex, &
+                                  eigenVectorColumnIndex, numRetainedEigen, &
+                                  nEns, vLocalizeLengthScale, &
+                                  modulationFactor )
+    !
+    !:Purpose: compute modulation factor needed to multiply ensemble
+    !          perturbation to get the modulated perturbation:
+    !          (Nens*nLambda/(Nens - 1))^1/2 * Lambda^1/2
+    !
+    implicit none
+
+    ! Aguments:
+    type(struct_vco), pointer, intent(in) :: vco
+    integer, intent(in) :: eigenVectorLevelIndex
+    integer, intent(in) :: eigenVectorColumnIndex
+    integer, intent(in) :: numRetainedEigen
+    integer, intent(in) :: nEns
+    real(8), intent(in) :: vLocalizeLengthScale
+    real(8), intent(out) :: modulationFactor
+
+    ! Locals:
+    integer             :: levIndex1, levIndex2, status
+    integer             :: nLev, matrixRank
+    real(8)             :: zr, zcorr, pSurfRef
+    real(8)             :: tolerance
+    real(8), pointer    :: pressureProfile(:)
+    real(8), allocatable, save :: eigenValues(:)
+    real(8), allocatable, save :: eigenVectors(:,:)
+    real(8), allocatable, save :: verticalLocalizationMat(:,:)
+
+    logical, save :: firstCall = .true.
+
+    ! Compute vertical localization matrix and its eigenValues/Vectors on first call
+    if ( firstCall ) then
+      firstCall = .false.
+      write(*,*) 'getModulationFactor: computing eigenValues/Vectors'
+
+      nLev = vco%nLev_M
+
+      allocate(eigenValues(nLev))
+      allocate(eigenVectors(nLev,nLev))
+      allocate(verticalLocalizationMat(nLev,nLev))
+
+      pSurfRef = 101000.D0
+      nullify(pressureProfile)
+      status = vgd_levels( vco%vgrid, &
+                           ip1_list=vco%ip1_M, &
+                           levels=pressureProfile, &
+                           sfc_field=pSurfRef, &
+                           in_log=.false. )
+      if ( status /= VGD_OK ) then
+        call utl_abort('getModulationFactor: ERROR from vgd_levels')
+      end if
+
+      call lfn_Setup(LocFunctionWanted='FifthOrder')
+
+      ! Calculate 5'th order function
+      do levIndex1 = 1, nLev
+        do levIndex2 = 1, nLev
+          zr = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
+          zcorr = lfn_response(zr,vLocalizeLengthScale)
+          verticalLocalizationMat(levIndex1,levIndex2) = zcorr
+        end do
+      end do
+
+      ! Compute eigenValues/Vectors of vertical localization matrix
+      tolerance = 1.0D-50
+      call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
+                           tolerance, matrixRank)
+      if ( matrixRank < numRetainedEigen ) then
+        write(*,*) 'matrixRank=', matrixRank
+        call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
+      end if
+    end if
+
+!write(*,*) 'maziar: eigenVectors=', eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex)
+!write(*,*) 'maziar: eigenValues=', eigenValues(eigenVectorColumnIndex)
+
+    modulationFactor = eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
+                       eigenValues(eigenVectorColumnIndex) ** 0.5 * &
+                       (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+
+  end subroutine getModulationFactor
 
 end module enkf_mod
