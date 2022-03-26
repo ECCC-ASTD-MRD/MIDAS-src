@@ -893,6 +893,12 @@ contains
                                               modulationFactor )
                     pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+if ( latIndex == myLatBeg .and. lonIndex == myLonBeg ) then
+  write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
+  write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+  write(*,*) 'maziar: original member pert=', pert_r4
+  write(*,*) 'maziar: modulationFactor=', modulationFactor
+end if
                     pert_r4 = pert_r4 * real(modulationFactor,4)
 
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * numRetainedEigen + &
@@ -900,6 +906,12 @@ contains
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                          meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                          weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
+if ( latIndex == myLatBeg .and. lonIndex == myLonBeg ) then
+  write(*,*) 'maziar: modulated member pert=', pert_r4
+  write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
+  write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+end if
+
                   end do
                 end do
               else
